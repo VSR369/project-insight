@@ -1,12 +1,13 @@
 /**
  * Curation Review Page — /cogni/curation/:id
  *
- * Two-panel layout with:
- *  - LEFT: Accordion sections with inline editing, AI review, section approve checkboxes
- *  - RIGHT: Collapsible 15-point checklist + AI quality panel
+ * Grouped focus-area layout with:
+ *  - TOP: Progress strip (4 groups)
+ *  - LEFT (75%): Single-accordion sections per active group
+ *  - RIGHT (25%): Action rail + AI summary
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +17,10 @@ import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles"
 import { Badge } from "@/components/ui/badge";
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import {
   Accordion,
@@ -45,15 +47,17 @@ import {
   Lock,
   Bot,
   Loader2,
-  CheckCheck,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
-import CurationChecklistPanel from "./CurationChecklistPanel";
-import { AICurationQualityPanel } from "@/components/cogniblend/curation/AICurationQualityPanel";
+import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
+import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
+import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -146,20 +150,17 @@ function LcStatusBadge({ status }: { status: string | null }) {
 }
 
 // ---------------------------------------------------------------------------
-// Section definitions
+// Section definitions (same 15 items)
 // ---------------------------------------------------------------------------
 
-// Keys of sections that are NOT editable by curator
 const LOCKED_SECTIONS = new Set(["legal_docs", "escrow_funding"]);
-
-// Keys that use text editor
 const TEXT_SECTIONS = new Set(["problem_statement", "scope", "submission_guidelines", "ip_model", "visibility_eligibility"]);
 
 interface SectionDef {
   key: string;
   label: string;
   attribution?: string;
-  dbField?: string; // column name in challenges table for save
+  dbField?: string;
   isFilled: (ch: ChallengeData, legalDocs: LegalDocSummary[], legalDetails: LegalDocDetail[], escrow: EscrowRecord | null) => boolean;
   render: (ch: ChallengeData, legalDocs: LegalDocSummary[], legalDetails: LegalDocDetail[], escrow: EscrowRecord | null) => React.ReactNode;
 }
@@ -203,6 +204,22 @@ const SECTIONS: SectionDef[] = [
         </ol>
       );
     },
+  },
+  {
+    key: "submission_guidelines",
+    label: "Submission Guidelines",
+    attribution: "by Creator",
+    dbField: "description",
+    isFilled: (ch) => !!ch.description?.trim(),
+    render: (ch) => <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ch.description || "—"}</p>,
+  },
+  {
+    key: "maturity_level",
+    label: "Maturity Level",
+    attribution: "by Creator",
+    dbField: "maturity_level",
+    isFilled: (ch) => !!ch.maturity_level,
+    render: (ch) => ch.maturity_level ? <Badge variant="secondary" className="capitalize">{ch.maturity_level}</Badge> : <p className="text-sm text-muted-foreground">Not set.</p>,
   },
   {
     key: "evaluation_criteria",
@@ -296,71 +313,14 @@ const SECTIONS: SectionDef[] = [
     },
   },
   {
-    key: "phase_schedule",
-    label: "Phase Schedule",
-    attribution: "by Creator",
-    dbField: "phase_schedule",
+    key: "payment_schedule",
+    label: "Payment Schedule",
     isFilled: (ch) => {
-      const raw = parseJson<any>(ch.phase_schedule);
-      return raw != null && (Array.isArray(raw) ? raw.length > 0 : typeof raw === "object" && Object.keys(raw).length > 0);
+      const raw = parseJson<any>(ch.reward_structure);
+      const ps = raw?.payment_schedule ?? raw?.payment_milestones;
+      return Array.isArray(ps) && ps.length > 0;
     },
-    render: (ch) => {
-      const raw = parseJson<any>(ch.phase_schedule);
-      if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
-      if (Array.isArray(raw)) {
-        return (
-          <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {raw.map((p: any, i: number) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
-                    <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
-                    <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        );
-      }
-      const { phase_durations, ...meta } = raw as Record<string, any>;
-      const durations = Array.isArray(phase_durations) ? phase_durations : null;
-      const metaEntries = Object.entries(meta).filter(([, v]) => v != null && v !== "");
-      if (!durations?.length && metaEntries.length === 0)
-        return <p className="text-sm text-muted-foreground">Not defined.</p>;
-      return (
-        <div className="space-y-3">
-          {metaEntries.length > 0 && (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              {metaEntries.map(([k, v]) => (
-                <div key={k}>
-                  <p className="text-xs text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
-                  <p className="text-sm font-medium text-foreground">{String(v)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          {durations && durations.length > 0 && (
-            <div className="relative w-full overflow-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {durations.map((p: any, i: number) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
-                      <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
-                      <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
-      );
-    },
+    render: () => null, // Rendered via PaymentScheduleSection component
   },
   {
     key: "complexity",
@@ -401,20 +361,6 @@ const SECTIONS: SectionDef[] = [
     dbField: "ip_model",
     isFilled: (ch) => !!ch.ip_model?.trim(),
     render: (ch) => <p className="text-sm font-medium text-foreground">{ch.ip_model || "—"}</p>,
-  },
-  {
-    key: "domain_tags",
-    label: "Domain Tags",
-    isFilled: () => false,
-    render: () => <p className="text-sm text-muted-foreground italic">Domain tags will be loaded from challenge taxonomy mappings.</p>,
-  },
-  {
-    key: "submission_guidelines",
-    label: "Submission Guidelines",
-    attribution: "by Creator",
-    dbField: "description",
-    isFilled: (ch) => !!ch.description?.trim(),
-    render: (ch) => <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ch.description || "—"}</p>,
   },
   {
     key: "legal_docs",
@@ -486,18 +432,77 @@ const SECTIONS: SectionDef[] = [
     },
   },
   {
-    key: "maturity_level",
-    label: "Maturity Level",
-    attribution: "by Creator",
-    dbField: "maturity_level",
-    isFilled: (ch) => !!ch.maturity_level,
-    render: (ch) => ch.maturity_level ? <Badge variant="secondary" className="capitalize">{ch.maturity_level}</Badge> : <p className="text-sm text-muted-foreground">Not set.</p>,
+    key: "domain_tags",
+    label: "Domain Tags",
+    isFilled: () => false,
+    render: () => <p className="text-sm text-muted-foreground italic">Domain tags will be loaded from challenge taxonomy mappings.</p>,
   },
   {
-    key: "artifact_types",
-    label: "Artifact Types",
-    isFilled: () => false,
-    render: () => <p className="text-sm text-muted-foreground italic">Artifact types derived from maturity level configuration.</p>,
+    key: "phase_schedule",
+    label: "Phase Schedule",
+    attribution: "by Creator",
+    dbField: "phase_schedule",
+    isFilled: (ch) => {
+      const raw = parseJson<any>(ch.phase_schedule);
+      return raw != null && (Array.isArray(raw) ? raw.length > 0 : typeof raw === "object" && Object.keys(raw).length > 0);
+    },
+    render: (ch) => {
+      const raw = parseJson<any>(ch.phase_schedule);
+      if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+      if (Array.isArray(raw)) {
+        return (
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {raw.map((p: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
+                    <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      }
+      const { phase_durations, ...meta } = raw as Record<string, any>;
+      const durations = Array.isArray(phase_durations) ? phase_durations : null;
+      const metaEntries = Object.entries(meta).filter(([, v]) => v != null && v !== "");
+      if (!durations?.length && metaEntries.length === 0)
+        return <p className="text-sm text-muted-foreground">Not defined.</p>;
+      return (
+        <div className="space-y-3">
+          {metaEntries.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {metaEntries.map(([k, v]) => (
+                <div key={k}>
+                  <p className="text-xs text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
+                  <p className="text-sm font-medium text-foreground">{String(v)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {durations && durations.length > 0 && (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {durations.map((p: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
+                      <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      );
+    },
   },
   {
     key: "visibility_eligibility",
@@ -516,6 +521,57 @@ const SECTIONS: SectionDef[] = [
     },
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Group definitions
+// ---------------------------------------------------------------------------
+
+interface GroupDef {
+  id: string;
+  label: string;
+  colorDone: string;
+  colorActive: string;
+  colorBorder: string;
+  sectionKeys: string[];
+}
+
+const GROUPS: GroupDef[] = [
+  {
+    id: "content",
+    label: "Content",
+    colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    colorActive: "bg-emerald-50 border-emerald-400",
+    colorBorder: "border-emerald-200",
+    sectionKeys: ["problem_statement", "scope", "deliverables", "submission_guidelines", "maturity_level"],
+  },
+  {
+    id: "evaluation",
+    label: "Evaluation",
+    colorDone: "bg-blue-100 text-blue-800 border-blue-300",
+    colorActive: "bg-blue-50 border-blue-400",
+    colorBorder: "border-blue-200",
+    sectionKeys: ["evaluation_criteria", "reward_structure", "payment_schedule", "complexity"],
+  },
+  {
+    id: "legal_finance",
+    label: "Legal & Finance",
+    colorDone: "bg-amber-100 text-amber-800 border-amber-300",
+    colorActive: "bg-amber-50 border-amber-400",
+    colorBorder: "border-amber-200",
+    sectionKeys: ["ip_model", "legal_docs", "escrow_funding", "domain_tags"],
+  },
+  {
+    id: "publication",
+    label: "Publication",
+    colorDone: "bg-slate-100 text-slate-700 border-slate-300",
+    colorActive: "bg-slate-50 border-slate-400",
+    colorBorder: "border-slate-200",
+    sectionKeys: ["phase_schedule", "visibility_eligibility"],
+  },
+];
+
+// Build section lookup
+const SECTION_MAP = new Map(SECTIONS.map((s) => [s.key, s]));
 
 // ---------------------------------------------------------------------------
 // Helper: extract current field value for editing
@@ -546,6 +602,91 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
   }));
 }
 
+// Map AI quality gaps to section keys
+const GAP_FIELD_TO_SECTION: Record<string, string> = {
+  problem_statement: "problem_statement",
+  scope: "scope",
+  deliverables: "deliverables",
+  evaluation_criteria: "evaluation_criteria",
+  reward_structure: "reward_structure",
+  phase_schedule: "phase_schedule",
+  complexity: "complexity",
+  ip_model: "ip_model",
+  eligibility: "visibility_eligibility",
+  visibility: "visibility_eligibility",
+  description: "submission_guidelines",
+  maturity_level: "maturity_level",
+  legal: "legal_docs",
+  escrow: "escrow_funding",
+};
+
+// ---------------------------------------------------------------------------
+// Checklist auto-check logic (reused from CurationChecklistPanel)
+// ---------------------------------------------------------------------------
+
+const CHECKLIST_LABELS: string[] = [
+  "Problem Statement present",
+  "Scope defined",
+  "Deliverables listed",
+  "Evaluation criteria weights = 100%",
+  "Reward structure valid",
+  "Phase schedule defined",
+  "Submission guidelines provided",
+  "Eligibility configured",
+  "Taxonomy tags applied",
+  "Tier 1 legal docs attached",
+  "Tier 2 legal templates attached",
+  "Complexity parameters entered",
+  "Maturity level + legal match",
+  "Artifact types configured",
+  "Escrow funding confirmed",
+];
+
+function computeAutoChecks(
+  challenge: ChallengeData,
+  legalDocs: LegalDocSummary[],
+  escrowRecord: EscrowRecord | null,
+): boolean[] {
+  const tier1Docs = legalDocs.find((d) => d.tier.includes("Tier 1"));
+  const tier2Docs = legalDocs.find((d) => d.tier.includes("Tier 2"));
+  const evalCriteria = unwrapEvalCriteria(challenge.evaluation_criteria);
+  const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight ?? 0), 0) ?? 0;
+
+  return [
+    !!challenge.problem_statement?.trim(),
+    !!challenge.scope?.trim(),
+    (() => {
+      const d = unwrapArray(challenge.deliverables, "items");
+      return !!d && d.length > 0;
+    })(),
+    evalWeightSum === 100,
+    isJsonFilled(challenge.reward_structure),
+    isJsonFilled(challenge.phase_schedule),
+    !!challenge.description?.trim(),
+    !!challenge.eligibility?.trim(),
+    false, // taxonomy tags placeholder
+    !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
+    !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
+    challenge.complexity_score != null || !!challenge.complexity_parameters,
+    !!challenge.maturity_level,
+    (() => {
+      const del = jsonParse<Record<string, unknown>>(challenge.deliverables);
+      const artifacts = del?.permitted_artifact_types;
+      return Array.isArray(artifacts) && artifacts.length > 0;
+    })(),
+    escrowRecord?.escrow_status === "FUNDED",
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// AI Quality Summary (compact)
+// ---------------------------------------------------------------------------
+
+interface AIQualitySummary {
+  overall_score: number;
+  gaps: Array<{ field: string; severity: string; message: string }>;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -560,11 +701,19 @@ export default function CurationReviewPage() {
   const queryClient = useQueryClient();
   const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
 
+  const [activeGroup, setActiveGroup] = useState<string>("content");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
   const [aiReviews, setAiReviews] = useState<SectionReview[]>([]);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
+
+  // AI quality assessment state
+  const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
+  const [aiQualityLoading, setAiQualityLoading] = useState(false);
+
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // ══════════════════════════════════════
   // SECTION 2: Queries
@@ -638,7 +787,7 @@ export default function CurationReviewPage() {
   });
 
   // ══════════════════════════════════════
-  // SECTION 3: Mutation — save section edit
+  // SECTION 3: Mutations
   // ══════════════════════════════════════
   const saveSectionMutation = useMutation({
     mutationFn: async ({ field, value }: { field: string; value: any }) => {
@@ -703,30 +852,92 @@ export default function CurationReviewPage() {
     }
   }, [challengeId]);
 
+  const handleAIQualityAnalysis = useCallback(async () => {
+    if (!challengeId) return;
+    setAiQualityLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-challenge-quality", {
+        body: { challenge_id: challengeId },
+      });
+      if (error) throw error;
+      if (data?.success && data?.data) {
+        setAiQuality({
+          overall_score: data.data.overall_score ?? 0,
+          gaps: data.data.gaps ?? [],
+        });
+      }
+    } catch (e: any) {
+      toast.error(`AI analysis failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setAiQualityLoading(false);
+    }
+  }, [challengeId]);
+
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const approvedCount = Object.values(approvedSections).filter(Boolean).length;
-  const allSectionsApproved = approvedCount === SECTIONS.length;
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    const next: Record<string, boolean> = {};
-    SECTIONS.forEach((s) => { next[s.key] = checked; });
-    setApprovedSections(next);
+  const handleGroupClick = useCallback((groupId: string) => {
+    setActiveGroup(groupId);
   }, []);
 
   // ══════════════════════════════════════
   // SECTION 5: Computed
   // ══════════════════════════════════════
-  const checklist = useMemo(() => {
-    if (!challenge) return [];
-    return SECTIONS.map((s) => ({
-      key: s.key,
-      label: s.label,
-      filled: s.isFilled(challenge, legalDocs, legalDetails, escrowRecord),
-    }));
-  }, [challenge, legalDocs, legalDetails, escrowRecord]);
+  const autoChecks = useMemo(() => {
+    if (!challenge) return Array(15).fill(false);
+    return computeAutoChecks(challenge, legalDocs, escrowRecord);
+  }, [challenge, legalDocs, escrowRecord]);
+
+  const checklistItems = useMemo(() =>
+    CHECKLIST_LABELS.map((label, i) => ({
+      id: i + 1,
+      label,
+      autoChecked: autoChecks[i],
+      manualOverride: manualOverrides[i + 1] ?? false,
+      passed: autoChecks[i] || (manualOverrides[i + 1] ?? false),
+    })), [autoChecks, manualOverrides]);
+
+  const completedCount = checklistItems.filter((i) => i.passed).length;
+  const allComplete = completedCount === 15;
+
+  const checklistSummary = useMemo(() =>
+    checklistItems.map((item) => ({
+      id: item.id,
+      label: item.label,
+      passed: item.passed,
+      method: item.autoChecked ? "auto" : "manual",
+    })), [checklistItems]);
+
+  // Group progress computation
+  const groupProgress = useMemo(() => {
+    if (!challenge) return {};
+    const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
+    GROUPS.forEach((g) => {
+      const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
+      const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
+      const hasAIFlag = aiQuality?.gaps?.some((gap) => {
+        const mapped = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
+        return g.sectionKeys.includes(mapped);
+      }) ?? false;
+      result[g.id] = { done, total: secs.length, hasAIFlag };
+    });
+    return result;
+  }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality]);
+
+  // Inline AI flags per section from quality gaps
+  const sectionAIFlags = useMemo(() => {
+    if (!aiQuality?.gaps) return {};
+    const map: Record<string, string[]> = {};
+    aiQuality.gaps.forEach((gap) => {
+      const sectionKey = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
+      if (!map[sectionKey]) map[sectionKey] = [];
+      map[sectionKey].push(gap.message);
+    });
+    return map;
+  }, [aiQuality]);
+
+  const activeGroupDef = GROUPS.find((g) => g.id === activeGroup) ?? GROUPS[0];
 
   // ══════════════════════════════════════
   // SECTION 6: Conditional returns
@@ -735,11 +946,14 @@ export default function CurationReviewPage() {
     return (
       <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
         <Skeleton className="h-7 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3 space-y-3">
-            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
-          <div className="lg:col-span-2"><Skeleton className="h-80 w-full" /></div>
+          <div><Skeleton className="h-60 w-full" /></div>
         </div>
       </div>
     );
@@ -767,18 +981,6 @@ export default function CurationReviewPage() {
         </div>
         <GovernanceProfileBadge profile={challenge.governance_profile} compact />
 
-        {/* AI Review button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAIReview}
-          disabled={aiReviewLoading}
-          className="shrink-0"
-        >
-          {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-          Review by AI
-        </Button>
-
         {user?.id && (
           <HoldResumeActions
             challengeId={challengeId!}
@@ -791,7 +993,7 @@ export default function CurationReviewPage() {
         )}
       </div>
 
-      {/* LEGAL_VERIFICATION_PENDING blocking banner */}
+      {/* LEGAL_VERIFICATION_PENDING banner */}
       {isLegalPending && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50/60 p-4">
           <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
@@ -804,117 +1006,241 @@ export default function CurationReviewPage() {
         </div>
       )}
 
-      {/* Section approval controls */}
-      <div className="flex items-center gap-3 border border-border rounded-lg p-3 bg-muted/30">
-        <Checkbox
-          checked={allSectionsApproved}
-          onCheckedChange={(val) => handleSelectAll(!!val)}
-        />
-        <span className="text-sm font-medium text-foreground">Select All Sections</span>
-        <span className="text-xs text-muted-foreground ml-auto">
-          {approvedCount}/{SECTIONS.length} approved
-        </span>
-        {allSectionsApproved && <CheckCheck className="h-4 w-4 text-green-600" />}
+      {/* ═══ PROGRESS STRIP ═══ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {GROUPS.map((group) => {
+          const progress = groupProgress[group.id];
+          const done = progress?.done ?? 0;
+          const total = progress?.total ?? 0;
+          const isActive = activeGroup === group.id;
+          const allDone = done === total && total > 0;
+          const hasFlag = progress?.hasAIFlag ?? false;
+
+          let statusColor = "bg-muted/50 text-muted-foreground border-border"; // not started
+          if (allDone) statusColor = group.colorDone;
+          else if (done > 0) statusColor = "bg-blue-50 text-blue-800 border-blue-300";
+          if (hasFlag && !allDone) statusColor = "bg-amber-50 text-amber-800 border-amber-300";
+
+          return (
+            <button
+              key={group.id}
+              onClick={() => handleGroupClick(group.id)}
+              className={cn(
+                "rounded-lg border-2 p-3 text-left transition-all",
+                statusColor,
+                isActive && "ring-2 ring-primary ring-offset-2",
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">{group.label}</span>
+                {allDone && <CheckCircle2 className="h-4 w-4" />}
+                {hasFlag && !allDone && <AlertTriangle className="h-4 w-4" />}
+              </div>
+              <div className="flex items-center gap-2 mt-1.5">
+                <Progress value={total > 0 ? (done / total) * 100 : 0} className="h-1.5 flex-1" />
+                <span className="text-xs font-medium">{done}/{total}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Two-panel layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* LEFT PANEL — 60% (3/5) */}
-        <div className="lg:col-span-3 space-y-0">
-          <Accordion type="multiple" defaultValue={["problem_statement"]} className="w-full">
-            {SECTIONS.map((section) => {
-              const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
-              const isLocked = LOCKED_SECTIONS.has(section.key);
-              const isEditing = editingSection === section.key;
-              const canEdit = !isLocked && !!section.dbField;
-              const aiReview = aiReviews.find((r) => r.section_key === section.key);
-              const isApproved = approvedSections[section.key] ?? false;
+      {/* ═══ MAIN LAYOUT: Content + Right Rail ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* LEFT — Main Content (3/4) */}
+        <div className="lg:col-span-3">
+          <Card className={cn("border-2", activeGroupDef.colorBorder)}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Accordion type="single" collapsible className="w-full">
+                {activeGroupDef.sectionKeys.map((sectionKey) => {
+                  const section = SECTION_MAP.get(sectionKey);
+                  if (!section) return null;
 
-              return (
-                <AccordionItem key={section.key} value={section.key}>
-                  <AccordionTrigger className="text-sm font-medium hover:no-underline gap-2">
-                    <div className="flex items-center gap-2 flex-1 text-left">
-                      {/* Section approval checkbox */}
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={isApproved}
-                          onCheckedChange={() => toggleSectionApproval(section.key)}
-                          className="shrink-0"
-                        />
-                      </div>
-                      {filled ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                      )}
-                      <span>{section.label}</span>
-                      {section.attribution && (
-                        <span className="text-[10px] text-muted-foreground font-normal ml-1">({section.attribution})</span>
-                      )}
-                      {isLocked && <Lock className="h-3 w-3 text-muted-foreground ml-1" />}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pl-6">
-                    {/* Edit / View toggle */}
-                    {isEditing && section.key === "deliverables" && challenge ? (
-                      <DeliverablesEditor
-                        items={getDeliverableItems(challenge)}
-                        onSave={handleSaveDeliverables}
-                        onCancel={() => setEditingSection(null)}
-                        saving={savingSection}
-                      />
-                    ) : isEditing && section.key === "evaluation_criteria" && challenge ? (
-                      <EvalCriteriaEditor
-                        criteria={getEvalCriteria(challenge)}
-                        onSave={handleSaveEvalCriteria}
-                        onCancel={() => setEditingSection(null)}
-                        saving={savingSection}
-                      />
-                    ) : isEditing && TEXT_SECTIONS.has(section.key) && challenge && section.dbField ? (
-                      <TextSectionEditor
-                        value={getFieldValue(challenge, section.key)}
-                        onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
-                        onCancel={() => setEditingSection(null)}
-                        saving={savingSection}
-                      />
-                    ) : (
-                      <>
-                        {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-                        {canEdit && !isEditing && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2 text-xs"
-                            onClick={() => setEditingSection(section.key)}
-                          >
-                            <Pencil className="h-3 w-3 mr-1" />Edit
-                          </Button>
+                  const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
+                  const isLocked = LOCKED_SECTIONS.has(section.key);
+                  const isEditing = editingSection === section.key;
+                  const canEdit = !isLocked && !!section.dbField;
+                  const aiReview = aiReviews.find((r) => r.section_key === section.key);
+                  const isApproved = approvedSections[section.key] ?? false;
+                  const inlineFlags = sectionAIFlags[section.key];
+
+                  // Special: payment_schedule renders PaymentScheduleSection
+                  const isPaymentSchedule = section.key === "payment_schedule";
+
+                  return (
+                    <AccordionItem key={section.key} value={section.key} className="border-b border-border/40">
+                      <AccordionTrigger className="text-sm font-medium hover:no-underline gap-2 py-3">
+                        <div className="flex items-center gap-2 flex-1 text-left min-w-0">
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isApproved}
+                              onCheckedChange={() => toggleSectionApproval(section.key)}
+                              className="shrink-0"
+                            />
+                          </div>
+                          {filled ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                          )}
+                          <span className="truncate">{section.label}</span>
+                          {section.attribution && (
+                            <span className="text-[10px] text-muted-foreground font-normal ml-1 shrink-0">({section.attribution})</span>
+                          )}
+                          {isLocked && <Lock className="h-3 w-3 text-muted-foreground ml-1 shrink-0" />}
+                          {/* Inline AI flags */}
+                          {inlineFlags && inlineFlags.length > 0 && (
+                            <span className="text-[10px] text-amber-700 ml-2 truncate shrink min-w-0">
+                              ⚠ {inlineFlags[0]}
+                            </span>
+                          )}
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pl-8 pr-2 pb-4">
+                        {/* Edit / View toggle */}
+                        {isPaymentSchedule ? (
+                          <PaymentScheduleSection
+                            challengeId={challengeId!}
+                            rewardStructure={challenge.reward_structure}
+                          />
+                        ) : isEditing && section.key === "deliverables" ? (
+                          <DeliverablesEditor
+                            items={getDeliverableItems(challenge)}
+                            onSave={handleSaveDeliverables}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+                        ) : isEditing && section.key === "evaluation_criteria" ? (
+                          <EvalCriteriaEditor
+                            criteria={getEvalCriteria(challenge)}
+                            onSave={handleSaveEvalCriteria}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+                        ) : isEditing && TEXT_SECTIONS.has(section.key) && section.dbField ? (
+                          <TextSectionEditor
+                            value={getFieldValue(challenge, section.key)}
+                            onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+                        ) : (
+                          <>
+                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
+                            {canEdit && !isEditing && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="mt-3 text-xs"
+                                onClick={() => setEditingSection(section.key)}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
 
-                    {/* AI review inline */}
-                    <CurationAIReviewInline sectionKey={section.key} review={aiReview} />
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
+                        {/* AI review inline */}
+                        <CurationAIReviewInline sectionKey={section.key} review={aiReview} />
+
+                        {/* All inline AI flags expanded */}
+                        {inlineFlags && inlineFlags.length > 1 && (
+                          <div className="mt-2 space-y-1">
+                            {inlineFlags.slice(1).map((flag, i) => (
+                              <p key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
+                                <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                                {flag}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* RIGHT PANEL — 40% (2/5) */}
-        <div className="lg:col-span-2 space-y-4">
-          <CurationChecklistPanel
+        {/* RIGHT RAIL (1/4) */}
+        <div className="space-y-4">
+          {/* AI Quality Summary (compact) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  AI Quality
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant={aiQuality ? "ghost" : "outline"}
+                  onClick={handleAIQualityAnalysis}
+                  disabled={aiQualityLoading}
+                  className="text-xs h-7 px-2"
+                >
+                  {aiQualityLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : aiQuality ? (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  ) : (
+                    "Analyze"
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {aiQuality ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "text-2xl font-bold",
+                      aiQuality.overall_score >= 80 ? "text-primary" :
+                      aiQuality.overall_score >= 60 ? "text-amber-600" :
+                      "text-destructive"
+                    )}>
+                      {aiQuality.overall_score}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {aiQuality.gaps.length} gap{aiQuality.gaps.length !== 1 ? "s" : ""} found
+                    </div>
+                  </div>
+                  <Progress value={aiQuality.overall_score} className="h-1.5" />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Run analysis to get quality scores and identify gaps.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Per-section AI Review button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAIReview}
+            disabled={aiReviewLoading}
+            className="w-full"
+          >
+            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+            Review Sections by AI
+          </Button>
+
+          {/* Action buttons + return modal + modification cycle */}
+          <CurationActions
             challengeId={challengeId!}
-            challenge={challenge}
-            legalDocs={legalDocs}
-            escrowRecord={escrowRecord ? { escrow_status: escrowRecord.escrow_status } : null}
+            phaseStatus={challenge.phase_status ?? null}
+            allComplete={allComplete}
+            checklistSummary={checklistSummary}
+            completedCount={completedCount}
+            totalCount={15}
           />
-          <AICurationQualityPanel challengeId={challengeId!} />
-          <PaymentScheduleSection
-            challengeId={challengeId!}
-            rewardStructure={challenge.reward_structure}
-          />
+
+          {/* Modification Points Tracker */}
+          <ModificationPointsTracker challengeId={challengeId!} mode="curator" />
         </div>
       </div>
     </div>
