@@ -28,6 +28,7 @@ export interface SectionReview {
   status: "pass" | "warning" | "needs_revision";
   comments: string[];
   reviewed_at?: string;
+  addressed?: boolean;
 }
 
 interface CurationAIReviewPanelProps {
