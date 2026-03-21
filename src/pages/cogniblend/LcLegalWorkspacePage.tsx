@@ -297,7 +297,7 @@ export default function LcLegalWorkspacePage() {
   const [docEdits, setDocEdits] = useState<Record<string, DocEditState>>({});
   const [submitting, setSubmitting] = useState(false);
   const [gateFailures, setGateFailures] = useState<string[]>([]);
-  const [maturityValue, setMaturityValue] = useState<string>('');
+  
   const [savingContent, setSavingContent] = useState<string | null>(null);
 
   // ── Add New Doc form state ──
