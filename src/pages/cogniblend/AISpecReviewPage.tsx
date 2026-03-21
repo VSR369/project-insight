@@ -1041,11 +1041,25 @@ export default function AISpecReviewPage() {
   const handleSaveStructured = (fieldKey: string, data: unknown) => {
     setRawSectionData((prev) => ({ ...prev, [fieldKey]: data }));
     setSectionValues((prev) => ({ ...prev, [fieldKey]: JSON.stringify(data) }));
-    // Find section key from fieldKey
     const section = SPEC_SECTIONS.find((s) => s.fieldKey === fieldKey);
     if (section) {
       setSectionStatuses((prev) => ({ ...prev, [section.key]: 'accepted' }));
     }
+  };
+
+  const handleOrgPolicyChange = (field: string, value: unknown) => {
+    setOrgPolicyOverrides((prev) => ({ ...prev, [field]: value }));
+  };
+
+  /** Merge org-policy overrides into fields-to-save */
+  const getOrgPolicyFields = (): Record<string, unknown> => {
+    const fields: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(orgPolicyOverrides)) {
+      if (val !== undefined && val !== null && val !== '') {
+        fields[key] = val;
+      }
+    }
+    return fields;
   };
 
   const allAccepted = SPEC_SECTIONS.every(
