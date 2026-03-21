@@ -143,8 +143,9 @@ interface ComplexityParam {
 interface SectionDef {
   key: string;
   label: string;
-  isFilled: (ch: ChallengeData, legalDocs: LegalDocSummary[]) => boolean;
-  render: (ch: ChallengeData, legalDocs: LegalDocSummary[]) => React.ReactNode;
+  attribution?: string;
+  isFilled: (ch: ChallengeData, legalDocs: LegalDocSummary[], legalDetails: LegalDocDetail[], escrow: EscrowRecord | null) => boolean;
+  render: (ch: ChallengeData, legalDocs: LegalDocSummary[], legalDetails: LegalDocDetail[], escrow: EscrowRecord | null) => React.ReactNode;
 }
 
 function parseJson<T>(val: Json | null): T | null {
