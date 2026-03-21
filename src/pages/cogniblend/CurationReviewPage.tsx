@@ -1010,9 +1010,24 @@ export default function CurationReviewPage() {
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      return [...filtered, freshReview];
+      const updated = [...filtered, { ...freshReview, addressed: false }];
+      // Persist updated reviews to DB
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
+      return updated;
     });
-  }, []);
+  }, [saveSectionMutation]);
+
+  /** Persist "addressed" flag when a refinement is accepted */
+  const handleMarkAddressed = useCallback((sectionKey: string) => {
+    setAiReviews((prev) => {
+      const updated = prev.map((r) =>
+        r.section_key === sectionKey ? { ...r, addressed: true } : r
+      );
+      // Persist to DB so state survives navigation
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
+      return updated;
+    });
+  }, [saveSectionMutation]);
 
 
   const toggleSectionApproval = useCallback((key: string) => {
