@@ -309,10 +309,26 @@ export default function LcLegalWorkspacePage() {
   const isLC = roles?.includes('LC');
   const hasAccess = isLC || roles?.includes('CR') || roles?.includes('RQ');
 
-  // ── Generate handler ──
+  // ── Generate handler (calls edge function via mutation) ──
   const handleGenerate = async () => {
-    setHasGenerated(true);
-    await refetchSuggestions();
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
+        body: { challenge_id: challengeId },
+      });
+      if (error) throw new Error(error.message ?? 'Failed to get suggestions');
+      if (!data?.success) throw new Error(data?.error?.message ?? 'AI suggestion failed');
+      // Invalidate the persisted suggestions query to reload from DB
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+      toast.success('Legal documents generated successfully');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate';
+      setGenerateError(msg);
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // ── Edit state helpers ──
