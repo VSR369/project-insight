@@ -1425,6 +1425,52 @@ export default function CurationReviewPage() {
                             onCancel={() => setEditingSection(null)}
                             saving={savingSection}
                           />
+                        /* ── Extended Brief — Always rendered via component ── */
+                        ) : section.key === "extended_brief" ? (
+                          <ExtendedBriefDisplay
+                            data={challenge.extended_brief}
+                            onSave={handleSaveExtendedBrief}
+                            saving={savingSection}
+                          />
+
+                        /* ── Submission Deadline — Inline date editor ── */
+                        ) : isEditing && section.key === "submission_deadline" ? (
+                          <DateFieldEditor
+                            value={challenge.submission_deadline ?? ""}
+                            onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+
+                        /* ── Challenge Visibility — Inline select ── */
+                        ) : isEditing && section.key === "challenge_visibility" ? (
+                          <SelectFieldEditor
+                            value={challenge.challenge_visibility ?? ""}
+                            options={[
+                              { value: "public", label: "Public" },
+                              { value: "private", label: "Private" },
+                              { value: "invite_only", label: "Invite Only" },
+                            ]}
+                            onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+
+                        /* ── Effort Level — Inline radio ── */
+                        ) : isEditing && section.key === "effort_level" ? (
+                          <RadioFieldEditor
+                            value={challenge.effort_level ?? ""}
+                            options={[
+                              { value: "low", label: "Low", description: "< 40 hours estimated effort" },
+                              { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
+                              { value: "high", label: "High", description: "160–500 hours estimated effort" },
+                              { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
+                            ]}
+                            onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+
                         /* ── Domain Tags — Always-editable inline ── */
                         ) : section.key === "domain_tags" ? (
                           <div className="space-y-3">

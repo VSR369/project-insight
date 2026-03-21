@@ -823,6 +823,11 @@ export default function AISpecReviewPage() {
         challenge_visibility: spec.challenge_visibility,
       };
 
+      // Persist extended_brief JSONB if AI generated it
+      if (spec.extended_brief) {
+        fieldsToSave.extended_brief = spec.extended_brief;
+      }
+
       // Map solver eligibility details to the expected format
       if (spec.solver_eligibility_details && spec.solver_eligibility_details.length > 0) {
         fieldsToSave.solver_eligibility_types = spec.solver_eligibility_details.map((d) => ({
