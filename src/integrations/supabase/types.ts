@@ -783,6 +783,7 @@ export type Database = {
         Row: {
           attached_by: string | null
           challenge_id: string
+          content_summary: string | null
           created_at: string
           created_by: string | null
           document_name: string | null
@@ -793,6 +794,8 @@ export type Database = {
           lc_reviewed_by: string | null
           lc_status: string | null
           maturity_level: string | null
+          priority: string | null
+          rationale: string | null
           status: string | null
           template_version: string | null
           tier: string
@@ -803,6 +806,7 @@ export type Database = {
         Insert: {
           attached_by?: string | null
           challenge_id: string
+          content_summary?: string | null
           created_at?: string
           created_by?: string | null
           document_name?: string | null
@@ -813,6 +817,8 @@ export type Database = {
           lc_reviewed_by?: string | null
           lc_status?: string | null
           maturity_level?: string | null
+          priority?: string | null
+          rationale?: string | null
           status?: string | null
           template_version?: string | null
           tier: string
@@ -823,6 +829,7 @@ export type Database = {
         Update: {
           attached_by?: string | null
           challenge_id?: string
+          content_summary?: string | null
           created_at?: string
           created_by?: string | null
           document_name?: string | null
@@ -833,6 +840,8 @@ export type Database = {
           lc_reviewed_by?: string | null
           lc_status?: string | null
           maturity_level?: string | null
+          priority?: string | null
+          rationale?: string | null
           status?: string | null
           template_version?: string | null
           tier?: string
