@@ -991,12 +991,19 @@ export default function CurationReviewPage() {
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
         body: { challenge_id: challengeId },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = error.message;
+        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+        throw new Error(msg);
+      }
       if (data?.success && data.data?.sections) {
-        setAiReviews(data.data.sections);
-        toast.success("AI review complete");
+        const sections = data.data.sections as SectionReview[];
+        setAiReviews(sections);
+        const counts = { pass: 0, warning: 0, needs_revision: 0 };
+        sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
+        toast.success(`AI review complete — ${counts.pass} pass, ${counts.warning} warnings, ${counts.needs_revision} needs revision`);
       } else {
-        throw new Error(data?.error?.message ?? "AI review failed");
+        throw new Error(data?.error?.message ?? "Unexpected response from AI review");
       }
     } catch (e: any) {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
@@ -1012,12 +1019,18 @@ export default function CurationReviewPage() {
       const { data, error } = await supabase.functions.invoke("check-challenge-quality", {
         body: { challenge_id: challengeId },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = error.message;
+        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+        throw new Error(msg);
+      }
       if (data?.success && data?.data) {
-        setAiQuality({
-          overall_score: data.data.overall_score ?? 0,
-          gaps: data.data.gaps ?? [],
-        });
+        const score = data.data.overall_score ?? 0;
+        const gaps = data.data.gaps ?? [];
+        setAiQuality({ overall_score: score, gaps });
+        toast.success(`AI analysis complete — Score: ${score}/100, ${gaps.length} gap${gaps.length !== 1 ? "s" : ""} found`);
+      } else {
+        throw new Error(data?.error?.message ?? "Unexpected response from AI analysis");
       }
     } catch (e: any) {
       toast.error(`AI analysis failed: ${e.message ?? "Unknown error"}`);
@@ -1567,7 +1580,66 @@ export default function CurationReviewPage() {
           >
             {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
             Review Sections by AI
-          </Button>
+           </Button>
+
+          {/* AI Review Summary */}
+          {aiReviews.length > 0 && (() => {
+            const counts = { pass: 0, warning: 0, needs_revision: 0 };
+            aiReviews.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1; });
+            const revisionSections = aiReviews.filter((r) => r.status === "needs_revision");
+            const warningSections = aiReviews.filter((r) => r.status === "warning");
+            return (
+              <Card className="border-border">
+                <CardContent className="pt-3 pb-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
+                    <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
+                  </div>
+                  {revisionSections.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-destructive uppercase tracking-wide">Needs Revision</p>
+                      {revisionSections.map((r) => {
+                        const section = SECTION_MAP.get(r.section_key);
+                        return (
+                          <button
+                            key={r.section_key}
+                            className="text-xs text-destructive hover:underline block text-left w-full truncate"
+                            onClick={() => {
+                              const group = GROUPS.find((g) => g.sectionKeys.includes(r.section_key));
+                              if (group) setActiveGroup(group.id);
+                            }}
+                          >
+                            • {section?.label ?? r.section_key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {warningSections.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Warnings</p>
+                      {warningSections.map((r) => {
+                        const section = SECTION_MAP.get(r.section_key);
+                        return (
+                          <button
+                            key={r.section_key}
+                            className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
+                            onClick={() => {
+                              const group = GROUPS.find((g) => g.sectionKeys.includes(r.section_key));
+                              if (group) setActiveGroup(group.id);
+                            }}
+                          >
+                            • {section?.label ?? r.section_key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Action buttons + return modal + modification cycle */}
           <CurationActions
