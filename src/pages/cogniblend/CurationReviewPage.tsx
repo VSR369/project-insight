@@ -1580,7 +1580,66 @@ export default function CurationReviewPage() {
           >
             {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
             Review Sections by AI
-          </Button>
+           </Button>
+
+          {/* AI Review Summary */}
+          {aiReviews.length > 0 && (() => {
+            const counts = { pass: 0, warning: 0, needs_revision: 0 };
+            aiReviews.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1; });
+            const revisionSections = aiReviews.filter((r) => r.status === "needs_revision");
+            const warningSections = aiReviews.filter((r) => r.status === "warning");
+            return (
+              <Card className="border-border">
+                <CardContent className="pt-3 pb-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
+                    <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
+                  </div>
+                  {revisionSections.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-destructive uppercase tracking-wide">Needs Revision</p>
+                      {revisionSections.map((r) => {
+                        const section = SECTION_MAP.get(r.section_key);
+                        return (
+                          <button
+                            key={r.section_key}
+                            className="text-xs text-destructive hover:underline block text-left w-full truncate"
+                            onClick={() => {
+                              const group = GROUPS.find((g) => g.sectionKeys.includes(r.section_key));
+                              if (group) setActiveGroup(group.id);
+                            }}
+                          >
+                            • {section?.label ?? r.section_key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {warningSections.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Warnings</p>
+                      {warningSections.map((r) => {
+                        const section = SECTION_MAP.get(r.section_key);
+                        return (
+                          <button
+                            key={r.section_key}
+                            className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
+                            onClick={() => {
+                              const group = GROUPS.find((g) => g.sectionKeys.includes(r.section_key));
+                              if (group) setActiveGroup(group.id);
+                            }}
+                          >
+                            • {section?.label ?? r.section_key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Action buttons + return modal + modification cycle */}
           <CurationActions
