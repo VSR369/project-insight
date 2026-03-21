@@ -1,62 +1,60 @@
 
 
-## Phase 1: AI Content Rendering Foundation
+## Phase 1: Production-Grade Rich Text Editor Upgrade
 
-### Problem
-AI-generated content across the challenge lifecycle (Spec Review, Curation, Field Assist) renders as plain text walls. The AI often returns markdown-style content (headings, bullet points, bold text) but the UI displays it as raw `<p>` tags with `whitespace-pre-line` or passes it through `SafeHtmlRenderer` which only handles HTML — not markdown.
-
-### Affected Screens (Phase 1 scope)
-1. **AISpecReviewPage** — `SectionContent` default renderer (line 684) renders AI text as plain `<p>` with `whitespace-pre-line`
-2. **CurationReviewPage** — Uses `SafeHtmlRenderer` but AI can return markdown
-3. **CurationAIReviewPanel** — Refined content preview uses `SafeHtmlRenderer`
+### Context
+The project already uses Tiptap (a proper ProseMirror-based editor) — NOT contentEditable + execCommand. The user's spec is based on a contentEditable approach, but we'll implement the same requirements using Tiptap extensions, which is the correct architecture for this React/Vite stack.
 
 ### Changes
 
-#### 1. Install `react-markdown` + `remark-gfm`
-Add `react-markdown` and `remark-gfm` as dependencies. These handle markdown parsing with GitHub-flavored extensions (tables, strikethrough, task lists).
+#### 1. Install additional Tiptap extensions
+Add: `@tiptap/extension-underline`, `@tiptap/extension-text-style`, `@tiptap/extension-color`, `@tiptap/extension-highlight`, `@tiptap/extension-text-align`, `@tiptap/extension-link`, `@tiptap/extension-superscript`, `@tiptap/extension-subscript`, `@tiptap/extension-table`, `@tiptap/extension-table-row`, `@tiptap/extension-table-cell`, `@tiptap/extension-table-header`, `@tiptap/extension-horizontal-rule`, `@tiptap/extension-code-block`
 
-#### 2. Create `AiContentRenderer` component
-**File:** `src/components/ui/AiContentRenderer.tsx`
+#### 2. Rewrite `RichTextEditor.tsx` — Full toolbar upgrade
+**Row 1:** Block style dropdown (P/H1/H2/H3/H4/Blockquote/Code Block), Font size select (10-48px via TextStyle), Bold, Italic, Underline, Strikethrough, Text color picker (15 preset swatches via popover), Highlight (yellow), Superscript, Subscript, Clear formatting
 
-A new component that:
-- Accepts raw AI output (could be markdown, HTML, or plain text)
-- Auto-detects format: if content has HTML tags, sanitize and render as HTML; if it has markdown markers (`#`, `*`, `-`, `|`), parse as markdown; otherwise render as formatted text
-- Renders with proper prose typography: distinct heading sizes, bullet/numbered lists, bold/italic emphasis, code blocks
-- Adds subtle background callout styling for blockquotes (used as "important" callouts)
-- Applies the existing `prose prose-sm` Tailwind typography classes plus custom callout styles
+**Row 2:** Bullet list, Numbered list, Indent (sinkListItem), Outdent (liftListItem), Align Left/Center/Right/Justify, Insert Link (dialog), Unlink, Undo, Redo, Insert dropdown menu
 
-#### 3. Create `AiDataTable` component
-**File:** `src/components/ui/AiDataTable.tsx`
+**Insert dropdown menu:** Upload Image, Upload Audio, Upload Video, Insert Table (3×2), Insert Horizontal Rule, Info/Warning/Success/Danger Callouts
 
-A "Data Review & Approval" component that:
-- Accepts raw AI output containing comma-separated or pipe-delimited tabular data
-- Parses it into a structured table with bold headers, alternating row shading, and clear cell dividers
-- Uses the existing `Table` UI primitives
-- Includes "Approve" and "Request Changes" action buttons below the table
-- Exposes `onApprove` and `onRequestChanges` callbacks
+**Footer:** Live word count + character count
 
-#### 4. Update `AiContentRenderer` to auto-detect tables
-If the AI output contains lines with `|` pipe characters (markdown table format) or consistent comma-separated rows, the renderer automatically delegates those blocks to `AiDataTable`.
+**Key behaviors maintained:**
+- Existing media upload to Supabase Storage preserved
+- YouTube/Vimeo embed preserved
+- `value`/`onChange` prop contract preserved — all existing usages (CurationSectionEditor, AISpecReviewPage, StepProblem) continue working unchanged
 
-#### 5. Replace plain text renderers in Phase 1 screens
+#### 3. Create callout extension
+Custom Tiptap Node extension for styled callouts (info/warning/success/danger) with colored left borders and backgrounds, insertable from the Insert menu.
 
-- **AISpecReviewPage** `SectionContent` default case (line 678-689): Replace `<p className="...whitespace-pre-line...">` with `<AiContentRenderer content={displayValue} />`
-- **CurationReviewPage** section renders: Replace `<SafeHtmlRenderer html={...} />` calls with `<AiContentRenderer content={...} />` for AI-populated fields (problem_statement, scope, description, eligibility, hook)
-- **CurationAIReviewPanel** refined content preview (line 321-323): Replace `<SafeHtmlRenderer html={refinedContent} />` with `<AiContentRenderer content={refinedContent} />`
+#### 4. Upgrade CSS in `index.css`
+Replace the existing `.tiptap` styles with the professional Word-document CSS from the spec:
+- Serif font (Georgia), 14px base, 1.85 line-height
+- Proper heading hierarchy (H1: 26px with border-bottom, H2: 19px blue, H3: 15px)
+- Paragraph spacing (14px margin-bottom)
+- Table styling (alternating rows, borders)
+- Blockquote styling (blue left border)
+- Callout classes (info/warning/success/danger)
+- Code blocks (dark background)
+- Image styling (rounded, centered, bordered)
+- HR styling
 
-#### 6. Add callout styles to `index.css`
-Add prose customization for blockquote callouts:
-- Subtle background color (e.g., `bg-primary/5` with left border accent)
-- Distinct from normal blockquotes to highlight important AI callout sections
+#### 5. Update `aiContentFormatter.ts`
+Ensure `normalizeAiContentForEditor` produces clean semantic HTML that Tiptap renders correctly with the new styles. The existing marked + DOMPurify pipeline handles this already.
 
-### What's NOT in Phase 1
-- Edge function prompt changes (telling AI to use markdown) — Phase 2
-- Screening review page, public challenge detail page — Phase 2
-- Pulse content rendering — Phase 3
-- Approval/rejection workflow on `AiDataTable` — wired in Phase 2 when integrated with specific flows
+#### 6. Update `AiContentRenderer.tsx` display styles
+Apply the same `.editor-content` CSS classes to the read-only renderer so AI content looks identical whether displayed or being edited.
 
-### Technical Notes
-- `react-markdown` with `remark-gfm` handles tables, bold, lists, headings natively
-- The auto-detect logic checks for `<` (HTML), `#`/`*`/`-`/`|` (markdown), or falls back to plain text with `whitespace-pre-line`
-- `AiContentRenderer` wraps `SafeHtmlRenderer` for HTML content and `ReactMarkdown` for markdown, keeping both paths
+### What stays the same
+- All existing `<RichTextEditor>` usages across 5 files — prop interface is backward compatible
+- Supabase Storage upload flow
+- `normalizeAiContentForEditor` utility
+- SafeHtmlRenderer for non-editor contexts
+
+### Files to create/modify
+- **Modified:** `src/components/ui/RichTextEditor.tsx` (full rewrite with 2-row toolbar)
+- **Created:** `src/lib/tiptap-callout.ts` (custom callout node extension)
+- **Modified:** `src/index.css` (replace `.tiptap` styles with professional CSS)
+- **Modified:** `src/components/ui/AiContentRenderer.tsx` (apply matching styles)
+- **Modified:** `package.json` (new Tiptap extension dependencies)
 
