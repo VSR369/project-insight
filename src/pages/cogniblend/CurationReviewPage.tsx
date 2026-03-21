@@ -215,11 +215,13 @@ const SECTIONS: SectionDef[] = [
     label: "Evaluation Criteria",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const ec = parseJson<EvalCriterion[]>(ch.evaluation_criteria);
+      const raw = parseJson<any>(ch.evaluation_criteria);
+      const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : null;
       return !!ec && ec.length > 0;
     },
     render: (ch) => {
-      const ec = parseJson<EvalCriterion[]>(ch.evaluation_criteria);
+      const raw = parseJson<any>(ch.evaluation_criteria);
+      const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : null;
       if (!ec || ec.length === 0)
         return <p className="text-sm text-muted-foreground">Not defined.</p>;
       return (
@@ -232,10 +234,10 @@ const SECTIONS: SectionDef[] = [
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ec.map((c, i) => (
+              {ec.map((c: any, i: number) => (
                 <TableRow key={i}>
-                  <TableCell className="text-sm">{c.criterion_name}</TableCell>
-                  <TableCell className="text-sm text-right font-medium">{c.weight_percentage}%</TableCell>
+                  <TableCell className="text-sm">{c.criterion_name ?? c.name ?? "—"}</TableCell>
+                  <TableCell className="text-sm text-right font-medium">{c.weight_percentage ?? c.weight ?? "—"}%</TableCell>
                 </TableRow>
               ))}
             </TableBody>
