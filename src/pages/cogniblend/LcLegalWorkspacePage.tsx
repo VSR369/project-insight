@@ -541,7 +541,7 @@ export default function LcLegalWorkspacePage() {
   const visibleSuggestions = suggestions?.documents.filter(
     (doc) => !dismissedSuggestions.has(doc.document_type) && !acceptedDocs.has(doc.document_type) && !attachedTypes.has(doc.document_type)
   );
-  const totalAccepted = acceptedDocs.size + (attachedDocs?.length ?? 0);
+  const totalAccepted = attachedDocs?.length ?? 0;
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-5xl mx-auto">
