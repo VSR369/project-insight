@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import { Button } from '@/components/ui/button';
 import { useAdminTier } from '@/hooks/useAdminTier';
 import {
