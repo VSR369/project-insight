@@ -153,10 +153,12 @@ export function CurationAIReviewInline({
     return null;
   }
 
-  const style = STATUS_STYLES[review.status] ?? STATUS_STYLES.pass;
+  const style = isAddressed
+    ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
+    : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-3 rounded-md border border-border/60 bg-muted/30">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
       <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full px-3 py-2">
         <Bot className="h-3.5 w-3.5" />
         <span className="font-medium">AI Review</span>
