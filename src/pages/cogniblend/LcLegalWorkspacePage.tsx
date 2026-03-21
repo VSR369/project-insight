@@ -435,7 +435,49 @@ export default function LcLegalWorkspacePage() {
     },
   });
 
-  // ── Add new doc manually ──
+  // ── Save content edits without accepting ──
+  const handleSaveContent = useCallback(async (doc: SuggestedDoc) => {
+    if (!user?.id) return;
+    const edit = getDocEdit(doc.document_type);
+    const contentToSave = edit.content || doc.content_summary;
+    if (!contentToSave) return;
+    setSavingContent(doc.document_type);
+    try {
+      const { error } = await supabase.from('challenge_legal_docs').update({
+        content_summary: contentToSave,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      } as any).eq('id', doc.id);
+      if (error) throw new Error(error.message);
+      toast.success(`${doc.document_type} content saved`);
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSavingContent(null);
+    }
+  }, [user?.id, docEdits, challengeId, queryClient]);
+
+  // ── Update maturity level on challenge ──
+  const handleSetMaturityLevel = useCallback(async (level: string) => {
+    if (!challengeId || !user?.id) return;
+    try {
+      const { error } = await supabase.from('challenges').update({
+        maturity_level: level,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      }).eq('id', challengeId);
+      if (error) throw new Error(error.message);
+      toast.success('Maturity level updated');
+      setMaturityValue('');
+      setGateFailures((prev) => prev.filter((f) => !f.toLowerCase().includes('maturity')));
+      queryClient.invalidateQueries({ queryKey: ['challenge-lc-detail', challengeId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
+    }
+  }, [challengeId, user?.id, queryClient]);
+
+
   const handleAddNewDoc = async () => {
     if (!challengeId || !user?.id || !newDocTitle || !newDocType) {
       toast.error('Please fill in title and document type');
