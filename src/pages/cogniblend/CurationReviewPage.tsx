@@ -192,17 +192,19 @@ const SECTIONS: SectionDef[] = [
     label: "Deliverables",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const d = parseJson<string[]>(ch.deliverables);
+      const raw = parseJson<any>(ch.deliverables);
+      const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       return !!d && d.length > 0;
     },
     render: (ch) => {
-      const d = parseJson<string[]>(ch.deliverables);
+      const raw = parseJson<any>(ch.deliverables);
+      const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       if (!d || d.length === 0)
         return <p className="text-sm text-muted-foreground">None defined.</p>;
       return (
         <ol className="list-decimal list-inside space-y-1">
-          {d.map((item, i) => (
-            <li key={i} className="text-sm text-foreground">{item}</li>
+          {d.map((item: any, i: number) => (
+            <li key={i} className="text-sm text-foreground">{typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}</li>
           ))}
         </ol>
       );
