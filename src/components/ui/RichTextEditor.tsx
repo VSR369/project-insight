@@ -36,7 +36,7 @@ import {
   Minus, Info, AlertTriangle, CheckCircle2, XCircle,
   Upload, ChevronDown, RemoveFormatting, Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon, Highlighter, Palette, Type, Code2, Quote,
-  Plus,
+  Plus, Save, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
