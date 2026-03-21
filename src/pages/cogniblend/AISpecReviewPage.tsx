@@ -1164,6 +1164,10 @@ export default function AISpecReviewPage() {
       fieldsToSave.solver_visibility_types = visiblePayload;
     }
 
+    // Also save org-policy settings from Challenge Settings panel
+    const policyFields = getOrgPolicyFields();
+    Object.assign(fieldsToSave, policyFields);
+
     if (Object.keys(fieldsToSave).length > 0 && challengeId) {
       try {
         await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
