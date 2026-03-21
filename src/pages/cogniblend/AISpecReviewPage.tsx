@@ -676,6 +676,8 @@ export default function AISpecReviewPage() {
   const [autoRepairDone, setAutoRepairDone] = useState(false);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenError, setAutoGenError] = useState<string | null>(null);
+  // Org-policy settings state (Creator-facing)
+  const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
