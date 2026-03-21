@@ -1322,6 +1322,7 @@ export default function CurationReviewPage() {
                         /* ── Complexity Assessment Module (always-visible) ── */
                         ) : isComplexity ? (
                           <ComplexityAssessmentModule
+                            challengeId={challengeId!}
                             currentScore={challenge.complexity_score ?? null}
                             currentLevel={challenge.complexity_level ?? null}
                             currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
