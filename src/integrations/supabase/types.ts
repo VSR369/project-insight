@@ -1138,6 +1138,7 @@ export type Database = {
       }
       challenges: {
         Row: {
+          ai_section_reviews: Json | null
           challenge_model_is_agg: boolean
           challenge_visibility: string | null
           completed_at: string | null
@@ -1200,6 +1201,7 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
+          ai_section_reviews?: Json | null
           challenge_model_is_agg?: boolean
           challenge_visibility?: string | null
           completed_at?: string | null
@@ -1262,6 +1264,7 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
+          ai_section_reviews?: Json | null
           challenge_model_is_agg?: boolean
           challenge_visibility?: string | null
           completed_at?: string | null
