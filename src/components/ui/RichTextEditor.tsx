@@ -96,6 +96,7 @@ export interface RichTextEditorProps {
   error?: string;
   storagePath?: string;
   className?: string;
+  onSave?: (html: string) => void;
 }
 
 /* ─── Toolbar Button ──────────────────────────────────── */
