@@ -1329,8 +1329,8 @@ export default function LcLegalWorkspacePage() {
 
       {/* Pending suggestions warning */}
       {hasSuggestions && (
-        <Alert className="border-yellow-500/30 bg-muted/30">
-          <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+        <Alert className="border-destructive/20 bg-muted/30">
+          <AlertCircle className="h-4 w-4 text-destructive" />
           <AlertDescription className="text-sm">
             <strong>{visibleSuggestions.length}</strong> AI-suggested document{visibleSuggestions.length !== 1 ? 's' : ''} pending review.
             Accept or Dismiss all before submitting to curation.
