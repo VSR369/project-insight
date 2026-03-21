@@ -780,7 +780,6 @@ export default function CurationReviewPage() {
 
   // Domain tags editing state
   const [domainTagInput, setDomainTagInput] = useState("");
-  const [domainTagInput, setDomainTagInput] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
 
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
