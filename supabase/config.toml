@@ -172,3 +172,6 @@ verify_jwt = false
 
 [functions.suggest-legal-documents]
 verify_jwt = false
+
+[functions.review-challenge-sections]
+verify_jwt = false
