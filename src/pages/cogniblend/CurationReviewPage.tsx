@@ -925,6 +925,8 @@ export default function CurationReviewPage() {
       if (data?.success && data.data?.all_reviews) {
         const allReviews = data.data.all_reviews as SectionReview[];
         setAiReviews(allReviews);
+        // Persist batch reviews to DB so they survive navigation
+        saveSectionMutation.mutate({ field: "ai_section_reviews", value: allReviews });
         const sections = data.data.sections as SectionReview[];
         const counts = { pass: 0, warning: 0, needs_revision: 0 };
         sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
