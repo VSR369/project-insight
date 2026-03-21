@@ -9,6 +9,8 @@
  * Outputs TWO solver type arrays:
  *   - solver_eligibility_codes: who can submit solutions
  *   - visible_solver_codes: who can discover/view but NOT submit
+ *
+ * Also generates 13 Category B "extended brief" fields for deeper challenge context.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -79,6 +81,20 @@ EVALUATION CRITERIA (CRITICAL — must be structured, weighted, and problem-spec
 
 - Hook: A compelling 1-2 sentence hook to attract solvers
 - IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
+
+EXTENDED BRIEF FIELDS (generate all of these for richer challenge context):
+- context_background: 2-4 paragraphs of rich context — industry background, why this problem matters now, what has been tried before
+- root_causes: Analysis of the underlying causes of the problem (2-3 paragraphs)
+- affected_stakeholders: Array of 3-7 stakeholder groups impacted by this problem
+- current_deficiencies: What's wrong with current approaches or solutions (2-3 paragraphs)
+- expected_outcomes: Array of 3-5 measurable outcomes the seeker expects
+- preferred_approach: Guidance on preferred methodologies or approaches (1-2 paragraphs, or empty if open-ended)
+- approaches_not_of_interest: Approaches the seeker does NOT want (1 paragraph, or empty if none)
+- scoring_rubrics: For each evaluation criterion, provide a 5-level scoring rubric with score (1-5), label, and description
+- effort_level: One of "low", "medium", "high", "expert" — based on complexity and required expertise
+- reward_description: A paragraph describing the reward structure and what solvers can expect
+- phase_notes: Notes about the expected timeline and phasing of the challenge
+- complexity_notes: Assessment of the technical and organizational complexity
 
 SOLVER TYPES — TWO SEPARATE SELECTIONS (CRITICAL):
 
@@ -191,7 +207,7 @@ serve(async (req) => {
 Maturity Level: ${maturity_level || "blueprint"}
 ${template_id ? `Template Context: ${template_id}` : ""}
 
-Generate a complete challenge specification.`;
+Generate a complete challenge specification including all extended brief fields.`;
 
     const systemPrompt = buildSystemPrompt(categories);
 
@@ -212,7 +228,7 @@ Generate a complete challenge specification.`;
             type: "function",
             function: {
               name: "suggest_challenge_spec",
-              description: "Return a structured challenge specification with all required fields.",
+              description: "Return a structured challenge specification with all required fields including extended brief.",
               parameters: {
                 type: "object",
                 properties: {
@@ -223,7 +239,7 @@ Generate a complete challenge specification.`;
                   deliverables: {
                     type: "array",
                     items: { type: "string" },
-                    description: "3-7 specific deliverables derived from the problem statement. Each must be a tangible work product.",
+                    description: "3-7 specific deliverables derived from the problem statement.",
                   },
                   evaluation_criteria: {
                     type: "array",
@@ -232,11 +248,11 @@ Generate a complete challenge specification.`;
                       properties: {
                         name: { type: "string", description: "Short descriptive label (2-4 words)" },
                         weight: { type: "number", description: "Integer percentage, all must sum to exactly 100" },
-                        description: { type: "string", description: "1-2 sentences explaining scoring methodology — what constitutes high vs low performance" },
+                        description: { type: "string", description: "1-2 sentences explaining scoring methodology" },
                       },
                       required: ["name", "weight", "description"],
                     },
-                    description: "3-6 weighted evaluation criteria summing to exactly 100%. Weights must reflect relative importance to the specific problem.",
+                    description: "3-6 weighted evaluation criteria summing to exactly 100%.",
                   },
                   solver_eligibility_codes: {
                     type: "array",
@@ -250,7 +266,7 @@ Generate a complete challenge specification.`;
                     items: { type: "string" },
                     minItems: 1,
                     maxItems: 1,
-                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible per hierarchy: certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid. From: ${validCodes.join(", ")}`,
+                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible. From: ${validCodes.join(", ")}`,
                   },
                   eligibility_notes: {
                     type: "string",
@@ -261,6 +277,77 @@ Generate a complete challenge specification.`;
                     type: "string",
                     enum: ["IP-EA", "IP-NEL", "IP-EL", "IP-JO", "IP-NONE"],
                     description: "Recommended IP model",
+                  },
+                  // Extended brief fields (Category B)
+                  context_background: {
+                    type: "string",
+                    description: "2-4 paragraphs of rich industry context and background",
+                  },
+                  root_causes: {
+                    type: "string",
+                    description: "Analysis of underlying causes of the problem (2-3 paragraphs)",
+                  },
+                  affected_stakeholders: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "3-7 stakeholder groups impacted by this problem",
+                  },
+                  current_deficiencies: {
+                    type: "string",
+                    description: "What's wrong with current approaches or solutions (2-3 paragraphs)",
+                  },
+                  expected_outcomes: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "3-5 measurable outcomes the seeker expects",
+                  },
+                  preferred_approach: {
+                    type: "string",
+                    description: "Guidance on preferred methodologies (1-2 paragraphs, or empty)",
+                  },
+                  approaches_not_of_interest: {
+                    type: "string",
+                    description: "Approaches the seeker does NOT want (1 paragraph, or empty)",
+                  },
+                  scoring_rubrics: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        criterion_name: { type: "string" },
+                        levels: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              score: { type: "number" },
+                              label: { type: "string" },
+                              description: { type: "string" },
+                            },
+                            required: ["score", "label", "description"],
+                          },
+                        },
+                      },
+                      required: ["criterion_name", "levels"],
+                    },
+                    description: "5-level scoring rubric per evaluation criterion",
+                  },
+                  effort_level: {
+                    type: "string",
+                    enum: ["low", "medium", "high", "expert"],
+                    description: "Estimated effort level based on complexity",
+                  },
+                  reward_description: {
+                    type: "string",
+                    description: "Paragraph describing reward structure expectations",
+                  },
+                  phase_notes: {
+                    type: "string",
+                    description: "Notes about expected timeline and phasing",
+                  },
+                  complexity_notes: {
+                    type: "string",
+                    description: "Assessment of technical and organizational complexity",
                   },
                 },
                 required: [
@@ -376,6 +463,36 @@ Generate a complete challenge specification.`;
 
     // Keep legacy eligibility field mapped from notes
     spec.eligibility = spec.eligibility_notes;
+
+    // Package extended brief fields into a single object
+    spec.extended_brief = {
+      context_background: spec.context_background ?? "",
+      root_causes: spec.root_causes ?? "",
+      affected_stakeholders: spec.affected_stakeholders ?? [],
+      current_deficiencies: spec.current_deficiencies ?? "",
+      expected_outcomes: spec.expected_outcomes ?? [],
+      preferred_approach: spec.preferred_approach ?? "",
+      approaches_not_of_interest: spec.approaches_not_of_interest ?? "",
+      scoring_rubrics: spec.scoring_rubrics ?? [],
+      effort_level: spec.effort_level ?? "medium",
+      reward_description: spec.reward_description ?? "",
+      phase_notes: spec.phase_notes ?? "",
+      complexity_notes: spec.complexity_notes ?? "",
+    };
+
+    // Clean up top-level extended fields (they're now in extended_brief)
+    delete spec.context_background;
+    delete spec.root_causes;
+    delete spec.affected_stakeholders;
+    delete spec.current_deficiencies;
+    delete spec.expected_outcomes;
+    delete spec.preferred_approach;
+    delete spec.approaches_not_of_interest;
+    delete spec.scoring_rubrics;
+    delete spec.effort_level;
+    delete spec.reward_description;
+    delete spec.phase_notes;
+    delete spec.complexity_notes;
 
     return new Response(
       JSON.stringify({ success: true, data: spec }),

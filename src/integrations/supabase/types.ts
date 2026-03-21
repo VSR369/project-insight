@@ -1161,6 +1161,7 @@ export type Database = {
           eligibility_model: string | null
           engagement_model_id: string | null
           evaluation_criteria: Json | null
+          extended_brief: Json | null
           governance_profile: string | null
           hook: string | null
           id: string
@@ -1224,6 +1225,7 @@ export type Database = {
           eligibility_model?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
+          extended_brief?: Json | null
           governance_profile?: string | null
           hook?: string | null
           id?: string
@@ -1287,6 +1289,7 @@ export type Database = {
           eligibility_model?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
+          extended_brief?: Json | null
           governance_profile?: string | null
           hook?: string | null
           id?: string

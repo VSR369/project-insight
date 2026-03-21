@@ -69,7 +69,8 @@ import CurationActions from "@/components/cogniblend/curation/CurationActions";
 
 import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
-import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
+import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
+import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
@@ -119,6 +120,13 @@ interface ChallengeData {
   domain_tags: Json | null;
   ai_section_reviews: Json | null;
   currency_code: string | null;
+  // Phase 1 additions
+  submission_deadline: string | null;
+  challenge_visibility: string | null;
+  effort_level: string | null;
+  hook: string | null;
+  max_solutions: number | null;
+  extended_brief: Json | null;
 }
 
 interface LegalDocSummary {
@@ -493,6 +501,66 @@ const SECTIONS: SectionDef[] = [
       );
     },
   },
+  // ── Phase 1 additions: Challenge Settings (Org Policy) ──
+  {
+    key: "hook",
+    label: "Challenge Hook",
+    attribution: "AI / Creator",
+    dbField: "hook",
+    isFilled: (ch) => !!(ch as any).hook?.trim(),
+    render: (ch) => <p className="text-sm text-foreground">{(ch as any).hook || "—"}</p>,
+  },
+  {
+    key: "extended_brief",
+    label: "Extended Brief",
+    attribution: "AI Generated",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = (ch as any).extended_brief;
+      if (!eb || typeof eb !== "object") return false;
+      return !!(eb.context_background || eb.root_causes || (eb.affected_stakeholders?.length > 0));
+    },
+    render: () => null, // Rendered via ExtendedBriefDisplay component
+  },
+  {
+    key: "submission_deadline",
+    label: "Submission Deadline",
+    attribution: "Org Policy",
+    dbField: "submission_deadline",
+    isFilled: (ch) => !!(ch as any).submission_deadline,
+    render: (ch) => {
+      const dl = (ch as any).submission_deadline;
+      return dl
+        ? <p className="text-sm font-medium text-foreground">{new Date(dl).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
+        : <p className="text-sm text-muted-foreground italic">Not set</p>;
+    },
+  },
+  {
+    key: "challenge_visibility",
+    label: "Challenge Visibility",
+    attribution: "Org Policy",
+    dbField: "challenge_visibility",
+    isFilled: (ch) => !!(ch as any).challenge_visibility,
+    render: (ch) => {
+      const v = (ch as any).challenge_visibility;
+      return v
+        ? <Badge variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
+        : <p className="text-sm text-muted-foreground italic">Not set</p>;
+    },
+  },
+  {
+    key: "effort_level",
+    label: "Effort Level",
+    attribution: "AI / Org Policy",
+    dbField: "effort_level",
+    isFilled: (ch) => !!(ch as any).effort_level,
+    render: (ch) => {
+      const e = (ch as any).effort_level;
+      return e
+        ? <Badge variant="outline" className="capitalize">{e}</Badge>
+        : <p className="text-sm text-muted-foreground italic">Not set</p>;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -515,7 +583,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["problem_statement", "scope", "deliverables", "submission_guidelines", "maturity_level"],
+    sectionKeys: ["problem_statement", "scope", "deliverables", "submission_guidelines", "maturity_level", "hook", "extended_brief"],
   },
   {
     id: "evaluation",
@@ -539,7 +607,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "visibility_eligibility"],
+    sectionKeys: ["phase_schedule", "visibility_eligibility", "submission_deadline", "challenge_visibility", "effort_level"],
   },
 ];
 
@@ -726,7 +794,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);

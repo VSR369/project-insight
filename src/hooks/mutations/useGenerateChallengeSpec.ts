@@ -23,6 +23,32 @@ export interface SolverEligibilityDetail {
   requires_certification: boolean;
 }
 
+export interface ScoringRubricLevel {
+  score: number;
+  label: string;
+  description: string;
+}
+
+export interface ScoringRubric {
+  criterion_name: string;
+  levels: ScoringRubricLevel[];
+}
+
+export interface ExtendedBrief {
+  context_background: string;
+  root_causes: string;
+  affected_stakeholders: string[];
+  current_deficiencies: string;
+  expected_outcomes: string[];
+  preferred_approach: string;
+  approaches_not_of_interest: string;
+  scoring_rubrics: ScoringRubric[];
+  effort_level: string;
+  reward_description: string;
+  phase_notes: string;
+  complexity_notes: string;
+}
+
 export interface GeneratedSpec {
   title: string;
   problem_statement: string;
@@ -45,6 +71,8 @@ export interface GeneratedSpec {
   eligibility_notes: string;
   /** Derived from primary solver category's defaults */
   challenge_visibility: string;
+  /** Extended brief containing Category B AI-generated fields */
+  extended_brief?: ExtendedBrief;
 }
 
 export function useGenerateChallengeSpec() {
