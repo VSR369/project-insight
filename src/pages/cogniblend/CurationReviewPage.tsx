@@ -14,14 +14,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
+import { useComplexityParams } from "@/hooks/queries/useComplexityParams";
+import { MATURITY_LABELS, MATURITY_DESCRIPTIONS, getMaturityLabel } from "@/lib/maturityLabels";
 import { Badge } from "@/components/ui/badge";
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
@@ -49,6 +60,9 @@ import {
   Loader2,
   Sparkles,
   RefreshCw,
+  Save,
+  X,
+  Tag,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
@@ -60,6 +74,36 @@ import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const DEFAULT_DOMAIN_TAGS = [
+  'AI/ML', 'Biotech', 'Clean Energy', 'Materials Science',
+  'Digital Health', 'Manufacturing', 'Software', 'Sustainability',
+  'Cybersecurity', 'FinTech', 'IoT', 'Robotics',
+  'Data Analytics', 'Supply Chain', 'Telecommunications',
+];
+
+/** Complexity level thresholds — score ranges map to L1–L5 */
+const COMPLEXITY_THRESHOLDS: { level: string; label: string; min: number; max: number }[] = [
+  { level: "L1", label: "Very Low", min: 0, max: 2 },
+  { level: "L2", label: "Low", min: 2, max: 4 },
+  { level: "L3", label: "Medium", min: 4, max: 6 },
+  { level: "L4", label: "High", min: 6, max: 8 },
+  { level: "L5", label: "Very High", min: 8, max: 10 },
+];
+
+function deriveComplexityLevel(score: number): string {
+  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
+  return match?.level ?? "L5";
+}
+
+function deriveComplexityLabel(score: number): string {
+  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
+  return match?.label ?? "Very High";
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,6 +130,7 @@ interface ChallengeData {
   governance_profile: string | null;
   current_phase: number | null;
   phase_status: string | null;
+  domain_tags: Json | null;
 }
 
 interface LegalDocSummary {
@@ -219,7 +264,16 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "maturity_level",
     isFilled: (ch) => !!ch.maturity_level,
-    render: (ch) => ch.maturity_level ? <Badge variant="secondary" className="capitalize">{ch.maturity_level}</Badge> : <p className="text-sm text-muted-foreground">Not set.</p>,
+    render: (ch) => ch.maturity_level
+      ? (
+        <div className="space-y-1">
+          <Badge variant="secondary" className="capitalize">{getMaturityLabel(ch.maturity_level)}</Badge>
+          {MATURITY_DESCRIPTIONS[ch.maturity_level] && (
+            <p className="text-xs text-muted-foreground">{MATURITY_DESCRIPTIONS[ch.maturity_level]}</p>
+          )}
+        </div>
+      )
+      : <p className="text-sm text-muted-foreground">Not set.</p>,
   },
   {
     key: "evaluation_criteria",
@@ -434,8 +488,25 @@ const SECTIONS: SectionDef[] = [
   {
     key: "domain_tags",
     label: "Domain Tags",
-    isFilled: () => false,
-    render: () => <p className="text-sm text-muted-foreground italic">Domain tags will be loaded from challenge taxonomy mappings.</p>,
+    dbField: "domain_tags",
+    isFilled: (ch) => {
+      const tags = parseJson<string[]>(ch.domain_tags);
+      return Array.isArray(tags) && tags.length > 0;
+    },
+    render: (ch) => {
+      const tags = parseJson<string[]>(ch.domain_tags);
+      if (!Array.isArray(tags) || tags.length === 0)
+        return <p className="text-sm text-muted-foreground italic">No domain tags assigned.</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-xs">
+              <Tag className="h-3 w-3 mr-1" />{tag}
+            </Badge>
+          ))}
+        </div>
+      );
+    },
   },
   {
     key: "phase_schedule",
@@ -664,7 +735,10 @@ function computeAutoChecks(
     isJsonFilled(challenge.phase_schedule),
     !!challenge.description?.trim(),
     !!challenge.eligibility?.trim(),
-    false, // taxonomy tags placeholder
+    (() => {
+      const tags = parseJson<string[]>(challenge.domain_tags);
+      return Array.isArray(tags) && tags.length > 0;
+    })(),
     !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
     !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
     challenge.complexity_score != null || !!challenge.complexity_parameters,
@@ -700,6 +774,7 @@ export default function CurationReviewPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
+  const { data: complexityParams = [] } = useComplexityParams();
 
   const [activeGroup, setActiveGroup] = useState<string>("content");
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -713,6 +788,14 @@ export default function CurationReviewPage() {
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
+  // Complexity draft (param_key → value 1-10)
+  const [complexityDraft, setComplexityDraft] = useState<Record<string, number>>({});
+
+  // Domain tags editing state
+  const [domainTagDraft, setDomainTagDraft] = useState<string[]>([]);
+  const [domainTagInput, setDomainTagInput] = useState("");
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // ══════════════════════════════════════
@@ -723,7 +806,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -830,6 +913,94 @@ export default function CurationReviewPage() {
     }));
     saveSectionMutation.mutate({ field: "evaluation_criteria", value: { criteria: normalized } });
   }, [saveSectionMutation]);
+
+  const handleSaveMaturityLevel = useCallback((value: string) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "maturity_level", value });
+  }, [saveSectionMutation]);
+
+  const handleStartComplexityEdit = useCallback(() => {
+    if (!challenge) return;
+    // Initialize draft from existing params or empty
+    const existing = parseJson<any[]>(challenge.complexity_parameters);
+    const draft: Record<string, number> = {};
+    if (Array.isArray(existing)) {
+      existing.forEach((p: any) => {
+        const key = p.param_key ?? p.key ?? "";
+        draft[key] = Number(p.value ?? p.score ?? 5);
+      });
+    }
+    // Ensure all params have a default
+    complexityParams.forEach((p) => {
+      if (!(p.param_key in draft)) draft[p.param_key] = 5;
+    });
+    setComplexityDraft(draft);
+    setEditingSection("complexity");
+  }, [challenge, complexityParams]);
+
+  const handleSaveComplexity = useCallback(() => {
+    if (complexityParams.length === 0) return;
+    setSavingSection(true);
+    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+    const weightedScore = totalWeight > 0
+      ? complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+      : 5;
+    const score = Math.round(weightedScore * 100) / 100;
+    const level = deriveComplexityLevel(score);
+    const params = complexityParams.map((p) => ({
+      param_key: p.param_key,
+      name: p.name,
+      value: complexityDraft[p.param_key] ?? 5,
+      weight: p.weight,
+    }));
+    // Save all three fields
+    const updates = {
+      complexity_parameters: params,
+      complexity_score: score,
+      complexity_level: level,
+      updated_by: user?.id ?? null,
+    };
+    supabase
+      .from("challenges")
+      .update(updates as any)
+      .eq("id", challengeId!)
+      .then(({ error }) => {
+        if (error) {
+          toast.error(`Failed to save: ${error.message}`);
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+          toast.success("Complexity assessment updated");
+          setEditingSection(null);
+        }
+        setSavingSection(false);
+      });
+  }, [complexityParams, complexityDraft, challengeId, user?.id, queryClient]);
+
+  const handleStartDomainTagEdit = useCallback(() => {
+    if (!challenge) return;
+    const existing = parseJson<string[]>(challenge.domain_tags);
+    setDomainTagDraft(Array.isArray(existing) ? [...existing] : []);
+    setDomainTagInput("");
+    setEditingSection("domain_tags");
+  }, [challenge]);
+
+  const handleAddDomainTag = useCallback((tag: string) => {
+    const trimmed = tag.trim();
+    if (trimmed && !domainTagDraft.includes(trimmed)) {
+      setDomainTagDraft((prev) => [...prev, trimmed]);
+    }
+    setDomainTagInput("");
+    setShowTagDropdown(false);
+  }, [domainTagDraft]);
+
+  const handleRemoveDomainTag = useCallback((tag: string) => {
+    setDomainTagDraft((prev) => prev.filter((t) => t !== tag));
+  }, []);
+
+  const handleSaveDomainTags = useCallback(() => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "domain_tags", value: domainTagDraft });
+  }, [saveSectionMutation, domainTagDraft]);
 
   const handleAIReview = useCallback(async () => {
     if (!challengeId) return;
@@ -1062,13 +1233,29 @@ export default function CurationReviewPage() {
                   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
                   const isLocked = LOCKED_SECTIONS.has(section.key);
                   const isEditing = editingSection === section.key;
-                  const canEdit = !isLocked && !!section.dbField;
+                  const canEdit = !isLocked && (!!section.dbField || section.key === "complexity");
                   const aiReview = aiReviews.find((r) => r.section_key === section.key);
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
 
                   // Special: payment_schedule renders PaymentScheduleSection
                   const isPaymentSchedule = section.key === "payment_schedule";
+
+                  // Computed complexity score for live preview (no hooks - plain calculation)
+                  let complexityWeightedScore = 0;
+                  if (section.key === "complexity" && isEditing && complexityParams.length > 0) {
+                    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+                    if (totalWeight > 0) {
+                      complexityWeightedScore = complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
+                    }
+                  }
+
+                  // Filtered domain tag suggestions (plain calculation)
+                  const filteredTags = section.key === "domain_tags" && isEditing
+                    ? DEFAULT_DOMAIN_TAGS.filter(
+                        (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !domainTagDraft.includes(tag),
+                      )
+                    : [];
 
                   return (
                     <AccordionItem key={section.key} value={section.key} className="border-b border-border/40">
@@ -1100,12 +1287,148 @@ export default function CurationReviewPage() {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pl-8 pr-2 pb-4">
-                        {/* Edit / View toggle */}
+                        {/* ── Payment Schedule ── */}
                         {isPaymentSchedule ? (
                           <PaymentScheduleSection
                             challengeId={challengeId!}
                             rewardStructure={challenge.reward_structure}
                           />
+
+                        /* ── Maturity Level Editor ── */
+                        ) : isEditing && section.key === "maturity_level" ? (
+                          <div className="space-y-3">
+                            <Select
+                              value={challenge.maturity_level ?? ""}
+                              onValueChange={(val) => handleSaveMaturityLevel(val)}
+                            >
+                              <SelectTrigger className="w-full max-w-xs">
+                                <SelectValue placeholder="Select maturity level" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(MATURITY_LABELS).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>
+                                    <div>
+                                      <span className="font-medium">{label}</span>
+                                      {MATURITY_DESCRIPTIONS[key] && (
+                                        <span className="text-xs text-muted-foreground ml-2">— {MATURITY_DESCRIPTIONS[key]}</span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                              <X className="h-3.5 w-3.5 mr-1" />Cancel
+                            </Button>
+                          </div>
+
+                        /* ── Complexity Assessment Editor ── */
+                        ) : isEditing && section.key === "complexity" ? (
+                          <div className="space-y-4">
+                            {complexityParams.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>
+                            ) : (
+                              <>
+                                {complexityParams.map((param) => (
+                                  <div key={param.param_key} className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-sm font-medium text-foreground">{param.name}</label>
+                                      <span className="text-sm font-semibold text-primary">{complexityDraft[param.param_key] ?? 5}</span>
+                                    </div>
+                                    {param.description && (
+                                      <p className="text-xs text-muted-foreground">{param.description}</p>
+                                    )}
+                                    <Slider
+                                      value={[complexityDraft[param.param_key] ?? 5]}
+                                      onValueChange={([val]) => setComplexityDraft((prev) => ({ ...prev, [param.param_key]: val }))}
+                                      min={1}
+                                      max={10}
+                                      step={1}
+                                      className="w-full"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                      <span>Low (1)</span>
+                                      <span className="text-[10px]">Weight: {(param.weight * 100).toFixed(0)}%</span>
+                                      <span>High (10)</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="border-t border-border pt-3 space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm text-foreground">Weighted Score:</span>
+                                    <span className="text-lg font-bold text-primary">{complexityWeightedScore.toFixed(2)}</span>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {deriveComplexityLevel(complexityWeightedScore)} — {deriveComplexityLabel(complexityWeightedScore)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                                <X className="h-3.5 w-3.5 mr-1" />Cancel
+                              </Button>
+                              <Button size="sm" onClick={handleSaveComplexity} disabled={savingSection || complexityParams.length === 0}>
+                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+
+                        /* ── Domain Tags Editor ── */
+                        ) : isEditing && section.key === "domain_tags" ? (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                              {domainTagDraft.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
+                                  <Tag className="h-3 w-3" />{tag}
+                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="relative">
+                              <Input
+                                value={domainTagInput}
+                                onChange={(e) => {
+                                  setDomainTagInput(e.target.value);
+                                  setShowTagDropdown(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && domainTagInput.trim()) {
+                                    e.preventDefault();
+                                    handleAddDomainTag(domainTagInput);
+                                  }
+                                }}
+                                onFocus={() => setShowTagDropdown(true)}
+                                placeholder="Type to search or add a tag…"
+                                className="text-sm"
+                              />
+                              {showTagDropdown && filteredTags.length > 0 && (
+                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                                  {filteredTags.map((tag) => (
+                                    <button
+                                      key={tag}
+                                      onClick={() => handleAddDomainTag(tag)}
+                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                    >
+                                      {tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                                <X className="h-3.5 w-3.5 mr-1" />Cancel
+                              </Button>
+                              <Button size="sm" onClick={handleSaveDomainTags} disabled={savingSection}>
+                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+
+                        /* ── Deliverables Editor ── */
                         ) : isEditing && section.key === "deliverables" ? (
                           <DeliverablesEditor
                             items={getDeliverableItems(challenge)}
@@ -1135,7 +1458,15 @@ export default function CurationReviewPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="mt-3 text-xs"
-                                onClick={() => setEditingSection(section.key)}
+                                onClick={() => {
+                                  if (section.key === "complexity") {
+                                    handleStartComplexityEdit();
+                                  } else if (section.key === "domain_tags") {
+                                    handleStartDomainTagEdit();
+                                  } else {
+                                    setEditingSection(section.key);
+                                  }
+                                }}
                               >
                                 <Pencil className="h-3 w-3 mr-1" />Edit
                               </Button>
