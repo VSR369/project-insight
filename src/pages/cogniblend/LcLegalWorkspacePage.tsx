@@ -447,7 +447,7 @@ export default function LcLegalWorkspacePage() {
       // Reset form
       setNewDocTitle('');
       setNewDocType('');
-      setNewDocTier('1');
+      setNewDocTier('TIER_1');
       setNewDocContent('');
       setNewDocNotes('');
       setNewDocFile(null);
