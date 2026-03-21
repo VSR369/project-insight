@@ -716,6 +716,7 @@ export default function AISpecReviewPage() {
   const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
   const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
   const saveStep = useSaveChallengeStep();
+  const queryClient = useQueryClient();
   const generateSpec = useGenerateChallengeSpec();
 
   // ═══════ Derived — role checks ═══════
