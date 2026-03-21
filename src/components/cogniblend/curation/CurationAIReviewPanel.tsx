@@ -43,6 +43,7 @@ interface CurationAIReviewPanelProps {
   };
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
   onSingleSectionReview?: (sectionKey: string, review: SectionReview) => void;
+  onMarkAddressed?: (sectionKey: string) => void;
   defaultOpen?: boolean;
 }
 
