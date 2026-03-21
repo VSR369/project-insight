@@ -883,12 +883,12 @@ export default function LcLegalWorkspacePage() {
       {/* ════════════════════════════════════════════════════════ */}
       {/* SECTION 4: Generate Legal Documents                    */}
       {/* ════════════════════════════════════════════════════════ */}
-      {!hasSuggestions && !generating && !suggestionsQueryLoading && (
+      {isLC && !generating && !suggestionsQueryLoading && (
         <Card className="border-dashed border-2 border-primary/20">
           <CardContent className="py-8 text-center space-y-3">
             <Sparkles className="h-8 w-8 mx-auto text-primary" />
             <p className="text-sm font-semibold text-foreground">
-              {totalAccepted > 0 ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
+              {totalAccepted > 0 || hasSuggestions ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
             </p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
               AI will analyze the challenge specification above — maturity level, IP model, governance
