@@ -1,71 +1,51 @@
 
 
-## Plan: Complexity Assessment — Standalone Component with Override Toggle
+## Plan: Persist AI Review Comments & Per-Section Re-Review
 
-### What Exists Today
-The complexity assessment is inline in `CurationReviewPage.tsx` (lines 1394-1474). It has:
-- Quick-select buttons (L1-L5) that set all sliders to midpoint
-- Per-parameter sliders (1-10) with weighted score calculation
-- Save/Cancel buttons
-- It only appears when `editingSection === "complexity"` (edit mode)
+### Root Causes
+1. **AI reviews are only in React state** — `useState<SectionReview[]>([])` in CurationReviewPage.tsx. On navigation or re-login, all reviews vanish.
+2. **No database storage** — The challenges table has no column for AI section reviews, and no dedicated table exists.
+3. **Addressed sections show "Run Review Sections by AI"** — When `isAddressed` is true and the panel is clicked, it falls back to the "Pending" state message instead of triggering a fresh per-section review.
 
-The read-only view (lines 384-410) shows score, level badge, and parameter values.
+### Changes
 
-### What Changes
+#### 1. Database: Add `ai_section_reviews` JSONB column to `challenges` table
+A single JSONB column stores the array of section reviews (section_key, status, comments, reviewed_at). This avoids a new table and keeps it simple — the data is small and always loaded with the challenge.
 
-#### 1. New file: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
-Extract the complexity UI into a dedicated component with these behaviors:
-
-**Default (read-only) state:**
-- Show the AI-generated parameters with their current values as labeled bars/indicators
-- Prominent "Final Complexity Score" badge (score + L1-L5 level label) always visible at top
-- "Override AI Assessment" toggle switch (off by default)
-
-**Override mode (toggle ON):**
-- Unlocks all parameter sliders for manual adjustment
-- Real-time recalculation of weighted score as sliders move
-- Quick-select buttons (L1-L5) remain available for bulk override
-- Save/Cancel buttons appear
-
-**Direct override:**
-- A dropdown/button row (L1-L5) always visible, allowing instant level selection regardless of toggle state — sets all params to that level's midpoint and saves
-
-**Props:**
-- `challenge` data (complexity_score, complexity_level, complexity_parameters)
-- `complexityParams` from `useComplexityParams()`
-- `onSave(params, score, level)` callback
-- `saving` boolean
-
-#### 2. Update: `src/pages/cogniblend/CurationReviewPage.tsx`
-- Replace the inline complexity editor block (lines 1394-1474) and the read-only render (lines 384-410) with `<ComplexityAssessmentModule />`
-- The component handles its own toggle state internally — no need for `editingSection === "complexity"` guard
-- Keep existing `handleSaveComplexity` logic, pass as `onSave` prop
-- Remove `handleStartComplexityEdit` (no longer needed — component manages its own state)
-
-### Component Structure
-
-```text
-┌─────────────────────────────────────────┐
-│ Final Complexity Score: 5.42  [L3-Med]  │  ← always visible badge
-├─────────────────────────────────────────┤
-│ Quick Override: [L1] [L2] [L3] [L4] [L5] ← always clickable
-├─────────────────────────────────────────┤
-│ [Toggle: Override AI Assessment]         │
-├─────────────────────────────────────────┤
-│ Technical Risk        ████████░░  8     │  ← locked/unlocked
-│ Timeline Pressure     ██████░░░░  6     │
-│ Resource Needs        █████░░░░░  5     │
-│ ...                                      │
-├─────────────────────────────────────────┤
-│                        [Cancel] [Save]   │  ← only when override ON
-└─────────────────────────────────────────┘
+```sql
+ALTER TABLE challenges ADD COLUMN ai_section_reviews jsonb DEFAULT NULL;
 ```
 
-### Technical Details
-- Uses existing `useComplexityParams()` hook, `COMPLEXITY_THRESHOLDS`, `deriveComplexityLevel`, `deriveComplexityLabel`
-- Switch component from `@/components/ui/switch` for the override toggle
-- Slider from `@/components/ui/slider` for parameters
-- Badge from `@/components/ui/badge` for score display
-- Internal state: `overrideEnabled` (boolean), `draft` (Record<string, number>)
-- Score recalculates on every draft change via `useMemo`
+#### 2. Edge Function: `review-challenge-sections/index.ts`
+- Accept optional `section_key` parameter — when provided, review only that single section (filtered prompt) instead of all sections
+- After generating results, persist them to `challenges.ai_section_reviews` (merge with existing reviews for single-section mode)
+
+#### 3. CurationReviewPage.tsx
+- **Load on mount**: Read `challenge.ai_section_reviews` from the fetched challenge data and populate `aiReviews` state
+- **Save after batch review**: After `handleAIReview` succeeds, persist the reviews to the DB column
+- Pass `challengeId` to `CurationAIReviewInline` (already done)
+
+#### 4. CurationAIReviewPanel.tsx — Key behavior changes
+- **When review exists (not addressed)**: Show comments in expandable form (current behavior, works)
+- **When addressed**: Instead of showing "Run Review Sections by AI", add a "Re-review this section" button that calls the edge function with `section_key` to get fresh per-section comments
+  - If AI returns no issues → show "This section looks good — no issues found"
+  - If AI returns comments → show them as normal
+- **New prop**: `onSingleSectionReview(sectionKey)` callback or handle internally via supabase call
+- Remove the "Pending" message that says "Run Review Sections by AI" — replace with the re-review button for addressed sections
+- For truly never-reviewed sections (no batch review done yet), keep the "Pending" message
+
+#### 5. State flow summary
+
+```text
+Never reviewed  →  "Pending" badge, collapsed, shows prompt text
+Batch reviewed  →  Shows comments, auto-expands if warning/needs_revision  
+Addressed       →  "Addressed" badge, collapsed, click → "Re-review" button
+Re-reviewed     →  Shows fresh comments or "Good to go" message
+```
+
+### Files Modified
+- **Migration**: Add `ai_section_reviews` JSONB column to `challenges`
+- **`supabase/functions/review-challenge-sections/index.ts`**: Add single-section mode + persist results
+- **`src/pages/cogniblend/CurationReviewPage.tsx`**: Load reviews from DB on mount, save after batch review
+- **`src/components/cogniblend/curation/CurationAIReviewPanel.tsx`**: Add re-review capability for addressed sections, remove generic "Run Review Sections by AI" prompt for addressed state
 
