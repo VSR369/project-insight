@@ -1,27 +1,44 @@
 
 
-## Plan: Add Structured JSON Rendering to AiContentRenderer
+## Analysis
 
-### What This Adds
-The user's snippet introduces auto-detection and rich rendering of structured JSON in AI responses — monetary/reward cards, evaluation/scoring cards, tabular data, and generic key-value displays. Currently `AiContentRenderer` only handles HTML, Markdown, and plain text.
+The rendering infrastructure (`AiStructuredCards.tsx`, `AiContentRenderer.tsx` with JSON detection) is **already fully implemented**. The user's PASTE 2 (`AIResponseDisplay` wrapper) is functionally identical to the existing `AiContentRenderer` component.
 
-### Approach
-Create the structured renderers as a new file, then extend `AiContentRenderer` to detect JSON content and route to the appropriate card.
+The only missing piece is **PASTE 3** — instructing edge function system prompts to return structured JSON for monetary/evaluation data instead of plain text. This ensures AI responses actually trigger the structured card renderers.
 
-### Changes
+## Plan: Add Structured JSON Output Instructions to Edge Function Prompts
 
-#### 1. New file: `src/components/ui/AiStructuredCards.tsx`
-Contains 5 components ported from the user's snippet, styled with Tailwind (no inline styles) to match the existing design system:
-- **`StructuredRenderer`** — Router: inspects JSON shape and delegates to the correct card
-- **`MonetaryCard`** — Reward tiers (platinum/gold/silver), payment milestones with progress dots, tiered perks
-- **`EvaluationCard`** — Overall score with color-coded progress bar, criteria breakdown, recommendation
-- **`TableCard`** — Array-of-objects → auto-generated table using existing `Table` UI components
-- **`GenericCard`** — Key-value fallback for unknown JSON shapes
+### Files to modify
 
-#### 2. Modify: `src/components/ui/AiContentRenderer.tsx`
-- Add JSON detection before HTML/Markdown checks in `detectFormat()` — returns `'json'` if content parses as `{}` or `[]`
-- Add a `json` rendering branch that passes parsed data to `<StructuredRenderer />`
-- Existing HTML/Markdown/plain text paths unchanged
+#### 1. `supabase/functions/ai-field-assist/index.ts`
+Append structured JSON schema instructions to the system prompt. When the AI drafts `evaluation_criteria` or reward-related fields, it should return JSON matching the `MonetaryCard` and `EvaluationCard` schemas rather than free text.
 
-### No other files modified — this is additive. All 12 existing `AiContentRenderer` consumers automatically gain JSON rendering.
+#### 2. `supabase/functions/refine-challenge-section/index.ts`
+Add a section to `SYSTEM_PROMPT` instructing the AI to return structured JSON when refining reward structures or evaluation criteria sections. The existing rule already mentions "return valid JSON matching the input structure" for structured fields — this extends it with the specific schemas.
+
+#### 3. `supabase/functions/enhance-pulse-content/index.ts`
+Add lightweight instruction: when the enhanced content involves scoring or evaluation feedback, return structured JSON.
+
+### What the prompt additions look like
+
+Each affected edge function gets this appended to its system prompt:
+
+```
+When providing feedback on reward structures, evaluation criteria, scoring,
+or any structured data, return a JSON object using these schemas:
+
+For monetary/prize data:
+{"type":"monetary","description":"...","milestones":[{"name":"...","percentage":0}],"reward_distribution":{"platinum":"$X","gold":"$Y","silver":"$Z"},"tiered_perks":{"platinum":["..."],"gold":["..."],"silver":["..."]}}
+
+For evaluation/scoring:
+{"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}
+```
+
+### No new files needed
+- `AIResponseDisplay` from PASTE 2 is redundant — `AiContentRenderer` already handles this exact use case
+- All structured card renderers already exist in `AiStructuredCards.tsx`
+- JSON auto-detection already works in `AiContentRenderer.tsx`
+
+### Deployment
+After modifying the edge functions, they need to be redeployed via `supabase--deploy_edge_functions`.
 
