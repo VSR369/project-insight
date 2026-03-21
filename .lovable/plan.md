@@ -8,3 +8,4 @@ All items from the Curation Review UX overhaul have been implemented:
 3. ✅ **Per-section AI review** — "Review by AI" button calls `review-challenge-sections` edge function; inline comments with severity badges
 4. ✅ **Bulk approve / Select All** — Section-level checkboxes with Select All; approval count shown
 5. ✅ **Edge function** — `review-challenge-sections` deployed with structured output via tool calling
+6. ✅ **Grouped Focus Areas Redesign** — 15 items reorganized into 4 groups (Content, Evaluation, Legal & Finance, Publication); progress strip at top; single-accordion per group; right rail with actions + AI summary; inline AI flags; payment schedule moved into Evaluation group
