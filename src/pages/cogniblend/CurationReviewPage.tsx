@@ -900,22 +900,18 @@ export default function CurationReviewPage() {
     setEditingSection("complexity");
   }, [challenge, complexityParams]);
 
-  const handleSaveComplexity = useCallback(() => {
-    if (complexityParams.length === 0) return;
+  const handleSaveComplexity = useCallback((
+    paramValues: Record<string, number>,
+    score: number,
+    level: string,
+  ) => {
     setSavingSection(true);
-    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-    const weightedScore = totalWeight > 0
-      ? complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
-      : 5;
-    const score = Math.round(weightedScore * 100) / 100;
-    const level = deriveComplexityLevel(score);
     const params = complexityParams.map((p) => ({
       param_key: p.param_key,
       name: p.name,
-      value: complexityDraft[p.param_key] ?? 5,
+      value: paramValues[p.param_key] ?? 5,
       weight: p.weight,
     }));
-    // Save all three fields
     const updates = {
       complexity_parameters: params,
       complexity_score: score,
@@ -932,11 +928,10 @@ export default function CurationReviewPage() {
         } else {
           queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
           toast.success("Complexity assessment updated");
-          setEditingSection(null);
         }
         setSavingSection(false);
       });
-  }, [complexityParams, complexityDraft, challengeId, user?.id, queryClient]);
+  }, [complexityParams, challengeId, user?.id, queryClient]);
 
   /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
