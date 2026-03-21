@@ -3,10 +3,11 @@
  * Route: /cogni/challenges/:id/lc-legal
  *
  * Full-width layout: read-only challenge details → manual "Generate Legal Docs"
- * → AI-generated document cards with inline editing + file/link attachment.
+ * → AI-generated document cards with inline editing + file attachment.
+ * LC can also delete docs and manually add new documents.
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +19,8 @@ import { handleMutationError } from '@/lib/errorHandler';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
+import { FileUploadZone } from '@/components/shared/FileUploadZone';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
 
 const IP_MODEL_LABELS: Record<string, string> = {
   'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
@@ -27,6 +30,27 @@ const IP_MODEL_LABELS: Record<string, string> = {
   'IP-NONE': 'No Transfer — Solver retains all IP rights',
 };
 
+const DOCUMENT_TYPES = [
+  'NDA',
+  'CHALLENGE_TERMS',
+  'IP_ASSIGNMENT',
+  'SOLUTION_LICENSE',
+  'ESCROW_AGREEMENT',
+  'DATA_PROTECTION',
+  'COLLABORATION_AGREEMENT',
+] as const;
+
+const FILE_UPLOAD_CONFIG = {
+  maxSizeBytes: 10 * 1024 * 1024,
+  maxSizeMB: 10,
+  allowedTypes: [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ] as readonly string[],
+  allowedExtensions: ['.pdf', '.docx'] as readonly string[],
+  label: 'Legal Document',
+};
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +58,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Accordion,
   AccordionItem,
@@ -46,18 +77,29 @@ import {
   CollapsibleContent,
 } from '@/components/ui/collapsible';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   ArrowLeft,
   Sparkles,
   FileText,
   CheckCircle2,
   ChevronDown,
   Loader2,
-  Upload,
   Shield,
   AlertCircle,
   Send,
-  Link as LinkIcon,
   Eye,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -78,8 +120,20 @@ interface AISuggestion {
 
 interface DocEditState {
   content: string;
-  linkUrl: string;
   notes: string;
+  file: File | null;
+}
+
+interface AttachedDoc {
+  id: string;
+  document_type: string;
+  tier: string;
+  document_name: string | null;
+  status: string | null;
+  lc_status: string | null;
+  lc_review_notes: string | null;
+  attached_by: string | null;
+  created_at: string;
 }
 
 /* ─── Hook: fetch challenge (expanded fields) ────────────── */
@@ -101,6 +155,26 @@ function useChallengeForLC(challengeId: string | undefined) {
     },
     enabled: !!challengeId,
     staleTime: 60_000,
+  });
+}
+
+/* ─── Hook: fetch attached legal docs ────────────────────── */
+
+function useAttachedLegalDocs(challengeId: string | undefined) {
+  return useQuery({
+    queryKey: ['attached-legal-docs', challengeId],
+    queryFn: async () => {
+      if (!challengeId) throw new Error('No challenge ID');
+      const { data, error } = await supabase
+        .from('challenge_legal_docs')
+        .select('id, document_type, tier, document_name, status, lc_status, lc_review_notes, attached_by, created_at')
+        .eq('challenge_id', challengeId)
+        .order('created_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as AttachedDoc[];
+    },
+    enabled: !!challengeId,
+    staleTime: 30_000,
   });
 }
 
@@ -127,13 +201,11 @@ function useLegalSuggestions(challengeId: string | undefined) {
 
 function renderJsonList(val: unknown): string[] {
   if (!val) return [];
-  // Unwrap known container shapes: {items:[...]}, {criteria:[...]}, {types:[...]}
   if (typeof val === 'object' && !Array.isArray(val)) {
     const obj = val as Record<string, unknown>;
     if (Array.isArray(obj.items)) return renderJsonList(obj.items);
     if (Array.isArray(obj.criteria)) return renderJsonList(obj.criteria);
     if (Array.isArray(obj.types)) return renderJsonList(obj.types);
-    // Single-key wrapper: unwrap first array-valued key
     const keys = Object.keys(obj);
     for (const k of keys) {
       if (Array.isArray(obj[k])) return renderJsonList(obj[k]);
@@ -159,7 +231,6 @@ function renderJsonList(val: unknown): string[] {
 
 function renderEvalCriteria(val: unknown): { name: string; weight: number; description?: string }[] {
   if (!val) return [];
-  // Unwrap {criteria:[...]} wrapper
   if (typeof val === 'object' && !Array.isArray(val)) {
     const obj = val as Record<string, unknown>;
     if (Array.isArray(obj.criteria)) return renderEvalCriteria(obj.criteria);
@@ -173,7 +244,6 @@ function renderEvalCriteria(val: unknown): { name: string; weight: number; descr
   }));
 }
 
-/** Parse reward_structure JSONB into display-friendly shape */
 function parseRewardStructure(val: unknown): {
   currency?: string;
   paymentMode?: string;
@@ -205,6 +275,7 @@ export default function LcLegalWorkspacePage() {
 
   const { data: roles } = useUserChallengeRoles(user?.id, challengeId);
   const { data: challenge, isLoading: challengeLoading } = useChallengeForLC(challengeId);
+  const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
   const {
     data: suggestions,
     isFetching: suggestionsLoading,
@@ -218,6 +289,17 @@ export default function LcLegalWorkspacePage() {
   const [openCards, setOpenCards] = useState<Set<string>>(new Set());
   const [docEdits, setDocEdits] = useState<Record<string, DocEditState>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+
+  // ── Add New Doc form state ──
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState('');
+  const [newDocType, setNewDocType] = useState('');
+  const [newDocTier, setNewDocTier] = useState('1');
+  const [newDocContent, setNewDocContent] = useState('');
+  const [newDocNotes, setNewDocNotes] = useState('');
+  const [newDocFile, setNewDocFile] = useState<File | null>(null);
+  const [addingDoc, setAddingDoc] = useState(false);
 
   // ── Derived state ──
   const isLC = roles?.includes('LC');
@@ -231,9 +313,9 @@ export default function LcLegalWorkspacePage() {
 
   // ── Edit state helpers ──
   const getDocEdit = (docType: string): DocEditState =>
-    docEdits[docType] ?? { content: '', linkUrl: '', notes: '' };
+    docEdits[docType] ?? { content: '', notes: '', file: null };
 
-  const updateDocEdit = (docType: string, field: keyof DocEditState, value: string) => {
+  const updateDocEdit = (docType: string, field: keyof DocEditState, value: string | File | null) => {
     setDocEdits((prev) => ({
       ...prev,
       [docType]: { ...getDocEdit(docType), [field]: value },
@@ -275,17 +357,108 @@ export default function LcLegalWorkspacePage() {
       } as any);
 
       if (error) throw new Error(error.message);
+
+      // Upload file if attached
+      if (edit.file && challengeId) {
+        const safeName = sanitizeFileName(edit.file.name);
+        const path = `${challengeId}/${doc.document_type}/${crypto.randomUUID()}_${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('legal-docs')
+          .upload(path, edit.file);
+        if (uploadErr) {
+          console.error('File upload failed:', uploadErr.message);
+        }
+      }
+
       return doc.document_type;
     },
     onSuccess: (docType) => {
       setAcceptedDocs((prev) => new Set([...prev, docType]));
       toast.success(`${docType} document accepted and attached`);
+      queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
       queryClient.invalidateQueries({ queryKey: ['legal-suggestions', challengeId] });
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'accept_legal_doc' });
     },
   });
+
+  // ── Delete doc mutation ──
+  const deleteDocMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      const { error } = await supabase.from('challenge_legal_docs').delete().eq('id', docId);
+      if (error) throw new Error(error.message);
+      return docId;
+    },
+    onSuccess: () => {
+      toast.success('Legal document deleted');
+      queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'delete_legal_doc' });
+    },
+  });
+
+  // ── Dismiss AI suggestion (local only) ──
+  const dismissSuggestion = useCallback((docType: string) => {
+    setDismissedSuggestions((prev) => new Set([...prev, docType]));
+  }, []);
+
+  // ── Add new doc manually ──
+  const handleAddNewDoc = async () => {
+    if (!challengeId || !user?.id || !newDocTitle || !newDocType) {
+      toast.error('Please fill in title and document type');
+      return;
+    }
+    setAddingDoc(true);
+    try {
+      const { error } = await supabase.from('challenge_legal_docs').insert({
+        challenge_id: challengeId,
+        document_type: newDocType,
+        tier: newDocTier,
+        status: 'attached',
+        lc_status: 'approved',
+        lc_reviewed_by: user.id,
+        lc_reviewed_at: new Date().toISOString(),
+        lc_review_notes: newDocNotes || null,
+        document_name: newDocTitle,
+        maturity_level: challenge?.maturity_level ?? null,
+        attached_by: user.id,
+        created_by: user.id,
+      } as any);
+
+      if (error) throw new Error(error.message);
+
+      // Upload file if provided
+      if (newDocFile) {
+        const safeName = sanitizeFileName(newDocFile.name);
+        const path = `${challengeId}/${newDocType}/${crypto.randomUUID()}_${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('legal-docs')
+          .upload(path, newDocFile);
+        if (uploadErr) {
+          console.error('File upload failed:', uploadErr.message);
+        }
+      }
+
+      toast.success('Legal document added successfully');
+      queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
+
+      // Reset form
+      setNewDocTitle('');
+      setNewDocType('');
+      setNewDocTier('1');
+      setNewDocContent('');
+      setNewDocNotes('');
+      setNewDocFile(null);
+      setShowAddForm(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to add document';
+      toast.error(msg);
+    } finally {
+      setAddingDoc(false);
+    }
+  };
 
   // ── Submit to curation ──
   const handleSubmitToCuration = async () => {
@@ -362,6 +535,13 @@ export default function LcLegalWorkspacePage() {
   const evalCriteria = renderEvalCriteria(challenge?.evaluation_criteria);
   const solverTypes = renderJsonList(challenge?.solver_eligibility_types);
   const solverVisible = renderJsonList(challenge?.solver_visibility_types);
+
+  // Filter AI suggestions to exclude dismissed and already-accepted
+  const attachedTypes = new Set((attachedDocs ?? []).map((d) => d.document_type));
+  const visibleSuggestions = suggestions?.documents.filter(
+    (doc) => !dismissedSuggestions.has(doc.document_type) && !acceptedDocs.has(doc.document_type) && !attachedTypes.has(doc.document_type)
+  );
+  const totalAccepted = acceptedDocs.size + (attachedDocs?.length ?? 0);
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-5xl mx-auto">
@@ -598,7 +778,204 @@ export default function LcLegalWorkspacePage() {
       <Separator />
 
       {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 2: Generate Legal Documents                    */}
+      {/* SECTION 2: Attached Legal Documents                    */}
+      {/* ════════════════════════════════════════════════════════ */}
+      {!attachedLoading && attachedDocs && attachedDocs.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Attached Legal Documents ({attachedDocs.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {attachedDocs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="border rounded-lg p-3 flex items-center gap-3 bg-muted/30"
+                >
+                  <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold">{doc.document_name ?? doc.document_type}</span>
+                      <Badge variant="outline" className="text-[10px]">Tier {doc.tier}</Badge>
+                      <Badge variant="secondary" className="text-[10px]">{doc.document_type}</Badge>
+                      {doc.lc_status && (
+                        <Badge
+                          variant={doc.lc_status === 'approved' ? 'default' : 'secondary'}
+                          className="text-[10px]"
+                        >
+                          {doc.lc_status}
+                        </Badge>
+                      )}
+                    </div>
+                    {doc.lc_review_notes && (
+                      <p className="text-xs text-muted-foreground mt-1 truncate">{doc.lc_review_notes}</p>
+                    )}
+                  </div>
+                  {doc.attached_by === user?.id && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-destructive hover:text-destructive"
+                          disabled={deleteDocMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Legal Document</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{doc.document_name ?? doc.document_type}"?
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteDocMutation.mutate(doc.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* SECTION 3: Add New Legal Document                      */}
+      {/* ════════════════════════════════════════════════════════ */}
+      {isLC && (
+        <div>
+          {!showAddForm ? (
+            <Button variant="outline" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Legal Document Manually
+            </Button>
+          ) : (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                  Add New Legal Document
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                      Document Title *
+                    </label>
+                    <Input
+                      placeholder="e.g., Non-Disclosure Agreement"
+                      value={newDocTitle}
+                      onChange={(e) => setNewDocTitle(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                      Document Type *
+                    </label>
+                    <Select value={newDocType} onValueChange={setNewDocType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOCUMENT_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t.replace(/_/g, ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    Tier
+                  </label>
+                  <Select value={newDocTier} onValueChange={setNewDocTier}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Tier 1 — Entry/Participation</SelectItem>
+                      <SelectItem value="2">Tier 2 — Solution/Award</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    Document Content
+                  </label>
+                  <Textarea
+                    placeholder="Paste or write the full legal document content here…"
+                    value={newDocContent}
+                    onChange={(e) => setNewDocContent(e.target.value)}
+                    className="text-sm min-h-[160px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    Upload Document (optional)
+                  </label>
+                  <FileUploadZone
+                    config={FILE_UPLOAD_CONFIG}
+                    value={newDocFile}
+                    onChange={setNewDocFile}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    LC Notes (optional)
+                  </label>
+                  <Textarea
+                    placeholder="Add notes about this document…"
+                    value={newDocNotes}
+                    onChange={(e) => setNewDocNotes(e.target.value)}
+                    className="text-sm"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={handleAddNewDoc} disabled={addingDoc || !newDocTitle || !newDocType}>
+                    {addingDoc ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Add Document
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      <Separator />
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* SECTION 4: Generate Legal Documents                    */}
       {/* ════════════════════════════════════════════════════════ */}
       {!suggestions && !suggestionsLoading && (
         <Card className="border-dashed border-2 border-primary/20">
@@ -609,7 +986,7 @@ export default function LcLegalWorkspacePage() {
             </p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
               AI will analyze the challenge specification above — maturity level, IP model, governance
-              profile — and suggest which legal documents are needed with draft content for each.
+              profile — and generate complete legal documents with full clauses ready for review.
             </p>
             <Button onClick={handleGenerate} disabled={suggestionsLoading}>
               <Sparkles className="h-4 w-4 mr-2" />
@@ -624,7 +1001,7 @@ export default function LcLegalWorkspacePage() {
         <Card>
           <CardContent className="py-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
-            <p className="text-sm text-muted-foreground">AI is analyzing the challenge and suggesting legal documents…</p>
+            <p className="text-sm text-muted-foreground">AI is generating comprehensive legal documents…</p>
           </CardContent>
         </Card>
       )}
@@ -644,7 +1021,7 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 3: AI Summary + Document Cards                 */}
+      {/* SECTION 5: AI Summary + Document Cards                 */}
       {/* ════════════════════════════════════════════════════════ */}
       {suggestions && (
         <div className="space-y-4">
@@ -660,107 +1037,83 @@ export default function LcLegalWorkspacePage() {
           </Card>
 
           {/* Document cards */}
-          {suggestions.documents.map((doc) => {
-            const isAccepted = acceptedDocs.has(doc.document_type);
-            const isOpen = openCards.has(doc.document_type);
-            const edit = getDocEdit(doc.document_type);
+          {visibleSuggestions && visibleSuggestions.length > 0 ? (
+            visibleSuggestions.map((doc) => {
+              const isOpen = openCards.has(doc.document_type);
+              const edit = getDocEdit(doc.document_type);
 
-            return (
-              <Collapsible
-                key={doc.document_type}
-                open={isOpen}
-                onOpenChange={() => {
-                  toggleCard(doc.document_type);
-                  initDocContent(doc);
-                }}
-              >
-                <Card className={isAccepted ? 'border-green-500/30 bg-green-50/30 dark:bg-green-950/10' : ''}>
-                  <CollapsibleTrigger className="w-full">
-                    <CardContent className="py-3 flex items-center gap-3 cursor-pointer">
-                      {isAccepted ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                      ) : (
+              return (
+                <Collapsible
+                  key={doc.document_type}
+                  open={isOpen}
+                  onOpenChange={() => {
+                    toggleCard(doc.document_type);
+                    initDocContent(doc);
+                  }}
+                >
+                  <Card>
+                    <CollapsibleTrigger className="w-full">
+                      <CardContent className="py-3 flex items-center gap-3 cursor-pointer">
                         <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                      )}
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold">{doc.title}</span>
-                          <Badge variant={doc.priority === 'required' ? 'default' : 'secondary'} className="text-[10px]">
-                            {doc.priority}
-                          </Badge>
-                          <Badge variant="outline" className="text-[10px]">
-                            Tier {doc.tier}
-                          </Badge>
+                        <div className="flex-1 text-left">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold">{doc.title}</span>
+                            <Badge variant={doc.priority === 'required' ? 'default' : 'secondary'} className="text-[10px]">
+                              {doc.priority}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px]">
+                              Tier {doc.tier}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{doc.rationale}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{doc.rationale}</p>
-                      </div>
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                      />
-                    </CardContent>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="px-4 pb-4 space-y-4 border-t pt-3">
-                      {/* Inline editable content */}
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                          Document Content
-                        </label>
-                        <Textarea
-                          value={edit.content || doc.content_summary}
-                          onChange={(e) => updateDocEdit(doc.document_type, 'content', e.target.value)}
-                          className="text-sm min-h-[120px]"
-                          disabled={isAccepted}
-                          placeholder="AI-generated content — edit as needed…"
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
                         />
-                      </div>
-
-                      {/* External link */}
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                          External Link (optional)
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <LinkIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <Input
-                            type="url"
-                            placeholder="https://drive.google.com/..."
-                            value={edit.linkUrl}
-                            onChange={(e) => updateDocEdit(doc.document_type, 'linkUrl', e.target.value)}
-                            disabled={isAccepted}
-                            className="text-sm"
+                      </CardContent>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 space-y-4 border-t pt-3">
+                        {/* Inline editable content */}
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                            Document Content
+                          </label>
+                          <Textarea
+                            value={edit.content || doc.content_summary}
+                            onChange={(e) => updateDocEdit(doc.document_type, 'content', e.target.value)}
+                            className="text-sm min-h-[300px] font-mono"
+                            placeholder="AI-generated legal document — edit as needed…"
                           />
                         </div>
-                      </div>
 
-                      {/* File upload placeholder */}
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                          Upload File (optional)
-                        </label>
-                        <Button variant="outline" size="sm" disabled={isAccepted}>
-                          <Upload className="h-3 w-3 mr-1" />
-                          Upload Document
-                        </Button>
-                      </div>
+                        {/* File upload */}
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                            Upload Document (optional)
+                          </label>
+                          <FileUploadZone
+                            config={FILE_UPLOAD_CONFIG}
+                            value={edit.file}
+                            onChange={(file) => updateDocEdit(doc.document_type, 'file', file)}
+                          />
+                        </div>
 
-                      {/* LC Notes */}
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                          LC Review Notes
-                        </label>
-                        <Textarea
-                          placeholder="Add notes about modifications, special clauses…"
-                          value={edit.notes}
-                          onChange={(e) => updateDocEdit(doc.document_type, 'notes', e.target.value)}
-                          className="text-sm"
-                          rows={2}
-                          disabled={isAccepted}
-                        />
-                      </div>
+                        {/* LC Notes */}
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                            LC Review Notes
+                          </label>
+                          <Textarea
+                            placeholder="Add notes about modifications, special clauses…"
+                            value={edit.notes}
+                            onChange={(e) => updateDocEdit(doc.document_type, 'notes', e.target.value)}
+                            className="text-sm"
+                            rows={2}
+                          />
+                        </div>
 
-                      {/* Actions */}
-                      {!isAccepted && (
+                        {/* Actions */}
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -774,14 +1127,31 @@ export default function LcLegalWorkspacePage() {
                             )}
                             Accept & Attach
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => dismissSuggestion(doc.document_type)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Dismiss
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            );
-          })}
+                      </div>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              );
+            })
+          ) : (
+            suggestions.documents.length > 0 && (
+              <Card>
+                <CardContent className="py-4 text-center text-sm text-muted-foreground">
+                  All suggested documents have been processed.
+                </CardContent>
+              </Card>
+            )
+          )}
 
           <Separator />
 
@@ -790,7 +1160,7 @@ export default function LcLegalWorkspacePage() {
             <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">
-                  {acceptedDocs.size} of {suggestions.documents.length} documents accepted
+                  {totalAccepted} document{totalAccepted !== 1 ? 's' : ''} attached
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Accept all required documents before submitting to curation.
@@ -798,7 +1168,7 @@ export default function LcLegalWorkspacePage() {
               </div>
               <Button
                 onClick={handleSubmitToCuration}
-                disabled={submitting || acceptedDocs.size === 0}
+                disabled={submitting || totalAccepted === 0}
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

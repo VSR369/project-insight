@@ -1,7 +1,7 @@
 /**
  * suggest-legal-documents — AI edge function for Legal Coordinator.
- * Analyzes a challenge spec (maturity, IP model, scope) and suggests
- * which legal documents are needed, with draft summaries for each.
+ * Analyzes a challenge spec (maturity, IP model, scope) and generates
+ * full, legally robust document content for each recommended document.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -15,19 +15,15 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are a legal compliance advisor for a global open innovation platform.
+const SYSTEM_PROMPT = `You are a senior legal counsel drafting documents for a global open innovation platform.
 
-Given a challenge specification, determine which legal documents the Legal Coordinator should prepare. Consider:
+Given a challenge specification, determine which legal documents the Legal Coordinator should prepare AND generate the FULL legal document text for each.
+
+Consider:
 - Maturity level (ideation, proof_of_concept, prototype, market_ready)
 - IP model (FULL_TRANSFER, LICENSE_BACK, SHARED_IP, NO_IP)
 - Solver eligibility and scope
 - Governance profile (QUICK, STRUCTURED, CONTROLLED)
-
-For each recommended document:
-1. Specify the document type and tier (Tier 1 = Entry/participation, Tier 2 = Solution/award)
-2. Explain WHY it's needed for this specific challenge
-3. Provide a brief content summary of what the document should cover
-4. Set priority: required vs recommended
 
 Standard document types:
 - NDA (Tier 1) — Non-Disclosure Agreement for challenge participants
@@ -36,7 +32,90 @@ Standard document types:
 - SOLUTION_LICENSE (Tier 2) — License agreement for solutions
 - ESCROW_AGREEMENT (Tier 2) — Escrow terms for prize funds (Enterprise only)
 - DATA_PROTECTION (Tier 1) — Data handling and privacy terms
-- COLLABORATION_AGREEMENT (Tier 2) — Terms for collaborative engagement models`;
+- COLLABORATION_AGREEMENT (Tier 2) — Terms for collaborative engagement models
+
+CRITICAL CONTENT REQUIREMENTS — For each document, generate COMPLETE, LEGALLY ROBUST text:
+
+**NDA must include:**
+- Definitions (Confidential Information, Disclosing Party, Receiving Party, Purpose)
+- Scope of confidentiality obligations
+- Exclusions from confidential information (public domain, independent development, prior knowledge)
+- Permitted disclosures (legal requirement, professional advisors)
+- Term and duration of obligations (minimum 3 years post-disclosure)
+- Remedies for breach (injunctive relief, damages)
+- Return/destruction of confidential materials
+- Governing law and jurisdiction
+- No license or IP transfer by disclosure
+
+**CHALLENGE_TERMS must include:**
+- Eligibility requirements and representations
+- Challenge submission process and deadlines
+- Evaluation criteria and judging methodology
+- Intellectual property rights during evaluation
+- Disqualification grounds
+- Prize/reward structure and payment terms
+- Warranties and representations by participants
+- Limitation of liability
+- Indemnification obligations
+- Dispute resolution mechanism
+- Amendment and withdrawal provisions
+- Force majeure clause
+- Severability and entire agreement
+
+**IP_ASSIGNMENT must include:**
+- Definition of assigned IP (inventions, works, designs, data)
+- Scope of assignment (worldwide, perpetual, irrevocable)
+- Consideration and acknowledgment
+- Moral rights waiver (where applicable)
+- Further assurance obligations
+- Warranty of originality and non-infringement
+- No encumbrances on assigned IP
+- Governing law
+
+**SOLUTION_LICENSE must include:**
+- Grant of license (scope, territory, duration, exclusivity)
+- Licensed materials definition
+- Permitted use and restrictions
+- Sublicensing rights (if any)
+- Royalty/fee structure (if applicable)
+- Representations and warranties
+- Indemnification
+- Termination triggers and consequences
+- Survival clauses
+
+**DATA_PROTECTION must include:**
+- Data controller/processor identification
+- Categories of personal data processed
+- Purpose and legal basis for processing
+- Data subject rights
+- International transfer safeguards
+- Security measures
+- Breach notification obligations
+- Data retention and deletion
+- Sub-processor management
+- Audit rights
+
+**ESCROW_AGREEMENT must include:**
+- Escrow agent appointment and responsibilities
+- Deposit conditions and timing
+- Release conditions and triggers
+- Interest/returns on escrowed funds
+- Dispute resolution for escrow
+- Fees and expenses
+- Termination and return of funds
+
+**COLLABORATION_AGREEMENT must include:**
+- Scope of collaboration
+- Roles and responsibilities of each party
+- IP ownership during and after collaboration
+- Confidentiality obligations
+- Term and termination
+- Dispute resolution
+- Liability allocation
+
+Reference the specific challenge details (title, IP model, maturity level, scope) in each document to make them contextually specific rather than generic templates.
+
+Use clear, unambiguous legal language. Number all clauses. Include proper recitals/preamble referencing the challenge.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -89,13 +168,12 @@ serve(async (req) => {
       );
     }
 
-    // Fetch existing legal docs to avoid re-suggesting attached ones
     const { data: existingDocs } = await adminClient
       .from("challenge_legal_docs")
       .select("document_type, tier, status")
       .eq("challenge_id", challenge_id);
 
-    const userPrompt = `Analyze this challenge and suggest the required legal documents:
+    const userPrompt = `Analyze this challenge and generate the required legal documents with FULL legal text:
 
 CHALLENGE:
 ${JSON.stringify(challenge, null, 2)}
@@ -103,7 +181,7 @@ ${JSON.stringify(challenge, null, 2)}
 EXISTING LEGAL DOCUMENTS ALREADY ATTACHED:
 ${JSON.stringify(existingDocs ?? [], null, 2)}
 
-Based on the maturity level, IP model, governance profile, and scope, recommend which legal documents should be prepared. Do NOT recommend documents that are already attached.`;
+Based on the maturity level, IP model, governance profile, and scope, recommend which legal documents should be prepared. Do NOT recommend documents that are already attached. For each document, generate the COMPLETE legal document text — not a summary, not bullet points, but full clauses ready for legal review.`;
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
@@ -122,7 +200,7 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
             type: "function",
             function: {
               name: "suggest_legal_documents",
-              description: "Return a structured list of recommended legal documents for the challenge.",
+              description: "Return a structured list of recommended legal documents with full legal text for the challenge.",
               parameters: {
                 type: "object",
                 properties: {
@@ -154,7 +232,7 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
                         },
                         content_summary: {
                           type: "string",
-                          description: "Brief summary of what the document should cover (3-5 key points)",
+                          description: "Generate the FULL legal document text — complete numbered clauses, definitions, obligations, liability terms, governing law, dispute resolution, and all legally required sections. The output must be a complete, ready-for-review legal document, NOT a summary or bullet points. Reference the specific challenge title, IP model, and maturity level within the document.",
                         },
                         priority: {
                           type: "string",
