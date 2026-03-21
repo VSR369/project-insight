@@ -319,7 +319,7 @@ export function CurationAIReviewInline({
               <div className="space-y-2">
                 <p className="text-[10px] font-medium text-primary uppercase tracking-wide">Proposed Refinement</p>
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
-                  <SafeHtmlRenderer html={refinedContent} />
+                  <AiContentRenderer content={refinedContent} compact />
                 </div>
                 <div className="flex gap-2 justify-end">
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDiscard}>

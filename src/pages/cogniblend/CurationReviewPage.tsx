@@ -244,7 +244,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "description",
     isFilled: (ch) => !!ch.description?.trim(),
-    render: (ch) => <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ch.description || "—"}</p>,
+    render: (ch) => <AiContentRenderer content={ch.description} compact fallback="—" />,
   },
   {
     key: "maturity_level",
