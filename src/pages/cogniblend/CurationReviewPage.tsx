@@ -380,7 +380,8 @@ const SECTIONS: SectionDef[] = [
     label: "Complexity Assessment",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
     render: (ch) => {
-      const params = parseJson<ComplexityParam[]>(ch.complexity_parameters);
+      const rawParams = parseJson<any>(ch.complexity_parameters);
+      const params = Array.isArray(rawParams) ? rawParams as ComplexityParam[] : null;
       return (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
