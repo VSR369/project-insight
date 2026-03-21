@@ -1,30 +1,14 @@
 
 
-## Plan: Gate LC Queue by Phase Completion
+## Plan: Fix Spec Review Not Advancing Phase — IMPLEMENTED ✅
 
-### Problem
-`LcChallengeQueuePage` filters only by `role_codes?.includes('LC')` — it shows challenges at **any** phase, including Phase 1 where spec review hasn't happened yet. This violates the lifecycle sequence.
+### Root Cause
+`handleConfirmSubmit` and `handleApproveAndContinue` in `AISpecReviewPage.tsx` saved spec edits but never called `complete_phase`, leaving challenges stuck at `current_phase = 1`.
 
-### Fix
-
-**File: `src/pages/cogniblend/LcChallengeQueuePage.tsx`**
-
-Update the `lcChallenges` filter to only include challenges where `current_phase >= 2` (spec review completed, now ready for legal work):
-
-```ts
-const lcChallenges = useMemo(() => {
-  if (!challengeRows) return [];
-  return challengeRows.filter((row) =>
-    row.role_codes?.includes('LC') && row.current_phase >= 2
-  );
-}, [challengeRows]);
-```
-
-This ensures:
-- Phase 1 challenges (spec not reviewed) are hidden from LC
-- Phase 2+ challenges (spec approved, ready for legal) are visible
-- No backend changes needed — purely a UI filter
+### Fix Applied
+- Added `supabase.rpc('complete_phase', ...)` call after saving spec fields in both handlers
+- Added `queryClient` invalidation for dashboard queries after phase advancement
+- Error handling: if phase advancement fails, user sees toast and navigation is blocked
 
 ### Files Modified
-- `src/pages/cogniblend/LcChallengeQueuePage.tsx` (one-line filter change)
-
+- `src/pages/cogniblend/AISpecReviewPage.tsx`
