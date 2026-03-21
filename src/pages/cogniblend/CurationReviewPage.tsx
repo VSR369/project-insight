@@ -735,7 +735,10 @@ function computeAutoChecks(
     isJsonFilled(challenge.phase_schedule),
     !!challenge.description?.trim(),
     !!challenge.eligibility?.trim(),
-    false, // taxonomy tags placeholder
+    (() => {
+      const tags = parseJson<string[]>(challenge.domain_tags);
+      return Array.isArray(tags) && tags.length > 0;
+    })(),
     !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
     !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
     challenge.complexity_score != null || !!challenge.complexity_parameters,
