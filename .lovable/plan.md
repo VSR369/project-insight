@@ -1,44 +1,45 @@
 
 
-## Analysis
+## Plan: Fix AI Review Persistence + EvaluationCard Score Visibility
 
-The rendering infrastructure (`AiStructuredCards.tsx`, `AiContentRenderer.tsx` with JSON detection) is **already fully implemented**. The user's PASTE 2 (`AIResponseDisplay` wrapper) is functionally identical to the existing `AiContentRenderer` component.
+### Problem 1: Addressed state lost on navigation
+The `isAddressed` flag in `CurationAIReviewInline` is **local React state** (`useState(false)`). When the user navigates away and returns, the component remounts, `isAddressed` resets to `false`, and the section reverts to showing "needs attention" + "Refine with AI" — even though the content was already refined and saved.
 
-The only missing piece is **PASTE 3** — instructing edge function system prompts to return structured JSON for monetary/evaluation data instead of plain text. This ensures AI responses actually trigger the structured card renderers.
+### Problem 2: EvaluationCard score/max values hidden
+The screenshot shows criteria names with progress bars but `score/max` values appear as `/` (empty). The AI is returning criteria without `score` and `max` fields, or with `undefined` values. The component doesn't guard against missing values, producing `undefined/undefined` and NaN-width bars that render full-width red.
 
-## Plan: Add Structured JSON Output Instructions to Edge Function Prompts
+---
 
-### Files to modify
+### Fix 1: Persist "addressed" status in `ai_section_reviews` JSONB
 
-#### 1. `supabase/functions/ai-field-assist/index.ts`
-Append structured JSON schema instructions to the system prompt. When the AI drafts `evaluation_criteria` or reward-related fields, it should return JSON matching the `MonetaryCard` and `EvaluationCard` schemas rather than free text.
+**Approach**: Add an `addressed` boolean to the `SectionReview` type. When a refinement is accepted, update the review in state AND persist it to the database. On load, initialize `isAddressed` from the persisted review data.
 
-#### 2. `supabase/functions/refine-challenge-section/index.ts`
-Add a section to `SYSTEM_PROMPT` instructing the AI to return structured JSON when refining reward structures or evaluation criteria sections. The existing rule already mentions "return valid JSON matching the input structure" for structured fields — this extends it with the specific schemas.
+**File: `src/components/cogniblend/curation/CurationAIReviewPanel.tsx`**
+- Add `addressed?: boolean` to the `SectionReview` interface
+- Add a new prop: `onMarkAddressed?: (sectionKey: string) => void`
+- Initialize `isAddressed` from `review?.addressed ?? false` instead of `false`
+- In `handleAccept`, call `onMarkAddressed` to propagate the state change upward
 
-#### 3. `supabase/functions/enhance-pulse-content/index.ts`
-Add lightweight instruction: when the enhanced content involves scoring or evaluation feedback, return structured JSON.
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+- Add `handleMarkAddressed` callback that:
+  1. Updates `aiReviews` state: sets `addressed: true` on the matching review
+  2. Persists the updated `ai_section_reviews` array to the database via `saveSectionMutation`
+- Pass `onMarkAddressed={handleMarkAddressed}` to each `CurationAIReviewInline`
+- When loading persisted reviews (line ~793), the `addressed` field is already in the JSONB, so sections that were previously addressed will load correctly
 
-### What the prompt additions look like
+### Fix 2: Guard EvaluationCard against missing score values
 
-Each affected edge function gets this appended to its system prompt:
+**File: `src/components/ui/AiStructuredCards.tsx`**
+- In the criteria breakdown loop, guard against missing/undefined `score` and `max`:
+  - Default `c.max` to `100` if falsy, default `c.score` to `0` if falsy
+  - Only show `score/max` text when both are valid numbers
+  - Clamp `cpct` to 0–100 range to prevent overflow bars
+- In the overall score section, add similar guards for `score` vs `maxScore`
 
-```
-When providing feedback on reward structures, evaluation criteria, scoring,
-or any structured data, return a JSON object using these schemas:
+---
 
-For monetary/prize data:
-{"type":"monetary","description":"...","milestones":[{"name":"...","percentage":0}],"reward_distribution":{"platinum":"$X","gold":"$Y","silver":"$Z"},"tiered_perks":{"platinum":["..."],"gold":["..."],"silver":["..."]}}
-
-For evaluation/scoring:
-{"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}
-```
-
-### No new files needed
-- `AIResponseDisplay` from PASTE 2 is redundant — `AiContentRenderer` already handles this exact use case
-- All structured card renderers already exist in `AiStructuredCards.tsx`
-- JSON auto-detection already works in `AiContentRenderer.tsx`
-
-### Deployment
-After modifying the edge functions, they need to be redeployed via `supabase--deploy_edge_functions`.
+### Files changed
+1. `src/components/cogniblend/curation/CurationAIReviewPanel.tsx` — persist addressed state via new prop + derive initial state from review data
+2. `src/pages/cogniblend/CurationReviewPage.tsx` — add `handleMarkAddressed` that writes to DB
+3. `src/components/ui/AiStructuredCards.tsx` — guard against missing score/max values in EvaluationCard
 
