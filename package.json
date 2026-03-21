@@ -60,6 +60,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.11.0",
+    "marked": "^17.0.5",
     "pdfjs-dist": "^4.9.155",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
