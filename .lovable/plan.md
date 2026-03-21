@@ -1,43 +1,63 @@
 
-Current status: **No — this is not fully fixed yet.**
 
-I re-checked the code and DB payload for challenge `a7962f69-ca64-4ce2-b6f1-764490c698d3`. The JSON fields are wrapped objects (`deliverables.items`, `evaluation_criteria.criteria`, object-shaped `reward_structure`, object-shaped `phase_schedule`), and there are still places in the UI that assume flat arrays.
+## Plan: Curation Review Page — Major UX Overhaul
 
-Do I know what the issue is? **Yes.**
+### Summary
+Redesign the Curation Review Page with: collapsible checklist, inline rich-text editing for most sections, escrow in checklist, per-section AI review with comments, and bulk approve.
 
-### Exact remaining problem
-1. `CurationReviewPage` was partially hardened, but the right-side checklist logic still uses legacy parsing patterns in `CurationChecklistPanel`.
-2. `ApprovalReviewPage` still has direct legacy array parsing with `d.map(...)` on `deliverables`, which is the same failure pattern shown in your screenshot.
+---
 
-### Implementation plan
-1. **Normalize JSONB parsing in curation checklist**
-   - File: `src/pages/cogniblend/CurationChecklistPanel.tsx`
-   - Replace direct `parseJson<...[]>(...)` assumptions with container-unwrapping:
-     - Deliverables: support `[]` and `{ items: [] }`
-     - Evaluation criteria: support `[]` and `{ criteria: [] }`, weight from `weight_percentage` or `weight`
-     - Reward structure: treat as filled if array tiers OR object metadata/milestones exist
-     - Phase schedule: treat as filled if array OR object metadata/phase_durations exist
-   - Ensure no `.reduce/.map` is called unless `Array.isArray(...)` is true.
+### Changes
 
-2. **Patch approval review page with same normalization**
-   - File: `src/pages/cogniblend/ApprovalReviewPage.tsx`
-   - Replace legacy `d.map(...)`/array-only parsing in:
-     - Challenge summary sections
-     - Overview checklist calculations
-   - Apply the same wrapper-aware parsing rules used in curation.
+#### 1. Collapsible Checklist Panel (CurationChecklistPanel.tsx)
+- Add item #15: "Escrow funding confirmed" — auto-checked when `escrow_status === 'FUNDED'`. Need to pass `escrowRecord` into the panel props.
+- Wrap the full checklist items list in a `Collapsible` component, defaulting to **collapsed**.
+- When collapsed, show only the summary bar: "9/15 complete" + progress bar.
+- When expanded, show all 15 items as currently rendered.
+- Items **10 (Tier 1 legal), 11 (Tier 2 legal), and 15 (Escrow)** remain read-only (no manual override). All other items keep their existing auto-check + manual override behavior.
 
-3. **Add a tiny shared helper (or consistent local helper)**
-   - Option A: local helper functions in both files for fast fix.
-   - Option B: shared helper in `src/lib/...` for wrapper unwrapping and safe-array conversion.
-   - Goal: eliminate duplicated fragile JSON parsing.
+#### 2. Inline Rich-Text Editing for Sections (CurationReviewPage.tsx)
+- Add `editingSection` state and `editedValues` state to track which section is being edited and the current draft values.
+- For editable sections (items 1-9, 12-14 — i.e. everything **except** Legal Docs #10, Legal Templates #11, and Escrow #15), add an "Edit" button on each accordion section header.
+- When editing, replace `SafeHtmlRenderer` / static content with the existing `RichTextEditor` component (for text fields like problem_statement, scope, description) or structured inline editors (for JSON fields like deliverables, evaluation_criteria).
+- For structured JSON fields (deliverables, eval criteria, reward structure, phase schedule), use editable input/table components rather than RichTextEditor.
+- Add "Save" and "Cancel" buttons per section. Save writes directly to `challenges` table via Supabase update.
+- Non-editable sections (Legal Docs, Legal Templates, Escrow) show content as read-only with a lock icon and tooltip "Managed by LC/FC".
 
-4. **Verification pass**
-   - Validate `/cogni/curation/:id` loads without error for CU role and shows all sections.
-   - Validate right checklist renders and computes without crash.
-   - Validate `/cogni/approval/:id` also no longer throws `d.map is not a function`.
-   - Confirm with the exact challenge ID currently failing.
+#### 3. Per-Section AI Review with Comments (New: CurationAIReviewButton)
+- Add a "Review by AI" button at the **page header level** (next to the title).
+- When clicked, it calls a new edge function `review-challenge-sections` that:
+  - Fetches challenge data + legal docs + escrow + any uploaded documents (from storage).
+  - Sends each section's content to the AI for individual review.
+  - Returns per-section review comments with severity (pass/warning/issue).
+- Display AI review comments inline under each accordion section as a collapsible "AI Review" sub-panel with colored badges.
+- Each section gets a checkbox for "Approve this section".
 
-### Files to update
-- `src/pages/cogniblend/CurationChecklistPanel.tsx`
-- `src/pages/cogniblend/ApprovalReviewPage.tsx`
-- (optional) shared JSON helper file if we centralize parsing
+#### 4. Bulk Approve / Select All (CurationReviewPage.tsx)
+- Add a "Select All" checkbox at the top of the sections list.
+- Add section-level approval checkboxes that the curator can toggle individually or via "Select All".
+- The existing "Submit to Innovation Director" button checks that all sections are approved.
+- Approval state is local (not persisted) — it's a gating mechanism before submission.
+
+#### 5. New Edge Function: `review-challenge-sections`
+- Similar to `check-challenge-quality` but returns **per-section** review comments.
+- Input: `{ challenge_id }`.
+- Fetches: challenge fields, legal docs, escrow record, uploaded files metadata.
+- AI prompt asks for section-by-section review with: section_key, status (pass/warning/needs_revision), comments (string[]).
+- Uses structured output via tool calling.
+
+---
+
+### Files to Create
+- `supabase/functions/review-challenge-sections/index.ts` — new per-section AI review edge function
+
+### Files to Modify
+- `src/pages/cogniblend/CurationReviewPage.tsx` — add editing state, RichTextEditor integration, per-section AI review display, section approval checkboxes, "Review by AI" button, "Select All" approval
+- `src/pages/cogniblend/CurationChecklistPanel.tsx` — add escrow item #15, wrap in Collapsible, pass escrow data, lock items 10/11/15
+
+### Technical Notes
+- Existing `RichTextEditor` component (Tiptap-based) is reused for text fields.
+- JSON fields (deliverables, eval criteria, etc.) will use editable input tables rather than rich text.
+- The `check-challenge-quality` edge function is kept as-is (overall scoring). The new `review-challenge-sections` provides granular per-section commentary.
+- Supabase `challenges` table update for saves — no schema changes needed.
+
