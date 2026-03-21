@@ -945,6 +945,9 @@ export default function AISpecReviewPage() {
                   ip_model: spec.ip_model,
                   challenge_visibility: spec.challenge_visibility,
                 };
+                if (spec.extended_brief) {
+                  fieldsToSave.extended_brief = spec.extended_brief;
+                }
                 if (spec.solver_eligibility_details?.length > 0) {
                   fieldsToSave.solver_eligibility_types = spec.solver_eligibility_details.map((d) => ({ code: d.code, label: d.label }));
                 }
