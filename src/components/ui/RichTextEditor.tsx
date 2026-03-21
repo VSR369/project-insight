@@ -388,6 +388,22 @@ export function RichTextEditor({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Font family */}
+          <select
+            className="h-[26px] px-1 border border-border rounded text-[11px] bg-background cursor-pointer outline-none"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) {
+                editor.chain().focus().setFontFamily(e.target.value).run();
+              }
+            }}
+          >
+            <option value="">Font</option>
+            {FONT_FAMILIES.map((f) => (
+              <option key={f.label} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+
           {/* Font size */}
           <select
             className="h-[26px] px-1 border border-border rounded text-[11px] bg-background cursor-pointer outline-none"
