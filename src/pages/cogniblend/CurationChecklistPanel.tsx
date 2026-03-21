@@ -251,18 +251,12 @@ export default function CurationChecklistPanel({
       /* 1  */ !!challenge.problem_statement?.trim(),
       /* 2  */ !!challenge.scope?.trim(),
       /* 3  */ (() => {
-        const d = parseJson<unknown[]>(challenge.deliverables);
+        const d = unwrapArray(challenge.deliverables, "items");
         return !!d && d.length > 0;
       })(),
       /* 4  */ evalWeightSum === 100,
-      /* 5  */ (() => {
-        const rs = parseJson<unknown[]>(challenge.reward_structure);
-        return !!rs && rs.length > 0;
-      })(),
-      /* 6  */ (() => {
-        const ps = parseJson<unknown[]>(challenge.phase_schedule);
-        return !!ps && ps.length > 0;
-      })(),
+      /* 5  */ isJsonFilled(challenge.reward_structure),
+      /* 6  */ isJsonFilled(challenge.phase_schedule),
       /* 7  */ !!challenge.description?.trim(),
       /* 8  */ !!challenge.eligibility?.trim(),
       /* 9  */ false, // Taxonomy tags — checked from junction table; placeholder

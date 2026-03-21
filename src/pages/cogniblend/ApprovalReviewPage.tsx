@@ -105,45 +105,11 @@ interface AmendmentRecord {
   created_at: string;
 }
 
-interface EvalCriterion {
-  criterion_name: string;
-  weight_percentage: number;
-}
-
-interface RewardTier {
-  tier?: string;
-  label?: string;
-  amount?: number;
-  value?: number;
-}
-
-interface PhaseEntry {
-  phase?: number;
-  phase_number?: number;
-  label?: string;
-  name?: string;
-  duration_days?: number;
-  days?: number;
-}
-
-interface ComplexityParam {
-  name?: string;
-  key?: string;
-  value?: string | number;
-  score?: number;
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseJson<T>(val: Json | null): T | null {
-  if (!val) return null;
-  if (typeof val === "string") {
-    try { return JSON.parse(val) as T; } catch { return null; }
-  }
-  return val as T;
-}
+import { parseJson, unwrapArray, unwrapEvalCriteria, isJsonFilled } from "@/lib/cogniblend/jsonbUnwrap";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
