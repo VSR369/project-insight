@@ -65,7 +65,7 @@ import {
   Tag,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
-import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
+
 import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
@@ -315,16 +315,6 @@ const SECTIONS: SectionDef[] = [
         problemStatement={ch.problem_statement}
       />
     ),
-  },
-  {
-    key: "payment_schedule",
-    label: "Payment Schedule",
-    isFilled: (ch) => {
-      const raw = parseJson<any>(ch.reward_structure);
-      const ps = raw?.payment_schedule ?? raw?.payment_milestones;
-      return Array.isArray(ps) && ps.length > 0;
-    },
-    render: () => null, // Rendered via PaymentScheduleSection component
   },
   {
     key: "complexity",
@@ -1230,7 +1220,7 @@ export default function CurationReviewPage() {
                   const inlineFlags = sectionAIFlags[section.key];
 
                   // Special renders
-                  const isPaymentSchedule = section.key === "payment_schedule";
+                  
                   const isComplexity = section.key === "complexity";
 
                   // Filtered domain tag suggestions (plain calculation)
@@ -1273,15 +1263,8 @@ export default function CurationReviewPage() {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pl-8 pr-2 pb-4">
-                        {/* ── Payment Schedule ── */}
-                        {isPaymentSchedule ? (
-                          <PaymentScheduleSection
-                            challengeId={challengeId!}
-                            rewardStructure={challenge.reward_structure}
-                          />
-
-                        /* ── Maturity Level Editor ── */
-                        ) : isEditing && section.key === "maturity_level" ? (
+                        {/* ── Maturity Level Editor ── */}
+                        {isEditing && section.key === "maturity_level" ? (
                           <div className="space-y-3">
                             <Select
                               value={challenge.maturity_level ?? ""}
