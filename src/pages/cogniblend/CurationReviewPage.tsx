@@ -115,6 +115,7 @@ interface ChallengeData {
   current_phase: number | null;
   phase_status: string | null;
   domain_tags: Json | null;
+  ai_section_reviews: Json | null;
 }
 
 interface LegalDocSummary {
