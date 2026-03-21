@@ -7,7 +7,7 @@
  *  - RIGHT (25%): Action rail + AI summary
  */
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,6 +115,7 @@ interface ChallengeData {
   current_phase: number | null;
   phase_status: string | null;
   domain_tags: Json | null;
+  ai_section_reviews: Json | null;
 }
 
 interface LegalDocSummary {
@@ -744,6 +745,7 @@ export default function CurationReviewPage() {
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
   const [aiReviews, setAiReviews] = useState<SectionReview[]>([]);
+  const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
 
@@ -768,7 +770,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -830,6 +832,19 @@ export default function CurationReviewPage() {
     enabled: !!challengeId,
     ...CACHE_STANDARD,
   });
+
+  // Load persisted AI reviews from challenge data
+  useEffect(() => {
+    if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
+      const stored = Array.isArray(challenge.ai_section_reviews)
+        ? (challenge.ai_section_reviews as unknown as SectionReview[])
+        : [];
+      if (stored.length > 0) {
+        setAiReviews(stored);
+      }
+      setAiReviewsLoaded(true);
+    }
+  }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
 
   // ══════════════════════════════════════
   // SECTION 3: Mutations
@@ -951,9 +966,10 @@ export default function CurationReviewPage() {
         try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
         throw new Error(msg);
       }
-      if (data?.success && data.data?.sections) {
+      if (data?.success && data.data?.all_reviews) {
+        const allReviews = data.data.all_reviews as SectionReview[];
+        setAiReviews(allReviews);
         const sections = data.data.sections as SectionReview[];
-        setAiReviews(sections);
         const counts = { pass: 0, warning: 0, needs_revision: 0 };
         sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
         toast.success(`AI review complete — ${counts.pass} pass, ${counts.warning} warnings, ${counts.needs_revision} needs revision`);
@@ -1033,6 +1049,14 @@ export default function CurationReviewPage() {
     setSavingSection(true);
     saveSectionMutation.mutate({ field: dbField, value: valueToSave });
   }, [saveSectionMutation]);
+
+  /** Handle a single-section re-review result from the inline panel */
+  const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
+    setAiReviews((prev) => {
+      const filtered = prev.filter((r) => r.section_key !== sectionKey);
+      return [...filtered, freshReview];
+    });
+  }, []);
 
 
   const toggleSectionApproval = useCallback((key: string) => {
@@ -1427,6 +1451,7 @@ export default function CurationReviewPage() {
                           challengeId={challengeId!}
                           challengeContext={challengeCtx}
                           onAcceptRefinement={handleAcceptRefinement}
+                          onSingleSectionReview={handleSingleSectionReview}
                           defaultOpen={aiReview?.status === 'warning' || aiReview?.status === 'needs_revision'}
                         />
 

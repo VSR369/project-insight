@@ -1,9 +1,15 @@
 /**
  * CurationAIReviewPanel — Interactive per-section AI review with editable
- * comments and AI refinement loop.
+ * comments, AI refinement loop, and per-section re-review.
  *
  * Flow: AI reviews → curator edits comments → "Refine with AI" →
  *       AI rewrites section → Accept / Discard
+ *
+ * States:
+ *   Never reviewed  →  "Pending" badge, collapsed, shows prompt text
+ *   Batch reviewed  →  Shows comments, auto-expands if warning/needs_revision
+ *   Addressed       →  "Addressed" badge, collapsed, click → "Re-review" button
+ *   Re-reviewed     →  Shows fresh comments or "Good to go" message
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -11,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil } from "lucide-react";
+import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +27,7 @@ export interface SectionReview {
   section_key: string;
   status: "pass" | "warning" | "needs_revision";
   comments: string[];
+  reviewed_at?: string;
 }
 
 interface CurationAIReviewPanelProps {
@@ -34,6 +41,7 @@ interface CurationAIReviewPanelProps {
     domain_tags?: string[];
   };
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
+  onSingleSectionReview?: (sectionKey: string, review: SectionReview) => void;
   defaultOpen?: boolean;
 }
 
@@ -50,6 +58,7 @@ export function CurationAIReviewInline({
   challengeId,
   challengeContext,
   onAcceptRefinement,
+  onSingleSectionReview,
   defaultOpen = false,
 }: CurationAIReviewPanelProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
@@ -57,6 +66,7 @@ export function CurationAIReviewInline({
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
   const [isAddressed, setIsAddressed] = useState(false);
+  const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !isAddressed);
 
   // Auto-expand when review arrives with warning/needs_revision, but only if not addressed
@@ -85,6 +95,40 @@ export function CurationAIReviewInline({
   const handleSaveComment = useCallback(() => {
     setEditingIndex(null);
   }, []);
+
+  /** Re-review a single section via edge function */
+  const handleReReview = useCallback(async () => {
+    if (!challengeId) return;
+    setIsReReviewing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
+        body: { challenge_id: challengeId, section_key: sectionKey },
+      });
+
+      if (error) {
+        let msg = error.message;
+        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+        throw new Error(msg);
+      }
+
+      if (data?.success && data.data?.sections) {
+        const freshReview = (data.data.sections as SectionReview[])[0];
+        if (freshReview) {
+          setIsAddressed(false);
+          setEditedComments([]);
+          onSingleSectionReview?.(sectionKey, freshReview);
+          const hasIssues = freshReview.comments.length > 0 && freshReview.status !== "pass";
+          toast.success(hasIssues ? "Re-review complete — see updated comments." : "Section looks good — no issues found.");
+        }
+      } else {
+        throw new Error(data?.error?.message ?? "Unexpected response from AI review");
+      }
+    } catch (e: any) {
+      toast.error(`Re-review failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setIsReReviewing(false);
+    }
+  }, [challengeId, sectionKey, onSingleSectionReview]);
 
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId || !currentContent) return;
@@ -150,6 +194,7 @@ export function CurationAIReviewInline({
   }, []);
 
   const isPending = !review;
+  const isPassWithNoComments = review?.status === "pass" && (!review.comments || review.comments.length === 0);
 
   const style = isPending
     ? { label: "Pending", className: "bg-muted text-muted-foreground border-border" }
@@ -170,44 +215,73 @@ export function CurationAIReviewInline({
           <p className="text-xs text-muted-foreground italic py-2">
             Run <span className="font-medium text-foreground">"Review Sections by AI"</span> to generate review comments for this section.
           </p>
+        ) : isAddressed ? (
+          /* Addressed state — offer re-review */
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground italic py-1">
+              This section has been addressed. Click below to re-review with AI.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs h-7"
+              onClick={handleReReview}
+              disabled={isReReviewing}
+            >
+              {isReReviewing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              )}
+              {isReReviewing ? "Re-reviewing…" : "Re-review this section"}
+            </Button>
+          </div>
         ) : (
           <>
-            {/* Editable comments */}
-            <div className="space-y-2">
-              {comments.map((comment, i) => (
-                <div key={i} className="group">
-                  {editingIndex === i ? (
-                    <div className="space-y-1.5">
-                      <Textarea
-                        value={editedComments[i] ?? comment}
-                        onChange={(e) => handleCommentChange(i, e.target.value)}
-                        className="text-xs min-h-[60px] bg-background"
-                        placeholder="Edit this review comment to refine the AI instruction..."
-                      />
-                      <div className="flex gap-1.5 justify-end">
-                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditingIndex(null)}>
-                          Cancel
-                        </Button>
-                        <Button size="sm" className="h-6 text-[10px] px-2" onClick={handleSaveComment}>
-                          <Check className="h-3 w-3 mr-0.5" />Done
-                        </Button>
+            {/* Pass with no comments */}
+            {isPassWithNoComments ? (
+              <p className="text-xs text-emerald-700 py-1 flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5" />
+                This section looks good — no issues found.
+              </p>
+            ) : (
+              /* Editable comments */
+              <div className="space-y-2">
+                {comments.map((comment, i) => (
+                  <div key={i} className="group">
+                    {editingIndex === i ? (
+                      <div className="space-y-1.5">
+                        <Textarea
+                          value={editedComments[i] ?? comment}
+                          onChange={(e) => handleCommentChange(i, e.target.value)}
+                          className="text-xs min-h-[60px] bg-background"
+                          placeholder="Edit this review comment to refine the AI instruction..."
+                        />
+                        <div className="flex gap-1.5 justify-end">
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditingIndex(null)}>
+                            Cancel
+                          </Button>
+                          <Button size="sm" className="h-6 text-[10px] px-2" onClick={handleSaveComment}>
+                            <Check className="h-3 w-3 mr-0.5" />Done
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div
-                      className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors"
-                      onClick={() => handleEditComment(i)}
-                    >
-                      <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
-                      <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    ) : (
+                      <div
+                        className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors"
+                        onClick={() => handleEditComment(i)}
+                      >
+                        <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
+                        <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Refine button */}
-            {!refinedContent && (
+            {!refinedContent && !isPassWithNoComments && (
               <Button
                 size="sm"
                 variant="outline"
@@ -223,6 +297,22 @@ export function CurationAIReviewInline({
                 {isRefining ? "Refining…" : "Refine with AI"}
               </Button>
             )}
+
+            {/* Re-review button for reviewed sections */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full text-xs h-6 text-muted-foreground"
+              onClick={handleReReview}
+              disabled={isReReviewing}
+            >
+              {isReReviewing ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              {isReReviewing ? "Re-reviewing…" : "Re-review this section"}
+            </Button>
 
             {/* Refined content preview */}
             {refinedContent && (
