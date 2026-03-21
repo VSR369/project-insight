@@ -84,6 +84,30 @@ interface LegalDocSummary {
   attached: number;
 }
 
+interface LegalDocDetail {
+  id: string;
+  document_type: string;
+  document_name: string | null;
+  content_summary: string | null;
+  lc_status: string | null;
+  status: string | null;
+  tier: string;
+}
+
+interface EscrowRecord {
+  id: string;
+  escrow_status: string;
+  deposit_amount: number;
+  remaining_amount: number;
+  bank_name: string | null;
+  bank_branch: string | null;
+  bank_address: string | null;
+  currency: string | null;
+  deposit_date: string | null;
+  deposit_reference: string | null;
+  fc_notes: string | null;
+}
+
 interface EvalCriterion {
   criterion_name: string;
   weight_percentage: number;
