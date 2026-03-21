@@ -195,7 +195,7 @@ function LcStatusBadge({ status }: { status: string | null }) {
 // ---------------------------------------------------------------------------
 
 const LOCKED_SECTIONS = new Set(["legal_docs", "escrow_funding"]);
-const TEXT_SECTIONS = new Set(["problem_statement", "scope", "submission_guidelines", "ip_model", "visibility_eligibility"]);
+const TEXT_SECTIONS = new Set(["problem_statement", "scope", "submission_guidelines", "ip_model", "visibility_eligibility", "hook"]);
 
 interface SectionDef {
   key: string;
@@ -624,6 +624,7 @@ function getFieldValue(ch: ChallengeData, sectionKey: string): string {
     case "submission_guidelines": return ch.description ?? "";
     case "ip_model": return ch.ip_model ?? "";
     case "visibility_eligibility": return ch.eligibility ?? "";
+    case "hook": return ch.hook ?? "";
     default: return "";
   }
 }
@@ -657,6 +658,11 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "phase_schedule": return ch.phase_schedule ? JSON.stringify(ch.phase_schedule) : null;
     case "maturity_level": return ch.maturity_level;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
+    case "hook": return ch.hook;
+    case "submission_deadline": return ch.submission_deadline;
+    case "challenge_visibility": return ch.challenge_visibility;
+    case "effort_level": return ch.effort_level;
+    case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     default: return null;
   }
 }
@@ -920,8 +926,15 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
   }, [saveSectionMutation]);
 
+  const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "extended_brief", value: updatedBrief });
+  }, [saveSectionMutation]);
 
-
+  const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: dbField, value });
+  }, [saveSectionMutation]);
 
   const handleSaveComplexity = useCallback((
     paramValues: Record<string, number>,
@@ -1412,6 +1425,52 @@ export default function CurationReviewPage() {
                             onCancel={() => setEditingSection(null)}
                             saving={savingSection}
                           />
+                        /* ── Extended Brief — Always rendered via component ── */
+                        ) : section.key === "extended_brief" ? (
+                          <ExtendedBriefDisplay
+                            data={challenge.extended_brief}
+                            onSave={handleSaveExtendedBrief}
+                            saving={savingSection}
+                          />
+
+                        /* ── Submission Deadline — Inline date editor ── */
+                        ) : isEditing && section.key === "submission_deadline" ? (
+                          <DateFieldEditor
+                            value={challenge.submission_deadline ?? ""}
+                            onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+
+                        /* ── Challenge Visibility — Inline select ── */
+                        ) : isEditing && section.key === "challenge_visibility" ? (
+                          <SelectFieldEditor
+                            value={challenge.challenge_visibility ?? ""}
+                            options={[
+                              { value: "public", label: "Public" },
+                              { value: "private", label: "Private" },
+                              { value: "invite_only", label: "Invite Only" },
+                            ]}
+                            onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+
+                        /* ── Effort Level — Inline radio ── */
+                        ) : isEditing && section.key === "effort_level" ? (
+                          <RadioFieldEditor
+                            value={challenge.effort_level ?? ""}
+                            options={[
+                              { value: "low", label: "Low", description: "< 40 hours estimated effort" },
+                              { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
+                              { value: "high", label: "High", description: "160–500 hours estimated effort" },
+                              { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
+                            ]}
+                            onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
+                          />
+
                         /* ── Domain Tags — Always-editable inline ── */
                         ) : section.key === "domain_tags" ? (
                           <div className="space-y-3">
