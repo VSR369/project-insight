@@ -543,7 +543,7 @@ export default function LcLegalWorkspacePage() {
                                 <tr key={i} className="border-b last:border-0">
                                   <td className="py-2 pr-4 font-medium">{m.name ?? m.label ?? `Milestone ${i + 1}`}</td>
                                   <td className="py-2 pr-4 text-muted-foreground">{(m.trigger ?? '').replace(/_/g, ' ')}</td>
-                                  <td className="py-2 tabular-nums">{m.percentage ?? m.percent ?? 0}%</td>
+                                  <td className="py-2 tabular-nums">{m.pct ?? m.percentage ?? m.percent ?? 0}%</td>
                                 </tr>
                               ))}
                             </tbody>
