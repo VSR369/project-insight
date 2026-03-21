@@ -151,7 +151,7 @@ export function RichTextEditor({
     const currentContent = editor.getHTML();
     if (currentContent === nextContent || (nextContent === '' && currentContent === '<p></p>')) return;
 
-    editor.commands.setContent(nextContent, false);
+    editor.commands.setContent(nextContent, { emitUpdate: false });
   }, [editor, value]);
 
   /* ─── Media upload (image/video/audio) ──────────────── */
