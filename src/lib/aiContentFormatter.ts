@@ -4,28 +4,10 @@
  */
 
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import { markdownToHtml } from '@/utils/markdownToHtml';
 
 const HTML_TAG_REGEX = /<\/?[a-z][\s\S]*>/i;
 const MARKDOWN_HINT_REGEX = /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s|\d+\.\s|>\s)|\*\*|__|`{1,3}|~~|\|.+\|/m;
-
-marked.setOptions({ gfm: true, breaks: true });
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function plainTextToHtml(text: string): string {
-  return text
-    .split(/\n{2,}/)
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br />')}</p>`)
-    .join('');
-}
 
 /**
  * Converts AI output (HTML/Markdown/plain) into sanitized HTML suitable for RichTextEditor.
@@ -34,15 +16,30 @@ export function normalizeAiContentForEditor(input: string | null | undefined): s
   const trimmed = input?.trim();
   if (!trimmed) return '';
 
+  // Already HTML — sanitize and pass through
   if (HTML_TAG_REGEX.test(trimmed)) {
     return DOMPurify.sanitize(trimmed);
   }
 
+  // Markdown detected — convert with custom parser
   if (MARKDOWN_HINT_REGEX.test(trimmed)) {
-    const parsed = marked.parse(trimmed);
-    const html = typeof parsed === 'string' ? parsed : '';
+    const html = markdownToHtml(trimmed);
     return DOMPurify.sanitize(html);
   }
 
-  return DOMPurify.sanitize(plainTextToHtml(trimmed));
+  // Plain text — wrap paragraphs
+  const plainHtml = trimmed
+    .split(/\n{2,}/)
+    .map((paragraph) => {
+      const escaped = paragraph
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      return `<p>${escaped.replace(/\n/g, '<br />')}</p>`;
+    })
+    .join('');
+
+  return DOMPurify.sanitize(plainHtml);
 }
