@@ -991,12 +991,19 @@ export default function CurationReviewPage() {
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
         body: { challenge_id: challengeId },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = error.message;
+        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+        throw new Error(msg);
+      }
       if (data?.success && data.data?.sections) {
-        setAiReviews(data.data.sections);
-        toast.success("AI review complete");
+        const sections = data.data.sections as SectionReview[];
+        setAiReviews(sections);
+        const counts = { pass: 0, warning: 0, needs_revision: 0 };
+        sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
+        toast.success(`AI review complete — ${counts.pass} pass, ${counts.warning} warnings, ${counts.needs_revision} needs revision`);
       } else {
-        throw new Error(data?.error?.message ?? "AI review failed");
+        throw new Error(data?.error?.message ?? "Unexpected response from AI review");
       }
     } catch (e: any) {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
@@ -1012,12 +1019,18 @@ export default function CurationReviewPage() {
       const { data, error } = await supabase.functions.invoke("check-challenge-quality", {
         body: { challenge_id: challengeId },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = error.message;
+        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+        throw new Error(msg);
+      }
       if (data?.success && data?.data) {
-        setAiQuality({
-          overall_score: data.data.overall_score ?? 0,
-          gaps: data.data.gaps ?? [],
-        });
+        const score = data.data.overall_score ?? 0;
+        const gaps = data.data.gaps ?? [];
+        setAiQuality({ overall_score: score, gaps });
+        toast.success(`AI analysis complete — Score: ${score}/100, ${gaps.length} gap${gaps.length !== 1 ? "s" : ""} found`);
+      } else {
+        throw new Error(data?.error?.message ?? "Unexpected response from AI analysis");
       }
     } catch (e: any) {
       toast.error(`AI analysis failed: ${e.message ?? "Unknown error"}`);
