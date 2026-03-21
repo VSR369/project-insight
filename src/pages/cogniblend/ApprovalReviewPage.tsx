@@ -497,8 +497,8 @@ function EvaluationTab({ challenge }: { challenge: ChallengeData }) {
               {criteria.map((c, i) => (
                 <div key={i} className="border border-border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">{c.criterion_name}</h4>
-                    <Badge variant="outline" className="text-[10px]">{c.weight_percentage}% weight</Badge>
+                    <h4 className="text-sm font-semibold text-foreground">{c.name}</h4>
+                    <Badge variant="outline" className="text-[10px]">{c.weight}% weight</Badge>
                   </div>
                   {/* Score scale preview */}
                   <div className="flex items-center gap-1">
