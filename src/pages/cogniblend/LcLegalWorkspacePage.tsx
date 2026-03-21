@@ -105,17 +105,13 @@ import {
 /* ─── Types ──────────────────────────────────────────────── */
 
 interface SuggestedDoc {
+  id: string;
   document_type: string;
   tier: string;
   title: string;
   rationale: string;
   content_summary: string;
   priority: 'required' | 'recommended';
-}
-
-interface AISuggestion {
-  summary: string;
-  documents: SuggestedDoc[];
 }
 
 interface DocEditState {
