@@ -1129,6 +1129,7 @@ export default function AISpecReviewPage() {
       toast.success('Specification approved. Proceeding to legal document attachment.');
       navigate(`/cogni/challenges/${challengeId}/legal`);
     }
+  };
 
   const handleApproveAndContinue = async () => {
     // Save edited section values
