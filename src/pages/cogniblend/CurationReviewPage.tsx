@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
+import { ComplexityAssessmentModule } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import {
   Select,
