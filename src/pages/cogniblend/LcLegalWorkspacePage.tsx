@@ -289,7 +289,7 @@ export default function LcLegalWorkspacePage() {
     data: aiSuggestions,
     isLoading: suggestionsQueryLoading,
   } = usePersistedSuggestions(challengeId);
-  const completePhase = useCompletePhase();
+  
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
