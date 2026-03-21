@@ -501,6 +501,66 @@ const SECTIONS: SectionDef[] = [
       );
     },
   },
+  // ── Phase 1 additions: Challenge Settings (Org Policy) ──
+  {
+    key: "hook",
+    label: "Challenge Hook",
+    attribution: "AI / Creator",
+    dbField: "hook",
+    isFilled: (ch) => !!(ch as any).hook?.trim(),
+    render: (ch) => <p className="text-sm text-foreground">{(ch as any).hook || "—"}</p>,
+  },
+  {
+    key: "extended_brief",
+    label: "Extended Brief",
+    attribution: "AI Generated",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = (ch as any).extended_brief;
+      if (!eb || typeof eb !== "object") return false;
+      return !!(eb.context_background || eb.root_causes || (eb.affected_stakeholders?.length > 0));
+    },
+    render: () => null, // Rendered via ExtendedBriefDisplay component
+  },
+  {
+    key: "submission_deadline",
+    label: "Submission Deadline",
+    attribution: "Org Policy",
+    dbField: "submission_deadline",
+    isFilled: (ch) => !!(ch as any).submission_deadline,
+    render: (ch) => {
+      const dl = (ch as any).submission_deadline;
+      return dl
+        ? <p className="text-sm font-medium text-foreground">{new Date(dl).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
+        : <p className="text-sm text-muted-foreground italic">Not set</p>;
+    },
+  },
+  {
+    key: "challenge_visibility",
+    label: "Challenge Visibility",
+    attribution: "Org Policy",
+    dbField: "challenge_visibility",
+    isFilled: (ch) => !!(ch as any).challenge_visibility,
+    render: (ch) => {
+      const v = (ch as any).challenge_visibility;
+      return v
+        ? <Badge variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
+        : <p className="text-sm text-muted-foreground italic">Not set</p>;
+    },
+  },
+  {
+    key: "effort_level",
+    label: "Effort Level",
+    attribution: "AI / Org Policy",
+    dbField: "effort_level",
+    isFilled: (ch) => !!(ch as any).effort_level,
+    render: (ch) => {
+      const e = (ch as any).effort_level;
+      return e
+        ? <Badge variant="outline" className="capitalize">{e}</Badge>
+        : <p className="text-sm text-muted-foreground italic">Not set</p>;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -523,7 +583,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["problem_statement", "scope", "deliverables", "submission_guidelines", "maturity_level"],
+    sectionKeys: ["problem_statement", "scope", "deliverables", "submission_guidelines", "maturity_level", "hook", "extended_brief"],
   },
   {
     id: "evaluation",
