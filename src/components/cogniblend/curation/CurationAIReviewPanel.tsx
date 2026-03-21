@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
-import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
+import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
