@@ -926,8 +926,15 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
   }, [saveSectionMutation]);
 
+  const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "extended_brief", value: updatedBrief });
+  }, [saveSectionMutation]);
 
-
+  const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: dbField, value });
+  }, [saveSectionMutation]);
 
   const handleSaveComplexity = useCallback((
     paramValues: Record<string, number>,
