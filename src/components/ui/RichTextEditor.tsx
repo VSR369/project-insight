@@ -161,6 +161,7 @@ export function RichTextEditor({
   error,
   storagePath = 'editor-media',
   className,
+  onSave,
 }: RichTextEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -168,6 +169,8 @@ export function RichTextEditor({
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [, forceUpdate] = useState(0);
+  const [saveStatus, setSaveStatus] = useState('');
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
 
   const editor = useEditor({
     extensions: [
