@@ -117,13 +117,27 @@ function useLegalSuggestions(challengeId: string | undefined) {
 
 function renderJsonList(val: unknown): string[] {
   if (!val) return [];
+  // Unwrap known container shapes: {items:[...]}, {criteria:[...]}, {types:[...]}
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return renderJsonList(obj.items);
+    if (Array.isArray(obj.criteria)) return renderJsonList(obj.criteria);
+    if (Array.isArray(obj.types)) return renderJsonList(obj.types);
+    // Single-key wrapper: unwrap first array-valued key
+    const keys = Object.keys(obj);
+    for (const k of keys) {
+      if (Array.isArray(obj[k])) return renderJsonList(obj[k]);
+    }
+  }
   if (Array.isArray(val)) {
-    return val.map((item, i) => {
+    return val.map((item) => {
       if (typeof item === 'string') return item;
       if (item && typeof item === 'object') {
         return (item as Record<string, unknown>).label as string
           ?? (item as Record<string, unknown>).name as string
           ?? (item as Record<string, unknown>).description as string
+          ?? (item as Record<string, unknown>).title as string
+          ?? (item as Record<string, unknown>).type as string
           ?? JSON.stringify(item);
       }
       return String(item);
@@ -134,12 +148,40 @@ function renderJsonList(val: unknown): string[] {
 }
 
 function renderEvalCriteria(val: unknown): { name: string; weight: number; description?: string }[] {
+  if (!val) return [];
+  // Unwrap {criteria:[...]} wrapper
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.criteria)) return renderEvalCriteria(obj.criteria);
+    if (Array.isArray(obj.items)) return renderEvalCriteria(obj.items);
+  }
   if (!Array.isArray(val)) return [];
   return val.map((item: any) => ({
     name: item.name ?? item.criterion ?? '',
     weight: item.weight ?? item.percentage ?? 0,
     description: item.description ?? '',
   }));
+}
+
+/** Parse reward_structure JSONB into display-friendly shape */
+function parseRewardStructure(val: unknown): {
+  currency?: string;
+  paymentMode?: string;
+  numRewarded?: number;
+  milestones?: { name: string; trigger: string; percentage: number }[];
+  tiers?: { label: string; amount: number }[];
+  totalPool?: number;
+} | null {
+  if (!val || typeof val !== 'object') return null;
+  const obj = val as Record<string, unknown>;
+  return {
+    currency: (obj.currency ?? obj.currency_code) as string | undefined,
+    paymentMode: (obj.payment_mode ?? obj.paymentMode) as string | undefined,
+    numRewarded: (obj.num_rewarded ?? obj.numRewarded) as number | undefined,
+    milestones: Array.isArray(obj.payment_milestones) ? obj.payment_milestones as any[] : undefined,
+    tiers: Array.isArray(obj.tiers) ? obj.tiers as any[] : undefined,
+    totalPool: (obj.total_pool ?? obj.totalPool) as number | undefined,
+  };
 }
 
 /* ─── Main Component ─────────────────────────────────────── */
@@ -426,15 +468,68 @@ export default function LcLegalWorkspacePage() {
                 <div className="flex flex-wrap gap-2">
                   {challenge?.ip_model && <Badge variant="outline">IP: {challenge.ip_model}</Badge>}
                   {challenge?.governance_profile && <Badge variant="outline">Governance: {challenge.governance_profile}</Badge>}
-                  {challenge?.maturity_level && <Badge variant="secondary">Maturity: {challenge.maturity_level}</Badge>}
+                  <Badge variant="secondary">Maturity: {challenge?.maturity_level ?? 'Not specified'}</Badge>
                   {challenge?.operating_model && <Badge variant="secondary">Model: {challenge.operating_model}</Badge>}
+                  {challenge?.current_phase != null && <Badge variant="outline">Phase: {challenge.current_phase}</Badge>}
+                  {challenge?.master_status && <Badge variant="outline">Status: {challenge.master_status}</Badge>}
                 </div>
-                {challenge?.reward_structure && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Reward Structure</p>
-                    <p className="text-sm text-foreground">{typeof challenge.reward_structure === 'string' ? challenge.reward_structure : JSON.stringify(challenge.reward_structure, null, 2)}</p>
-                  </div>
-                )}
+                {(() => {
+                  const reward = parseRewardStructure(challenge?.reward_structure);
+                  if (!reward) return null;
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reward Structure</p>
+                      <div className="flex flex-wrap gap-2">
+                        {reward.currency && <Badge variant="outline">Currency: {reward.currency}</Badge>}
+                        {reward.paymentMode && <Badge variant="secondary">{reward.paymentMode.replace(/_/g, ' ')}</Badge>}
+                        {reward.numRewarded != null && <Badge variant="secondary">{reward.numRewarded} awarded</Badge>}
+                        {reward.totalPool != null && <Badge variant="outline">Pool: {reward.totalPool.toLocaleString()}</Badge>}
+                      </div>
+                      {reward.tiers && reward.tiers.length > 0 && (
+                        <div className="relative w-full overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Tier</th>
+                                <th className="text-left py-2 font-medium text-muted-foreground">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reward.tiers.map((t: any, i: number) => (
+                                <tr key={i} className="border-b last:border-0">
+                                  <td className="py-2 pr-4 font-medium">{t.label ?? t.name ?? `Tier ${i + 1}`}</td>
+                                  <td className="py-2 tabular-nums">{(t.amount ?? t.value ?? 0).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {reward.milestones && reward.milestones.length > 0 && (
+                        <div className="relative w-full overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Milestone</th>
+                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Trigger</th>
+                                <th className="text-left py-2 font-medium text-muted-foreground">%</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reward.milestones.map((m: any, i: number) => (
+                                <tr key={i} className="border-b last:border-0">
+                                  <td className="py-2 pr-4 font-medium">{m.name ?? m.label ?? `Milestone ${i + 1}`}</td>
+                                  <td className="py-2 pr-4 text-muted-foreground">{(m.trigger ?? '').replace(/_/g, ' ')}</td>
+                                  <td className="py-2 tabular-nums">{m.percentage ?? m.percent ?? 0}%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </AccordionContent>
             </AccordionItem>
 
