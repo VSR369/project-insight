@@ -660,6 +660,24 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
   }));
 }
 
+// Get current content for any section (used by AI refinement)
+function getSectionContent(ch: ChallengeData, sectionKey: string): string | null {
+  switch (sectionKey) {
+    case "problem_statement": return ch.problem_statement;
+    case "scope": return ch.scope;
+    case "submission_guidelines": return ch.description;
+    case "ip_model": return ch.ip_model;
+    case "visibility_eligibility": return ch.eligibility;
+    case "deliverables": return ch.deliverables ? JSON.stringify(ch.deliverables) : null;
+    case "evaluation_criteria": return ch.evaluation_criteria ? JSON.stringify(ch.evaluation_criteria) : null;
+    case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
+    case "phase_schedule": return ch.phase_schedule ? JSON.stringify(ch.phase_schedule) : null;
+    case "maturity_level": return ch.maturity_level;
+    case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
+    default: return null;
+  }
+}
+
 // Map AI quality gaps to section keys
 const GAP_FIELD_TO_SECTION: Record<string, string> = {
   problem_statement: "problem_statement",
@@ -1039,6 +1057,23 @@ export default function CurationReviewPage() {
     }
   }, [challengeId]);
 
+  const handleAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
+    // Map section key to db field
+    const section = SECTION_MAP.get(sectionKey);
+    const dbField = section?.dbField;
+    if (!dbField) {
+      toast.error("Cannot save refinement for this section type.");
+      return;
+    }
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: dbField, value: newContent });
+  }, [saveSectionMutation]);
+
+  const handleReviewSection = useCallback(async (sectionKey: string) => {
+    // Triggers full AI review (reuses handleAIReview)
+    await handleAIReview();
+  }, [handleAIReview]);
+
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
@@ -1104,6 +1139,17 @@ export default function CurationReviewPage() {
   }, [aiQuality]);
 
   const activeGroupDef = GROUPS.find((g) => g.id === activeGroup) ?? GROUPS[0];
+
+  // Challenge context for AI refinement
+  const challengeCtx = useMemo(() => ({
+    title: challenge?.title,
+    maturity_level: challenge?.maturity_level,
+    domain_tags: (() => {
+      if (!challenge?.domain_tags) return [];
+      const parsed = parseJson<string[]>(challenge.domain_tags);
+      return Array.isArray(parsed) ? parsed : [];
+    })(),
+  }), [challenge?.title, challenge?.maturity_level, challenge?.domain_tags]);
 
   // ══════════════════════════════════════
   // SECTION 6: Conditional returns
@@ -1496,8 +1542,16 @@ export default function CurationReviewPage() {
                           </>
                         )}
 
-                        {/* AI review inline */}
-                        <CurationAIReviewInline sectionKey={section.key} review={aiReview} />
+                        {/* AI review inline — interactive with refinement */}
+                        <CurationAIReviewInline
+                          sectionKey={section.key}
+                          review={aiReview}
+                          currentContent={getSectionContent(challenge, section.key)}
+                          challengeId={challengeId!}
+                          challengeContext={challengeCtx}
+                          onAcceptRefinement={handleAcceptRefinement}
+                          onReviewSection={handleReviewSection}
+                        />
 
                         {/* All inline AI flags expanded */}
                         {inlineFlags && inlineFlags.length > 1 && (
