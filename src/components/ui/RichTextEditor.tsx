@@ -6,7 +6,7 @@
  * Outputs HTML string.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -143,6 +143,16 @@ export function RichTextEditor({
       },
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const nextContent = value || '';
+    const currentContent = editor.getHTML();
+    if (currentContent === nextContent || (nextContent === '' && currentContent === '<p></p>')) return;
+
+    editor.commands.setContent(nextContent, { emitUpdate: false });
+  }, [editor, value]);
 
   /* ─── Media upload (image/video/audio) ──────────────── */
 
