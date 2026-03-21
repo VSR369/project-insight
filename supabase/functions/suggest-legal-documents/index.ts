@@ -316,7 +316,10 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
 
       if (insertErr) {
         console.error("Failed to persist suggestions:", insertErr.message);
-        // Still return the AI result even if DB persistence fails
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "DB_ERROR", message: "Failed to save suggestions: " + insertErr.message } }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
