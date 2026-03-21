@@ -1,74 +1,23 @@
 
 
-## Plan: Enhance LC Legal Workspace — Remove External Link, Robust AI Content, Delete & Add Docs
+## Plan: Fix Tier Values & Move Add Document Section
 
-### Changes Overview
+### Problem
+1. The "Add New Legal Document" form sends tier as `'1'` or `'2'` but the database expects `'TIER_1'` or `'TIER_2'`, causing an insert error.
+2. The "Add New Legal Document" section is positioned above the AI-generated documents section — it should be at the bottom (before the Submit to Curation card), in a collapsible mode.
 
-**4 areas of change:**
-1. Remove External Link input from document cards
-2. Upgrade AI prompt to generate full, legally robust document content
-3. Add ability for LC to delete AI-generated/existing legal documents
-4. Add ability for LC to manually add new legal documents with content + file upload
+### Changes — Single File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`
 
----
+**1. Fix tier values**
+- Change the default state from `'1'` to `'TIER_1'` (line 298)
+- Change the reset value from `'1'` to `'TIER_1'` (line 450)
+- Change the `<SelectItem>` values from `"1"` / `"2"` to `"TIER_1"` / `"TIER_2"` (lines 914-915)
 
-### 1. Remove External Link Option
-**File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`**
-- Remove the External Link section (lines 718-734) from document cards
-- Remove `linkUrl` from `DocEditState` interface and all references
-- Remove `LinkIcon` from imports
+**2. Move "Add New Legal Document" to bottom**
+- Cut the entire Section 3 block (lines 856-973) from its current position (above the AI generation section)
+- Paste it just before the "Submit to Curation" card (before line 1156), after the AI suggestions list
 
-### 2. Upgrade AI Content Quality
-**File: `supabase/functions/suggest-legal-documents/index.ts`**
-
-Update the SYSTEM_PROMPT and the `content_summary` field description to instruct the AI to produce comprehensive, legally complete document content — not summaries. Key changes:
-
-- Rename `content_summary` → keep the field name but change the AI instruction to: *"Generate the FULL legal document text — complete clauses, definitions, obligations, liability terms, governing law, and dispute resolution. The output must be ready for legal review, not a summary."*
-- Add detailed instructions per document type (NDA should include definitions of Confidential Information, obligations period, exclusions, remedies; Challenge Terms should include eligibility, submission process, evaluation, disqualification, warranties, limitation of liability, etc.)
-- Instruct the AI to reference the specific challenge details (IP model, maturity, scope) within the document text
-
-### 3. Allow LC to Delete Legal Documents
-**Database migration:**
-- Add DELETE RLS policy on `challenge_legal_docs` for authenticated users (scoped to `attached_by = auth.uid()`)
-
-**File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`**
-- Add a `deleteDocMutation` using `supabase.from('challenge_legal_docs').delete().eq('id', docId)`
-- Add a "Delete" button (with confirmation) on each accepted document card
-- On success, remove from `acceptedDocs` set and invalidate queries
-- Also add delete capability for AI-suggested docs (before acceptance) — simply removes from the local suggestions list
-
-### 4. Allow LC to Add New Legal Documents
-**File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`**
-- Add an "Add Legal Document" section after the AI-generated cards
-- Form fields: Document Title, Document Type (dropdown: NDA, CHALLENGE_TERMS, IP_ASSIGNMENT, etc.), Tier (1 or 2), Content (textarea), File Upload (using `FileUploadZone`), LC Notes
-- File upload uses the existing `legal-docs` storage bucket
-- On submit: insert into `challenge_legal_docs` with `lc_status: 'approved'`, upload file to storage if provided
-- Add `addDocMutation` for the insert logic
-- Import and use `FileUploadZone` component with PDF/DOCX config
-
-### 5. Fetch & Display Already-Attached Docs
-**File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`**
-- Add a query to fetch existing `challenge_legal_docs` for this challenge (already attached from prior sessions or re-visits)
-- Display them in a separate "Attached Documents" section above the AI suggestions
-- Each attached doc shows type, tier, status, and has a delete button
-
----
-
-### Technical Details
-
-**DB Migration (1 statement):**
-```sql
-CREATE POLICY "LC can delete legal docs they attached"
-  ON public.challenge_legal_docs FOR DELETE
-  TO authenticated USING (attached_by = auth.uid());
-```
-
-**Edge Function prompt changes** — the `content_summary` description in the tool schema changes from "Brief summary of what the document should cover (3-5 key points)" to instructing full legal document generation with proper clauses, definitions, and terms. The SYSTEM_PROMPT gets expanded with per-document-type content requirements.
-
-**No breaking changes** — all existing data and flows remain intact. The accept mutation, gate validation, and submit-to-curation flow are unchanged.
-
-**Files modified:**
-- `supabase/functions/suggest-legal-documents/index.ts` (prompt upgrade)
-- `src/pages/cogniblend/LcLegalWorkspacePage.tsx` (UI: remove link, add delete, add new doc, show attached)
-- 1 new DB migration (DELETE RLS policy)
+**3. Wrap in Collapsible**
+- Replace the toggle button / Card pattern with a `Collapsible` component that defaults to closed
+- Use a styled trigger button as the collapsible header so the form is hidden by default and expandable on click
 
