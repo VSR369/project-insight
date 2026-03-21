@@ -61,15 +61,16 @@ export function CurationAIReviewInline({
   challengeContext,
   onAcceptRefinement,
   onSingleSectionReview,
+  onMarkAddressed,
   defaultOpen = false,
 }: CurationAIReviewPanelProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
-  const [isAddressed, setIsAddressed] = useState(false);
+  const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
-  const [isOpen, setIsOpen] = useState(defaultOpen && !isAddressed);
+  const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
 
   // Auto-expand when review arrives with warning/needs_revision, but only if not addressed
   useEffect(() => {
