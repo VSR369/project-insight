@@ -1335,87 +1335,16 @@ export default function CurationReviewPage() {
                             </Button>
                           </div>
 
-                        /* ── Complexity Assessment Editor ── */
-                        ) : isEditing && section.key === "complexity" ? (
-                          <div className="space-y-4">
-                            {complexityParams.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>
-                            ) : (
-                              <>
-                                {/* Quick-select override */}
-                                <div className="space-y-1.5">
-                                  <p className="text-xs font-medium text-muted-foreground">Quick select or use sliders below for precise calculation</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {COMPLEXITY_THRESHOLDS.map((t) => {
-                                      const midpoint = (t.min + t.max) / 2;
-                                      const isActive = deriveComplexityLevel(complexityWeightedScore) === t.level;
-                                      return (
-                                        <Button
-                                          key={t.level}
-                                          type="button"
-                                          size="sm"
-                                          variant={isActive ? "default" : "outline"}
-                                          className="text-xs"
-                                          onClick={() => {
-                                            // Set all sliders to the midpoint of this level
-                                            const newDraft: Record<string, number> = {};
-                                            const clamped = Math.max(1, Math.min(10, Math.round(midpoint)));
-                                            complexityParams.forEach((p) => { newDraft[p.param_key] = clamped; });
-                                            setComplexityDraft(newDraft);
-                                          }}
-                                        >
-                                          {t.level} — {t.label}
-                                        </Button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-
-                                {/* Sliders for each parameter */}
-                                {complexityParams.map((param) => (
-                                  <div key={param.param_key} className="space-y-1.5">
-                                    <div className="flex items-center justify-between">
-                                      <label className="text-sm font-medium text-foreground">{param.name}</label>
-                                      <span className="text-sm font-semibold text-primary">{complexityDraft[param.param_key] ?? 5}</span>
-                                    </div>
-                                    {param.description && (
-                                      <p className="text-xs text-muted-foreground">{param.description}</p>
-                                    )}
-                                    <Slider
-                                      value={[complexityDraft[param.param_key] ?? 5]}
-                                      onValueChange={([val]) => setComplexityDraft((prev) => ({ ...prev, [param.param_key]: val }))}
-                                      min={1}
-                                      max={10}
-                                      step={1}
-                                      className="w-full"
-                                    />
-                                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                                      <span>Low (1)</span>
-                                      <span className="text-[10px]">Weight: {(param.weight * 100).toFixed(0)}%</span>
-                                      <span>High (10)</span>
-                                    </div>
-                                  </div>
-                                ))}
-                                <div className="border-t border-border pt-3 space-y-2">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm text-foreground">Weighted Score:</span>
-                                    <span className="text-lg font-bold text-primary">{complexityWeightedScore.toFixed(2)}</span>
-                                    <Badge variant="secondary" className="text-xs">
-                                      {deriveComplexityLevel(complexityWeightedScore)} — {deriveComplexityLabel(complexityWeightedScore)}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                            <div className="flex gap-2 justify-end">
-                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
-                                <X className="h-3.5 w-3.5 mr-1" />Cancel
-                              </Button>
-                              <Button size="sm" onClick={handleSaveComplexity} disabled={savingSection || complexityParams.length === 0}>
-                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
-                              </Button>
-                            </div>
-                          </div>
+                        /* ── Complexity Assessment Module (always-visible) ── */
+                        ) : isComplexity ? (
+                          <ComplexityAssessmentModule
+                            currentScore={challenge.complexity_score ?? null}
+                            currentLevel={challenge.complexity_level ?? null}
+                            currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
+                            complexityParams={complexityParams}
+                            onSave={handleSaveComplexity}
+                            saving={savingSection}
+                          />
 
 
                         /* ── Deliverables Editor ── */
