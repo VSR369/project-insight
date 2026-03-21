@@ -6,7 +6,7 @@
  *       AI rewrites section → Accept / Discard
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,7 @@ interface CurationAIReviewPanelProps {
     domain_tags?: string[];
   };
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
-  onReviewSection?: (sectionKey: string) => void;
+  defaultOpen?: boolean;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -50,13 +50,18 @@ export function CurationAIReviewInline({
   challengeId,
   challengeContext,
   onAcceptRefinement,
-  onReviewSection,
+  defaultOpen = false,
 }: CurationAIReviewPanelProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  // Auto-expand when review arrives with warning/needs_revision
+  useEffect(() => {
+    if (defaultOpen) setIsOpen(true);
+  }, [defaultOpen]);
 
   // Sync edited comments when review changes
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
@@ -142,18 +147,6 @@ export function CurationAIReviewInline({
   }, []);
 
   if (!review) {
-    // Show a trigger button to request review for this section
-    if (onReviewSection) {
-      return (
-        <button
-          onClick={() => onReviewSection(sectionKey)}
-          className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Bot className="h-3.5 w-3.5" />
-          <span>Request AI Review</span>
-        </button>
-      );
-    }
     return null;
   }
 

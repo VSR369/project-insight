@@ -1069,10 +1069,6 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: dbField, value: newContent });
   }, [saveSectionMutation]);
 
-  const handleReviewSection = useCallback(async (sectionKey: string) => {
-    // Triggers full AI review (reuses handleAIReview)
-    await handleAIReview();
-  }, [handleAIReview]);
 
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1550,7 +1546,7 @@ export default function CurationReviewPage() {
                           challengeId={challengeId!}
                           challengeContext={challengeCtx}
                           onAcceptRefinement={handleAcceptRefinement}
-                          onReviewSection={handleReviewSection}
+                          defaultOpen={aiReview?.status === 'warning' || aiReview?.status === 'needs_revision'}
                         />
 
                         {/* All inline AI flags expanded */}
