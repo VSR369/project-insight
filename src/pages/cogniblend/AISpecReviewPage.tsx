@@ -53,7 +53,8 @@ import {
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
-
+import ChallengeSettingsPanel from '@/components/cogniblend/spec/ChallengeSettingsPanel';
+import ExtendedBriefPreview from '@/components/cogniblend/spec/ExtendedBriefPreview';
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
@@ -675,6 +676,8 @@ export default function AISpecReviewPage() {
   const [autoRepairDone, setAutoRepairDone] = useState(false);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenError, setAutoGenError] = useState<string | null>(null);
+  // Org-policy settings state (Creator-facing)
+  const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -942,6 +945,9 @@ export default function AISpecReviewPage() {
                   ip_model: spec.ip_model,
                   challenge_visibility: spec.challenge_visibility,
                 };
+                if (spec.extended_brief) {
+                  fieldsToSave.extended_brief = spec.extended_brief;
+                }
                 if (spec.solver_eligibility_details?.length > 0) {
                   fieldsToSave.solver_eligibility_types = spec.solver_eligibility_details.map((d) => ({ code: d.code, label: d.label }));
                 }
@@ -1038,11 +1044,25 @@ export default function AISpecReviewPage() {
   const handleSaveStructured = (fieldKey: string, data: unknown) => {
     setRawSectionData((prev) => ({ ...prev, [fieldKey]: data }));
     setSectionValues((prev) => ({ ...prev, [fieldKey]: JSON.stringify(data) }));
-    // Find section key from fieldKey
     const section = SPEC_SECTIONS.find((s) => s.fieldKey === fieldKey);
     if (section) {
       setSectionStatuses((prev) => ({ ...prev, [section.key]: 'accepted' }));
     }
+  };
+
+  const handleOrgPolicyChange = (field: string, value: unknown) => {
+    setOrgPolicyOverrides((prev) => ({ ...prev, [field]: value }));
+  };
+
+  /** Merge org-policy overrides into fields-to-save */
+  const getOrgPolicyFields = (): Record<string, unknown> => {
+    const fields: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(orgPolicyOverrides)) {
+      if (val !== undefined && val !== null && val !== '') {
+        fields[key] = val;
+      }
+    }
+    return fields;
   };
 
   const allAccepted = SPEC_SECTIONS.every(
@@ -1072,6 +1092,10 @@ export default function AISpecReviewPage() {
         .map((c) => ({ code: c.code, label: c.label }));
       fieldsToSave.solver_visibility_types = visiblePayload;
     }
+
+    // Also save org-policy settings from Challenge Settings panel
+    const policyFields = getOrgPolicyFields();
+    Object.assign(fieldsToSave, policyFields);
 
     if (Object.keys(fieldsToSave).length > 0 && challengeId) {
       try {
@@ -1142,6 +1166,10 @@ export default function AISpecReviewPage() {
         .map((c) => ({ code: c.code, label: c.label }));
       fieldsToSave.solver_visibility_types = visiblePayload;
     }
+
+    // Also save org-policy settings from Challenge Settings panel
+    const policyFields = getOrgPolicyFields();
+    Object.assign(fieldsToSave, policyFields);
 
     if (Object.keys(fieldsToSave).length > 0 && challengeId) {
       try {
@@ -1235,6 +1263,17 @@ export default function AISpecReviewPage() {
           ))}
         </div>
 
+        {/* Extended Brief (AI-generated Category B fields) */}
+        <ExtendedBriefPreview data={challengeRecord.extended_brief} />
+
+        {/* Challenge Settings (Org Policy fields) */}
+        <ChallengeSettingsPanel
+          submissionDeadline={challengeRecord.submission_deadline as string | null}
+          challengeVisibility={challengeRecord.challenge_visibility as string | null}
+          effortLevel={challengeRecord.effort_level as string | null}
+          onFieldChange={handleOrgPolicyChange}
+        />
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
@@ -1321,6 +1360,17 @@ export default function AISpecReviewPage() {
           />
         ))}
       </div>
+
+      {/* Extended Brief (AI-generated Category B fields) */}
+      <ExtendedBriefPreview data={challengeRecord.extended_brief} />
+
+      {/* Challenge Settings (Org Policy fields) */}
+      <ChallengeSettingsPanel
+        submissionDeadline={(orgPolicyOverrides.submission_deadline as string | null) ?? challengeRecord.submission_deadline as string | null}
+        challengeVisibility={(orgPolicyOverrides.challenge_visibility as string | null) ?? challengeRecord.challenge_visibility as string | null}
+        effortLevel={(orgPolicyOverrides.effort_level as string | null) ?? challengeRecord.effort_level as string | null}
+        onFieldChange={handleOrgPolicyChange}
+      />
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-border">
