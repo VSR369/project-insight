@@ -911,6 +911,94 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "evaluation_criteria", value: { criteria: normalized } });
   }, [saveSectionMutation]);
 
+  const handleSaveMaturityLevel = useCallback((value: string) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "maturity_level", value });
+  }, [saveSectionMutation]);
+
+  const handleStartComplexityEdit = useCallback(() => {
+    if (!challenge) return;
+    // Initialize draft from existing params or empty
+    const existing = parseJson<any[]>(challenge.complexity_parameters);
+    const draft: Record<string, number> = {};
+    if (Array.isArray(existing)) {
+      existing.forEach((p: any) => {
+        const key = p.param_key ?? p.key ?? "";
+        draft[key] = Number(p.value ?? p.score ?? 5);
+      });
+    }
+    // Ensure all params have a default
+    complexityParams.forEach((p) => {
+      if (!(p.param_key in draft)) draft[p.param_key] = 5;
+    });
+    setComplexityDraft(draft);
+    setEditingSection("complexity");
+  }, [challenge, complexityParams]);
+
+  const handleSaveComplexity = useCallback(() => {
+    if (complexityParams.length === 0) return;
+    setSavingSection(true);
+    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+    const weightedScore = totalWeight > 0
+      ? complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+      : 5;
+    const score = Math.round(weightedScore * 100) / 100;
+    const level = deriveComplexityLevel(score);
+    const params = complexityParams.map((p) => ({
+      param_key: p.param_key,
+      name: p.name,
+      value: complexityDraft[p.param_key] ?? 5,
+      weight: p.weight,
+    }));
+    // Save all three fields
+    const updates = {
+      complexity_parameters: params,
+      complexity_score: score,
+      complexity_level: level,
+      updated_by: user?.id ?? null,
+    };
+    supabase
+      .from("challenges")
+      .update(updates as any)
+      .eq("id", challengeId!)
+      .then(({ error }) => {
+        if (error) {
+          toast.error(`Failed to save: ${error.message}`);
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+          toast.success("Complexity assessment updated");
+          setEditingSection(null);
+        }
+        setSavingSection(false);
+      });
+  }, [complexityParams, complexityDraft, challengeId, user?.id, queryClient]);
+
+  const handleStartDomainTagEdit = useCallback(() => {
+    if (!challenge) return;
+    const existing = parseJson<string[]>(challenge.domain_tags);
+    setDomainTagDraft(Array.isArray(existing) ? [...existing] : []);
+    setDomainTagInput("");
+    setEditingSection("domain_tags");
+  }, [challenge]);
+
+  const handleAddDomainTag = useCallback((tag: string) => {
+    const trimmed = tag.trim();
+    if (trimmed && !domainTagDraft.includes(trimmed)) {
+      setDomainTagDraft((prev) => [...prev, trimmed]);
+    }
+    setDomainTagInput("");
+    setShowTagDropdown(false);
+  }, [domainTagDraft]);
+
+  const handleRemoveDomainTag = useCallback((tag: string) => {
+    setDomainTagDraft((prev) => prev.filter((t) => t !== tag));
+  }, []);
+
+  const handleSaveDomainTags = useCallback(() => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "domain_tags", value: domainTagDraft });
+  }, [saveSectionMutation, domainTagDraft]);
+
   const handleAIReview = useCallback(async () => {
     if (!challengeId) return;
     setAiReviewLoading(true);
