@@ -833,6 +833,19 @@ export default function CurationReviewPage() {
     ...CACHE_STANDARD,
   });
 
+  // Load persisted AI reviews from challenge data
+  useEffect(() => {
+    if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
+      const stored = Array.isArray(challenge.ai_section_reviews)
+        ? (challenge.ai_section_reviews as unknown as SectionReview[])
+        : [];
+      if (stored.length > 0) {
+        setAiReviews(stored);
+      }
+      setAiReviewsLoaded(true);
+    }
+  }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
+
   // ══════════════════════════════════════
   // SECTION 3: Mutations
   // ══════════════════════════════════════
