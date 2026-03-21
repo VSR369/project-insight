@@ -368,7 +368,7 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
             )}
           </div>
           {(() => {
-            const params = parseJson<ComplexityParam[]>(challenge.complexity_parameters);
+            const params = unwrapArray<any>(challenge.complexity_parameters, "parameters");
             if (!params || params.length === 0) return null;
             return (
               <div className="mt-3 space-y-1 border-t border-border pt-3">
