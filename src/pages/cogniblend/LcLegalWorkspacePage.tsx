@@ -362,7 +362,7 @@ export default function LcLegalWorkspacePage() {
       const edit = getDocEdit(doc.document_type);
 
       const { error } = await supabase.from('challenge_legal_docs').update({
-        status: 'attached',
+        status: 'ATTACHED',
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
@@ -441,7 +441,7 @@ export default function LcLegalWorkspacePage() {
         challenge_id: challengeId,
         document_type: newDocType,
         tier: newDocTier,
-        status: 'attached',
+        status: 'ATTACHED',
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
