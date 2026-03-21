@@ -1,23 +1,36 @@
 
 
-## Plan: Fix Tier Values & Move Add Document Section
+## Root Cause Analysis & Fix: Submit to Curation Button Disabled
 
-### Problem
-1. The "Add New Legal Document" form sends tier as `'1'` or `'2'` but the database expects `'TIER_1'` or `'TIER_2'`, causing an insert error.
-2. The "Add New Legal Document" section is positioned above the AI-generated documents section — it should be at the bottom (before the Submit to Curation card), in a collapsible mode.
+### Root Causes
 
-### Changes — Single File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`
+The button is disabled by `disabled={submitting || totalAccepted === 0}` (line 1167).
 
-**1. Fix tier values**
-- Change the default state from `'1'` to `'TIER_1'` (line 298)
-- Change the reset value from `'1'` to `'TIER_1'` (line 450)
-- Change the `<SelectItem>` values from `"1"` / `"2"` to `"TIER_1"` / `"TIER_2"` (lines 914-915)
+`totalAccepted` is calculated as `acceptedDocs.size + (attachedDocs?.length ?? 0)` (line 544).
 
-**2. Move "Add New Legal Document" to bottom**
-- Cut the entire Section 3 block (lines 856-973) from its current position (above the AI generation section)
-- Paste it just before the "Submit to Curation" card (before line 1156), after the AI suggestions list
+**Root Cause 1: `acceptedDocs` is ephemeral local state (useState Set)**
+When the LC accepts an AI-suggested document, the accept mutation inserts it into `challenge_legal_docs` AND adds the doc type to the local `acceptedDocs` Set. However, if the page is refreshed or revisited, `acceptedDocs` resets to an empty Set. The only persistent count comes from `attachedDocs` (the DB query).
 
-**3. Wrap in Collapsible**
-- Replace the toggle button / Card pattern with a `Collapsible` component that defaults to closed
-- Use a styled trigger button as the collapsible header so the form is hidden by default and expandable on click
+**Root Cause 2: `attachedDocs` query filters exclude previously accepted docs**
+The `attachedDocs` query fetches from `challenge_legal_docs` correctly. From the network response, it returns `[]` — meaning no documents have been accepted/inserted yet. The user must first accept AI suggestions before the count goes above 0.
+
+**Root Cause 3: No documents accepted yet**
+The network data shows `challenge_legal_docs` returns empty for this challenge. The AI suggestions are generated but none have been accepted. The button correctly reflects this — there are 0 attached documents.
+
+**However**, there's a UX problem: if the user accepts documents, navigates away, and returns, the `acceptedDocs` state resets to empty. The fix should ensure `totalAccepted` relies solely on the persistent `attachedDocs` query (which re-fetches from DB), not on ephemeral state.
+
+### Fix
+
+**File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`**
+
+1. Change `totalAccepted` to only use `attachedDocs?.length ?? 0` (the DB source of truth), removing dependency on the ephemeral `acceptedDocs.size` for the button state
+2. Ensure the `attachedDocs` query is invalidated after each accept mutation (already done)
+3. The `acceptedDocs` Set should only be used for filtering visible suggestions (hiding just-accepted cards), not for the submit gate
+
+This is a one-line change on line 544:
+```typescript
+const totalAccepted = attachedDocs?.length ?? 0;
+```
+
+The `acceptedDocs` Set continues to serve its UI purpose of immediately hiding the accepted suggestion card (before the query refetch completes), but the submit button relies on the actual DB count.
 
