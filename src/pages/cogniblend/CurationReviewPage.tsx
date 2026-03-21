@@ -87,24 +87,7 @@ const DEFAULT_DOMAIN_TAGS = [
   'Data Analytics', 'Supply Chain', 'Telecommunications',
 ];
 
-/** Complexity level thresholds — score ranges map to L1–L5 */
-const COMPLEXITY_THRESHOLDS: { level: string; label: string; min: number; max: number }[] = [
-  { level: "L1", label: "Very Low", min: 0, max: 2 },
-  { level: "L2", label: "Low", min: 2, max: 4 },
-  { level: "L3", label: "Medium", min: 4, max: 6 },
-  { level: "L4", label: "High", min: 6, max: 8 },
-  { level: "L5", label: "Very High", min: 8, max: 10 },
-];
-
-function deriveComplexityLevel(score: number): string {
-  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
-  return match?.level ?? "L5";
-}
-
-function deriveComplexityLabel(score: number): string {
-  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
-  return match?.label ?? "Very High";
-}
+/** Complexity level thresholds — used only for section isFilled check */
 
 // ---------------------------------------------------------------------------
 // Types
