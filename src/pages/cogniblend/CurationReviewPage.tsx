@@ -41,11 +41,15 @@ import {
   FileText,
   Shield,
   AlertTriangle,
+  DollarSign,
+  ShieldCheck,
+  Building2,
 } from "lucide-react";
 import CurationChecklistPanel from "./CurationChecklistPanel";
 import { AICurationQualityPanel } from "@/components/cogniblend/curation/AICurationQualityPanel";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
 import type { Json } from "@/integrations/supabase/types";
+import { CACHE_STANDARD } from "@/config/queryCache";
 
 // ---------------------------------------------------------------------------
 // Types
