@@ -58,6 +58,11 @@ export function CurationAIReviewInline({
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
+  // Auto-expand when review arrives with warning/needs_revision
+  useEffect(() => {
+    if (defaultOpen) setIsOpen(true);
+  }, [defaultOpen]);
+
   // Sync edited comments when review changes
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
 
