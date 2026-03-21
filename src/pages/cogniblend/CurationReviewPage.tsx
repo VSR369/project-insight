@@ -87,7 +87,7 @@ const DEFAULT_DOMAIN_TAGS = [
   'Data Analytics', 'Supply Chain', 'Telecommunications',
 ];
 
-/** Complexity level thresholds — used only for section isFilled check */
+
 
 // ---------------------------------------------------------------------------
 // Types
