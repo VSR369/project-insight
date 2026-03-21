@@ -1434,8 +1434,6 @@ export default function CurationReviewPage() {
                                 onClick={() => {
                                   if (section.key === "complexity") {
                                     handleStartComplexityEdit();
-                                  } else if (section.key === "domain_tags") {
-                                    handleStartDomainTagEdit();
                                   } else {
                                     setEditingSection(section.key);
                                   }
