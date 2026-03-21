@@ -154,7 +154,7 @@ function useChallengeForLC(challengeId: string | undefined) {
   });
 }
 
-/* ─── Hook: fetch attached legal docs ────────────────────── */
+/* ─── Hook: fetch attached legal docs (non-suggested) ────── */
 
 function useAttachedLegalDocs(challengeId: string | undefined) {
   return useQuery({
@@ -165,6 +165,7 @@ function useAttachedLegalDocs(challengeId: string | undefined) {
         .from('challenge_legal_docs')
         .select('id, document_type, tier, document_name, status, lc_status, lc_review_notes, attached_by, created_at')
         .eq('challenge_id', challengeId)
+        .neq('status', 'ai_suggested')
         .order('created_at', { ascending: true });
       if (error) throw new Error(error.message);
       return (data ?? []) as AttachedDoc[];
@@ -174,22 +175,32 @@ function useAttachedLegalDocs(challengeId: string | undefined) {
   });
 }
 
-/* ─── Hook: manual AI suggestion trigger ─────────────────── */
+/* ─── Hook: fetch persisted AI suggestions from DB ───────── */
 
-function useLegalSuggestions(challengeId: string | undefined) {
+function usePersistedSuggestions(challengeId: string | undefined) {
   return useQuery({
-    queryKey: ['legal-suggestions', challengeId],
-    queryFn: async (): Promise<AISuggestion> => {
-      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
-        body: { challenge_id: challengeId },
-      });
-      if (error) throw new Error(error.message ?? 'Failed to get suggestions');
-      if (!data?.success) throw new Error(data?.error?.message ?? 'AI suggestion failed');
-      return data.data as AISuggestion;
+    queryKey: ['ai-legal-suggestions', challengeId],
+    queryFn: async (): Promise<SuggestedDoc[]> => {
+      if (!challengeId) throw new Error('No challenge ID');
+      const { data, error } = await supabase
+        .from('challenge_legal_docs')
+        .select('id, document_type, tier, document_name, status, content_summary, rationale, priority')
+        .eq('challenge_id', challengeId)
+        .eq('status', 'ai_suggested')
+        .order('created_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((d: any) => ({
+        id: d.id,
+        document_type: d.document_type,
+        tier: d.tier,
+        title: d.document_name ?? d.document_type,
+        rationale: d.rationale ?? '',
+        content_summary: d.content_summary ?? '',
+        priority: d.priority ?? 'recommended',
+      }));
     },
-    enabled: false, // manual trigger only
-    staleTime: 5 * 60_000,
-    gcTime: 30 * 60_000,
+    enabled: !!challengeId,
+    staleTime: 30_000,
   });
 }
 
