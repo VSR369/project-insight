@@ -285,14 +285,16 @@ function EvaluationCard({
           <SectionLabel>Criteria Breakdown</SectionLabel>
           <div className="space-y-3">
             {criteria.map((c, i) => {
-              const cpct = Math.round((c.score / c.max) * 100);
+              const cScore = typeof c.score === 'number' ? c.score : 0;
+              const cMax = typeof c.max === 'number' && c.max > 0 ? c.max : 100;
+              const cpct = Math.min(100, Math.max(0, Math.round((cScore / cMax) * 100)));
               const cc = scoreColor(cpct);
               return (
                 <div key={i} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-foreground">{c.name}</span>
                     <span className={cn('text-xs font-semibold', cc.text)}>
-                      {c.score}/{c.max}
+                      {cScore}/{cMax}
                     </span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
