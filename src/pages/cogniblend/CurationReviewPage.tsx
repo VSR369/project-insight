@@ -1065,8 +1065,36 @@ export default function CurationReviewPage() {
       toast.error("Cannot save refinement for this section type.");
       return;
     }
+
+    // For constrained fields, normalize through challengeFieldNormalizer
+    // to extract the DB code from AI-generated descriptive text
+    let valueToSave: any = newContent;
+    const CONSTRAINED_FIELDS = ['maturity_level', 'ip_model', 'complexity_level', 'rejection_fee_percentage'];
+    if (CONSTRAINED_FIELDS.includes(dbField)) {
+      try {
+        const normalized = normalizeChallengeFields({ [dbField]: newContent });
+        valueToSave = normalized[dbField];
+      } catch {
+        // AI may return descriptive text like "IP-NEL (Non-Exclusive License): ..."
+        // Try to extract the code from the beginning of the string
+        const codeMatch = newContent.match(/^(IP-[A-Z]+|L[1-5]|BLUEPRINT|POC|PROTOTYPE|PILOT)/i);
+        if (codeMatch) {
+          try {
+            const retryNormalized = normalizeChallengeFields({ [dbField]: codeMatch[1] });
+            valueToSave = retryNormalized[dbField];
+          } catch (e2: any) {
+            toast.error(`Invalid ${dbField}: ${e2.message}`);
+            return;
+          }
+        } else {
+          toast.error(`Could not extract a valid ${dbField} code from AI refinement.`);
+          return;
+        }
+      }
+    }
+
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: dbField, value: newContent });
+    saveSectionMutation.mutate({ field: dbField, value: valueToSave });
   }, [saveSectionMutation]);
 
 
