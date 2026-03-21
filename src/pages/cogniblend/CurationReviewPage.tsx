@@ -779,7 +779,7 @@ export default function CurationReviewPage() {
   const [complexityDraft, setComplexityDraft] = useState<Record<string, number>>({});
 
   // Domain tags editing state
-  const [domainTagDraft, setDomainTagDraft] = useState<string[]>([]);
+  const [domainTagInput, setDomainTagInput] = useState("");
   const [domainTagInput, setDomainTagInput] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
 
