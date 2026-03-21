@@ -34,7 +34,7 @@ interface CurationAIReviewPanelProps {
     domain_tags?: string[];
   };
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
-  onReviewSection?: (sectionKey: string) => void;
+  defaultOpen?: boolean;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
