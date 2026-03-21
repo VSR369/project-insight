@@ -493,20 +493,7 @@ const SECTIONS: SectionDef[] = [
       const tags = parseJson<string[]>(ch.domain_tags);
       return Array.isArray(tags) && tags.length > 0;
     },
-    render: (ch) => {
-      const tags = parseJson<string[]>(ch.domain_tags);
-      if (!Array.isArray(tags) || tags.length === 0)
-        return <p className="text-sm text-muted-foreground italic">No domain tags assigned.</p>;
-      return (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
-              <Tag className="h-3 w-3 mr-1" />{tag}
-            </Badge>
-          ))}
-        </div>
-      );
-    },
+    render: () => null, // Rendered inline (YouTube-style always-editable)
   },
   {
     key: "phase_schedule",
@@ -792,7 +779,6 @@ export default function CurationReviewPage() {
   const [complexityDraft, setComplexityDraft] = useState<Record<string, number>>({});
 
   // Domain tags editing state
-  const [domainTagDraft, setDomainTagDraft] = useState<string[]>([]);
   const [domainTagInput, setDomainTagInput] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
 
@@ -916,7 +902,7 @@ export default function CurationReviewPage() {
 
   const handleSaveMaturityLevel = useCallback((value: string) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "maturity_level", value });
+    saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
   }, [saveSectionMutation]);
 
   const handleStartComplexityEdit = useCallback(() => {
@@ -976,31 +962,27 @@ export default function CurationReviewPage() {
       });
   }, [complexityParams, complexityDraft, challengeId, user?.id, queryClient]);
 
-  const handleStartDomainTagEdit = useCallback(() => {
-    if (!challenge) return;
-    const existing = parseJson<string[]>(challenge.domain_tags);
-    setDomainTagDraft(Array.isArray(existing) ? [...existing] : []);
-    setDomainTagInput("");
-    setEditingSection("domain_tags");
-  }, [challenge]);
-
+  /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
+    if (!challenge) return;
     const trimmed = tag.trim();
-    if (trimmed && !domainTagDraft.includes(trimmed)) {
-      setDomainTagDraft((prev) => [...prev, trimmed]);
+    const existing = parseJson<string[]>(challenge.domain_tags);
+    const current = Array.isArray(existing) ? existing : [];
+    if (trimmed && !current.includes(trimmed)) {
+      const updated = [...current, trimmed];
+      saveSectionMutation.mutate({ field: "domain_tags", value: updated });
     }
     setDomainTagInput("");
     setShowTagDropdown(false);
-  }, [domainTagDraft]);
+  }, [challenge, saveSectionMutation]);
 
   const handleRemoveDomainTag = useCallback((tag: string) => {
-    setDomainTagDraft((prev) => prev.filter((t) => t !== tag));
-  }, []);
-
-  const handleSaveDomainTags = useCallback(() => {
-    setSavingSection(true);
-    saveSectionMutation.mutate({ field: "domain_tags", value: domainTagDraft });
-  }, [saveSectionMutation, domainTagDraft]);
+    if (!challenge) return;
+    const existing = parseJson<string[]>(challenge.domain_tags);
+    const current = Array.isArray(existing) ? existing : [];
+    const updated = current.filter((t) => t !== tag);
+    saveSectionMutation.mutate({ field: "domain_tags", value: updated });
+  }, [challenge, saveSectionMutation]);
 
   const handleAIReview = useCallback(async () => {
     if (!challengeId) return;
@@ -1251,9 +1233,12 @@ export default function CurationReviewPage() {
                   }
 
                   // Filtered domain tag suggestions (plain calculation)
-                  const filteredTags = section.key === "domain_tags" && isEditing
+                  const currentTags = section.key === "domain_tags"
+                    ? (() => { const t = parseJson<string[]>(challenge.domain_tags); return Array.isArray(t) ? t : []; })()
+                    : [];
+                  const filteredTags = section.key === "domain_tags" && domainTagInput
                     ? DEFAULT_DOMAIN_TAGS.filter(
-                        (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !domainTagDraft.includes(tag),
+                        (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !currentTags.includes(tag),
                       )
                     : [];
 
@@ -1329,6 +1314,36 @@ export default function CurationReviewPage() {
                               <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>
                             ) : (
                               <>
+                                {/* Quick-select override */}
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-medium text-muted-foreground">Quick select or use sliders below for precise calculation</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {COMPLEXITY_THRESHOLDS.map((t) => {
+                                      const midpoint = (t.min + t.max) / 2;
+                                      const isActive = deriveComplexityLevel(complexityWeightedScore) === t.level;
+                                      return (
+                                        <Button
+                                          key={t.level}
+                                          type="button"
+                                          size="sm"
+                                          variant={isActive ? "default" : "outline"}
+                                          className="text-xs"
+                                          onClick={() => {
+                                            // Set all sliders to the midpoint of this level
+                                            const newDraft: Record<string, number> = {};
+                                            const clamped = Math.max(1, Math.min(10, Math.round(midpoint)));
+                                            complexityParams.forEach((p) => { newDraft[p.param_key] = clamped; });
+                                            setComplexityDraft(newDraft);
+                                          }}
+                                        >
+                                          {t.level} — {t.label}
+                                        </Button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Sliders for each parameter */}
                                 {complexityParams.map((param) => (
                                   <div key={param.param_key} className="space-y-1.5">
                                     <div className="flex items-center justify-between">
@@ -1374,59 +1389,6 @@ export default function CurationReviewPage() {
                             </div>
                           </div>
 
-                        /* ── Domain Tags Editor ── */
-                        ) : isEditing && section.key === "domain_tags" ? (
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
-                              {domainTagDraft.map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
-                                  <Tag className="h-3 w-3" />{tag}
-                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ))}
-                            </div>
-                            <div className="relative">
-                              <Input
-                                value={domainTagInput}
-                                onChange={(e) => {
-                                  setDomainTagInput(e.target.value);
-                                  setShowTagDropdown(true);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && domainTagInput.trim()) {
-                                    e.preventDefault();
-                                    handleAddDomainTag(domainTagInput);
-                                  }
-                                }}
-                                onFocus={() => setShowTagDropdown(true)}
-                                placeholder="Type to search or add a tag…"
-                                className="text-sm"
-                              />
-                              {showTagDropdown && filteredTags.length > 0 && (
-                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-                                  {filteredTags.map((tag) => (
-                                    <button
-                                      key={tag}
-                                      onClick={() => handleAddDomainTag(tag)}
-                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                                    >
-                                      {tag}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
-                                <X className="h-3.5 w-3.5 mr-1" />Cancel
-                              </Button>
-                              <Button size="sm" onClick={handleSaveDomainTags} disabled={savingSection}>
-                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
-                              </Button>
-                            </div>
-                          </div>
 
                         /* ── Deliverables Editor ── */
                         ) : isEditing && section.key === "deliverables" ? (
@@ -1450,6 +1412,55 @@ export default function CurationReviewPage() {
                             onCancel={() => setEditingSection(null)}
                             saving={savingSection}
                           />
+                        /* ── Domain Tags — Always-editable inline ── */
+                        ) : section.key === "domain_tags" ? (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                              {currentTags.length === 0 && (
+                                <p className="text-sm text-muted-foreground italic">No domain tags — type below to add.</p>
+                              )}
+                              {currentTags.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
+                                  <Tag className="h-3 w-3" />{tag}
+                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="relative">
+                              <Input
+                                value={domainTagInput}
+                                onChange={(e) => {
+                                  setDomainTagInput(e.target.value);
+                                  setShowTagDropdown(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && domainTagInput.trim()) {
+                                    e.preventDefault();
+                                    handleAddDomainTag(domainTagInput);
+                                  }
+                                }}
+                                onFocus={() => setShowTagDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+                                placeholder="Type to search or add a tag…"
+                                className="text-sm"
+                              />
+                              {showTagDropdown && filteredTags.length > 0 && (
+                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                                  {filteredTags.map((tag) => (
+                                    <button
+                                      key={tag}
+                                      onClick={() => handleAddDomainTag(tag)}
+                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                    >
+                                      {tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         ) : (
                           <>
                             {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
@@ -1461,8 +1472,6 @@ export default function CurationReviewPage() {
                                 onClick={() => {
                                   if (section.key === "complexity") {
                                     handleStartComplexityEdit();
-                                  } else if (section.key === "domain_tags") {
-                                    handleStartDomainTagEdit();
                                   } else {
                                     setEditingSection(section.key);
                                   }
