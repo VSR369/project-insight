@@ -27,8 +27,25 @@ interface AiContentRendererProps {
 /**
  * Detect whether content is HTML (has tags), Markdown (has markers), or plain text.
  */
-function detectFormat(content: string): 'html' | 'markdown' | 'plain' {
+function tryParseJSON(content: string): Record<string, unknown> | Record<string, unknown>[] | null {
   const trimmed = content.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed === 'object' && parsed !== null) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function detectFormat(content: string): 'json' | 'html' | 'markdown' | 'plain' {
+  const trimmed = content.trim();
+
+  // JSON detection first
+  if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && tryParseJSON(trimmed)) {
+    return 'json';
+  }
 
   // Check for HTML tags (but not markdown angle brackets in blockquotes)
   if (/<(?:p|div|h[1-6]|ul|ol|li|table|br|strong|em|img|a|span|blockquote)\b[^>]*>/i.test(trimmed)) {
@@ -37,16 +54,16 @@ function detectFormat(content: string): 'html' | 'markdown' | 'plain' {
 
   // Check for markdown markers
   const markdownPatterns = [
-    /^#{1,6}\s/m,           // Headings
-    /^\s*[-*+]\s/m,         // Unordered lists
-    /^\s*\d+\.\s/m,         // Ordered lists
-    /\*\*[^*]+\*\*/,        // Bold
-    /\*[^*]+\*/,            // Italic
-    /\|.+\|/m,             // Tables
-    /^>\s/m,                // Blockquotes
-    /```/,                  // Code blocks
-    /`[^`]+`/,             // Inline code
-    /^\s*---\s*$/m,         // Horizontal rules
+    /^#{1,6}\s/m,
+    /^\s*[-*+]\s/m,
+    /^\s*\d+\.\s/m,
+    /\*\*[^*]+\*\*/,
+    /\*[^*]+\*/,
+    /\|.+\|/m,
+    /^>\s/m,
+    /```/,
+    /`[^`]+`/,
+    /^\s*---\s*$/m,
   ];
 
   if (markdownPatterns.some((p) => p.test(trimmed))) {
