@@ -1230,12 +1230,29 @@ export default function CurationReviewPage() {
                   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
                   const isLocked = LOCKED_SECTIONS.has(section.key);
                   const isEditing = editingSection === section.key;
-                  const canEdit = !isLocked && !!section.dbField;
+                  const canEdit = !isLocked && (!!section.dbField || section.key === "complexity");
                   const aiReview = aiReviews.find((r) => r.section_key === section.key);
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
 
                   // Special: payment_schedule renders PaymentScheduleSection
+                  const isPaymentSchedule = section.key === "payment_schedule";
+
+                  // Computed complexity score for live preview
+                  const complexityWeightedScore = useMemo(() => {
+                    if (section.key !== "complexity" || complexityParams.length === 0) return 0;
+                    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+                    if (totalWeight === 0) return 0;
+                    return complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
+                  }, [section.key, complexityParams, complexityDraft]);
+
+                  // Filtered domain tag suggestions
+                  const filteredTags = useMemo(() => {
+                    if (section.key !== "domain_tags") return [];
+                    return DEFAULT_DOMAIN_TAGS.filter(
+                      (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !domainTagDraft.includes(tag),
+                    );
+                  }, [section.key, domainTagInput, domainTagDraft]);
                   const isPaymentSchedule = section.key === "payment_schedule";
 
                   return (
