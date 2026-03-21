@@ -363,6 +363,7 @@ export default function LcLegalWorkspacePage() {
 
       const { error } = await supabase.from('challenge_legal_docs').update({
         status: 'ATTACHED',
+        content_summary: edit.content || doc.content_summary || null,
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
@@ -442,6 +443,7 @@ export default function LcLegalWorkspacePage() {
         document_type: newDocType,
         tier: newDocTier,
         status: 'ATTACHED',
+        content_summary: newDocContent || null,
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
@@ -881,12 +883,12 @@ export default function LcLegalWorkspacePage() {
       {/* ════════════════════════════════════════════════════════ */}
       {/* SECTION 4: Generate Legal Documents                    */}
       {/* ════════════════════════════════════════════════════════ */}
-      {!hasSuggestions && !generating && !suggestionsQueryLoading && (
+      {isLC && !generating && !suggestionsQueryLoading && (
         <Card className="border-dashed border-2 border-primary/20">
           <CardContent className="py-8 text-center space-y-3">
             <Sparkles className="h-8 w-8 mx-auto text-primary" />
             <p className="text-sm font-semibold text-foreground">
-              {totalAccepted > 0 ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
+              {totalAccepted > 0 || hasSuggestions ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
             </p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
               AI will analyze the challenge specification above — maturity level, IP model, governance
@@ -929,6 +931,7 @@ export default function LcLegalWorkspacePage() {
       {/* ════════════════════════════════════════════════════════ */}
       {hasSuggestions && (
         <div className="space-y-4">
+          {/* AI Summary Banner */}
           {/* AI Summary Banner */}
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="py-3 flex items-start gap-3">
@@ -1058,150 +1061,154 @@ export default function LcLegalWorkspacePage() {
               </Card>
             )
           )}
-
-          {/* ════════════════════════════════════════════════════════ */}
-          {/* Add New Legal Document (Collapsible)                    */}
-          {/* ════════════════════════════════════════════════════════ */}
-          {isLC && (
-            <Collapsible open={showAddForm} onOpenChange={setShowAddForm}>
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Legal Document Manually
-                  <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${showAddForm ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <Card className="mt-2">
-                  <CardContent className="pt-4 space-y-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                          Document Title *
-                        </label>
-                        <Input
-                          placeholder="e.g., Non-Disclosure Agreement"
-                          value={newDocTitle}
-                          onChange={(e) => setNewDocTitle(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                          Document Type *
-                        </label>
-                        <Select value={newDocType} onValueChange={setNewDocType}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {DOCUMENT_TYPES.map((t) => (
-                              <SelectItem key={t} value={t}>
-                                {t.replace(/_/g, ' ')}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                        Tier
-                      </label>
-                      <Select value={newDocTier} onValueChange={setNewDocTier}>
-                        <SelectTrigger className="w-48">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="TIER_1">Tier 1 — Entry/Participation</SelectItem>
-                          <SelectItem value="TIER_2">Tier 2 — Solution/Award</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                        Document Content
-                      </label>
-                      <Textarea
-                        placeholder="Paste or write the full legal document content here…"
-                        value={newDocContent}
-                        onChange={(e) => setNewDocContent(e.target.value)}
-                        className="text-sm min-h-[160px]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                        Upload Document (optional)
-                      </label>
-                      <FileUploadZone
-                        config={FILE_UPLOAD_CONFIG}
-                        value={newDocFile}
-                        onChange={setNewDocFile}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                        LC Notes (optional)
-                      </label>
-                      <Textarea
-                        placeholder="Add notes about this document…"
-                        value={newDocNotes}
-                        onChange={(e) => setNewDocNotes(e.target.value)}
-                        className="text-sm"
-                        rows={2}
-                      />
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button onClick={handleAddNewDoc} disabled={addingDoc || !newDocTitle || !newDocType}>
-                        {addingDoc ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Plus className="h-4 w-4 mr-2" />
-                        )}
-                        Add Document
-                      </Button>
-                      <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-
-          <Separator />
-
-          {/* Submit to Curation */}
-          <Card>
-            <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">
-                  {totalAccepted} document{totalAccepted !== 1 ? 's' : ''} attached
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Accept all required documents before submitting to curation.
-                </p>
-              </div>
-              <Button
-                onClick={handleSubmitToCuration}
-                disabled={submitting || totalAccepted === 0}
-              >
-                {submitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                Submit to Curation
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       )}
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* Add New Legal Document (Collapsible) — always visible   */}
+      {/* ════════════════════════════════════════════════════════ */}
+      {isLC && (
+        <Collapsible open={showAddForm} onOpenChange={setShowAddForm}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full justify-start">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Legal Document Manually
+              <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${showAddForm ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="mt-2">
+              <CardContent className="pt-4 space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                      Document Title *
+                    </label>
+                    <Input
+                      placeholder="e.g., Non-Disclosure Agreement"
+                      value={newDocTitle}
+                      onChange={(e) => setNewDocTitle(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                      Document Type *
+                    </label>
+                    <Select value={newDocType} onValueChange={setNewDocType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOCUMENT_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t.replace(/_/g, ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    Tier
+                  </label>
+                  <Select value={newDocTier} onValueChange={setNewDocTier}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TIER_1">Tier 1 — Entry/Participation</SelectItem>
+                      <SelectItem value="TIER_2">Tier 2 — Solution/Award</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    Document Content
+                  </label>
+                  <Textarea
+                    placeholder="Paste or write the full legal document content here…"
+                    value={newDocContent}
+                    onChange={(e) => setNewDocContent(e.target.value)}
+                    className="text-sm min-h-[160px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    Upload Document (optional)
+                  </label>
+                  <FileUploadZone
+                    config={FILE_UPLOAD_CONFIG}
+                    value={newDocFile}
+                    onChange={setNewDocFile}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                    LC Notes (optional)
+                  </label>
+                  <Textarea
+                    placeholder="Add notes about this document…"
+                    value={newDocNotes}
+                    onChange={(e) => setNewDocNotes(e.target.value)}
+                    className="text-sm"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={handleAddNewDoc} disabled={addingDoc || !newDocTitle || !newDocType}>
+                    {addingDoc ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Add Document
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      <Separator />
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* Submit to Curation — always visible                     */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <Card>
+        <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">
+              {totalAccepted} document{totalAccepted !== 1 ? 's' : ''} attached
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {challenge?.current_phase !== 2
+                ? `Challenge is currently at Phase ${challenge?.current_phase ?? '?'}. It must be at Phase 2 before LC can submit to curation.`
+                : 'Accept all required documents before submitting to curation.'}
+            </p>
+          </div>
+          <Button
+            onClick={handleSubmitToCuration}
+            disabled={submitting || totalAccepted === 0 || challenge?.current_phase !== 2}
+          >
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Send className="h-4 w-4 mr-2" />
+            )}
+            Submit to Curation
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -496,7 +496,7 @@ export default function CurationReviewPage() {
           tier: tier === "TIER_1" ? "Tier 1: Entry-Phase" : "Tier 2: Solution-Phase",
           total: ofTier.length,
           attached: ofTier.filter(
-            (r) => r.status === "default_applied" || r.status === "custom_uploaded"
+            (r) => r.status === "default_applied" || r.status === "custom_uploaded" || r.status === "ATTACHED"
           ).length,
         };
       });
