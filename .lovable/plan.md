@@ -1,29 +1,33 @@
 
 
-## Plan: Add `markdownToHtml` utility and integrate into content pipeline
+## Plan: Align RichTextEditor with User's Feature Requirements
 
-### What & Why
-The user wants a dedicated `markdownToHtml` function that handles AI markdown conversion with callout detection, table parsing, and inline formatting — replacing the `marked` library dependency in `aiContentFormatter.ts` with a purpose-built parser that better handles AI-specific patterns (callout blocks like `**NOTE:**`, `**WARNING:**`).
+### Analysis
+The existing `RichTextEditor.tsx` already uses Tiptap (the correct architecture for this stack). The user's provided code uses `document.execCommand` (deprecated, incompatible with Tiptap). Rather than replacing Tiptap, we'll add the missing features from the user's code into the existing Tiptap editor.
+
+### Missing features to add
+
+1. **Font family selector** (Serif/Sans/Mono dropdown) — needs `@tiptap/extension-font-family`
+2. **Updated color swatches** — replace current 15 colors with user's specific 15 brand colors
+3. **Save button + save status** — add optional `onSave` callback prop with status indicator in footer
+4. **Media files panel** — show uploaded media list below editor with name/size/status
 
 ### Changes
 
-#### 1. Create `src/utils/markdownToHtml.ts`
-New file with the user's `markdownToHtml`, `inlineFormat`, and `escapeHtml` functions. Adaptations for Lovable/Tiptap compatibility:
-- Export all three functions
-- Add DOMPurify sanitization wrapper around the final output
-- Use the existing callout CSS classes (`callout-info`, `callout-warning`, `callout-success`, `callout-danger`) already defined in `index.css`
+#### 1. `src/components/ui/RichTextEditor.tsx`
+- Add `FontFamily` Tiptap extension import
+- Add font family dropdown (Serif/Sans/Mono) to Row 1 toolbar after block style dropdown
+- Replace `COLOR_SWATCHES` array with user's 15 colors: `#0f172a, #1e3a5f, #1a5276, #145a32, #7b241c, #512e5f, #784212, #154360, #4d5656, #717d7e, #2980b9, #27ae60, #e74c3c, #f39c12, #8e44ad`
+- Add `onSave?: (html: string) => void` to props interface
+- Add save button in footer (calls `onSave` with current HTML)
+- Add save status state with auto-dismiss after 3s
+- Track uploaded media files in state, display panel below editor showing name/size/saved status
+- All existing functionality preserved
 
-#### 2. Update `src/lib/aiContentFormatter.ts`
-- Replace `import { marked } from 'marked'` with `import { markdownToHtml } from '@/utils/markdownToHtml'`
-- In `normalizeAiContentForEditor`, swap `marked.parse(trimmed)` call with `markdownToHtml(trimmed)`
-- Remove the `marked` dependency import and `marked.setOptions` call
-- Keep the existing HTML detection branch (pass-through for already-HTML content)
-- Keep DOMPurify sanitization on all outputs
-
-#### 3. No other file changes needed
-All consumers (`CurationSectionEditor`, `AISpecReviewPage`, `AiContentRenderer`) already use `normalizeAiContentForEditor` — the new parser flows through automatically.
+#### 2. `package.json`
+- Add `@tiptap/extension-font-family` dependency
 
 ### Files
-- **Create:** `src/utils/markdownToHtml.ts`
-- **Modify:** `src/lib/aiContentFormatter.ts` (swap marked → markdownToHtml)
+- **Modified:** `src/components/ui/RichTextEditor.tsx`
+- **Modified:** `package.json`
 
