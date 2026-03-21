@@ -1039,6 +1039,23 @@ export default function CurationReviewPage() {
     }
   }, [challengeId]);
 
+  const handleAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
+    // Map section key to db field
+    const section = SECTION_MAP.get(sectionKey);
+    const dbField = section?.dbField;
+    if (!dbField) {
+      toast.error("Cannot save refinement for this section type.");
+      return;
+    }
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: dbField, value: newContent });
+  }, [saveSectionMutation]);
+
+  const handleReviewSection = useCallback(async (sectionKey: string) => {
+    // Triggers full AI review (reuses handleAIReview)
+    await handleAIReview();
+  }, [handleAIReview]);
+
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
