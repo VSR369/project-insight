@@ -745,6 +745,7 @@ export default function CurationReviewPage() {
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
   const [aiReviews, setAiReviews] = useState<SectionReview[]>([]);
+  const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
 
