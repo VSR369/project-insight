@@ -317,16 +317,6 @@ const SECTIONS: SectionDef[] = [
     ),
   },
   {
-    key: "payment_schedule",
-    label: "Payment Schedule",
-    isFilled: (ch) => {
-      const raw = parseJson<any>(ch.reward_structure);
-      const ps = raw?.payment_schedule ?? raw?.payment_milestones;
-      return Array.isArray(ps) && ps.length > 0;
-    },
-    render: () => null, // Rendered via PaymentScheduleSection component
-  },
-  {
     key: "complexity",
     label: "Complexity Assessment",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
