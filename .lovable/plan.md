@@ -1,36 +1,14 @@
+## Plan: Fix LC Legal Workspace — Submit, Generate, and Save Issues
 
+**Status: ✅ IMPLEMENTED**
 
-## Plan: Gate "Submit for Curation" to LC Role Only
+### Changes Applied
 
-### Problem
-`LegalDocumentAttachmentPage.tsx` renders the "Submit for Curation" button for all users, including the Challenge Creator (CR). This breaks the lifecycle sequence where only the Legal Coordinator (LC) should advance a challenge from Phase 2 (Legal) to Phase 3 (Curation).
-
-### Correct Workflow
-1. CR approves spec → challenge moves to Phase 2
-2. CR visits Legal page → can view/attach documents, but can only **send to LC** for review
-3. LC reviews documents in their workspace (`LcLegalWorkspacePage`) → LC submits for curation
-4. CU reviews in curation queue
-
-### Fix
-
-**File: `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx`**
-
-1. The page already tracks `userHasLcRole` (line ~880). Use this flag to conditionally render the submit button:
-   - **If user has LC role**: Show "Submit for Curation" button (current behavior)
-   - **If user does NOT have LC role (CR/CA)**: Hide the "Submit for Curation" button entirely. Instead show a prominent "Send to Legal Coordinator" CTA that triggers the existing `legalReviewRequest` mutation, plus a status badge showing LC review state
-
-2. Update the bottom section (lines 994-1016):
-   - Replace the always-visible submit button with a conditional block
-   - For non-LC users: show an informational card explaining that the LC must review and advance
-   - For LC users: keep the existing submit flow
-
-3. The `handleSubmitForCuration` and `handleConfirmSubmit` functions remain unchanged — they're just no longer reachable by CR users
-
-### What This Fixes
-- CR can no longer bypass LC and submit directly to curation
-- Clear separation of duties: CR attaches docs → LC reviews and advances
-- LC's own workspace (`LcLegalWorkspacePage`) already has its own submit-to-curation flow, so this is consistent
+1. **Hide "Generate" when AI suggestions exist** — Only shown when no `ai_suggested` docs in DB
+2. **GATE-02 failure banners with inline fixes** — Maturity level dropdown + pending doc count warnings
+3. **Direct phase update** — Replaced `complete_phase` RPC with direct `challenges` table update to Phase 3
+4. **Save Content button** — Added "Save Edits" on AI suggestion cards for incremental content persistence
+5. **Pending doc count warning** — Alert shown near Submit when AI suggestions still need Accept/Dismiss
 
 ### Files Modified
-- `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx`
-
+- `src/pages/cogniblend/LcLegalWorkspacePage.tsx`
