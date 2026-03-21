@@ -1,39 +1,43 @@
 
+Current status: **No — this is not fully fixed yet.**
 
-## Plan: Fix JSON Field Parsing in CurationReviewPage
+I re-checked the code and DB payload for challenge `a7962f69-ca64-4ce2-b6f1-764490c698d3`. The JSON fields are wrapped objects (`deliverables.items`, `evaluation_criteria.criteria`, object-shaped `reward_structure`, object-shaped `phase_schedule`), and there are still places in the UI that assume flat arrays.
 
-### Problem
-The CurationReviewPage crashes with `d.map is not a function` because several JSON fields are parsed assuming array shapes, but the actual DB data uses nested object structures.
+Do I know what the issue is? **Yes.**
 
-From the live network data:
-- `deliverables` = `{"items": ["..."]}` — parsed as `string[]` but is an object
-- `evaluation_criteria` = `{"criteria": [{"name", "weight", "description"}]}` — parsed as flat array with wrong field names
-- `reward_structure` = `{"gold": 0, "num_rewarded": "3", "payment_mode": "escrow", "payment_milestones": [...]}` — flat object, not array
-- `phase_schedule` = `{"notes": null, "phase_durations": null, ...}` — flat object, not array
+### Exact remaining problem
+1. `CurationReviewPage` was partially hardened, but the right-side checklist logic still uses legacy parsing patterns in `CurationChecklistPanel`.
+2. `ApprovalReviewPage` still has direct legacy array parsing with `d.map(...)` on `deliverables`, which is the same failure pattern shown in your screenshot.
 
-### Fix (single file)
+### Implementation plan
+1. **Normalize JSONB parsing in curation checklist**
+   - File: `src/pages/cogniblend/CurationChecklistPanel.tsx`
+   - Replace direct `parseJson<...[]>(...)` assumptions with container-unwrapping:
+     - Deliverables: support `[]` and `{ items: [] }`
+     - Evaluation criteria: support `[]` and `{ criteria: [] }`, weight from `weight_percentage` or `weight`
+     - Reward structure: treat as filled if array tiers OR object metadata/milestones exist
+     - Phase schedule: treat as filled if array OR object metadata/phase_durations exist
+   - Ensure no `.reduce/.map` is called unless `Array.isArray(...)` is true.
 
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+2. **Patch approval review page with same normalization**
+   - File: `src/pages/cogniblend/ApprovalReviewPage.tsx`
+   - Replace legacy `d.map(...)`/array-only parsing in:
+     - Challenge summary sections
+     - Overview checklist calculations
+   - Apply the same wrapper-aware parsing rules used in curation.
 
-1. **Deliverables section** (lines 194-208): Extract `items` from parsed object. Handle both `string[]` and `{items: string[]}` shapes:
-   ```ts
-   const raw = parseJson<any>(ch.deliverables);
-   const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
-   ```
+3. **Add a tiny shared helper (or consistent local helper)**
+   - Option A: local helper functions in both files for fast fix.
+   - Option B: shared helper in `src/lib/...` for wrapper unwrapping and safe-array conversion.
+   - Goal: eliminate duplicated fragile JSON parsing.
 
-2. **Evaluation Criteria section** (lines 215-243): Extract `criteria` array from object and map correct field names (`name`/`weight` instead of `criterion_name`/`weight_percentage`):
-   ```ts
-   const raw = parseJson<any>(ch.evaluation_criteria);
-   const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : null;
-   // Use c.name and c.weight instead of c.criterion_name and c.weight_percentage
-   ```
+4. **Verification pass**
+   - Validate `/cogni/curation/:id` loads without error for CU role and shows all sections.
+   - Validate right checklist renders and computes without crash.
+   - Validate `/cogni/approval/:id` also no longer throws `d.map is not a function`.
+   - Confirm with the exact challenge ID currently failing.
 
-3. **Reward Structure section** (lines 249-267): Render as key-value metadata (payment mode, num rewarded, milestones) instead of mapping as array. Show `payment_milestones` as a table if present.
-
-4. **Phase Schedule section** (lines 273-303): Render as key-value metadata. Extract `phase_durations` array if present, otherwise show notes/timeline text.
-
-5. **Complexity Parameters** (line 310): Add `Array.isArray` guard before `.map()`.
-
-### Files Modified
-- `src/pages/cogniblend/CurationReviewPage.tsx`
-
+### Files to update
+- `src/pages/cogniblend/CurationChecklistPanel.tsx`
+- `src/pages/cogniblend/ApprovalReviewPage.tsx`
+- (optional) shared JSON helper file if we centralize parsing
