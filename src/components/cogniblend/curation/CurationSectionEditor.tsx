@@ -1,14 +1,22 @@
 /**
  * CurationSectionEditor — Inline editing for curation review sections.
  * Renders RichTextEditor for text fields and structured editors for JSON fields.
+ * Also provides DateFieldEditor, SelectFieldEditor, and RadioFieldEditor for org-policy fields.
  */
 
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { CalendarIcon, Trash2, Plus, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { normalizeAiContentForEditor } from "@/lib/aiContentFormatter";
-import { Trash2, Plus, Save, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ── Text field editor (problem_statement, scope, description, eligibility, etc.) ──
 
