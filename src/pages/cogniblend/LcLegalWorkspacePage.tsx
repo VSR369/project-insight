@@ -561,11 +561,9 @@ export default function LcLegalWorkspacePage() {
   const solverTypes = renderJsonList(challenge?.solver_eligibility_types);
   const solverVisible = renderJsonList(challenge?.solver_visibility_types);
 
-  // Filter AI suggestions to exclude dismissed and already-accepted
-  const attachedTypes = new Set((attachedDocs ?? []).map((d) => d.document_type));
-  const visibleSuggestions = suggestions?.documents.filter(
-    (doc) => !dismissedSuggestions.has(doc.document_type) && !acceptedDocs.has(doc.document_type) && !attachedTypes.has(doc.document_type)
-  );
+  // AI suggestions are now loaded from DB — no local filtering needed
+  const visibleSuggestions = aiSuggestions ?? [];
+  const hasSuggestions = visibleSuggestions.length > 0;
   const totalAccepted = attachedDocs?.length ?? 0;
 
   return (
