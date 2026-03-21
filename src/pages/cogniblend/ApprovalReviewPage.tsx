@@ -292,16 +292,16 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
     "Complexity Parameters", "Maturity Level", "Artifact Types",
   ];
 
-  const ec = parseJson<EvalCriterion[]>(challenge.evaluation_criteria);
-  const evalSum = ec?.reduce((s, c) => s + (c.weight_percentage ?? 0), 0) ?? 0;
+  const ec = unwrapEvalCriteria(challenge.evaluation_criteria);
+  const evalSum = ec?.reduce((s, c) => s + (c.weight ?? 0), 0) ?? 0;
 
   const autoChecks = [
     !!challenge.problem_statement?.trim(),
     !!challenge.scope?.trim(),
-    (() => { const d = parseJson<unknown[]>(challenge.deliverables); return !!d && d.length > 0; })(),
+    (() => { const d = unwrapArray(challenge.deliverables, "items"); return !!d && d.length > 0; })(),
     evalSum === 100,
-    (() => { const rs = parseJson<unknown[]>(challenge.reward_structure); return !!rs && rs.length > 0; })(),
-    (() => { const ps = parseJson<unknown[]>(challenge.phase_schedule); return !!ps && ps.length > 0; })(),
+    isJsonFilled(challenge.reward_structure),
+    isJsonFilled(challenge.phase_schedule),
     !!challenge.description?.trim(),
     !!challenge.eligibility?.trim(),
     false, // taxonomy tags
