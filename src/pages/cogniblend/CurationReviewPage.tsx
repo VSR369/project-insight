@@ -1263,15 +1263,8 @@ export default function CurationReviewPage() {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pl-8 pr-2 pb-4">
-                        {/* ── Payment Schedule ── */}
-                        {isPaymentSchedule ? (
-                          <PaymentScheduleSection
-                            challengeId={challengeId!}
-                            rewardStructure={challenge.reward_structure}
-                          />
-
-                        /* ── Maturity Level Editor ── */
-                        ) : isEditing && section.key === "maturity_level" ? (
+                        {/* ── Maturity Level Editor ── */}
+                        {isEditing && section.key === "maturity_level" ? (
                           <div className="space-y-3">
                             <Select
                               value={challenge.maturity_level ?? ""}
