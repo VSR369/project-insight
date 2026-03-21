@@ -433,8 +433,8 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
 
 /** Evaluation Tab */
 function EvaluationTab({ challenge }: { challenge: ChallengeData }) {
-  const criteria = parseJson<EvalCriterion[]>(challenge.evaluation_criteria) ?? [];
-  const totalWeight = criteria.reduce((s, c) => s + (c.weight_percentage ?? 0), 0);
+  const criteria = unwrapEvalCriteria(challenge.evaluation_criteria) ?? [];
+  const totalWeight = criteria.reduce((s, c) => s + (c.weight ?? 0), 0);
 
   return (
     <div className="space-y-6">
