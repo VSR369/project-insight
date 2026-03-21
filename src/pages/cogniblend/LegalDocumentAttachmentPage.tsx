@@ -991,29 +991,70 @@ export default function LegalDocumentAttachmentPage() {
         </div>
       </div>
 
-      {/* Submit for Curation button */}
-      <Button
-        className="w-full gap-2"
-        size="lg"
-        onClick={handleSubmitForCuration}
-        disabled={
-          isValidating ||
-          completePhase.isPending ||
-          (lcStatus?.hasPending ?? false) ||
-          (lcStatus?.hasRejected ?? false)
-        }
-      >
-        <Send className="h-4 w-4" />
-        {isValidating
-          ? "Validating…"
-          : completePhase.isPending
-          ? "Submitting…"
-          : lcStatus?.hasPending
-          ? "Awaiting LC Review…"
-          : lcStatus?.hasRejected
-          ? "LC Rejected — Revise Documents"
-          : "Submit for Curation"}
-      </Button>
+      {/* Submit for Curation — LC only; CR/others see handoff CTA */}
+      {userHasLcRole ? (
+        <Button
+          className="w-full gap-2"
+          size="lg"
+          onClick={handleSubmitForCuration}
+          disabled={
+            isValidating ||
+            completePhase.isPending ||
+            (lcStatus?.hasPending ?? false) ||
+            (lcStatus?.hasRejected ?? false)
+          }
+        >
+          <Send className="h-4 w-4" />
+          {isValidating
+            ? "Validating…"
+            : completePhase.isPending
+            ? "Submitting…"
+            : lcStatus?.hasPending
+            ? "Awaiting LC Review…"
+            : lcStatus?.hasRejected
+            ? "LC Rejected — Revise Documents"
+            : "Submit for Curation"}
+        </Button>
+      ) : (
+        <div className="rounded-lg border border-muted bg-muted/30 p-4 space-y-3">
+          {lcStatus?.hasPending ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Scale className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>Documents sent to Legal Coordinator — awaiting review</span>
+            </div>
+          ) : lcStatus?.allApproved && (lcStatus?.docs?.length ?? 0) > 0 ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>All documents approved by Legal Coordinator</span>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                The Legal Coordinator must review these documents before the challenge can proceed to curation.
+              </p>
+              <Button
+                className="w-full gap-2"
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  if (challengeId) {
+                    legalReviewRequest.mutate({
+                      challengeId,
+                      documentId: null,
+                      lcUserId: null,
+                      isMandatory: false,
+                    });
+                  }
+                }}
+                disabled={legalReviewRequest.isPending}
+              >
+                <Send className="h-4 w-4" />
+                {legalReviewRequest.isPending ? 'Sending…' : 'Send to Legal Coordinator for Review'}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ═══════════════ MODALS ═══════════════ */}
 
