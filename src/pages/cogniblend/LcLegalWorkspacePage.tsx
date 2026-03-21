@@ -491,6 +491,7 @@ export default function LcLegalWorkspacePage() {
 
       toast.success('Legal document added successfully');
       queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
 
       // Reset form
       setNewDocTitle('');
