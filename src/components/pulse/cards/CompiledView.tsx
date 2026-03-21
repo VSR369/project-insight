@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import { ContributorAvatars, type Contributor } from './ContributorAvatars';
 import { Loader2, RefreshCw, History, Plus, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
