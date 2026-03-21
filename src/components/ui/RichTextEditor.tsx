@@ -14,6 +14,7 @@ import PlaceholderExt from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
+import FontFamily from '@tiptap/extension-font-family';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
@@ -35,7 +36,7 @@ import {
   Minus, Info, AlertTriangle, CheckCircle2, XCircle,
   Upload, ChevronDown, RemoveFormatting, Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon, Highlighter, Palette, Type, Code2, Quote,
-  Plus,
+  Plus, Save, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,10 +66,23 @@ function getMediaCategory(mime: string): 'image' | 'video' | 'audio' | null {
 }
 
 const COLOR_SWATCHES = [
-  '#000000', '#374151', '#6b7280', '#1e3a5f', '#1d4ed8',
-  '#3b82f6', '#0891b2', '#059669', '#16a34a', '#ca8a04',
-  '#ea580c', '#dc2626', '#be185d', '#7c3aed', '#6d28d9',
+  '#0f172a', '#1e3a5f', '#1a5276', '#145a32', '#7b241c',
+  '#512e5f', '#784212', '#154360', '#4d5656', '#717d7e',
+  '#2980b9', '#27ae60', '#e74c3c', '#f39c12', '#8e44ad',
 ];
+
+const FONT_FAMILIES = [
+  { label: 'Serif', value: 'Georgia, serif' },
+  { label: 'Sans', value: "'Segoe UI', sans-serif" },
+  { label: 'Mono', value: "'Courier New', monospace" },
+];
+
+interface MediaFile {
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+}
 
 const FONT_SIZES = ['10', '11', '12', '13', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
 
@@ -82,6 +96,7 @@ export interface RichTextEditorProps {
   error?: string;
   storagePath?: string;
   className?: string;
+  onSave?: (html: string) => void;
 }
 
 /* ─── Toolbar Button ──────────────────────────────────── */
@@ -146,6 +161,7 @@ export function RichTextEditor({
   error,
   storagePath = 'editor-media',
   className,
+  onSave,
 }: RichTextEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +169,8 @@ export function RichTextEditor({
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [, forceUpdate] = useState(0);
+  const [saveStatus, setSaveStatus] = useState('');
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -166,6 +184,7 @@ export function RichTextEditor({
       CharacterCount,
       Underline,
       TextStyle,
+      FontFamily,
       Color,
       Highlight.configure({ multicolor: false }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -262,6 +281,7 @@ export function RichTextEditor({
           ).run();
         }
 
+        setMediaFiles((prev) => [...prev, { id: Date.now(), name: file.name, type: category, size: file.size }]);
         toast.success(`${category.charAt(0).toUpperCase() + category.slice(1)} uploaded`);
       } catch {
         clearInterval(interval);
@@ -367,6 +387,22 @@ export function RichTextEditor({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Font family */}
+          <select
+            className="h-[26px] px-1 border border-border rounded text-[11px] bg-background cursor-pointer outline-none"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) {
+                editor.chain().focus().setFontFamily(e.target.value).run();
+              }
+            }}
+          >
+            <option value="">Font</option>
+            {FONT_FAMILIES.map((f) => (
+              <option key={f.label} value={f.value}>{f.label}</option>
+            ))}
+          </select>
 
           {/* Font size */}
           <select
@@ -583,24 +619,68 @@ export function RichTextEditor({
           onChange={(e) => handleMediaUpload(e, 'audio')} />
       </div>
 
-      {/* ── Footer: error + word/char count ─────────── */}
+      {/* ── Footer: error + word/char count + save ──── */}
       <div className="flex items-center justify-between">
-        {error ? (
-          <p className="text-xs text-destructive">{error}</p>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {wordCount} words · {charCount} characters
-          </span>
-        )}
-        {minLength != null && (
-          <span className={cn(
-            'text-xs tabular-nums',
-            meetsMin ? 'text-green-600 font-medium' : 'text-muted-foreground',
-          )}>
-            {charCount} / {minLength} min
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {error ? (
+            <p className="text-xs text-destructive">{error}</p>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {wordCount} words · {charCount} characters
+              {mediaFiles.length > 0 && ` · ${mediaFiles.length} media`}
+            </span>
+          )}
+          {saveStatus && (
+            <span className="text-xs font-medium text-green-600">{saveStatus}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {minLength != null && (
+            <span className={cn(
+              'text-xs tabular-nums',
+              meetsMin ? 'text-green-600 font-medium' : 'text-muted-foreground',
+            )}>
+              {charCount} / {minLength} min
+            </span>
+          )}
+          {onSave && (
+            <button
+              type="button"
+              onClick={() => {
+                const html = editor?.getHTML() || '';
+                onSave(html);
+                setSaveStatus('Saved');
+                setTimeout(() => setSaveStatus(''), 3000);
+              }}
+              className="h-7 px-3 rounded text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1"
+            >
+              <Save className="h-3 w-3" />
+              Save
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ── Media files panel ─────────────────────────── */}
+      {mediaFiles.length > 0 && (
+        <div className="border rounded-md p-3 bg-muted/20 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            Media uploaded ({mediaFiles.length})
+          </p>
+          <div className="space-y-1">
+            {mediaFiles.map((f) => (
+              <div key={f.id} className="flex items-center justify-between text-xs px-2 py-1 rounded bg-background border border-border/50">
+                <span className="truncate max-w-[200px] text-foreground">{f.name}</span>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>{(f.size / 1024).toFixed(1)} KB</span>
+                  <span className="text-green-600 font-medium">Saved</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
