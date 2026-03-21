@@ -1513,8 +1513,16 @@ export default function CurationReviewPage() {
                           </>
                         )}
 
-                        {/* AI review inline */}
-                        <CurationAIReviewInline sectionKey={section.key} review={aiReview} />
+                        {/* AI review inline — interactive with refinement */}
+                        <CurationAIReviewInline
+                          sectionKey={section.key}
+                          review={aiReview}
+                          currentContent={getSectionContent(challenge, section.key)}
+                          challengeId={challengeId!}
+                          challengeContext={challengeCtx}
+                          onAcceptRefinement={handleAcceptRefinement}
+                          onReviewSection={handleReviewSection}
+                        />
 
                         {/* All inline AI flags expanded */}
                         {inlineFlags && inlineFlags.length > 1 && (
