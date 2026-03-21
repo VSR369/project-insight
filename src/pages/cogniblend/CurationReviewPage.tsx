@@ -1140,6 +1140,17 @@ export default function CurationReviewPage() {
 
   const activeGroupDef = GROUPS.find((g) => g.id === activeGroup) ?? GROUPS[0];
 
+  // Challenge context for AI refinement
+  const challengeCtx = useMemo(() => ({
+    title: challenge?.title,
+    maturity_level: challenge?.maturity_level,
+    domain_tags: (() => {
+      if (!challenge?.domain_tags) return [];
+      const parsed = parseJson<string[]>(challenge.domain_tags);
+      return Array.isArray(parsed) ? parsed : [];
+    })(),
+  }), [challenge?.title, challenge?.maturity_level, challenge?.domain_tags]);
+
   // ══════════════════════════════════════
   // SECTION 6: Conditional returns
   // ══════════════════════════════════════
