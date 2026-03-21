@@ -12,6 +12,8 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -714,6 +716,7 @@ export default function AISpecReviewPage() {
   const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
   const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
   const saveStep = useSaveChallengeStep();
+  const queryClient = useQueryClient();
   const generateSpec = useGenerateChallengeSpec();
 
   // ═══════ Derived — role checks ═══════
@@ -1101,6 +1104,24 @@ export default function AISpecReviewPage() {
       }
     }
 
+    // Advance phase via complete_phase RPC
+    if (challengeId && user?.id) {
+      try {
+        const { data, error } = await supabase.rpc('complete_phase', {
+          p_challenge_id: challengeId,
+          p_user_id: user.id,
+        });
+        if (error) throw new Error(error.message);
+      } catch (err: any) {
+        toast.error(`Phase advancement failed: ${err.message}`);
+        return;
+      }
+    }
+
+    // Invalidate dashboard queries so UI reflects new phase
+    queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+
     const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
     if (isAiPath) {
       toast.success('Specification approved. Legal Coordinator will prepare documents.');
@@ -1144,6 +1165,24 @@ export default function AISpecReviewPage() {
       }
     }
 
+    // Advance phase via complete_phase RPC
+    if (challengeId && user?.id) {
+      try {
+        const { data, error } = await supabase.rpc('complete_phase', {
+          p_challenge_id: challengeId,
+          p_user_id: user.id,
+        });
+        if (error) throw new Error(error.message);
+      } catch (err: any) {
+        toast.error(`Phase advancement failed: ${err.message}`);
+        return;
+      }
+    }
+
+    // Invalidate dashboard queries so UI reflects new phase
+    queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+
     const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
     if (isAiPath) {
       toast.success('Specification approved. Legal Coordinator will prepare documents.');
@@ -1153,7 +1192,6 @@ export default function AISpecReviewPage() {
       navigate(`/cogni/challenges/${challengeId}/legal`);
     }
   };
-
 
   // ═══════ QUICK mode: read-only with 1-click confirm ═══════
   if (govMode === 'QUICK') {
