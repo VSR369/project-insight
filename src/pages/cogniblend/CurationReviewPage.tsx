@@ -364,33 +364,7 @@ const SECTIONS: SectionDef[] = [
     key: "complexity",
     label: "Complexity Assessment",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
-    render: (ch) => {
-      const rawParams = parseJson<any>(ch.complexity_parameters);
-      const params = Array.isArray(rawParams) ? rawParams as ComplexityParam[] : null;
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            {ch.complexity_score != null && (
-              <span className="text-sm text-foreground">Score: <span className="font-semibold">{ch.complexity_score}</span></span>
-            )}
-            {ch.complexity_level && <Badge variant="secondary" className="text-xs capitalize">{ch.complexity_level}</Badge>}
-          </div>
-          {params && params.length > 0 && (
-            <div className="space-y-1">
-              {params.map((p, i) => (
-                <div key={i} className="flex justify-between text-xs text-muted-foreground">
-                  <span>{p.name ?? p.key ?? `Param ${i + 1}`}</span>
-                  <span className="font-medium text-foreground">{p.value ?? p.score ?? "—"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {!ch.complexity_score && !ch.complexity_level && (
-            <p className="text-sm text-muted-foreground">Not assessed.</p>
-          )}
-        </div>
-      );
-    },
+    render: () => null, // Rendered via ComplexityAssessmentModule component
   },
   {
     key: "ip_model",
