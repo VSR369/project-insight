@@ -2,6 +2,7 @@
  * suggest-legal-documents — AI edge function for Legal Coordinator.
  * Analyzes a challenge spec (maturity, IP model, scope) and generates
  * full, legally robust document content for each recommended document.
+ * Persists suggestions to challenge_legal_docs with status='ai_suggested'.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -168,10 +169,12 @@ serve(async (req) => {
       );
     }
 
+    // Fetch existing non-suggested docs (already accepted/attached)
     const { data: existingDocs } = await adminClient
       .from("challenge_legal_docs")
       .select("document_type, tier, status")
-      .eq("challenge_id", challenge_id);
+      .eq("challenge_id", challenge_id)
+      .neq("status", "ai_suggested");
 
     const userPrompt = `Analyze this challenge and generate the required legal documents with FULL legal text:
 
@@ -281,6 +284,41 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
     }
 
     const suggestions = JSON.parse(toolCall.function.arguments);
+
+    // ── Persist suggestions to DB ──
+    // First, delete any prior ai_suggested rows for this challenge (allows re-generation)
+    await adminClient
+      .from("challenge_legal_docs")
+      .delete()
+      .eq("challenge_id", challenge_id)
+      .eq("status", "ai_suggested");
+
+    // Insert new suggestions
+    if (suggestions.documents && suggestions.documents.length > 0) {
+      const rows = suggestions.documents.map((doc: any) => ({
+        challenge_id,
+        document_type: doc.document_type,
+        tier: doc.tier === "1" ? "TIER_1" : doc.tier === "2" ? "TIER_2" : doc.tier,
+        status: "ai_suggested",
+        lc_status: null,
+        document_name: doc.title,
+        content_summary: doc.content_summary,
+        rationale: doc.rationale,
+        priority: doc.priority,
+        maturity_level: challenge.maturity_level ?? null,
+        created_by: user.id,
+        attached_by: user.id,
+      }));
+
+      const { error: insertErr } = await adminClient
+        .from("challenge_legal_docs")
+        .insert(rows);
+
+      if (insertErr) {
+        console.error("Failed to persist suggestions:", insertErr.message);
+        // Still return the AI result even if DB persistence fails
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, data: suggestions }),

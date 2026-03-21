@@ -7,7 +7,7 @@
  * LC can also delete docs and manually add new documents.
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -105,17 +105,13 @@ import {
 /* ─── Types ──────────────────────────────────────────────── */
 
 interface SuggestedDoc {
+  id: string;
   document_type: string;
   tier: string;
   title: string;
   rationale: string;
   content_summary: string;
   priority: 'required' | 'recommended';
-}
-
-interface AISuggestion {
-  summary: string;
-  documents: SuggestedDoc[];
 }
 
 interface DocEditState {
@@ -158,7 +154,7 @@ function useChallengeForLC(challengeId: string | undefined) {
   });
 }
 
-/* ─── Hook: fetch attached legal docs ────────────────────── */
+/* ─── Hook: fetch attached legal docs (non-suggested) ────── */
 
 function useAttachedLegalDocs(challengeId: string | undefined) {
   return useQuery({
@@ -169,6 +165,7 @@ function useAttachedLegalDocs(challengeId: string | undefined) {
         .from('challenge_legal_docs')
         .select('id, document_type, tier, document_name, status, lc_status, lc_review_notes, attached_by, created_at')
         .eq('challenge_id', challengeId)
+        .neq('status', 'ai_suggested')
         .order('created_at', { ascending: true });
       if (error) throw new Error(error.message);
       return (data ?? []) as AttachedDoc[];
@@ -178,22 +175,32 @@ function useAttachedLegalDocs(challengeId: string | undefined) {
   });
 }
 
-/* ─── Hook: manual AI suggestion trigger ─────────────────── */
+/* ─── Hook: fetch persisted AI suggestions from DB ───────── */
 
-function useLegalSuggestions(challengeId: string | undefined) {
+function usePersistedSuggestions(challengeId: string | undefined) {
   return useQuery({
-    queryKey: ['legal-suggestions', challengeId],
-    queryFn: async (): Promise<AISuggestion> => {
-      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
-        body: { challenge_id: challengeId },
-      });
-      if (error) throw new Error(error.message ?? 'Failed to get suggestions');
-      if (!data?.success) throw new Error(data?.error?.message ?? 'AI suggestion failed');
-      return data.data as AISuggestion;
+    queryKey: ['ai-legal-suggestions', challengeId],
+    queryFn: async (): Promise<SuggestedDoc[]> => {
+      if (!challengeId) throw new Error('No challenge ID');
+      const { data, error } = await supabase
+        .from('challenge_legal_docs')
+        .select('id, document_type, tier, document_name, status, content_summary, rationale, priority')
+        .eq('challenge_id', challengeId)
+        .eq('status', 'ai_suggested')
+        .order('created_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((d: any) => ({
+        id: d.id,
+        document_type: d.document_type,
+        tier: d.tier,
+        title: d.document_name ?? d.document_type,
+        rationale: d.rationale ?? '',
+        content_summary: d.content_summary ?? '',
+        priority: d.priority ?? 'recommended',
+      }));
     },
-    enabled: false, // manual trigger only
-    staleTime: 5 * 60_000,
-    gcTime: 30 * 60_000,
+    enabled: !!challengeId,
+    staleTime: 30_000,
   });
 }
 
@@ -277,19 +284,16 @@ export default function LcLegalWorkspacePage() {
   const { data: challenge, isLoading: challengeLoading } = useChallengeForLC(challengeId);
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
   const {
-    data: suggestions,
-    isFetching: suggestionsLoading,
-    error: suggestionsError,
-    refetch: refetchSuggestions,
-  } = useLegalSuggestions(challengeId);
+    data: aiSuggestions,
+    isLoading: suggestionsQueryLoading,
+  } = usePersistedSuggestions(challengeId);
   const completePhase = useCompletePhase();
 
-  const [hasGenerated, setHasGenerated] = useState(false);
-  const [acceptedDocs, setAcceptedDocs] = useState<Set<string>>(new Set());
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Set<string>>(new Set());
   const [docEdits, setDocEdits] = useState<Record<string, DocEditState>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   // ── Add New Doc form state ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -305,10 +309,26 @@ export default function LcLegalWorkspacePage() {
   const isLC = roles?.includes('LC');
   const hasAccess = isLC || roles?.includes('CR') || roles?.includes('RQ');
 
-  // ── Generate handler ──
+  // ── Generate handler (calls edge function via mutation) ──
   const handleGenerate = async () => {
-    setHasGenerated(true);
-    await refetchSuggestions();
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
+        body: { challenge_id: challengeId },
+      });
+      if (error) throw new Error(error.message ?? 'Failed to get suggestions');
+      if (!data?.success) throw new Error(data?.error?.message ?? 'AI suggestion failed');
+      // Invalidate the persisted suggestions query to reload from DB
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+      toast.success('Legal documents generated successfully');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate';
+      setGenerateError(msg);
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // ── Edit state helpers ──
@@ -335,26 +355,21 @@ export default function LcLegalWorkspacePage() {
     }
   };
 
-  // ── Accept doc mutation ──
+  // ── Accept doc mutation (UPDATE existing ai_suggested row) ──
   const acceptDocMutation = useMutation({
     mutationFn: async (doc: SuggestedDoc) => {
       if (!challengeId || !user?.id) throw new Error('Missing context');
       const edit = getDocEdit(doc.document_type);
 
-      const { error } = await supabase.from('challenge_legal_docs').insert({
-        challenge_id: challengeId,
-        document_type: doc.document_type,
-        tier: doc.tier,
+      const { error } = await supabase.from('challenge_legal_docs').update({
         status: 'attached',
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
         lc_review_notes: edit.notes || `AI-suggested: ${doc.rationale}`,
-        document_name: doc.title,
-        maturity_level: challenge?.maturity_level ?? null,
-        attached_by: user.id,
-        created_by: user.id,
-      } as any);
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      } as any).eq('id', doc.id);
 
       if (error) throw new Error(error.message);
 
@@ -373,10 +388,9 @@ export default function LcLegalWorkspacePage() {
       return doc.document_type;
     },
     onSuccess: (docType) => {
-      setAcceptedDocs((prev) => new Set([...prev, docType]));
       toast.success(`${docType} document accepted and attached`);
       queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
-      queryClient.invalidateQueries({ queryKey: ['legal-suggestions', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'accept_legal_doc' });
@@ -399,10 +413,21 @@ export default function LcLegalWorkspacePage() {
     },
   });
 
-  // ── Dismiss AI suggestion (local only) ──
-  const dismissSuggestion = useCallback((docType: string) => {
-    setDismissedSuggestions((prev) => new Set([...prev, docType]));
-  }, []);
+  // ── Dismiss AI suggestion (delete from DB) ──
+  const dismissSuggestionMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      const { error } = await supabase.from('challenge_legal_docs').delete().eq('id', docId).eq('status', 'ai_suggested');
+      if (error) throw new Error(error.message);
+      return docId;
+    },
+    onSuccess: () => {
+      toast.success('Suggestion dismissed');
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'dismiss_legal_suggestion' });
+    },
+  });
 
   // ── Add new doc manually ──
   const handleAddNewDoc = async () => {
@@ -536,11 +561,9 @@ export default function LcLegalWorkspacePage() {
   const solverTypes = renderJsonList(challenge?.solver_eligibility_types);
   const solverVisible = renderJsonList(challenge?.solver_visibility_types);
 
-  // Filter AI suggestions to exclude dismissed and already-accepted
-  const attachedTypes = new Set((attachedDocs ?? []).map((d) => d.document_type));
-  const visibleSuggestions = suggestions?.documents.filter(
-    (doc) => !dismissedSuggestions.has(doc.document_type) && !acceptedDocs.has(doc.document_type) && !attachedTypes.has(doc.document_type)
-  );
+  // AI suggestions are now loaded from DB — no local filtering needed
+  const visibleSuggestions = aiSuggestions ?? [];
+  const hasSuggestions = visibleSuggestions.length > 0;
   const totalAccepted = attachedDocs?.length ?? 0;
 
   return (
@@ -858,18 +881,18 @@ export default function LcLegalWorkspacePage() {
       {/* ════════════════════════════════════════════════════════ */}
       {/* SECTION 4: Generate Legal Documents                    */}
       {/* ════════════════════════════════════════════════════════ */}
-      {!suggestions && !suggestionsLoading && (
+      {!hasSuggestions && !generating && !suggestionsQueryLoading && (
         <Card className="border-dashed border-2 border-primary/20">
           <CardContent className="py-8 text-center space-y-3">
             <Sparkles className="h-8 w-8 mx-auto text-primary" />
             <p className="text-sm font-semibold text-foreground">
-              Ready to Generate Legal Documents
+              {totalAccepted > 0 ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
             </p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
               AI will analyze the challenge specification above — maturity level, IP model, governance
               profile — and generate complete legal documents with full clauses ready for review.
             </p>
-            <Button onClick={handleGenerate} disabled={suggestionsLoading}>
+            <Button onClick={handleGenerate} disabled={generating}>
               <Sparkles className="h-4 w-4 mr-2" />
               Generate Legal Documents
             </Button>
@@ -878,7 +901,7 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* Loading */}
-      {suggestionsLoading && (
+      {generating && (
         <Card>
           <CardContent className="py-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
@@ -888,12 +911,12 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* Error */}
-      {suggestionsError && hasGenerated && (
+      {generateError && (
         <Card className="border-destructive/30">
           <CardContent className="py-6 text-center">
             <AlertCircle className="h-6 w-6 mx-auto text-destructive mb-2" />
-            <p className="text-sm text-destructive">Failed to load AI suggestions</p>
-            <p className="text-xs text-muted-foreground mt-1">{suggestionsError.message}</p>
+            <p className="text-sm text-destructive">Failed to generate AI suggestions</p>
+            <p className="text-xs text-muted-foreground mt-1">{generateError}</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={handleGenerate}>
               Retry
             </Button>
@@ -902,9 +925,9 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 5: AI Summary + Document Cards                 */}
+      {/* SECTION 5: AI Suggestion Document Cards                 */}
       {/* ════════════════════════════════════════════════════════ */}
-      {suggestions && (
+      {hasSuggestions && (
         <div className="space-y-4">
           {/* AI Summary Banner */}
           <Card className="border-primary/20 bg-primary/5">
@@ -912,7 +935,9 @@ export default function LcLegalWorkspacePage() {
               <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-foreground">AI Legal Analysis</p>
-                <p className="text-sm text-muted-foreground mt-1">{suggestions.summary}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {visibleSuggestions.length} document{visibleSuggestions.length !== 1 ? 's' : ''} recommended for this challenge.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -1012,7 +1037,7 @@ export default function LcLegalWorkspacePage() {
                             size="sm"
                             variant="ghost"
                             className="text-destructive hover:text-destructive"
-                            onClick={() => dismissSuggestion(doc.document_type)}
+                            onClick={() => dismissSuggestionMutation.mutate(doc.id)}
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
                             Dismiss
@@ -1025,7 +1050,7 @@ export default function LcLegalWorkspacePage() {
               );
             })
           ) : (
-            suggestions.documents.length > 0 && (
+            visibleSuggestions.length === 0 && (
               <Card>
                 <CardContent className="py-4 text-center text-sm text-muted-foreground">
                   All suggested documents have been processed.
