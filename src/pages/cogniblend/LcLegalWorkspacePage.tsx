@@ -1037,7 +1037,7 @@ export default function LcLegalWorkspacePage() {
                             size="sm"
                             variant="ghost"
                             className="text-destructive hover:text-destructive"
-                            onClick={() => dismissSuggestion(doc.document_type)}
+                            onClick={() => dismissSuggestionMutation.mutate(doc.id)}
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
                             Dismiss
