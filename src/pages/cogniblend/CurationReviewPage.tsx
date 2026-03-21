@@ -1325,6 +1325,36 @@ export default function CurationReviewPage() {
                               <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>
                             ) : (
                               <>
+                                {/* Quick-select override */}
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-medium text-muted-foreground">Quick select or use sliders below for precise calculation</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {COMPLEXITY_THRESHOLDS.map((t) => {
+                                      const midpoint = (t.min + t.max) / 2;
+                                      const isActive = deriveComplexityLevel(complexityWeightedScore) === t.level;
+                                      return (
+                                        <Button
+                                          key={t.level}
+                                          type="button"
+                                          size="sm"
+                                          variant={isActive ? "default" : "outline"}
+                                          className="text-xs"
+                                          onClick={() => {
+                                            // Set all sliders to the midpoint of this level
+                                            const newDraft: Record<string, number> = {};
+                                            const clamped = Math.max(1, Math.min(10, Math.round(midpoint)));
+                                            complexityParams.forEach((p) => { newDraft[p.param_key] = clamped; });
+                                            setComplexityDraft(newDraft);
+                                          }}
+                                        >
+                                          {t.level} — {t.label}
+                                        </Button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Sliders for each parameter */}
                                 {complexityParams.map((param) => (
                                   <div key={param.param_key} className="space-y-1.5">
                                     <div className="flex items-center justify-between">
