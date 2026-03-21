@@ -58,7 +58,15 @@ IMPORTANT:
 - Keep the core message intact
 - Match the tone to the content type (reels = casual, articles = formal)
 - Maximum 3 sentences for captions, preserve length for articles
-- Extract any statistics (percentages, numbers, trends) into a separate list`;
+- Extract any statistics (percentages, numbers, trends) into a separate list
+
+When providing feedback on reward structures, evaluation criteria, scoring, or any structured data, return a JSON object using these schemas:
+
+For monetary/prize data:
+{"type":"monetary","description":"...","milestones":[{"name":"...","percentage":0}],"reward_distribution":{"platinum":"$X","gold":"$Y","silver":"$Z"},"tiered_perks":{"platinum":["..."],"gold":["..."],"silver":["..."]}}
+
+For evaluation/scoring:
+{"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}`;
 
     const userPrompt = `Enhance this ${content_type} ${enhancement_type === 'statistics' ? 'and extract statistics from' : 'caption'}: "${original_text}"
 

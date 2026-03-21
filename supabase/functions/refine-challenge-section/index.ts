@@ -28,7 +28,15 @@ Rules:
 - For text fields, return plain text or HTML (matching the input format).
 - For structured fields (deliverables, evaluation_criteria, reward_structure, phase_schedule), return valid JSON matching the input structure.
 - Do NOT add markdown formatting unless the input already uses it.
-- Keep the length appropriate — don't pad unnecessarily but don't over-compress either.`;
+- Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
+
+When providing feedback on reward structures, evaluation criteria, scoring, or any structured data, return a JSON object using these schemas:
+
+For monetary/prize data:
+{"type":"monetary","description":"...","milestones":[{"name":"...","percentage":0}],"reward_distribution":{"platinum":"$X","gold":"$Y","silver":"$Z"},"tiered_perks":{"platinum":["..."],"gold":["..."],"silver":["..."]}}
+
+For evaluation/scoring:
+{"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
