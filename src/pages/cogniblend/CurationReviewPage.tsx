@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
+import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
@@ -116,6 +117,7 @@ interface ChallengeData {
   phase_status: string | null;
   domain_tags: Json | null;
   ai_section_reviews: Json | null;
+  currency_code: string | null;
 }
 
 interface LegalDocSummary {
@@ -305,51 +307,12 @@ const SECTIONS: SectionDef[] = [
       const raw = parseJson<any>(ch.reward_structure);
       return raw != null && (Array.isArray(raw) ? raw.length > 0 : typeof raw === "object" && Object.keys(raw).length > 0);
     },
-    render: (ch) => {
-      const raw = parseJson<any>(ch.reward_structure);
-      if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
-      if (Array.isArray(raw)) {
-        return (
-          <div className="space-y-2">
-            {raw.map((r: any, i: number) => (
-              <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
-                <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
-                <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        );
-      }
-      const { payment_milestones, ...meta } = raw as Record<string, any>;
-      const milestones = Array.isArray(payment_milestones) ? payment_milestones : null;
-      return (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {Object.entries(meta).filter(([, v]) => v != null && v !== "").map(([k, v]) => (
-              <div key={k}>
-                <p className="text-xs text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
-                <p className="text-sm font-medium text-foreground">{String(v)}</p>
-              </div>
-            ))}
-          </div>
-          {milestones && milestones.length > 0 && (
-            <div className="relative w-full overflow-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead>Milestone</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {milestones.map((m: any, i: number) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm">{m.label ?? m.name ?? `Milestone ${i + 1}`}</TableCell>
-                      <TableCell className="text-sm text-right">{m.amount ?? m.value ?? "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
-      );
-    },
+    render: (ch) => (
+      <RewardStructureDisplay
+        rewardStructure={ch.reward_structure}
+        currencyCode={ch.currency_code ?? undefined}
+      />
+    ),
   },
   {
     key: "payment_schedule",
@@ -770,7 +733,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
