@@ -166,74 +166,82 @@ export function CurationAIReviewInline({
         <ChevronDown className={cn("h-3 w-3 ml-auto transition-transform", isOpen && "rotate-180")} />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-3 pb-3 space-y-3">
-        {/* Editable comments */}
-        <div className="space-y-2">
-          {comments.map((comment, i) => (
-            <div key={i} className="group">
-              {editingIndex === i ? (
-                <div className="space-y-1.5">
-                  <Textarea
-                    value={editedComments[i] ?? comment}
-                    onChange={(e) => handleCommentChange(i, e.target.value)}
-                    className="text-xs min-h-[60px] bg-background"
-                    placeholder="Edit this review comment to refine the AI instruction..."
-                  />
-                  <div className="flex gap-1.5 justify-end">
-                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditingIndex(null)}>
-                      Cancel
-                    </Button>
-                    <Button size="sm" className="h-6 text-[10px] px-2" onClick={handleSaveComment}>
-                      <Check className="h-3 w-3 mr-0.5" />Done
-                    </Button>
-                  </div>
+        {isPending ? (
+          <p className="text-xs text-muted-foreground italic py-2">
+            Run <span className="font-medium text-foreground">"Review Sections by AI"</span> to generate review comments for this section.
+          </p>
+        ) : (
+          <>
+            {/* Editable comments */}
+            <div className="space-y-2">
+              {comments.map((comment, i) => (
+                <div key={i} className="group">
+                  {editingIndex === i ? (
+                    <div className="space-y-1.5">
+                      <Textarea
+                        value={editedComments[i] ?? comment}
+                        onChange={(e) => handleCommentChange(i, e.target.value)}
+                        className="text-xs min-h-[60px] bg-background"
+                        placeholder="Edit this review comment to refine the AI instruction..."
+                      />
+                      <div className="flex gap-1.5 justify-end">
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditingIndex(null)}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" className="h-6 text-[10px] px-2" onClick={handleSaveComment}>
+                          <Check className="h-3 w-3 mr-0.5" />Done
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors"
+                      onClick={() => handleEditComment(i)}
+                    >
+                      <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
+                      <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div
-                  className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors"
-                  onClick={() => handleEditComment(i)}
-                >
-                  <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
-                  <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
-                </div>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Refine button */}
-        {!refinedContent && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full text-xs h-7"
-            onClick={handleRefineWithAI}
-            disabled={isRefining || !currentContent}
-          >
-            {isRefining ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 mr-1" />
+            {/* Refine button */}
+            {!refinedContent && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs h-7"
+                onClick={handleRefineWithAI}
+                disabled={isRefining || !currentContent}
+              >
+                {isRefining ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                )}
+                {isRefining ? "Refining…" : "Refine with AI"}
+              </Button>
             )}
-            {isRefining ? "Refining…" : "Refine with AI"}
-          </Button>
-        )}
 
-        {/* Refined content preview */}
-        {refinedContent && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-medium text-primary uppercase tracking-wide">Proposed Refinement</p>
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
-              <SafeHtmlRenderer html={refinedContent} />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDiscard}>
-                <X className="h-3.5 w-3.5 mr-1" />Discard
-              </Button>
-              <Button size="sm" className="h-7 text-xs" onClick={handleAccept}>
-                <Check className="h-3.5 w-3.5 mr-1" />Accept & Save
-              </Button>
-            </div>
-          </div>
+            {/* Refined content preview */}
+            {refinedContent && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-medium text-primary uppercase tracking-wide">Proposed Refinement</p>
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
+                  <SafeHtmlRenderer html={refinedContent} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDiscard}>
+                    <X className="h-3.5 w-3.5 mr-1" />Discard
+                  </Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={handleAccept}>
+                    <Check className="h-3.5 w-3.5 mr-1" />Accept & Save
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CollapsibleContent>
     </Collapsible>
