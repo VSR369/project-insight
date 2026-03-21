@@ -16,6 +16,16 @@ import { useCompletePhase } from '@/hooks/cogniblend/useCompletePhase';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
+import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
+import { getMaturityLabel } from '@/lib/maturityLabels';
+
+const IP_MODEL_LABELS: Record<string, string> = {
+  'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
+  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
+  'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
+  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
+  'IP-NONE': 'No Transfer — Solver retains all IP rights',
+};
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -466,9 +476,22 @@ export default function LcLegalWorkspacePage() {
               <AccordionTrigger className="text-sm font-semibold">IP Model & Governance</AccordionTrigger>
               <AccordionContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {challenge?.ip_model && <Badge variant="outline">IP: {challenge.ip_model}</Badge>}
-                  {challenge?.governance_profile && <Badge variant="outline">Governance: {challenge.governance_profile}</Badge>}
-                  <Badge variant="secondary">Maturity: {challenge?.maturity_level ?? 'Not specified'}</Badge>
+                  {challenge?.ip_model && (
+                    <Badge variant="outline">IP: {IP_MODEL_LABELS[challenge.ip_model] ?? challenge.ip_model}</Badge>
+                  )}
+                  {(() => {
+                    const mode = resolveGovernanceMode(challenge?.governance_profile);
+                    const cfg = GOVERNANCE_MODE_CONFIG[mode];
+                    return (
+                      <span
+                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                        style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                      >
+                        Governance: {cfg.label}
+                      </span>
+                    );
+                  })()}
+                  <Badge variant="secondary">Maturity: {getMaturityLabel(challenge?.maturity_level)}</Badge>
                   {challenge?.operating_model && <Badge variant="secondary">Model: {challenge.operating_model}</Badge>}
                   {challenge?.current_phase != null && <Badge variant="outline">Phase: {challenge.current_phase}</Badge>}
                   {challenge?.master_status && <Badge variant="outline">Status: {challenge.master_status}</Badge>}
@@ -520,7 +543,7 @@ export default function LcLegalWorkspacePage() {
                                 <tr key={i} className="border-b last:border-0">
                                   <td className="py-2 pr-4 font-medium">{m.name ?? m.label ?? `Milestone ${i + 1}`}</td>
                                   <td className="py-2 pr-4 text-muted-foreground">{(m.trigger ?? '').replace(/_/g, ' ')}</td>
-                                  <td className="py-2 tabular-nums">{m.percentage ?? m.percent ?? 0}%</td>
+                                  <td className="py-2 tabular-nums">{m.pct ?? m.percentage ?? m.percent ?? 0}%</td>
                                 </tr>
                               ))}
                             </tbody>
