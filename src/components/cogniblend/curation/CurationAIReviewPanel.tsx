@@ -56,12 +56,13 @@ export function CurationAIReviewInline({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isAddressed, setIsAddressed] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen && !isAddressed);
 
-  // Auto-expand when review arrives with warning/needs_revision
+  // Auto-expand when review arrives with warning/needs_revision, but only if not addressed
   useEffect(() => {
-    if (defaultOpen) setIsOpen(true);
-  }, [defaultOpen]);
+    if (defaultOpen && !isAddressed) setIsOpen(true);
+  }, [defaultOpen, isAddressed]);
 
   // Sync edited comments when review changes
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
@@ -139,6 +140,8 @@ export function CurationAIReviewInline({
       onAcceptRefinement(sectionKey, refinedContent);
       setRefinedContent(null);
       setEditedComments([]);
+      setIsAddressed(true);
+      setIsOpen(false);
     }
   }, [refinedContent, onAcceptRefinement, sectionKey]);
 
@@ -150,10 +153,12 @@ export function CurationAIReviewInline({
     return null;
   }
 
-  const style = STATUS_STYLES[review.status] ?? STATUS_STYLES.pass;
+  const style = isAddressed
+    ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
+    : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-3 rounded-md border border-border/60 bg-muted/30">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
       <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full px-3 py-2">
         <Bot className="h-3.5 w-3.5" />
         <span className="font-medium">AI Review</span>
