@@ -461,8 +461,8 @@ function EvaluationTab({ challenge }: { challenge: ChallengeData }) {
                     {criteria.map((c, i) => (
                       <TableRow key={i}>
                         <TableCell className="text-sm text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell className="text-sm font-medium">{c.criterion_name}</TableCell>
-                        <TableCell className="text-sm text-right font-semibold">{c.weight_percentage}%</TableCell>
+                        <TableCell className="text-sm font-medium">{c.name}</TableCell>
+                        <TableCell className="text-sm text-right font-semibold">{c.weight}%</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="border-t-2 border-border">
