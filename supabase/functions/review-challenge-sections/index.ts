@@ -1,6 +1,8 @@
 /**
  * review-challenge-sections — Per-section AI review for Curation.
  * Returns granular pass/warning/needs_revision per section with comments.
+ * Supports single-section mode via optional `section_key` parameter.
+ * Persists results to challenges.ai_section_reviews.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -14,7 +16,27 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are an expert innovation challenge quality reviewer performing a deep, contextual review.
+const ALL_SECTIONS = [
+  { key: "problem_statement", desc: "Clarity, specificity, context, why it matters, what has been tried" },
+  { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity, no ambiguity" },
+  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
+  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
+  { key: "reward_structure", desc: "Fair, well-structured, matches challenge complexity" },
+  { key: "phase_schedule", desc: "Realistic timelines, sufficient for the scope and complexity" },
+  { key: "submission_guidelines", desc: "Clear format, content, and process requirements" },
+  { key: "eligibility", desc: "Specific qualifications, no overly broad or restrictive criteria" },
+  { key: "complexity", desc: "Properly assessed with justified parameter values" },
+  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
+  { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
+  { key: "escrow_funding", desc: "Escrow funded (if required)" },
+  { key: "maturity_level", desc: "Set and consistent with challenge depth" },
+  { key: "visibility_eligibility", desc: "Visibility and eligibility properly configured" },
+];
+
+function buildSystemPrompt(sections: typeof ALL_SECTIONS): string {
+  const sectionList = sections.map((s, i) => `${i + 1}. ${s.key} - ${s.desc}`).join("\n");
+
+  return `You are an expert innovation challenge quality reviewer performing a deep, contextual review.
 
 For each section, assess:
 - **Content quality**: Is the language clear, specific, unambiguous, and free of vague phrases like "as needed" or "if applicable"?
@@ -26,25 +48,13 @@ For each section, assess:
 
 For each section provide:
 - status: "pass" (publication-ready), "warning" (functional but improvable), or "needs_revision" (has specific issues that must be fixed)
-- comments: 1-3 specific, actionable improvement instructions. Each comment should be written as an instruction that a curator can directly use to refine the section (e.g., "Add specific performance benchmarks for the ML model accuracy threshold" instead of "Needs more detail").
+- comments: 1-3 specific, actionable improvement instructions. Each comment should be written as an instruction that a curator can directly use to refine the section. For "pass" status, provide 0-1 optional enhancement suggestions.
 
 Sections to review:
-1. problem_statement - Clarity, specificity, context, why it matters, what has been tried
-2. scope - Bounded, in-scope vs out-of-scope clarity, no ambiguity
-3. deliverables - Measurable, concrete, complete list with acceptance criteria
-4. evaluation_criteria - Clear criteria with proper weights summing to 100%, aligned with deliverables
-5. reward_structure - Fair, well-structured, matches challenge complexity
-6. phase_schedule - Realistic timelines, sufficient for the scope and complexity
-7. submission_guidelines - Clear format, content, and process requirements
-8. eligibility - Specific qualifications, no overly broad or restrictive criteria
-9. complexity - Properly assessed with justified parameter values
-10. ip_model - Clear IP ownership, licensing, and transfer terms
-11. legal_docs - Required legal documents attached and reviewed
-12. escrow_funding - Escrow funded (if required)
-13. maturity_level - Set and consistent with challenge depth
-14. visibility_eligibility - Visibility and eligibility properly configured
+${sectionList}
 
 Every comment MUST be phrased as an actionable improvement instruction.`;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -68,10 +78,22 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id } = await req.json();
+    const { challenge_id, section_key } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Determine which sections to review
+    const sectionsToReview = section_key
+      ? ALL_SECTIONS.filter((s) => s.key === section_key)
+      : ALL_SECTIONS;
+
+    if (section_key && sectionsToReview.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown section_key: ${section_key}` } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -84,7 +106,7 @@ serve(async (req) => {
     const [challengeResult, legalResult, escrowResult] = await Promise.all([
       adminClient
         .from("challenges")
-        .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters")
+        .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews")
         .eq("id", challenge_id)
         .single(),
       adminClient
@@ -105,13 +127,9 @@ serve(async (req) => {
       );
     }
 
-    const userPrompt = `Review each section of this challenge:
-
-CHALLENGE: ${JSON.stringify(challengeResult.data, null, 2)}
-
-LEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}
-
-ESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`;
+    const userPrompt = section_key
+      ? `Review ONLY the "${section_key}" section of this challenge:\n\nCHALLENGE: ${JSON.stringify(challengeResult.data, null, 2)}\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`
+      : `Review each section of this challenge:\n\nCHALLENGE: ${JSON.stringify(challengeResult.data, null, 2)}\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`;
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
@@ -122,7 +140,7 @@ ESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`;
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: buildSystemPrompt(sectionsToReview) },
           { role: "user", content: userPrompt },
         ],
         tools: [
@@ -181,9 +199,34 @@ ESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`;
     if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
 
     const parsed = JSON.parse(toolCall.function.arguments);
+    const newSections = (parsed.sections ?? []).map((s: any) => ({
+      ...s,
+      reviewed_at: new Date().toISOString(),
+    }));
+
+    // Merge with existing reviews: replace matching section_keys, keep others
+    const existingReviews: any[] = Array.isArray(challengeResult.data.ai_section_reviews)
+      ? challengeResult.data.ai_section_reviews
+      : [];
+
+    const newKeys = new Set(newSections.map((s: any) => s.section_key));
+    const merged = [
+      ...existingReviews.filter((r: any) => !newKeys.has(r.section_key)),
+      ...newSections,
+    ];
+
+    // Persist to DB
+    const { error: updateError } = await adminClient
+      .from("challenges")
+      .update({ ai_section_reviews: merged })
+      .eq("id", challenge_id);
+
+    if (updateError) {
+      console.error("Failed to persist AI reviews:", updateError);
+    }
 
     return new Response(
-      JSON.stringify({ success: true, data: parsed }),
+      JSON.stringify({ success: true, data: { sections: newSections, all_reviews: merged } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
