@@ -881,24 +881,8 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
   }, [saveSectionMutation]);
 
-  const handleStartComplexityEdit = useCallback(() => {
-    if (!challenge) return;
-    // Initialize draft from existing params or empty
-    const existing = parseJson<any[]>(challenge.complexity_parameters);
-    const draft: Record<string, number> = {};
-    if (Array.isArray(existing)) {
-      existing.forEach((p: any) => {
-        const key = p.param_key ?? p.key ?? "";
-        draft[key] = Number(p.value ?? p.score ?? 5);
-      });
-    }
-    // Ensure all params have a default
-    complexityParams.forEach((p) => {
-      if (!(p.param_key in draft)) draft[p.param_key] = 5;
-    });
-    setComplexityDraft(draft);
-    setEditingSection("complexity");
-  }, [challenge, complexityParams]);
+
+
 
   const handleSaveComplexity = useCallback((
     paramValues: Record<string, number>,
