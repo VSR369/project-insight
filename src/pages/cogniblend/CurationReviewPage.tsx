@@ -74,6 +74,7 @@ import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
 
 // ---------------------------------------------------------------------------
 // Constants
