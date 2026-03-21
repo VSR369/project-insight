@@ -71,26 +71,10 @@ export function AiContentRenderer({
   }
 
   const proseClasses = cn(
-    'ai-content-prose',
-    compact ? 'prose prose-sm' : 'prose prose-sm lg:prose-base',
-    'max-w-none text-foreground',
-    // Heading styles
-    'prose-headings:text-foreground prose-headings:font-semibold',
-    'prose-h1:text-lg prose-h1:border-b prose-h1:border-border prose-h1:pb-2 prose-h1:mb-3',
-    'prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2',
-    'prose-h3:text-sm prose-h3:mt-3 prose-h3:mb-1',
-    // List styles
-    'prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5',
-    // Strong/em
-    'prose-strong:text-foreground prose-strong:font-semibold',
-    'prose-em:text-muted-foreground',
-    // Code
-    'prose-code:text-xs prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono',
-    'prose-pre:bg-muted prose-pre:rounded-md prose-pre:p-3',
-    // Links
-    'prose-a:text-primary prose-a:underline prose-a:underline-offset-2',
-    // Paragraphs
-    'prose-p:leading-relaxed prose-p:my-1.5',
+    'editor-content ai-content-prose',
+    'max-w-none',
+    compact && '[&]:text-[13px] [&]:leading-[1.7] [&]:p-0 [&]:min-h-0',
+    !compact && '[&]:p-0 [&]:min-h-0',
     className,
   );
 
