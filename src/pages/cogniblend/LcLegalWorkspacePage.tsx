@@ -443,6 +443,7 @@ export default function LcLegalWorkspacePage() {
         document_type: newDocType,
         tier: newDocTier,
         status: 'ATTACHED',
+        content_summary: newDocContent || null,
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
