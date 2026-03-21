@@ -751,8 +751,8 @@ export default function CurationReviewPage() {
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
-  // Complexity draft (param_key → value 1-10)
-  const [complexityDraft, setComplexityDraft] = useState<Record<string, number>>({});
+
+  // Domain tags editing state
 
   // Domain tags editing state
   const [domainTagInput, setDomainTagInput] = useState("");
