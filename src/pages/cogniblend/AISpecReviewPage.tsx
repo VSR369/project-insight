@@ -1358,6 +1358,17 @@ export default function AISpecReviewPage() {
         ))}
       </div>
 
+      {/* Extended Brief (AI-generated Category B fields) */}
+      <ExtendedBriefPreview data={challengeRecord.extended_brief} />
+
+      {/* Challenge Settings (Org Policy fields) */}
+      <ChallengeSettingsPanel
+        submissionDeadline={(orgPolicyOverrides.submission_deadline as string | null) ?? challengeRecord.submission_deadline as string | null}
+        challengeVisibility={(orgPolicyOverrides.challenge_visibility as string | null) ?? challengeRecord.challenge_visibility as string | null}
+        effortLevel={(orgPolicyOverrides.effort_level as string | null) ?? challengeRecord.effort_level as string | null}
+        onFieldChange={handleOrgPolicyChange}
+      />
+
       {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <p className="text-xs text-muted-foreground">
