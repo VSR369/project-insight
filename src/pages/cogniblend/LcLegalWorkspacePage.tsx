@@ -117,13 +117,27 @@ function useLegalSuggestions(challengeId: string | undefined) {
 
 function renderJsonList(val: unknown): string[] {
   if (!val) return [];
+  // Unwrap known container shapes: {items:[...]}, {criteria:[...]}, {types:[...]}
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return renderJsonList(obj.items);
+    if (Array.isArray(obj.criteria)) return renderJsonList(obj.criteria);
+    if (Array.isArray(obj.types)) return renderJsonList(obj.types);
+    // Single-key wrapper: unwrap first array-valued key
+    const keys = Object.keys(obj);
+    for (const k of keys) {
+      if (Array.isArray(obj[k])) return renderJsonList(obj[k]);
+    }
+  }
   if (Array.isArray(val)) {
-    return val.map((item, i) => {
+    return val.map((item) => {
       if (typeof item === 'string') return item;
       if (item && typeof item === 'object') {
         return (item as Record<string, unknown>).label as string
           ?? (item as Record<string, unknown>).name as string
           ?? (item as Record<string, unknown>).description as string
+          ?? (item as Record<string, unknown>).title as string
+          ?? (item as Record<string, unknown>).type as string
           ?? JSON.stringify(item);
       }
       return String(item);
@@ -134,12 +148,40 @@ function renderJsonList(val: unknown): string[] {
 }
 
 function renderEvalCriteria(val: unknown): { name: string; weight: number; description?: string }[] {
+  if (!val) return [];
+  // Unwrap {criteria:[...]} wrapper
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.criteria)) return renderEvalCriteria(obj.criteria);
+    if (Array.isArray(obj.items)) return renderEvalCriteria(obj.items);
+  }
   if (!Array.isArray(val)) return [];
   return val.map((item: any) => ({
     name: item.name ?? item.criterion ?? '',
     weight: item.weight ?? item.percentage ?? 0,
     description: item.description ?? '',
   }));
+}
+
+/** Parse reward_structure JSONB into display-friendly shape */
+function parseRewardStructure(val: unknown): {
+  currency?: string;
+  paymentMode?: string;
+  numRewarded?: number;
+  milestones?: { name: string; trigger: string; percentage: number }[];
+  tiers?: { label: string; amount: number }[];
+  totalPool?: number;
+} | null {
+  if (!val || typeof val !== 'object') return null;
+  const obj = val as Record<string, unknown>;
+  return {
+    currency: (obj.currency ?? obj.currency_code) as string | undefined,
+    paymentMode: (obj.payment_mode ?? obj.paymentMode) as string | undefined,
+    numRewarded: (obj.num_rewarded ?? obj.numRewarded) as number | undefined,
+    milestones: Array.isArray(obj.payment_milestones) ? obj.payment_milestones as any[] : undefined,
+    tiers: Array.isArray(obj.tiers) ? obj.tiers as any[] : undefined,
+    totalPool: (obj.total_pool ?? obj.totalPool) as number | undefined,
+  };
 }
 
 /* ─── Main Component ─────────────────────────────────────── */
