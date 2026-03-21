@@ -911,8 +911,8 @@ export default function LcLegalWorkspacePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Tier 1 — Entry/Participation</SelectItem>
-                      <SelectItem value="2">Tier 2 — Solution/Award</SelectItem>
+                      <SelectItem value="TIER_1">Tier 1 — Entry/Participation</SelectItem>
+                      <SelectItem value="TIER_2">Tier 2 — Solution/Award</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
