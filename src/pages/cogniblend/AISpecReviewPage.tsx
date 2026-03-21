@@ -1163,6 +1163,24 @@ export default function AISpecReviewPage() {
       }
     }
 
+    // Advance phase via complete_phase RPC
+    if (challengeId && user?.id) {
+      try {
+        const { data, error } = await supabase.rpc('complete_phase', {
+          p_challenge_id: challengeId,
+          p_user_id: user.id,
+        });
+        if (error) throw new Error(error.message);
+      } catch (err: any) {
+        toast.error(`Phase advancement failed: ${err.message}`);
+        return;
+      }
+    }
+
+    // Invalidate dashboard queries so UI reflects new phase
+    queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+
     const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
     if (isAiPath) {
       toast.success('Specification approved. Legal Coordinator will prepare documents.');
@@ -1171,10 +1189,6 @@ export default function AISpecReviewPage() {
       toast.success('Specification approved. Proceeding to legal document attachment.');
       navigate(`/cogni/challenges/${challengeId}/legal`);
     }
-  };
-
-
-  // ═══════ QUICK mode: read-only with 1-click confirm ═══════
   if (govMode === 'QUICK') {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
