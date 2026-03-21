@@ -624,6 +624,7 @@ function getFieldValue(ch: ChallengeData, sectionKey: string): string {
     case "submission_guidelines": return ch.description ?? "";
     case "ip_model": return ch.ip_model ?? "";
     case "visibility_eligibility": return ch.eligibility ?? "";
+    case "hook": return ch.hook ?? "";
     default: return "";
   }
 }
@@ -657,6 +658,11 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "phase_schedule": return ch.phase_schedule ? JSON.stringify(ch.phase_schedule) : null;
     case "maturity_level": return ch.maturity_level;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
+    case "hook": return ch.hook;
+    case "submission_deadline": return ch.submission_deadline;
+    case "challenge_visibility": return ch.challenge_visibility;
+    case "effort_level": return ch.effort_level;
+    case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     default: return null;
   }
 }
