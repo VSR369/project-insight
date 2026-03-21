@@ -28,6 +28,7 @@ export interface SectionReview {
   status: "pass" | "warning" | "needs_revision";
   comments: string[];
   reviewed_at?: string;
+  addressed?: boolean;
 }
 
 interface CurationAIReviewPanelProps {
@@ -42,6 +43,7 @@ interface CurationAIReviewPanelProps {
   };
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
   onSingleSectionReview?: (sectionKey: string, review: SectionReview) => void;
+  onMarkAddressed?: (sectionKey: string) => void;
   defaultOpen?: boolean;
 }
 
@@ -59,15 +61,16 @@ export function CurationAIReviewInline({
   challengeContext,
   onAcceptRefinement,
   onSingleSectionReview,
+  onMarkAddressed,
   defaultOpen = false,
 }: CurationAIReviewPanelProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
-  const [isAddressed, setIsAddressed] = useState(false);
+  const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
-  const [isOpen, setIsOpen] = useState(defaultOpen && !isAddressed);
+  const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
 
   // Auto-expand when review arrives with warning/needs_revision, but only if not addressed
   useEffect(() => {
@@ -186,8 +189,9 @@ export function CurationAIReviewInline({
       setEditedComments([]);
       setIsAddressed(true);
       setIsOpen(false);
+      onMarkAddressed?.(sectionKey);
     }
-  }, [refinedContent, onAcceptRefinement, sectionKey]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);

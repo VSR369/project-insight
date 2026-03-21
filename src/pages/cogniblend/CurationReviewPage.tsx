@@ -925,6 +925,8 @@ export default function CurationReviewPage() {
       if (data?.success && data.data?.all_reviews) {
         const allReviews = data.data.all_reviews as SectionReview[];
         setAiReviews(allReviews);
+        // Persist batch reviews to DB so they survive navigation
+        saveSectionMutation.mutate({ field: "ai_section_reviews", value: allReviews });
         const sections = data.data.sections as SectionReview[];
         const counts = { pass: 0, warning: 0, needs_revision: 0 };
         sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
@@ -1010,9 +1012,24 @@ export default function CurationReviewPage() {
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      return [...filtered, freshReview];
+      const updated = [...filtered, { ...freshReview, addressed: false }];
+      // Persist updated reviews to DB
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
+      return updated;
     });
-  }, []);
+  }, [saveSectionMutation]);
+
+  /** Persist "addressed" flag when a refinement is accepted */
+  const handleMarkAddressed = useCallback((sectionKey: string) => {
+    setAiReviews((prev) => {
+      const updated = prev.map((r) =>
+        r.section_key === sectionKey ? { ...r, addressed: true } : r
+      );
+      // Persist to DB so state survives navigation
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
+      return updated;
+    });
+  }, [saveSectionMutation]);
 
 
   const toggleSectionApproval = useCallback((key: string) => {
@@ -1401,7 +1418,8 @@ export default function CurationReviewPage() {
                           challengeContext={challengeCtx}
                           onAcceptRefinement={handleAcceptRefinement}
                           onSingleSectionReview={handleSingleSectionReview}
-                          defaultOpen={aiReview?.status === 'warning' || aiReview?.status === 'needs_revision'}
+                          onMarkAddressed={handleMarkAddressed}
+                          defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
                         />
 
                         {/* All inline AI flags expanded */}
