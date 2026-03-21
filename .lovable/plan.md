@@ -1,33 +1,57 @@
 
 
-## Plan: Align RichTextEditor with User's Feature Requirements
+## Status & Remaining Work
 
-### Analysis
-The existing `RichTextEditor.tsx` already uses Tiptap (the correct architecture for this stack). The user's provided code uses `document.execCommand` (deprecated, incompatible with Tiptap). Rather than replacing Tiptap, we'll add the missing features from the user's code into the existing Tiptap editor.
+### What's Already Implemented
+1. **`src/utils/markdownToHtml.ts`** — Custom parser with callouts, tables, inline formatting ✅
+2. **`src/lib/aiContentFormatter.ts`** — Uses custom `markdownToHtml` instead of `marked` ✅
+3. **`src/components/ui/RichTextEditor.tsx`** — Tiptap with 2-row toolbar, font family, 15 brand colors, save button, media panel ✅
+4. **`src/index.css`** — Full `.editor-content` CSS system ✅
+5. **`src/components/ui/AiContentRenderer.tsx`** — Uses `editor-content` class ✅
 
-### Missing features to add
+### What's NOT Implemented Yet
 
-1. **Font family selector** (Serif/Sans/Mono dropdown) — needs `@tiptap/extension-font-family`
-2. **Updated color swatches** — replace current 15 colors with user's specific 15 brand colors
-3. **Save button + save status** — add optional `onSave` callback prop with status indicator in footer
-4. **Media files panel** — show uploaded media list below editor with name/size/status
+The final instruction — **"Apply the editor-content CSS classes to every content display section across the entire platform"** — is incomplete. Several components render rich content without the `editor-content` styling:
 
-### Changes
+| File | Issue |
+|------|-------|
+| `SafeHtmlRenderer.tsx` | Uses `prose prose-sm` instead of `editor-content` |
+| `CompiledView.tsx` | Renders narrative as plain `<p>` — no rich formatting at all |
+| `PulseContentDetailPage.tsx` | Uses `prose prose-sm` for text content |
+| `BillingForm.tsx` | Uses `prose prose-sm` with raw `dangerouslySetInnerHTML` |
+| `DocxPreviewCanvas.tsx` | Uses `prose prose-sm` |
+| `RegistrantCommThread.tsx` | Raw `dangerouslySetInnerHTML` with no formatting class |
+| 6× Knowledge Centre pages | Manual bold parsing (`split('**')`) instead of `AiContentRenderer` |
 
-#### 1. `src/components/ui/RichTextEditor.tsx`
-- Add `FontFamily` Tiptap extension import
-- Add font family dropdown (Serif/Sans/Mono) to Row 1 toolbar after block style dropdown
-- Replace `COLOR_SWATCHES` array with user's 15 colors: `#0f172a, #1e3a5f, #1a5276, #145a32, #7b241c, #512e5f, #784212, #154360, #4d5656, #717d7e, #2980b9, #27ae60, #e74c3c, #f39c12, #8e44ad`
-- Add `onSave?: (html: string) => void` to props interface
-- Add save button in footer (calls `onSave` with current HTML)
-- Add save status state with auto-dismiss after 3s
-- Track uploaded media files in state, display panel below editor showing name/size/saved status
-- All existing functionality preserved
+### Plan: Apply `editor-content` Styling Platform-Wide
 
-#### 2. `package.json`
-- Add `@tiptap/extension-font-family` dependency
+#### 1. Update `SafeHtmlRenderer.tsx`
+Change default className from `prose prose-sm max-w-none text-foreground` to `editor-content max-w-none`. This automatically propagates to all `AiContentRenderer` HTML rendering and any direct `SafeHtmlRenderer` usage.
 
-### Files
-- **Modified:** `src/components/ui/RichTextEditor.tsx`
-- **Modified:** `package.json`
+#### 2. Update `CompiledView.tsx`
+Replace the plain `<p>` narrative display with `<AiContentRenderer>` so AI-synthesized narratives get proper formatting (headings, lists, bold, etc.).
+
+#### 3. Update `PulseContentDetailPage.tsx`
+Swap `prose prose-sm` wrapper to `editor-content` class.
+
+#### 4. Update `BillingForm.tsx`
+Add `editor-content` class to the terms content `dangerouslySetInnerHTML` wrapper.
+
+#### 5. Update `DocxPreviewCanvas.tsx`
+Add `editor-content` class alongside existing prose classes.
+
+#### 6. Update `RegistrantCommThread.tsx`
+Add `editor-content` class to the message body wrapper.
+
+#### 7. Update 6 Knowledge Centre pages
+Replace the manual `split('**')` bold parsing with `<AiContentRenderer content={item.content} compact />` in: `MarketplaceKCPage`, `InterviewReviewKCPage`, `MyWorkspaceKCPage`, `VerificationKnowledgeCentrePage`, `SeekerConfigKCPage`, `ReferenceDataKCPage`, `ContentInvitationsKCPage`, `DashboardKCPage`.
+
+### Files to modify
+- `src/components/ui/SafeHtmlRenderer.tsx`
+- `src/components/pulse/cards/CompiledView.tsx`
+- `src/pages/pulse/PulseContentDetailPage.tsx`
+- `src/components/registration/BillingForm.tsx`
+- `src/components/DocxPreviewCanvas.tsx`
+- `src/components/admin/verifications/RegistrantCommThread.tsx`
+- 6–8 Knowledge Centre page files (swap manual parsing → `AiContentRenderer`)
 
