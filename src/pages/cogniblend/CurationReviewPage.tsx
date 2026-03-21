@@ -1413,6 +1413,55 @@ export default function CurationReviewPage() {
                             onCancel={() => setEditingSection(null)}
                             saving={savingSection}
                           />
+                        /* ── Domain Tags — Always-editable inline ── */
+                        ) : section.key === "domain_tags" ? (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                              {currentTags.length === 0 && (
+                                <p className="text-sm text-muted-foreground italic">No domain tags — type below to add.</p>
+                              )}
+                              {currentTags.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
+                                  <Tag className="h-3 w-3" />{tag}
+                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="relative">
+                              <Input
+                                value={domainTagInput}
+                                onChange={(e) => {
+                                  setDomainTagInput(e.target.value);
+                                  setShowTagDropdown(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && domainTagInput.trim()) {
+                                    e.preventDefault();
+                                    handleAddDomainTag(domainTagInput);
+                                  }
+                                }}
+                                onFocus={() => setShowTagDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+                                placeholder="Type to search or add a tag…"
+                                className="text-sm"
+                              />
+                              {showTagDropdown && filteredTags.length > 0 && (
+                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                                  {filteredTags.map((tag) => (
+                                    <button
+                                      key={tag}
+                                      onClick={() => handleAddDomainTag(tag)}
+                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                    >
+                                      {tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         ) : (
                           <>
                             {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
