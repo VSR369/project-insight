@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import {
