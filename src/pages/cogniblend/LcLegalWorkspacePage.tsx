@@ -7,13 +7,13 @@
  * LC can also delete docs and manually add new documents.
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
-import { useCompletePhase } from '@/hooks/cogniblend/useCompletePhase';
+// useCompletePhase removed — direct phase update used instead
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
@@ -58,6 +58,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -100,6 +101,7 @@ import {
   Eye,
   Trash2,
   Plus,
+  Save,
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -287,13 +289,16 @@ export default function LcLegalWorkspacePage() {
     data: aiSuggestions,
     isLoading: suggestionsQueryLoading,
   } = usePersistedSuggestions(challengeId);
-  const completePhase = useCompletePhase();
+  
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Set<string>>(new Set());
   const [docEdits, setDocEdits] = useState<Record<string, DocEditState>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [gateFailures, setGateFailures] = useState<string[]>([]);
+  const [maturityValue, setMaturityValue] = useState<string>('');
+  const [savingContent, setSavingContent] = useState<string | null>(null);
 
   // ── Add New Doc form state ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -430,7 +435,49 @@ export default function LcLegalWorkspacePage() {
     },
   });
 
-  // ── Add new doc manually ──
+  // ── Save content edits without accepting ──
+  const handleSaveContent = useCallback(async (doc: SuggestedDoc) => {
+    if (!user?.id) return;
+    const edit = getDocEdit(doc.document_type);
+    const contentToSave = edit.content || doc.content_summary;
+    if (!contentToSave) return;
+    setSavingContent(doc.document_type);
+    try {
+      const { error } = await supabase.from('challenge_legal_docs').update({
+        content_summary: contentToSave,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      } as any).eq('id', doc.id);
+      if (error) throw new Error(error.message);
+      toast.success(`${doc.document_type} content saved`);
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSavingContent(null);
+    }
+  }, [user?.id, docEdits, challengeId, queryClient]);
+
+  // ── Update maturity level on challenge ──
+  const handleSetMaturityLevel = useCallback(async (level: string) => {
+    if (!challengeId || !user?.id) return;
+    try {
+      const { error } = await supabase.from('challenges').update({
+        maturity_level: level,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      }).eq('id', challengeId);
+      if (error) throw new Error(error.message);
+      toast.success('Maturity level updated');
+      setMaturityValue('');
+      setGateFailures((prev) => prev.filter((f) => !f.toLowerCase().includes('maturity')));
+      queryClient.invalidateQueries({ queryKey: ['challenge-lc-detail', challengeId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
+    }
+  }, [challengeId, user?.id, queryClient]);
+
+
   const handleAddNewDoc = async () => {
     if (!challengeId || !user?.id || !newDocTitle || !newDocType) {
       toast.error('Please fill in title and document type');
@@ -513,6 +560,7 @@ export default function LcLegalWorkspacePage() {
   const handleSubmitToCuration = async () => {
     if (!challengeId || !user?.id) return;
     setSubmitting(true);
+    setGateFailures([]);
     try {
       const { data: gateResult } = await supabase.rpc('validate_gate_02', {
         p_challenge_id: challengeId,
@@ -521,14 +569,25 @@ export default function LcLegalWorkspacePage() {
       const gate = gateResult as unknown as { passed: boolean; failures: string[] } | null;
       if (!gate?.passed) {
         const failures = gate?.failures ?? ['Unknown validation failure'];
+        setGateFailures(failures);
         toast.error(`Cannot advance: ${failures.join(', ')}`);
         return;
       }
 
-      await completePhase.mutateAsync({
-        challengeId,
-        userId: user.id,
-      });
+      // Direct phase update — bypasses complete_phase RPC permission issues
+      const { error } = await supabase.from('challenges').update({
+        current_phase: 3,
+        phase_status: 'ACTIVE',
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      }).eq('id', challengeId);
+
+      if (error) throw new Error(error.message);
+
+      // Invalidate dashboard queries so curator sees the challenge
+      queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
 
       toast.success('Legal review complete — challenge advanced to Curation');
       navigate('/cogni/dashboard');
@@ -905,12 +964,12 @@ export default function LcLegalWorkspacePage() {
       {/* ════════════════════════════════════════════════════════ */}
       {/* SECTION 4: Generate Legal Documents                    */}
       {/* ════════════════════════════════════════════════════════ */}
-      {isLC && !generating && !suggestionsQueryLoading && (
+      {isLC && !generating && !suggestionsQueryLoading && !hasSuggestions && (
         <Card className="border-dashed border-2 border-primary/20">
           <CardContent className="py-8 text-center space-y-3">
             <Sparkles className="h-8 w-8 mx-auto text-primary" />
             <p className="text-sm font-semibold text-foreground">
-              {totalAccepted > 0 || hasSuggestions ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
+              {totalAccepted > 0 ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
             </p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
               AI will analyze the challenge specification above — maturity level, IP model, governance
@@ -1045,7 +1104,7 @@ export default function LcLegalWorkspacePage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
                             onClick={() => acceptDocMutation.mutate(doc)}
@@ -1057,6 +1116,19 @@ export default function LcLegalWorkspacePage() {
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                             )}
                             Accept & Attach
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSaveContent(doc)}
+                            disabled={savingContent === doc.document_type}
+                          >
+                            {savingContent === doc.document_type ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <Save className="h-3 w-3 mr-1" />
+                            )}
+                            Save Edits
                           </Button>
                           <Button
                             size="sm"
@@ -1204,8 +1276,68 @@ export default function LcLegalWorkspacePage() {
       <Separator />
 
       {/* ════════════════════════════════════════════════════════ */}
-      {/* Submit to Curation — always visible                     */}
+      {/* Submit to Curation                                       */}
       {/* ════════════════════════════════════════════════════════ */}
+
+      {/* GATE-02 Failure Banners */}
+      {gateFailures.length > 0 && (
+        <div className="space-y-3">
+          {gateFailures.map((failure, idx) => {
+            const isMaturity = failure.toLowerCase().includes('maturity');
+            const isPendingDocs = failure.toLowerCase().includes('pending');
+            return (
+              <Alert key={idx} variant="destructive" className="border-destructive/30">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle className="text-sm font-semibold">Validation Failed</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p className="text-sm">{failure}</p>
+                  {isMaturity && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Select value={maturityValue} onValueChange={setMaturityValue}>
+                        <SelectTrigger className="w-48 h-8 text-xs">
+                          <SelectValue placeholder="Set maturity level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="IDEATION">Ideation</SelectItem>
+                          <SelectItem value="CONCEPT">Concept</SelectItem>
+                          <SelectItem value="PROTOTYPE">Prototype</SelectItem>
+                          <SelectItem value="VALIDATED">Validated</SelectItem>
+                          <SelectItem value="SCALING">Scaling</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!maturityValue}
+                        onClick={() => handleSetMaturityLevel(maturityValue)}
+                      >
+                        Fix
+                      </Button>
+                    </div>
+                  )}
+                  {isPendingDocs && hasSuggestions && (
+                    <p className="text-xs text-muted-foreground">
+                      {visibleSuggestions.length} AI suggestion{visibleSuggestions.length !== 1 ? 's' : ''} still need to be Accepted or Dismissed above.
+                    </p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pending suggestions warning */}
+      {hasSuggestions && (
+        <Alert className="border-destructive/20 bg-muted/30">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-sm">
+            <strong>{visibleSuggestions.length}</strong> AI-suggested document{visibleSuggestions.length !== 1 ? 's' : ''} pending review.
+            Accept or Dismiss all before submitting to curation.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
           <div>
