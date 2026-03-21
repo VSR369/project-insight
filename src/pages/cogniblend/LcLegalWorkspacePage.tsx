@@ -284,19 +284,16 @@ export default function LcLegalWorkspacePage() {
   const { data: challenge, isLoading: challengeLoading } = useChallengeForLC(challengeId);
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
   const {
-    data: suggestions,
-    isFetching: suggestionsLoading,
-    error: suggestionsError,
-    refetch: refetchSuggestions,
-  } = useLegalSuggestions(challengeId);
+    data: aiSuggestions,
+    isLoading: suggestionsQueryLoading,
+  } = usePersistedSuggestions(challengeId);
   const completePhase = useCompletePhase();
 
-  const [hasGenerated, setHasGenerated] = useState(false);
-  const [acceptedDocs, setAcceptedDocs] = useState<Set<string>>(new Set());
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Set<string>>(new Set());
   const [docEdits, setDocEdits] = useState<Record<string, DocEditState>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   // ── Add New Doc form state ──
   const [showAddForm, setShowAddForm] = useState(false);
