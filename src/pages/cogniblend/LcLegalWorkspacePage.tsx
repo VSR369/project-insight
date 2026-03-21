@@ -16,6 +16,16 @@ import { useCompletePhase } from '@/hooks/cogniblend/useCompletePhase';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
+import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
+import { getMaturityLabel } from '@/lib/maturityLabels';
+
+const IP_MODEL_LABELS: Record<string, string> = {
+  'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
+  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
+  'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
+  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
+  'IP-NONE': 'No Transfer — Solver retains all IP rights',
+};
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
