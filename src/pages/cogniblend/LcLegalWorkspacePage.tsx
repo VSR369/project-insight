@@ -413,10 +413,21 @@ export default function LcLegalWorkspacePage() {
     },
   });
 
-  // ── Dismiss AI suggestion (local only) ──
-  const dismissSuggestion = useCallback((docType: string) => {
-    setDismissedSuggestions((prev) => new Set([...prev, docType]));
-  }, []);
+  // ── Dismiss AI suggestion (delete from DB) ──
+  const dismissSuggestionMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      const { error } = await supabase.from('challenge_legal_docs').delete().eq('id', docId).eq('status', 'ai_suggested');
+      if (error) throw new Error(error.message);
+      return docId;
+    },
+    onSuccess: () => {
+      toast.success('Suggestion dismissed');
+      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'dismiss_legal_suggestion' });
+    },
+  });
 
   // ── Add new doc manually ──
   const handleAddNewDoc = async () => {
