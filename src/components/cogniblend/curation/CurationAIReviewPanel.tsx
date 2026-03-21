@@ -56,12 +56,13 @@ export function CurationAIReviewInline({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isAddressed, setIsAddressed] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen && !isAddressed);
 
-  // Auto-expand when review arrives with warning/needs_revision
+  // Auto-expand when review arrives with warning/needs_revision, but only if not addressed
   useEffect(() => {
-    if (defaultOpen) setIsOpen(true);
-  }, [defaultOpen]);
+    if (defaultOpen && !isAddressed) setIsOpen(true);
+  }, [defaultOpen, isAddressed]);
 
   // Sync edited comments when review changes
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
