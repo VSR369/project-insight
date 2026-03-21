@@ -149,13 +149,13 @@ export function CurationAIReviewInline({
     setRefinedContent(null);
   }, []);
 
-  if (!review) {
-    return null;
-  }
+  const isPending = !review;
 
-  const style = isAddressed
-    ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
-    : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
+  const style = isPending
+    ? { label: "Pending", className: "bg-muted text-muted-foreground border-border" }
+    : isAddressed
+      ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
+      : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
