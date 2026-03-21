@@ -311,6 +311,8 @@ const SECTIONS: SectionDef[] = [
       <RewardStructureDisplay
         rewardStructure={ch.reward_structure}
         currencyCode={ch.currency_code ?? undefined}
+        challengeId={ch.id}
+        problemStatement={ch.problem_statement}
       />
     ),
   },
