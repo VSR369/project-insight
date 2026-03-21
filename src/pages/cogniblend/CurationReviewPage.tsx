@@ -1220,7 +1220,7 @@ export default function CurationReviewPage() {
                   const inlineFlags = sectionAIFlags[section.key];
 
                   // Special renders
-                  const isPaymentSchedule = section.key === "payment_schedule";
+                  
                   const isComplexity = section.key === "complexity";
 
                   // Filtered domain tag suggestions (plain calculation)
