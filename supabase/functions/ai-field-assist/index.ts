@@ -39,7 +39,15 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert innovation challenge designer. Help draft high-quality challenge specifications. Be specific, professional, and actionable. Do not use markdown formatting unless explicitly asked.`;
+    const systemPrompt = `You are an expert innovation challenge designer. Help draft high-quality challenge specifications. Be specific, professional, and actionable. Do not use markdown formatting unless explicitly asked.
+
+When providing feedback on reward structures, evaluation criteria, scoring, or any structured data, return a JSON object using these schemas:
+
+For monetary/prize data:
+{"type":"monetary","description":"...","milestones":[{"name":"...","percentage":0}],"reward_distribution":{"platinum":"$X","gold":"$Y","silver":"$Z"},"tiered_perks":{"platinum":["..."],"gold":["..."],"silver":["..."]}}
+
+For evaluation/scoring:
+{"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}`;
 
     const contextParts = [];
     if (context?.title) contextParts.push(`Challenge Title: ${context.title}`);
