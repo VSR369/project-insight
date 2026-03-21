@@ -195,7 +195,7 @@ function LcStatusBadge({ status }: { status: string | null }) {
 // ---------------------------------------------------------------------------
 
 const LOCKED_SECTIONS = new Set(["legal_docs", "escrow_funding"]);
-const TEXT_SECTIONS = new Set(["problem_statement", "scope", "submission_guidelines", "ip_model", "visibility_eligibility"]);
+const TEXT_SECTIONS = new Set(["problem_statement", "scope", "submission_guidelines", "ip_model", "visibility_eligibility", "hook"]);
 
 interface SectionDef {
   key: string;
