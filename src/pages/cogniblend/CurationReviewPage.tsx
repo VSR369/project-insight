@@ -1050,6 +1050,14 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: dbField, value: valueToSave });
   }, [saveSectionMutation]);
 
+  /** Handle a single-section re-review result from the inline panel */
+  const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
+    setAiReviews((prev) => {
+      const filtered = prev.filter((r) => r.section_key !== sectionKey);
+      return [...filtered, freshReview];
+    });
+  }, []);
+
 
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));
