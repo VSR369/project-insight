@@ -660,6 +660,24 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
   }));
 }
 
+// Get current content for any section (used by AI refinement)
+function getSectionContent(ch: ChallengeData, sectionKey: string): string | null {
+  switch (sectionKey) {
+    case "problem_statement": return ch.problem_statement;
+    case "scope": return ch.scope;
+    case "submission_guidelines": return ch.description;
+    case "ip_model": return ch.ip_model;
+    case "visibility_eligibility": return ch.eligibility;
+    case "deliverables": return ch.deliverables ? JSON.stringify(ch.deliverables) : null;
+    case "evaluation_criteria": return ch.evaluation_criteria ? JSON.stringify(ch.evaluation_criteria) : null;
+    case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
+    case "phase_schedule": return ch.phase_schedule ? JSON.stringify(ch.phase_schedule) : null;
+    case "maturity_level": return ch.maturity_level;
+    case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
+    default: return null;
+  }
+}
+
 // Map AI quality gaps to section keys
 const GAP_FIELD_TO_SECTION: Record<string, string> = {
   problem_statement: "problem_statement",
