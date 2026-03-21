@@ -295,7 +295,7 @@ export default function LcLegalWorkspacePage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocType, setNewDocType] = useState('');
-  const [newDocTier, setNewDocTier] = useState('1');
+  const [newDocTier, setNewDocTier] = useState('TIER_1');
   const [newDocContent, setNewDocContent] = useState('');
   const [newDocNotes, setNewDocNotes] = useState('');
   const [newDocFile, setNewDocFile] = useState<File | null>(null);
