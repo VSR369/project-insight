@@ -309,33 +309,68 @@ const SECTIONS: SectionDef[] = [
     label: "Phase Schedule",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const ps = parseJson<PhaseEntry[]>(ch.phase_schedule);
-      return !!ps && ps.length > 0;
+      const raw = parseJson<any>(ch.phase_schedule);
+      return raw != null && (Array.isArray(raw) ? raw.length > 0 : typeof raw === "object" && Object.keys(raw).length > 0);
     },
     render: (ch) => {
-      const ps = parseJson<PhaseEntry[]>(ch.phase_schedule);
-      if (!ps || ps.length === 0)
+      const raw = parseJson<any>(ch.phase_schedule);
+      if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+
+      // If it's an array of phases, render table
+      if (Array.isArray(raw)) {
+        return (
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {raw.map((p: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
+                    <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      }
+
+      // Object shape: extract phase_durations array if present, else show metadata
+      const { phase_durations, ...meta } = raw as Record<string, any>;
+      const durations = Array.isArray(phase_durations) ? phase_durations : null;
+      const metaEntries = Object.entries(meta).filter(([, v]) => v != null && v !== "");
+      if (!durations?.length && metaEntries.length === 0)
         return <p className="text-sm text-muted-foreground">Not defined.</p>;
+
       return (
-        <div className="relative w-full overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Phase</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Duration (days)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ps.map((p, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
-                  <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
-                </TableRow>
+        <div className="space-y-3">
+          {metaEntries.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {metaEntries.map(([k, v]) => (
+                <div key={k}>
+                  <p className="text-xs text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
+                  <p className="text-sm font-medium text-foreground">{String(v)}</p>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
+          {durations && durations.length > 0 && (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {durations.map((p: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
+                      <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       );
     },
