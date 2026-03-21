@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
-import { useCompletePhase } from '@/hooks/cogniblend/useCompletePhase';
+// useCompletePhase removed — direct phase update used instead
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
