@@ -1050,7 +1050,7 @@ export default function LcLegalWorkspacePage() {
               );
             })
           ) : (
-            suggestions.documents.length > 0 && (
+            visibleSuggestions.length === 0 && (
               <Card>
                 <CardContent className="py-4 text-center text-sm text-muted-foreground">
                   All suggested documents have been processed.
