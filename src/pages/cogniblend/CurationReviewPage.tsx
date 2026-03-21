@@ -916,7 +916,7 @@ export default function CurationReviewPage() {
 
   const handleSaveMaturityLevel = useCallback((value: string) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "maturity_level", value });
+    saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
   }, [saveSectionMutation]);
 
   const handleStartComplexityEdit = useCallback(() => {
