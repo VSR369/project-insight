@@ -130,6 +130,7 @@ interface ChallengeData {
   governance_profile: string | null;
   current_phase: number | null;
   phase_status: string | null;
+  domain_tags: Json | null;
 }
 
 interface LegalDocSummary {
