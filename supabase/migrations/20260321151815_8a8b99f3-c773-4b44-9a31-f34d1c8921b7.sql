@@ -1,0 +1,1 @@
+ALTER TABLE public.challenges ADD COLUMN IF NOT EXISTS domain_tags jsonb DEFAULT NULL;

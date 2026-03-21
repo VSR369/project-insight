@@ -1154,6 +1154,7 @@ export type Database = {
           deleted_by: string | null
           deliverables: Json | null
           description: string | null
+          domain_tags: Json | null
           effort_level: string | null
           eligibility: string | null
           eligibility_model: string | null
@@ -1215,6 +1216,7 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          domain_tags?: Json | null
           effort_level?: string | null
           eligibility?: string | null
           eligibility_model?: string | null
@@ -1276,6 +1278,7 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          domain_tags?: Json | null
           effort_level?: string | null
           eligibility?: string | null
           eligibility_model?: string | null
