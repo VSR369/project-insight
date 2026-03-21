@@ -1443,6 +1443,7 @@ export default function CurationReviewPage() {
                           challengeId={challengeId!}
                           challengeContext={challengeCtx}
                           onAcceptRefinement={handleAcceptRefinement}
+                          onSingleSectionReview={handleSingleSectionReview}
                           defaultOpen={aiReview?.status === 'warning' || aiReview?.status === 'needs_revision'}
                         />
 
