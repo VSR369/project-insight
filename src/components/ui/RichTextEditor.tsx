@@ -619,24 +619,68 @@ export function RichTextEditor({
           onChange={(e) => handleMediaUpload(e, 'audio')} />
       </div>
 
-      {/* ── Footer: error + word/char count ─────────── */}
+      {/* ── Footer: error + word/char count + save ──── */}
       <div className="flex items-center justify-between">
-        {error ? (
-          <p className="text-xs text-destructive">{error}</p>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {wordCount} words · {charCount} characters
-          </span>
-        )}
-        {minLength != null && (
-          <span className={cn(
-            'text-xs tabular-nums',
-            meetsMin ? 'text-green-600 font-medium' : 'text-muted-foreground',
-          )}>
-            {charCount} / {minLength} min
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {error ? (
+            <p className="text-xs text-destructive">{error}</p>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {wordCount} words · {charCount} characters
+              {mediaFiles.length > 0 && ` · ${mediaFiles.length} media`}
+            </span>
+          )}
+          {saveStatus && (
+            <span className="text-xs font-medium text-green-600">{saveStatus}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {minLength != null && (
+            <span className={cn(
+              'text-xs tabular-nums',
+              meetsMin ? 'text-green-600 font-medium' : 'text-muted-foreground',
+            )}>
+              {charCount} / {minLength} min
+            </span>
+          )}
+          {onSave && (
+            <button
+              type="button"
+              onClick={() => {
+                const html = editor?.getHTML() || '';
+                onSave(html);
+                setSaveStatus('Saved');
+                setTimeout(() => setSaveStatus(''), 3000);
+              }}
+              className="h-7 px-3 rounded text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1"
+            >
+              <Save className="h-3 w-3" />
+              Save
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ── Media files panel ─────────────────────────── */}
+      {mediaFiles.length > 0 && (
+        <div className="border rounded-md p-3 bg-muted/20 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            Media uploaded ({mediaFiles.length})
+          </p>
+          <div className="space-y-1">
+            {mediaFiles.map((f) => (
+              <div key={f.id} className="flex items-center justify-between text-xs px-2 py-1 rounded bg-background border border-border/50">
+                <span className="truncate max-w-[200px] text-foreground">{f.name}</span>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>{(f.size / 1024).toFixed(1)} KB</span>
+                  <span className="text-green-600 font-medium">Saved</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
