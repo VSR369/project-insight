@@ -771,6 +771,7 @@ export default function CurationReviewPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
+  const { data: complexityParams = [] } = useComplexityParams();
 
   const [activeGroup, setActiveGroup] = useState<string>("content");
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -783,6 +784,14 @@ export default function CurationReviewPage() {
   // AI quality assessment state
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
+
+  // Complexity draft (param_key → value 1-10)
+  const [complexityDraft, setComplexityDraft] = useState<Record<string, number>>({});
+
+  // Domain tags editing state
+  const [domainTagDraft, setDomainTagDraft] = useState<string[]>([]);
+  const [domainTagInput, setDomainTagInput] = useState("");
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
 
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
