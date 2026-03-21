@@ -298,21 +298,6 @@ export function CurationAIReviewInline({
               </Button>
             )}
 
-            {/* Re-review button for reviewed sections */}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full text-xs h-6 text-muted-foreground"
-              onClick={handleReReview}
-              disabled={isReReviewing}
-            >
-              {isReReviewing ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-              ) : (
-                <RefreshCw className="h-3 w-3 mr-1" />
-              )}
-              {isReReviewing ? "Re-reviewing…" : "Re-review this section"}
-            </Button>
 
             {/* Refined content preview */}
             {refinedContent && (
