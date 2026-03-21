@@ -1,0 +1,3 @@
+ALTER TABLE public.challenges ADD COLUMN IF NOT EXISTS extended_brief JSONB DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN public.challenges.extended_brief IS 'Stores AI-generated Category B fields: context_background, root_causes, affected_stakeholders, current_deficiencies, expected_outcomes, preferred_approach, approaches_not_of_interest, scoring_rubrics, effort_level, reward_description, phase_notes, complexity_notes';
