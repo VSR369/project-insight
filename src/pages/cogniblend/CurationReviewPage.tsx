@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
+import { ComplexityAssessmentModule } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import {
   Select,
@@ -87,24 +87,7 @@ const DEFAULT_DOMAIN_TAGS = [
   'Data Analytics', 'Supply Chain', 'Telecommunications',
 ];
 
-/** Complexity level thresholds — score ranges map to L1–L5 */
-const COMPLEXITY_THRESHOLDS: { level: string; label: string; min: number; max: number }[] = [
-  { level: "L1", label: "Very Low", min: 0, max: 2 },
-  { level: "L2", label: "Low", min: 2, max: 4 },
-  { level: "L3", label: "Medium", min: 4, max: 6 },
-  { level: "L4", label: "High", min: 6, max: 8 },
-  { level: "L5", label: "Very High", min: 8, max: 10 },
-];
 
-function deriveComplexityLevel(score: number): string {
-  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
-  return match?.level ?? "L5";
-}
-
-function deriveComplexityLabel(score: number): string {
-  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
-  return match?.label ?? "Very High";
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -381,33 +364,7 @@ const SECTIONS: SectionDef[] = [
     key: "complexity",
     label: "Complexity Assessment",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
-    render: (ch) => {
-      const rawParams = parseJson<any>(ch.complexity_parameters);
-      const params = Array.isArray(rawParams) ? rawParams as ComplexityParam[] : null;
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            {ch.complexity_score != null && (
-              <span className="text-sm text-foreground">Score: <span className="font-semibold">{ch.complexity_score}</span></span>
-            )}
-            {ch.complexity_level && <Badge variant="secondary" className="text-xs capitalize">{ch.complexity_level}</Badge>}
-          </div>
-          {params && params.length > 0 && (
-            <div className="space-y-1">
-              {params.map((p, i) => (
-                <div key={i} className="flex justify-between text-xs text-muted-foreground">
-                  <span>{p.name ?? p.key ?? `Param ${i + 1}`}</span>
-                  <span className="font-medium text-foreground">{p.value ?? p.score ?? "—"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {!ch.complexity_score && !ch.complexity_level && (
-            <p className="text-sm text-muted-foreground">Not assessed.</p>
-          )}
-        </div>
-      );
-    },
+    render: () => null, // Rendered via ComplexityAssessmentModule component
   },
   {
     key: "ip_model",
@@ -794,8 +751,8 @@ export default function CurationReviewPage() {
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
-  // Complexity draft (param_key → value 1-10)
-  const [complexityDraft, setComplexityDraft] = useState<Record<string, number>>({});
+
+  // Domain tags editing state
 
   // Domain tags editing state
   const [domainTagInput, setDomainTagInput] = useState("");
@@ -924,41 +881,21 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
   }, [saveSectionMutation]);
 
-  const handleStartComplexityEdit = useCallback(() => {
-    if (!challenge) return;
-    // Initialize draft from existing params or empty
-    const existing = parseJson<any[]>(challenge.complexity_parameters);
-    const draft: Record<string, number> = {};
-    if (Array.isArray(existing)) {
-      existing.forEach((p: any) => {
-        const key = p.param_key ?? p.key ?? "";
-        draft[key] = Number(p.value ?? p.score ?? 5);
-      });
-    }
-    // Ensure all params have a default
-    complexityParams.forEach((p) => {
-      if (!(p.param_key in draft)) draft[p.param_key] = 5;
-    });
-    setComplexityDraft(draft);
-    setEditingSection("complexity");
-  }, [challenge, complexityParams]);
 
-  const handleSaveComplexity = useCallback(() => {
-    if (complexityParams.length === 0) return;
+
+
+  const handleSaveComplexity = useCallback((
+    paramValues: Record<string, number>,
+    score: number,
+    level: string,
+  ) => {
     setSavingSection(true);
-    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-    const weightedScore = totalWeight > 0
-      ? complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
-      : 5;
-    const score = Math.round(weightedScore * 100) / 100;
-    const level = deriveComplexityLevel(score);
     const params = complexityParams.map((p) => ({
       param_key: p.param_key,
       name: p.name,
-      value: complexityDraft[p.param_key] ?? 5,
+      value: paramValues[p.param_key] ?? 5,
       weight: p.weight,
     }));
-    // Save all three fields
     const updates = {
       complexity_parameters: params,
       complexity_score: score,
@@ -975,11 +912,10 @@ export default function CurationReviewPage() {
         } else {
           queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
           toast.success("Complexity assessment updated");
-          setEditingSection(null);
         }
         setSavingSection(false);
       });
-  }, [complexityParams, complexityDraft, challengeId, user?.id, queryClient]);
+  }, [complexityParams, challengeId, user?.id, queryClient]);
 
   /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
@@ -1304,17 +1240,9 @@ export default function CurationReviewPage() {
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
 
-                  // Special: payment_schedule renders PaymentScheduleSection
+                  // Special renders
                   const isPaymentSchedule = section.key === "payment_schedule";
-
-                  // Computed complexity score for live preview (no hooks - plain calculation)
-                  let complexityWeightedScore = 0;
-                  if (section.key === "complexity" && isEditing && complexityParams.length > 0) {
-                    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-                    if (totalWeight > 0) {
-                      complexityWeightedScore = complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
-                    }
-                  }
+                  const isComplexity = section.key === "complexity";
 
                   // Filtered domain tag suggestions (plain calculation)
                   const currentTags = section.key === "domain_tags"
@@ -1391,87 +1319,16 @@ export default function CurationReviewPage() {
                             </Button>
                           </div>
 
-                        /* ── Complexity Assessment Editor ── */
-                        ) : isEditing && section.key === "complexity" ? (
-                          <div className="space-y-4">
-                            {complexityParams.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>
-                            ) : (
-                              <>
-                                {/* Quick-select override */}
-                                <div className="space-y-1.5">
-                                  <p className="text-xs font-medium text-muted-foreground">Quick select or use sliders below for precise calculation</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {COMPLEXITY_THRESHOLDS.map((t) => {
-                                      const midpoint = (t.min + t.max) / 2;
-                                      const isActive = deriveComplexityLevel(complexityWeightedScore) === t.level;
-                                      return (
-                                        <Button
-                                          key={t.level}
-                                          type="button"
-                                          size="sm"
-                                          variant={isActive ? "default" : "outline"}
-                                          className="text-xs"
-                                          onClick={() => {
-                                            // Set all sliders to the midpoint of this level
-                                            const newDraft: Record<string, number> = {};
-                                            const clamped = Math.max(1, Math.min(10, Math.round(midpoint)));
-                                            complexityParams.forEach((p) => { newDraft[p.param_key] = clamped; });
-                                            setComplexityDraft(newDraft);
-                                          }}
-                                        >
-                                          {t.level} — {t.label}
-                                        </Button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-
-                                {/* Sliders for each parameter */}
-                                {complexityParams.map((param) => (
-                                  <div key={param.param_key} className="space-y-1.5">
-                                    <div className="flex items-center justify-between">
-                                      <label className="text-sm font-medium text-foreground">{param.name}</label>
-                                      <span className="text-sm font-semibold text-primary">{complexityDraft[param.param_key] ?? 5}</span>
-                                    </div>
-                                    {param.description && (
-                                      <p className="text-xs text-muted-foreground">{param.description}</p>
-                                    )}
-                                    <Slider
-                                      value={[complexityDraft[param.param_key] ?? 5]}
-                                      onValueChange={([val]) => setComplexityDraft((prev) => ({ ...prev, [param.param_key]: val }))}
-                                      min={1}
-                                      max={10}
-                                      step={1}
-                                      className="w-full"
-                                    />
-                                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                                      <span>Low (1)</span>
-                                      <span className="text-[10px]">Weight: {(param.weight * 100).toFixed(0)}%</span>
-                                      <span>High (10)</span>
-                                    </div>
-                                  </div>
-                                ))}
-                                <div className="border-t border-border pt-3 space-y-2">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm text-foreground">Weighted Score:</span>
-                                    <span className="text-lg font-bold text-primary">{complexityWeightedScore.toFixed(2)}</span>
-                                    <Badge variant="secondary" className="text-xs">
-                                      {deriveComplexityLevel(complexityWeightedScore)} — {deriveComplexityLabel(complexityWeightedScore)}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                            <div className="flex gap-2 justify-end">
-                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
-                                <X className="h-3.5 w-3.5 mr-1" />Cancel
-                              </Button>
-                              <Button size="sm" onClick={handleSaveComplexity} disabled={savingSection || complexityParams.length === 0}>
-                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
-                              </Button>
-                            </div>
-                          </div>
+                        /* ── Complexity Assessment Module (always-visible) ── */
+                        ) : isComplexity ? (
+                          <ComplexityAssessmentModule
+                            currentScore={challenge.complexity_score ?? null}
+                            currentLevel={challenge.complexity_level ?? null}
+                            currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
+                            complexityParams={complexityParams}
+                            onSave={handleSaveComplexity}
+                            saving={savingSection}
+                          />
 
 
                         /* ── Deliverables Editor ── */
@@ -1553,13 +1410,7 @@ export default function CurationReviewPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="mt-3 text-xs"
-                                onClick={() => {
-                                  if (section.key === "complexity") {
-                                    handleStartComplexityEdit();
-                                  } else {
-                                    setEditingSection(section.key);
-                                  }
-                                }}
+                                onClick={() => setEditingSection(section.key)}
                               >
                                 <Pencil className="h-3 w-3 mr-1" />Edit
                               </Button>
