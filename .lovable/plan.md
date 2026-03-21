@@ -1,14 +1,32 @@
-## Plan: Fix LC Legal Workspace — Submit, Generate, and Save Issues
 
-**Status: ✅ IMPLEMENTED**
 
-### Changes Applied
+## Plan: Remove Maturity Level from GATE-02 and LC Workspace
 
-1. **Hide "Generate" when AI suggestions exist** — Only shown when no `ai_suggested` docs in DB
-2. **GATE-02 failure banners with inline fixes** — Maturity level dropdown + pending doc count warnings
-3. **Direct phase update** — Replaced `complete_phase` RPC with direct `challenges` table update to Phase 3
-4. **Save Content button** — Added "Save Edits" on AI suggestion cards for incremental content persistence
-5. **Pending doc count warning** — Alert shown near Submit when AI suggestions still need Accept/Dismiss
+### Problem
+Maturity level is being enforced as mandatory at GATE-02 (LC submission), but:
+- LC should not be responsible for setting maturity level
+- Missing maturity should not block LC from advancing to curation
+- Maturity is set by Creator, optionally modified by Curator — not LC/FC concern
+
+### Changes
+
+**1. Database migration: Remove maturity check from `validate_gate_02`**
+
+Create a new migration that replaces the `validate_gate_02` function, removing lines 42-45 (Check 2: maturity level). The `get_required_legal_docs` call on line 48 already handles `NULL` maturity gracefully with a fallback.
+
+**2. `src/pages/cogniblend/LcLegalWorkspacePage.tsx`: Remove maturity fix UI**
+
+- Remove the `maturityValue` state variable and `handleSetMaturityLevel` callback
+- Remove the maturity-specific gate failure banner (the `Select` dropdown + "Fix" button rendered when `isMaturity` is true)
+- Keep the maturity badge in the challenge summary section as read-only info (line 780) — LC can see it but not edit it
+- Remove `Select`, `SelectTrigger`, `SelectContent`, `SelectItem`, `SelectValue` imports if no longer used elsewhere in the file
+
+### What This Fixes
+- LC can submit to curation even if Creator left maturity level blank
+- Maturity level responsibility stays with Creator (set) and Curator (modify)
+- LC workspace is simplified — no field-editing outside their domain
 
 ### Files Modified
+- New Supabase migration (updated `validate_gate_02` function)
 - `src/pages/cogniblend/LcLegalWorkspacePage.tsx`
+
