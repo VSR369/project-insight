@@ -528,7 +528,7 @@ function EditableSectionCard({
   onSaveStructured?: (data: unknown) => void;
   solverEditor?: React.ReactNode;
 }) {
-  const [editValue, setEditValue] = useState(value);
+  const [editValue, setEditValue] = useState(() => normalizeAiContentForEditor(value));
   const isSolverSection = section.renderer === 'solver_eligibility' || section.renderer === 'solver_visibility';
   const isEditableStructured = section.renderer === 'deliverables' || section.renderer === 'evaluation_criteria';
 
@@ -538,6 +538,10 @@ function EditableSectionCard({
 
   // Initialize structured edit data when entering edit mode
   useEffect(() => {
+    if (status === 'editing') {
+      setEditValue(normalizeAiContentForEditor(value));
+    }
+
     if (status === 'editing' && section.renderer === 'deliverables') {
       const items: string[] = Array.isArray(rawData)
         ? rawData
@@ -555,7 +559,7 @@ function EditableSectionCard({
             : [];
       setEditCriteria(criteria.length > 0 ? criteria.map((c) => ({ ...c })) : [{ name: '', weight: 100, description: '' }]);
     }
-  }, [status, section.renderer]);
+  }, [status, section.renderer, rawData, value]);
 
   const handleSaveStructured = () => {
     if (section.renderer === 'deliverables') {
@@ -574,45 +578,14 @@ function EditableSectionCard({
           : 'border-border bg-card'
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">{section.label}</h3>
-          {section.isAiDrafted && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              <Sparkles className="h-3 w-3 mr-0.5 text-amber-500" />
-              AI Draft
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {status === 'editing' ? (
-            <Button size="sm" variant="default" onClick={isEditableStructured ? handleSaveStructured : () => onSave(editValue)}>
-              <Check className="h-3.5 w-3.5 mr-1" />
-              Save
-            </Button>
-          ) : (
-            <>
-              {!isSolverSection && (
-                <Button size="sm" variant="ghost" onClick={onEdit}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {status !== 'accepted' && (
-                <Button size="sm" variant="ghost" onClick={onAccept}>
-                  <Check className="h-3.5 w-3.5 text-primary" />
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
+...
       {status === 'editing' && !isEditableStructured && !isSolverSection ? (
-        <Textarea
+        <RichTextEditor
           value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          rows={4}
-          className="text-sm resize-none"
+          onChange={setEditValue}
+          placeholder="Refine this section with proper headings, bullets, and emphasis..."
+          storagePath="ai-spec-edits"
+          className="text-sm"
         />
       ) : status === 'editing' && section.renderer === 'deliverables' ? (
         <DeliverablesEditor items={editDeliverables} onChange={setEditDeliverables} />

@@ -3,10 +3,11 @@
  * Renders RichTextEditor for text fields and structured editors for JSON fields.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { normalizeAiContentForEditor } from "@/lib/aiContentFormatter";
 import { Trash2, Plus, Save, X } from "lucide-react";
 
 // ── Text field editor (problem_statement, scope, description, eligibility, etc.) ──
@@ -19,7 +20,12 @@ interface TextEditorProps {
 }
 
 export function TextSectionEditor({ value, onSave, onCancel, saving }: TextEditorProps) {
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft] = useState(() => normalizeAiContentForEditor(value));
+
+  useEffect(() => {
+    setDraft(normalizeAiContentForEditor(value));
+  }, [value]);
+
   return (
     <div className="space-y-3">
       <RichTextEditor value={draft} onChange={setDraft} placeholder="Enter content..." storagePath="curation-edits" />
