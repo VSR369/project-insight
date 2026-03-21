@@ -96,6 +96,13 @@ export function AiContentRenderer({
     className,
   );
 
+  if (format === 'json') {
+    const parsed = tryParseJSON(content);
+    if (parsed) {
+      return <StructuredRenderer data={parsed} className={className} />;
+    }
+  }
+
   if (format === 'html') {
     return <SafeHtmlRenderer html={content} className={proseClasses} />;
   }
