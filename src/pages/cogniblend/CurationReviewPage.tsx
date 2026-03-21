@@ -1256,17 +1256,9 @@ export default function CurationReviewPage() {
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
 
-                  // Special: payment_schedule renders PaymentScheduleSection
+                  // Special renders
                   const isPaymentSchedule = section.key === "payment_schedule";
-
-                  // Computed complexity score for live preview (no hooks - plain calculation)
-                  let complexityWeightedScore = 0;
-                  if (section.key === "complexity" && isEditing && complexityParams.length > 0) {
-                    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-                    if (totalWeight > 0) {
-                      complexityWeightedScore = complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
-                    }
-                  }
+                  const isComplexity = section.key === "complexity";
 
                   // Filtered domain tag suggestions (plain calculation)
                   const currentTags = section.key === "domain_tags"
