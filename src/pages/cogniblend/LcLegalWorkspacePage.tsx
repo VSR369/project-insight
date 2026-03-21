@@ -795,7 +795,7 @@ export default function LcLegalWorkspacePage() {
                   key={doc.id}
                   className="border rounded-lg p-3 flex items-center gap-3 bg-muted/30"
                 >
-                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold">{doc.document_name ?? doc.document_type}</span>
