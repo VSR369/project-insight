@@ -192,17 +192,19 @@ const SECTIONS: SectionDef[] = [
     label: "Deliverables",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const d = parseJson<string[]>(ch.deliverables);
+      const raw = parseJson<any>(ch.deliverables);
+      const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       return !!d && d.length > 0;
     },
     render: (ch) => {
-      const d = parseJson<string[]>(ch.deliverables);
+      const raw = parseJson<any>(ch.deliverables);
+      const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       if (!d || d.length === 0)
         return <p className="text-sm text-muted-foreground">None defined.</p>;
       return (
         <ol className="list-decimal list-inside space-y-1">
-          {d.map((item, i) => (
-            <li key={i} className="text-sm text-foreground">{item}</li>
+          {d.map((item: any, i: number) => (
+            <li key={i} className="text-sm text-foreground">{typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}</li>
           ))}
         </ol>
       );
@@ -213,11 +215,13 @@ const SECTIONS: SectionDef[] = [
     label: "Evaluation Criteria",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const ec = parseJson<EvalCriterion[]>(ch.evaluation_criteria);
+      const raw = parseJson<any>(ch.evaluation_criteria);
+      const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : null;
       return !!ec && ec.length > 0;
     },
     render: (ch) => {
-      const ec = parseJson<EvalCriterion[]>(ch.evaluation_criteria);
+      const raw = parseJson<any>(ch.evaluation_criteria);
+      const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : null;
       if (!ec || ec.length === 0)
         return <p className="text-sm text-muted-foreground">Not defined.</p>;
       return (
@@ -230,10 +234,10 @@ const SECTIONS: SectionDef[] = [
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ec.map((c, i) => (
+              {ec.map((c: any, i: number) => (
                 <TableRow key={i}>
-                  <TableCell className="text-sm">{c.criterion_name}</TableCell>
-                  <TableCell className="text-sm text-right font-medium">{c.weight_percentage}%</TableCell>
+                  <TableCell className="text-sm">{c.criterion_name ?? c.name ?? "—"}</TableCell>
+                  <TableCell className="text-sm text-right font-medium">{c.weight_percentage ?? c.weight ?? "—"}%</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -247,21 +251,55 @@ const SECTIONS: SectionDef[] = [
     label: "Reward Structure",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const rs = parseJson<RewardTier[]>(ch.reward_structure);
-      return !!rs && rs.length > 0;
+      const raw = parseJson<any>(ch.reward_structure);
+      return raw != null && (Array.isArray(raw) ? raw.length > 0 : typeof raw === "object" && Object.keys(raw).length > 0);
     },
     render: (ch) => {
-      const rs = parseJson<RewardTier[]>(ch.reward_structure);
-      if (!rs || rs.length === 0)
-        return <p className="text-sm text-muted-foreground">Not defined.</p>;
+      const raw = parseJson<any>(ch.reward_structure);
+      if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+
+      // If it's an array of tiers, render the old way
+      if (Array.isArray(raw)) {
+        return (
+          <div className="space-y-2">
+            {raw.map((r: any, i: number) => (
+              <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
+                <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
+                <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      // Object shape: render key-value metadata
+      const { payment_milestones, ...meta } = raw as Record<string, any>;
+      const milestones = Array.isArray(payment_milestones) ? payment_milestones : null;
       return (
-        <div className="space-y-2">
-          {rs.map((r, i) => (
-            <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
-              <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
-              <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {Object.entries(meta).filter(([, v]) => v != null && v !== "").map(([k, v]) => (
+              <div key={k}>
+                <p className="text-xs text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
+                <p className="text-sm font-medium text-foreground">{String(v)}</p>
+              </div>
+            ))}
+          </div>
+          {milestones && milestones.length > 0 && (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader><TableRow><TableHead>Milestone</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {milestones.map((m: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{m.label ?? m.name ?? `Milestone ${i + 1}`}</TableCell>
+                      <TableCell className="text-sm text-right">{m.amount ?? m.value ?? "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          ))}
+          )}
         </div>
       );
     },
@@ -271,33 +309,68 @@ const SECTIONS: SectionDef[] = [
     label: "Phase Schedule",
     attribution: "by Creator",
     isFilled: (ch) => {
-      const ps = parseJson<PhaseEntry[]>(ch.phase_schedule);
-      return !!ps && ps.length > 0;
+      const raw = parseJson<any>(ch.phase_schedule);
+      return raw != null && (Array.isArray(raw) ? raw.length > 0 : typeof raw === "object" && Object.keys(raw).length > 0);
     },
     render: (ch) => {
-      const ps = parseJson<PhaseEntry[]>(ch.phase_schedule);
-      if (!ps || ps.length === 0)
+      const raw = parseJson<any>(ch.phase_schedule);
+      if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+
+      // If it's an array of phases, render table
+      if (Array.isArray(raw)) {
+        return (
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {raw.map((p: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
+                    <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      }
+
+      // Object shape: extract phase_durations array if present, else show metadata
+      const { phase_durations, ...meta } = raw as Record<string, any>;
+      const durations = Array.isArray(phase_durations) ? phase_durations : null;
+      const metaEntries = Object.entries(meta).filter(([, v]) => v != null && v !== "");
+      if (!durations?.length && metaEntries.length === 0)
         return <p className="text-sm text-muted-foreground">Not defined.</p>;
+
       return (
-        <div className="relative w-full overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Phase</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Duration (days)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ps.map((p, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
-                  <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
-                </TableRow>
+        <div className="space-y-3">
+          {metaEntries.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {metaEntries.map(([k, v]) => (
+                <div key={k}>
+                  <p className="text-xs text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
+                  <p className="text-sm font-medium text-foreground">{String(v)}</p>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
+          {durations && durations.length > 0 && (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {durations.map((p: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
+                      <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       );
     },
@@ -307,7 +380,8 @@ const SECTIONS: SectionDef[] = [
     label: "Complexity Assessment",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
     render: (ch) => {
-      const params = parseJson<ComplexityParam[]>(ch.complexity_parameters);
+      const rawParams = parseJson<any>(ch.complexity_parameters);
+      const params = Array.isArray(rawParams) ? rawParams as ComplexityParam[] : null;
       return (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
