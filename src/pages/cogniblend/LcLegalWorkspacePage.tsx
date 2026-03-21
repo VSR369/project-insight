@@ -932,6 +932,7 @@ export default function LcLegalWorkspacePage() {
       {hasSuggestions && (
         <div className="space-y-4">
           {/* AI Summary Banner */}
+          {/* AI Summary Banner */}
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="py-3 flex items-start gap-3">
               <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
