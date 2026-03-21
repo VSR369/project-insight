@@ -438,10 +438,16 @@ export default function LcLegalWorkspacePage() {
     }
     setAddingDoc(true);
     try {
-      const { error } = await supabase.from('challenge_legal_docs').insert({
-        challenge_id: challengeId,
-        document_type: newDocType,
-        tier: newDocTier,
+      // Check if a row already exists for this challenge+type+tier (e.g. ai_suggested)
+      const { data: existing } = await supabase
+        .from('challenge_legal_docs')
+        .select('id')
+        .eq('challenge_id', challengeId)
+        .eq('document_type', newDocType)
+        .eq('tier', newDocTier)
+        .maybeSingle();
+
+      const payload = {
         status: 'ATTACHED',
         content_summary: newDocContent || null,
         lc_status: 'approved',
@@ -451,10 +457,25 @@ export default function LcLegalWorkspacePage() {
         document_name: newDocTitle,
         maturity_level: challenge?.maturity_level ?? null,
         attached_by: user.id,
-        created_by: user.id,
-      } as any);
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      } as any;
 
-      if (error) throw new Error(error.message);
+      if (existing?.id) {
+        // Update existing row (replaces ai_suggested or prior doc)
+        const { error } = await supabase.from('challenge_legal_docs').update(payload).eq('id', existing.id);
+        if (error) throw new Error(error.message);
+      } else {
+        // Insert new row
+        const { error } = await supabase.from('challenge_legal_docs').insert({
+          challenge_id: challengeId,
+          document_type: newDocType,
+          tier: newDocTier,
+          created_by: user.id,
+          ...payload,
+        } as any);
+        if (error) throw new Error(error.message);
+      }
 
       // Upload file if provided
       if (newDocFile) {
