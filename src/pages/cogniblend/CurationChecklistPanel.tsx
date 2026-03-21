@@ -82,26 +82,11 @@ interface CurationChecklistPanelProps {
   onEditModeToggle?: (editing: boolean) => void;
 }
 
-interface EvalCriterion {
-  criterion_name: string;
-  weight_percentage: number;
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseJson<T>(val: Json | null): T | null {
-  if (!val) return null;
-  if (typeof val === "string") {
-    try {
-      return JSON.parse(val) as T;
-    } catch {
-      return null;
-    }
-  }
-  return val as T;
-}
+import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson } from "@/lib/cogniblend/jsonbUnwrap";
 
 function getProgressColor(pct: number): string {
   if (pct >= 100) return "bg-green-600";
