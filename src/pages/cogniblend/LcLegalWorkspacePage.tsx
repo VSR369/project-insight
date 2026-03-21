@@ -468,15 +468,68 @@ export default function LcLegalWorkspacePage() {
                 <div className="flex flex-wrap gap-2">
                   {challenge?.ip_model && <Badge variant="outline">IP: {challenge.ip_model}</Badge>}
                   {challenge?.governance_profile && <Badge variant="outline">Governance: {challenge.governance_profile}</Badge>}
-                  {challenge?.maturity_level && <Badge variant="secondary">Maturity: {challenge.maturity_level}</Badge>}
+                  <Badge variant="secondary">Maturity: {challenge?.maturity_level ?? 'Not specified'}</Badge>
                   {challenge?.operating_model && <Badge variant="secondary">Model: {challenge.operating_model}</Badge>}
+                  {challenge?.current_phase != null && <Badge variant="outline">Phase: {challenge.current_phase}</Badge>}
+                  {challenge?.master_status && <Badge variant="outline">Status: {challenge.master_status}</Badge>}
                 </div>
-                {challenge?.reward_structure && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Reward Structure</p>
-                    <p className="text-sm text-foreground">{typeof challenge.reward_structure === 'string' ? challenge.reward_structure : JSON.stringify(challenge.reward_structure, null, 2)}</p>
-                  </div>
-                )}
+                {(() => {
+                  const reward = parseRewardStructure(challenge?.reward_structure);
+                  if (!reward) return null;
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reward Structure</p>
+                      <div className="flex flex-wrap gap-2">
+                        {reward.currency && <Badge variant="outline">Currency: {reward.currency}</Badge>}
+                        {reward.paymentMode && <Badge variant="secondary">{reward.paymentMode.replace(/_/g, ' ')}</Badge>}
+                        {reward.numRewarded != null && <Badge variant="secondary">{reward.numRewarded} awarded</Badge>}
+                        {reward.totalPool != null && <Badge variant="outline">Pool: {reward.totalPool.toLocaleString()}</Badge>}
+                      </div>
+                      {reward.tiers && reward.tiers.length > 0 && (
+                        <div className="relative w-full overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Tier</th>
+                                <th className="text-left py-2 font-medium text-muted-foreground">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reward.tiers.map((t: any, i: number) => (
+                                <tr key={i} className="border-b last:border-0">
+                                  <td className="py-2 pr-4 font-medium">{t.label ?? t.name ?? `Tier ${i + 1}`}</td>
+                                  <td className="py-2 tabular-nums">{(t.amount ?? t.value ?? 0).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {reward.milestones && reward.milestones.length > 0 && (
+                        <div className="relative w-full overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Milestone</th>
+                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Trigger</th>
+                                <th className="text-left py-2 font-medium text-muted-foreground">%</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reward.milestones.map((m: any, i: number) => (
+                                <tr key={i} className="border-b last:border-0">
+                                  <td className="py-2 pr-4 font-medium">{m.name ?? m.label ?? `Milestone ${i + 1}`}</td>
+                                  <td className="py-2 pr-4 text-muted-foreground">{(m.trigger ?? '').replace(/_/g, ' ')}</td>
+                                  <td className="py-2 tabular-nums">{m.percentage ?? m.percent ?? 0}%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </AccordionContent>
             </AccordionItem>
 
