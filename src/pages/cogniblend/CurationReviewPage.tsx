@@ -1400,59 +1400,6 @@ export default function CurationReviewPage() {
                             </div>
                           </div>
 
-                        /* ── Domain Tags Editor ── */
-                        ) : isEditing && section.key === "domain_tags" ? (
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
-                              {domainTagDraft.map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
-                                  <Tag className="h-3 w-3" />{tag}
-                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ))}
-                            </div>
-                            <div className="relative">
-                              <Input
-                                value={domainTagInput}
-                                onChange={(e) => {
-                                  setDomainTagInput(e.target.value);
-                                  setShowTagDropdown(true);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && domainTagInput.trim()) {
-                                    e.preventDefault();
-                                    handleAddDomainTag(domainTagInput);
-                                  }
-                                }}
-                                onFocus={() => setShowTagDropdown(true)}
-                                placeholder="Type to search or add a tag…"
-                                className="text-sm"
-                              />
-                              {showTagDropdown && filteredTags.length > 0 && (
-                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-                                  {filteredTags.map((tag) => (
-                                    <button
-                                      key={tag}
-                                      onClick={() => handleAddDomainTag(tag)}
-                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                                    >
-                                      {tag}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
-                                <X className="h-3.5 w-3.5 mr-1" />Cancel
-                              </Button>
-                              <Button size="sm" onClick={handleSaveDomainTags} disabled={savingSection}>
-                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
-                              </Button>
-                            </div>
-                          </div>
 
                         /* ── Deliverables Editor ── */
                         ) : isEditing && section.key === "deliverables" ? (
