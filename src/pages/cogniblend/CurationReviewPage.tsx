@@ -966,9 +966,10 @@ export default function CurationReviewPage() {
         try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
         throw new Error(msg);
       }
-      if (data?.success && data.data?.sections) {
+      if (data?.success && data.data?.all_reviews) {
+        const allReviews = data.data.all_reviews as SectionReview[];
+        setAiReviews(allReviews);
         const sections = data.data.sections as SectionReview[];
-        setAiReviews(sections);
         const counts = { pass: 0, warning: 0, needs_revision: 0 };
         sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
         toast.success(`AI review complete — ${counts.pass} pass, ${counts.warning} warnings, ${counts.needs_revision} needs revision`);
