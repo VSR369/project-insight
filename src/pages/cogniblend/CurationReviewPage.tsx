@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
+import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
