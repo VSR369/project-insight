@@ -140,6 +140,8 @@ export function CurationAIReviewInline({
       onAcceptRefinement(sectionKey, refinedContent);
       setRefinedContent(null);
       setEditedComments([]);
+      setIsAddressed(true);
+      setIsOpen(false);
     }
   }, [refinedContent, onAcceptRefinement, sectionKey]);
 
