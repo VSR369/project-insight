@@ -189,8 +189,9 @@ export function CurationAIReviewInline({
       setEditedComments([]);
       setIsAddressed(true);
       setIsOpen(false);
+      onMarkAddressed?.(sectionKey);
     }
-  }, [refinedContent, onAcceptRefinement, sectionKey]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);

@@ -234,13 +234,15 @@ function EvaluationCard({
   data: Record<string, unknown>;
   className?: string;
 }) {
-  const score = data.overall_score as number | undefined;
-  const maxScore = (data.max_score as number) || 100;
+  const rawScore = data.overall_score;
+  const score = typeof rawScore === 'number' ? rawScore : undefined;
+  const rawMax = data.max_score;
+  const maxScore = typeof rawMax === 'number' && rawMax > 0 ? rawMax : 100;
   const criteria = data.criteria as CriterionItem[] | undefined;
   const feedback = data.feedback as string | undefined;
   const recommendation = data.recommendation as string | undefined;
 
-  const pct = score !== undefined ? Math.round((score / maxScore) * 100) : null;
+  const pct = score !== undefined ? Math.min(100, Math.max(0, Math.round((score / maxScore) * 100))) : null;
   const colors = pct !== null ? scoreColor(pct) : { bar: 'bg-primary', text: 'text-primary', bg: 'bg-primary/5' };
 
   return (
