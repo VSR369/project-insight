@@ -14,14 +14,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
+import { useComplexityParams } from "@/hooks/queries/useComplexityParams";
+import { MATURITY_LABELS, MATURITY_DESCRIPTIONS, getMaturityLabel } from "@/lib/maturityLabels";
 import { Badge } from "@/components/ui/badge";
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
@@ -49,6 +60,9 @@ import {
   Loader2,
   Sparkles,
   RefreshCw,
+  Save,
+  X,
+  Tag,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
@@ -60,6 +74,36 @@ import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const DEFAULT_DOMAIN_TAGS = [
+  'AI/ML', 'Biotech', 'Clean Energy', 'Materials Science',
+  'Digital Health', 'Manufacturing', 'Software', 'Sustainability',
+  'Cybersecurity', 'FinTech', 'IoT', 'Robotics',
+  'Data Analytics', 'Supply Chain', 'Telecommunications',
+];
+
+/** Complexity level thresholds — score ranges map to L1–L5 */
+const COMPLEXITY_THRESHOLDS: { level: string; label: string; min: number; max: number }[] = [
+  { level: "L1", label: "Very Low", min: 0, max: 2 },
+  { level: "L2", label: "Low", min: 2, max: 4 },
+  { level: "L3", label: "Medium", min: 4, max: 6 },
+  { level: "L4", label: "High", min: 6, max: 8 },
+  { level: "L5", label: "Very High", min: 8, max: 10 },
+];
+
+function deriveComplexityLevel(score: number): string {
+  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
+  return match?.level ?? "L5";
+}
+
+function deriveComplexityLabel(score: number): string {
+  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
+  return match?.label ?? "Very High";
+}
 
 // ---------------------------------------------------------------------------
 // Types
