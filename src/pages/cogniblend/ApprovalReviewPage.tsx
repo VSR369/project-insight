@@ -105,45 +105,11 @@ interface AmendmentRecord {
   created_at: string;
 }
 
-interface EvalCriterion {
-  criterion_name: string;
-  weight_percentage: number;
-}
-
-interface RewardTier {
-  tier?: string;
-  label?: string;
-  amount?: number;
-  value?: number;
-}
-
-interface PhaseEntry {
-  phase?: number;
-  phase_number?: number;
-  label?: string;
-  name?: string;
-  duration_days?: number;
-  days?: number;
-}
-
-interface ComplexityParam {
-  name?: string;
-  key?: string;
-  value?: string | number;
-  score?: number;
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseJson<T>(val: Json | null): T | null {
-  if (!val) return null;
-  if (typeof val === "string") {
-    try { return JSON.parse(val) as T; } catch { return null; }
-  }
-  return val as T;
-}
+import { parseJson, unwrapArray, unwrapEvalCriteria, isJsonFilled } from "@/lib/cogniblend/jsonbUnwrap";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -181,43 +147,73 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
     },
     {
       label: "Deliverables",
-      filled: (() => { const d = parseJson<string[]>(challenge.deliverables); return !!d && d.length > 0; })(),
+      filled: (() => { const d = unwrapArray(challenge.deliverables, "items"); return !!d && d.length > 0; })(),
       content: (() => {
-        const d = parseJson<string[]>(challenge.deliverables);
+        const d = unwrapArray<string>(challenge.deliverables, "items");
         if (!d || d.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
-        return <ol className="list-decimal list-inside space-y-1">{d.map((item, i) => <li key={i} className="text-sm text-foreground">{item}</li>)}</ol>;
+        return <ol className="list-decimal list-inside space-y-1">{d.map((item, i) => <li key={i} className="text-sm text-foreground">{String(item)}</li>)}</ol>;
       })(),
     },
     {
       label: "Reward Structure",
-      filled: (() => { const rs = parseJson<RewardTier[]>(challenge.reward_structure); return !!rs && rs.length > 0; })(),
+      filled: isJsonFilled(challenge.reward_structure),
       content: (() => {
-        const rs = parseJson<RewardTier[]>(challenge.reward_structure);
-        if (!rs || rs.length === 0) return <p className="text-sm text-muted-foreground">Not defined.</p>;
-        return <div className="space-y-2">{rs.map((r, i) => (
-          <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
-            <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
-            <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
-          </div>
-        ))}</div>;
+        const raw = parseJson<any>(challenge.reward_structure);
+        if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+        if (typeof raw === "object" && !Array.isArray(raw)) {
+          return (
+            <div className="space-y-1">
+              {Object.entries(raw).filter(([, v]) => v != null).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                  <span className="font-medium text-foreground">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+        if (Array.isArray(raw)) {
+          return <div className="space-y-2">{raw.map((r: any, i: number) => (
+            <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
+              <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
+              <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
+            </div>
+          ))}</div>;
+        }
+        return <p className="text-sm text-muted-foreground">Not defined.</p>;
       })(),
     },
     {
       label: "Phase Schedule",
-      filled: (() => { const ps = parseJson<PhaseEntry[]>(challenge.phase_schedule); return !!ps && ps.length > 0; })(),
+      filled: isJsonFilled(challenge.phase_schedule),
       content: (() => {
-        const ps = parseJson<PhaseEntry[]>(challenge.phase_schedule);
-        if (!ps || ps.length === 0) return <p className="text-sm text-muted-foreground">Not defined.</p>;
-        return (
-          <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
-              <TableBody>{ps.map((p, i) => (
-                <TableRow key={i}><TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell><TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell><TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell></TableRow>
-              ))}</TableBody>
-            </Table>
-          </div>
-        );
+        const raw = parseJson<any>(challenge.phase_schedule);
+        if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+        if (typeof raw === "object" && !Array.isArray(raw)) {
+          return (
+            <div className="space-y-1">
+              {Object.entries(raw).filter(([, v]) => v != null).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                  <span className="font-medium text-foreground">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+        if (Array.isArray(raw)) {
+          return (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+                <TableBody>{raw.map((p: any, i: number) => (
+                  <TableRow key={i}><TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell><TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell><TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell></TableRow>
+                ))}</TableBody>
+              </Table>
+            </div>
+          );
+        }
+        return <p className="text-sm text-muted-foreground">Not defined.</p>;
       })(),
     },
     {
@@ -296,16 +292,16 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
     "Complexity Parameters", "Maturity Level", "Artifact Types",
   ];
 
-  const ec = parseJson<EvalCriterion[]>(challenge.evaluation_criteria);
-  const evalSum = ec?.reduce((s, c) => s + (c.weight_percentage ?? 0), 0) ?? 0;
+  const ec = unwrapEvalCriteria(challenge.evaluation_criteria);
+  const evalSum = ec?.reduce((s, c) => s + (c.weight ?? 0), 0) ?? 0;
 
   const autoChecks = [
     !!challenge.problem_statement?.trim(),
     !!challenge.scope?.trim(),
-    (() => { const d = parseJson<unknown[]>(challenge.deliverables); return !!d && d.length > 0; })(),
+    (() => { const d = unwrapArray(challenge.deliverables, "items"); return !!d && d.length > 0; })(),
     evalSum === 100,
-    (() => { const rs = parseJson<unknown[]>(challenge.reward_structure); return !!rs && rs.length > 0; })(),
-    (() => { const ps = parseJson<unknown[]>(challenge.phase_schedule); return !!ps && ps.length > 0; })(),
+    isJsonFilled(challenge.reward_structure),
+    isJsonFilled(challenge.phase_schedule),
     !!challenge.description?.trim(),
     !!challenge.eligibility?.trim(),
     false, // taxonomy tags
@@ -372,7 +368,7 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
             )}
           </div>
           {(() => {
-            const params = parseJson<ComplexityParam[]>(challenge.complexity_parameters);
+            const params = unwrapArray<any>(challenge.complexity_parameters, "parameters");
             if (!params || params.length === 0) return null;
             return (
               <div className="mt-3 space-y-1 border-t border-border pt-3">
@@ -437,8 +433,8 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
 
 /** Evaluation Tab */
 function EvaluationTab({ challenge }: { challenge: ChallengeData }) {
-  const criteria = parseJson<EvalCriterion[]>(challenge.evaluation_criteria) ?? [];
-  const totalWeight = criteria.reduce((s, c) => s + (c.weight_percentage ?? 0), 0);
+  const criteria = unwrapEvalCriteria(challenge.evaluation_criteria) ?? [];
+  const totalWeight = criteria.reduce((s, c) => s + (c.weight ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -465,8 +461,8 @@ function EvaluationTab({ challenge }: { challenge: ChallengeData }) {
                     {criteria.map((c, i) => (
                       <TableRow key={i}>
                         <TableCell className="text-sm text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell className="text-sm font-medium">{c.criterion_name}</TableCell>
-                        <TableCell className="text-sm text-right font-semibold">{c.weight_percentage}%</TableCell>
+                        <TableCell className="text-sm font-medium">{c.name}</TableCell>
+                        <TableCell className="text-sm text-right font-semibold">{c.weight}%</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="border-t-2 border-border">
@@ -501,8 +497,8 @@ function EvaluationTab({ challenge }: { challenge: ChallengeData }) {
               {criteria.map((c, i) => (
                 <div key={i} className="border border-border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">{c.criterion_name}</h4>
-                    <Badge variant="outline" className="text-[10px]">{c.weight_percentage}% weight</Badge>
+                    <h4 className="text-sm font-semibold text-foreground">{c.name}</h4>
+                    <Badge variant="outline" className="text-[10px]">{c.weight}% weight</Badge>
                   </div>
                   {/* Score scale preview */}
                   <div className="flex items-center gap-1">

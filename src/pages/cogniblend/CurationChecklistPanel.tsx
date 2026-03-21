@@ -82,26 +82,11 @@ interface CurationChecklistPanelProps {
   onEditModeToggle?: (editing: boolean) => void;
 }
 
-interface EvalCriterion {
-  criterion_name: string;
-  weight_percentage: number;
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseJson<T>(val: Json | null): T | null {
-  if (!val) return null;
-  if (typeof val === "string") {
-    try {
-      return JSON.parse(val) as T;
-    } catch {
-      return null;
-    }
-  }
-  return val as T;
-}
+import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson } from "@/lib/cogniblend/jsonbUnwrap";
 
 function getProgressColor(pct: number): string {
   if (pct >= 100) return "bg-green-600";
@@ -258,26 +243,20 @@ export default function CurationChecklistPanel({
   const tier1Docs = legalDocs.find((d) => d.tier.includes("Tier 1"));
   const tier2Docs = legalDocs.find((d) => d.tier.includes("Tier 2"));
 
-  const evalCriteria = parseJson<EvalCriterion[]>(challenge.evaluation_criteria);
-  const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight_percentage ?? 0), 0) ?? 0;
+  const evalCriteria = unwrapEvalCriteria(challenge.evaluation_criteria);
+  const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight ?? 0), 0) ?? 0;
 
   const autoChecks: boolean[] = useMemo(
     () => [
       /* 1  */ !!challenge.problem_statement?.trim(),
       /* 2  */ !!challenge.scope?.trim(),
       /* 3  */ (() => {
-        const d = parseJson<unknown[]>(challenge.deliverables);
+        const d = unwrapArray(challenge.deliverables, "items");
         return !!d && d.length > 0;
       })(),
       /* 4  */ evalWeightSum === 100,
-      /* 5  */ (() => {
-        const rs = parseJson<unknown[]>(challenge.reward_structure);
-        return !!rs && rs.length > 0;
-      })(),
-      /* 6  */ (() => {
-        const ps = parseJson<unknown[]>(challenge.phase_schedule);
-        return !!ps && ps.length > 0;
-      })(),
+      /* 5  */ isJsonFilled(challenge.reward_structure),
+      /* 6  */ isJsonFilled(challenge.phase_schedule),
       /* 7  */ !!challenge.description?.trim(),
       /* 8  */ !!challenge.eligibility?.trim(),
       /* 9  */ false, // Taxonomy tags — checked from junction table; placeholder
