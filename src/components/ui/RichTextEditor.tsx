@@ -66,10 +66,23 @@ function getMediaCategory(mime: string): 'image' | 'video' | 'audio' | null {
 }
 
 const COLOR_SWATCHES = [
-  '#000000', '#374151', '#6b7280', '#1e3a5f', '#1d4ed8',
-  '#3b82f6', '#0891b2', '#059669', '#16a34a', '#ca8a04',
-  '#ea580c', '#dc2626', '#be185d', '#7c3aed', '#6d28d9',
+  '#0f172a', '#1e3a5f', '#1a5276', '#145a32', '#7b241c',
+  '#512e5f', '#784212', '#154360', '#4d5656', '#717d7e',
+  '#2980b9', '#27ae60', '#e74c3c', '#f39c12', '#8e44ad',
 ];
+
+const FONT_FAMILIES = [
+  { label: 'Serif', value: 'Georgia, serif' },
+  { label: 'Sans', value: "'Segoe UI', sans-serif" },
+  { label: 'Mono', value: "'Courier New', monospace" },
+];
+
+interface MediaFile {
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+}
 
 const FONT_SIZES = ['10', '11', '12', '13', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
 
