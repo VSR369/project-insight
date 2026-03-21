@@ -493,20 +493,7 @@ const SECTIONS: SectionDef[] = [
       const tags = parseJson<string[]>(ch.domain_tags);
       return Array.isArray(tags) && tags.length > 0;
     },
-    render: (ch) => {
-      const tags = parseJson<string[]>(ch.domain_tags);
-      if (!Array.isArray(tags) || tags.length === 0)
-        return <p className="text-sm text-muted-foreground italic">No domain tags assigned.</p>;
-      return (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
-              <Tag className="h-3 w-3 mr-1" />{tag}
-            </Badge>
-          ))}
-        </div>
-      );
-    },
+    render: () => null, // Rendered inline (YouTube-style always-editable)
   },
   {
     key: "phase_schedule",
