@@ -50,13 +50,13 @@ export function CurationAIReviewInline({
   challengeId,
   challengeContext,
   onAcceptRefinement,
-  onReviewSection,
+  defaultOpen = false,
 }: CurationAIReviewPanelProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
   // Sync edited comments when review changes
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
