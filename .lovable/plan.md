@@ -1,67 +1,114 @@
 
 
-## Plan: Fix AI Quality Analysis and AI Section Review
+## Plan: Deep AI Section Review with Editable Comments and AI Refinement Loop
 
-### Root Cause Analysis
+### Concept
 
-Both edge functions are deployed and working correctly (verified via direct API test returning 200 with valid data). The issues are in the client-side error handling and feedback:
+Transform the current superficial "Review Sections by AI" into a deep, contextual per-section review with an iterative refinement loop:
 
-**Issue 1: "Analyze AI" (check-challenge-quality)**
-- Missing success toast — user gets no feedback that analysis completed
-- Missing error handling for the "else" branch — if response shape doesn't match, it silently does nothing
-- No toast for gaps found or score display feedback
+1. **AI reviews each section deeply** — considering industry context, maturity level, problem area, consistency, completeness, and unambiguity (not just "is it filled?")
+2. **Review comments appear inline under each section** — editable by the curator
+3. **Curator edits comments → clicks "Refine with AI"** → the modified comment becomes the prompt for AI to rewrite that section
+4. **Curator accepts or discards** the AI-refined content
 
-**Issue 2: "Review Sections by AI" (review-challenge-sections)**
-- Results only appear as inline `CurationAIReviewInline` components inside accordion items
-- User must expand each section to see the review comments — no summary or notification of which sections have issues
-- If the response parsing fails silently, no toast is shown
+### Flow
 
-**Issue 3: Both functions**
-- When JWT expires, `supabase.functions.invoke` returns `{ data: null, error: FunctionsHttpError }` but `error.message` is generic ("Edge Function returned a non-2xx status code"), not the actual JSON body with the meaningful error message
-- Need to parse the error response body for better user feedback
-
----
+```text
+[Section Content]
+     │
+     ▼
+[AI Review] ── status badge + editable comments
+     │
+     ├─ Curator edits a comment (e.g., "Make scope more specific to pharma")
+     │
+     ▼
+[Refine with AI] button
+     │
+     ▼
+[AI rewrites section using curator's comment as instruction]
+     │
+     ▼
+[Accept / Discard] ── Accept saves to DB, Discard keeps original
+```
 
 ### Changes
 
-#### File: `src/pages/cogniblend/CurationReviewPage.tsx`
+#### 1. New Edge Function: `refine-challenge-section`
+**File: `supabase/functions/refine-challenge-section/index.ts`**
 
-**1. Fix `handleAIQualityAnalysis`**
-- Add success toast: `"AI analysis complete — Score: {score}/100, {n} gaps found"`
-- Add explicit else-branch error: `throw new Error(data?.error?.message ?? "Unexpected response")`
-- Handle FunctionsHttpError by reading `error.context?.body` for meaningful message
+Accepts `{ challenge_id, section_key, current_content, curator_instructions }` and returns refined content. The system prompt instructs AI to rewrite the section content following the curator's instructions while maintaining consistency with the challenge context (title, maturity level, industry, other sections).
 
-**2. Fix `handleAIReview`**
-- After setting `aiReviews`, show a summary toast listing sections with issues: `"AI review: 3 pass, 2 warnings, 1 needs revision"`
-- Handle FunctionsHttpError the same way
+#### 2. Upgrade Edge Function: `review-challenge-sections`
+**File: `supabase/functions/review-challenge-sections/index.ts`**
 
-**3. Add AI Review Summary in Right Rail**
-- After "Review Sections by AI" button, show a compact summary when `aiReviews` has data:
-  - Count of pass/warning/needs_revision with color-coded badges
-  - List sections needing revision with clickable links that set the active group and expand the accordion item
-- This makes review results visible without having to hunt through accordion items
+Enhance the system prompt to require deep, contextual review:
+- Assess content quality (clarity, specificity, actionability) not just presence
+- Check cross-section consistency (e.g., deliverables align with evaluation criteria)
+- Evaluate industry-appropriateness and maturity-level fit
+- Flag ambiguous language, vague goals, missing quantifiers
+- Each comment should be a specific improvement instruction (not just "needs work")
 
-**4. Improve error feedback for both handlers**
-- Parse `FunctionsHttpError` context to extract the actual error message from the edge function response
-- Show specific toasts for rate limit (429) and credits exhausted (402)
+#### 3. Upgrade Component: `CurationAIReviewPanel.tsx`
+**File: `src/components/cogniblend/curation/CurationAIReviewPanel.tsx`**
+
+Transform from read-only display to interactive review panel:
+- Comments become editable `Textarea` fields (click to edit)
+- Add "Refine with AI" button per section — sends edited comments as instructions to `refine-challenge-section`
+- Show AI-refined content in a diff-like preview (proposed vs current)
+- "Accept" and "Discard" buttons for the refined content
+- Loading states during refinement
+
+#### 4. Update CurationReviewPage integration
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+
+- Remove the separate "Review Sections by AI" button from the right rail
+- Add a small "AI Review" trigger button inside each section's accordion header (next to Edit button)
+- When triggered, call `review-challenge-sections` for just that section (or batch for all)
+- Pass `onAcceptRefinement` callback that saves the refined content via `saveSectionMutation`
+- Pass section's current content to the review panel so it can feed the refine function
 
 ### Technical Details
 
-Error parsing pattern for `supabase.functions.invoke`:
+**`refine-challenge-section` edge function payload:**
 ```typescript
-if (error) {
-  // Try to read the actual error body
-  let msg = error.message;
-  try {
-    const body = await error.context?.json?.();
-    msg = body?.error?.message ?? msg;
-  } catch {}
-  throw new Error(msg);
+{
+  challenge_id: string,
+  section_key: string,           // e.g., "problem_statement"
+  current_content: string,       // current section text/JSON
+  curator_instructions: string,  // edited review comment = the refinement prompt
+  context: {                     // full challenge context for coherence
+    title, maturity_level, industry, domain_tags
+  }
 }
 ```
 
-AI Review summary component (inline in right rail):
-- Shows after `aiReviews.length > 0`
-- Groups by status with counts
-- Sections with `needs_revision` listed as clickable items
+**Enhanced review prompt (excerpt):**
+```
+Review for: consistency with stated maturity level, industry-specific accuracy,
+unambiguous language, completeness of requirements, cross-section alignment
+(e.g., do deliverables match evaluation criteria?), and actionability for solvers.
+Each comment MUST be a specific, editable instruction that could be used to
+directly improve the section.
+```
+
+**CurationAIReviewPanel new props:**
+```typescript
+interface CurationAIReviewPanelProps {
+  sectionKey: string;
+  review: SectionReview | undefined;
+  currentContent: string | null;
+  challengeId: string;
+  challengeContext: { title, maturity_level, domain_tags };
+  onAcceptRefinement: (newContent: string) => void;
+  onReviewRequest: (sectionKey: string) => void;
+}
+```
+
+### Files to Create
+- `supabase/functions/refine-challenge-section/index.ts`
+
+### Files to Modify
+- `supabase/functions/review-challenge-sections/index.ts` — deeper review prompt
+- `src/components/cogniblend/curation/CurationAIReviewPanel.tsx` — editable comments + refine button + accept/discard
+- `src/pages/cogniblend/CurationReviewPage.tsx` — wire up per-section review triggers, pass new props, handle accept callback
 
