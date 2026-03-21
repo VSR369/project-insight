@@ -243,8 +243,8 @@ export default function CurationChecklistPanel({
   const tier1Docs = legalDocs.find((d) => d.tier.includes("Tier 1"));
   const tier2Docs = legalDocs.find((d) => d.tier.includes("Tier 2"));
 
-  const evalCriteria = parseJson<EvalCriterion[]>(challenge.evaluation_criteria);
-  const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight_percentage ?? 0), 0) ?? 0;
+  const evalCriteria = unwrapEvalCriteria(challenge.evaluation_criteria);
+  const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight ?? 0), 0) ?? 0;
 
   const autoChecks: boolean[] = useMemo(
     () => [
