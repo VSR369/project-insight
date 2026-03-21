@@ -458,24 +458,6 @@ export default function LcLegalWorkspacePage() {
     }
   }, [user?.id, docEdits, challengeId, queryClient]);
 
-  // ── Update maturity level on challenge ──
-  const handleSetMaturityLevel = useCallback(async (level: string) => {
-    if (!challengeId || !user?.id) return;
-    try {
-      const { error } = await supabase.from('challenges').update({
-        maturity_level: level,
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      }).eq('id', challengeId);
-      if (error) throw new Error(error.message);
-      toast.success('Maturity level updated');
-      setMaturityValue('');
-      setGateFailures((prev) => prev.filter((f) => !f.toLowerCase().includes('maturity')));
-      queryClient.invalidateQueries({ queryKey: ['challenge-lc-detail', challengeId] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update');
-    }
-  }, [challengeId, user?.id, queryClient]);
 
 
   const handleAddNewDoc = async () => {
