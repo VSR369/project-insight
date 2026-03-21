@@ -1104,7 +1104,7 @@ export default function LcLegalWorkspacePage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
                             onClick={() => acceptDocMutation.mutate(doc)}
@@ -1116,6 +1116,19 @@ export default function LcLegalWorkspacePage() {
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                             )}
                             Accept & Attach
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSaveContent(doc)}
+                            disabled={savingContent === doc.document_type}
+                          >
+                            {savingContent === doc.document_type ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <Save className="h-3 w-3 mr-1" />
+                            )}
+                            Save Edits
                           </Button>
                           <Button
                             size="sm"
