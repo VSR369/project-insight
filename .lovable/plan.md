@@ -1,45 +1,42 @@
 
 
-## Plan: Fix IP, Governance, Maturity & Milestone Display in LC Workspace
+## Plan: Make LC Workspace Path-Aware — Show Only AI-Path Data
 
-### Issues Found
+### Problem
+The LC Legal Workspace shows reward structure, payment milestones, and other Manual Editor wizard-specific data regardless of which creation path was used. In the AI-Assisted path, the Creator only provides a 6-field intake (Problem, Outcomes, Maturity, Prize, Deadline, Files) and the AI generates spec fields (title, scope, description, deliverables, evaluation criteria, solver eligibility, hook, IP model). Reward tiers, payment milestones, and detailed reward configuration are **wizard-only** (Step 3: Rewards & IP) and should not appear on the AI path.
 
-1. **IP Model** (line 469): Shows raw DB code `IP-NEL` — should show "Non-Exclusive License — Solver retains rights, seeker gets license"
-2. **Governance** (line 470): Shows raw DB value `ENTERPRISE` — should resolve via `resolveGovernanceMode()` to `STRUCTURED` and use the `GOVERNANCE_MODE_CONFIG` label/badge
-3. **Maturity** (line 471): Shows "Not specified" for null — should use `getMaturityLabel()` from `maturityLabels.ts` for non-null values and show a clear fallback
-4. **Milestone percentages** (line 523): Reads `m.percentage ?? m.percent` but DB stores the field as `pct` — all milestones display as `0%`
+### What AI Path Actually Produces
+- Title, Problem Statement, Scope, Description, Hook
+- Deliverables, Evaluation Criteria
+- Solver Eligibility & Visibility types
+- IP Model
+- Maturity level (from intake), Governance (from org)
 
-### Milestone Data Origin
-
-The payment milestones are configured in **Step 3 (Rewards & IP)** of the Challenge Wizard (`StepRewards.tsx`). They are stored inside `reward_structure.payment_milestones` as `[{name, pct, trigger}]`. This data was present in previous screens — specifically the wizard's review/submit step shows "3 milestones" — but the detailed table was only in the rewards step itself.
+### What Manual Editor Wizard Adds (NOT in AI path)
+- Reward tiers with amounts
+- Payment milestones (name, trigger, pct)
+- Payment mode configuration
+- Detailed reward structure (currency, num_rewarded, total_pool)
 
 ### Changes — Single File: `src/pages/cogniblend/LcLegalWorkspacePage.tsx`
 
-**1. Add imports** (top of file):
-- `import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';`
-- `import { getMaturityLabel } from '@/lib/maturityLabels';`
+**1. Detect creation path**
+Read `sessionStorage.getItem('cogni_demo_path')` to determine if this is the AI path or manual path. Store as `isAiPath` boolean.
 
-**2. Add IP model label map** (near helpers section):
-```ts
-const IP_MODEL_LABELS: Record<string, string> = {
-  'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
-  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
-  'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
-  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
-  'IP-NONE': 'No Transfer — Solver retains all IP rights',
-};
-```
+**2. Conditionally hide reward structure section**
+Wrap the entire reward structure block (lines 499-555) in a path check:
+- AI path: hide the reward structure/milestones/tiers section entirely
+- Manual path: show as currently rendered
 
-**3. Fix IP & Governance section** (lines 468-474):
-- IP badge: Show `IP_MODEL_LABELS[challenge.ip_model]` instead of raw code
-- Governance badge: Use `resolveGovernanceMode(challenge.governance_profile)` → show resolved mode label with the correct color from `GOVERNANCE_MODE_CONFIG`
-- Maturity: Use `getMaturityLabel(challenge.maturity_level)` for proper display
+**3. Keep IP, Governance, Maturity badges visible on both paths**
+These are relevant regardless of path — IP model comes from AI, governance from org, maturity from intake. Only the reward subsection is path-specific.
 
-**4. Fix milestone percentage** (line 523):
-- Change `m.percentage ?? m.percent ?? 0` to `m.pct ?? m.percentage ?? m.percent ?? 0`
+**4. Cancel previous plan**
+Do NOT add reward_structure/milestones to `AISpecReviewPage.tsx` — that page correctly shows only AI-generated SPEC_SECTIONS content.
 
 ### Technical Details
-- Reuses existing centralized utilities (`resolveGovernanceMode`, `getMaturityLabel`) already used by other pages
-- IP label map matches the one in `AISpecReviewPage.tsx`
-- The `pct` field name matches the schema in `challengeFormSchema.ts` and the actual DB response data
+- Single variable: `const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';`
+- Conditional render: `{!isAiPath && (() => { const reward = parseRewardStructure(...); ... })()}`
+- No database or API changes needed
+- The `parseRewardStructure` helper and its code remain for use in the manual path
 
