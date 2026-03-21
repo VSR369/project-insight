@@ -1265,7 +1265,6 @@ export default function LcLegalWorkspacePage() {
       {gateFailures.length > 0 && (
         <div className="space-y-3">
           {gateFailures.map((failure, idx) => {
-            const isMaturity = failure.toLowerCase().includes('maturity');
             const isPendingDocs = failure.toLowerCase().includes('pending');
             return (
               <Alert key={idx} variant="destructive" className="border-destructive/30">
@@ -1273,30 +1272,6 @@ export default function LcLegalWorkspacePage() {
                 <AlertTitle className="text-sm font-semibold">Validation Failed</AlertTitle>
                 <AlertDescription className="space-y-2">
                   <p className="text-sm">{failure}</p>
-                  {isMaturity && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Select value={maturityValue} onValueChange={setMaturityValue}>
-                        <SelectTrigger className="w-48 h-8 text-xs">
-                          <SelectValue placeholder="Set maturity level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="IDEATION">Ideation</SelectItem>
-                          <SelectItem value="CONCEPT">Concept</SelectItem>
-                          <SelectItem value="PROTOTYPE">Prototype</SelectItem>
-                          <SelectItem value="VALIDATED">Validated</SelectItem>
-                          <SelectItem value="SCALING">Scaling</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!maturityValue}
-                        onClick={() => handleSetMaturityLevel(maturityValue)}
-                      >
-                        Fix
-                      </Button>
-                    </div>
-                  )}
                   {isPendingDocs && hasSuggestions && (
                     <p className="text-xs text-muted-foreground">
                       {visibleSuggestions.length} AI suggestion{visibleSuggestions.length !== 1 ? 's' : ''} still need to be Accepted or Dismissed above.
