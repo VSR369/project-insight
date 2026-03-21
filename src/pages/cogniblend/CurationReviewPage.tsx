@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ComplexityAssessmentModule } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
+import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import {
   Select,
   SelectContent,
