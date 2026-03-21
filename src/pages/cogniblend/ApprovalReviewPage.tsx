@@ -147,43 +147,73 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
     },
     {
       label: "Deliverables",
-      filled: (() => { const d = parseJson<string[]>(challenge.deliverables); return !!d && d.length > 0; })(),
+      filled: (() => { const d = unwrapArray(challenge.deliverables, "items"); return !!d && d.length > 0; })(),
       content: (() => {
-        const d = parseJson<string[]>(challenge.deliverables);
+        const d = unwrapArray<string>(challenge.deliverables, "items");
         if (!d || d.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
-        return <ol className="list-decimal list-inside space-y-1">{d.map((item, i) => <li key={i} className="text-sm text-foreground">{item}</li>)}</ol>;
+        return <ol className="list-decimal list-inside space-y-1">{d.map((item, i) => <li key={i} className="text-sm text-foreground">{String(item)}</li>)}</ol>;
       })(),
     },
     {
       label: "Reward Structure",
-      filled: (() => { const rs = parseJson<RewardTier[]>(challenge.reward_structure); return !!rs && rs.length > 0; })(),
+      filled: isJsonFilled(challenge.reward_structure),
       content: (() => {
-        const rs = parseJson<RewardTier[]>(challenge.reward_structure);
-        if (!rs || rs.length === 0) return <p className="text-sm text-muted-foreground">Not defined.</p>;
-        return <div className="space-y-2">{rs.map((r, i) => (
-          <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
-            <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
-            <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
-          </div>
-        ))}</div>;
+        const raw = parseJson<any>(challenge.reward_structure);
+        if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+        if (typeof raw === "object" && !Array.isArray(raw)) {
+          return (
+            <div className="space-y-1">
+              {Object.entries(raw).filter(([, v]) => v != null).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                  <span className="font-medium text-foreground">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+        if (Array.isArray(raw)) {
+          return <div className="space-y-2">{raw.map((r: any, i: number) => (
+            <div key={i} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
+              <span className="text-sm font-medium text-foreground">{r.tier ?? r.label ?? `Tier ${i + 1}`}</span>
+              <span className="text-sm text-muted-foreground">${(r.amount ?? r.value ?? 0).toLocaleString()}</span>
+            </div>
+          ))}</div>;
+        }
+        return <p className="text-sm text-muted-foreground">Not defined.</p>;
       })(),
     },
     {
       label: "Phase Schedule",
-      filled: (() => { const ps = parseJson<PhaseEntry[]>(challenge.phase_schedule); return !!ps && ps.length > 0; })(),
+      filled: isJsonFilled(challenge.phase_schedule),
       content: (() => {
-        const ps = parseJson<PhaseEntry[]>(challenge.phase_schedule);
-        if (!ps || ps.length === 0) return <p className="text-sm text-muted-foreground">Not defined.</p>;
-        return (
-          <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
-              <TableBody>{ps.map((p, i) => (
-                <TableRow key={i}><TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell><TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell><TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell></TableRow>
-              ))}</TableBody>
-            </Table>
-          </div>
-        );
+        const raw = parseJson<any>(challenge.phase_schedule);
+        if (!raw) return <p className="text-sm text-muted-foreground">Not defined.</p>;
+        if (typeof raw === "object" && !Array.isArray(raw)) {
+          return (
+            <div className="space-y-1">
+              {Object.entries(raw).filter(([, v]) => v != null).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                  <span className="font-medium text-foreground">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+        if (Array.isArray(raw)) {
+          return (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+                <TableBody>{raw.map((p: any, i: number) => (
+                  <TableRow key={i}><TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell><TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell><TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell></TableRow>
+                ))}</TableBody>
+              </Table>
+            </div>
+          );
+        }
+        return <p className="text-sm text-muted-foreground">Not defined.</p>;
       })(),
     },
     {
