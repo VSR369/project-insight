@@ -184,6 +184,7 @@ export function RichTextEditor({
       CharacterCount,
       Underline,
       TextStyle,
+      FontFamily,
       Color,
       Highlight.configure({ multicolor: false }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
