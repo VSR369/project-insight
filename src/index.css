@@ -239,6 +239,50 @@ All colors MUST be HSL.
   }
 }
 
+/* ── AI Content Callout Styles ─────────────────────────── */
+
+.ai-content-prose blockquote {
+  background-color: hsl(var(--primary) / 0.05);
+  border-left: 3px solid hsl(var(--primary) / 0.4);
+  border-radius: 0 0.375rem 0.375rem 0;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  font-style: normal;
+  color: hsl(var(--foreground));
+}
+
+.ai-content-prose blockquote p {
+  margin: 0;
+}
+
+.ai-content-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 0.75rem 0;
+}
+
+.ai-content-prose table th {
+  background-color: hsl(var(--muted) / 0.5);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid hsl(var(--border));
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: hsl(var(--foreground));
+}
+
+.ai-content-prose table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.ai-content-prose table tr:nth-child(even) {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
 /* ── Tiptap Editor Styles ─────────────────────────────── */
 
 .tiptap {

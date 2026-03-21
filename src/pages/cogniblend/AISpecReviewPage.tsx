@@ -681,9 +681,7 @@ function SectionContent({
         ? getIpModelLabel(value || null)
         : value;
       return (
-        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-          {displayValue || <span className="italic">No content yet</span>}
-        </p>
+        <AiContentRenderer content={displayValue} fallback="No content yet" compact />
       );
     }
   }
