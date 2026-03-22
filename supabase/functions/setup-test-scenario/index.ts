@@ -47,6 +47,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "AGG Enterprise Test Org",
     operatingModel: "AGG",
     governanceProfile: "ENTERPRISE",
+    subscriptionTier: "enterprise",
     phase1Bypass: false,
     isEnterprise: true,
     users: [
