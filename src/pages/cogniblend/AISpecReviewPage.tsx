@@ -1230,6 +1230,17 @@ export default function AISpecReviewPage() {
     const policyFields = getOrgPolicyFields();
     Object.assign(fieldsToSave, policyFields);
 
+    // Merge taxonomy selections into eligibility JSON
+    if (industrySegmentId) {
+      fieldsToSave.eligibility = JSON.stringify({
+        ...(eligibilityData ?? {}),
+        industry_segment_id: industrySegmentId,
+        proficiency_area_ids: selectedProfAreaIds,
+        sub_domain_ids: selectedSubDomainIds,
+        speciality_ids: selectedSpecialityIds,
+      });
+    }
+
     if (Object.keys(fieldsToSave).length > 0 && challengeId) {
       try {
         await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
