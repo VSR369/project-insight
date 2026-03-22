@@ -1,146 +1,81 @@
 
 
-# Final Comprehensive Plan: Streamlined Challenge Creation Flow + Curation/Approval Pipeline
+# Plan: Correct AM Role Identity + Model-Adaptive Intake Forms
 
-## What Already Exists (No Changes Needed)
+## Correction
 
-| Component | Status |
-|-----------|--------|
-| ConversationalIntakePage (6-field AI intake for CR/CA) | Implemented |
-| CogniSubmitRequestPage (12-field Solution Request for AM/RQ) | Implemented (will be simplified) |
-| CurationChecklistPanel (15-item checklist + Submit to ID button) | Implemented |
-| ApprovalReviewPage (ID reviews challenge, 4 tabs, ApprovalActionBar) | Implemented |
-| ApprovalQueuePage (ID queue listing) | Implemented |
-| RoleSwitcher in CogniTopBar | Implemented (hidden on mobile) |
-| CogniRoleContext (role switching, localStorage sync) | Implemented |
-| Governance mode per-challenge, tier-gated | Implemented correctly |
-| Engagement model per-challenge | Implemented correctly |
+**MP Account Manager (AM) is NOT a Platform Admin.** AM is a representative of the Seeking Organization. In the Marketplace model, the Platform Provider team manages the challenge lifecycle, but the AM is the seeking org's point person who submits the problem brief with mandatory details (budget, timeline, solution expectations).
 
----
+## Changes
 
-## 6 Implementation Steps
+### 1. Update SimpleIntakeForm copy and model-adaptive fields
 
-### Step 1: Role-Based Auto-Routing on ChallengeCreatePage
+**File: `src/components/cogniblend/SimpleIntakeForm.tsx`**
 
-**File: `src/pages/cogniblend/ChallengeCreatePage.tsx`**
+**Current header (line 171):** "Submit a Solution Request" / "Describe your business need — a Challenge Architect will build the full specification."
 
-- When `activeRole` is `AM` or `RQ`: skip card layout, render `SimpleIntakeForm` inline
-- When `activeRole` is `CR` or `CA`: show 2 cards with renamed labels:
-  - "Describe Your Problem" (was "AI-Assisted") — badge: Recommended
-  - "Build Spec Manually" (was "Manual Editor") — no badge change
-- Remove the Solution Request card (AM/RQ no longer navigate to `/cogni/submit-request`)
-- Keep `CreationContextBar` and `GovernanceFooter`
+Read `orgContext?.operatingModel` to switch between two variants:
 
-### Step 2: Create SimpleIntakeForm (5-field AM/RQ Intake)
+**AGG (RQ) — "Share Your Idea" (3 required fields):**
+- Title (max 100 chars) — required
+- Problem Idea (textarea, max 300 chars) — required. Prompt: *"What problem or opportunity have you identified? Even a rough idea is fine — a domain expert will expand it."*
+- Sector/Domain (dropdown) — required
+- Budget, Timeline — **removed** (RQ may not know these)
 
-**New file: `src/components/cogniblend/SimpleIntakeForm.tsx`**
+**MP (AM) — "Submit a Problem Brief" (6 required fields):**
+- Title — required
+- Problem Summary (textarea, max 500 chars) — required. Keep existing prompt.
+- Solution Expectations (new textarea, max 500 chars) — required. Prompt: *"What outcomes do you expect? What does a successful solution look like?"*
+- Sector/Domain — required
+- Budget Range (min/max + currency) — required
+- Timeline — required
+- Architect assignment picker (MP-only, already exists)
 
-| Field | Type | Required |
-|-------|------|----------|
-| Title | Text (max 100 chars) | Yes |
-| Problem Summary | Textarea (max 500 chars) | Yes |
-| Sector/Domain | Dropdown (`md_industry_segments`) | Yes |
-| Budget Range | Min/Max + Currency | Yes |
-| Timeline | Dropdown (1-3/3-6/6-12/12+ months) | Yes |
+**Updated subtitle for MP:** "As your organization's representative, provide the problem details. The platform team will manage the challenge lifecycle."
 
-Writing prompt below Problem Summary textarea: *"Describe what is broken, who is affected, and what a good solution would achieve."*
+**Updated subtitle for AGG:** "Share your problem or opportunity — a Challenge Architect will define the full specification."
 
-On submit: creates challenge at Phase 1, assigns Challenge Architect (MP: manual picker, AGG: auto), navigates to confirmation. Reuses `useSubmitSolutionRequest` mutation.
+**Schema change:** Make `budget_min`, `budget_max`, `expected_timeline` conditionally required via `.superRefine()` checking an `isMP` flag, or use two separate schemas selected at runtime.
 
-**Retire `/cogni/submit-request`**: Add redirect in `CogniSubmitRequestPage.tsx` to `/cogni/challenges/create`.
-
-### Step 3: Add Guided Prompts to ConversationalIntakePage
+### 2. Add "Expand Challenge" section to ConversationalIntakePage (CR/CA)
 
 **File: `src/pages/cogniblend/ConversationalIntakePage.tsx`**
 
-Add 3 guiding prompts as helper text (not new fields) below the Problem Statement and Expected Outcomes textareas for CA/CR:
+Add a collapsible section after Expected Outcomes (line ~562) with 6 optional domain-expert fields:
 
-- Below Problem Statement: *"What approaches have already been tried?"* and *"What constraints must the solution work within?"*
-- Below Expected Outcomes: *"What does a successful solution look like?"*
+| Field | Max chars | Placeholder guidance |
+|-------|-----------|---------------------|
+| Context & Background | 2000 | "Provide relevant history, industry context, or organizational background" |
+| Root Causes | 1000 | "What are the underlying causes of this problem?" |
+| Affected Stakeholders | 1000 | "Who is impacted and how?" |
+| Scope Definition | 2000 | "What is in scope and out of scope?" |
+| Preferred Approach | 1000 | "Any methodologies or technologies you'd prefer?" |
+| Approaches NOT of Interest | 1000 | "What has been tried and failed, or what should solvers avoid?" |
 
-These appear as styled hint text (italic, muted color) to guide thinking without adding form fields.
+Section header: *"Expand Challenge Details"* with subtext: *"The more context you provide, the better the AI-generated specification will be."*
 
-### Step 4: Hide Curator-Only Fields in ChallengeWizardPage
+- Use a `Collapsible` component, open by default
+- Add fields to schema as optional strings
+- Pass all non-empty fields to `generateSpec.mutateAsync()` payload and `saveStep` fields
+- Remove the 3 italic hint prompts (lines 526-531, 559-561) — replaced by these structured fields
 
-**File: `src/pages/cogniblend/ChallengeWizardPage.tsx`**
+### 3. Update ConversationalIntakePage header copy
 
-When `activeRole` is `CR` or `CA`, hide/disable the following wizard steps or fields:
-- StepRewards: reward tiers, escrow, payment milestones, rejection fee percentage
-- These fields remain visible and editable when `activeRole` is `CU` (Curator)
+**Line 449:** Change from "Describe your problem, set your parameters, and let AI draft the full specification." to: **"As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs."**
 
-Implementation: read `activeRole` from `useCogniRoleContext()`, pass `isCuratorView` prop to `StepRewards` and `StepTimeline` to conditionally render financial fields.
+## Files Modified
 
-### Step 5: Enhance Curation Checklist with Compliance Items
-
-**File: `src/pages/cogniblend/CurationChecklistPanel.tsx`**
-
-The existing 15-item checklist already covers most items. Verify and ensure these specific compliance checks from Claude's feedback are explicitly present:
-
-| Check | Current Status |
-|-------|---------------|
-| Legal docs attached | Items 10, 11 — already implemented (locked) |
-| IP model confirmed | Not explicit — add as item or verify via `challenge.ip_model` |
-| Reward structure validated | Item 5 — already implemented |
-| Payment milestones sum to 100% | Item 4 (eval weights) exists; add milestone weight check |
-| NDA/CSA in place | Covered by Tier 1 legal (item 10) |
-| Eligibility criteria set | Item 8 — already implemented |
-
-Changes:
-- Replace item 9 ("Taxonomy tags applied" — currently a placeholder `false`) with "IP model confirmed" (auto-check: `!!challenge.ip_model`)
-- Add validation that payment milestone weights sum to 100% within the reward structure check (item 5)
-- "Submit to Innovation Director" button already exists and is gated by `allComplete` — no change needed
-
-### Step 6: All Roles Summary Widget + Mobile RoleSwitcher
-
-**New file: `src/components/cogniblend/dashboard/AllRolesSummaryWidget.tsx`**
-
-For users with 2+ roles, shows compact role cards above other dashboard widgets. Each card: role badge color, role name, pending action count from `roleChallengeCount`. Clicking a card calls `setActiveRole()`.
-
-**File: `src/components/cogniblend/shell/CogniTopBar.tsx`**
-- Remove `hidden md:block` wrapper around `RoleSwitcher` — make visible on all breakpoints
-- Compact pill design on mobile (show role code only)
-
-**File: `src/pages/cogniblend/CogniDashboardPage.tsx`**
-- Add `AllRolesSummaryWidget` above `WhatsNextCard` when `availableRoles.length >= 2`
-
----
+| File | Changes |
+|------|---------|
+| `SimpleIntakeForm.tsx` | Model-adaptive fields (AGG=3 fields, MP=6 fields), corrected copy (AM = seeking org rep), new Solution Expectations field for MP |
+| `ConversationalIntakePage.tsx` | Add "Expand Challenge" collapsible with 6 optional fields, update header copy, remove inline hint prompts, pass expanded fields to AI + save |
 
 ## What is NOT Changed
 
-- Innovation Director role (ID) — already fully implemented with ApprovalQueuePage + ApprovalReviewPage + ApprovalActionBar
-- Governance mode — stays per-challenge, tier-gated (Basic=QUICK only, Standard=QUICK+STRUCTURED, Premium=all three)
-- Engagement model — stays per-challenge
-- ConversationalIntakePage field count (6 fields) — unchanged, only adding helper text
-- CurationReviewPage — unchanged (Submit to ID button + 15-item checklist already work)
-- Extended brief + Challenge Settings panels — unchanged
-- All phase gates (GATE-02, GATE-04, GATE-11) — unchanged
-
----
-
-## Files Summary
-
-| Action | File | Purpose |
-|--------|------|---------|
-| Modify | `ChallengeCreatePage.tsx` | Role-based auto-routing, rename 2 cards, remove Solution Request card |
-| Create | `SimpleIntakeForm.tsx` | 5-field lightweight form with writing prompt for AM/RQ |
-| Modify | `CogniSubmitRequestPage.tsx` | Redirect to `/cogni/challenges/create` |
-| Modify | `ConversationalIntakePage.tsx` | Add 3 guiding prompts as helper text |
-| Modify | `ChallengeWizardPage.tsx` | Hide reward/escrow/milestone fields for CR/CA |
-| Modify | `CurationChecklistPanel.tsx` | Replace placeholder item 9, strengthen item 5 |
-| Create | `AllRolesSummaryWidget.tsx` | Multi-role dashboard summary |
-| Modify | `CogniDashboardPage.tsx` | Add AllRolesSummaryWidget |
-| Modify | `CogniTopBar.tsx` | RoleSwitcher visible on all breakpoints |
-
-## Implementation Order
-
-| Step | Effort | Dependencies |
-|------|--------|-------------|
-| Step 1: Role-based auto-routing | Medium | Step 2 (needs SimpleIntakeForm) |
-| Step 2: SimpleIntakeForm + retire Solution Request | Medium | None |
-| Step 3: Guided prompts on ConversationalIntakePage | Small | None |
-| Step 4: Hide Curator-only fields in wizard | Small | None |
-| Step 5: Strengthen curation checklist | Small | None |
-| Step 6: AllRolesSummaryWidget + mobile RoleSwitcher | Medium | None |
-
-Steps 2-5 can be parallelized. Step 1 depends on Step 2. Step 6 is independent.
+- ChallengeCreatePage role-based routing (AM/RQ → SimpleIntakeForm, CR/CA → 2 cards)
+- Governance/engagement model handling
+- ChallengeWizardPage curator-only field hiding
+- CurationChecklistPanel
+- AllRolesSummaryWidget / RoleSwitcher changes
+- All downstream flows
 
