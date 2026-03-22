@@ -540,7 +540,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "challenge_visibility",
     label: "Challenge Visibility",
-    attribution: "Org Policy",
+    attribution: "by Curator",
     dbField: "challenge_visibility",
     isFilled: (ch) => !!(ch as any).challenge_visibility,
     render: (ch) => {
