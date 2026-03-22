@@ -1,61 +1,37 @@
 
 
-# Plan: Eliminate Space Wastage in Content Display Boxes
+# Plan: Fix AM Brief Data Flow to Challenge Architect View
 
 ## Problem
-Content boxes across the challenge lifecycle (AMRequestViewPage, AISpecReviewPage, CurationReviewPage, PublicChallengeDetailPage) waste vertical space because:
-1. The `.editor-content p` CSS rule sets `min-height: 1.85em` — useful for the editor but bloats read-only views
-2. The `.editor-content p` has `margin: 0 0 14px 0` — the last paragraph gets unnecessary bottom margin
-3. `CardContent` uses `p-6 pt-0` (24px side/bottom padding) which is generous for short content
-4. No distinction between "editing mode" and "display mode" in the shared `.editor-content` class
+The "Account Manager's Original Brief" panel on the AISpecReviewPage (Challenge Architect's view) has several data-binding bugs that prevent AM-entered data from displaying correctly:
 
-## Solution: Centralized CSS Fix
+1. **Wrong field for Problem Summary**: Panel reads `challenge.description` but AM intake saves to `problem_statement`
+2. **Missing Solution Expectations**: AM enters "What success looks like commercially" (saved to `scope`), but it is not shown
+3. **Missing Beneficiaries Mapping**: AM optionally enters this (saved to `extended_brief.beneficiaries_mapping`), but it is not shown
+4. **Timeline not resolving**: `expected_timeline` is stored inside `phase_schedule` JSONB, but panel reads it as a top-level field — always empty
+5. **Plain text rendering**: Rich HTML from `RichTextEditor` rendered as plain `<p>` instead of `SafeHtmlRenderer`
+6. **Panel duplicated**: Same broken panel exists in both QUICK mode (line 1366) and STRUCTURED mode (line 1490) branches
 
-Rather than modifying every component individually, fix the root cause in `src/index.css` and `SafeHtmlRenderer.tsx`:
+## Changes
 
-### 1. Add a display-mode CSS variant
-**File**: `src/index.css`
+### File: `src/pages/cogniblend/AISpecReviewPage.tsx`
 
-Add a `.editor-content-display` modifier class (or scope via `.editor-content:not(.ProseMirror)`) that:
-- Removes `min-height: 1.85em` from `<p>` tags (only needed during editing for cursor placement)
-- Removes bottom margin from the last child element (`last-child { margin-bottom: 0 }`)
-- This preserves the editor behavior while tightening read-only display
+Both AM Brief panels (QUICK + STRUCTURED) will be updated identically:
 
-### 2. Apply the display class in SafeHtmlRenderer
-**File**: `src/components/ui/SafeHtmlRenderer.tsx`
+1. **Fix visibility condition**: Change `challenge.description || challengeRecord.reward_structure` to `challenge.problem_statement || challengeRecord.reward_structure`
 
-Add the `editor-content-display` class alongside `editor-content` so all read-only rendered content automatically gets the tighter spacing.
+2. **Fix Problem Summary**: Change `challenge.description` to `challenge.problem_statement` and render with `<SafeHtmlRenderer>` instead of `<p>`
 
-### 3. Apply the display class in AiContentRenderer
-**File**: `src/components/ui/AiContentRenderer.tsx`
+3. **Add Solution Expectations**: Show `challenge.scope` (the AM's "What success looks like commercially") with `<SafeHtmlRenderer>`
 
-Same treatment — when rendering AI content in read-only mode, include the display class.
+4. **Fix Timeline**: Extract from `phase_schedule` JSONB — `(challengeRecord.phase_schedule as any)?.expected_timeline` instead of `challengeRecord.expected_timeline`
 
-### 4. Tighten CardContent padding for content sections
-**File**: `src/pages/cogniblend/PublicChallengeDetailPage.tsx`
+5. **Add Beneficiaries Mapping**: Show `extended_brief.beneficiaries_mapping` if present, with `<SafeHtmlRenderer>`
 
-Override `CardContent` padding to `p-4 pt-0` on content display cards (Problem Statement, Scope, etc.) to reduce side/bottom padding from 24px to 16px.
+6. **Add AM Approval flag**: Show whether the AM requested approval before publication
 
-## CSS Changes (in `src/index.css`)
+7. **Import `SafeHtmlRenderer`** (already imported or add if missing)
 
-```css
-/* Tighter display for read-only rendered content */
-.editor-content-display p {
-  min-height: unset;
-}
-.editor-content-display > *:last-child {
-  margin-bottom: 0 !important;
-}
-```
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `src/index.css` | Add `.editor-content-display` rules to remove min-height and trailing margin |
-| `src/components/ui/SafeHtmlRenderer.tsx` | Add `editor-content-display` class |
-| `src/components/ui/AiContentRenderer.tsx` | Add `editor-content-display` class when rendering read-only |
-| `src/pages/cogniblend/PublicChallengeDetailPage.tsx` | Tighten CardContent padding on content cards |
-
-This is a 4-line CSS addition + 2 one-line class additions that fixes the spacing globally across every view page and role without touching individual components.
+## Impact
+This is a read-only display fix. No database changes, no schema changes, no data migration. The data is already being saved correctly by the AM intake — the Architect's view just was not reading the right fields.
 
