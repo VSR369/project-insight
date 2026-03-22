@@ -30,7 +30,7 @@ const PHASE_OWNER: Record<number, string> = {
   10: 'Finance Controller',
   11: 'Legal Compliance',
   12: 'Finance Controller',
-  13: 'Challenge Creator',
+  13: 'Challenge Creator / Architect',
 };
 
 const PHASE_LABELS: Record<number, string> = {

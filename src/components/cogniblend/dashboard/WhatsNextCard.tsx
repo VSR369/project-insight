@@ -25,13 +25,13 @@ const PHASE_ACTIONS: Record<number, PhaseAction> = {
     label: 'Complete Spec Review',
     description: 'Review and approve the AI-generated specification.',
     route: (id) => `/cogni/challenges/${id}/spec`,
-    role: 'Challenge Creator',
+    role: 'Challenge Creator / Architect',
   },
   2: {
     label: 'Attach Legal Documents',
     description: 'Attach required Tier 1 & Tier 2 legal documents.',
     route: (id) => `/cogni/challenges/${id}/legal`,
-    role: 'Challenge Creator',
+    role: 'Challenge Creator / Architect',
   },
   3: {
     label: 'Awaiting Curation',
