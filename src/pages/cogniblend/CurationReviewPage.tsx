@@ -310,7 +310,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "reward_structure",
     label: "Reward Structure",
-    attribution: "by Creator",
+    attribution: "by Curator",
     dbField: "reward_structure",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.reward_structure);
