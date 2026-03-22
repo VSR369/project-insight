@@ -164,6 +164,22 @@ export default function CurationActions({
   const maxCycles = 3;
   const isMP = operatingModel === 'MP';
 
+  // Check if AM opted into pre-publish approval
+  const { data: extendedBrief } = useQuery({
+    queryKey: ['challenge-extended-brief', challengeId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('challenges')
+        .select('extended_brief')
+        .eq('id', challengeId)
+        .single();
+      return (data?.extended_brief as any) ?? {};
+    },
+    enabled: !!challengeId,
+    staleTime: 5 * 60_000,
+  });
+  const amApprovalRequired = isMP && (extendedBrief?.am_approval_required !== false);
+
   // For MP: update phase_status to AM_APPROVAL_PENDING instead of advancing phase
   const amApprovalMutation = useMutation({
     mutationFn: async () => {
