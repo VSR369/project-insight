@@ -1,6 +1,6 @@
 /**
  * DomainTargetingCard — Taxonomy cascade selector for CR/CA on the Spec Review page.
- * Industry Segment is read-only (passed from AM/RQ).
+ * Industry Segment is editable by CR/CA (with reference to original AM/RQ selection).
  * Proficiency Areas, Sub Domains, Specialities are optional multi-selects.
  * "Not selected" = ALL for downstream role assignments.
  */
@@ -9,6 +9,13 @@ import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,9 +27,11 @@ import { useTaxonomyCascade, type TaxonomyItem } from '@/hooks/queries/useTaxono
 
 interface DomainTargetingCardProps {
   industrySegmentId: string | null;
+  originalIndustrySegmentId?: string | null;
   selectedProfAreaIds: string[];
   selectedSubDomainIds: string[];
   selectedSpecialityIds: string[];
+  onIndustrySegmentChange: (id: string) => void;
   onProfAreaIdsChange: (ids: string[]) => void;
   onSubDomainIdsChange: (ids: string[]) => void;
   onSpecialityIdsChange: (ids: string[]) => void;
@@ -84,20 +93,25 @@ function MultiSelectChecklist({
 
 export default function DomainTargetingCard({
   industrySegmentId,
+  originalIndustrySegmentId,
   selectedProfAreaIds,
   selectedSubDomainIds,
   selectedSpecialityIds,
+  onIndustrySegmentChange,
   onProfAreaIdsChange,
   onSubDomainIdsChange,
   onSpecialityIdsChange,
 }: DomainTargetingCardProps) {
   const { data: segments = [], isLoading: loadingSegments } = useIndustrySegmentOptions();
 
-  // Find the segment name
-  const segmentName = useMemo(() => {
-    if (!industrySegmentId) return null;
-    return segments.find((s) => s.id === industrySegmentId)?.name ?? null;
-  }, [segments, industrySegmentId]);
+  // Find the original segment name for reference
+  const originalSegmentName = useMemo(() => {
+    if (!originalIndustrySegmentId) return null;
+    return segments.find((s) => s.id === originalIndustrySegmentId)?.name ?? null;
+  }, [segments, originalIndustrySegmentId]);
+
+  // Show reference label when segment has been changed from original
+  const hasChanged = industrySegmentId && originalIndustrySegmentId && industrySegmentId !== originalIndustrySegmentId;
 
   // Cascade from industry segment
   const segmentIds = useMemo(
@@ -119,8 +133,6 @@ export default function DomainTargetingCard({
     [cascade.getSpecialitiesBySubDomains, selectedSubDomainIds],
   );
 
-  if (!industrySegmentId) return null;
-
   return (
     <Collapsible defaultOpen>
       <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border-2 border-border bg-card p-4 hover:bg-accent/30 transition-colors">
@@ -134,16 +146,41 @@ export default function DomainTargetingCard({
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </CollapsibleTrigger>
       <CollapsibleContent className="rounded-xl border-2 border-t-0 border-border bg-card px-5 pb-5 pt-3 space-y-4">
-        {/* Industry Segment — read-only */}
-        <div className="space-y-1">
+        {/* Industry Segment — editable by CR/CA */}
+        <div className="space-y-1.5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Industry Segment</p>
           {loadingSegments ? (
-            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-10 w-full max-w-sm" />
           ) : (
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">{segmentName ?? 'Unknown'}</span>
-              <Badge variant="outline" className="text-[10px]">From AM/RQ</Badge>
+            <div className="space-y-1">
+              <Select
+                value={industrySegmentId ?? ''}
+                onValueChange={onIndustrySegmentChange}
+              >
+                <SelectTrigger className="w-full max-w-sm">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-primary shrink-0" />
+                    <SelectValue placeholder="Select industry segment" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {segments.map((seg) => (
+                    <SelectItem key={seg.id} value={seg.id}>
+                      {seg.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasChanged && originalSegmentName && (
+                <p className="text-[11px] text-muted-foreground italic">
+                  Originally from AM/RQ: {originalSegmentName}
+                </p>
+              )}
+              {!hasChanged && originalIndustrySegmentId && (
+                <p className="text-[11px] text-muted-foreground">
+                  <Badge variant="outline" className="text-[10px] mr-1">From AM/RQ</Badge>
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -158,7 +195,7 @@ export default function DomainTargetingCard({
               items={cascade.proficiencyAreas}
               selectedIds={selectedProfAreaIds}
               onChange={onProfAreaIdsChange}
-              emptyLabel="No proficiency areas found for this segment"
+              emptyLabel={industrySegmentId ? "No proficiency areas found for this segment" : "Select an industry segment first"}
             />
             <MultiSelectChecklist
               label="Sub Domains (optional)"

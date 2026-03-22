@@ -681,6 +681,8 @@ export default function AISpecReviewPage() {
   // Org-policy settings state (Creator-facing)
   const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
   // Domain targeting taxonomy state
+  const [industrySegmentId, setIndustrySegmentId] = useState<string | null>(null);
+  const [originalIndustrySegmentId, setOriginalIndustrySegmentId] = useState<string | null>(null);
   const [selectedProfAreaIds, setSelectedProfAreaIds] = useState<string[]>([]);
   const [selectedSubDomainIds, setSelectedSubDomainIds] = useState<string[]>([]);
   const [selectedSpecialityIds, setSelectedSpecialityIds] = useState<string[]>([]);
@@ -717,7 +719,21 @@ export default function AISpecReviewPage() {
     return raw as Record<string, unknown>;
   }, [challenge]);
 
-  const industrySegmentId = (eligibilityData?.industry_segment_id as string) ?? null;
+  // Initialize industry segment from eligibility data
+  useEffect(() => {
+    const segId = (eligibilityData?.industry_segment_id as string) ?? null;
+    if (segId && !originalIndustrySegmentId) {
+      setOriginalIndustrySegmentId(segId);
+      if (!industrySegmentId) setIndustrySegmentId(segId);
+    }
+  }, [eligibilityData, originalIndustrySegmentId, industrySegmentId]);
+
+  const handleIndustrySegmentChange = useCallback((id: string) => {
+    setIndustrySegmentId(id);
+    setSelectedProfAreaIds([]);
+    setSelectedSubDomainIds([]);
+    setSelectedSpecialityIds([]);
+  }, []);
 
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
@@ -1389,9 +1405,11 @@ export default function AISpecReviewPage() {
         {/* Domain Targeting — taxonomy cascade for CU/ID assignment */}
         <DomainTargetingCard
           industrySegmentId={industrySegmentId}
+          originalIndustrySegmentId={originalIndustrySegmentId}
           selectedProfAreaIds={selectedProfAreaIds}
           selectedSubDomainIds={selectedSubDomainIds}
           selectedSpecialityIds={selectedSpecialityIds}
+          onIndustrySegmentChange={handleIndustrySegmentChange}
           onProfAreaIdsChange={setSelectedProfAreaIds}
           onSubDomainIdsChange={setSelectedSubDomainIds}
           onSpecialityIdsChange={setSelectedSpecialityIds}
@@ -1511,9 +1529,11 @@ export default function AISpecReviewPage() {
         {/* Domain Targeting — taxonomy cascade for CU/ID assignment */}
         <DomainTargetingCard
           industrySegmentId={industrySegmentId}
+          originalIndustrySegmentId={originalIndustrySegmentId}
           selectedProfAreaIds={selectedProfAreaIds}
           selectedSubDomainIds={selectedSubDomainIds}
           selectedSpecialityIds={selectedSpecialityIds}
+          onIndustrySegmentChange={handleIndustrySegmentChange}
           onProfAreaIdsChange={setSelectedProfAreaIds}
           onSubDomainIdsChange={setSelectedSubDomainIds}
           onSpecialityIdsChange={setSelectedSpecialityIds}
