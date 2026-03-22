@@ -719,7 +719,21 @@ export default function AISpecReviewPage() {
     return raw as Record<string, unknown>;
   }, [challenge]);
 
-  const industrySegmentId = (eligibilityData?.industry_segment_id as string) ?? null;
+  // Initialize industry segment from eligibility data
+  useEffect(() => {
+    const segId = (eligibilityData?.industry_segment_id as string) ?? null;
+    if (segId && !originalIndustrySegmentId) {
+      setOriginalIndustrySegmentId(segId);
+      if (!industrySegmentId) setIndustrySegmentId(segId);
+    }
+  }, [eligibilityData, originalIndustrySegmentId, industrySegmentId]);
+
+  const handleIndustrySegmentChange = useCallback((id: string) => {
+    setIndustrySegmentId(id);
+    setSelectedProfAreaIds([]);
+    setSelectedSubDomainIds([]);
+    setSelectedSpecialityIds([]);
+  }, []);
 
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
