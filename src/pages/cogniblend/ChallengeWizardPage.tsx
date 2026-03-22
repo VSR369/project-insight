@@ -84,7 +84,7 @@ interface ChallengeWizardPageProps {
   engagementModel?: string;
 }
 
-export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake }: ChallengeWizardPageProps = {}) {
+export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake, governanceMode: propGovernanceMode, engagementModel: propEngagementModel }: ChallengeWizardPageProps = {}) {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
