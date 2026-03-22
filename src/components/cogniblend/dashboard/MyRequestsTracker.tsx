@@ -19,7 +19,7 @@ import { useMyRequests, type RequestRow } from '@/hooks/queries/useMyRequests';
 
 const PHASE_OWNER: Record<number, string> = {
   1: 'You',
-  2: 'Challenge Creator',
+  2: 'Challenge Creator / Architect',
   3: 'Legal Coordinator',
   4: 'Curator',
   5: 'Innovation Director',
