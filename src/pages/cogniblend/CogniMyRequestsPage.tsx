@@ -47,6 +47,12 @@ const STATUS_BADGE_MAP: Record<string, { label: string; className: string }> = {
   CANCELLED: { label: 'Rejected', className: 'bg-red-100 text-red-700' },
 };
 
+const PHASE_STATUS_BADGE_MAP: Record<string, { label: string; className: string }> = {
+  AM_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-amber-100 text-amber-700' },
+  AM_DECLINED: { label: 'Declined', className: 'bg-red-100 text-red-700' },
+  AM_APPROVED: { label: 'Approved → ID Review', className: 'bg-green-100 text-green-700' },
+};
+
 const URGENCY_BADGE_MAP: Record<string, { label: string; className: string }> = {
   standard: { label: 'Standard', className: 'bg-muted text-muted-foreground' },
   urgent: { label: 'Urgent', className: 'bg-amber-100 text-amber-700' },
@@ -149,13 +155,20 @@ export default function CogniMyRequestsPage() {
               </TableHeader>
               <TableBody>
                 {allRows.map((req) => {
-                  const status = STATUS_BADGE_MAP[req.master_status] ?? STATUS_BADGE_MAP.DRAFT;
+                  const phaseStatus = (req as any).phase_status as string | null;
+                  const phaseStatusBadge = phaseStatus ? PHASE_STATUS_BADGE_MAP[phaseStatus] : null;
+                  const status = phaseStatusBadge ?? STATUS_BADGE_MAP[req.master_status] ?? STATUS_BADGE_MAP.DRAFT;
                   const urgency = URGENCY_BADGE_MAP[req.urgency] ?? URGENCY_BADGE_MAP.standard;
                   const model = req.operating_model ? MODEL_BADGE_MAP[req.operating_model] : null;
                   const assignedTo = req.architect_name ?? (req.operating_model === 'AGG' ? 'Self' : '—');
 
+                  const isReviewable = phaseStatus === 'AM_APPROVAL_PENDING';
+                  const rowTarget = isReviewable
+                    ? `/cogni/my-requests/${req.id}/review`
+                    : `/cogni/challenges/${req.id}/edit`;
+
                   return (
-                    <TableRow key={req.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/cogni/challenges/${req.id}/edit`)}>
+                    <TableRow key={req.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(rowTarget)}>
                       <TableCell className="font-medium text-sm text-primary">{req.title}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={cn('text-[10px]', status.className)}>{status.label}</Badge>
