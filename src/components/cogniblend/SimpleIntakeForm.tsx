@@ -91,6 +91,7 @@ const mpSchema = z.object({
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
   solution_expectations: z.string().trim().max(500, 'Keep under 500 characters').optional().or(z.literal('')),
+  am_approval_required: z.boolean().default(true),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
   beneficiaries_mapping: z.string().optional().default(''),
