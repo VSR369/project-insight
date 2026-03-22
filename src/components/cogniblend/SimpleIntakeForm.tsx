@@ -423,18 +423,20 @@ export function SimpleIntakeForm() {
     );
   }
 
-  // ═══════ AM (Marketplace) Render — unchanged ═══════
+  // ═══════ AM (Marketplace) Render ═══════
   return (
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-foreground">Submit a Problem Brief</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          As your organization's representative, provide the problem details. The platform team will manage the challenge lifecycle.
+          As your organization's representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.
         </p>
       </div>
 
+      {/* THE PROBLEM — IN PLAIN BUSINESS LANGUAGE */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">The Problem — In Plain Business Language</p>
         {/* 1. Title */}
         <div className="space-y-1.5">
           <Label htmlFor="si-title" className="text-sm font-medium">
