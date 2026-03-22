@@ -1252,7 +1252,45 @@ export default function AISpecReviewPage() {
           </Button>
         </div>
 
-        {/* Read-only sections */}
+        {/* AM Brief Reference Panel (Marketplace only) */}
+        {isMP && (challenge.description || challengeRecord.reward_structure) && (
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border-2 border-border bg-muted/30 p-4 hover:bg-accent/30 transition-colors">
+              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Account Manager's Original Brief</p>
+                <p className="text-xs text-muted-foreground">Problem summary, budget, and timeline — read only</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] shrink-0">From AM</Badge>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="rounded-xl border-2 border-t-0 border-border bg-muted/10 px-5 pb-5 pt-3 space-y-3">
+              {challenge.description && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Problem Summary</p>
+                  <p className="text-sm text-foreground mt-1">{challenge.description as string}</p>
+                </div>
+              )}
+              {challengeRecord.reward_structure && (() => {
+                const rs = typeof challengeRecord.reward_structure === 'object' ? challengeRecord.reward_structure as Record<string, unknown> : null;
+                const budgetMin = rs?.budget_min ?? rs?.budgetMin;
+                const budgetMax = rs?.budget_max ?? rs?.budgetMax;
+                return budgetMin || budgetMax ? (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Budget Range</p>
+                    <p className="text-sm text-foreground mt-1">{String(budgetMin ?? '—')} – {String(budgetMax ?? '—')}</p>
+                  </div>
+                ) : null;
+              })()}
+              {challengeRecord.expected_timeline && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Timeline Urgency</p>
+                  <p className="text-sm text-foreground mt-1">{String(challengeRecord.expected_timeline)}</p>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
         <div className="space-y-4">
           {SPEC_SECTIONS.map((section) => (
             <ReadOnlySectionCard
