@@ -135,91 +135,91 @@ export default function AMRequestViewPage() {
         </Button>
       </div>
 
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <CardTitle className="text-lg font-bold text-foreground">{brief.title}</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Submitted {formatDate(brief.created_at)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="secondary" className={statusBadge.className}>
-                {statusBadge.label}
-              </Badge>
-              <Badge variant="secondary" className={urgencyBadge.className}>
-                {urgencyBadge.label}
-              </Badge>
-            </div>
+      {/* Title & Status */}
+      <div className="rounded-lg border border-border bg-card px-5 py-4 mb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-foreground">{brief.title}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Submitted {formatDate(brief.created_at)}
+            </p>
           </div>
-        </CardHeader>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="secondary" className={statusBadge.className}>
+              {statusBadge.label}
+            </Badge>
+            <Badge variant="secondary" className={urgencyBadge.className}>
+              {urgencyBadge.label}
+            </Badge>
+          </div>
+        </div>
+      </div>
 
-        <Separator />
+      {/* Content sections — each auto-sized */}
+      <div className="space-y-3">
+        {/* Problem Statement */}
+        <InfoField
+          label="Problem Summary"
+          icon={FileText}
+          value={
+            brief.problem_statement ? (
+              <SafeHtmlRenderer html={brief.problem_statement} />
+            ) : null
+          }
+        />
 
-        <CardContent className="pt-5 space-y-6">
-          {/* Problem Statement */}
+        {/* Expected Outcomes / Solution Expectations */}
+        <InfoField
+          label="Expected Outcomes"
+          value={
+            brief.scope ? (
+              <SafeHtmlRenderer html={brief.scope} />
+            ) : null
+          }
+        />
+
+        {/* Budget + Timeline — side by side for compact display */}
+        {(budgetMin || budgetMax || timeline) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {(budgetMin || budgetMax) && (
+              <InfoField
+                label="Budget Range"
+                icon={DollarSign}
+                value={
+                  budgetMin && budgetMax
+                    ? `${formatCurrency(budgetMin, currency)} – ${formatCurrency(budgetMax, currency)}`
+                    : budgetMin
+                      ? `From ${formatCurrency(budgetMin, currency)}`
+                      : `Up to ${formatCurrency(budgetMax, currency)}`
+                }
+              />
+            )}
+            {timeline && (
+              <InfoField
+                label="Expected Timeline"
+                icon={Clock}
+                value={timeline}
+              />
+            )}
+          </div>
+        )}
+
+        {/* AM Approval */}
+        {amApproval !== undefined && (
           <InfoField
-            label="Problem Summary"
-            icon={FileText}
-            value={
-              brief.problem_statement ? (
-                <SafeHtmlRenderer html={brief.problem_statement} />
-              ) : null
-            }
+            label="Approval Before Publication"
+            value={amApproval ? 'Yes — AM approval required before publishing' : 'No — Auto-publish when ready'}
           />
+        )}
 
-          {/* Expected Outcomes / Solution Expectations */}
+        {/* Beneficiaries Mapping (if provided) */}
+        {extBrief?.beneficiaries_mapping && (
           <InfoField
-            label="Expected Outcomes"
-            value={
-              brief.scope ? (
-                <SafeHtmlRenderer html={brief.scope} />
-              ) : null
-            }
+            label="Beneficiaries & Benefits Mapping"
+            value={<SafeHtmlRenderer html={extBrief.beneficiaries_mapping} />}
           />
-
-          {/* Budget */}
-          {(budgetMin || budgetMax) && (
-            <InfoField
-              label="Budget Range"
-              icon={DollarSign}
-              value={
-                budgetMin && budgetMax
-                  ? `${formatCurrency(budgetMin, currency)} – ${formatCurrency(budgetMax, currency)}`
-                  : budgetMin
-                    ? `From ${formatCurrency(budgetMin, currency)}`
-                    : `Up to ${formatCurrency(budgetMax, currency)}`
-              }
-            />
-          )}
-
-          {/* Timeline Urgency */}
-          {timeline && (
-            <InfoField
-              label="Expected Timeline"
-              icon={Clock}
-              value={timeline}
-            />
-          )}
-
-          {/* AM Approval Toggle */}
-          {amApproval !== undefined && (
-            <InfoField
-              label="Approval Before Publication"
-              value={amApproval ? 'Yes — AM approval required before publishing' : 'No — Auto-publish when ready'}
-            />
-          )}
-
-          {/* Beneficiaries Mapping (if provided) */}
-          {extBrief?.beneficiaries_mapping && (
-            <InfoField
-              label="Beneficiaries & Benefits Mapping"
-              value={<SafeHtmlRenderer html={extBrief.beneficiaries_mapping} />}
-            />
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }
