@@ -59,7 +59,13 @@ import { useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useGenerateChallengeSpec, type GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
-import { resolveGovernanceMode } from '@/lib/governanceMode';
+import { cn } from '@/lib/utils';
+import {
+  resolveGovernanceMode,
+  getAvailableGovernanceModes,
+  GOVERNANCE_MODE_CONFIG,
+  type GovernanceMode,
+} from '@/lib/governanceMode';
 import { computeSolverAssignment } from '@/lib/cogniblend/solverAutoAssign';
 import { getPostGenerationRoute, shouldRequireAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
