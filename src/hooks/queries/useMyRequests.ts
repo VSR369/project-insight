@@ -38,11 +38,10 @@ export function useMyRequests(statusFilter: string, searchTerm: string) {
 
       let query = supabase
         .from('challenges')
-        .select('id, title, master_status, current_phase, created_at, eligibility, operating_model')
+        .select('id, title, master_status, current_phase, phase_status, created_at, updated_at, eligibility, operating_model')
         .eq('organization_id', orgId)
         .eq('is_active', true)
         .eq('is_deleted', false)
-        .lte('current_phase', 2)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE + 1);
 
