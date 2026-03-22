@@ -226,7 +226,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "deliverables",
     label: "Deliverables",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "deliverables",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.deliverables);
