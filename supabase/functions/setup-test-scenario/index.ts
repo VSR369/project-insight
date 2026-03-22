@@ -205,6 +205,7 @@ serve(async (req) => {
       legal_entity_name: config.orgName,
       operating_model: config.operatingModel,
       governance_profile: config.governanceProfile,
+      subscription_tier: config.subscriptionTier,
       phase1_bypass: config.phase1Bypass,
       is_enterprise: config.isEnterprise,
       is_active: true,
@@ -212,7 +213,7 @@ serve(async (req) => {
       registration_step: 5,
     });
     if (orgErr) throw new Error(`Org creation failed: ${orgErr.message}`);
-    results.push(`✅ Created org: "${config.orgName}" (${orgId})`);
+    results.push(`✅ Created org: "${config.orgName}" (${orgId}) — tier: ${config.subscriptionTier}`);
 
     // ─── Step 2: Create users + link to org ───
     const userIds: { userId: string; roles: string[]; displayName: string }[] = [];
