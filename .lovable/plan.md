@@ -1,47 +1,41 @@
 
 
-# Plan: Redesign RQ (Challenge Requestor) Intake Form
+# Plan: Add Governance Mode & Engagement Model Selectors to AI-Assisted Tab
 
-## What the User Wants
+## What Changes
 
-- **RQ (Aggregator)**: Replace the current 3-field form with a simpler design — "What kind of challenge?" template cards + a rich problem/idea description editor. No budget, timeline, or solution expectations needed.
-- **AM (Marketplace)**: Keep as-is (6 mandatory fields). No changes.
-- **CR/CA**: No changes.
+Add Governance Mode cards (QUICK / STRUCTURED / CONTROLLED) and Engagement Model dropdown (MP / AGG) at the top of the `ConversationalIntakeContent` component, before the Template Selector. This matches the wizard's Step 0 design shown in the screenshot.
 
 ## Changes
 
-### 1. Split SimpleIntakeForm into role-specific rendering
+### File: `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-**File: `src/components/cogniblend/SimpleIntakeForm.tsx`**
+1. **Import dependencies**: Add `getAvailableGovernanceModes`, `GOVERNANCE_MODE_CONFIG`, `GovernanceMode` from governance lib. Add `Zap`, `Info` icons. Add `cn` utility.
 
-When `isMP` is false (RQ/Aggregator), render a completely different layout:
+2. **Add state for governance mode and engagement model**:
+   - `governanceMode` state, defaulting from `currentOrg.governanceProfile` (resolved via `resolveGovernanceMode`)
+   - `engagementModel` state, defaulting from `currentOrg.operatingModel`
+   - Compute `disabledModes` from `getAvailableGovernanceModes(currentOrg.tierCode)`
 
-**RQ Layout:**
-1. **Header**: "Share Your Idea" with subtitle "Pick a challenge type and describe your problem or opportunity — a Challenge Architect will build the full specification."
-2. **Template Selector cards** (reuse existing `TemplateSelector` component) — the 8 challenge type cards (Product Innovation, Process Improvement, etc.) so the RQ can indicate "what kind of challenge is required"
-3. **Problem / Possibility Idea** — a single large textarea (or rich text area), max 1000 chars, with prompt: "Describe the problem or opportunity you've identified. Even a rough idea is fine."
-4. **Submit Idea / Save Draft** buttons
+3. **Insert Governance Mode + Engagement Model UI** between the header and the Template Selector (after the AI failure banner, before line 584). Render:
 
-**Remove from RQ path:** Title field, Sector dropdown (template selection replaces sector categorization), Solution Expectations, Budget, Timeline, Architect picker.
+   **Section 1 — Governance Mode**: 3-column grid of mode cards (QUICK, STRUCTURED, CONTROLLED) with icon, label, feature bullets, selected indicator, and disabled/upgrade badges. Reuse the exact visual pattern from `StepModeSelection.tsx` (inline, not importing the component since it depends on react-hook-form's Controller).
 
-**Schema for RQ:** Only `selected_template` (string, required) + `problem_summary` (string, min 10 chars, max 1000 chars).
+   **Section 2 — Engagement Model**: Dropdown select (MP/AGG) with info box below explaining the selected model. Same design as StepModeSelection.
 
-**AM path stays exactly as-is** — all 6 fields, same layout, same schema.
+4. **Wire governance mode into spec generation**: Pass the selected `governanceMode` to `getPostGenerationRoute` instead of always reading from org profile. This allows per-challenge governance selection.
 
-### 2. Update payload builder for RQ
-
-Derive `title` automatically from the selected template name (e.g., "Product Innovation Idea") so downstream systems still have a title. Pass `problem_summary` as the business problem. Store selected template ID in the payload.
+5. **Wire engagement model into challenge creation payload**: Include the selected `engagementModel` in the `createChallenge.mutateAsync` call.
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/components/cogniblend/SimpleIntakeForm.tsx` | Add TemplateSelector import, new RQ-specific schema (template + problem), split render into RQ vs AM paths, auto-derive title from template |
+| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Add governance mode cards + engagement model selector at top of form, wire selections into generation/creation flow |
 
 ## What is NOT Changed
 
-- AM (Marketplace) form — stays as-is with 6 fields
-- CR/CA ConversationalIntakePage — no changes
-- ChallengeCreatePage routing — no changes
-- TemplateSelector component — reused as-is
+- StepModeSelection component (wizard) — untouched
+- SimpleIntakeForm (RQ/AM) — untouched
+- ChallengeCreatePage routing — untouched
 
