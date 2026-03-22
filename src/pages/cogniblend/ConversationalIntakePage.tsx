@@ -265,6 +265,8 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [engagementModel, setEngagementModel] = useState<string>('MP');
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
