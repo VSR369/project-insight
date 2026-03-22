@@ -146,7 +146,6 @@ interface DraftPayload {
   expectedTimeline: string;
   domainTags: string[];
   urgency: string;
-  architectId?: string;
   industrySegmentId?: string;
   subDomainIds?: string[];
   specialtyTags?: string[];

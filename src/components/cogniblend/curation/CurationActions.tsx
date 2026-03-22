@@ -310,14 +310,14 @@ export default function CurationActions({
         <Button
           className="w-full"
           onClick={handleSubmitClick}
-          disabled={completePhase.isPending || isLegalPending || hasOutstandingRequired}
+          disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired}
         >
-          {completePhase.isPending ? (
+          {(completePhase.isPending || amApprovalMutation.isPending) ? (
             <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
           ) : (
             <Send className="h-4 w-4 mr-1.5" />
           )}
-          Submit to Innovation Director
+          {isMP ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
         </Button>
 
         <Button
