@@ -1,39 +1,40 @@
 
 
-# Plan: Lift Governance & Engagement Selectors to Landing Page
+# Plan: Add Governance & Engagement Selectors to Demo Login Page
 
-## What Changes
+## Problem
 
-Move the Governance Mode cards and Engagement Model dropdown from inside `ConversationalIntakeContent` (AI-only) up to `ChallengeCreatePage` (the landing page). Both the AI-Assisted and Manual Editor paths will inherit the selection. When a demo user logs in and lands on this page, the first thing they see is the governance/engagement selection, followed by the path cards.
+The governance mode and engagement model selectors are on `ChallengeCreatePage` (post-login), but the user wants them visible **on the demo login page itself** (`/cogni/demo-login`) — so testers can pick a governance mode + engagement model BEFORE logging in as a role, and the selection carries through to the creation flow.
+
+## Approach
+
+1. Add the `GovernanceEngagementSelector` UI to `DemoLoginPage.tsx` between the Seed Card and the Tabs
+2. Persist selections in `sessionStorage` (e.g., `cogni_demo_governance`, `cogni_demo_engagement`)
+3. On `ChallengeCreatePage`, read these sessionStorage values as initial defaults (overriding org defaults when present)
 
 ## Changes
 
-### 1. `src/pages/cogniblend/ChallengeCreatePage.tsx`
+### 1. `src/pages/cogniblend/DemoLoginPage.tsx`
 
-- Add `governanceMode` and `engagementModel` state at page level, initialized from org defaults via `resolveGovernanceMode` and org operating model
-- Import `GovernanceMode`, `getAvailableGovernanceModes`, `GOVERNANCE_MODE_CONFIG`, `resolveGovernanceMode` and icons (`Zap`, `ShieldCheck`, `Info`)
-- Add `useEffect` to sync defaults from `currentOrg` once loaded
-- Render the **Governance Mode 3-card grid** and **Engagement Model dropdown** on the landing view — between the page header ("New Challenge") and the Track Cards
-- Also show them on the AM/RQ landing view (above `SimpleIntakeForm`)
-- Pass `governanceMode` and `engagementModel` as props to `ConversationalIntakeContent` and `ChallengeWizardPage`
+- Import governance utilities (`GovernanceMode`, `GOVERNANCE_MODE_CONFIG`, `getAvailableGovernanceModes`, `resolveGovernanceMode`) and the selector UI elements (cards grid + engagement dropdown) — inline since this page doesn't have org context pre-login
+- Add `governanceMode` and `engagementModel` state (defaults: `STRUCTURED`, `MP`)
+- Render a "Challenge Configuration" section between the Seed Card and the Tabs containing:
+  - 3-column governance mode cards (QUICK / STRUCTURED / CONTROLLED) — all enabled since this is a demo page for testing all behaviors
+  - Engagement model dropdown (MP / AGG)
+- On login (`handleLogin`), persist selections to sessionStorage:
+  - `sessionStorage.setItem('cogni_demo_governance', governanceMode)`
+  - `sessionStorage.setItem('cogni_demo_engagement', engagementModel)`
 
-### 2. `src/pages/cogniblend/ConversationalIntakePage.tsx`
+### 2. `src/pages/cogniblend/ChallengeCreatePage.tsx`
 
-- Add optional `governanceMode` and `engagementModel` props to `ConversationalIntakeContentProps`
-- If props are provided, use them instead of local state (remove the local `useState` + `useEffect` for these two)
-- Remove the Governance Mode cards UI block (lines 606-683) and Engagement Model UI block (lines 685-712) from the rendered output — they now live on the parent page
-- Keep the logic that uses `governanceMode` for routing (`getPostGenerationRoute`) and `engagementModel` for the creation payload
-
-### 3. `src/pages/cogniblend/ChallengeWizardPage.tsx`
-
-- Accept optional `governanceMode` and `engagementModel` props
-- Use them in the wizard's creation payload so Manual Editor also respects the landing page selection
+- In the `useEffect` that initializes `governanceMode`, check `sessionStorage.getItem('cogni_demo_governance')` first — if present, use it instead of org default
+- In the `useEffect` that initializes `engagementModel`, check `sessionStorage.getItem('cogni_demo_engagement')` first — if present, use it instead of org default
+- Clear these sessionStorage keys after reading (one-time override)
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `ChallengeCreatePage.tsx` | Add governance/engagement state + selector UI on all landing views, pass as props to children |
-| `ConversationalIntakePage.tsx` | Accept governance/engagement as props, remove duplicate selector UI |
-| `ChallengeWizardPage.tsx` | Accept and use governance/engagement props |
+| `DemoLoginPage.tsx` | Add governance mode cards + engagement model dropdown before the tabs; persist to sessionStorage on login |
+| `ChallengeCreatePage.tsx` | Read sessionStorage overrides for governance/engagement on mount |
 
