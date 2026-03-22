@@ -261,6 +261,8 @@ export function ConversationalIntakeContent({
   sharedState,
   onStateChange,
   onSpecGenerated,
+  governanceMode: propGovernanceMode,
+  engagementModel: propEngagementModel,
 }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
@@ -269,8 +271,12 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
-  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
-  const [engagementModel, setEngagementModel] = useState<string>('MP');
+  const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
+
+  // Use props if provided (from landing page), otherwise fall back to local state
+  const governanceMode = propGovernanceMode ?? localGovernanceMode;
+  const engagementModel = propEngagementModel ?? localEngagementModel;
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
