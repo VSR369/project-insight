@@ -521,8 +521,16 @@ export function ConversationalIntakeContent({
             {form.formState.errors.problem_statement.message}
           </p>
         )}
-        <div className="flex justify-end">
-          <span className="text-xs text-muted-foreground">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1 flex-1">
+            <p className="text-xs italic text-muted-foreground">
+              What approaches have already been tried?
+            </p>
+            <p className="text-xs italic text-muted-foreground">
+              What constraints must the solution work within?
+            </p>
+          </div>
+          <span className="text-xs text-muted-foreground shrink-0">
             {(form.watch('problem_statement') ?? '').length} / 5,000
           </span>
         </div>
