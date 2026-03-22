@@ -370,7 +370,7 @@ export default function DemoLoginPage() {
               Pick a Role to Login
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-              {DEMO_USERS.map((user) => (
+              {getDemoUsers(engagementModel).map((user) => (
                 <DemoUserCard
                   key={user.email}
                   user={user}
