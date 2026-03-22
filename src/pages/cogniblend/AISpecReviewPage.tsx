@@ -55,6 +55,7 @@ import { toast } from 'sonner';
 import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import ChallengeSettingsPanel from '@/components/cogniblend/spec/ChallengeSettingsPanel';
 import ExtendedBriefPreview from '@/components/cogniblend/spec/ExtendedBriefPreview';
+import DomainTargetingCard from '@/components/cogniblend/spec/DomainTargetingCard';
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
