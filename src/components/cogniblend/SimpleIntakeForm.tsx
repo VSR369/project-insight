@@ -90,7 +90,7 @@ const mpSchema = z.object({
   expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
-  solution_expectations: z.string().trim().max(500, 'Keep under 500 characters').optional().or(z.literal('')),
+  solution_expectations: z.string().trim().max(5000, 'Keep under 5000 characters').optional().or(z.literal('')),
   am_approval_required: z.boolean().default(true),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
