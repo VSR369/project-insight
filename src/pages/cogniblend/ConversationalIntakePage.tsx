@@ -1,6 +1,6 @@
 /**
  * ConversationalIntakePage — Simplified "front door" for challenge creation.
- * Presents: Template → Problem → Expected Outcomes → Maturity → Prize → Deadline → Files → "Generate with AI".
+ * Presents: Template → Problem → Expand Challenge Details → Expected Outcomes → Maturity → Prize → Deadline → Files → "Generate with AI".
  *
  * Exports:
  *   - default: Standalone page (backward compat)
@@ -26,6 +26,7 @@ import {
   CalendarIcon,
   Upload,
   X,
+  ChevronDown,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -95,6 +101,13 @@ const intakeSchema = z.object({
     (d) => d >= addDays(new Date(), MIN_DEADLINE_DAYS),
     `Deadline must be at least ${MIN_DEADLINE_DAYS} days from today`,
   ),
+  // Expand Challenge Details — optional domain-expert fields
+  context_background: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
+  root_causes: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
+  affected_stakeholders: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
+  scope_definition: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
+  preferred_approach: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
+  approaches_not_of_interest: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
 });
 
 type IntakeFormValues = z.infer<typeof intakeSchema>;
@@ -184,6 +197,44 @@ function FileUploadArea({
   );
 }
 
+/* ─── Expand Challenge Detail Field ───────────────────── */
+
+function ExpandField({
+  label,
+  fieldName,
+  placeholder,
+  maxLength,
+  rows = 3,
+  register,
+  watchValue,
+}: {
+  label: string;
+  fieldName: string;
+  placeholder: string;
+  maxLength: number;
+  rows?: number;
+  register: any;
+  watchValue: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium text-foreground">{label}</label>
+      <Textarea
+        placeholder={placeholder}
+        rows={rows}
+        maxLength={maxLength}
+        className="text-base resize-none"
+        {...register(fieldName)}
+      />
+      <div className="flex justify-end">
+        <span className="text-xs text-muted-foreground">
+          {(watchValue ?? '').length} / {maxLength.toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Content Component (embeddable) ──────────────────── */
 
 interface ConversationalIntakeContentProps {
@@ -205,6 +256,7 @@ export function ConversationalIntakeContent({
   );
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+  const [expandOpen, setExpandOpen] = useState(true);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -226,6 +278,12 @@ export function ConversationalIntakeContent({
       prize_amount: undefined,
       currency_code: 'USD',
       deadline: undefined,
+      context_background: '',
+      root_causes: '',
+      affected_stakeholders: '',
+      scope_definition: '',
+      preferred_approach: '',
+      approaches_not_of_interest: '',
     },
   });
 
@@ -313,6 +371,18 @@ export function ConversationalIntakeContent({
     }
   };
 
+  /** Build enriched context string from expand fields for AI generation */
+  const buildExpandedContext = (data: IntakeFormValues): string => {
+    const parts: string[] = [];
+    if (data.context_background?.trim()) parts.push(`Context & Background: ${data.context_background.trim()}`);
+    if (data.root_causes?.trim()) parts.push(`Root Causes: ${data.root_causes.trim()}`);
+    if (data.affected_stakeholders?.trim()) parts.push(`Affected Stakeholders: ${data.affected_stakeholders.trim()}`);
+    if (data.scope_definition?.trim()) parts.push(`Scope: ${data.scope_definition.trim()}`);
+    if (data.preferred_approach?.trim()) parts.push(`Preferred Approach: ${data.preferred_approach.trim()}`);
+    if (data.approaches_not_of_interest?.trim()) parts.push(`Approaches NOT of Interest: ${data.approaches_not_of_interest.trim()}`);
+    return parts.join('\n\n');
+  };
+
   const handleGenerateWithAI = async (data: IntakeFormValues) => {
     setAiFailure(false);
 
@@ -329,11 +399,17 @@ export function ConversationalIntakeContent({
       return;
     }
 
+    // Build enriched problem statement with expanded context
+    const expandedContext = buildExpandedContext(data);
+    const enrichedProblem = expandedContext
+      ? `${data.problem_statement}\n\n--- Domain Expert Context ---\n${expandedContext}`
+      : data.problem_statement;
+
     // Step 1: AI spec generation
     let spec;
     try {
       spec = await generateSpec.mutateAsync({
-        problem_statement: data.problem_statement,
+        problem_statement: enrichedProblem,
         maturity_level: data.maturity_level,
         template_id: selectedTemplate?.id,
       });
@@ -358,6 +434,15 @@ export function ConversationalIntakeContent({
         urgency: 'normal',
       });
 
+      // Build extended_brief from expand fields
+      const extendedBrief: Record<string, string> = {};
+      if (data.context_background?.trim()) extendedBrief.context_background = data.context_background.trim();
+      if (data.root_causes?.trim()) extendedBrief.root_causes = data.root_causes.trim();
+      if (data.affected_stakeholders?.trim()) extendedBrief.affected_stakeholders = data.affected_stakeholders.trim();
+      if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
+      if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
+      if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+
       await saveStep.mutateAsync({
         challengeId,
         fields: {
@@ -374,12 +459,13 @@ export function ConversationalIntakeContent({
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
           challenge_visibility: spec.challenge_visibility ?? 'public',
+          // Persist domain-expert context in extended_brief JSONB
+          ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
           solver_eligibility_types: (() => {
             const details = Array.isArray(spec.solver_eligibility_details)
               ? spec.solver_eligibility_details.map((d: any) => ({ code: d.code, label: d.label }))
               : [];
             if (details.length === 0) {
-              // Fallback: deterministic assignment if AI returned empty
               const assignment = computeSolverAssignment({
                 maturityLevel: data.maturity_level,
                 ipModel: spec.ip_model,
@@ -446,7 +532,7 @@ export function ConversationalIntakeContent({
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Describe your problem, set your parameters, and let AI draft the full specification.
+            As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs.
           </p>
         </div>
         {!onSwitchToEditor && (
@@ -521,16 +607,8 @@ export function ConversationalIntakeContent({
             {form.formState.errors.problem_statement.message}
           </p>
         )}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1 flex-1">
-            <p className="text-xs italic text-muted-foreground">
-              What approaches have already been tried?
-            </p>
-            <p className="text-xs italic text-muted-foreground">
-              What constraints must the solution work within?
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground shrink-0">
+        <div className="flex justify-end">
+          <span className="text-xs text-muted-foreground">
             {(form.watch('problem_statement') ?? '').length} / 5,000
           </span>
         </div>
@@ -556,10 +634,88 @@ export function ConversationalIntakeContent({
             {form.formState.errors.expected_outcomes.message}
           </p>
         )}
-        <p className="text-xs italic text-muted-foreground">
-          What does a successful solution look like?
-        </p>
       </div>
+
+      {/* Expand Challenge Details — Domain Expert Fields */}
+      <Collapsible open={expandOpen} onOpenChange={setExpandOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center gap-2 w-full text-left group"
+          >
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expandOpen ? '' : '-rotate-90'}`} />
+            <span className="text-sm font-semibold text-foreground">Expand Challenge Details</span>
+            <span className="text-xs text-muted-foreground font-normal">(optional — recommended)</span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <div className="rounded-xl border border-border bg-muted/30 p-5 space-y-5">
+            <p className="text-xs text-muted-foreground">
+              The more context you provide, the better the AI-generated specification will be.
+            </p>
+
+            <ExpandField
+              label="Context & Background"
+              fieldName="context_background"
+              placeholder="Provide relevant history, industry context, or organizational background that solvers should understand…"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('context_background') ?? ''}
+            />
+
+            <ExpandField
+              label="Root Causes"
+              fieldName="root_causes"
+              placeholder="What are the underlying causes of this problem? Why hasn't it been solved yet?"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('root_causes') ?? ''}
+            />
+
+            <ExpandField
+              label="Affected Stakeholders"
+              fieldName="affected_stakeholders"
+              placeholder="Who is impacted by this problem and how? (e.g., end users, operations teams, customers)"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('affected_stakeholders') ?? ''}
+            />
+
+            <ExpandField
+              label="Scope Definition"
+              fieldName="scope_definition"
+              placeholder="What is explicitly in scope and out of scope for this challenge?"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('scope_definition') ?? ''}
+            />
+
+            <ExpandField
+              label="Preferred Approach"
+              fieldName="preferred_approach"
+              placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('preferred_approach') ?? ''}
+            />
+
+            <ExpandField
+              label="Approaches NOT of Interest"
+              fieldName="approaches_not_of_interest"
+              placeholder="What has been tried and failed? What approaches should solvers avoid?"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('approaches_not_of_interest') ?? ''}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Step 4: Maturity Level */}
       <div className="space-y-3">
