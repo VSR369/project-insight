@@ -215,7 +215,7 @@ export default function AMRequestViewPage() {
           {extBrief?.beneficiaries_mapping && (
             <InfoField
               label="Beneficiaries & Benefits Mapping"
-              value={<p className="whitespace-pre-wrap leading-relaxed">{extBrief.beneficiaries_mapping}</p>}
+              value={<SafeHtmlRenderer html={extBrief.beneficiaries_mapping} />}
             />
           )}
         </CardContent>
