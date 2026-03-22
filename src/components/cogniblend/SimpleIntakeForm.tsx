@@ -154,8 +154,6 @@ export function SimpleIntakeForm() {
   const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors } } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
-  const charCount = problemSummary?.length ?? 0;
-  const solutionCharCount = solutionExpectations?.length ?? 0;
 
   // ═══════ Derived ═══════
   const isSubmitting = submitMutation.isPending;
