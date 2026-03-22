@@ -335,7 +335,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "ip_model",
     label: "IP Model",
-    attribution: "by Creator",
+    attribution: "by Curator",
     dbField: "ip_model",
     isFilled: (ch) => !!ch.ip_model?.trim(),
     render: (ch) => <p className="text-sm font-medium text-foreground">{ch.ip_model || "—"}</p>,
