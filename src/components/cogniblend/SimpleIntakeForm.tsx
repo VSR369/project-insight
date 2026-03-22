@@ -112,6 +112,8 @@ export function SimpleIntakeForm() {
   );
   const [problemFullscreen, setProblemFullscreen] = useState(false);
   const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
+  const [mpProblemFullscreen, setMpProblemFullscreen] = useState(false);
+  const [commercialFullscreen, setCommercialFullscreen] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
