@@ -509,6 +509,8 @@ export default function SolutionSubmitPage() {
       timeline: values.timeline,
       experience: values.experience,
       aiUsageDeclaration: values.aiUsageDeclaration,
+    }, {
+      onSuccess: () => clearSolutionPersistence(),
     });
   };
 

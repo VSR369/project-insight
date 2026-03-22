@@ -536,6 +536,7 @@ export function ConversationalIntakeContent({
       } else {
         toast.success('AI specification generated! Confirm to submit.');
       }
+      clearPersistedData();
       navigate(route);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
