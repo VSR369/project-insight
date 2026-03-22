@@ -200,6 +200,7 @@ export function SimpleIntakeForm() {
       architectId: data.architect_id || undefined,
       industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
+      beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,
     };
   };
 
