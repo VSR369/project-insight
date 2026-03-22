@@ -17,6 +17,7 @@ interface SubmitPayload {
   orgId: string;
   creatorId: string;
   operatingModel: string;
+  title?: string;
   businessProblem: string;
   expectedOutcomes: string;
   constraints?: string;
@@ -43,7 +44,7 @@ export function useSubmitSolutionRequest() {
   return useMutation({
     mutationFn: async (payload: SubmitPayload): Promise<SubmitResult> => {
       // 1. Initialize challenge via RPC
-      const title = payload.businessProblem.substring(0, 100).trim();
+      const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim();
 
       const { data: challengeId, error: initError } = await supabase.rpc(
         'initialize_challenge',

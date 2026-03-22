@@ -247,6 +247,7 @@ const LcReviewPanel = lazy(() => import("@/pages/cogniblend/LcReviewPanel"));
 const CogniSubmitRequestPage = lazy(() => import("@/pages/cogniblend/CogniSubmitRequestPage"));
 const CogniMyRequestsPage = lazy(() => import("@/pages/cogniblend/CogniMyRequestsPage"));
 const AMChallengeReviewPage = lazy(() => import("@/pages/cogniblend/AMChallengeReviewPage"));
+const AMRequestViewPage = lazy(() => import("@/pages/cogniblend/AMRequestViewPage"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
 const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
@@ -357,6 +358,7 @@ const App = () => (
 
               {/* Solution Request routes inside CogniShell */}
               <Route path="/cogni/submit-request" element={<LazyRoute><CogniSubmitRequestPage /></LazyRoute>} />
+              <Route path="/cogni/my-requests/:id/view" element={<LazyRoute><AMRequestViewPage /></LazyRoute>} />
               <Route path="/cogni/my-requests/:id/review" element={<LazyRoute><AMChallengeReviewPage /></LazyRoute>} />
               <Route path="/cogni/my-requests" element={<LazyRoute><CogniMyRequestsPage /></LazyRoute>} />
               <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />

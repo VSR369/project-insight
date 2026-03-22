@@ -1,11 +1,14 @@
 /**
  * useMyRequests — Shared cursor-based infinite query for solution requests.
- * Used by both SolutionRequestsListPage and the CogniDashboard ActionItemsWidget.
+ * Supports two scopes:
+ *   - 'mine': Only requests created by the current user (AM dashboard).
+ *   - 'org': All requests in the organization (default, backward-compatible).
  */
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useAuth } from '@/hooks/useAuth';
 
 const PAGE_SIZE = 20;
 
@@ -27,14 +30,21 @@ export interface PageResult {
   nextCursor: string | null;
 }
 
-export function useMyRequests(statusFilter: string, searchTerm: string) {
+export function useMyRequests(
+  statusFilter: string,
+  searchTerm: string,
+  scope: 'mine' | 'org' = 'org',
+) {
   const { data: currentOrg } = useCurrentOrg();
+  const { user } = useAuth();
   const orgId = currentOrg?.organizationId;
+  const userId = user?.id;
 
   return useInfiniteQuery<PageResult>({
-    queryKey: ['my-requests', orgId, statusFilter, searchTerm],
+    queryKey: ['my-requests', orgId, statusFilter, searchTerm, scope, userId],
     queryFn: async ({ pageParam }): Promise<PageResult> => {
       if (!orgId) return { rows: [], nextCursor: null };
+      if (scope === 'mine' && !userId) return { rows: [], nextCursor: null };
 
       let query = supabase
         .from('challenges')
@@ -44,6 +54,11 @@ export function useMyRequests(statusFilter: string, searchTerm: string) {
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE + 1);
+
+      // AM scope: only requests created by the current user
+      if (scope === 'mine' && userId) {
+        query = query.eq('created_by', userId);
+      }
 
       if (statusFilter && statusFilter !== 'all') {
         query = query.eq('master_status', statusFilter);
@@ -124,7 +139,7 @@ export function useMyRequests(statusFilter: string, searchTerm: string) {
     },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!orgId,
+    enabled: !!orgId && (scope === 'org' || !!userId),
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
