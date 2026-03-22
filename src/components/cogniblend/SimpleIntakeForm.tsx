@@ -1,15 +1,16 @@
 /**
- * SimpleIntakeForm — Lightweight 5-field intake form for AM/RQ roles.
- * Fields: Title, Problem Summary, Sector, Budget Range, Timeline.
- * On submit: creates challenge at Phase 1 and assigns an Architect.
+ * SimpleIntakeForm — Model-adaptive intake form for AM/RQ roles.
+ * AGG (RQ): 3-field "Share Your Idea" — Title, Problem Idea, Sector.
+ * MP (AM): 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
+ * On submit: creates challenge at Phase 1 and assigns an Architect (MP only).
  */
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { Send, Save, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,9 +48,24 @@ const TIMELINE_OPTIONS = [
   { value: '12+', label: '12+ months' },
 ] as const;
 
-/* ── Schema ── */
+/* ── Schemas ── */
 
-const simpleIntakeSchema = z.object({
+/** AGG (RQ) schema — lightweight 3-field idea submission */
+const aggSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
+  problem_summary: z.string().trim().min(1, 'Problem idea is required').max(300, 'Keep your idea under 300 characters'),
+  industry_segment_id: z.string().min(1, 'Please select a sector'),
+  // MP-only fields present but optional in AGG schema for unified form type
+  currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
+  budget_min: z.coerce.number().optional(),
+  budget_max: z.coerce.number().optional(),
+  expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+']).optional(),
+  solution_expectations: z.string().optional(),
+  architect_id: z.string().optional(),
+});
+
+/** MP (AM) schema — comprehensive 6-field problem brief */
+const mpSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   problem_summary: z.string().trim().min(1, 'Problem summary is required').max(500, 'Problem summary must be 500 characters or less'),
   industry_segment_id: z.string().min(1, 'Please select a sector'),
@@ -59,13 +75,14 @@ const simpleIntakeSchema = z.object({
   expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
+  solution_expectations: z.string().trim().min(1, 'Solution expectations are required').max(500, 'Keep under 500 characters'),
   architect_id: z.string().optional(),
-}).refine(data => data.budget_min < data.budget_max, {
+}).refine(data => data.budget_min! < data.budget_max!, {
   message: 'Minimum must be less than maximum.',
   path: ['budget_min'],
 });
 
-type SimpleIntakeValues = z.infer<typeof simpleIntakeSchema>;
+type SimpleIntakeValues = z.infer<typeof mpSchema>;
 
 /* ── Component ── */
 
@@ -90,7 +107,7 @@ export function SimpleIntakeForm() {
   const isMP = orgContext?.operatingModel === 'MP';
 
   const form = useForm<SimpleIntakeValues>({
-    resolver: zodResolver(simpleIntakeSchema),
+    resolver: zodResolver(isMP ? mpSchema : aggSchema),
     defaultValues: {
       title: '',
       problem_summary: '',
@@ -99,6 +116,7 @@ export function SimpleIntakeForm() {
       budget_min: 0,
       budget_max: 0,
       expected_timeline: undefined,
+      solution_expectations: '',
       architect_id: '',
     },
     mode: 'onBlur',
@@ -106,12 +124,15 @@ export function SimpleIntakeForm() {
 
   const { register, control, handleSubmit, watch, getValues, formState: { errors } } = form;
   const problemSummary = watch('problem_summary');
+  const solutionExpectations = watch('solution_expectations');
   const charCount = problemSummary?.length ?? 0;
+  const solutionCharCount = solutionExpectations?.length ?? 0;
 
   // ═══════ Derived ═══════
   const isSubmitting = submitMutation.isPending;
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
+  const maxProblemChars = isMP ? 500 : 300;
 
   // ═══════ Conditional returns ═══════
   if (orgLoading || modelLoading || tierLoading || segmentsLoading) {
@@ -141,11 +162,11 @@ export function SimpleIntakeForm() {
     creatorId: user?.id ?? '',
     operatingModel: orgContext?.operatingModel ?? 'AGG',
     businessProblem: data.problem_summary,
-    expectedOutcomes: '',
+    expectedOutcomes: data.solution_expectations || '',
     currency: data.currency,
-    budgetMin: data.budget_min,
-    budgetMax: data.budget_max,
-    expectedTimeline: data.expected_timeline,
+    budgetMin: data.budget_min ?? 0,
+    budgetMax: data.budget_max ?? 0,
+    expectedTimeline: data.expected_timeline ?? '',
     domainTags: [],
     urgency: 'standard',
     architectId: data.architect_id || undefined,
@@ -168,9 +189,14 @@ export function SimpleIntakeForm() {
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-bold text-foreground">Submit a Solution Request</h2>
+        <h2 className="text-xl font-bold text-foreground">
+          {isMP ? 'Submit a Problem Brief' : 'Share Your Idea'}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Describe your business need — a Challenge Architect will build the full specification.
+          {isMP
+            ? 'As your organization\'s representative, provide the problem details. The platform team will manage the challenge lifecycle.'
+            : 'Share your problem or opportunity — a Challenge Architect will define the full specification.'
+          }
         </p>
       </div>
 
@@ -182,36 +208,63 @@ export function SimpleIntakeForm() {
           </Label>
           <Input
             id="si-title"
-            placeholder="Brief title for your request"
+            placeholder={isMP ? 'Brief title for your problem brief' : 'Give your idea a short title'}
             maxLength={100}
             {...register('title')}
           />
           {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
         </div>
 
-        {/* 2. Problem Summary */}
+        {/* 2. Problem Summary / Problem Idea */}
         <div className="space-y-1.5">
           <Label htmlFor="si-problem" className="text-sm font-medium">
-            Problem Summary <span className="text-destructive">*</span>
+            {isMP ? 'Problem Summary' : 'Problem Idea'} <span className="text-destructive">*</span>
           </Label>
           <Textarea
             id="si-problem"
-            placeholder="What problem needs solving?"
-            rows={4}
-            maxLength={500}
+            placeholder={isMP
+              ? 'What problem needs solving?'
+              : 'What problem or opportunity have you identified?'
+            }
+            rows={isMP ? 4 : 3}
+            maxLength={maxProblemChars}
             className="text-base resize-none"
             {...register('problem_summary')}
           />
           <p className="text-xs italic text-muted-foreground">
-            Describe what is broken, who is affected, and what a good solution would achieve.
+            {isMP
+              ? 'Describe what is broken, who is affected, and what a good solution would achieve.'
+              : 'Even a rough idea is fine — a domain expert will expand it into a full specification.'
+            }
           </p>
           <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{charCount} / 500</span>
+            <span className="text-xs text-muted-foreground">{charCount} / {maxProblemChars}</span>
           </div>
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
 
-        {/* 3. Sector / Domain */}
+        {/* 3. Solution Expectations (MP only) */}
+        {isMP && (
+          <div className="space-y-1.5">
+            <Label htmlFor="si-expectations" className="text-sm font-medium">
+              Solution Expectations <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="si-expectations"
+              placeholder="What outcomes do you expect? What does a successful solution look like?"
+              rows={3}
+              maxLength={500}
+              className="text-base resize-none"
+              {...register('solution_expectations')}
+            />
+            <div className="flex justify-end">
+              <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
+            </div>
+            {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+          </div>
+        )}
+
+        {/* Sector / Domain */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
             Sector / Domain <span className="text-destructive">*</span>
@@ -235,59 +288,63 @@ export function SimpleIntakeForm() {
           {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
         </div>
 
-        {/* 4. Budget Range */}
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">
-            Budget Range <span className="text-destructive">*</span>
-          </Label>
-          <div className="flex items-center gap-3">
+        {/* Budget Range (MP only) */}
+        {isMP && (
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Budget Range <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex items-center gap-3">
+              <Controller
+                name="currency"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-28 shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map(c => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <Input type="number" placeholder="Min" className="flex-1" {...register('budget_min')} />
+              <span className="text-muted-foreground text-sm">–</span>
+              <Input type="number" placeholder="Max" className="flex-1" {...register('budget_max')} />
+            </div>
+            {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
+            {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
+          </div>
+        )}
+
+        {/* Timeline (MP only) */}
+        {isMP && (
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Expected Timeline <span className="text-destructive">*</span>
+            </Label>
             <Controller
-              name="currency"
+              name="expected_timeline"
               control={control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-28 shrink-0">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timeline…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CURRENCY_OPTIONS.map(c => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    {TIMELINE_OPTIONS.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             />
-            <Input type="number" placeholder="Min" className="flex-1" {...register('budget_min')} />
-            <span className="text-muted-foreground text-sm">–</span>
-            <Input type="number" placeholder="Max" className="flex-1" {...register('budget_max')} />
+            {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
           </div>
-          {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
-          {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
-        </div>
-
-        {/* 5. Timeline */}
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">
-            Expected Timeline <span className="text-destructive">*</span>
-          </Label>
-          <Controller
-            name="expected_timeline"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timeline…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMELINE_OPTIONS.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
-        </div>
+        )}
 
         {/* Architect picker (MP model only) */}
         {isMP && architects.length > 0 && (
@@ -326,7 +383,7 @@ export function SimpleIntakeForm() {
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
           ) : (
-            <><Send className="h-4 w-4 mr-2" /> Submit Request</>
+            <><Send className="h-4 w-4 mr-2" /> {isMP ? 'Submit Brief' : 'Submit Idea'}</>
           )}
         </Button>
         <Button
