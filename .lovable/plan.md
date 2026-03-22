@@ -1,46 +1,46 @@
 
 
-# Plan: Remove Redundant "My Requests" Nav Link + Hide SOLVER Section for Seeking Org Roles
+# Plan: Add Rich Text Editors to AM Intake + Preserve Formatting in View
 
 ## Problem
-
-1. **"My Requests" sidebar link is redundant** — The dashboard already shows "My Requests" as Section 1. Having a separate nav item and dedicated page (`/cogni/my-requests`) duplicates the same data.
-
-2. **SOLVER section visible to all users** — The three Solver items (Browse Challenges, My Solutions, My Portfolio) have `requiredRoles: []`, meaning they show for everyone. Seeking org roles (AM, CR, CA, RQ, CU, ID, ER, LC, FC) are not solvers and should never see these items.
+The AM (Marketplace) intake form uses plain `<Textarea>` for "Problem Summary" and "What success looks like commercially". Other roles (RQ) already have `RichTextEditor` with fullscreen expand for their equivalent fields. When viewed on `AMRequestViewPage`, content renders as plain text with `whitespace-pre-wrap`, losing any formatting.
 
 ## Changes
 
-### 1. Remove "My Requests" from sidebar navigation
-**File**: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
+### 1. Replace Textarea with RichTextEditor in AM intake form
+**File**: `src/components/cogniblend/SimpleIntakeForm.tsx`
 
-Remove the `My Requests` entry from the CHALLENGES section items array (line 43). The dashboard already covers this data.
+**Problem Summary field** (lines 491-506):
+- Replace `<Textarea {...register('problem_summary')}>` with a `<Controller>` + `<RichTextEditor>` (same pattern used in the RQ/AGG section above at line 301-311).
+- Add an Expand button + fullscreen `<Dialog>` with the editor inside (same pattern as `problemFullscreen` dialog at lines 320-342).
+- Remove the `maxLength={500}` constraint (rich text HTML will exceed 500 chars). Update `mpSchema.problem_summary` max to 5000 to match RQ.
 
-### 2. Remove "My Requests" from shell breadcrumb map
-**File**: `src/components/cogniblend/shell/CogniShell.tsx`
+**"What success looks like commercially" field** (lines 596-607):
+- Replace `<Textarea {...register('solution_expectations')}>` with `<Controller>` + `<RichTextEditor>`.
+- Add Expand button + fullscreen `<Dialog>` (new state `commercialFullscreen`).
+- Update `mpSchema.solution_expectations` max to 5000.
 
-Remove the `/cogni/my-requests` entry from the breadcrumb title map.
+### 2. Render rich HTML in AMRequestViewPage
+**File**: `src/pages/cogniblend/AMRequestViewPage.tsx`
 
-### 3. Remove the `/cogni/my-requests` route
-**File**: `src/App.tsx`
+- Import `SafeHtmlRenderer` from `@/components/ui/SafeHtmlRenderer`.
+- Replace the plain `<p className="whitespace-pre-wrap">` for `problem_statement` (line 166) with `<SafeHtmlRenderer html={brief.problem_statement} />`.
+- Replace the plain `<p>` for `scope` / solution_expectations (line 176) with `<SafeHtmlRenderer>`.
+- Replace the plain `<p>` for `beneficiaries_mapping` (line 217) with `<SafeHtmlRenderer>`.
 
-Remove the route definition for `/cogni/my-requests` that renders `CogniMyRequestsPage`. The `/cogni/my-requests/:id/view` route for the AM read-only brief stays.
+This ensures formatting (bold, lists, headings) entered via the rich text editor is preserved exactly when viewed.
 
-### 4. Hide SOLVER section from seeking org roles
-**File**: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
+### 3. Schema validation update
+**File**: `src/components/cogniblend/SimpleIntakeForm.tsx`
 
-The Solver items currently use `requiredRoles: []` which makes them visible to everyone. Change to use a dedicated solver role code (e.g., `'SV'`) or add explicit logic: if the user's roles are exclusively from the seeking-org set (`AM, CR, CA, RQ, CU, ID, ER, LC, FC`), hide the entire SOLVER section. The simplest approach: give solver items `requiredRoles: ['SV']` and only users with a solver role assignment will see them. If no solver role system exists yet, gate visibility by checking that the user has **none** of the seeking-org roles (i.e., they are a pure solver).
-
-### 5. Clean up ROLE_NAV_RELEVANCE
-**File**: `src/types/cogniRoles.ts`
-
-Remove `/cogni/my-requests` from the AM relevance paths since the route no longer exists. Remove solver paths from seeking-org role relevance maps.
+- `problem_summary`: Change `.max(500)` to `.max(5000)` since rich HTML is longer than plain text.
+- `solution_expectations`: Change `.max(500)` to `.max(5000)`.
+- Remove the character counter divs for these two fields (no longer meaningful for rich text).
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/shell/CogniSidebarNav.tsx` | Remove "My Requests" item; hide SOLVER section for seeking org roles |
-| `src/components/cogniblend/shell/CogniShell.tsx` | Remove breadcrumb entry |
-| `src/App.tsx` | Remove `/cogni/my-requests` route |
-| `src/types/cogniRoles.ts` | Clean up relevance paths |
+| `src/components/cogniblend/SimpleIntakeForm.tsx` | Replace 2 Textareas with RichTextEditor + fullscreen dialogs; update schema limits |
+| `src/pages/cogniblend/AMRequestViewPage.tsx` | Use `SafeHtmlRenderer` for rich-text fields instead of plain `<p>` tags |
 
