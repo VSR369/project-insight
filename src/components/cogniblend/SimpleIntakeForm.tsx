@@ -210,6 +210,7 @@ export function SimpleIntakeForm() {
       industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
       beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,
+      amApprovalRequired: isMP ? ((data as any).am_approval_required ?? true) : false,
     };
   };
 
