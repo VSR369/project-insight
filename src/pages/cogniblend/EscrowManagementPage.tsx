@@ -100,6 +100,7 @@ export default function EscrowManagementPage() {
       fc_notes: '',
     },
   });
+  const { clearPersistedData: clearEscrowPersistence } = useFormPersistence('cogni_escrow', form);
 
   // Fetch challenges assigned to this FC that need escrow
   const { data: escrowChallenges, isLoading } = useQuery({
