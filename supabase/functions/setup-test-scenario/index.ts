@@ -38,7 +38,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "mp-ent-creator@testsetup.dev", displayName: "MP Ent Creator", roles: ["CR", "CU"] },
+      { email: "mp-ent-creator@testsetup.dev", displayName: "MP Ent Architect", roles: ["CA", "CU"] },
       { email: "mp-ent-director@testsetup.dev", displayName: "MP Ent Director", roles: ["ID", "ER"] },
       { email: "mp-ent-ops@testsetup.dev", displayName: "MP Ent Ops", roles: ["AM", "FC"] },
     ],
