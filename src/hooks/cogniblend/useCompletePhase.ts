@@ -14,6 +14,7 @@ import { createElement } from 'react';
 
 const ROLE_NAV_MAP: Record<string, { label: string; path: string }> = {
   CR: { label: 'Challenge Creator', path: '/cogni/my-challenges' },
+  CA: { label: 'Challenge Architect', path: '/cogni/my-challenges' },
   CU: { label: 'Curator', path: '/cogni/curation' },
   ID: { label: 'Innovation Director', path: '/cogni/approval' },
   ER: { label: 'Evaluation Reviewer', path: '/cogni/review' },
