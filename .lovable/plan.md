@@ -1,46 +1,61 @@
 
 
-# Plan: Add Rich Text Editors to AM Intake + Preserve Formatting in View
+# Plan: Eliminate Space Wastage in Content Display Boxes
 
 ## Problem
-The AM (Marketplace) intake form uses plain `<Textarea>` for "Problem Summary" and "What success looks like commercially". Other roles (RQ) already have `RichTextEditor` with fullscreen expand for their equivalent fields. When viewed on `AMRequestViewPage`, content renders as plain text with `whitespace-pre-wrap`, losing any formatting.
+Content boxes across the challenge lifecycle (AMRequestViewPage, AISpecReviewPage, CurationReviewPage, PublicChallengeDetailPage) waste vertical space because:
+1. The `.editor-content p` CSS rule sets `min-height: 1.85em` — useful for the editor but bloats read-only views
+2. The `.editor-content p` has `margin: 0 0 14px 0` — the last paragraph gets unnecessary bottom margin
+3. `CardContent` uses `p-6 pt-0` (24px side/bottom padding) which is generous for short content
+4. No distinction between "editing mode" and "display mode" in the shared `.editor-content` class
 
-## Changes
+## Solution: Centralized CSS Fix
 
-### 1. Replace Textarea with RichTextEditor in AM intake form
-**File**: `src/components/cogniblend/SimpleIntakeForm.tsx`
+Rather than modifying every component individually, fix the root cause in `src/index.css` and `SafeHtmlRenderer.tsx`:
 
-**Problem Summary field** (lines 491-506):
-- Replace `<Textarea {...register('problem_summary')}>` with a `<Controller>` + `<RichTextEditor>` (same pattern used in the RQ/AGG section above at line 301-311).
-- Add an Expand button + fullscreen `<Dialog>` with the editor inside (same pattern as `problemFullscreen` dialog at lines 320-342).
-- Remove the `maxLength={500}` constraint (rich text HTML will exceed 500 chars). Update `mpSchema.problem_summary` max to 5000 to match RQ.
+### 1. Add a display-mode CSS variant
+**File**: `src/index.css`
 
-**"What success looks like commercially" field** (lines 596-607):
-- Replace `<Textarea {...register('solution_expectations')}>` with `<Controller>` + `<RichTextEditor>`.
-- Add Expand button + fullscreen `<Dialog>` (new state `commercialFullscreen`).
-- Update `mpSchema.solution_expectations` max to 5000.
+Add a `.editor-content-display` modifier class (or scope via `.editor-content:not(.ProseMirror)`) that:
+- Removes `min-height: 1.85em` from `<p>` tags (only needed during editing for cursor placement)
+- Removes bottom margin from the last child element (`last-child { margin-bottom: 0 }`)
+- This preserves the editor behavior while tightening read-only display
 
-### 2. Render rich HTML in AMRequestViewPage
-**File**: `src/pages/cogniblend/AMRequestViewPage.tsx`
+### 2. Apply the display class in SafeHtmlRenderer
+**File**: `src/components/ui/SafeHtmlRenderer.tsx`
 
-- Import `SafeHtmlRenderer` from `@/components/ui/SafeHtmlRenderer`.
-- Replace the plain `<p className="whitespace-pre-wrap">` for `problem_statement` (line 166) with `<SafeHtmlRenderer html={brief.problem_statement} />`.
-- Replace the plain `<p>` for `scope` / solution_expectations (line 176) with `<SafeHtmlRenderer>`.
-- Replace the plain `<p>` for `beneficiaries_mapping` (line 217) with `<SafeHtmlRenderer>`.
+Add the `editor-content-display` class alongside `editor-content` so all read-only rendered content automatically gets the tighter spacing.
 
-This ensures formatting (bold, lists, headings) entered via the rich text editor is preserved exactly when viewed.
+### 3. Apply the display class in AiContentRenderer
+**File**: `src/components/ui/AiContentRenderer.tsx`
 
-### 3. Schema validation update
-**File**: `src/components/cogniblend/SimpleIntakeForm.tsx`
+Same treatment — when rendering AI content in read-only mode, include the display class.
 
-- `problem_summary`: Change `.max(500)` to `.max(5000)` since rich HTML is longer than plain text.
-- `solution_expectations`: Change `.max(500)` to `.max(5000)`.
-- Remove the character counter divs for these two fields (no longer meaningful for rich text).
+### 4. Tighten CardContent padding for content sections
+**File**: `src/pages/cogniblend/PublicChallengeDetailPage.tsx`
+
+Override `CardContent` padding to `p-4 pt-0` on content display cards (Problem Statement, Scope, etc.) to reduce side/bottom padding from 24px to 16px.
+
+## CSS Changes (in `src/index.css`)
+
+```css
+/* Tighter display for read-only rendered content */
+.editor-content-display p {
+  min-height: unset;
+}
+.editor-content-display > *:last-child {
+  margin-bottom: 0 !important;
+}
+```
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/SimpleIntakeForm.tsx` | Replace 2 Textareas with RichTextEditor + fullscreen dialogs; update schema limits |
-| `src/pages/cogniblend/AMRequestViewPage.tsx` | Use `SafeHtmlRenderer` for rich-text fields instead of plain `<p>` tags |
+| `src/index.css` | Add `.editor-content-display` rules to remove min-height and trailing margin |
+| `src/components/ui/SafeHtmlRenderer.tsx` | Add `editor-content-display` class |
+| `src/components/ui/AiContentRenderer.tsx` | Add `editor-content-display` class when rendering read-only |
+| `src/pages/cogniblend/PublicChallengeDetailPage.tsx` | Tighten CardContent padding on content cards |
+
+This is a 4-line CSS addition + 2 one-line class additions that fixes the spacing globally across every view page and role without touching individual components.
 
