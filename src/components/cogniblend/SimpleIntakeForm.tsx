@@ -487,25 +487,61 @@ export function SimpleIntakeForm() {
 
         {/* 2. Problem Summary */}
         <div className="space-y-1.5">
-          <Label htmlFor="si-problem" className="text-sm font-medium">
-            Problem Summary <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            id="si-problem"
-            placeholder="What problem needs solving?"
-            rows={4}
-            maxLength={500}
-            className="text-base resize-none"
-            {...register('problem_summary')}
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Problem Summary <span className="text-destructive">*</span>
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={() => setMpProblemFullscreen(true)}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+            </Button>
+          </div>
+          <Controller
+            name="problem_summary"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="What problem needs solving? Describe what is broken, who is affected, and what a good solution would achieve."
+                storagePath="am-problem-summary"
+              />
+            )}
           />
           <p className="text-xs italic text-muted-foreground">
             Describe what is broken, who is affected, and what a good solution would achieve.
           </p>
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{charCount} / 500</span>
-          </div>
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
+
+        {/* Fullscreen Dialog — MP Problem Summary */}
+        <Dialog open={mpProblemFullscreen} onOpenChange={setMpProblemFullscreen}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Problem Summary</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="problem_summary"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="What problem needs solving?..."
+                    storagePath="am-problem-summary"
+                    className="min-h-[60vh]"
+                  />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 3. Sector / Domain */}
         <div className="space-y-1.5">
