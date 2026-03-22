@@ -16,6 +16,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { addDays, format } from 'date-fns';
 import {
   Sparkles,
@@ -307,6 +308,7 @@ export function ConversationalIntakeContent({
     },
   });
 
+  const { clearPersistedData } = useFormPersistence('cogni_intake_conversational', form);
   const watchedMaturity = form.watch('maturity_level');
   const watchedProblem = form.watch('problem_statement');
 
@@ -534,6 +536,7 @@ export function ConversationalIntakeContent({
       } else {
         toast.success('AI specification generated! Confirm to submit.');
       }
+      clearPersistedData();
       navigate(route);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';

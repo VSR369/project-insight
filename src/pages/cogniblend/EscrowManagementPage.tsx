@@ -15,6 +15,7 @@ import { handleMutationError } from '@/lib/errorHandler';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,6 +100,7 @@ export default function EscrowManagementPage() {
       fc_notes: '',
     },
   });
+  const { clearPersistedData: clearEscrowPersistence } = useFormPersistence('cogni_escrow', form);
 
   // Fetch challenges assigned to this FC that need escrow
   const { data: escrowChallenges, isLoading } = useQuery({
@@ -230,6 +232,7 @@ export default function EscrowManagementPage() {
       toast.success('Escrow deposit confirmed successfully');
       setSelectedChallengeId(null);
       form.reset();
+      clearEscrowPersistence();
       queryClient.invalidateQueries({ queryKey: ['fc-escrow-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['escrow-deposit'] });
       queryClient.invalidateQueries({ queryKey: ['publication-readiness'] });

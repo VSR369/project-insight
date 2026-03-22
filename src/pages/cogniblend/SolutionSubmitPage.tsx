@@ -9,6 +9,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/hooks/useAuth';
 import { useSolverEnrollmentStatus } from '@/hooks/cogniblend/useSolverEnrollment';
 import {
@@ -223,6 +224,10 @@ export default function SolutionSubmitPage() {
       aiUsageDeclaration: '',
     },
   });
+  const { clearPersistedData: clearSolutionPersistence } = useFormPersistence(
+    `cogni_solution_submit_${challengeId ?? 'unknown'}`,
+    form,
+  );
 
   // ═══ SECTION 4: Queries & Mutations ═══
   const { data: enrollment, isLoading: enrollmentLoading } = useSolverEnrollmentStatus(challengeId, userId);
@@ -504,6 +509,8 @@ export default function SolutionSubmitPage() {
       timeline: values.timeline,
       experience: values.experience,
       aiUsageDeclaration: values.aiUsageDeclaration,
+    }, {
+      onSuccess: () => clearSolutionPersistence(),
     });
   };
 

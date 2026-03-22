@@ -18,6 +18,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { supabase } from '@/integrations/supabase/client';
 import { Clock, Save, PauseCircle, XCircle, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
@@ -126,6 +127,13 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       operating_model: (orgContext?.operatingModel as 'MP' | 'AGG') ?? 'MP',
     },
   });
+
+  // Persist form data (use challenge ID for edit, 'new' for create)
+  const wizardStorageKey = `cogni_wizard_${challengeId ?? 'new'}`;
+  const { clearPersistedData: clearWizardPersistence } = useFormPersistence(
+    isEditMode ? `cogni_wizard_${challengeId}` : 'cogni_wizard_new',
+    form,
+  );
 
   // Use parent prop → form-selected mode (Step 0) → fallback
   const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
@@ -531,6 +539,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
           navigate(`/cogni/challenges/${challengeId}/legal`);
         } else {
           await submitMutation.mutateAsync({ challengeId, userId: user.id });
+          clearWizardPersistence();
           toast.success('Challenge created successfully!');
           navigate('/cogni/dashboard');
         }
@@ -568,6 +577,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
           navigate(`/cogni/challenges/${newId}/legal`);
         } else {
           await submitMutation.mutateAsync({ challengeId: newId, userId: user.id });
+          clearWizardPersistence();
           toast.success('Challenge created successfully!');
           navigate('/cogni/dashboard');
         }

@@ -11,6 +11,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send, Save, Loader2, Maximize2 } from 'lucide-react';
+import { useFormPersistence, persistState, restoreState, clearState } from '@/hooks/useFormPersistence';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,7 +103,9 @@ type SimpleIntakeValues = z.infer<typeof mpSchema>;
 export function SimpleIntakeForm() {
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
+    () => restoreState<ChallengeTemplate>('cogni_intake_simple_template'),
+  );
   const [problemFullscreen, setProblemFullscreen] = useState(false);
   const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
 
@@ -140,6 +143,7 @@ export function SimpleIntakeForm() {
     mode: 'onBlur',
   });
 
+  const { clearPersistedData } = useFormPersistence('cogni_intake_simple', form);
   const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors } } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
@@ -176,6 +180,7 @@ export function SimpleIntakeForm() {
   // ═══════ Handlers ═══════
   const handleTemplateSelect = (template: ChallengeTemplate) => {
     setSelectedTemplate(template);
+    persistState('cogni_intake_simple_template', template);
     setValue('selected_template', template.id, { shouldValidate: true });
   };
 
@@ -207,12 +212,16 @@ export function SimpleIntakeForm() {
 
   const onSubmit = async (data: SimpleIntakeValues) => {
     await submitMutation.mutateAsync(buildPayload(data));
+    clearPersistedData();
+    clearState('cogni_intake_simple_template');
     navigate('/cogni/dashboard');
   };
 
   const onSaveDraft = async () => {
     const data = getValues();
     await draftMutation.mutateAsync(buildPayload(data as SimpleIntakeValues));
+    clearPersistedData();
+    clearState('cogni_intake_simple_template');
     navigate('/cogni/my-requests');
   };
 
