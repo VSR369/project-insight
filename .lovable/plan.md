@@ -1,31 +1,15 @@
 
+# Plan: Simplified AM Dashboard — IMPLEMENTED
 
-# Plan: Role-Appropriate Success Message After Intake Submission
+## Summary
+Consolidated 7+ overlapping dashboard sections into a clean two-section layout:
 
-## Problem
-After AM or RQ submits their intake, the toast just says "Solution Request submitted successfully" — it doesn't tell them what happens next or who will handle it. The AM/RQ should see a message indicating the challenge has been sent to the Challenge Creator/Architect for further action, with wording appropriate to the engagement model.
+1. **My Action Items** — Focused table showing only items needing immediate action (DRAFT, RETURNED, AM_APPROVAL_PENDING)
+2. **My Requests Tracker** — All submitted requests with expandable status history timeline from audit_trail
 
-## Changes
-
-### File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
-
-**1. Update `onSuccess` in `useSubmitSolutionRequest`** to use the `variables` parameter (2nd arg) to access `operatingModel` and show model-specific toast:
-
-- **MP model**: `"Solution Request submitted — sent to Challenge Architect for Spec Review"`
-- **AGG model**: `"Solution Request submitted — sent to Challenge Creator for Spec Review"`
-
-```typescript
-onSuccess: (_data, variables) => {
-  const role = variables.operatingModel === 'MP'
-    ? 'Challenge Architect'
-    : 'Challenge Creator';
-  toast.success(`Solution Request submitted — sent to ${role} for Spec Review`);
-  // ... invalidations unchanged
-},
-```
-
-**2. Update `onSuccess` in `useSaveDraft`** — keep the existing "Draft saved successfully" message (drafts don't route anywhere).
-
-### No other files need changes
-The toast is centralized in the mutation hook — all callers (SimpleIntakeForm, CogniSubmitRequestPage, NewSolutionRequestPage, ConversationalIntakePage, ChallengeWizardPage) inherit the updated message automatically.
-
+## Changes Made
+- `CogniDashboardPage.tsx` — Stripped to: Welcome banner + Stats + Action Items + Requests Tracker + Notifications
+- `MyActionItemsSection.tsx` — New component with smart phase-aware routing
+- `MyRequestsTracker.tsx` — New component with expandable audit trail timeline
+- `useMyRequests.ts` — Added `phase_status`, `updated_at`; removed `phase <= 2` filter
+- `ActionItemsWidget.tsx` — Fixed View routing: phase-aware instead of blanket `/edit`
