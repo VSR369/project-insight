@@ -343,7 +343,7 @@ export default function DemoLoginPage() {
           </TabsList>
 
           <TabsContent value="ai" className="mt-4 space-y-4">
-            <DemoWorkflowSteps variant="ai" />
+            <DemoWorkflowSteps variant="ai" engagementModel={engagementModel} governanceMode={governanceMode} />
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5" />
               Pick a Role to Login
