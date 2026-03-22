@@ -62,7 +62,8 @@ const TIMELINE_OPTIONS = [
 /** AGG (RQ) schema — template card + single idea field */
 const aggSchema = z.object({
   selected_template: z.string().min(1, 'Please select a challenge type'),
-  problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(1000, 'Keep your idea under 1000 characters'),
+  problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(5000, 'Keep your idea under 5000 characters'),
+  beneficiaries_mapping: z.string().optional().default(''),
   // MP-only fields present but optional for unified form type
   title: z.string().optional(),
   industry_segment_id: z.string().optional(),
