@@ -27,6 +27,8 @@ import {
   Upload,
   X,
   ChevronDown,
+  Zap,
+  Info,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
