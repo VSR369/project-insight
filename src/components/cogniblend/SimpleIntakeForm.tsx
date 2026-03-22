@@ -102,6 +102,8 @@ export function SimpleIntakeForm() {
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [problemFullscreen, setProblemFullscreen] = useState(false);
+  const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
