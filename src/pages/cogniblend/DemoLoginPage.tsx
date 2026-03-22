@@ -231,6 +231,82 @@ export default function DemoLoginPage() {
         {/* Seed Data Card */}
         <DemoSeedCard />
 
+        {/* ═══ Challenge Configuration ═══ */}
+        <Card className="border-primary/20 bg-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Challenge Configuration</CardTitle>
+            <CardDescription className="text-xs">
+              Select Governance Mode and Engagement Model before logging in. These carry through to the creation flow.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Governance Mode Cards */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Governance Mode</h4>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                {GOVERNANCE_CARDS.map(({ mode, icon: Icon, summary }) => {
+                  const cfg = GOVERNANCE_MODE_CONFIG[mode];
+                  const isSelected = governanceMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setGovernanceMode(mode)}
+                      className={cn(
+                        'relative text-left rounded-lg border-2 p-4 transition-all',
+                        isSelected ? 'shadow-sm ring-1' : 'hover:shadow-sm',
+                      )}
+                      style={{
+                        borderColor: isSelected ? cfg.color : 'hsl(var(--border))',
+                        backgroundColor: isSelected ? cfg.bg : 'transparent',
+                        ...(isSelected ? { boxShadow: `0 0 0 1px ${cfg.color}20` } : {}),
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Icon className="h-4 w-4" style={{ color: cfg.color }} />
+                        <span className="text-sm font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{summary}</p>
+                      {isSelected && (
+                        <div
+                          className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: cfg.color }}
+                        >
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Engagement Model */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Engagement Model</h4>
+              <Select value={engagementModel} onValueChange={setEngagementModel}>
+                <SelectTrigger className="w-full max-w-sm">
+                  <SelectValue placeholder="Select engagement model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MP">Marketplace (MP) — Open competition</SelectItem>
+                  <SelectItem value="AGG">Aggregator (AGG) — Curated selection</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="rounded-lg border border-border bg-muted/30 p-2.5 flex items-start gap-2 max-w-sm">
+                <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  {engagementModel === 'AGG'
+                    ? 'Aggregator: solvers are curated and invited by the platform.'
+                    : 'Marketplace: solvers discover and apply openly.'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Tabbed Login */}
         <Tabs defaultValue="ai" className="w-full">
           <TabsList className="grid w-full grid-cols-2 h-auto">
