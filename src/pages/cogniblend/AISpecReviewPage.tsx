@@ -1166,6 +1166,32 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
 
+    // Auto-assign CU and ID roles using taxonomy
+    if (industrySegmentId && challengeId && user?.id) {
+      try {
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'CU',
+          industrySegmentId,
+          proficiencyAreaIds: selectedProfAreaIds,
+          subDomainIds: selectedSubDomainIds,
+          specialityIds: selectedSpecialityIds,
+          assignedBy: user.id,
+        });
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'ID',
+          industrySegmentId,
+          proficiencyAreaIds: selectedProfAreaIds,
+          subDomainIds: selectedSubDomainIds,
+          specialityIds: selectedSpecialityIds,
+          assignedBy: user.id,
+        });
+      } catch {
+        // Non-blocking — assignments may not find matches
+      }
+    }
+
     const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
     if (isAiPath) {
       toast.success('Specification approved. Legal Coordinator will prepare documents.');
