@@ -1,41 +1,39 @@
 
 
-# Plan: Add Governance Mode & Engagement Model Selectors to AI-Assisted Tab
+# Plan: Lift Governance & Engagement Selectors to Landing Page
 
 ## What Changes
 
-Add Governance Mode cards (QUICK / STRUCTURED / CONTROLLED) and Engagement Model dropdown (MP / AGG) at the top of the `ConversationalIntakeContent` component, before the Template Selector. This matches the wizard's Step 0 design shown in the screenshot.
+Move the Governance Mode cards and Engagement Model dropdown from inside `ConversationalIntakeContent` (AI-only) up to `ChallengeCreatePage` (the landing page). Both the AI-Assisted and Manual Editor paths will inherit the selection. When a demo user logs in and lands on this page, the first thing they see is the governance/engagement selection, followed by the path cards.
 
 ## Changes
 
-### File: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+### 1. `src/pages/cogniblend/ChallengeCreatePage.tsx`
 
-1. **Import dependencies**: Add `getAvailableGovernanceModes`, `GOVERNANCE_MODE_CONFIG`, `GovernanceMode` from governance lib. Add `Zap`, `Info` icons. Add `cn` utility.
+- Add `governanceMode` and `engagementModel` state at page level, initialized from org defaults via `resolveGovernanceMode` and org operating model
+- Import `GovernanceMode`, `getAvailableGovernanceModes`, `GOVERNANCE_MODE_CONFIG`, `resolveGovernanceMode` and icons (`Zap`, `ShieldCheck`, `Info`)
+- Add `useEffect` to sync defaults from `currentOrg` once loaded
+- Render the **Governance Mode 3-card grid** and **Engagement Model dropdown** on the landing view — between the page header ("New Challenge") and the Track Cards
+- Also show them on the AM/RQ landing view (above `SimpleIntakeForm`)
+- Pass `governanceMode` and `engagementModel` as props to `ConversationalIntakeContent` and `ChallengeWizardPage`
 
-2. **Add state for governance mode and engagement model**:
-   - `governanceMode` state, defaulting from `currentOrg.governanceProfile` (resolved via `resolveGovernanceMode`)
-   - `engagementModel` state, defaulting from `currentOrg.operatingModel`
-   - Compute `disabledModes` from `getAvailableGovernanceModes(currentOrg.tierCode)`
+### 2. `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-3. **Insert Governance Mode + Engagement Model UI** between the header and the Template Selector (after the AI failure banner, before line 584). Render:
+- Add optional `governanceMode` and `engagementModel` props to `ConversationalIntakeContentProps`
+- If props are provided, use them instead of local state (remove the local `useState` + `useEffect` for these two)
+- Remove the Governance Mode cards UI block (lines 606-683) and Engagement Model UI block (lines 685-712) from the rendered output — they now live on the parent page
+- Keep the logic that uses `governanceMode` for routing (`getPostGenerationRoute`) and `engagementModel` for the creation payload
 
-   **Section 1 — Governance Mode**: 3-column grid of mode cards (QUICK, STRUCTURED, CONTROLLED) with icon, label, feature bullets, selected indicator, and disabled/upgrade badges. Reuse the exact visual pattern from `StepModeSelection.tsx` (inline, not importing the component since it depends on react-hook-form's Controller).
+### 3. `src/pages/cogniblend/ChallengeWizardPage.tsx`
 
-   **Section 2 — Engagement Model**: Dropdown select (MP/AGG) with info box below explaining the selected model. Same design as StepModeSelection.
-
-4. **Wire governance mode into spec generation**: Pass the selected `governanceMode` to `getPostGenerationRoute` instead of always reading from org profile. This allows per-challenge governance selection.
-
-5. **Wire engagement model into challenge creation payload**: Include the selected `engagementModel` in the `createChallenge.mutateAsync` call.
+- Accept optional `governanceMode` and `engagementModel` props
+- Use them in the wizard's creation payload so Manual Editor also respects the landing page selection
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Add governance mode cards + engagement model selector at top of form, wire selections into generation/creation flow |
-
-## What is NOT Changed
-
-- StepModeSelection component (wizard) — untouched
-- SimpleIntakeForm (RQ/AM) — untouched
-- ChallengeCreatePage routing — untouched
+| `ChallengeCreatePage.tsx` | Add governance/engagement state + selector UI on all landing views, pass as props to children |
+| `ConversationalIntakePage.tsx` | Accept governance/engagement as props, remove duplicate selector UI |
+| `ChallengeWizardPage.tsx` | Accept and use governance/engagement props |
 
