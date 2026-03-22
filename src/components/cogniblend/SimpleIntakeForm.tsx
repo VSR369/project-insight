@@ -82,7 +82,7 @@ const aggSchema = z.object({
 /** MP (AM) schema — comprehensive 6-field problem brief */
 const mpSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
-  problem_summary: z.string().trim().min(1, 'Problem summary is required').max(500, 'Problem summary must be 500 characters or less'),
+  problem_summary: z.string().trim().min(1, 'Problem summary is required').max(5000, 'Problem summary must be 5000 characters or less'),
   industry_segment_id: z.string().min(1, 'Please select a sector'),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().min(0, 'Minimum budget must be 0 or more'),
