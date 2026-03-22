@@ -112,7 +112,9 @@ export function useMyRequests(statusFilter: string, searchTerm: string) {
           master_status: c.master_status ?? 'DRAFT',
           operating_model: c.operating_model ?? null,
           current_phase: c.current_phase,
+          phase_status: c.phase_status ?? null,
           created_at: c.created_at,
+          updated_at: c.updated_at ?? null,
           urgency,
           architect_name: architectMap[c.id] ?? null,
         };
