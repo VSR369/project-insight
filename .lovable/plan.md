@@ -1,48 +1,104 @@
 
 
-# Plan: Taxonomy-Based Auto-Assignment + AM Approval Gate in Curation
+# Plan: AM Approval Review Workflow for Marketplace Challenges
 
-## Status: IMPLEMENTED ✅
+## Current Gap
 
-## What Was Done
+The Curator can send challenges to AM (`AM_APPROVAL_PENDING` status), but there is **no UI for the AM to review, approve, or decline**. No decline→discuss→resubmit loop exists.
 
-### 1. Industry Segment Mandatory for RQ (AGG) ✅
-- `aggSchema` updated: `industry_segment_id` is now `z.string().min(1)` (mandatory)
-- Industry Segment dropdown added to RQ form after Template Selector
-- Loading state waits for `segmentsLoading` for both models
+## Workflow Design
 
-### 2. Auto-Assignment Hook Created ✅
-- New file: `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts`
-- Queries `platform_provider_pool` for best-fit member by role code
-- Matching: Industry (MUST) → Proficiency (opt) → Sub-Domain (opt) → Speciality (opt)
-- Ranks by match score (specificity) then workload (fewest current_assignments)
-- Inserts into `challenge_role_assignments` + `user_challenge_roles`
-- Logs audit trail with `ROLE_AUTO_ASSIGNED` action
+```text
+Curator completes curation
+  │
+  ├── Toggle ON (AM approval required)
+  │     │
+  │     ▼
+  │   AM sees challenge in "My Requests" with status "Awaiting Your Approval"
+  │     │
+  │     ├── AM clicks → AM Review Page (/cogni/my-requests/:id/review)
+  │     │     │
+  │     │     ├── APPROVE → phase advances to Innovation Director
+  │     │     │              (auto-assign ID from pool, complete_phase)
+  │     │     │
+  │     │     └── DECLINE → phase_status = 'AM_DECLINED'
+  │     │                    Notification sent to Curator with reason
+  │     │                    Curator sees "Declined by AM" status
+  │     │                    Curator discusses/adjusts, resubmits to AM
+  │     │                    (re-enters AM_APPROVAL_PENDING)
+  │     │
+  │     └── Loop until AM approves → then to Innovation Director
+  │
+  └── Toggle OFF
+        │
+        ▼
+      Direct to Innovation Director (existing flow)
+```
 
-### 3. Submission Flow Updated ✅
-- `architectId` removed from `SubmitPayload` and `DraftPayload`
-- Manual architect picker replaced with `autoAssignChallengeRole()` for CR role
-- Auto-assignment triggered after challenge creation using `industrySegmentId`
+## Changes
 
-### 4. AM Approval Gate in Curation ✅
-- `CurationActions` now accepts `operatingModel` prop
-- **MP model**: Button says "Send to Account Manager for Approval"
-  - Sets `phase_status = 'AM_APPROVAL_PENDING'`
-  - Sends notification to AM user
-- **AGG model**: Button says "Submit to Innovation Director" (unchanged flow)
-- `CurationReviewPage` passes `operating_model` to CurationActions
+### 1. New Page: AM Challenge Review (`/cogni/my-requests/:id/review`)
 
-### 5. Seeding Data Panels ✅
-- **CurationReviewPage**: Collapsible "Original Brief from AM/RQ" accordion with problem statement, budget, timeline (read-only)
-- **ApprovalReviewPage**: Card with "Original Brief from AM/RQ" showing same seeding data chain
+**New file: `src/pages/cogniblend/AMChallengeReviewPage.tsx`**
+
+A read-only review page for the Account Manager showing:
+- Challenge summary card (title, problem statement, scope, deliverables — read-only)
+- "Original Brief" section showing what the AM originally submitted
+- "Curator's Enhancements" section showing what was added/changed
+- Two action buttons: **Approve** and **Decline** (with reason textarea)
+- If previously declined, show the decline history with reasons
+
+On **Approve**:
+- Set `phase_status = 'AM_APPROVED'`
+- Call `complete_phase` to advance to Innovation Director
+- Auto-assign ID from pool
+- Notify Curator of approval
+- Audit trail entry
+
+On **Decline**:
+- Set `phase_status = 'AM_DECLINED'`
+- Store decline reason in `amendment_records` (initiated_by: 'AM', scope: 'AM_DECLINED')
+- Notify Curator with decline reason
+- Audit trail entry
+
+### 2. Update My Requests Page to Show AM Approval Items
+
+**File: `src/pages/cogniblend/CogniMyRequestsPage.tsx`**
+
+- Add `AM_APPROVAL_PENDING` to the status badge map as "Awaiting Your Approval" (amber badge)
+- Add `AM_DECLINED` as "Declined" (red badge)
+- Add `AM_APPROVED` as "Approved → ID Review" (green badge)
+- When row has `phase_status = 'AM_APPROVAL_PENDING'`, clicking navigates to `/cogni/my-requests/:id/review` instead of edit page
+- Query must include `phase_status` in the select
+
+### 3. Update CurationActions to Handle Decline State
+
+**File: `src/components/cogniblend/curation/CurationActions.tsx`**
+
+- When `phase_status === 'AM_DECLINED'`, show:
+  - Alert banner: "Declined by Account Manager" with the decline reason
+  - Button changes to "Resubmit to Account Manager" (re-sends to `AM_APPROVAL_PENDING`)
+  - Curator can still edit sections before resubmitting
+- Track AM review cycles (separate from the existing 3-cycle amendment counter for creator returns)
+
+### 4. Add Route
+
+**File: `src/App.tsx`**
+
+- Add route: `/cogni/my-requests/:id/review` → `AMChallengeReviewPage`
+
+### 5. Update Sidebar Badge
+
+**File: `src/components/cogniblend/shell/CogniSidebarNav.tsx`** (if badge logic exists)
+
+- "My Requests" badge should count challenges with `AM_APPROVAL_PENDING` status for AM users
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/SimpleIntakeForm.tsx` | Mandatory industry_segment_id in AGG, removed architectId from payload |
-| `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` | **New** — taxonomy-based pool matching |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Auto-assign CR, removed manual architectId |
-| `src/components/cogniblend/curation/CurationActions.tsx` | MP: AM approval gate; AGG: direct to ID |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Seeding data panel + operatingModel prop pass |
-| `src/pages/cogniblend/ApprovalReviewPage.tsx` | Seeding data panel |
+| `src/pages/cogniblend/AMChallengeReviewPage.tsx` | **New** — AM review page with Approve/Decline actions |
+| `src/pages/cogniblend/CogniMyRequestsPage.tsx` | Add AM approval status badges, route to review page |
+| `src/components/cogniblend/curation/CurationActions.tsx` | Handle AM_DECLINED state, resubmit flow |
+| `src/App.tsx` | Add `/cogni/my-requests/:id/review` route |
+
