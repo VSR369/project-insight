@@ -210,7 +210,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "problem_statement",
     label: "Problem Statement",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "problem_statement",
     isFilled: (ch) => !!ch.problem_statement?.trim(),
     render: (ch) => <AiContentRenderer content={ch.problem_statement} compact />,
