@@ -1,35 +1,35 @@
 
 
-# Fix: Seed Data `phase_status` Constraint Violation
+# Plan: Seed Subscription Tier on Demo Organization
 
-## Root Cause
-The `challenges` table has a CHECK constraint (`chk_challenges_phase_status`) that only allows:
-`ACTIVE`, `COMPLETED`, `ON_HOLD`, `TERMINAL`, `BLOCKED`, `LEGAL_VERIFICATION_PENDING`
-
-The seed function uses `phase_status: "SPEC_REVIEW"` which violates this constraint.
+## Problem
+The `seeker_organizations` insert in the seed function does not set the `subscription_tier` column. This defaults the org to "basic" tier, which only allows QUICK governance mode. The `new_horizon_demo` scenario sets `governance_profile: "ENTERPRISE"` (STRUCTURED mode), but the tier gate blocks it.
 
 ## Fix
 
 ### File: `supabase/functions/setup-test-scenario/index.ts`
 
-Change both challenge inserts to use `phase_status: "ACTIVE"` (the valid status for a challenge currently in Phase 2 awaiting CR/CA action). The `current_phase: 2` already tells the system which phase the challenge is in — `phase_status` indicates whether that phase is active, not which phase it is.
+Add `subscription_tier` to each scenario config and include it in the org insert:
 
-- Line 318: `phase_status: "SPEC_REVIEW"` → `phase_status: "ACTIVE"`
-- Line 358: `phase_status: "SPEC_REVIEW"` → `phase_status: "ACTIVE"`
+| Scenario | `subscription_tier` | Reason |
+|----------|-------------------|--------|
+| `agg_enterprise` | `"enterprise"` | Full governance access |
+| `agg_lightweight_bypass` | `"basic"` | QUICK-only, matches LIGHTWEIGHT |
+| `new_horizon_demo` | `"premium"` | Unlocks QUICK + STRUCTURED + CONTROLLED |
 
-This aligns with the existing `complete_phase` RPC which sets `phase_status = 'ACTIVE'` when advancing to a new phase.
+**Changes:**
 
-## Governance & Pricing Tier Compliance
+1. **Scenario configs** (lines 30-88): Add `subscriptionTier` field to each scenario definition.
 
-Regarding your questions:
+2. **Org insert** (line 195-207): Add `subscription_tier: config.subscriptionTier` to the insert object.
 
-**Governance model**: Yes — the seed correctly sets `governance_profile: "ENTERPRISE"` (maps to STRUCTURED mode via `resolveGovernanceMode`), and `lc_review_required: true` for enterprise. The field visibility rules come from `md_governance_field_rules` at runtime.
+3. **Results log**: Add a line showing the tier that was seeded so the user can verify.
 
-**Pricing tiers**: The seed creates an org but does not assign a subscription tier. This means the org defaults to "basic" tier behavior (QUICK mode only). To properly test STRUCTURED/CONTROLLED governance, we should also seed a subscription tier association. However, this is a separate enhancement — the immediate fix is the `phase_status` value.
+This ensures the governance mode engine (`getAvailableGovernanceModes`) returns the correct modes for the org, and the tier limit check (`useTierLimitCheck`) uses the right quota.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `supabase/functions/setup-test-scenario/index.ts` | Fix `phase_status` from `SPEC_REVIEW` to `ACTIVE` on both challenge inserts |
+| `supabase/functions/setup-test-scenario/index.ts` | Add `subscriptionTier` to scenario configs and org insert |
 
