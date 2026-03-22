@@ -362,8 +362,25 @@ export default function ChallengeCreatePage() {
   }, []);
 
   // ═══════ Derived ═══════
+  const demoPath = sessionStorage.getItem('cogni_demo_path');
   const paramTab = searchParams.get('tab');
-  const activeView: ActiveView = paramTab === 'editor' ? 'editor' : paramTab === 'ai' ? 'ai' : 'landing';
+
+  // Enforce path lock: if demoPath is set, block the opposite tab
+  const resolvedTab = (() => {
+    if (demoPath === 'ai' && paramTab === 'editor') return 'ai';
+    if (demoPath === 'manual' && paramTab === 'ai') return 'editor';
+    return paramTab;
+  })();
+  const activeView: ActiveView = resolvedTab === 'editor' ? 'editor' : resolvedTab === 'ai' ? 'ai' : 'landing';
+
+  // Auto-redirect if path is locked and URL disagrees
+  useEffect(() => {
+    if (demoPath === 'ai' && paramTab === 'editor') {
+      setSearchParams({ tab: 'ai' }, { replace: true });
+    } else if (demoPath === 'manual' && paramTab === 'ai') {
+      setSearchParams({ tab: 'editor' }, { replace: true });
+    }
+  }, [demoPath, paramTab, setSearchParams]);
 
   const setView = useCallback((view: ActiveView) => {
     if (view === 'landing') {

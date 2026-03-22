@@ -308,6 +308,7 @@ export function ConversationalIntakeContent({
     },
   });
 
+  const { clearPersistedData } = useFormPersistence('cogni_intake_conversational', form);
   const watchedMaturity = form.watch('maturity_level');
   const watchedProblem = form.watch('problem_statement');
 

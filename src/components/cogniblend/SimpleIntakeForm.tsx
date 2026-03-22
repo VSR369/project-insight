@@ -212,12 +212,16 @@ export function SimpleIntakeForm() {
 
   const onSubmit = async (data: SimpleIntakeValues) => {
     await submitMutation.mutateAsync(buildPayload(data));
+    clearPersistedData();
+    clearState('cogni_intake_simple_template');
     navigate('/cogni/dashboard');
   };
 
   const onSaveDraft = async () => {
     const data = getValues();
     await draftMutation.mutateAsync(buildPayload(data as SimpleIntakeValues));
+    clearPersistedData();
+    clearState('cogni_intake_simple_template');
     navigate('/cogni/my-requests');
   };
 

@@ -232,6 +232,7 @@ export default function EscrowManagementPage() {
       toast.success('Escrow deposit confirmed successfully');
       setSelectedChallengeId(null);
       form.reset();
+      clearEscrowPersistence();
       queryClient.invalidateQueries({ queryKey: ['fc-escrow-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['escrow-deposit'] });
       queryClient.invalidateQueries({ queryKey: ['publication-readiness'] });

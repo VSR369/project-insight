@@ -224,6 +224,10 @@ export default function SolutionSubmitPage() {
       aiUsageDeclaration: '',
     },
   });
+  const { clearPersistedData: clearSolutionPersistence } = useFormPersistence(
+    `cogni_solution_submit_${challengeId ?? 'unknown'}`,
+    form,
+  );
 
   // ═══ SECTION 4: Queries & Mutations ═══
   const { data: enrollment, isLoading: enrollmentLoading } = useSolverEnrollmentStatus(challengeId, userId);

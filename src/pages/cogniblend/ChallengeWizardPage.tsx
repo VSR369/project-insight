@@ -128,6 +128,13 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
     },
   });
 
+  // Persist form data (use challenge ID for edit, 'new' for create)
+  const wizardStorageKey = `cogni_wizard_${challengeId ?? 'new'}`;
+  const { clearPersistedData: clearWizardPersistence } = useFormPersistence(
+    isEditMode ? `cogni_wizard_${challengeId}` : 'cogni_wizard_new',
+    form,
+  );
+
   // Use parent prop → form-selected mode (Step 0) → fallback
   const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
   const governanceMode: GovernanceMode = propGovernanceMode ?? formSelectedMode ?? fallbackMode;
