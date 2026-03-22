@@ -141,6 +141,7 @@ export function SimpleIntakeForm() {
       expected_timeline: undefined,
       solution_expectations: '',
       architect_id: '',
+      am_approval_required: true,
       selected_template: '',
       beneficiaries_mapping: '',
     },
