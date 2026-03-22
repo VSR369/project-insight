@@ -553,7 +553,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "effort_level",
     label: "Effort Level",
-    attribution: "AI / Org Policy",
+    attribution: "by Curator",
     dbField: "effort_level",
     isFilled: (ch) => !!(ch as any).effort_level,
     render: (ch) => {
