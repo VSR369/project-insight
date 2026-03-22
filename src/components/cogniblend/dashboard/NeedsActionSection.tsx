@@ -14,20 +14,20 @@ import { ROLE_DISPLAY } from '@/types/cogniRoles';
 
 /* ── Phase → required role code mapping ───────────────────── */
 
-const PHASE_ROLE_MAP: Record<number, string> = {
-  1: 'AM',
-  2: 'CR',
-  3: 'CU',
-  4: 'ID',
-  5: 'ID',
-  6: 'ID',
-  7: 'ER',
-  8: 'ER',
-  9: 'ID',
-  10: 'FC',
-  11: 'LC',
-  12: 'FC',
-  13: 'CR',
+const PHASE_ROLE_MAP: Record<number, string[]> = {
+  1: ['AM'],
+  2: ['CR', 'CA'],
+  3: ['CU'],
+  4: ['ID'],
+  5: ['ID'],
+  6: ['ID'],
+  7: ['ER'],
+  8: ['ER'],
+  9: ['ID'],
+  10: ['FC'],
+  11: ['LC'],
+  12: ['FC'],
+  13: ['CR', 'CA'],
 };
 
 /* ── Phase badge mapping ──────────────────────────────────── */
