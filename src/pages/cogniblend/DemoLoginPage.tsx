@@ -11,12 +11,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Users, Zap, ArrowLeft, Play, CheckCircle2, AlertCircle, Sparkles, Settings2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2, Users, Zap, ArrowLeft, Play, CheckCircle2, AlertCircle, Sparkles, Settings2, ShieldCheck, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
 import { DemoWorkflowSteps } from '@/components/cogniblend/demo/DemoWorkflowSteps';
 import { DemoUserCard } from '@/components/cogniblend/demo/DemoUserCard';
 import { DemoSeedCard } from '@/components/cogniblend/demo/DemoSeedCard';
+import {
+  GOVERNANCE_MODE_CONFIG,
+  type GovernanceMode,
+} from '@/lib/governanceMode';
+import { cn } from '@/lib/utils';
 
 const TEST_PASSWORD = 'TestSetup2026!';
 
