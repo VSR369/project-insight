@@ -1462,7 +1462,6 @@ export default function AISpecReviewPage() {
           />
           )
         ))}
-        </div>
       </div>
 
       {/* Extended Brief (AI-generated Category B fields) */}
