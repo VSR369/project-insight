@@ -235,7 +235,8 @@ export function SimpleIntakeForm() {
         <div>
           <h2 className="text-xl font-bold text-foreground">Share Your Idea</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Pick a challenge type and describe your problem or opportunity — a Challenge Architect will build the full specification.
+            As an internal employee, share your idea — a Challenge Creator from your team will expand it.
+            You don't need to know the budget, but please indicate your timeline.
           </p>
         </div>
 
