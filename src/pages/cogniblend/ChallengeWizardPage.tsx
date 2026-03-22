@@ -78,6 +78,10 @@ interface ChallengeWizardPageProps {
   onSwitchToSimple?: () => void;
   /** Shared state from AI intake (problem, maturity, template, generatedSpec) */
   initialFromIntake?: SharedIntakeState;
+  /** Governance mode from parent landing page */
+  governanceMode?: GovernanceMode;
+  /** Engagement model from parent landing page */
+  engagementModel?: string;
 }
 
 export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake }: ChallengeWizardPageProps = {}) {
