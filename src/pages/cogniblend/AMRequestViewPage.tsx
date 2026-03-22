@@ -60,8 +60,8 @@ function formatDate(dateStr: string): string {
 
 function InfoField({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: any }) {
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+    <div className="rounded-lg border border-border bg-card px-5 py-4">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5 mb-2">
         {Icon && <Icon className="h-3.5 w-3.5" />}
         {label}
       </p>
