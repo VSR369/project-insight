@@ -180,6 +180,7 @@ export function SimpleIntakeForm() {
   // ═══════ Handlers ═══════
   const handleTemplateSelect = (template: ChallengeTemplate) => {
     setSelectedTemplate(template);
+    persistState('cogni_intake_simple_template', template);
     setValue('selected_template', template.id, { shouldValidate: true });
   };
 
