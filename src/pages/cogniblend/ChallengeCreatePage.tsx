@@ -469,7 +469,7 @@ export default function ChallengeCreatePage() {
           <CreationContextBar />
         </div>
         <ConversationalIntakeContent
-          onSwitchToEditor={switchToEditor}
+          onSwitchToEditor={demoPath === 'ai' ? undefined : switchToEditor}
           sharedState={sharedState}
           onStateChange={handleIntakeStateChange}
           onSpecGenerated={handleSpecGenerated}
