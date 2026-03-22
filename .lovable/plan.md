@@ -1,48 +1,44 @@
 
 
-# Plan: Taxonomy-Based Auto-Assignment + AM Approval Gate in Curation
+# Plan: AM Approval Review Workflow for Marketplace Challenges
 
 ## Status: IMPLEMENTED ✅
 
 ## What Was Done
 
-### 1. Industry Segment Mandatory for RQ (AGG) ✅
-- `aggSchema` updated: `industry_segment_id` is now `z.string().min(1)` (mandatory)
-- Industry Segment dropdown added to RQ form after Template Selector
-- Loading state waits for `segmentsLoading` for both models
+### 1. AM Challenge Review Page ✅
+- New file: `src/pages/cogniblend/AMChallengeReviewPage.tsx`
+- Route: `/cogni/my-requests/:id/review`
+- Read-only challenge summary (title, problem statement, scope, deliverables, rewards)
+- "Your Original Brief" section showing AM's original budget/timeline/expectations
+- Previous decline history display
+- **Approve** button → sets `phase_status = 'AM_APPROVED'`, calls `complete_phase`, notifies Curator
+- **Decline** button → modal with reason textarea, sets `phase_status = 'AM_DECLINED'`, creates `amendment_records` (scope: `AM_DECLINED`), notifies Curator
+- Audit trail entries for both actions
 
-### 2. Auto-Assignment Hook Created ✅
-- New file: `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts`
-- Queries `platform_provider_pool` for best-fit member by role code
-- Matching: Industry (MUST) → Proficiency (opt) → Sub-Domain (opt) → Speciality (opt)
-- Ranks by match score (specificity) then workload (fewest current_assignments)
-- Inserts into `challenge_role_assignments` + `user_challenge_roles`
-- Logs audit trail with `ROLE_AUTO_ASSIGNED` action
+### 2. My Requests Page Updated ✅
+- Added `PHASE_STATUS_BADGE_MAP` for AM workflow statuses:
+  - `AM_APPROVAL_PENDING` → "Awaiting Your Approval" (amber)
+  - `AM_DECLINED` → "Declined" (red)
+  - `AM_APPROVED` → "Approved → ID Review" (green)
+- Phase status badges take priority over master_status badges
+- Rows with `AM_APPROVAL_PENDING` navigate to `/cogni/my-requests/:id/review`
 
-### 3. Submission Flow Updated ✅
-- `architectId` removed from `SubmitPayload` and `DraftPayload`
-- Manual architect picker replaced with `autoAssignChallengeRole()` for CR role
-- Auto-assignment triggered after challenge creation using `industrySegmentId`
+### 3. CurationActions Decline Handling ✅
+- When `phase_status === 'AM_DECLINED'`:
+  - Alert banner showing decline reason, cycle number, and date
+  - Submit button text changes to "Resubmit to Account Manager"
+  - Clicking resubmit resets `phase_status` to `AM_APPROVAL_PENDING`
+- AM decline cycles tracked separately via `scope_of_change = 'AM_DECLINED'` in `amendment_records`
 
-### 4. AM Approval Gate in Curation ✅
-- `CurationActions` now accepts `operatingModel` prop
-- **MP model**: Button says "Send to Account Manager for Approval"
-  - Sets `phase_status = 'AM_APPROVAL_PENDING'`
-  - Sends notification to AM user
-- **AGG model**: Button says "Submit to Innovation Director" (unchanged flow)
-- `CurationReviewPage` passes `operating_model` to CurationActions
-
-### 5. Seeding Data Panels ✅
-- **CurationReviewPage**: Collapsible "Original Brief from AM/RQ" accordion with problem statement, budget, timeline (read-only)
-- **ApprovalReviewPage**: Card with "Original Brief from AM/RQ" showing same seeding data chain
+### 4. Route Added ✅
+- `/cogni/my-requests/:id/review` → `AMChallengeReviewPage` (lazy loaded)
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/SimpleIntakeForm.tsx` | Mandatory industry_segment_id in AGG, removed architectId from payload |
-| `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` | **New** — taxonomy-based pool matching |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Auto-assign CR, removed manual architectId |
-| `src/components/cogniblend/curation/CurationActions.tsx` | MP: AM approval gate; AGG: direct to ID |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Seeding data panel + operatingModel prop pass |
-| `src/pages/cogniblend/ApprovalReviewPage.tsx` | Seeding data panel |
+| `src/pages/cogniblend/AMChallengeReviewPage.tsx` | **New** — AM review page with Approve/Decline |
+| `src/pages/cogniblend/CogniMyRequestsPage.tsx` | Phase status badges + review routing |
+| `src/components/cogniblend/curation/CurationActions.tsx` | AM_DECLINED alert + resubmit flow |
+| `src/App.tsx` | Added review route + lazy import |
