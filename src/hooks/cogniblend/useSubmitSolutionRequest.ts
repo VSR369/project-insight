@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withCreatedBy } from '@/lib/auditFields';
+import { autoAssignChallengeRole } from './useAutoAssignChallengeRoles';
 
 interface SubmitPayload {
   orgId: string;
