@@ -628,22 +628,58 @@ export function SimpleIntakeForm() {
 
         {/* What success looks like commercially (Optional) */}
         <div className="space-y-1.5">
-          <Label htmlFor="si-expectations" className="text-sm font-medium">
-            What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
-          </Label>
-          <Textarea
-            id="si-expectations"
-            placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
-            rows={3}
-            maxLength={500}
-            className="text-base resize-none"
-            {...register('solution_expectations')}
-          />
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={() => setCommercialFullscreen(true)}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+            </Button>
           </div>
+          <Controller
+            name="solution_expectations"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+                storagePath="am-commercial-success"
+              />
+            )}
+          />
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
         </div>
+
+        {/* Fullscreen Dialog — Commercial Success */}
+        <Dialog open={commercialFullscreen} onOpenChange={setCommercialFullscreen}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>What success looks like commercially</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="solution_expectations"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="What does a good outcome look like from a business perspective?..."
+                    storagePath="am-commercial-success"
+                    className="min-h-[60vh]"
+                  />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Approval Gate Toggle */}
