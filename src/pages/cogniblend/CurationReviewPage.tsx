@@ -527,7 +527,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "submission_deadline",
     label: "Submission Deadline",
-    attribution: "Org Policy",
+    attribution: "by Curator",
     dbField: "submission_deadline",
     isFilled: (ch) => !!(ch as any).submission_deadline,
     render: (ch) => {
