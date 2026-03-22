@@ -253,7 +253,17 @@ export default function CurationChecklistPanel({
         return !!d && d.length > 0;
       })(),
       /* 4  */ evalWeightSum === 100,
-      /* 5  */ isJsonFilled(challenge.reward_structure),
+      /* 5  */ (() => {
+        if (!isJsonFilled(challenge.reward_structure)) return false;
+        // Validate payment milestones sum to 100%
+        const rs = parseJson<Record<string, unknown>>(challenge.reward_structure as any);
+        const milestones = rs?.payment_milestones;
+        if (Array.isArray(milestones) && milestones.length > 0) {
+          const sum = milestones.reduce((s: number, m: any) => s + (m.pct ?? 0), 0);
+          if (sum !== 100) return false;
+        }
+        return true;
+      })(),
       /* 6  */ isJsonFilled(challenge.phase_schedule),
       /* 7  */ !!challenge.description?.trim(),
       /* 8  */ !!challenge.eligibility?.trim(),
