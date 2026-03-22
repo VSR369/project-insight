@@ -210,7 +210,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "problem_statement",
     label: "Problem Statement",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "problem_statement",
     isFilled: (ch) => !!ch.problem_statement?.trim(),
     render: (ch) => <AiContentRenderer content={ch.problem_statement} compact />,
@@ -218,7 +218,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "scope",
     label: "Scope",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "scope",
     isFilled: (ch) => !!ch.scope?.trim(),
     render: (ch) => <AiContentRenderer content={ch.scope} compact />,
@@ -226,7 +226,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "deliverables",
     label: "Deliverables",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "deliverables",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.deliverables);
@@ -249,7 +249,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "submission_guidelines",
     label: "Submission Guidelines",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "description",
     isFilled: (ch) => !!ch.description?.trim(),
     render: (ch) => <AiContentRenderer content={ch.description} compact fallback="—" />,
@@ -257,7 +257,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "maturity_level",
     label: "Maturity Level",
-    attribution: "by Creator",
+    attribution: "by CA / Curator",
     dbField: "maturity_level",
     isFilled: (ch) => !!ch.maturity_level,
     render: (ch) => ch.maturity_level
@@ -274,7 +274,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "evaluation_criteria",
     label: "Evaluation Criteria",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "evaluation_criteria",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.evaluation_criteria);
@@ -310,7 +310,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "reward_structure",
     label: "Reward Structure",
-    attribution: "by Creator",
+    attribution: "by Curator",
     dbField: "reward_structure",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.reward_structure);
@@ -328,13 +328,14 @@ const SECTIONS: SectionDef[] = [
   {
     key: "complexity",
     label: "Complexity Assessment",
+    attribution: "by Curator",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
     render: () => null, // Rendered via ComplexityAssessmentModule component
   },
   {
     key: "ip_model",
     label: "IP Model",
-    attribution: "by Creator",
+    attribution: "by Curator",
     dbField: "ip_model",
     isFilled: (ch) => !!ch.ip_model?.trim(),
     render: (ch) => <p className="text-sm font-medium text-foreground">{ch.ip_model || "—"}</p>,
@@ -411,6 +412,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "domain_tags",
     label: "Domain Tags",
+    attribution: "by Curator",
     dbField: "domain_tags",
     isFilled: (ch) => {
       const tags = parseJson<string[]>(ch.domain_tags);
@@ -421,7 +423,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "phase_schedule",
     label: "Phase Schedule",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "phase_schedule",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.phase_schedule);
@@ -488,7 +490,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "visibility_eligibility",
     label: "Visibility & Eligibility",
-    attribution: "by Creator",
+    attribution: "by Curator",
     dbField: "eligibility",
     isFilled: (ch) => !!ch.visibility || !!ch.eligibility,
     render: (ch) => {
@@ -525,7 +527,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "submission_deadline",
     label: "Submission Deadline",
-    attribution: "Org Policy",
+    attribution: "by Curator",
     dbField: "submission_deadline",
     isFilled: (ch) => !!(ch as any).submission_deadline,
     render: (ch) => {
@@ -538,7 +540,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "challenge_visibility",
     label: "Challenge Visibility",
-    attribution: "Org Policy",
+    attribution: "by Curator",
     dbField: "challenge_visibility",
     isFilled: (ch) => !!(ch as any).challenge_visibility,
     render: (ch) => {
@@ -551,7 +553,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "effort_level",
     label: "Effort Level",
-    attribution: "AI / Org Policy",
+    attribution: "by Curator",
     dbField: "effort_level",
     isFilled: (ch) => !!(ch as any).effort_level,
     render: (ch) => {

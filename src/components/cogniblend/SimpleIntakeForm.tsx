@@ -52,10 +52,10 @@ const CURRENCY_OPTIONS = [
 ] as const;
 
 const TIMELINE_OPTIONS = [
-  { value: '1-3', label: '1–3 months' },
-  { value: '3-6', label: '3–6 months' },
-  { value: '6-12', label: '6–12 months' },
-  { value: '12+', label: '12+ months' },
+  { value: '1-3', label: 'Urgent (1–3 months)' },
+  { value: '3-6', label: 'Standard (3–6 months)' },
+  { value: '6-12', label: 'Flexible (6–12 months)' },
+  { value: '12+', label: 'Extended (12+ months)' },
 ] as const;
 
 /* ── Schemas ── */
@@ -65,13 +65,15 @@ const aggSchema = z.object({
   selected_template: z.string().min(1, 'Please select a challenge type'),
   problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(5000, 'Keep your idea under 5000 characters'),
   beneficiaries_mapping: z.string().optional().default(''),
+  expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
+    errorMap: () => ({ message: 'Please select a timeline' }),
+  }),
   // MP-only fields present but optional for unified form type
   title: z.string().optional(),
   industry_segment_id: z.string().optional(),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().optional(),
   budget_max: z.coerce.number().optional(),
-  expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+']).optional(),
   solution_expectations: z.string().optional(),
   architect_id: z.string().optional(),
 });
@@ -87,7 +89,7 @@ const mpSchema = z.object({
   expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
-  solution_expectations: z.string().trim().min(1, 'Solution expectations are required').max(500, 'Keep under 500 characters'),
+  solution_expectations: z.string().trim().max(500, 'Keep under 500 characters').optional().or(z.literal('')),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
   beneficiaries_mapping: z.string().optional().default(''),
@@ -233,7 +235,8 @@ export function SimpleIntakeForm() {
         <div>
           <h2 className="text-xl font-bold text-foreground">Share Your Idea</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Pick a challenge type and describe your problem or opportunity — a Challenge Architect will build the full specification.
+            As an internal employee, share your idea — a Challenge Creator from your team will expand it.
+            You don't need to know the budget, but please indicate your timeline.
           </p>
         </div>
 
@@ -363,6 +366,32 @@ export function SimpleIntakeForm() {
           </DialogContent>
         </Dialog>
 
+        {/* Step 4: Timeline Urgency */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Timeline Urgency <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              name="expected_timeline"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timeline…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMELINE_OPTIONS.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
+          </div>
+        </div>
+
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
@@ -394,18 +423,20 @@ export function SimpleIntakeForm() {
     );
   }
 
-  // ═══════ AM (Marketplace) Render — unchanged ═══════
+  // ═══════ AM (Marketplace) Render ═══════
   return (
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-foreground">Submit a Problem Brief</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          As your organization's representative, provide the problem details. The platform team will manage the challenge lifecycle.
+          As your organization's representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.
         </p>
       </div>
 
+      {/* THE PROBLEM — IN PLAIN BUSINESS LANGUAGE */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">The Problem — In Plain Business Language</p>
         {/* 1. Title */}
         <div className="space-y-1.5">
           <Label htmlFor="si-title" className="text-sm font-medium">
@@ -442,26 +473,7 @@ export function SimpleIntakeForm() {
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
 
-        {/* 3. Solution Expectations */}
-        <div className="space-y-1.5">
-          <Label htmlFor="si-expectations" className="text-sm font-medium">
-            Solution Expectations <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            id="si-expectations"
-            placeholder="What outcomes do you expect? What does a successful solution look like?"
-            rows={3}
-            maxLength={500}
-            className="text-base resize-none"
-            {...register('solution_expectations')}
-          />
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
-          </div>
-          {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
-        </div>
-
-        {/* Sector / Domain */}
+        {/* 3. Sector / Domain */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
             Sector / Domain <span className="text-destructive">*</span>
@@ -484,6 +496,11 @@ export function SimpleIntakeForm() {
           />
           {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
         </div>
+      </div>
+
+      {/* COMMERCIAL PARAMETERS */}
+      <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Commercial Parameters — Only You Can Provide These</p>
 
         {/* Budget Range */}
         <div className="space-y-1.5">
@@ -515,10 +532,10 @@ export function SimpleIntakeForm() {
           {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
         </div>
 
-        {/* Timeline */}
+        {/* Timeline Urgency */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
-            Expected Timeline <span className="text-destructive">*</span>
+            Timeline Urgency <span className="text-destructive">*</span>
           </Label>
           <Controller
             name="expected_timeline"
@@ -539,30 +556,24 @@ export function SimpleIntakeForm() {
           {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
         </div>
 
-        {/* Architect picker */}
-        {architects.length > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">
-              Assign Challenge Architect
-            </Label>
-            <Controller
-              name="architect_id"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an architect…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {architects.map((a: any) => (
-                      <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+        {/* What success looks like commercially (Optional) */}
+        <div className="space-y-1.5">
+          <Label htmlFor="si-expectations" className="text-sm font-medium">
+            What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
+          </Label>
+          <Textarea
+            id="si-expectations"
+            placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+            rows={3}
+            maxLength={500}
+            className="text-base resize-none"
+            {...register('solution_expectations')}
+          />
+          <div className="flex justify-end">
+            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
           </div>
-        )}
+          {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+        </div>
       </div>
 
       {/* Actions */}
