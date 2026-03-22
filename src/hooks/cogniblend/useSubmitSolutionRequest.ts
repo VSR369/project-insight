@@ -29,6 +29,7 @@ interface SubmitPayload {
   industrySegmentId?: string;
   subDomainIds?: string[];
   specialtyTags?: string[];
+  beneficiariesMapping?: string;
 }
 
 interface SubmitResult {
