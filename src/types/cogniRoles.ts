@@ -9,7 +9,7 @@ export const ROLE_PRIORITY: string[] = ['CA', 'CR', 'AM', 'RQ', 'CU', 'ID', 'ER'
 /** Role code → human-readable name */
 export const ROLE_DISPLAY: Record<string, string> = {
   AM: 'Account Manager',
-  RQ: 'Change Requestor',
+  RQ: 'Challenge Requestor',
   CR: 'Challenge Creator',
   CA: 'Challenge Architect',
   CU: 'Curator',
