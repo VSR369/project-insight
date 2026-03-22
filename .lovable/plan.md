@@ -1,110 +1,116 @@
 
 
-# Plan: Role-Based Field Ownership Enforcement (Marketplace + Aggregator)
+# Plan: Taxonomy-Based Auto-Assignment + AM Approval Gate in Curation
 
-## What's Wrong Today
+## Current State
 
-1. **CurationReviewPage**: Curator can edit ALL sections except `legal_docs` and `escrow_funding`. This means Curator can modify Problem Statement, Scope, Deliverables, Eval Criteria, Hook, Extended Brief — all of which are CA-owned content. Per the corrected spec, Curator should be able to edit everything EXCEPT legal and finance sections.
-2. **AISpecReviewPage**: All sections editable in STRUCTURED mode regardless of role. No role gating — CU viewing spec review can edit CA content. Budget/timeline from AM should be shown as read-only reference for CA in Marketplace model.
-3. **SimpleIntakeForm (AM)**: Has 7 fields (Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline, Architect picker). Per corrected spec: Solution Expectations should be optional, Architect picker should be removed (auto-assigned), timeline labels should be "urgency" framed.
-4. **SimpleIntakeForm (RQ/AGG)**: Missing timeline field. Per corrected spec, RQ must provide timelines even though they may not know budget/reward amounts.
+1. **Industry segment is mandatory for AM (MP)** but **missing for RQ (AGG)** — the RQ form has no industry segment selector.
+2. **CR/CA assignment** currently uses a manual architect picker in the AM form or direct user_id insertion. No taxonomy-based auto-assignment from the `platform_provider_pool` exists for CR, CU, or ID roles.
+3. **CU and ID assignment** — currently done manually or not at all. No auto-assignment logic based on challenge industry/proficiency taxonomy.
+4. **Curation flow** goes directly Curator → Innovation Director. There is **no AM approval step** in between for Marketplace challenges. The `CurationActions.tsx` button says "Submit to Innovation Director" unconditionally.
 
-## Corrected Ownership Rules
+## What Needs to Change
+
+### Taxonomy-Based Assignment Logic
+
+The `platform_provider_pool` table stores each member's `domain_scope` JSONB with `industry_segment_ids`, `proficiency_area_ids`, `sub_domain_ids`, `speciality_ids`. The existing `execute_auto_assignment` RPC handles admin assignment using industry-based scoring. We need a **similar mechanism for challenge role staffing** (CR, CU, ID).
 
 ```text
-ROLE              CAN EDIT                              CANNOT EDIT
-────────────────────────────────────────────────────────────────────
-AM (MP)           Title, Problem Summary, Sector,       Everything else
-                  Budget, Timeline, Success (opt)
+Assignment Tree:
+  Industry Segment (MUST match — from AM/RQ input)
+  └── Proficiency Area (optional filter — empty = ALL)
+      └── Sub Domain (optional filter — empty = ALL)
+          └── Speciality (optional filter — empty = ALL)
+```
 
-RQ (AGG)          Template, Problem Idea,               Budget, Reward
-                  Beneficiaries, Timeline
+### Marketplace Approval Flow Change
 
-CR/CA (MP)        All spec content EXCEPT Budget         Budget, Timeline
-                  and Timeline (AM-provided,             (read-only from AM)
-                  shown as read-only reference)
-
-CR (AGG)          All spec content including             —
-                  Timeline (must provide it)
-
-Curator           Everything EXCEPT legal_docs           legal_docs,
-                  and escrow_funding                     escrow_funding
-
-LC                Legal Documents only                   Everything else
-FC                Escrow & Funding only                  Everything else
+```text
+CURRENT:  Curator → Innovation Director
+NEW (MP): Curator → Account Manager Approval → Innovation Director
+NEW (AGG): Curator → Innovation Director (unchanged)
 ```
 
 ## Changes
 
-### 1. CurationReviewPage — Curator edits all except legal/finance
-
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
-
-The current `LOCKED_SECTIONS` set (`legal_docs`, `escrow_funding`) is already correct per the user's corrected requirement: "Curator can edit any field except legal and finance." No structural change needed to the lock logic.
-
-**However**, update section attributions to be accurate:
-- `reward_structure` attribution: change from `"by Creator"` to `"by Curator"` (line 313)
-- `complexity` — no attribution currently, add `"by Curator"`
-- `domain_tags` — no attribution, add `"by Curator"`
-- `ip_model` attribution: keep `"by Creator"` but Curator CAN edit (already works since it's not in LOCKED_SECTIONS)
-- `submission_deadline` attribution: change from `"Org Policy"` to `"by Curator"` (line 528)
-
-Add model-awareness: when `operating_model === 'AGG'`, hide any "Send to Seeking Org for Sign-off" action since the seeking org IS the platform org in Aggregator.
-
-### 2. SimpleIntakeForm (AM/MP) — Refine to 5+1 fields
+### 1. Add Industry Segment to RQ (AGG) Form — Mandatory
 
 **File: `src/components/cogniblend/SimpleIntakeForm.tsx`**
 
-a) **Solution Expectations** (line 446-461): Make optional — remove `min(1)` from `mpSchema` (line 90). Rename label to "What success looks like commercially" with "(Optional)" tag. Update placeholder.
+- Add `industry_segment_id: z.string().min(1, 'Please select an industry segment')` to `aggSchema` (currently optional)
+- Add an Industry Segment dropdown to the RQ form after the Template Selector, before the Problem editor
+- Import and use `useIndustrySegmentOptions` (already imported but only used in MP render)
+- Store `industry_segment_id` in the challenge's `eligibility` JSONB on submission
 
-b) **Remove Architect picker** (lines 542-565): Delete the architect dropdown. Auto-assignment happens server-side.
+### 2. Create Auto-Assignment Hook for Challenge Roles
 
-c) **Rename "Expected Timeline"** (line 521) to "Timeline Urgency". Update `TIMELINE_OPTIONS` labels:
-  - `'1-3'` → `"Urgent (1–3 months)"`
-  - `'3-6'` → `"Standard (3–6 months)"`
-  - `'6-12'` → `"Flexible (6–12 months)"`
-  - `'12+'` → `"Extended (12+ months)"`
+**File: `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts`** (New)
 
-d) **Add section headers** to visually group:
-  - "THE PROBLEM" group: Title, Problem Summary, Sector
-  - "COMMERCIAL PARAMETERS" group: Budget, Timeline, Success
+A hook/utility that, given a challenge's `industry_segment_id` (and optional proficiency/sub-domain/speciality from the challenge record), queries `platform_provider_pool` to find the best-fit member for a given role code (CR, CU, ID):
 
-e) **Post-submission confirmation**: Update the success toast to say "Your brief has been received. Your Challenge Architect will contact you within 2 business days."
+- Filter pool members where `role_codes` array contains the target role code
+- Filter by `is_active = true` and `availability_status` in ('available', 'partially_available')
+- Match `domain_scope.industry_segment_ids` — member must include the challenge's industry segment (empty array = ALL industries = matches everything)
+- If proficiency/sub-domain/speciality are provided on the challenge, further filter (empty = ALL = matches)
+- Rank by: fewest `current_assignments` (workload balance), then most specific domain match
+- Insert into `challenge_role_assignments` table with the winning pool member
+- Also insert into `user_challenge_roles` for notification routing
 
-### 3. SimpleIntakeForm (RQ/AGG) — Add Timeline field
+### 3. Wire Auto-Assignment into Submission Flow
 
-**File: `src/components/cogniblend/SimpleIntakeForm.tsx`**
+**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
 
-a) Add `expected_timeline` to `aggSchema` as required (the RQ must provide timelines per corrected spec):
-```tsx
-expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
-  errorMap: () => ({ message: 'Please select a timeline' }),
-}),
-```
+After challenge creation (step 2), instead of manually assigning `architectId`:
 
-b) Add a Timeline Urgency dropdown to the RQ form (after Beneficiaries section, before actions).
+- Call the auto-assignment function for role `CR` (Challenge Creator/Architect) based on the challenge's `industry_segment_id`
+- For CU and ID: auto-assign at appropriate phase transitions (CU when entering Phase 3/Curation, ID when entering Phase 4/Approval) — these should be triggered in `CurationActions.tsx` and the phase completion hooks
 
-c) Update the RQ subtitle: "As an internal employee, share your idea — a Challenge Creator from your team will expand it. You don't need to know the budget, but please indicate your timeline."
+Remove the `architectId` parameter from both `SubmitPayload` and `DraftPayload` since architect is no longer manually selected.
 
-### 4. AISpecReviewPage — Role-based field gating + AM reference panel
+### 4. Auto-Assign CU at Phase 3 Entry, ID at Phase 4 Entry
 
-**File: `src/pages/cogniblend/AISpecReviewPage.tsx`**
+**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`** — After `complete_phase` call (Phase 1→2), also auto-assign CR.
 
-a) **Read-only AM brief reference** for Marketplace challenges: When `operating_model === 'MP'`, show a collapsed panel at the top titled "Account Manager's Original Brief" with:
-  - Problem Summary (read-only)
-  - Budget Range (read-only)
-  - Timeline Urgency (read-only)
-  These are already in the challenge record. Mark them with a "From AM — Read Only" badge.
+**File: `src/pages/cogniblend/LegalReviewPage.tsx`** or the LC submission hook — When LC advances to Phase 3, auto-assign CU from pool.
 
-b) **Budget/Timeline fields read-only for CA in MP**: If challenge settings panel shows budget or timeline fields, make them non-editable when `operating_model === 'MP'` and user role is CR/CA. The CA must not change AM-provided budget and timelines.
+**File: `src/components/cogniblend/curation/CurationActions.tsx`** — When Curator submits (Phase 4→5 for MP, Phase 3→4 for AGG):
+- **MP model**: Auto-assign ID and route to AM approval first
+- **AGG model**: Auto-assign ID and route directly to Innovation Director
 
-c) **Role gating for CU**: If the logged-in user has CU role (from `useUserChallengeRoles`), hide edit buttons on all spec sections — Curator should use CurationReviewPage for their work, not spec review.
+### 5. AM Approval Gate for Marketplace Curation
+
+**File: `src/components/cogniblend/curation/CurationActions.tsx`**
+
+- Fetch challenge's `operating_model`
+- **If MP**: Change button from "Submit to Innovation Director" to "Send to Account Manager for Approval"
+  - On click: update `phase_status` to `'AM_APPROVAL_PENDING'`, notify the AM user
+  - The AM sees this in their dashboard and can Approve or Return
+- **If AGG**: Keep current "Submit to Innovation Director" flow unchanged
+
+**File: `src/pages/cogniblend/ApprovalReviewPage.tsx`** or new component
+
+- Add AM approval handling: when AM approves, advance to Innovation Director (auto-assign ID from pool)
+- When AM returns, send back to Curator with feedback
+
+### 6. Seeding Data Display (AM → ID chain)
+
+**File: `src/pages/cogniblend/AISpecReviewPage.tsx`** — Already has read-only AM brief panel for MP. Ensure this data flows through:
+- CA sees AM's original brief (already implemented)
+- Curator sees AM's brief in CurationReviewPage (add read-only AM section)
+- ID sees AM's brief + Curator's assessment in ApprovalReviewPage
+
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`** — Add a collapsed "Original Brief from AM/RQ" card at the top showing problem_statement, budget, timeline as read-only reference.
+
+**File: `src/pages/cogniblend/ApprovalReviewPage.tsx`** — Add similar seeding data display showing the chain: AM brief → CA spec → Curator assessment.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Update section attributions; add AGG model awareness for approval gate |
-| `src/components/cogniblend/SimpleIntakeForm.tsx` | AM: make Solution Expectations optional, remove Architect picker, rename Timeline, add section headers; RQ: add Timeline field, update subtitle |
-| `src/pages/cogniblend/AISpecReviewPage.tsx` | Add AM brief reference panel for MP; lock budget/timeline for CA in MP; hide edit for CU role |
+| `src/components/cogniblend/SimpleIntakeForm.tsx` | Add mandatory industry_segment_id to AGG schema + RQ form |
+| `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` | **New** — taxonomy-based pool matching for CR, CU, ID |
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Remove manual architectId, auto-assign CR from pool |
+| `src/components/cogniblend/curation/CurationActions.tsx` | MP: "Send to AM for Approval"; AGG: "Submit to ID" |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add read-only "Original Brief" seeding panel |
+| `src/pages/cogniblend/ApprovalReviewPage.tsx` | Add AM approval handling + seeding data chain display |
 
