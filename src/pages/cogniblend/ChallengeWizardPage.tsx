@@ -541,7 +541,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         const { challengeId: newId } = await createChallengeMutation.mutateAsync({
           orgId: currentOrg.organizationId,
           creatorId: user.id,
-          operatingModel: isAggBypass ? 'AGG' : 'MP',
+          operatingModel: propEngagementModel === 'AGG' ? 'AGG' : (isAggBypass ? 'AGG' : 'MP'),
           businessProblem: values.problem_statement || values.title,
           expectedOutcomes: values.scope || '',
           currency: values.currency_code,

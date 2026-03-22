@@ -5,22 +5,40 @@
  * Auto-routes by active role:
  * - AM/RQ → SimpleIntakeForm (5-field lightweight form)
  * - CR/CA → 2 cards: "Describe Your Problem" (AI) + "Build Spec Manually" (Editor)
+ *
+ * Governance Mode and Engagement Model are selected here (top-level)
+ * and passed down to both AI-Assisted and Manual Editor paths.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   Sparkles, Settings2, ArrowRight, ArrowLeft,
   Building2, ChevronLeft, Zap, Shield, Lock,
+  ShieldCheck, Info,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
-import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
+import { cn } from '@/lib/utils';
+import {
+  resolveGovernanceMode,
+  getAvailableGovernanceModes,
+  GOVERNANCE_MODE_CONFIG,
+  type GovernanceMode,
+} from '@/lib/governanceMode';
 import { ConversationalIntakeContent } from './ConversationalIntakePage';
 import ChallengeWizardPage from './ChallengeWizardPage';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
@@ -36,6 +54,45 @@ export interface SharedIntakeState {
   selectedTemplate: ChallengeTemplate | null;
   generatedSpec: GeneratedSpec | null;
 }
+
+/* ── Mode card config (shared with StepModeSelection) ── */
+
+const MODE_CARDS: Array<{
+  mode: GovernanceMode;
+  icon: typeof Zap;
+  features: string[];
+}> = [
+  {
+    mode: 'QUICK',
+    icon: Zap,
+    features: [
+      'Simplified workflow with fewer required fields',
+      'Auto-completion & merged roles',
+      'Auto-attached legal defaults',
+      'Ideal for fast experiments & small challenges',
+    ],
+  },
+  {
+    mode: 'STRUCTURED',
+    icon: Settings2,
+    features: [
+      'Full field set with manual curation',
+      'Optional add-ons (escrow, targeting)',
+      'Distinct creator & curator roles',
+      'Best for standard enterprise challenges',
+    ],
+  },
+  {
+    mode: 'CONTROLLED',
+    icon: ShieldCheck,
+    features: [
+      'Mandatory escrow & formal gates',
+      'All legal documents required',
+      'Strict role separation enforced',
+      'Full compliance & audit trail',
+    ],
+  },
+];
 
 /* ── Track Card ── */
 interface TrackCardProps {
@@ -113,6 +170,137 @@ function GovernanceFooter({ mode }: { mode: string }) {
   );
 }
 
+/* ── Governance & Engagement Selector (shared section) ── */
+
+interface GovernanceEngagementSelectorProps {
+  governanceMode: GovernanceMode;
+  onGovernanceModeChange: (mode: GovernanceMode) => void;
+  engagementModel: string;
+  onEngagementModelChange: (model: string) => void;
+  tierCode: string | null;
+}
+
+function GovernanceEngagementSelector({
+  governanceMode,
+  onGovernanceModeChange,
+  engagementModel,
+  onEngagementModelChange,
+  tierCode,
+}: GovernanceEngagementSelectorProps) {
+  const availableModes = getAvailableGovernanceModes(tierCode);
+  const disabledModes: GovernanceMode[] = (['QUICK', 'STRUCTURED', 'CONTROLLED'] as GovernanceMode[]).filter(
+    (m) => !availableModes.includes(m),
+  );
+
+  return (
+    <div className="space-y-8">
+      {/* ═══ Governance Mode ═══ */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Governance Mode</h3>
+          <p className="text-sm text-muted-foreground">
+            Choose how much structure and compliance this challenge requires.
+            {tierCode && (
+              <span className="ml-1 text-xs text-muted-foreground">
+                (Your tier: <span className="font-medium capitalize">{tierCode}</span>)
+              </span>
+            )}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {MODE_CARDS.map(({ mode, icon: Icon, features }) => {
+            const cfg = GOVERNANCE_MODE_CONFIG[mode];
+            const isSelected = governanceMode === mode;
+            const isDisabled = disabledModes.includes(mode);
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={isDisabled}
+                onClick={() => { if (!isDisabled) onGovernanceModeChange(mode); }}
+                className={cn(
+                  'relative w-full text-left rounded-xl border-2 p-5 transition-all',
+                  isSelected ? 'shadow-md ring-1' : 'hover:shadow-sm',
+                  isDisabled && 'opacity-40 cursor-not-allowed',
+                )}
+                style={{
+                  borderColor: isSelected ? cfg.color : 'hsl(var(--border))',
+                  backgroundColor: isSelected ? cfg.bg : 'transparent',
+                  ...(isSelected ? { boxShadow: `0 0 0 1px ${cfg.color}20` } : {}),
+                }}
+              >
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-bold" style={{ color: cfg.color }}>{cfg.label}</p>
+                </div>
+                <ul className="space-y-1.5">
+                  {features.map((f) => (
+                    <li key={f} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <span className="mt-0.5 shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: cfg.color }} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isSelected && (
+                  <div
+                    className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: cfg.color }}
+                  >
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+                {isDisabled && (
+                  <Badge variant="secondary" className="absolute top-2.5 right-2.5 text-[9px]">
+                    Upgrade required
+                  </Badge>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ═══ Engagement Model ═══ */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Engagement Model</h3>
+          <p className="text-sm text-muted-foreground">
+            Select the engagement model for this challenge. This determines how solvers are engaged and managed.
+          </p>
+        </div>
+
+        <Select value={engagementModel} onValueChange={onEngagementModelChange}>
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select engagement model" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="MP">Marketplace (MP) — Open competition</SelectItem>
+            <SelectItem value="AGG">Aggregator (AGG) — Curated selection</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5 max-w-sm">
+          <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            {engagementModel === 'AGG'
+              ? 'Aggregator model: solvers are curated and invited. An Account Manager (AM) role is not required.'
+              : 'Marketplace model: solvers discover and apply. An Account Manager (AM) role manages the process.'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Page ── */
 export default function ChallengeCreatePage() {
   // ═══════ Hooks — state ═══════
@@ -126,10 +314,26 @@ export default function ChallengeCreatePage() {
     generatedSpec: null,
   });
 
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [engagementModel, setEngagementModel] = useState<string>('MP');
+
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { activeRole } = useCogniRoleContext();
+
+  // ═══════ Hooks — effects ═══════
+  useEffect(() => {
+    if (currentOrg) {
+      setGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
+    }
+  }, [currentOrg?.governanceProfile]);
+
+  useEffect(() => {
+    if (orgContext?.operatingModel) {
+      setEngagementModel(orgContext.operatingModel === 'AGG' ? 'AGG' : 'MP');
+    }
+  }, [orgContext?.operatingModel]);
 
   // ═══════ Handlers ═══════
   const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
@@ -209,11 +413,21 @@ export default function ChallengeCreatePage() {
     );
   }
 
+  // ═══════ Shared selector props ═══════
+  const selectorProps: GovernanceEngagementSelectorProps = {
+    governanceMode,
+    onGovernanceModeChange: setGovernanceMode,
+    engagementModel,
+    onEngagementModelChange: setEngagementModel,
+    tierCode: currentOrg.tierCode,
+  };
+
   // ═══════ AM/RQ auto-route: SimpleIntakeForm ═══════
   if (isAMorRQ && activeView === 'landing') {
     return (
       <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
         <CreationContextBar />
+        <GovernanceEngagementSelector {...selectorProps} />
         <SimpleIntakeForm />
       </div>
     );
@@ -234,6 +448,8 @@ export default function ChallengeCreatePage() {
           sharedState={sharedState}
           onStateChange={handleIntakeStateChange}
           onSpecGenerated={handleSpecGenerated}
+          governanceMode={governanceMode}
+          engagementModel={engagementModel}
         />
       </div>
     );
@@ -252,6 +468,8 @@ export default function ChallengeCreatePage() {
           embedded
           onSwitchToSimple={switchToAI}
           initialFromIntake={sharedState}
+          governanceMode={governanceMode}
+          engagementModel={engagementModel}
         />
       </div>
     );
@@ -270,6 +488,9 @@ export default function ChallengeCreatePage() {
           Choose how you'd like to get started.
         </p>
       </div>
+
+      {/* Governance & Engagement Selectors */}
+      <GovernanceEngagementSelector {...selectorProps} />
 
       {/* Track Cards — CR/CA see 2 cards with renamed labels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -290,7 +511,7 @@ export default function ChallengeCreatePage() {
       </div>
 
       {/* Governance Mode Explanation */}
-      <GovernanceFooter mode={currentOrg.governanceProfile} />
+      <GovernanceFooter mode={governanceMode} />
     </div>
   );
 }
