@@ -7,6 +7,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, FileText, DollarSign, Clock, AlertCircle } from 'lucide-react';
+import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -163,7 +164,7 @@ export default function AMRequestViewPage() {
             icon={FileText}
             value={
               brief.problem_statement ? (
-                <p className="whitespace-pre-wrap leading-relaxed">{brief.problem_statement}</p>
+                <SafeHtmlRenderer html={brief.problem_statement} />
               ) : null
             }
           />
@@ -173,7 +174,7 @@ export default function AMRequestViewPage() {
             label="Expected Outcomes"
             value={
               brief.scope ? (
-                <p className="whitespace-pre-wrap leading-relaxed">{brief.scope}</p>
+                <SafeHtmlRenderer html={brief.scope} />
               ) : null
             }
           />
@@ -214,7 +215,7 @@ export default function AMRequestViewPage() {
           {extBrief?.beneficiaries_mapping && (
             <InfoField
               label="Beneficiaries & Benefits Mapping"
-              value={<p className="whitespace-pre-wrap leading-relaxed">{extBrief.beneficiaries_mapping}</p>}
+              value={<SafeHtmlRenderer html={extBrief.beneficiaries_mapping} />}
             />
           )}
         </CardContent>

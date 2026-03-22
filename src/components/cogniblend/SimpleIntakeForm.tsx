@@ -82,7 +82,7 @@ const aggSchema = z.object({
 /** MP (AM) schema — comprehensive 6-field problem brief */
 const mpSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
-  problem_summary: z.string().trim().min(1, 'Problem summary is required').max(500, 'Problem summary must be 500 characters or less'),
+  problem_summary: z.string().trim().min(1, 'Problem summary is required').max(5000, 'Problem summary must be 5000 characters or less'),
   industry_segment_id: z.string().min(1, 'Please select a sector'),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().min(0, 'Minimum budget must be 0 or more'),
@@ -90,7 +90,7 @@ const mpSchema = z.object({
   expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
-  solution_expectations: z.string().trim().max(500, 'Keep under 500 characters').optional().or(z.literal('')),
+  solution_expectations: z.string().trim().max(5000, 'Keep under 5000 characters').optional().or(z.literal('')),
   am_approval_required: z.boolean().default(true),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
@@ -112,6 +112,8 @@ export function SimpleIntakeForm() {
   );
   const [problemFullscreen, setProblemFullscreen] = useState(false);
   const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
+  const [mpProblemFullscreen, setMpProblemFullscreen] = useState(false);
+  const [commercialFullscreen, setCommercialFullscreen] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -152,8 +154,6 @@ export function SimpleIntakeForm() {
   const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors } } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
-  const charCount = problemSummary?.length ?? 0;
-  const solutionCharCount = solutionExpectations?.length ?? 0;
 
   // ═══════ Derived ═══════
   const isSubmitting = submitMutation.isPending;
@@ -485,25 +485,61 @@ export function SimpleIntakeForm() {
 
         {/* 2. Problem Summary */}
         <div className="space-y-1.5">
-          <Label htmlFor="si-problem" className="text-sm font-medium">
-            Problem Summary <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            id="si-problem"
-            placeholder="What problem needs solving?"
-            rows={4}
-            maxLength={500}
-            className="text-base resize-none"
-            {...register('problem_summary')}
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Problem Summary <span className="text-destructive">*</span>
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={() => setMpProblemFullscreen(true)}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+            </Button>
+          </div>
+          <Controller
+            name="problem_summary"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="What problem needs solving? Describe what is broken, who is affected, and what a good solution would achieve."
+                storagePath="am-problem-summary"
+              />
+            )}
           />
           <p className="text-xs italic text-muted-foreground">
             Describe what is broken, who is affected, and what a good solution would achieve.
           </p>
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{charCount} / 500</span>
-          </div>
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
+
+        {/* Fullscreen Dialog — MP Problem Summary */}
+        <Dialog open={mpProblemFullscreen} onOpenChange={setMpProblemFullscreen}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Problem Summary</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="problem_summary"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="What problem needs solving?..."
+                    storagePath="am-problem-summary"
+                    className="min-h-[60vh]"
+                  />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 3. Sector / Domain */}
         <div className="space-y-1.5">
@@ -590,22 +626,58 @@ export function SimpleIntakeForm() {
 
         {/* What success looks like commercially (Optional) */}
         <div className="space-y-1.5">
-          <Label htmlFor="si-expectations" className="text-sm font-medium">
-            What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
-          </Label>
-          <Textarea
-            id="si-expectations"
-            placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
-            rows={3}
-            maxLength={500}
-            className="text-base resize-none"
-            {...register('solution_expectations')}
-          />
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={() => setCommercialFullscreen(true)}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+            </Button>
           </div>
+          <Controller
+            name="solution_expectations"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+                storagePath="am-commercial-success"
+              />
+            )}
+          />
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
         </div>
+
+        {/* Fullscreen Dialog — Commercial Success */}
+        <Dialog open={commercialFullscreen} onOpenChange={setCommercialFullscreen}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>What success looks like commercially</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="solution_expectations"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="What does a good outcome look like from a business perspective?..."
+                    storagePath="am-commercial-success"
+                    className="min-h-[60vh]"
+                  />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Approval Gate Toggle */}
