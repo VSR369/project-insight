@@ -338,13 +338,12 @@ export function ConversationalIntakeContent({
     }
   }, [sharedState?.problemStatement, sharedState?.maturityLevel, sharedState?.selectedTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync governance mode & engagement model from org defaults once loaded
+  // Sync governance mode & engagement model from org defaults once loaded (only when no props)
   useEffect(() => {
-    if (currentOrg) {
-      setGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
-      // No operatingModel on CurrentOrg — default MP
+    if (currentOrg && !propGovernanceMode) {
+      setLocalGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
     }
-  }, [currentOrg?.governanceProfile]);
+  }, [currentOrg?.governanceProfile, propGovernanceMode]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (orgLoading) {
