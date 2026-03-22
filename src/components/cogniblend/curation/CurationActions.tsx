@@ -36,6 +36,7 @@ interface CurationActionsProps {
   checklistSummary: Array<{ id: number; label: string; passed: boolean; method: string }>;
   completedCount: number;
   totalCount: number;
+  operatingModel?: string | null;
 }
 
 export default function CurationActions({
