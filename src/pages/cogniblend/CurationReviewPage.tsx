@@ -274,7 +274,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "evaluation_criteria",
     label: "Evaluation Criteria",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "evaluation_criteria",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.evaluation_criteria);
