@@ -68,9 +68,9 @@ const aggSchema = z.object({
   expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
+  industry_segment_id: z.string().min(1, 'Please select an industry segment'),
   // MP-only fields present but optional for unified form type
   title: z.string().optional(),
-  industry_segment_id: z.string().optional(),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().optional(),
   budget_max: z.coerce.number().optional(),
