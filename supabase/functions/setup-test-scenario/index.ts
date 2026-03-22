@@ -65,6 +65,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "AGG Light Bypass Org",
     operatingModel: "AGG",
     governanceProfile: "LIGHTWEIGHT",
+    subscriptionTier: "basic",
     phase1Bypass: true,
     isEnterprise: false,
     users: [
