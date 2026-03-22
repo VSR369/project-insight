@@ -681,6 +681,8 @@ export default function AISpecReviewPage() {
   // Org-policy settings state (Creator-facing)
   const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
   // Domain targeting taxonomy state
+  const [industrySegmentId, setIndustrySegmentId] = useState<string | null>(null);
+  const [originalIndustrySegmentId, setOriginalIndustrySegmentId] = useState<string | null>(null);
   const [selectedProfAreaIds, setSelectedProfAreaIds] = useState<string[]>([]);
   const [selectedSubDomainIds, setSelectedSubDomainIds] = useState<string[]>([]);
   const [selectedSpecialityIds, setSelectedSpecialityIds] = useState<string[]>([]);
