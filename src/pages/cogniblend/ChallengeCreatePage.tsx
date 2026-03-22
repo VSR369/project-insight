@@ -315,7 +315,7 @@ export default function ChallengeCreatePage() {
     generatedSpec: null,
   });
 
-  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
 
   // ═══════ Hooks — queries ═══════
