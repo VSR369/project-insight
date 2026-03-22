@@ -206,7 +206,6 @@ export function SimpleIntakeForm() {
       domainTags: selectedTemplate?.prefill?.domain_tags ?? [],
       urgency: 'standard',
       industrySegmentId: data.industry_segment_id || '',
-      industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
       beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,
     };
