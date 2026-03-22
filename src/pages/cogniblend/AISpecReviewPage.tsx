@@ -1385,6 +1385,18 @@ export default function AISpecReviewPage() {
             </CollapsibleContent>
           </Collapsible>
         )}
+
+        {/* Domain Targeting — taxonomy cascade for CU/ID assignment */}
+        <DomainTargetingCard
+          industrySegmentId={industrySegmentId}
+          selectedProfAreaIds={selectedProfAreaIds}
+          selectedSubDomainIds={selectedSubDomainIds}
+          selectedSpecialityIds={selectedSpecialityIds}
+          onProfAreaIdsChange={setSelectedProfAreaIds}
+          onSubDomainIdsChange={setSelectedSubDomainIds}
+          onSpecialityIdsChange={setSelectedSpecialityIds}
+        />
+
         <div className="space-y-4">
           {SPEC_SECTIONS.map((section) => (
             <ReadOnlySectionCard
