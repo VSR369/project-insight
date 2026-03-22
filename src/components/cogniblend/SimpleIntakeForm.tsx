@@ -158,7 +158,7 @@ export function SimpleIntakeForm() {
   const isBusy = isSubmitting || isSaving;
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || modelLoading || tierLoading || (isMP && segmentsLoading)) {
+  if (orgLoading || modelLoading || tierLoading || segmentsLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
