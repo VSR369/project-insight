@@ -176,7 +176,7 @@ export default function CurationActions({
 
       // Find the AM user for notification
       const { data: amRole } = await supabase
-        .from('user_challenge_roles' as any)
+        .from('user_challenge_roles')
         .select('user_id')
         .eq('challenge_id', challengeId)
         .eq('role_code', 'AM')
@@ -184,9 +184,10 @@ export default function CurationActions({
         .limit(1)
         .maybeSingle();
 
-      if (amRole?.user_id) {
+      const amUserId = (amRole as any)?.user_id;
+      if (amUserId) {
         await supabase.from('cogni_notifications').insert({
-          user_id: (amRole as any).user_id,
+          user_id: amUserId,
           challenge_id: challengeId,
           notification_type: 'am_approval_requested',
           title: 'Challenge ready for your approval',
