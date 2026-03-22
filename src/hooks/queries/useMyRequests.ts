@@ -15,7 +15,9 @@ export interface RequestRow {
   master_status: string;
   operating_model: string | null;
   current_phase: number | null;
+  phase_status: string | null;
   created_at: string;
+  updated_at: string | null;
   urgency: string;
   architect_name: string | null;
 }
