@@ -269,7 +269,7 @@ export function MyRequestsTracker() {
             </TableHeader>
             <TableBody>
               {allRows.map((row) => (
-                <RequestRow key={row.id} item={row} />
+                <RequestRowItem key={row.id} item={row} />
               ))}
             </TableBody>
           </Table>
