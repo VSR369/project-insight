@@ -30,6 +30,7 @@ interface SubmitPayload {
   subDomainIds?: string[];
   specialtyTags?: string[];
   beneficiariesMapping?: string;
+  amApprovalRequired?: boolean;
 }
 
 interface SubmitResult {

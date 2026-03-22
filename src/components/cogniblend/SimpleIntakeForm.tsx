@@ -608,6 +608,34 @@ export function SimpleIntakeForm() {
         </div>
       </div>
 
+      {/* Approval Gate Toggle */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="h-5 w-5 mt-0.5 text-primary shrink-0" />
+            <div>
+              <Label htmlFor="am-approval-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+                Approval required before publishing to Solvers
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                When enabled, the Curator must send the challenge to you for approval before it goes live.
+              </p>
+            </div>
+          </div>
+          <Controller
+            name="am_approval_required"
+            control={control}
+            render={({ field }) => (
+              <Switch
+                id="am-approval-toggle"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
         <Button
