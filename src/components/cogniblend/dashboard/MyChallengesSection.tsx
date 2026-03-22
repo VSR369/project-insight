@@ -83,6 +83,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ROLE_STYLE: Record<string, { bg: string; color: string }> = {
   CR: { bg: '#E1F5EE', color: '#0F6E56' },
+  CA: { bg: '#E6F1FB', color: '#185FA5' },
   CU: { bg: '#EDE9FE', color: '#7C3AED' },
   ID: { bg: '#E6F1FB', color: '#185FA5' },
   ER: { bg: '#FCE7F3', color: '#BE185D' },

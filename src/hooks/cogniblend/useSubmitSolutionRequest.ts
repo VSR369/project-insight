@@ -94,11 +94,12 @@ export function useSubmitSolutionRequest() {
 
       if (updateError) throw new Error(updateError.message);
 
-      // 3. Auto-assign Challenge Creator/Architect (CR) from pool
+      // 3. Auto-assign Challenge Creator (AGG) or Architect (MP) from pool
       if (payload.industrySegmentId) {
+        const specRoleCode = payload.operatingModel === 'MP' ? 'CA' : 'CR';
         await autoAssignChallengeRole({
           challengeId,
-          roleCode: 'CR',
+          roleCode: specRoleCode,
           industrySegmentId: payload.industrySegmentId,
           subDomainIds: payload.subDomainIds,
           specialityIds: payload.specialtyTags,

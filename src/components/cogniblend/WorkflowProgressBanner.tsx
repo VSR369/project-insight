@@ -21,14 +21,14 @@ const WORKFLOW_STEPS: Record<number, WorkflowStep> = {
     step: 1,
     label: 'Create Challenge',
     nextLabel: 'AI Spec Review',
-    nextRole: 'Challenge Creator (CR)',
+    nextRole: 'Challenge Creator / Architect (CR/CA)',
     description: 'Fill in the intake form and let AI generate the specification.',
   },
   2: {
     step: 2,
     label: 'AI Spec Review',
     nextLabel: 'Legal Document Attachment',
-    nextRole: 'Challenge Creator (CR)',
+    nextRole: 'Challenge Creator / Architect (CR/CA)',
     description: 'Review and approve each section of the AI-generated specification.',
   },
   3: {
