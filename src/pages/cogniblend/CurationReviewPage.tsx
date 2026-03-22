@@ -328,6 +328,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "complexity",
     label: "Complexity Assessment",
+    attribution: "by Curator",
     isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
     render: () => null, // Rendered via ComplexityAssessmentModule component
   },
