@@ -23,6 +23,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "MP Light Test Org",
     operatingModel: "MP",
     governanceProfile: "LIGHTWEIGHT",
+    subscriptionTier: "basic",
     phase1Bypass: false,
     isEnterprise: false,
     users: [
