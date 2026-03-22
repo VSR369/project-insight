@@ -250,6 +250,10 @@ interface ConversationalIntakeContentProps {
   sharedState?: SharedIntakeState;
   onStateChange?: (partial: Partial<SharedIntakeState>) => void;
   onSpecGenerated?: (spec: GeneratedSpec) => void;
+  /** Governance mode from parent landing page */
+  governanceMode?: GovernanceMode;
+  /** Engagement model from parent landing page */
+  engagementModel?: string;
 }
 
 export function ConversationalIntakeContent({
@@ -257,6 +261,8 @@ export function ConversationalIntakeContent({
   sharedState,
   onStateChange,
   onSpecGenerated,
+  governanceMode: propGovernanceMode,
+  engagementModel: propEngagementModel,
 }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
@@ -265,8 +271,12 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
-  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
-  const [engagementModel, setEngagementModel] = useState<string>('MP');
+  const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
+
+  // Use props if provided (from landing page), otherwise fall back to local state
+  const governanceMode = propGovernanceMode ?? localGovernanceMode;
+  const engagementModel = propEngagementModel ?? localEngagementModel;
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -328,13 +338,12 @@ export function ConversationalIntakeContent({
     }
   }, [sharedState?.problemStatement, sharedState?.maturityLevel, sharedState?.selectedTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync governance mode & engagement model from org defaults once loaded
+  // Sync governance mode & engagement model from org defaults once loaded (only when no props)
   useEffect(() => {
-    if (currentOrg) {
-      setGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
-      // No operatingModel on CurrentOrg — default MP
+    if (currentOrg && !propGovernanceMode) {
+      setLocalGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
     }
-  }, [currentOrg?.governanceProfile]);
+  }, [currentOrg?.governanceProfile, propGovernanceMode]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (orgLoading) {
@@ -632,7 +641,7 @@ export function ConversationalIntakeContent({
                 key={mode}
                 type="button"
                 disabled={isDisabled}
-                onClick={() => { if (!isDisabled) setGovernanceMode(mode); }}
+                onClick={() => { if (!isDisabled) setLocalGovernanceMode(mode); }}
                 className={cn(
                   'relative w-full text-left rounded-xl border-2 p-5 transition-all',
                   isSelected ? 'shadow-md ring-1' : 'hover:shadow-sm',
@@ -691,7 +700,7 @@ export function ConversationalIntakeContent({
           </p>
         </div>
 
-        <Select value={engagementModel} onValueChange={setEngagementModel}>
+        <Select value={engagementModel} onValueChange={setLocalEngagementModel}>
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select engagement model" />
           </SelectTrigger>

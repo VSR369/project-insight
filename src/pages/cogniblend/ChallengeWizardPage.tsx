@@ -78,9 +78,13 @@ interface ChallengeWizardPageProps {
   onSwitchToSimple?: () => void;
   /** Shared state from AI intake (problem, maturity, template, generatedSpec) */
   initialFromIntake?: SharedIntakeState;
+  /** Governance mode from parent landing page */
+  governanceMode?: GovernanceMode;
+  /** Engagement model from parent landing page */
+  engagementModel?: string;
 }
 
-export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake }: ChallengeWizardPageProps = {}) {
+export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake, governanceMode: propGovernanceMode, engagementModel: propEngagementModel }: ChallengeWizardPageProps = {}) {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
@@ -123,10 +127,23 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
     },
   });
 
-  // Use form-selected mode (Step 0) or fallback
+  // Use parent prop → form-selected mode (Step 0) → fallback
   const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
-  const governanceMode: GovernanceMode = formSelectedMode ?? fallbackMode;
+  const governanceMode: GovernanceMode = propGovernanceMode ?? formSelectedMode ?? fallbackMode;
   const isLightweight = isQuickMode(governanceMode);
+
+  // Sync parent prop into form if provided
+  useEffect(() => {
+    if (propGovernanceMode && propGovernanceMode !== form.getValues('governance_mode')) {
+      form.setValue('governance_mode', propGovernanceMode, { shouldDirty: true });
+    }
+  }, [propGovernanceMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (propEngagementModel && propEngagementModel !== form.getValues('operating_model')) {
+      form.setValue('operating_model', propEngagementModel as 'MP' | 'AGG', { shouldDirty: true });
+    }
+  }, [propEngagementModel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch DB-driven field rules for this governance mode
   const { data: fieldRules, isLoading: fieldRulesLoading } = useGovernanceFieldRules(governanceMode);
@@ -524,7 +541,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         const { challengeId: newId } = await createChallengeMutation.mutateAsync({
           orgId: currentOrg.organizationId,
           creatorId: user.id,
-          operatingModel: isAggBypass ? 'AGG' : 'MP',
+          operatingModel: propEngagementModel === 'AGG' ? 'AGG' : (isAggBypass ? 'AGG' : 'MP'),
           businessProblem: values.problem_statement || values.title,
           expectedOutcomes: values.scope || '',
           currency: values.currency_code,
