@@ -36,6 +36,7 @@ import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import {
   resolveGovernanceMode,
   getAvailableGovernanceModes,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
