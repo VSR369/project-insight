@@ -1,33 +1,31 @@
 
 
-# Plan: Add Taxonomy Cascade to CR/CA Spec Review & Ensure Data Pass-Through
+# Plan: Make Industry Segment Editable by CR/CA
 
-## Status: IMPLEMENTED ✅
+## Current State
+The `DomainTargetingCard` displays Industry Segment as read-only text with a "From AM/RQ" badge. CR/CA cannot change it.
 
-## What Was Done
+## Change
 
-### 1. useChallengeDetail — extended_brief added ✅
-- Added `extended_brief` to the SELECT query and `ChallengeDetail` interface
+### File: `src/components/cogniblend/spec/DomainTargetingCard.tsx`
 
-### 2. DomainTargetingCard component created ✅
-- New component at `src/components/cogniblend/spec/DomainTargetingCard.tsx`
-- Industry Segment displayed read-only (from AM/RQ's eligibility JSON)
-- Proficiency Areas, Sub Domains, Specialities as optional multi-select checklists
-- Uses `useTaxonomyCascade` hook for cascading filters
-- "Not selected" = ALL (shown with badge)
+- Add `onIndustrySegmentChange: (id: string) => void` to props
+- Replace the read-only segment display with a `Select` dropdown populated from `useIndustrySegmentOptions()`
+- Show the original AM/RQ segment as a subtle reference label (e.g., "Originally: Healthcare" in muted text) so the CR/CA knows what was submitted
+- When the segment changes, clear downstream selections (prof areas, sub domains, specialities) since they cascade from the segment
+- Remove the `if (!industrySegmentId) return null` guard — show the card with the dropdown even if no segment was pre-selected
 
-### 3. AISpecReviewPage updated ✅
-- Parses `eligibility` JSON from challenge to extract `industry_segment_id`
-- Added taxonomy state: `selectedProfAreaIds`, `selectedSubDomainIds`, `selectedSpecialityIds`
-- DomainTargetingCard rendered in BOTH Quick and Structured modes
-- On submit (both `handleConfirmSubmit` and `handleApproveAndContinue`):
-  - Taxonomy selections merged into `eligibility` JSONB
-  - Auto-assigns CU and ID roles via `autoAssignChallengeRole` using refined taxonomy
+### File: `src/pages/cogniblend/AISpecReviewPage.tsx`
+
+- Add `industrySegmentId` to local state (initialized from `eligibility.industry_segment_id`)
+- Store the original AM/RQ segment ID separately for reference display
+- Pass `onIndustrySegmentChange` handler that updates state and clears downstream selections
+- Update submission handlers to save the potentially changed segment ID
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/hooks/queries/useChallengeForm.ts` | Added `extended_brief` to select + interface |
-| `src/components/cogniblend/spec/DomainTargetingCard.tsx` | NEW — taxonomy cascade card |
-| `src/pages/cogniblend/AISpecReviewPage.tsx` | Added domain targeting UI + CU/ID auto-assignment |
+| `src/components/cogniblend/spec/DomainTargetingCard.tsx` | Replace read-only segment with editable Select dropdown, show original as reference |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | Add segment state management and change handler |
+
