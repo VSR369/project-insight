@@ -1,30 +1,33 @@
 
 
-# Plan: Fix RQ Routing, Enforce Path Isolation, Clean Up Dead Code
+# Plan: Add Taxonomy Cascade to CR/CA Spec Review & Ensure Data Pass-Through
 
 ## Status: IMPLEMENTED ✅
 
 ## What Was Done
 
-### 1. RQ Role Routing Fix ✅
-- In `DemoLoginPage.tsx`, added `localStorage.setItem('cogni_active_role', demoUser.roles[0])` on demo login
-- This forces `CogniRoleContext` to pick up the correct role (RQ) instead of falling back to priority order (which would resolve to CR)
+### 1. useChallengeDetail — extended_brief added ✅
+- Added `extended_brief` to the SELECT query and `ChallengeDetail` interface
 
-### 2. AI Path Isolation ✅
-- In `ChallengeCreatePage.tsx`, when `demoPath === 'ai'`: `onSwitchToEditor` is set to `undefined`
-- This hides the "Build Spec Manually" escape hatch from AI intake flow
+### 2. DomainTargetingCard component created ✅
+- New component at `src/components/cogniblend/spec/DomainTargetingCard.tsx`
+- Industry Segment displayed read-only (from AM/RQ's eligibility JSON)
+- Proficiency Areas, Sub Domains, Specialities as optional multi-select checklists
+- Uses `useTaxonomyCascade` hook for cascading filters
+- "Not selected" = ALL (shown with badge)
 
-### 3. Manual Path Isolation ✅
-- In `ChallengeCreatePage.tsx`, when `demoPath === 'manual'`: `onSwitchToSimple` is set to `undefined`
-- This hides the "Switch to AI" link in the wizard
-
-### 4. Dead Code Cleanup ✅
-- Removed unused `ConversationalIntakePage` lazy import from `App.tsx` (was imported but never rendered in any route)
+### 3. AISpecReviewPage updated ✅
+- Parses `eligibility` JSON from challenge to extract `industry_segment_id`
+- Added taxonomy state: `selectedProfAreaIds`, `selectedSubDomainIds`, `selectedSpecialityIds`
+- DomainTargetingCard rendered in BOTH Quick and Structured modes
+- On submit (both `handleConfirmSubmit` and `handleApproveAndContinue`):
+  - Taxonomy selections merged into `eligibility` JSONB
+  - Auto-assigns CU and ID roles via `autoAssignChallengeRole` using refined taxonomy
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/DemoLoginPage.tsx` | Set `cogni_active_role` in localStorage on demo login |
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Gate path-switching props based on `demoPath` |
-| `src/App.tsx` | Removed unused `ConversationalIntakePage` lazy import |
+| `src/hooks/queries/useChallengeForm.ts` | Added `extended_brief` to select + interface |
+| `src/components/cogniblend/spec/DomainTargetingCard.tsx` | NEW — taxonomy cascade card |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | Added domain targeting UI + CU/ID auto-assignment |
