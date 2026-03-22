@@ -101,6 +101,32 @@ serve(async (req) => {
     );
 
     const body = await req.json();
+
+    // ─── Handle sync_operating_model action (fallback for RLS-blocked client updates) ───
+    if (body.action === "sync_operating_model") {
+      const { orgId, operatingModel } = body;
+      if (!orgId || !operatingModel) {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "INVALID_PARAMS", message: "orgId and operatingModel required" } }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const { error: syncErr } = await supabaseAdmin
+        .from("seeker_organizations")
+        .update({ operating_model: operatingModel })
+        .eq("id", orgId);
+      if (syncErr) {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "SYNC_FAILED", message: syncErr.message } }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, data: { message: `Operating model updated to ${operatingModel}` } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const scenario = body.scenario as string;
 
     if (!scenario || !SCENARIOS[scenario]) {
