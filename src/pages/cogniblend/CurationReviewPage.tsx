@@ -423,7 +423,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "phase_schedule",
     label: "Phase Schedule",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "phase_schedule",
     isFilled: (ch) => {
       const raw = parseJson<any>(ch.phase_schedule);
