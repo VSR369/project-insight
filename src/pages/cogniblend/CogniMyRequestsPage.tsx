@@ -47,6 +47,12 @@ const STATUS_BADGE_MAP: Record<string, { label: string; className: string }> = {
   CANCELLED: { label: 'Rejected', className: 'bg-red-100 text-red-700' },
 };
 
+const PHASE_STATUS_BADGE_MAP: Record<string, { label: string; className: string }> = {
+  AM_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-amber-100 text-amber-700' },
+  AM_DECLINED: { label: 'Declined', className: 'bg-red-100 text-red-700' },
+  AM_APPROVED: { label: 'Approved → ID Review', className: 'bg-green-100 text-green-700' },
+};
+
 const URGENCY_BADGE_MAP: Record<string, { label: string; className: string }> = {
   standard: { label: 'Standard', className: 'bg-muted text-muted-foreground' },
   urgent: { label: 'Urgent', className: 'bg-amber-100 text-amber-700' },
