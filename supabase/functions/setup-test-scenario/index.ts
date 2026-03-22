@@ -76,6 +76,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "New Horizon Company",
     operatingModel: "AGG",
     governanceProfile: "ENTERPRISE",
+    subscriptionTier: "premium",
     phase1Bypass: false,
     isEnterprise: true,
     users: [
