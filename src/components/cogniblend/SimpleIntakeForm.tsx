@@ -10,12 +10,19 @@ import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Save, Loader2 } from 'lucide-react';
+import { Send, Save, Loader2, Maximize2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -55,7 +62,8 @@ const TIMELINE_OPTIONS = [
 /** AGG (RQ) schema — template card + single idea field */
 const aggSchema = z.object({
   selected_template: z.string().min(1, 'Please select a challenge type'),
-  problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(1000, 'Keep your idea under 1000 characters'),
+  problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(5000, 'Keep your idea under 5000 characters'),
+  beneficiaries_mapping: z.string().optional().default(''),
   // MP-only fields present but optional for unified form type
   title: z.string().optional(),
   industry_segment_id: z.string().optional(),
@@ -81,6 +89,7 @@ const mpSchema = z.object({
   solution_expectations: z.string().trim().min(1, 'Solution expectations are required').max(500, 'Keep under 500 characters'),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
+  beneficiaries_mapping: z.string().optional().default(''),
 }).refine(data => data.budget_min! < data.budget_max!, {
   message: 'Minimum must be less than maximum.',
   path: ['budget_min'],
@@ -94,6 +103,8 @@ export function SimpleIntakeForm() {
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [problemFullscreen, setProblemFullscreen] = useState(false);
+  const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -124,6 +135,7 @@ export function SimpleIntakeForm() {
       solution_expectations: '',
       architect_id: '',
       selected_template: '',
+      beneficiaries_mapping: '',
     },
     mode: 'onBlur',
   });
@@ -189,6 +201,7 @@ export function SimpleIntakeForm() {
       architectId: data.architect_id || undefined,
       industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
+      beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,
     };
   };
 
@@ -227,26 +240,119 @@ export function SimpleIntakeForm() {
         {/* Step 2: Problem / Idea Editor */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="rq-problem" className="text-sm font-medium">
-              Problem / Possibility Idea <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="rq-problem"
-              placeholder="Describe the problem or opportunity you've identified. Even a rough idea is fine — a domain expert will expand it into a full specification."
-              rows={6}
-              maxLength={1000}
-              className="text-base resize-none"
-              {...register('problem_summary')}
-            />
             <div className="flex items-center justify-between">
-              <p className="text-xs italic text-muted-foreground">
-                Share enough context so an Architect can understand the core issue.
-              </p>
-              <span className="text-xs text-muted-foreground">{charCount} / 1000</span>
+              <Label className="text-sm font-medium">
+                Problem / Possibility Idea <span className="text-destructive">*</span>
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => setProblemFullscreen(true)}
+              >
+                <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+              </Button>
             </div>
+            <Controller
+              name="problem_summary"
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="Describe the problem or opportunity you've identified. Even a rough idea is fine — a domain expert will expand it into a full specification."
+                  storagePath="rq-problem-idea"
+                />
+              )}
+            />
+            <p className="text-xs italic text-muted-foreground">
+              Share enough context so an Architect can understand the core issue.
+            </p>
             {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
           </div>
         </div>
+
+        {/* Fullscreen Dialog — Problem Editor */}
+        <Dialog open={problemFullscreen} onOpenChange={setProblemFullscreen}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Problem / Possibility Idea</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="problem_summary"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="Describe the problem or opportunity you've identified..."
+                    storagePath="rq-problem-idea"
+                    className="min-h-[60vh]"
+                  />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Step 3: Beneficiaries & Benefits Mapping (Optional) */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Beneficiaries & Benefits Mapping</Label>
+                <span className="text-xs text-muted-foreground italic">(Optional)</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => setBeneficiariesFullscreen(true)}
+              >
+                <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+              </Button>
+            </div>
+            <Controller
+              name="beneficiaries_mapping"
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="Who will benefit from solving this? Map stakeholders to expected benefits..."
+                  storagePath="rq-beneficiaries"
+                />
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Fullscreen Dialog — Beneficiaries Editor */}
+        <Dialog open={beneficiariesFullscreen} onOpenChange={setBeneficiariesFullscreen}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Beneficiaries & Benefits Mapping</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="beneficiaries_mapping"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="Who will benefit from solving this? Map stakeholders to expected benefits..."
+                    storagePath="rq-beneficiaries"
+                    className="min-h-[60vh]"
+                  />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">

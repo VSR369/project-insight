@@ -29,6 +29,7 @@ interface SubmitPayload {
   industrySegmentId?: string;
   subDomainIds?: string[];
   specialtyTags?: string[];
+  beneficiariesMapping?: string;
 }
 
 interface SubmitResult {
@@ -82,6 +83,11 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
+          ...(payload.beneficiariesMapping ? {
+            extended_brief: {
+              beneficiaries_mapping: payload.beneficiariesMapping,
+            },
+          } : {}),
         } as any)
         .eq('id', challengeId);
 
@@ -162,6 +168,7 @@ interface DraftPayload {
   industrySegmentId?: string;
   subDomainIds?: string[];
   specialtyTags?: string[];
+  beneficiariesMapping?: string;
 }
 
 export function useSaveDraft() {
@@ -207,6 +214,11 @@ export function useSaveDraft() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
+          ...(payload.beneficiariesMapping ? {
+            extended_brief: {
+              beneficiaries_mapping: payload.beneficiariesMapping,
+            },
+          } : {}),
         } as any)
         .eq('id', challengeId);
 
