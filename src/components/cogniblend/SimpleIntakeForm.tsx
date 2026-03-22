@@ -1,6 +1,6 @@
 /**
  * SimpleIntakeForm — Model-adaptive intake form for AM/RQ roles.
- * AGG (RQ): 3-field "Share Your Idea" — Title, Problem Idea, Sector.
+ * AGG (RQ): Template selector cards + single Problem/Idea editor — auto-derives title.
  * MP (AM): 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
  * On submit: creates challenge at Phase 1 and assigns an Architect (MP only).
  */
@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
+import { CHALLENGE_TEMPLATES, type ChallengeTemplate } from '@/lib/challengeTemplates';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
@@ -50,12 +52,13 @@ const TIMELINE_OPTIONS = [
 
 /* ── Schemas ── */
 
-/** AGG (RQ) schema — lightweight 3-field idea submission */
+/** AGG (RQ) schema — template card + single idea field */
 const aggSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
-  problem_summary: z.string().trim().min(1, 'Problem idea is required').max(300, 'Keep your idea under 300 characters'),
-  industry_segment_id: z.string().min(1, 'Please select a sector'),
-  // MP-only fields present but optional in AGG schema for unified form type
+  selected_template: z.string().min(1, 'Please select a challenge type'),
+  problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(1000, 'Keep your idea under 1000 characters'),
+  // MP-only fields present but optional for unified form type
+  title: z.string().optional(),
+  industry_segment_id: z.string().optional(),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().optional(),
   budget_max: z.coerce.number().optional(),
@@ -77,6 +80,7 @@ const mpSchema = z.object({
   }),
   solution_expectations: z.string().trim().min(1, 'Solution expectations are required').max(500, 'Keep under 500 characters'),
   architect_id: z.string().optional(),
+  selected_template: z.string().optional(),
 }).refine(data => data.budget_min! < data.budget_max!, {
   message: 'Minimum must be less than maximum.',
   path: ['budget_min'],
@@ -89,6 +93,7 @@ type SimpleIntakeValues = z.infer<typeof mpSchema>;
 export function SimpleIntakeForm() {
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -118,11 +123,12 @@ export function SimpleIntakeForm() {
       expected_timeline: undefined,
       solution_expectations: '',
       architect_id: '',
+      selected_template: '',
     },
     mode: 'onBlur',
   });
 
-  const { register, control, handleSubmit, watch, getValues, formState: { errors } } = form;
+  const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors } } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
   const charCount = problemSummary?.length ?? 0;
@@ -132,10 +138,9 @@ export function SimpleIntakeForm() {
   const isSubmitting = submitMutation.isPending;
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
-  const maxProblemChars = isMP ? 500 : 300;
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || modelLoading || tierLoading || segmentsLoading) {
+  if (orgLoading || modelLoading || tierLoading || (isMP && segmentsLoading)) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -157,21 +162,35 @@ export function SimpleIntakeForm() {
   }
 
   // ═══════ Handlers ═══════
-  const buildPayload = (data: SimpleIntakeValues) => ({
-    orgId: currentOrg?.organizationId ?? '',
-    creatorId: user?.id ?? '',
-    operatingModel: orgContext?.operatingModel ?? 'AGG',
-    businessProblem: data.problem_summary,
-    expectedOutcomes: data.solution_expectations || '',
-    currency: data.currency,
-    budgetMin: data.budget_min ?? 0,
-    budgetMax: data.budget_max ?? 0,
-    expectedTimeline: data.expected_timeline ?? '',
-    domainTags: [],
-    urgency: 'standard',
-    architectId: data.architect_id || undefined,
-    industrySegmentId: data.industry_segment_id,
-  });
+  const handleTemplateSelect = (template: ChallengeTemplate) => {
+    setSelectedTemplate(template);
+    setValue('selected_template', template.id, { shouldValidate: true });
+  };
+
+  const buildPayload = (data: SimpleIntakeValues) => {
+    // For RQ: auto-derive title from the selected template
+    const derivedTitle = !isMP && selectedTemplate
+      ? `${selectedTemplate.name} Idea`
+      : data.title ?? '';
+
+    return {
+      orgId: currentOrg?.organizationId ?? '',
+      creatorId: user?.id ?? '',
+      operatingModel: orgContext?.operatingModel ?? 'AGG',
+      title: derivedTitle,
+      businessProblem: data.problem_summary,
+      expectedOutcomes: data.solution_expectations || '',
+      currency: data.currency,
+      budgetMin: data.budget_min ?? 0,
+      budgetMax: data.budget_max ?? 0,
+      expectedTimeline: data.expected_timeline ?? '',
+      domainTags: selectedTemplate?.prefill?.domain_tags ?? [],
+      urgency: 'standard',
+      architectId: data.architect_id || undefined,
+      industrySegmentId: data.industry_segment_id || '',
+      templateId: data.selected_template || undefined,
+    };
+  };
 
   const onSubmit = async (data: SimpleIntakeValues) => {
     await submitMutation.mutateAsync(buildPayload(data));
@@ -184,19 +203,90 @@ export function SimpleIntakeForm() {
     navigate('/cogni/my-requests');
   };
 
-  // ═══════ Render ═══════
+  // ═══════ RQ (Aggregator) Render ═══════
+  if (!isMP) {
+    return (
+      <div className="w-full max-w-2xl space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Share Your Idea</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Pick a challenge type and describe your problem or opportunity — a Challenge Architect will build the full specification.
+          </p>
+        </div>
+
+        {/* Step 1: Template Selector */}
+        <TemplateSelector
+          onSelect={handleTemplateSelect}
+          selectedId={selectedTemplate?.id}
+        />
+        {errors.selected_template && (
+          <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
+        )}
+
+        {/* Step 2: Problem / Idea Editor */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="rq-problem" className="text-sm font-medium">
+              Problem / Possibility Idea <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="rq-problem"
+              placeholder="Describe the problem or opportunity you've identified. Even a rough idea is fine — a domain expert will expand it into a full specification."
+              rows={6}
+              maxLength={1000}
+              className="text-base resize-none"
+              {...register('problem_summary')}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs italic text-muted-foreground">
+                Share enough context so an Architect can understand the core issue.
+              </p>
+              <span className="text-xs text-muted-foreground">{charCount} / 1000</span>
+            </div>
+            {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            onClick={handleSubmit(onSubmit)}
+            disabled={isBusy}
+            size="lg"
+            className="flex-1 sm:flex-none"
+          >
+            {isSubmitting ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
+            ) : (
+              <><Send className="h-4 w-4 mr-2" /> Submit Idea</>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onSaveDraft}
+            disabled={isBusy}
+            size="lg"
+          >
+            {isSaving ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+            ) : (
+              <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════ AM (Marketplace) Render — unchanged ═══════
   return (
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-bold text-foreground">
-          {isMP ? 'Submit a Problem Brief' : 'Share Your Idea'}
-        </h2>
+        <h2 className="text-xl font-bold text-foreground">Submit a Problem Brief</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          {isMP
-            ? 'As your organization\'s representative, provide the problem details. The platform team will manage the challenge lifecycle.'
-            : 'Share your problem or opportunity — a Challenge Architect will define the full specification.'
-          }
+          As your organization's representative, provide the problem details. The platform team will manage the challenge lifecycle.
         </p>
       </div>
 
@@ -208,61 +298,53 @@ export function SimpleIntakeForm() {
           </Label>
           <Input
             id="si-title"
-            placeholder={isMP ? 'Brief title for your problem brief' : 'Give your idea a short title'}
+            placeholder="Brief title for your problem brief"
             maxLength={100}
             {...register('title')}
           />
           {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
         </div>
 
-        {/* 2. Problem Summary / Problem Idea */}
+        {/* 2. Problem Summary */}
         <div className="space-y-1.5">
           <Label htmlFor="si-problem" className="text-sm font-medium">
-            {isMP ? 'Problem Summary' : 'Problem Idea'} <span className="text-destructive">*</span>
+            Problem Summary <span className="text-destructive">*</span>
           </Label>
           <Textarea
             id="si-problem"
-            placeholder={isMP
-              ? 'What problem needs solving?'
-              : 'What problem or opportunity have you identified?'
-            }
-            rows={isMP ? 4 : 3}
-            maxLength={maxProblemChars}
+            placeholder="What problem needs solving?"
+            rows={4}
+            maxLength={500}
             className="text-base resize-none"
             {...register('problem_summary')}
           />
           <p className="text-xs italic text-muted-foreground">
-            {isMP
-              ? 'Describe what is broken, who is affected, and what a good solution would achieve.'
-              : 'Even a rough idea is fine — a domain expert will expand it into a full specification.'
-            }
+            Describe what is broken, who is affected, and what a good solution would achieve.
           </p>
           <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{charCount} / {maxProblemChars}</span>
+            <span className="text-xs text-muted-foreground">{charCount} / 500</span>
           </div>
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
 
-        {/* 3. Solution Expectations (MP only) */}
-        {isMP && (
-          <div className="space-y-1.5">
-            <Label htmlFor="si-expectations" className="text-sm font-medium">
-              Solution Expectations <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="si-expectations"
-              placeholder="What outcomes do you expect? What does a successful solution look like?"
-              rows={3}
-              maxLength={500}
-              className="text-base resize-none"
-              {...register('solution_expectations')}
-            />
-            <div className="flex justify-end">
-              <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
-            </div>
-            {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+        {/* 3. Solution Expectations */}
+        <div className="space-y-1.5">
+          <Label htmlFor="si-expectations" className="text-sm font-medium">
+            Solution Expectations <span className="text-destructive">*</span>
+          </Label>
+          <Textarea
+            id="si-expectations"
+            placeholder="What outcomes do you expect? What does a successful solution look like?"
+            rows={3}
+            maxLength={500}
+            className="text-base resize-none"
+            {...register('solution_expectations')}
+          />
+          <div className="flex justify-end">
+            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
           </div>
-        )}
+          {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+        </div>
 
         {/* Sector / Domain */}
         <div className="space-y-1.5">
@@ -288,66 +370,62 @@ export function SimpleIntakeForm() {
           {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
         </div>
 
-        {/* Budget Range (MP only) */}
-        {isMP && (
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">
-              Budget Range <span className="text-destructive">*</span>
-            </Label>
-            <div className="flex items-center gap-3">
-              <Controller
-                name="currency"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-28 shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map(c => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <Input type="number" placeholder="Min" className="flex-1" {...register('budget_min')} />
-              <span className="text-muted-foreground text-sm">–</span>
-              <Input type="number" placeholder="Max" className="flex-1" {...register('budget_max')} />
-            </div>
-            {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
-            {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
-          </div>
-        )}
-
-        {/* Timeline (MP only) */}
-        {isMP && (
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">
-              Expected Timeline <span className="text-destructive">*</span>
-            </Label>
+        {/* Budget Range */}
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Budget Range <span className="text-destructive">*</span>
+          </Label>
+          <div className="flex items-center gap-3">
             <Controller
-              name="expected_timeline"
+              name="currency"
               control={control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timeline…" />
+                  <SelectTrigger className="w-28 shrink-0">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIMELINE_OPTIONS.map(t => (
-                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    {CURRENCY_OPTIONS.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             />
-            {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
+            <Input type="number" placeholder="Min" className="flex-1" {...register('budget_min')} />
+            <span className="text-muted-foreground text-sm">–</span>
+            <Input type="number" placeholder="Max" className="flex-1" {...register('budget_max')} />
           </div>
-        )}
+          {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
+          {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
+        </div>
 
-        {/* Architect picker (MP model only) */}
-        {isMP && architects.length > 0 && (
+        {/* Timeline */}
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Expected Timeline <span className="text-destructive">*</span>
+          </Label>
+          <Controller
+            name="expected_timeline"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select timeline…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMELINE_OPTIONS.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
+        </div>
+
+        {/* Architect picker */}
+        {architects.length > 0 && (
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">
               Assign Challenge Architect
@@ -383,7 +461,7 @@ export function SimpleIntakeForm() {
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
           ) : (
-            <><Send className="h-4 w-4 mr-2" /> {isMP ? 'Submit Brief' : 'Submit Idea'}</>
+            <><Send className="h-4 w-4 mr-2" /> Submit Brief</>
           )}
         </Button>
         <Button
