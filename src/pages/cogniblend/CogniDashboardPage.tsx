@@ -1,59 +1,28 @@
 /**
- * CogniBlend Dashboard — Page content (rendered inside CogniShell).
+ * CogniBlend Dashboard — Simplified two-section layout.
  * Route: /cogni/dashboard
  */
 
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { useCogniDashboard } from '@/hooks/cogniblend/useCogniDashboard';
-import { useCogniWaitingFor } from '@/hooks/cogniblend/useCogniWaitingFor';
-import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useCompletePhase } from '@/hooks/cogniblend/useCompletePhase';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { NeedsActionSection } from '@/components/cogniblend/dashboard/NeedsActionSection';
-import { WaitingForSection } from '@/components/cogniblend/dashboard/WaitingForSection';
-import { MyChallengesSection } from '@/components/cogniblend/dashboard/MyChallengesSection';
-import { OpenChallengesSection } from '@/components/cogniblend/dashboard/OpenChallengesSection';
-import { RecentActivitySection } from '@/components/cogniblend/dashboard/RecentActivitySection';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
+import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
+import { MyRequestsTracker } from '@/components/cogniblend/dashboard/MyRequestsTracker';
 import { RecentNotificationsWidget } from '@/components/cogniblend/dashboard/RecentNotificationsWidget';
-import { AllRolesSummaryWidget } from '@/components/cogniblend/dashboard/AllRolesSummaryWidget';
-import { WhatsNextCard } from '@/components/cogniblend/dashboard/WhatsNextCard';
 import { Zap } from 'lucide-react';
-import { toast } from 'sonner';
-import { useMemo } from 'react';
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const { activeRole, availableRoles } = useCogniRoleContext();
-  const allRoleCodesSet = useMemo(() => new Set(availableRoles), [availableRoles]);
-  const { data: items = [], isLoading } = useCogniDashboard(user?.id);
-  const { data: waitingItems = [], isLoading: waitingLoading } = useCogniWaitingFor(user?.id);
-  const { data: myChallenges, isLoading: myChallengesLoading } = useMyChallenges(user?.id);
-  const completePhase = useCompletePhase(allRoleCodesSet, navigate);
+  const { activeRole } = useCogniRoleContext();
   const { data: orgContext } = useOrgModelContext();
 
   const showBypassBanner = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  const handleTransition = (challengeId: string, action: string) => {
-    if (action === 'complete_phase' && user?.id) {
-      completePhase.mutate({ challengeId, userId: user.id });
-      return;
-    }
-    toast.info(`Action "${action}" on challenge ${challengeId.slice(0, 8)}… (not yet implemented)`);
-  };
-
   return (
     <>
-      {/* ── All Roles Summary (2+ roles) ──────────────── */}
-      <AllRolesSummaryWidget />
-
-      {/* ── What's Next Card ─────────────────────────── */}
-      <WhatsNextCard />
-
-      {/* ── Action Items Widget (all roles) ────────────── */}
+      {/* ── Welcome Banner + Stats (from ActionItemsWidget) ── */}
       <ActionItemsWidget />
 
       {/* ── AGG Phase 1 Bypass Banner ────────────────────── */}
@@ -69,29 +38,16 @@ export default function CogniDashboardPage() {
         </div>
       )}
 
-      <NeedsActionSection
-        items={items}
-        isLoading={isLoading}
-        completingChallengeId={completePhase.isPending ? (completePhase.variables?.challengeId ?? null) : null}
-        onTransition={handleTransition}
-        activeRole={activeRole}
-      />
-      <WaitingForSection items={waitingItems} isLoading={waitingLoading} activeRole={activeRole} />
-      <MyChallengesSection
-        items={myChallenges?.items ?? []}
-        roleCounts={myChallenges?.roleCounts ?? {}}
-        isLoading={myChallengesLoading}
-        activeRole={activeRole}
-        availableRoles={availableRoles}
-      />
-      <OpenChallengesSection />
+      {/* ── Section 1: My Action Items ───────────────────── */}
+      <MyActionItemsSection />
 
-      {/* ── Recent Notifications ──────────────────────── */}
+      {/* ── Section 2: My Requests Tracker ───────────────── */}
+      <MyRequestsTracker />
+
+      {/* ── Recent Notifications ─────────────────────────── */}
       <div className="mt-5">
         <RecentNotificationsWidget />
       </div>
-
-      <RecentActivitySection />
     </>
   );
 }

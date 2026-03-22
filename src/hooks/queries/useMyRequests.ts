@@ -15,7 +15,9 @@ export interface RequestRow {
   master_status: string;
   operating_model: string | null;
   current_phase: number | null;
+  phase_status: string | null;
   created_at: string;
+  updated_at: string | null;
   urgency: string;
   architect_name: string | null;
 }
@@ -36,11 +38,10 @@ export function useMyRequests(statusFilter: string, searchTerm: string) {
 
       let query = supabase
         .from('challenges')
-        .select('id, title, master_status, current_phase, created_at, eligibility, operating_model')
+        .select('id, title, master_status, current_phase, phase_status, created_at, updated_at, eligibility, operating_model')
         .eq('organization_id', orgId)
         .eq('is_active', true)
         .eq('is_deleted', false)
-        .lte('current_phase', 2)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE + 1);
 
@@ -111,7 +112,9 @@ export function useMyRequests(statusFilter: string, searchTerm: string) {
           master_status: c.master_status ?? 'DRAFT',
           operating_model: c.operating_model ?? null,
           current_phase: c.current_phase,
+          phase_status: c.phase_status ?? null,
           created_at: c.created_at,
+          updated_at: c.updated_at ?? null,
           urgency,
           architect_name: architectMap[c.id] ?? null,
         };
