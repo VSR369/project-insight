@@ -138,15 +138,31 @@ function StatusTimeline({ challengeId }: { challengeId: string }) {
   );
 }
 
+/* ── Route helper for View button ─────────────── */
+
+function getViewRoute(item: RequestRow): { route: string; label: string } {
+  if (item.master_status === 'DRAFT') {
+    return { route: `/cogni/challenges/${item.id}/edit`, label: 'Edit' };
+  }
+  const phase = item.current_phase ?? 1;
+  if (phase <= 2) return { route: `/cogni/challenges/${item.id}/spec`, label: 'View Spec' };
+  if (phase === 3) return { route: `/cogni/challenges/${item.id}/legal`, label: 'Legal' };
+  if (item.master_status === 'PUBLISHED' || phase >= 7) {
+    return { route: `/cogni/challenges/${item.id}`, label: 'Manage' };
+  }
+  return { route: `/cogni/challenges/${item.id}/spec`, label: 'View' };
+}
+
 /* ── Expandable Row ──────────────────────────────────── */
 
-function RequestRow({ item }: { item: RequestRow }) {
+function RequestRowItem({ item }: { item: RequestRow }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const badge = STATUS_BADGE[item.master_status] ?? STATUS_BADGE.ACTIVE;
   const phase = item.current_phase;
   const withWhom = phase ? (PHASE_OWNER[phase] ?? '—') : '—';
   const phaseLabel = phase ? (PHASE_LABELS[phase] ?? `Phase ${phase}`) : '—';
+  const { route, label } = getViewRoute(item);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -178,11 +194,11 @@ function RequestRow({ item }: { item: RequestRow }) {
             className="h-7 gap-1 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/cogni/challenges/${item.id}`);
+              navigate(route);
             }}
           >
             <Eye className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">View</span>
+            <span className="hidden lg:inline">{label}</span>
           </Button>
         </TableCell>
       </TableRow>
