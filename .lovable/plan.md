@@ -1,129 +1,146 @@
 
 
-## Plan: Phase 1 — Extend AI Prompt for Category B Fields + Add Challenge Settings Panel to Curation Review
+# Final Comprehensive Plan: Streamlined Challenge Creation Flow + Curation/Approval Pipeline
 
-This plan addresses the expert feedback in priority order, implementing Phase 1 of the restructuring. No existing features are removed or broken.
+## What Already Exists (No Changes Needed)
 
----
-
-### Phase 1A: Extend AI Prompt to Draft 13 Category B Fields
-
-**Problem**: The AI generates problem statements, deliverables, and evaluation criteria but does NOT generate context/background, root causes, affected stakeholders, scoring rubrics, preferred approaches, or expected outcomes as separate persisted fields.
-
-**Approach**: This is a prompt engineering change — no new UI needed. The `generate-challenge-spec` edge function prompt gets extended to include these fields in its output, and the response type + DB persistence are updated.
-
-#### File: `supabase/functions/generate-challenge-spec/index.ts`
-- Extend the system prompt to instruct the AI to also generate:
-  - `context_background` (rich text)
-  - `root_causes` (rich text)
-  - `affected_stakeholders` (string array)
-  - `current_deficiencies` (rich text)
-  - `expected_outcomes` (string array)
-  - `preferred_approach` (text)
-  - `approaches_not_of_interest` (text)
-  - `scoring_rubrics` (array of `{ criterion_name, levels: [{score, label, description}] }`)
-  - `effort_level` (low/medium/high/expert)
-  - `reward_description` (text)
-  - `eligibility_notes` (text — already exists)
-  - `phase_notes` (text)
-  - `complexity_notes` (text)
-- These are appended to the existing JSON output schema in the prompt
-
-#### File: `src/hooks/mutations/useGenerateChallengeSpec.ts`
-- Extend the `GeneratedSpec` interface with the new optional fields
-
-#### File: `src/pages/cogniblend/AISpecReviewPage.tsx`
-- When persisting the spec after approval, save new fields to the `challenges` record (they map to existing JSONB columns like `complexity_parameters` extended object, or the challenge's extended metadata)
-- These fields are stored in a new JSONB column `extended_brief` on `challenges`
-
-#### Migration: Add `extended_brief` JSONB column
-- `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS extended_brief JSONB DEFAULT '{}'::jsonb;`
-- This single column holds all Category B fields as a structured JSON object, avoiding 13 separate column additions
+| Component | Status |
+|-----------|--------|
+| ConversationalIntakePage (6-field AI intake for CR/CA) | Implemented |
+| CogniSubmitRequestPage (12-field Solution Request for AM/RQ) | Implemented (will be simplified) |
+| CurationChecklistPanel (15-item checklist + Submit to ID button) | Implemented |
+| ApprovalReviewPage (ID reviews challenge, 4 tabs, ApprovalActionBar) | Implemented |
+| ApprovalQueuePage (ID queue listing) | Implemented |
+| RoleSwitcher in CogniTopBar | Implemented (hidden on mobile) |
+| CogniRoleContext (role switching, localStorage sync) | Implemented |
+| Governance mode per-challenge, tier-gated | Implemented correctly |
+| Engagement model per-challenge | Implemented correctly |
 
 ---
 
-### Phase 1B: Add "Challenge Settings" Panel to Curation Review
+## 6 Implementation Steps
 
-**Problem**: 16 Category A org-policy fields (rewards, timeline, access) are only available in the Manual Editor. Curators cannot set them in the AI path, forcing a context switch that kills trust.
+### Step 1: Role-Based Auto-Routing on ChallengeCreatePage
 
-**Approach**: Add three collapsible settings sections within the Curation Review page's existing group structure. Pre-populate with defaults from the challenge record or org defaults.
+**File: `src/pages/cogniblend/ChallengeCreatePage.tsx`**
 
-#### File: `src/pages/cogniblend/CurationReviewPage.tsx`
-Changes to the SECTIONS array and groups:
+- When `activeRole` is `AM` or `RQ`: skip card layout, render `SimpleIntakeForm` inline
+- When `activeRole` is `CR` or `CA`: show 2 cards with renamed labels:
+  - "Describe Your Problem" (was "AI-Assisted") — badge: Recommended
+  - "Build Spec Manually" (was "Manual Editor") — no badge change
+- Remove the Solution Request card (AM/RQ no longer navigate to `/cogni/submit-request`)
+- Keep `CreationContextBar` and `GovernanceFooter`
 
-1. **Add `ChallengeData` fields to the query** (line ~729):
-   - Add: `submission_deadline, challenge_visibility, effort_level, hook, max_solutions, solver_eligibility_types, solver_visibility_types, extended_brief`
+### Step 2: Create SimpleIntakeForm (5-field AM/RQ Intake)
 
-2. **Add new section definitions** to the SECTIONS array:
-   - `submission_deadline` — Date picker, Attribution: "Org Policy"
-   - `challenge_visibility` — Select dropdown (public/private/invite_only)
-   - `effort_level` — Radio group (low/medium/high/expert) with reward guidance
-   - `hook` — Text input for tagline
-   - `extended_brief` — Collapsible sub-sections rendering context, root causes, stakeholders, etc.
+**New file: `src/components/cogniblend/SimpleIntakeForm.tsx`**
 
-3. **Update GROUPS** to include new section keys:
-   - Content group: add `hook`, `extended_brief`
-   - Evaluation group: already has `reward_structure` (which handles milestones via `RewardStructureDisplay`)
-   - Publication group: add `submission_deadline`, `challenge_visibility`, `effort_level`
+| Field | Type | Required |
+|-------|------|----------|
+| Title | Text (max 100 chars) | Yes |
+| Problem Summary | Textarea (max 500 chars) | Yes |
+| Sector/Domain | Dropdown (`md_industry_segments`) | Yes |
+| Budget Range | Min/Max + Currency | Yes |
+| Timeline | Dropdown (1-3/3-6/6-12/12+ months) | Yes |
 
-4. **Add inline editors** for the new fields:
-   - Date picker for `submission_deadline`
-   - Select for `challenge_visibility`
-   - Radio group for `effort_level` (reuse constants from `StepRewards.tsx`)
+Writing prompt below Problem Summary textarea: *"Describe what is broken, who is affected, and what a good solution would achieve."*
 
-#### File: `src/components/cogniblend/curation/CurationSectionEditor.tsx`
-- Add `DateFieldEditor` — simple date input with save/cancel
-- Add `SelectFieldEditor` — select dropdown with save/cancel
-- Add `RadioFieldEditor` — radio group with save/cancel
+On submit: creates challenge at Phase 1, assigns Challenge Architect (MP: manual picker, AGG: auto), navigates to confirmation. Reuses `useSubmitSolutionRequest` mutation.
 
-#### File: `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx` (NEW)
-- Read-only + editable renderer for the `extended_brief` JSONB
-- Shows: Context & Background, Root Causes, Affected Stakeholders, Expected Outcomes, Preferred Approach, Approaches Not of Interest as sub-sections
-- Each sub-section is independently editable via Tiptap rich text or tag-style editors
-- Saves back to the `extended_brief` JSONB column
+**Retire `/cogni/submit-request`**: Add redirect in `CogniSubmitRequestPage.tsx` to `/cogni/challenges/create`.
+
+### Step 3: Add Guided Prompts to ConversationalIntakePage
+
+**File: `src/pages/cogniblend/ConversationalIntakePage.tsx`**
+
+Add 3 guiding prompts as helper text (not new fields) below the Problem Statement and Expected Outcomes textareas for CA/CR:
+
+- Below Problem Statement: *"What approaches have already been tried?"* and *"What constraints must the solution work within?"*
+- Below Expected Outcomes: *"What does a successful solution look like?"*
+
+These appear as styled hint text (italic, muted color) to guide thinking without adding form fields.
+
+### Step 4: Hide Curator-Only Fields in ChallengeWizardPage
+
+**File: `src/pages/cogniblend/ChallengeWizardPage.tsx`**
+
+When `activeRole` is `CR` or `CA`, hide/disable the following wizard steps or fields:
+- StepRewards: reward tiers, escrow, payment milestones, rejection fee percentage
+- These fields remain visible and editable when `activeRole` is `CU` (Curator)
+
+Implementation: read `activeRole` from `useCogniRoleContext()`, pass `isCuratorView` prop to `StepRewards` and `StepTimeline` to conditionally render financial fields.
+
+### Step 5: Enhance Curation Checklist with Compliance Items
+
+**File: `src/pages/cogniblend/CurationChecklistPanel.tsx`**
+
+The existing 15-item checklist already covers most items. Verify and ensure these specific compliance checks from Claude's feedback are explicitly present:
+
+| Check | Current Status |
+|-------|---------------|
+| Legal docs attached | Items 10, 11 — already implemented (locked) |
+| IP model confirmed | Not explicit — add as item or verify via `challenge.ip_model` |
+| Reward structure validated | Item 5 — already implemented |
+| Payment milestones sum to 100% | Item 4 (eval weights) exists; add milestone weight check |
+| NDA/CSA in place | Covered by Tier 1 legal (item 10) |
+| Eligibility criteria set | Item 8 — already implemented |
+
+Changes:
+- Replace item 9 ("Taxonomy tags applied" — currently a placeholder `false`) with "IP model confirmed" (auto-check: `!!challenge.ip_model`)
+- Add validation that payment milestone weights sum to 100% within the reward structure check (item 5)
+- "Submit to Innovation Director" button already exists and is gated by `allComplete` — no change needed
+
+### Step 6: All Roles Summary Widget + Mobile RoleSwitcher
+
+**New file: `src/components/cogniblend/dashboard/AllRolesSummaryWidget.tsx`**
+
+For users with 2+ roles, shows compact role cards above other dashboard widgets. Each card: role badge color, role name, pending action count from `roleChallengeCount`. Clicking a card calls `setActiveRole()`.
+
+**File: `src/components/cogniblend/shell/CogniTopBar.tsx`**
+- Remove `hidden md:block` wrapper around `RoleSwitcher` — make visible on all breakpoints
+- Compact pill design on mobile (show role code only)
+
+**File: `src/pages/cogniblend/CogniDashboardPage.tsx`**
+- Add `AllRolesSummaryWidget` above `WhatsNextCard` when `availableRoles.length >= 2`
 
 ---
 
-### Phase 1C: Update Checklist Auto-Checks
+## What is NOT Changed
 
-#### File: `src/pages/cogniblend/CurationReviewPage.tsx`
-- The existing	15-item checklist stays. No items are removed.
-- The new fields enhance completeness but are not hard-blockers (they're already in the wizard as optional fields for non-Enterprise governance)
-
----
-
-### What is NOT changed
-- Manual Editor (8-step wizard) remains functional and accessible via `/cogni/challenges/:id/edit`
-- All existing Curation Review sections remain unchanged
-- No database columns are removed
-- No existing routes are modified
-- RewardStructureDisplay already handles reward tiers + milestones editing — no duplication
+- Innovation Director role (ID) — already fully implemented with ApprovalQueuePage + ApprovalReviewPage + ApprovalActionBar
+- Governance mode — stays per-challenge, tier-gated (Basic=QUICK only, Standard=QUICK+STRUCTURED, Premium=all three)
+- Engagement model — stays per-challenge
+- ConversationalIntakePage field count (6 fields) — unchanged, only adding helper text
+- CurationReviewPage — unchanged (Submit to ID button + 15-item checklist already work)
+- Extended brief + Challenge Settings panels — unchanged
+- All phase gates (GATE-02, GATE-04, GATE-11) — unchanged
 
 ---
 
-### Files Summary
+## Files Summary
 
 | Action | File | Purpose |
 |--------|------|---------|
-| Modify | `supabase/functions/generate-challenge-spec/index.ts` | Extend AI prompt for 13 Category B fields |
-| Modify | `src/hooks/mutations/useGenerateChallengeSpec.ts` | Extend GeneratedSpec type |
-| Modify | `src/pages/cogniblend/AISpecReviewPage.tsx` | Persist new fields on approval |
-| Modify | `src/pages/cogniblend/CurationReviewPage.tsx` | Add settings sections + query fields |
-| Modify | `src/components/cogniblend/curation/CurationSectionEditor.tsx` | Add Date/Select/Radio editors |
-| Create | `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx` | Extended brief renderer |
-| Migration | Add `extended_brief` JSONB column to `challenges` | Single column for all Category B data |
-| Deploy | Edge function redeployment | `generate-challenge-spec` |
+| Modify | `ChallengeCreatePage.tsx` | Role-based auto-routing, rename 2 cards, remove Solution Request card |
+| Create | `SimpleIntakeForm.tsx` | 5-field lightweight form with writing prompt for AM/RQ |
+| Modify | `CogniSubmitRequestPage.tsx` | Redirect to `/cogni/challenges/create` |
+| Modify | `ConversationalIntakePage.tsx` | Add 3 guiding prompts as helper text |
+| Modify | `ChallengeWizardPage.tsx` | Hide reward/escrow/milestone fields for CR/CA |
+| Modify | `CurationChecklistPanel.tsx` | Replace placeholder item 9, strengthen item 5 |
+| Create | `AllRolesSummaryWidget.tsx` | Multi-role dashboard summary |
+| Modify | `CogniDashboardPage.tsx` | Add AllRolesSummaryWidget |
+| Modify | `CogniTopBar.tsx` | RoleSwitcher visible on all breakpoints |
 
----
+## Implementation Order
 
-### Clarification on Curator vs Creator Responsibility
+| Step | Effort | Dependencies |
+|------|--------|-------------|
+| Step 1: Role-based auto-routing | Medium | Step 2 (needs SimpleIntakeForm) |
+| Step 2: SimpleIntakeForm + retire Solution Request | Medium | None |
+| Step 3: Guided prompts on ConversationalIntakePage | Small | None |
+| Step 4: Hide Curator-only fields in wizard | Small | None |
+| Step 5: Strengthen curation checklist | Small | None |
+| Step 6: AllRolesSummaryWidget + mobile RoleSwitcher | Medium | None |
 
-The expert feedback correctly identifies that Category A fields (rewards, deadlines, visibility) are **org policy decisions** — they belong to the **Creator/Requestor** who knows their organization's policies, NOT the Curator. The Curator's job is quality assurance and content refinement.
-
-However, in the current AI-assisted flow, the Creator has no place to enter these fields after the conversational intake. The solution is:
-
-1. **AI Spec Review page** (Creator-facing): Add a collapsible "Challenge Settings" section where the Creator enters org-policy fields BEFORE submitting to Legal/Curation
-2. **Curation Review page** (Curator-facing): Show these fields as **read-only with override capability** — Curator can see what the Creator set and adjust if needed
-
-This preserves the correct responsibility model while closing the gap.
+Steps 2-5 can be parallelized. Step 1 depends on Step 2. Step 6 is independent.
 
