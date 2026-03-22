@@ -278,8 +278,8 @@ export default function CurationActions({
       return;
     }
 
-    // MP model with AM approval required: route to AM first
-    if (amApprovalRequired) {
+    // AM declined → resubmit, or MP model with AM approval required → route to AM
+    if (isAmDeclined || amApprovalRequired) {
       amApprovalMutation.mutate();
       return;
     }
