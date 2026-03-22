@@ -248,7 +248,7 @@ function DocActionCard({ doc, challengeId, onAction }: {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reject document?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      The Challenge Creator will be notified and must upload a revised version.
+                      The Challenge Creator / Architect will be notified and must upload a revised version.
                       {!notes.trim() && ' Please add review notes before rejecting.'}
                     </AlertDialogDescription>
                   </AlertDialogHeader>

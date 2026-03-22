@@ -705,7 +705,7 @@ export default function AISpecReviewPage() {
   const generateSpec = useGenerateChallengeSpec();
 
   // ═══════ Derived — role checks ═══════
-  const isCR = userRoles.includes('CR');
+  const isCR = userRoles.includes('CR') || userRoles.includes('CA');
   const isCU = userRoles.includes('CU');
   const isMP = challenge?.operating_model === 'MP';
 
@@ -1015,10 +1015,10 @@ export default function AISpecReviewPage() {
     return (
       <div className="max-w-4xl mx-auto p-6 text-center py-16">
         <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-foreground">Waiting for Challenge Creator</h2>
+        <h2 className="text-lg font-semibold text-foreground">Waiting for {isMP ? 'Challenge Architect' : 'Challenge Creator'}</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          The Challenge Creator has not yet generated the AI specification for this challenge.
-          Please check back later or contact the assigned creator.
+          The {isMP ? 'Challenge Architect' : 'Challenge Creator'} has not yet generated the AI specification for this challenge.
+          Please check back later or contact the assigned {isMP ? 'architect' : 'creator'}.
         </p>
         <Button
           variant="outline"

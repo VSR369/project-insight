@@ -27,7 +27,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: false,
     users: [
-      { email: "mp-light-admin@testsetup.dev", displayName: "MP Light Admin", roles: ["AM", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "mp-light-admin@testsetup.dev", displayName: "MP Light Admin", roles: ["AM", "CA", "CU", "ID", "ER", "FC"] },
     ],
   },
   mp_enterprise_3: {
@@ -38,7 +38,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "mp-ent-creator@testsetup.dev", displayName: "MP Ent Creator", roles: ["CR", "CU"] },
+      { email: "mp-ent-creator@testsetup.dev", displayName: "MP Ent Architect", roles: ["CA", "CU"] },
       { email: "mp-ent-director@testsetup.dev", displayName: "MP Ent Director", roles: ["ID", "ER"] },
       { email: "mp-ent-ops@testsetup.dev", displayName: "MP Ent Ops", roles: ["AM", "FC"] },
     ],
@@ -82,14 +82,14 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     users: [
       { email: "nh-rq@testsetup.dev", displayName: "Alex Morgan", roles: ["RQ"] },
       { email: "nh-am@testsetup.dev", displayName: "Alex Morgan", roles: ["AM"] },
-      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CR"] },
+      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CA"] },
       { email: "nh-cu@testsetup.dev", displayName: "Casey Underwood", roles: ["CU"] },
       { email: "nh-id@testsetup.dev", displayName: "Dana Irving", roles: ["ID"] },
       { email: "nh-er1@testsetup.dev", displayName: "Evelyn Rhodes", roles: ["ER"] },
       { email: "nh-er2@testsetup.dev", displayName: "Ethan Russell", roles: ["ER"] },
       { email: "nh-lc@testsetup.dev", displayName: "Leslie Chen", roles: ["LC"] },
       { email: "nh-fc@testsetup.dev", displayName: "Frank Coleman", roles: ["FC"] },
-      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["AM", "RQ", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["AM", "RQ", "CA", "CR", "CU", "ID", "ER", "FC"] },
     ],
   },
 };

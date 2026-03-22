@@ -99,7 +99,7 @@ export default function CurationActions({
         .from("user_challenge_roles" as any)
         .select("user_id")
         .eq("challenge_id", challengeId)
-        .eq("role_code", "CR")
+        .in("role_code", ["CR", "CA"])
         .eq("status", "ACTIVE")
         .limit(1)
         .maybeSingle();
