@@ -301,9 +301,24 @@ All colors MUST be HSL.
 }
 
 /* Tighter display for read-only rendered content */
-.editor-content-display p {
-  min-height: unset;
+.editor-content-display {
+  padding: 0 !important;
+  min-height: 0 !important;
 }
+
+.editor-content-display p {
+  min-height: 0 !important;
+}
+
+.editor-content-display p:empty {
+  margin: 0 !important;
+  display: none;
+}
+
+.editor-content-display > *:first-child {
+  margin-top: 0 !important;
+}
+
 .editor-content-display > *:last-child {
   margin-bottom: 0 !important;
 }
