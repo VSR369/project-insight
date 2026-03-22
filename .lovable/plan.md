@@ -1,37 +1,48 @@
 
 
-# Plan: Fix AM Brief Data Flow to Challenge Architect View
+# Plan: Replace "Challenge Creator" with "Challenge Architect" for MP Model
 
-## Problem
-The "Account Manager's Original Brief" panel on the AISpecReviewPage (Challenge Architect's view) has several data-binding bugs that prevent AM-entered data from displaying correctly:
+## Root Causes
 
-1. **Wrong field for Problem Summary**: Panel reads `challenge.description` but AM intake saves to `problem_statement`
-2. **Missing Solution Expectations**: AM enters "What success looks like commercially" (saved to `scope`), but it is not shown
-3. **Missing Beneficiaries Mapping**: AM optionally enters this (saved to `extended_brief.beneficiaries_mapping`), but it is not shown
-4. **Timeline not resolving**: `expected_timeline` is stored inside `phase_schedule` JSONB, but panel reads it as a top-level field — always empty
-5. **Plain text rendering**: Rich HTML from `RichTextEditor` rendered as plain `<p>` instead of `SafeHtmlRenderer`
-6. **Panel duplicated**: Same broken panel exists in both QUICK mode (line 1366) and STRUCTURED mode (line 1490) branches
+From network data, there are two distinct problems:
+
+1. **Database: existing demo challenges have `CR` role, not `CA`** — The `get_user_all_challenge_roles` RPC returns `role_codes: ["CR"]` even for MP challenges. The seeding script assigned `CR` before the fix was added.
+
+2. **Code: `isCR` check in AISpecReviewPage excludes `CA`** — Line 708: `const isCR = userRoles.includes('CR')` does not include `CA`, so Challenge Architects cannot trigger AI generation or see the spec review UI.
+
+3. **Hardcoded "Challenge Creator" strings** — Multiple files still display "Challenge Creator" instead of dynamically choosing based on operating model.
+
+4. **CurationActions queries only `CR`** — The curation return-to-creator query hardcodes `role_code = 'CR'`, missing CA users.
 
 ## Changes
 
-### File: `src/pages/cogniblend/AISpecReviewPage.tsx`
+### 1. `src/pages/cogniblend/AISpecReviewPage.tsx`
+- Change `const isCR = userRoles.includes('CR')` to `const isCR = userRoles.includes('CR') || userRoles.includes('CA')`
+- Update the "Waiting for Challenge Creator" message to be model-aware: show "Challenge Architect" when `operating_model === 'MP'`
 
-Both AM Brief panels (QUICK + STRUCTURED) will be updated identically:
+### 2. `src/hooks/cogniblend/useCompletePhase.ts`
+- Add `CA` entry to `ROLE_NAV_MAP`:
+  ```
+  CA: { label: 'Challenge Architect', path: '/cogni/my-challenges' },
+  ```
 
-1. **Fix visibility condition**: Change `challenge.description || challengeRecord.reward_structure` to `challenge.problem_statement || challengeRecord.reward_structure`
+### 3. `src/components/cogniblend/curation/CurationActions.tsx`
+- Change the creator lookup query to search for both `CR` and `CA` role codes using `.in('role_code', ['CR', 'CA'])`
 
-2. **Fix Problem Summary**: Change `challenge.description` to `challenge.problem_statement` and render with `<SafeHtmlRenderer>` instead of `<p>`
+### 4. `src/components/cogniblend/dashboard/MyChallengesSection.tsx`
+- Already has CA tab. No changes needed.
 
-3. **Add Solution Expectations**: Show `challenge.scope` (the AM's "What success looks like commercially") with `<SafeHtmlRenderer>`
+### 5. `src/pages/cogniblend/LcReviewPanel.tsx`
+- Update "The Challenge Creator will be notified" to "The Challenge Creator/Architect will be notified"
 
-4. **Fix Timeline**: Extract from `phase_schedule` JSONB — `(challengeRecord.phase_schedule as any)?.expected_timeline` instead of `challengeRecord.expected_timeline`
+### 6. Demo seed data fix
+- The existing MP challenges in the DB have `CR` role code. The seeding edge function needs to assign `CA` for MP challenges. I will search for and update the seed logic to use the correct role code based on operating model.
 
-5. **Add Beneficiaries Mapping**: Show `extended_brief.beneficiaries_mapping` if present, with `<SafeHtmlRenderer>`
+## Technical Details
 
-6. **Add AM Approval flag**: Show whether the AM requested approval before publication
+The core issue is that `CA` was added as a concept but many code paths still only check for `CR`. This plan ensures every place that references the Challenge Creator role also accounts for Challenge Architect when the operating model is Marketplace.
 
-7. **Import `SafeHtmlRenderer`** (already imported or add if missing)
-
-## Impact
-This is a read-only display fix. No database changes, no schema changes, no data migration. The data is already being saved correctly by the AM intake — the Architect's view just was not reading the right fields.
+**Files to modify**: ~5 source files
+**Risk**: Low — read-only display label changes plus one role-check expansion
+**No database migrations needed** — existing seed data with `CR` on MP challenges should ideally be re-seeded, but the code fix will make both `CR` and `CA` work for Phase 2
 
