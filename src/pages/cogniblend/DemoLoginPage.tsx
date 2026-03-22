@@ -76,9 +76,13 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
     {
       email: 'nh-cr@testsetup.dev',
       displayName: 'Chris Rivera',
-      roles: ['CR'],
-      aiDescription: 'Triggers AI to generate full challenge spec, then reviews each section',
-      manualDescription: 'Builds challenge spec manually using the 8-step wizard',
+      roles: [isMP ? 'CA' : 'CR'],
+      aiDescription: isMP
+        ? 'Receives AM brief, triggers AI to generate full challenge spec, then reviews each section'
+        : 'Triggers AI to generate full challenge spec, then reviews each section',
+      manualDescription: isMP
+        ? 'Receives AM brief, builds challenge spec manually using the 8-step wizard'
+        : 'Builds challenge spec manually using the 8-step wizard',
       aiDestination: '/cogni/challenges/create?tab=ai',
       manualDestination: '/cogni/challenges/create?tab=editor',
       stepLabel: 'Step 1–2',
