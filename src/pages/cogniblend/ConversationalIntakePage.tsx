@@ -273,7 +273,7 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
-  const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
 
   // Use props if provided (from landing page), otherwise fall back to local state
