@@ -103,7 +103,9 @@ type SimpleIntakeValues = z.infer<typeof mpSchema>;
 export function SimpleIntakeForm() {
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
+    () => restoreState<ChallengeTemplate>('cogni_intake_simple_template'),
+  );
   const [problemFullscreen, setProblemFullscreen] = useState(false);
   const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
 
