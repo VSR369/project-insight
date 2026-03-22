@@ -218,7 +218,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "scope",
     label: "Scope",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "scope",
     isFilled: (ch) => !!ch.scope?.trim(),
     render: (ch) => <AiContentRenderer content={ch.scope} compact />,
