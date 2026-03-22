@@ -277,43 +277,128 @@ serve(async (req) => {
       results.push(`   Roles: ${userDef.roles.join(", ")}`);
     }
 
-    // ─── Step 3: Create a demo challenge ───
-    const challengeId = crypto.randomUUID();
-    const isAgg = config.operatingModel === "AGG";
-    const { error: challengeErr } = await supabaseAdmin.from("challenges").insert({
-      id: challengeId,
+    // ─── Step 3: Fetch industry segment IDs for realistic seeding ───
+    const { data: segments } = await supabaseAdmin
+      .from("industry_segments")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true })
+      .limit(10);
+
+    const techSegment = segments?.find(s => /technolog/i.test(s.name));
+    const healthSegment = segments?.find(s => /health/i.test(s.name));
+    const fallbackSegmentId = segments?.[0]?.id ?? null;
+    const techSegmentId = techSegment?.id ?? fallbackSegmentId;
+    const healthSegmentId = healthSegment?.id ?? fallbackSegmentId;
+
+    if (techSegmentId) {
+      results.push(`📌 Industry segments: Tech="${techSegment?.name ?? 'fallback'}", Health="${healthSegment?.name ?? 'fallback'}"`);
+    } else {
+      results.push(`⚠️ No industry segments found — eligibility will be empty`);
+    }
+
+    // ─── Step 4: Create two demo challenges (MP + AGG) ───
+    const challengeIds: string[] = [];
+
+    // Helper to find a user by role code
+    const findUserByRole = (role: string) => userIds.find(u => u.roles.includes(role));
+    const amUser = findUserByRole("AM");
+    const rqUser = findUserByRole("RQ");
+
+    // Challenge A — MP model (AM-submitted)
+    const mpChallengeId = crypto.randomUUID();
+    const { error: mpErr } = await supabaseAdmin.from("challenges").insert({
+      id: mpChallengeId,
       tenant_id: orgId,
       organization_id: orgId,
-      title: `${config.orgName} — Demo Challenge`,
+      title: "Predictive Maintenance for Smart Manufacturing",
       status: "draft",
       master_status: "IN_PREPARATION",
-      current_phase: 1,
-      operating_model: config.operatingModel,
+      current_phase: 2,
+      phase_status: "SPEC_REVIEW",
+      operating_model: "MP",
       governance_profile: config.governanceProfile,
-      challenge_model_is_agg: isAgg,
+      challenge_model_is_agg: false,
       lc_review_required: config.governanceProfile === "ENTERPRISE",
       is_active: true,
       is_deleted: false,
       is_qa_closed: false,
       solutions_awarded: 0,
-      description: "This is a demo challenge created by the test scenario setup.",
+      description: "Demo MP challenge — AM intake for CR/CA spec review.",
+      problem_statement: "Our manufacturing floor experiences unplanned equipment failures that cost $2.3M annually in downtime. Current preventive maintenance schedules are time-based rather than condition-based, leading to both unexpected breakdowns and unnecessary maintenance on healthy equipment. We need a predictive maintenance solution that uses IoT sensor data and machine learning to forecast equipment failures 48-72 hours in advance.",
+      scope: "The solution should: (1) integrate with existing SCADA and PLC systems across 12 production lines, (2) provide a real-time dashboard for maintenance teams, (3) generate automated work orders when failure probability exceeds threshold, (4) reduce unplanned downtime by at least 40% within 6 months of deployment, and (5) include a mobile app for field technicians.",
+      reward_structure: { currency: "USD", budget_min: 25000, budget_max: 75000 },
+      phase_schedule: { expected_timeline: "3-6" },
+      eligibility: JSON.stringify({
+        industry_segment_id: techSegmentId,
+        domain_tags: ["manufacturing", "IoT", "machine-learning"],
+        urgency: "standard",
+        constraints: "Must comply with ISO 55000 asset management standards. Solution must run on-premise due to data sovereignty requirements.",
+      }),
+      extended_brief: {
+        am_approval_required: true,
+        beneficiaries_mapping: "Primary: Plant Operations Team (45 technicians), Secondary: Production Planning (12 managers), Tertiary: Executive Leadership (quarterly reporting)",
+      },
+      created_by: amUser?.userId ?? userIds[0]?.userId ?? null,
     });
-    if (challengeErr) throw new Error(`Challenge creation failed: ${challengeErr.message}`);
-    results.push(`✅ Created demo challenge: "${config.orgName} — Demo Challenge"`);
+    if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
+    challengeIds.push(mpChallengeId);
+    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — SPEC_REVIEW)`);
 
-    // ─── Step 4: Assign user_challenge_roles ───
+    // Challenge B — AGG model (RQ-submitted)
+    const aggChallengeId = crypto.randomUUID();
+    const { error: aggErr } = await supabaseAdmin.from("challenges").insert({
+      id: aggChallengeId,
+      tenant_id: orgId,
+      organization_id: orgId,
+      title: "Healthcare Cost Reduction Through Process Automation",
+      status: "draft",
+      master_status: "IN_PREPARATION",
+      current_phase: 2,
+      phase_status: "SPEC_REVIEW",
+      operating_model: "AGG",
+      governance_profile: config.governanceProfile,
+      challenge_model_is_agg: true,
+      lc_review_required: config.governanceProfile === "ENTERPRISE",
+      is_active: true,
+      is_deleted: false,
+      is_qa_closed: false,
+      solutions_awarded: 0,
+      description: "Demo AGG challenge — RQ intake for CR/CA spec review.",
+      problem_statement: "Administrative overhead in our patient intake and claims processing workflows consumes 35% of staff time. Manual data entry errors result in a 12% claims rejection rate, and average processing time is 14 business days. We believe automation and AI-assisted document processing could significantly reduce costs and improve accuracy, but we need expert guidance on the best approach.",
+      scope: null,
+      reward_structure: {},
+      phase_schedule: { expected_timeline: "6-12" },
+      eligibility: JSON.stringify({
+        industry_segment_id: healthSegmentId,
+        domain_tags: ["healthcare", "process-automation", "AI"],
+        urgency: "standard",
+      }),
+      extended_brief: {
+        beneficiaries_mapping: "Primary: Revenue Cycle Management team (28 staff), Secondary: Clinical Administration (15 coordinators), Tertiary: Patients (reduced wait times and billing errors)",
+        am_approval_required: false,
+      },
+      created_by: rqUser?.userId ?? userIds[0]?.userId ?? null,
+    });
+    if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
+    challengeIds.push(aggChallengeId);
+    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
+
+    // ─── Step 5: Assign user_challenge_roles on BOTH challenges ───
     for (const u of userIds) {
       for (const roleCode of u.roles) {
-        const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({
-          user_id: u.userId,
-          challenge_id: challengeId,
-          role_code: roleCode,
-          is_active: true,
-          auto_assigned: false,
-        });
-        if (ucrErr) throw new Error(`user_challenge_roles insert failed for ${u.displayName}/${roleCode}: ${ucrErr.message}`);
+        for (const cId of challengeIds) {
+          const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({
+            user_id: u.userId,
+            challenge_id: cId,
+            role_code: roleCode,
+            is_active: true,
+            auto_assigned: false,
+          });
+          if (ucrErr) throw new Error(`user_challenge_roles insert failed for ${u.displayName}/${roleCode}: ${ucrErr.message}`);
+        }
       }
-      results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")}`);
+      results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")} (on both challenges)`);
     }
 
     results.push("");
@@ -321,12 +406,13 @@ serve(async (req) => {
     results.push(`🎉 Scenario "${scenario}" setup complete!`);
     results.push(`   Org: ${config.orgName}`);
     results.push(`   Model: ${config.operatingModel} | Governance: ${config.governanceProfile}`);
-    results.push(`   Demo Challenge: ${challengeId}`);
+    results.push(`   MP Challenge: ${mpChallengeId}`);
+    results.push(`   AGG Challenge: ${aggChallengeId}`);
     if (config.phase1Bypass) results.push("   ⚡ Phase 1 bypass enabled");
     results.push("═══════════════════════════════════════");
 
     return new Response(
-      JSON.stringify({ success: true, data: { results, credentials, orgId, orgName: config.orgName, challengeId } }),
+      JSON.stringify({ success: true, data: { results, credentials, orgId, orgName: config.orgName, challengeIds } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
