@@ -1,12 +1,12 @@
 /**
- * MyActionItemsSection — Focused "needs your action" table.
+ * MyActionItemsSection — Unified action items queue.
  * Shows: AM_APPROVAL_PENDING, DRAFT, RETURNED items for the active role.
  */
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Eye, Pencil, Play, ShieldCheck } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { CheckCircle, Eye, Pencil, ShieldCheck, Bell } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,41 +20,15 @@ import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { ROLE_DISPLAY } from '@/types/cogniRoles';
 
-/* ── Phase → role label map ──────────────────────────────── */
-
-const PHASE_ROLE_LABEL: Record<number, string> = {
-  1: 'AM / RQ',
-  2: 'Challenge Creator',
-  3: 'Curator',
-  4: 'Innovation Director',
-  5: 'Innovation Director',
-  6: 'Innovation Director',
-  7: 'Evaluation Reviewer',
-  8: 'Evaluation Reviewer',
-  9: 'Innovation Director',
-  10: 'Finance Controller',
-  11: 'Legal Compliance',
-  12: 'Finance Controller',
-  13: 'Challenge Creator',
-};
+/* ── Phase labels ──────────────────────────────────── */
 
 const PHASE_LABELS: Record<number, string> = {
-  1: 'Intake',
-  2: 'Spec Review',
-  3: 'Legal Docs',
-  4: 'Curation',
-  5: 'Approval',
-  6: 'Publication',
-  7: 'Submissions',
-  8: 'Evaluation',
-  9: 'Award',
-  10: 'Escrow',
-  11: 'Legal Close',
-  12: 'Payout',
-  13: 'Archive',
+  1: 'Intake', 2: 'Spec Review', 3: 'Legal Docs', 4: 'Curation',
+  5: 'Approval', 6: 'Publication', 7: 'Submissions', 8: 'Evaluation',
+  9: 'Award', 10: 'Escrow', 11: 'Legal Close', 12: 'Payout', 13: 'Archive',
 };
 
-/* ── Status badge config ──────────────────────────────── */
+/* ── Status badge config ──────────────────────────── */
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-muted text-muted-foreground' },
@@ -64,14 +38,14 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   ACTIVE: { label: 'Active', className: 'bg-blue-100 text-blue-700' },
 };
 
-/* ── Route helper ────────────────────────────────────── */
+/* ── Route helper ────────────────────────────────── */
 
 function getActionRoute(item: { id: string; status: string; phase?: number; phase_status?: string | null }): {
   route: string; label: string; icon: typeof Eye;
 } {
-  // AM approval items
+  // AM approval items → AM review page
   if (item.phase_status === 'AM_APPROVAL_PENDING' || item.status === 'AM_APPROVAL_PENDING') {
-    return { route: `/cogni/approval`, label: 'Review & Approve', icon: ShieldCheck };
+    return { route: `/cogni/my-requests/${item.id}/review`, label: 'Review & Approve', icon: ShieldCheck };
   }
   // Drafts
   if (item.status === 'DRAFT') {
@@ -81,14 +55,8 @@ function getActionRoute(item: { id: string; status: string; phase?: number; phas
   if (item.status === 'RETURNED') {
     return { route: `/cogni/challenges/${item.id}/edit`, label: 'Revise', icon: Pencil };
   }
-  // Phase-aware routing
-  if (item.phase === 1) return { route: `/cogni/challenges/${item.id}/spec`, label: 'Review Spec', icon: Eye };
-  if (item.phase === 2) return { route: `/cogni/challenges/${item.id}/spec`, label: 'Review Spec', icon: Eye };
-  if (item.phase === 3) return { route: `/cogni/challenges/${item.id}/legal`, label: 'Legal Docs', icon: Eye };
-  if (item.phase === 4 || item.phase === 5) return { route: `/cogni/approval`, label: 'Approve', icon: ShieldCheck };
-  if (item.status === 'PUBLISHED') return { route: `/cogni/challenges/${item.id}`, label: 'Manage', icon: Eye };
-  // Default
-  return { route: `/cogni/challenges/${item.id}`, label: 'View', icon: Eye };
+  // Default: read-only AM view
+  return { route: `/cogni/my-requests/${item.id}/view`, label: 'View', icon: Eye };
 }
 
 export function MyActionItemsSection() {
@@ -96,7 +64,7 @@ export function MyActionItemsSection() {
   const { user } = useAuth();
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
-  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '');
+  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
 
   const isLoading = chLoading || reqLoading || isRolesLoading;
 
@@ -123,7 +91,6 @@ export function MyActionItemsSection() {
       const isRelevant = !activeRole || roles.includes(activeRole) || ch.master_status === 'DRAFT';
       if (!isRelevant) continue;
 
-      // Only show items that need the user's action
       const needsAction =
         ch.master_status === 'DRAFT' ||
         ch.master_status === 'RETURNED' ||
