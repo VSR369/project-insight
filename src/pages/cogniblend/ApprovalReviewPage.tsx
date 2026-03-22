@@ -768,6 +768,49 @@ export default function ApprovalReviewPage() {
         )}
       </div>
 
+      {/* Seeding Data: Original Brief + Curator Assessment */}
+      {challenge.problem_statement && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold">
+                Original Brief from {challenge.operating_model === 'MP' ? 'Account Manager' : 'Challenge Requestor'}
+              </CardTitle>
+              <Badge variant="outline" className="text-[10px] ml-auto">Read Only</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Problem Statement</p>
+              <p className="text-sm text-foreground mt-0.5">{challenge.problem_statement || '—'}</p>
+            </div>
+            {(() => {
+              const reward = parseJson<any>(challenge.reward_structure);
+              if (!reward) return null;
+              return (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Budget Range</p>
+                  <p className="text-sm text-foreground mt-0.5">
+                    {reward.currency ?? 'USD'} {(reward.budget_min ?? 0).toLocaleString()} – {(reward.budget_max ?? 0).toLocaleString()}
+                  </p>
+                </div>
+              );
+            })()}
+            {(() => {
+              const sched = parseJson<any>(challenge.phase_schedule);
+              if (!sched?.expected_timeline) return null;
+              return (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Timeline Urgency</p>
+                  <p className="text-sm text-foreground mt-0.5">{sched.expected_timeline} months</p>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Collapsible Challenge Summary */}
       <ChallengeSummaryCard challenge={challenge} />
 

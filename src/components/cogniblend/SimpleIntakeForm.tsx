@@ -68,9 +68,9 @@ const aggSchema = z.object({
   expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
+  industry_segment_id: z.string().min(1, 'Please select an industry segment'),
   // MP-only fields present but optional for unified form type
   title: z.string().optional(),
-  industry_segment_id: z.string().optional(),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().optional(),
   budget_max: z.coerce.number().optional(),
@@ -158,7 +158,7 @@ export function SimpleIntakeForm() {
   const isBusy = isSubmitting || isSaving;
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || modelLoading || tierLoading || (isMP && segmentsLoading)) {
+  if (orgLoading || modelLoading || tierLoading || segmentsLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -205,7 +205,6 @@ export function SimpleIntakeForm() {
       expectedTimeline: data.expected_timeline ?? '',
       domainTags: selectedTemplate?.prefill?.domain_tags ?? [],
       urgency: 'standard',
-      architectId: data.architect_id || undefined,
       industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
       beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,
@@ -248,6 +247,35 @@ export function SimpleIntakeForm() {
         {errors.selected_template && (
           <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
         )}
+
+        {/* Industry Segment (Mandatory for RQ) */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Industry Segment <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              name="industry_segment_id"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an industry segment…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industrySegments.map((seg: any) => (
+                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs italic text-muted-foreground">
+              Required for auto-assigning the right Challenge Creator to your idea.
+            </p>
+            {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
+          </div>
+        </div>
 
         {/* Step 2: Problem / Idea Editor */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">

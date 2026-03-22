@@ -36,6 +36,7 @@ interface CurationActionsProps {
   checklistSummary: Array<{ id: number; label: string; passed: boolean; method: string }>;
   completedCount: number;
   totalCount: number;
+  operatingModel?: string | null;
 }
 
 export default function CurationActions({
@@ -45,6 +46,7 @@ export default function CurationActions({
   checklistSummary,
   completedCount,
   totalCount,
+  operatingModel,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -160,6 +162,68 @@ export default function CurationActions({
   const isLegalPending = phaseStatus === 'LEGAL_VERIFICATION_PENDING';
   const isFinalCycle = amendmentCount >= 3;
   const maxCycles = 3;
+  const isMP = operatingModel === 'MP';
+
+  // For MP: update phase_status to AM_APPROVAL_PENDING instead of advancing phase
+  const amApprovalMutation = useMutation({
+    mutationFn: async () => {
+      // Set phase_status to AM_APPROVAL_PENDING
+      const { error: updateError } = await supabase
+        .from('challenges')
+        .update({ phase_status: 'AM_APPROVAL_PENDING' } as any)
+        .eq('id', challengeId);
+      if (updateError) throw new Error(updateError.message);
+
+      // Find the AM user for notification
+      const { data: amRole } = await supabase
+        .from('user_challenge_roles')
+        .select('user_id')
+        .eq('challenge_id', challengeId)
+        .eq('role_code', 'AM')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      const amUserId = (amRole as any)?.user_id;
+      if (amUserId) {
+        await supabase.from('cogni_notifications').insert({
+          user_id: amUserId,
+          challenge_id: challengeId,
+          notification_type: 'am_approval_requested',
+          title: 'Challenge ready for your approval',
+          message: 'The Curator has completed the challenge review. Please review and approve before it goes to the Innovation Director.',
+        });
+      }
+
+      // Audit
+      await supabase.rpc("log_audit", {
+        p_user_id: user?.id ?? "",
+        p_challenge_id: challengeId,
+        p_solution_id: "",
+        p_action: "CURATION_SENT_TO_AM",
+        p_method: "UI",
+        p_phase_from: 3,
+        p_phase_to: 3,
+        p_details: {
+          checklist: checklistSummary,
+          completed_count: completedCount,
+          total_count: totalCount,
+          amendment_cycle: amendmentCount,
+          target: 'AM_APPROVAL',
+        } as unknown as Json,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Challenge sent to Account Manager for approval.");
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
+        navigate("/cogni/curation");
+      }, 1500);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to send for approval: ${error.message}`);
+    },
+  });
 
   const handleSubmitClick = () => {
     if (isLegalPending) {
@@ -179,6 +243,13 @@ export default function CurationActions({
       return;
     }
 
+    // MP model: route to AM for approval first
+    if (isMP) {
+      amApprovalMutation.mutate();
+      return;
+    }
+
+    // AGG model: submit directly to Innovation Director
     supabase
       .rpc("log_audit", {
         p_user_id: user.id,
@@ -240,14 +311,14 @@ export default function CurationActions({
         <Button
           className="w-full"
           onClick={handleSubmitClick}
-          disabled={completePhase.isPending || isLegalPending || hasOutstandingRequired}
+          disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired}
         >
-          {completePhase.isPending ? (
+          {(completePhase.isPending || amApprovalMutation.isPending) ? (
             <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
           ) : (
             <Send className="h-4 w-4 mr-1.5" />
           )}
-          Submit to Innovation Director
+          {isMP ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
         </Button>
 
         <Button
