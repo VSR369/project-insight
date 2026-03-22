@@ -250,6 +250,10 @@ interface ConversationalIntakeContentProps {
   sharedState?: SharedIntakeState;
   onStateChange?: (partial: Partial<SharedIntakeState>) => void;
   onSpecGenerated?: (spec: GeneratedSpec) => void;
+  /** Governance mode from parent landing page */
+  governanceMode?: GovernanceMode;
+  /** Engagement model from parent landing page */
+  engagementModel?: string;
 }
 
 export function ConversationalIntakeContent({
