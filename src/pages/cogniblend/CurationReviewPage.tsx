@@ -412,6 +412,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "domain_tags",
     label: "Domain Tags",
+    attribution: "by Curator",
     dbField: "domain_tags",
     isFilled: (ch) => {
       const tags = parseJson<string[]>(ch.domain_tags);
