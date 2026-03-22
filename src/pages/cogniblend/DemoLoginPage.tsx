@@ -46,99 +46,115 @@ export interface DemoUser {
   stepLabel?: string;
 }
 
-const DEMO_USERS: DemoUser[] = [
-  {
-    email: 'nh-rq@testsetup.dev',
-    displayName: 'Alex Morgan',
-    roles: ['RQ'],
-    aiDescription: 'Submits problem details for AI-driven challenge generation',
-    manualDescription: 'Submits innovation requests via the 8-step editor wizard',
-    aiDestination: '/cogni/challenges/create?tab=ai',
-    manualDestination: '/cogni/challenges/create?tab=editor',
-    stepLabel: 'Step 1',
-  },
-  {
-    email: 'nh-cr@testsetup.dev',
-    displayName: 'Chris Rivera',
-    roles: ['CR'],
-    aiDescription: 'Triggers AI to generate full challenge spec, then reviews each section',
-    manualDescription: 'Builds challenge spec manually using the 8-step wizard',
-    aiDestination: '/cogni/challenges/create?tab=ai',
-    manualDestination: '/cogni/challenges/create?tab=editor',
-    stepLabel: 'Step 1–2',
-  },
-  {
-    email: 'nh-lc@testsetup.dev',
-    displayName: 'Leslie Chen',
-    roles: ['LC'],
-    aiDescription: 'Receives challenge from Creator; AI suggests legal docs to review, modify, and attach',
-    manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
-    aiDestination: '/cogni/lc-queue',
-    manualDestination: '/cogni/lc-queue',
-    stepLabel: 'Step 3',
-  },
-  {
-    email: 'nh-cu@testsetup.dev',
-    displayName: 'Casey Underwood',
-    roles: ['CU'],
-    aiDescription: 'AI reviews spec + legal docs as a package; Curator accepts/declines findings',
-    manualDescription: 'Reviews challenge quality via 14-point checklist',
-    aiDestination: '/cogni/curation',
-    manualDestination: '/cogni/curation',
-    stepLabel: 'Step 4',
-  },
-  {
-    email: 'nh-id@testsetup.dev',
-    displayName: 'Dana Irving',
-    roles: ['ID'],
-    aiDescription: 'Final approval of AI-curated challenge package before publication',
-    manualDescription: 'Final approval of challenge before publication',
-    aiDestination: '/cogni/approval',
-    manualDestination: '/cogni/approval',
-    stepLabel: 'Step 5',
-  },
-  {
-    email: 'nh-er1@testsetup.dev',
-    displayName: 'Evelyn Rhodes',
-    roles: ['ER'],
-    aiDescription: 'Evaluates submitted solutions with AI-assisted scoring',
-    manualDescription: 'Evaluates submitted solutions against criteria',
-    aiDestination: '/cogni/review',
-    manualDestination: '/cogni/review',
-    stepLabel: 'Step 6',
-  },
-  {
-    email: 'nh-er2@testsetup.dev',
-    displayName: 'Ethan Russell',
-    roles: ['ER'],
-    aiDescription: 'Second reviewer for dual-review governance (AI-assisted)',
-    manualDescription: 'Second reviewer for dual-review governance',
-    aiDestination: '/cogni/review',
-    manualDestination: '/cogni/review',
-    stepLabel: 'Step 6',
-  },
-  {
-    email: 'nh-fc@testsetup.dev',
-    displayName: 'Frank Coleman',
-    roles: ['FC'],
-    aiDescription: 'Confirms escrow creation & prize disbursement per business rules',
-    manualDescription: 'Manages escrow funding and prize disbursement',
-    aiDestination: '/cogni/escrow',
-    manualDestination: '/cogni/escrow',
-    stepLabel: 'Finance',
-  },
-  {
-    email: 'nh-solo@testsetup.dev',
-    displayName: 'Sam Solo',
-    roles: ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
-    aiDescription: 'Solo operator — walks through all AI-assisted steps sequentially',
-    manualDescription: 'Solo operator — holds all roles for full wizard walkthrough',
-    aiDestination: '/cogni/challenges/create?tab=ai',
-    manualDestination: '/cogni/challenges/create?tab=editor',
-    stepLabel: 'All Steps',
-  },
-];
+/** Build the demo user list dynamically based on engagement model */
+function getDemoUsers(engagementModel: string): DemoUser[] {
+  const isMP = engagementModel === 'MP';
 
+  return [
+    // Step 1 actor: AM for Marketplace, RQ for Aggregator
+    isMP
+      ? {
+          email: 'nh-am@testsetup.dev',
+          displayName: 'Alex Morgan',
+          roles: ['AM'],
+          aiDescription: 'Submits a problem brief for AI-driven challenge generation',
+          manualDescription: 'Submits solution requests via the 8-step editor wizard',
+          aiDestination: '/cogni/challenges/create?tab=ai',
+          manualDestination: '/cogni/challenges/create?tab=editor',
+          stepLabel: 'Step 1',
+        }
+      : {
+          email: 'nh-rq@testsetup.dev',
+          displayName: 'Alex Morgan',
+          roles: ['RQ'],
+          aiDescription: 'Shares a problem idea for AI-driven challenge generation',
+          manualDescription: 'Submits innovation requests via the 8-step editor wizard',
+          aiDestination: '/cogni/challenges/create?tab=ai',
+          manualDestination: '/cogni/challenges/create?tab=editor',
+          stepLabel: 'Step 1',
+        },
+    {
+      email: 'nh-cr@testsetup.dev',
+      displayName: 'Chris Rivera',
+      roles: ['CR'],
+      aiDescription: 'Triggers AI to generate full challenge spec, then reviews each section',
+      manualDescription: 'Builds challenge spec manually using the 8-step wizard',
+      aiDestination: '/cogni/challenges/create?tab=ai',
+      manualDestination: '/cogni/challenges/create?tab=editor',
+      stepLabel: 'Step 1–2',
+    },
+    {
+      email: 'nh-lc@testsetup.dev',
+      displayName: 'Leslie Chen',
+      roles: ['LC'],
+      aiDescription: 'Receives challenge from Creator; AI suggests legal docs to review, modify, and attach',
+      manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
+      aiDestination: '/cogni/lc-queue',
+      manualDestination: '/cogni/lc-queue',
+      stepLabel: 'Step 3',
+    },
+    {
+      email: 'nh-cu@testsetup.dev',
+      displayName: 'Casey Underwood',
+      roles: ['CU'],
+      aiDescription: 'AI reviews spec + legal docs as a package; Curator accepts/declines findings',
+      manualDescription: 'Reviews challenge quality via 14-point checklist',
+      aiDestination: '/cogni/curation',
+      manualDestination: '/cogni/curation',
+      stepLabel: 'Step 4',
+    },
+    {
+      email: 'nh-id@testsetup.dev',
+      displayName: 'Dana Irving',
+      roles: ['ID'],
+      aiDescription: 'Final approval of AI-curated challenge package before publication',
+      manualDescription: 'Final approval of challenge before publication',
+      aiDestination: '/cogni/approval',
+      manualDestination: '/cogni/approval',
+      stepLabel: 'Step 5',
+    },
+    {
+      email: 'nh-er1@testsetup.dev',
+      displayName: 'Evelyn Rhodes',
+      roles: ['ER'],
+      aiDescription: 'Evaluates submitted solutions with AI-assisted scoring',
+      manualDescription: 'Evaluates submitted solutions against criteria',
+      aiDestination: '/cogni/review',
+      manualDestination: '/cogni/review',
+      stepLabel: 'Step 6',
+    },
+    {
+      email: 'nh-er2@testsetup.dev',
+      displayName: 'Ethan Russell',
+      roles: ['ER'],
+      aiDescription: 'Second reviewer for dual-review governance (AI-assisted)',
+      manualDescription: 'Second reviewer for dual-review governance',
+      aiDestination: '/cogni/review',
+      manualDestination: '/cogni/review',
+      stepLabel: 'Step 6',
+    },
+    {
+      email: 'nh-fc@testsetup.dev',
+      displayName: 'Frank Coleman',
+      roles: ['FC'],
+      aiDescription: 'Confirms escrow creation & prize disbursement per business rules',
+      manualDescription: 'Manages escrow funding and prize disbursement',
+      aiDestination: '/cogni/escrow',
+      manualDestination: '/cogni/escrow',
+      stepLabel: 'Finance',
+    },
+    {
+      email: 'nh-solo@testsetup.dev',
+      displayName: 'Sam Solo',
+      roles: isMP ? ['AM', 'CR', 'CU', 'ID', 'ER', 'FC'] : ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
+      aiDescription: 'Solo operator — walks through all AI-assisted steps sequentially',
+      manualDescription: 'Solo operator — holds all roles for full wizard walkthrough',
+      aiDestination: '/cogni/challenges/create?tab=ai',
+      manualDestination: '/cogni/challenges/create?tab=editor',
+      stepLabel: 'All Steps',
+    },
+  ];
+}
 const GOVERNANCE_CARDS: Array<{
   mode: GovernanceMode;
   icon: typeof Zap;
@@ -327,13 +343,13 @@ export default function DemoLoginPage() {
           </TabsList>
 
           <TabsContent value="ai" className="mt-4 space-y-4">
-            <DemoWorkflowSteps variant="ai" />
+            <DemoWorkflowSteps variant="ai" engagementModel={engagementModel} governanceMode={governanceMode} />
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5" />
               Pick a Role to Login
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-              {DEMO_USERS.map((user) => (
+              {getDemoUsers(engagementModel).map((user) => (
                 <DemoUserCard
                   key={user.email}
                   user={user}
@@ -348,13 +364,13 @@ export default function DemoLoginPage() {
           </TabsContent>
 
           <TabsContent value="manual" className="mt-4 space-y-4">
-            <DemoWorkflowSteps variant="manual" />
+            <DemoWorkflowSteps variant="manual" engagementModel={engagementModel} governanceMode={governanceMode} />
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5" />
               Pick a Role to Login
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-              {DEMO_USERS.map((user) => (
+              {getDemoUsers(engagementModel).map((user) => (
                 <DemoUserCard
                   key={user.email}
                   user={user}
