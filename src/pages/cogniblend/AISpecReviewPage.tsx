@@ -680,6 +680,10 @@ export default function AISpecReviewPage() {
   const [autoGenError, setAutoGenError] = useState<string | null>(null);
   // Org-policy settings state (Creator-facing)
   const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
+  // Domain targeting taxonomy state
+  const [selectedProfAreaIds, setSelectedProfAreaIds] = useState<string[]>([]);
+  const [selectedSubDomainIds, setSelectedSubDomainIds] = useState<string[]>([]);
+  const [selectedSpecialityIds, setSelectedSpecialityIds] = useState<string[]>([]);
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
