@@ -6,7 +6,7 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  FileInput, FilePlus, Folder, CheckSquare, ShieldCheck,
+  FilePlus, Folder, CheckSquare, ShieldCheck,
   FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
   Search, Lightbulb, User,
 } from 'lucide-react';
