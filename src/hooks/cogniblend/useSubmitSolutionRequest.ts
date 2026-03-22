@@ -118,8 +118,11 @@ export function useSubmitSolutionRequest() {
 
       return { challengeId };
     },
-    onSuccess: () => {
-      toast.success('Solution Request submitted successfully');
+    onSuccess: (_data, variables) => {
+      const role = variables.operatingModel === 'MP'
+        ? 'Challenge Architect'
+        : 'Challenge Creator';
+      toast.success(`Solution Request submitted — sent to ${role} for Spec Review`);
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
