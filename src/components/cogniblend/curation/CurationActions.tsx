@@ -160,9 +160,28 @@ export default function CurationActions({
   });
 
   const isLegalPending = phaseStatus === 'LEGAL_VERIFICATION_PENDING';
+  const isAmDeclined = phaseStatus === 'AM_DECLINED';
   const isFinalCycle = amendmentCount >= 3;
   const maxCycles = 3;
   const isMP = operatingModel === 'MP';
+
+  /* ── Fetch AM decline reason (latest) ───────────────── */
+  const { data: amDeclineReason } = useQuery({
+    queryKey: ['am-decline-reason', challengeId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('amendment_records')
+        .select('reason, created_at, amendment_number')
+        .eq('challenge_id', challengeId)
+        .eq('scope_of_change', 'AM_DECLINED')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!challengeId && isAmDeclined,
+    staleTime: 30_000,
+  });
 
   // Check if AM opted into pre-publish approval
   const { data: extendedBrief } = useQuery({
