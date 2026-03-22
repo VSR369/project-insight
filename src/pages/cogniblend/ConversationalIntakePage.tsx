@@ -641,7 +641,7 @@ export function ConversationalIntakeContent({
                 key={mode}
                 type="button"
                 disabled={isDisabled}
-                onClick={() => { if (!isDisabled) setGovernanceMode(mode); }}
+                onClick={() => { if (!isDisabled) setLocalGovernanceMode(mode); }}
                 className={cn(
                   'relative w-full text-left rounded-xl border-2 p-5 transition-all',
                   isSelected ? 'shadow-md ring-1' : 'hover:shadow-sm',
