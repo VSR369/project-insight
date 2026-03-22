@@ -1364,7 +1364,7 @@ export default function AISpecReviewPage() {
         </div>
 
         {/* AM Brief Reference Panel (Marketplace only) */}
-        {isMP && (challenge.description || challengeRecord.reward_structure) && (
+        {isMP && (challenge.problem_statement || challengeRecord.reward_structure) && (
           <Collapsible>
             <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border-2 border-border bg-muted/30 p-4 hover:bg-accent/30 transition-colors">
               <ShieldCheck className="h-5 w-5 text-muted-foreground" />
@@ -1376,10 +1376,16 @@ export default function AISpecReviewPage() {
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </CollapsibleTrigger>
             <CollapsibleContent className="rounded-xl border-2 border-t-0 border-border bg-muted/10 px-5 pb-5 pt-3 space-y-3">
-              {challenge.description && (
+              {challenge.problem_statement && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Problem Summary</p>
-                  <p className="text-sm text-foreground mt-1">{challenge.description as string}</p>
+                  <SafeHtmlRenderer html={challenge.problem_statement as string} className="text-sm mt-1" />
+                </div>
+              )}
+              {challenge.scope && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Solution Expectations</p>
+                  <SafeHtmlRenderer html={challenge.scope as string} className="text-sm mt-1" />
                 </div>
               )}
               {challengeRecord.reward_structure && (() => {
@@ -1393,12 +1399,37 @@ export default function AISpecReviewPage() {
                   </div>
                 ) : null;
               })()}
-              {challengeRecord.expected_timeline && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Timeline Urgency</p>
-                  <p className="text-sm text-foreground mt-1">{String(challengeRecord.expected_timeline)}</p>
-                </div>
-              )}
+              {(() => {
+                const ps = typeof challengeRecord.phase_schedule === 'object' ? challengeRecord.phase_schedule as Record<string, unknown> : null;
+                const timeline = ps?.expected_timeline;
+                return timeline ? (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Timeline</p>
+                    <p className="text-sm text-foreground mt-1">{String(timeline)}</p>
+                  </div>
+                ) : null;
+              })()}
+              {(() => {
+                const eb = typeof challengeRecord.extended_brief === 'object' ? challengeRecord.extended_brief as Record<string, unknown> : null;
+                const bm = eb?.beneficiaries_mapping as string | null;
+                const amApproval = eb?.am_approval_required;
+                return (
+                  <>
+                    {bm && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Beneficiaries & Benefits Mapping</p>
+                        <SafeHtmlRenderer html={bm} className="text-sm mt-1" />
+                      </div>
+                    )}
+                    {amApproval !== undefined && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Approval Before Publication</p>
+                        <p className="text-sm text-foreground mt-1">{amApproval ? 'Yes — AM approval required' : 'No — Auto-publish when ready'}</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </CollapsibleContent>
           </Collapsible>
         )}
