@@ -241,28 +241,36 @@ export function ActionItemsWidget() {
 
                   let ActionIcon = Eye;
                   let actionLabel = 'View';
-                  let actionRoute = `/cogni/challenges/${item.id}/edit`;
+                  let actionRoute = `/cogni/challenges/${item.id}`;
 
                   if (isDraft && item.title === 'Untitled Draft') {
                     ActionIcon = Play;
                     actionLabel = 'Resume';
+                    actionRoute = `/cogni/challenges/${item.id}/edit`;
                   } else if (isDraft) {
                     ActionIcon = Pencil;
                     actionLabel = 'Continue Editing';
+                    actionRoute = `/cogni/challenges/${item.id}/edit`;
                   } else if (isOnHold) {
                     ActionIcon = Play;
                     actionLabel = 'Resume';
+                    actionRoute = `/cogni/challenges/${item.id}/edit`;
                   } else if (isReturned) {
                     ActionIcon = Pencil;
                     actionLabel = 'Edit Challenge';
+                    actionRoute = `/cogni/challenges/${item.id}/edit`;
                   } else if (item.type === 'request' && item.status === 'ACTIVE') {
                     ActionIcon = ArrowRight;
                     actionLabel = 'Create Challenge';
                     actionRoute = `/cogni/challenges/create`;
-                  }
-
-                  if (isPublished) {
+                  } else if (isPublished) {
                     actionRoute = `/cogni/challenges/${item.id}`;
+                  } else if (item.phase && item.phase <= 2) {
+                    actionRoute = `/cogni/challenges/${item.id}/spec`;
+                  } else if (item.phase === 3) {
+                    actionRoute = `/cogni/challenges/${item.id}/legal`;
+                  } else if (item.phase === 4 || item.phase === 5) {
+                    actionRoute = `/cogni/approval`;
                   }
 
                   return (
