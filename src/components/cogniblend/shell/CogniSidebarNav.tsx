@@ -118,8 +118,11 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     roleChallengeCount,
   } = useCogniRoleContext();
 
-  // Derive allRoleCodes from availableRoles for visibility check
+   // Derive allRoleCodes from availableRoles for visibility check
   const allRoleCodes = new Set(availableRoles);
+
+  // Check if user holds only seeking-org roles (no solver role)
+  const isSeekingOrgOnly = availableRoles.length > 0 && availableRoles.every((r) => SEEKING_ORG_ROLES.has(r));
 
   // Badge counts from roleChallengeCount (approximate)
   const badgeCounts: Record<string, number> = {
