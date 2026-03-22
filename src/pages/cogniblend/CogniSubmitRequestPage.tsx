@@ -36,6 +36,7 @@ import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import {
   resolveGovernanceMode,
   getAvailableGovernanceModes,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
@@ -372,10 +373,10 @@ export default function CogniSubmitRequestPage() {
   );
   const resolvedGovMode = selectedGovMode ?? resolveGovernanceMode(currentOrg?.governanceProfile);
 
-  // Initialize gov mode from org default once loaded
+  // Initialize gov mode from org default once loaded — clamped to tier
   useEffect(() => {
     if (currentOrg && !selectedGovMode) {
-      setSelectedGovMode(resolveGovernanceMode(currentOrg.governanceProfile));
+      setSelectedGovMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
   }, [currentOrg, selectedGovMode]);
 

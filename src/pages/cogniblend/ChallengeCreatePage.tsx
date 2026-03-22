@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import {
   resolveGovernanceMode,
   getAvailableGovernanceModes,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
@@ -314,7 +315,7 @@ export default function ChallengeCreatePage() {
     generatedSpec: null,
   });
 
-  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
 
   // ═══════ Hooks — queries ═══════
@@ -329,7 +330,7 @@ export default function ChallengeCreatePage() {
       setGovernanceMode(demoGov);
       sessionStorage.removeItem('cogni_demo_governance');
     } else if (currentOrg) {
-      setGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
+      setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
   }, [currentOrg?.governanceProfile]);
 

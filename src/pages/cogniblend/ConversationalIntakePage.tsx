@@ -64,6 +64,7 @@ import { cn } from '@/lib/utils';
 import {
   resolveGovernanceMode,
   getAvailableGovernanceModes,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
@@ -272,7 +273,7 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
-  const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
 
   // Use props if provided (from landing page), otherwise fall back to local state
@@ -343,9 +344,9 @@ export function ConversationalIntakeContent({
   // Sync governance mode & engagement model from org defaults once loaded (only when no props)
   useEffect(() => {
     if (currentOrg && !propGovernanceMode) {
-      setLocalGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
+      setLocalGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
-  }, [currentOrg?.governanceProfile, propGovernanceMode]);
+  }, [currentOrg?.governanceProfile, currentOrg?.tierCode, propGovernanceMode]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (orgLoading) {

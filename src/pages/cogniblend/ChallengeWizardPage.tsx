@@ -36,7 +36,7 @@ import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScre
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade, type GovernanceMode } from '@/lib/governanceMode';
+import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
 import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
@@ -115,7 +115,10 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
-  const fallbackMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
+  const tierCode = (currentOrg as any)?.tierCode ?? null;
+  const fallbackMode: GovernanceMode = isEditMode
+    ? resolveGovernanceMode(rawGovernanceProfile)
+    : getDefaultGovernanceMode(tierCode, rawGovernanceProfile);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
 
   // ═══════ Hooks — form (must be before watch) ═══════
@@ -724,7 +727,12 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       <div className="bg-white rounded-xl p-6" style={{ border: '1px solid #E5E7EB' }}>
         <form onSubmit={(e) => e.preventDefault()}>
           {currentStep === 0 && (
-            <StepModeSelection form={form} orgOperatingModel={orgContext?.operatingModel} tierName={(tierLimit as any)?.tier_name} />
+            <StepModeSelection
+              form={form}
+              orgOperatingModel={orgContext?.operatingModel}
+              disabledModes={(['QUICK', 'STRUCTURED', 'CONTROLLED'] as GovernanceMode[]).filter(m => !getAvailableGovernanceModes(tierCode).includes(m))}
+              tierName={(tierLimit as any)?.tier_name}
+            />
           )}
           {currentStep === 1 && (
             <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
