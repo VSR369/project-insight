@@ -253,11 +253,21 @@ export default function CurationChecklistPanel({
         return !!d && d.length > 0;
       })(),
       /* 4  */ evalWeightSum === 100,
-      /* 5  */ isJsonFilled(challenge.reward_structure),
+      /* 5  */ (() => {
+        if (!isJsonFilled(challenge.reward_structure)) return false;
+        // Validate payment milestones sum to 100%
+        const rs = parseJson<Record<string, unknown>>(challenge.reward_structure as any);
+        const milestones = rs?.payment_milestones;
+        if (Array.isArray(milestones) && milestones.length > 0) {
+          const sum = milestones.reduce((s: number, m: any) => s + (m.pct ?? 0), 0);
+          if (sum !== 100) return false;
+        }
+        return true;
+      })(),
       /* 6  */ isJsonFilled(challenge.phase_schedule),
       /* 7  */ !!challenge.description?.trim(),
       /* 8  */ !!challenge.eligibility?.trim(),
-      /* 9  */ false, // Taxonomy tags — placeholder
+      /* 9  */ !!challenge.ip_model?.trim(),
       /* 10 */ !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
       /* 11 */ !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
       /* 12 */ challenge.complexity_score != null || !!challenge.complexity_parameters,
@@ -281,7 +291,7 @@ export default function CurationChecklistPanel({
     "Phase schedule defined",
     "Submission guidelines provided",
     "Eligibility configured",
-    "Taxonomy tags applied",
+    "IP model confirmed",
     "Tier 1 legal docs attached",
     "Tier 2 legal templates attached",
     "Complexity parameters entered",

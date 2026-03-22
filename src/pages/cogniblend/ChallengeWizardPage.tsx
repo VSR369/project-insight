@@ -20,6 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Clock, Save, PauseCircle, XCircle, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -92,6 +93,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const navigate = useNavigate();
   const { id: challengeId } = useParams<{ id: string }>();
   const isEditMode = !!challengeId;
+  const { activeRole } = useCogniRoleContext();
+  const isCuratorView = activeRole === 'CU';
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
@@ -703,7 +706,16 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
             <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 3 && (
-            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            isCuratorView ? (
+              <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            ) : (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-foreground">Rewards & Payment</h2>
+                <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  Reward structure, escrow, payment milestones, and rejection fee settings are managed by the Curator during the curation review phase.
+                </div>
+              </div>
+            )
           )}
           {currentStep === 4 && (
             <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />

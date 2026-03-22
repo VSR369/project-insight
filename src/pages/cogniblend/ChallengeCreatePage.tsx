@@ -2,21 +2,21 @@
  * ChallengeCreatePage — Role-aware landing page for challenge creation.
  * Route: /cogni/challenges/create
  *
- * Shows role-appropriate track cards:
- * - Track 1 (CR/CA): AI-Assisted + Manual Editor
- * - Track 2 (AM/RQ): Solution Request
- * - RQ (AGG, no bypass): Both tracks
+ * Auto-routes by active role:
+ * - AM/RQ → SimpleIntakeForm (5-field lightweight form)
+ * - CR/CA → 2 cards: "Describe Your Problem" (AI) + "Build Spec Manually" (Editor)
  */
 
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
-  Sparkles, Settings2, FileText, ArrowRight, ArrowLeft,
-  Building2, Info, ChevronLeft, Zap, Shield, Lock,
+  Sparkles, Settings2, ArrowRight, ArrowLeft,
+  Building2, ChevronLeft, Zap, Shield, Lock,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
+import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
@@ -165,28 +165,9 @@ export default function ChallengeCreatePage() {
   const switchToAI = useCallback(() => setView('ai'), [setView]);
   const backToLanding = useCallback(() => setView('landing'), [setView]);
 
-  // Role-based visibility
+  // Role-based auto-routing
+  const isAMorRQ = ['AM', 'RQ'].includes(activeRole);
   const isCreatorRole = ['CR', 'CA'].includes(activeRole);
-  const isAM = activeRole === 'AM';
-  const isRQ = activeRole === 'RQ';
-  const isAGGModel = orgContext?.operatingModel === 'AGG';
-  const hasBypass = isAGGModel && orgContext?.phase1Bypass === true;
-
-  const showCreationCards = useMemo(() => {
-    if (isCreatorRole) return true;
-    if (isRQ && hasBypass) return true;
-    if (isRQ && isAGGModel) return true; // RQ sees both tracks
-    return false;
-  }, [isCreatorRole, isRQ, hasBypass, isAGGModel]);
-
-  const showRequestCard = useMemo(() => {
-    if (isAM) return true;
-    if (isRQ && isAGGModel && !hasBypass) return true;
-    return false;
-  }, [isAM, isRQ, isAGGModel, hasBypass]);
-
-  const requestLabel = isAM ? 'Mandatory' : 'Optional';
-  const requestBadgeVariant = isAM ? 'mandatory' as const : 'optional' as const;
 
   // ═══════ Loading ═══════
   if (orgLoading || modelLoading) {
@@ -224,6 +205,16 @@ export default function ChallengeCreatePage() {
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ═══════ AM/RQ auto-route: SimpleIntakeForm ═══════
+  if (isAMorRQ && activeView === 'landing') {
+    return (
+      <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
+        <CreationContextBar />
+        <SimpleIntakeForm />
       </div>
     );
   }
@@ -266,7 +257,7 @@ export default function ChallengeCreatePage() {
     );
   }
 
-  // ═══════ Landing View ═══════
+  // ═══════ Landing View (CR/CA cards) ═══════
   return (
     <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
       {/* Context Bar */}
@@ -280,50 +271,22 @@ export default function ChallengeCreatePage() {
         </p>
       </div>
 
-      {/* Bypass Banner */}
-      {isRQ && hasBypass && (
-        <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
-          <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-          <p className="text-sm text-foreground">
-            Phase 1 bypassed — create challenges directly without submitting a request first.
-          </p>
-        </div>
-      )}
-
-      {/* Track Cards */}
+      {/* Track Cards — CR/CA see 2 cards with renamed labels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Track 1: Challenge Creation */}
-        {showCreationCards && (
-          <>
-            <TrackCard
-              icon={<Sparkles className="h-5 w-5" />}
-              title="AI-Assisted"
-              description="Describe your challenge and AI generates a full specification. Review and refine based on your governance mode."
-              badge="Recommended"
-              badgeVariant="recommended"
-              onClick={() => setView('ai')}
-            />
-            <TrackCard
-              icon={<Settings2 className="h-5 w-5" />}
-              title="Manual Editor"
-              description="Build your challenge step-by-step using the 8-step wizard. Full control over every field and configuration."
-              onClick={() => setView('editor')}
-            />
-          </>
-        )}
-
-        {/* Track 2: Solution Request */}
-        {showRequestCard && (
-          <TrackCard
-            icon={<FileText className="h-5 w-5" />}
-            title="Solution Request"
-            description="Describe your business need. A Challenge Architect will convert it into a full challenge specification."
-            badge={requestLabel}
-            badgeVariant={requestBadgeVariant}
-            onClick={() => navigate('/cogni/submit-request')}
-            fullWidth={!showCreationCards}
-          />
-        )}
+        <TrackCard
+          icon={<Sparkles className="h-5 w-5" />}
+          title="Describe Your Problem"
+          description="Tell us about your challenge and AI generates a complete specification for you to review and refine."
+          badge="Recommended"
+          badgeVariant="recommended"
+          onClick={() => setView('ai')}
+        />
+        <TrackCard
+          icon={<Settings2 className="h-5 w-5" />}
+          title="Build Spec Manually"
+          description="Full control. Build your challenge step-by-step using the advanced editor with all fields and configurations."
+          onClick={() => setView('editor')}
+        />
       </div>
 
       {/* Governance Mode Explanation */}
