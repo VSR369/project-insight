@@ -556,6 +556,9 @@ export function ConversationalIntakeContent({
             {form.formState.errors.expected_outcomes.message}
           </p>
         )}
+        <p className="text-xs italic text-muted-foreground">
+          What does a successful solution look like?
+        </p>
       </div>
 
       {/* Step 4: Maturity Level */}

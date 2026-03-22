@@ -95,10 +95,8 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
         <GovernanceProfileBadge profile={governanceProfile} />
       )}
 
-      {/* Role Switcher */}
-      <div className="hidden md:block">
-        <RoleSwitcher />
-      </div>
+      {/* Role Switcher — visible on all breakpoints */}
+      <RoleSwitcher />
 
       {/* Spacer */}
       <div className="flex-1" />

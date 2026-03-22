@@ -47,6 +47,9 @@ export default function CogniDashboardPage() {
 
   return (
     <>
+      {/* ── All Roles Summary (2+ roles) ──────────────── */}
+      <AllRolesSummaryWidget />
+
       {/* ── What's Next Card ─────────────────────────── */}
       <WhatsNextCard />
 

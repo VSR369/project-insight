@@ -269,6 +269,15 @@ function DomainTagSelect({ value, onChange, error, businessProblem = '' }: {
 
 export default function CogniSubmitRequestPage() {
   const navigate = useNavigate();
+
+  // Redirect to unified creation page
+  useEffect(() => {
+    navigate('/cogni/challenges/create', { replace: true });
+  }, [navigate]);
+
+  return null;
+
+  // Legacy code below — kept for reference but never reached
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const matchesPanelRef = useRef<HTMLDivElement>(null);
