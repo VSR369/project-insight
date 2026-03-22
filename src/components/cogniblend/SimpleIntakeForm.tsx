@@ -473,24 +473,34 @@ export function SimpleIntakeForm() {
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
 
-        {/* 3. Solution Expectations */}
+        {/* 3. Sector / Domain */}
         <div className="space-y-1.5">
-          <Label htmlFor="si-expectations" className="text-sm font-medium">
-            Solution Expectations <span className="text-destructive">*</span>
+          <Label className="text-sm font-medium">
+            Sector / Domain <span className="text-destructive">*</span>
           </Label>
-          <Textarea
-            id="si-expectations"
-            placeholder="What outcomes do you expect? What does a successful solution look like?"
-            rows={3}
-            maxLength={500}
-            className="text-base resize-none"
-            {...register('solution_expectations')}
+          <Controller
+            name="industry_segment_id"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a sector…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industrySegments.map((seg: any) => (
+                    <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
-          </div>
-          {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+          {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
         </div>
+      </div>
+
+      {/* COMMERCIAL PARAMETERS */}
+      <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Commercial Parameters — Only You Can Provide These</p>
 
         {/* Sector / Domain */}
         <div className="space-y-1.5">
