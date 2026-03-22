@@ -205,7 +205,7 @@ export function SimpleIntakeForm() {
       expectedTimeline: data.expected_timeline ?? '',
       domainTags: selectedTemplate?.prefill?.domain_tags ?? [],
       urgency: 'standard',
-      architectId: data.architect_id || undefined,
+      industrySegmentId: data.industry_segment_id || '',
       industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
       beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,

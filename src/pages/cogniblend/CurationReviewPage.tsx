@@ -1701,6 +1701,7 @@ export default function CurationReviewPage() {
             checklistSummary={checklistSummary}
             completedCount={completedCount}
             totalCount={15}
+            operatingModel={challenge.operating_model}
           />
 
           {/* Modification Points Tracker */}
