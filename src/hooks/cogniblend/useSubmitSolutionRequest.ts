@@ -93,33 +93,15 @@ export function useSubmitSolutionRequest() {
 
       if (updateError) throw new Error(updateError.message);
 
-      // 3. If MP model, assign Challenge Architect (CR role)
-      if (payload.operatingModel === 'MP' && payload.architectId) {
-        const crAssignment = await withCreatedBy({
-          challenge_id: challengeId,
-          user_id: payload.architectId,
-          role_code: 'CR',
-          assigned_at: new Date().toISOString(),
-          is_active: true,
-        });
-
-        const { error: roleError } = await supabase
-          .from('user_challenge_roles')
-          .insert(crAssignment as any);
-
-        if (roleError) throw new Error(roleError.message);
-
-        // Audit: ROLE_ASSIGNED for CR
-        await supabase.from('audit_trail').insert({
-          user_id: payload.creatorId,
-          challenge_id: challengeId,
-          action: 'ROLE_ASSIGNED',
-          method: 'HUMAN',
-          details: {
-            role_code: 'CR',
-            assigned_to: payload.architectId,
-            operating_model: 'MP',
-          },
+      // 3. Auto-assign Challenge Creator/Architect (CR) from pool
+      if (payload.industrySegmentId) {
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'CR',
+          industrySegmentId: payload.industrySegmentId,
+          subDomainIds: payload.subDomainIds,
+          specialityIds: payload.specialtyTags,
+          assignedBy: payload.creatorId,
         });
       }
 
