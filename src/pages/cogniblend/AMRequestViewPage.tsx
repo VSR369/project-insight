@@ -164,7 +164,7 @@ export default function AMRequestViewPage() {
             icon={FileText}
             value={
               brief.problem_statement ? (
-                <p className="whitespace-pre-wrap leading-relaxed">{brief.problem_statement}</p>
+                <SafeHtmlRenderer html={brief.problem_statement} />
               ) : null
             }
           />
