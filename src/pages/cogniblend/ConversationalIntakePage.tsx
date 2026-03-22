@@ -477,6 +477,8 @@ export function ConversationalIntakeContent({
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
           challenge_visibility: spec.challenge_visibility ?? 'public',
+          governance_profile: governanceMode,
+          operating_model: engagementModel,
           // Persist domain-expert context in extended_brief JSONB
           ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
           solver_eligibility_types: (() => {
