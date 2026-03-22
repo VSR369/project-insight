@@ -441,7 +441,7 @@ export function ConversationalIntakeContent({
       const { challengeId } = await createChallenge.mutateAsync({
         orgId: currentOrg.organizationId,
         creatorId: user.id,
-        operatingModel: 'AGG',
+        operatingModel: engagementModel === 'AGG' ? 'AGG' : 'MP',
         businessProblem: spec.problem_statement,
         expectedOutcomes: data.expected_outcomes,
         currency: data.currency_code,
