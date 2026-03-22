@@ -1,40 +1,44 @@
 
 
-# Fix: Challenge Requestor Not Seeing "Share Your Idea" Screen
+# Plan: Rich Text Editor with Full-Window Expand + Beneficiaries Section
 
-## Problem
+## Changes
 
-The URL is `/cogni/challenges/create?tab=ai`. Line 366 reads the `tab` query param and sets `activeView = 'ai'`. The RQ routing check on line 434 only triggers when `activeView === 'landing'`:
+### 1. `src/components/cogniblend/SimpleIntakeForm.tsx`
 
-```
-if (isAMorRQ && activeView === 'landing') → SimpleIntakeForm
-```
+**a) Replace `<Textarea>` with `<RichTextEditor>`** for the "Problem / Possibility Idea" field in the RQ (Aggregator) section:
+- Import `RichTextEditor` and `Controller` (already imported)
+- Switch from `register('problem_summary')` to a `Controller` render with `<RichTextEditor>`
+- Update schema: increase `problem_summary` max from 1000 to 5000 (rich text is longer)
 
-Since `activeView` is `'ai'`, RQ users fall through to the ConversationalIntakePage (the CR/CA form) instead of seeing their "Share Your Idea" SimpleIntakeForm.
+**b) Add expand-to-fullscreen button** next to the editor label:
+- Import `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`
+- Import `Maximize2`, `Minimize2` from `lucide-react`
+- Add state `const [editorFullscreen, setEditorFullscreen] = useState(false)`
+- Render a small icon button (Maximize2) beside the label
+- When clicked, open a `Dialog` with `max-w-4xl h-[80vh]` containing the same `RichTextEditor` bound to the same form field — changes sync both ways
+- Dialog has a close button to return to inline view
 
-## Solution
+**c) Add new optional section: "Beneficiaries & Benefits Mapping"**:
+- Add `beneficiaries_mapping` field to `aggSchema` as `z.string().optional().default('')`
+- Add a new card section after the Problem/Idea editor with:
+  - Label: "Beneficiaries & Benefits Mapping" with "(Optional)" tag
+  - A `RichTextEditor` with placeholder: "Who will benefit from solving this? Map stakeholders to expected benefits..."
+  - Also gets an expand-to-fullscreen button
+- Add `beneficiariesFullscreen` state for second dialog
 
-In `ChallengeCreatePage.tsx`, move the AM/RQ role check **before** the activeView derivation, or make the AM/RQ check independent of the tab parameter. AM and RQ users should **always** see SimpleIntakeForm regardless of URL params.
+**d) Update `buildPayload`** to include `beneficiaries_mapping` in the submission data, stored alongside problem_summary.
 
-## Change
+### 2. `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
 
-### `src/pages/cogniblend/ChallengeCreatePage.tsx`
-
-**Line 434** — Remove the `&& activeView === 'landing'` condition so AM/RQ users always get routed to SimpleIntakeForm:
-
-```tsx
-// Before:
-if (isAMorRQ && activeView === 'landing') {
-
-// After:
-if (isAMorRQ) {
-```
-
-This ensures that regardless of how the RQ user navigates to the page (direct link, sidebar click with `?tab=ai`, etc.), they always see their role-appropriate intake form.
+- Add `beneficiariesMapping?: string` to `SubmitPayload` and `DraftPayload`
+- Store it in the challenge's `extended_brief` JSONB: `{ beneficiaries_mapping: payload.beneficiariesMapping }`
+- Merge with existing extended_brief update or add alongside eligibility update
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Remove `activeView === 'landing'` guard from AM/RQ routing check |
+| `SimpleIntakeForm.tsx` | RichTextEditor for problem field, fullscreen dialog, new beneficiaries section |
+| `useSubmitSolutionRequest.ts` | Accept and persist beneficiaries_mapping in extended_brief |
 
