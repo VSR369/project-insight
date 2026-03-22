@@ -358,6 +358,7 @@ const App = () => (
 
               {/* Solution Request routes inside CogniShell */}
               <Route path="/cogni/submit-request" element={<LazyRoute><CogniSubmitRequestPage /></LazyRoute>} />
+              <Route path="/cogni/my-requests/:id/view" element={<LazyRoute><AMRequestViewPage /></LazyRoute>} />
               <Route path="/cogni/my-requests/:id/review" element={<LazyRoute><AMChallengeReviewPage /></LazyRoute>} />
               <Route path="/cogni/my-requests" element={<LazyRoute><CogniMyRequestsPage /></LazyRoute>} />
               <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
