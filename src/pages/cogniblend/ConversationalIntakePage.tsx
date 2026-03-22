@@ -64,6 +64,7 @@ import { cn } from '@/lib/utils';
 import {
   resolveGovernanceMode,
   getAvailableGovernanceModes,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
