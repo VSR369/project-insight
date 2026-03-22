@@ -139,10 +139,15 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
   /** Check if a nav path is relevant to the active workspace role */
   const isRelevant = (path: string): boolean => {
     if (!activeRole) return true;
-    // Solver paths are always relevant
     if (SOLVER_PATHS.includes(path)) return true;
     const relevantPaths = ROLE_NAV_RELEVANCE[activeRole] ?? [];
     return relevantPaths.some((rp) => path === rp || path.startsWith(rp + '/'));
+  };
+
+  /** Hide entire SOLVER section for seeking-org-only users */
+  const isSectionVisible = (sectionTitle: string): boolean => {
+    if (sectionTitle === 'SOLVER' && isSeekingOrgOnly) return false;
+    return true;
   };
 
   const handleNav = (path: string) => {
