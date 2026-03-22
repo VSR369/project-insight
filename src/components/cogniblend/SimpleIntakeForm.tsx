@@ -6,11 +6,12 @@
  */
 
 import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Save, Loader2, Maximize2 } from 'lucide-react';
+import { Send, Save, Loader2, Maximize2, ShieldCheck } from 'lucide-react';
 import { useFormPersistence, persistState, restoreState, clearState } from '@/hooks/useFormPersistence';
 
 import { Button } from '@/components/ui/button';
@@ -90,6 +91,7 @@ const mpSchema = z.object({
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
   solution_expectations: z.string().trim().max(500, 'Keep under 500 characters').optional().or(z.literal('')),
+  am_approval_required: z.boolean().default(true),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
   beneficiaries_mapping: z.string().optional().default(''),
@@ -139,6 +141,7 @@ export function SimpleIntakeForm() {
       expected_timeline: undefined,
       solution_expectations: '',
       architect_id: '',
+      am_approval_required: true,
       selected_template: '',
       beneficiaries_mapping: '',
     },
@@ -208,6 +211,7 @@ export function SimpleIntakeForm() {
       industrySegmentId: data.industry_segment_id || '',
       templateId: data.selected_template || undefined,
       beneficiariesMapping: (data as any).beneficiaries_mapping || undefined,
+      amApprovalRequired: isMP ? ((data as any).am_approval_required ?? true) : false,
     };
   };
 
@@ -601,6 +605,34 @@ export function SimpleIntakeForm() {
             <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
           </div>
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+        </div>
+      </div>
+
+      {/* Approval Gate Toggle */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="h-5 w-5 mt-0.5 text-primary shrink-0" />
+            <div>
+              <Label htmlFor="am-approval-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+                Approval required before publishing to Solvers
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                When enabled, the Curator must send the challenge to you for approval before it goes live.
+              </p>
+            </div>
+          </div>
+          <Controller
+            name="am_approval_required"
+            control={control}
+            render={({ field }) => (
+              <Switch
+                id="am-approval-toggle"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            )}
+          />
         </div>
       </div>
 

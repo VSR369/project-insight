@@ -30,6 +30,7 @@ interface SubmitPayload {
   subDomainIds?: string[];
   specialtyTags?: string[];
   beneficiariesMapping?: string;
+  amApprovalRequired?: boolean;
 }
 
 interface SubmitResult {
@@ -83,11 +84,10 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
-          ...(payload.beneficiariesMapping ? {
-            extended_brief: {
-              beneficiaries_mapping: payload.beneficiariesMapping,
-            },
-          } : {}),
+          extended_brief: {
+            ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
+            ...(payload.amApprovalRequired !== undefined ? { am_approval_required: payload.amApprovalRequired } : {}),
+          },
         } as any)
         .eq('id', challengeId);
 

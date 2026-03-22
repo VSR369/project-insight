@@ -164,6 +164,22 @@ export default function CurationActions({
   const maxCycles = 3;
   const isMP = operatingModel === 'MP';
 
+  // Check if AM opted into pre-publish approval
+  const { data: extendedBrief } = useQuery({
+    queryKey: ['challenge-extended-brief', challengeId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('challenges')
+        .select('extended_brief')
+        .eq('id', challengeId)
+        .single();
+      return (data?.extended_brief as any) ?? {};
+    },
+    enabled: !!challengeId,
+    staleTime: 5 * 60_000,
+  });
+  const amApprovalRequired = isMP && (extendedBrief?.am_approval_required !== false);
+
   // For MP: update phase_status to AM_APPROVAL_PENDING instead of advancing phase
   const amApprovalMutation = useMutation({
     mutationFn: async () => {
@@ -243,8 +259,8 @@ export default function CurationActions({
       return;
     }
 
-    // MP model: route to AM for approval first
-    if (isMP) {
+    // MP model with AM approval required: route to AM first
+    if (amApprovalRequired) {
       amApprovalMutation.mutate();
       return;
     }
@@ -318,7 +334,7 @@ export default function CurationActions({
           ) : (
             <Send className="h-4 w-4 mr-1.5" />
           )}
-          {isMP ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
+          {amApprovalRequired ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
         </Button>
 
         <Button
