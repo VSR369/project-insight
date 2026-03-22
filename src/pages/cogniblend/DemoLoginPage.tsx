@@ -150,7 +150,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
     {
       email: 'nh-solo@testsetup.dev',
       displayName: 'Sam Solo',
-      roles: isMP ? ['AM', 'CR', 'CU', 'ID', 'ER', 'FC'] : ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
+      roles: isMP ? ['AM', 'CA', 'CU', 'ID', 'ER', 'FC'] : ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
       aiDescription: 'Solo operator — walks through all AI-assisted steps sequentially',
       manualDescription: 'Solo operator — holds all roles for full wizard walkthrough',
       aiDestination: '/cogni/challenges/create?tab=ai',
