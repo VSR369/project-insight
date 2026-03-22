@@ -705,6 +705,20 @@ export default function AISpecReviewPage() {
   const isCR = userRoles.includes('CR');
   const isCU = userRoles.includes('CU');
   const isMP = challenge?.operating_model === 'MP';
+
+  // ═══════ Derived — industry segment from eligibility ═══════
+  const eligibilityData = useMemo(() => {
+    if (!challenge) return null;
+    const raw = (challenge as any).eligibility;
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return raw as Record<string, unknown>;
+  }, [challenge]);
+
+  const industrySegmentId = (eligibilityData?.industry_segment_id as string) ?? null;
+
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
