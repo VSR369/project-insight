@@ -168,6 +168,7 @@ interface DraftPayload {
   industrySegmentId?: string;
   subDomainIds?: string[];
   specialtyTags?: string[];
+  beneficiariesMapping?: string;
 }
 
 export function useSaveDraft() {
