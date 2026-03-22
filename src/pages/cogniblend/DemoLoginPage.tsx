@@ -223,6 +223,10 @@ export default function DemoLoginPage() {
       sessionStorage.setItem('cogni_demo_governance', governanceMode);
       sessionStorage.setItem('cogni_demo_engagement', engagementModel);
 
+      // Force active role to match selected demo user's primary role
+      // Prevents CogniRoleContext from resolving to a higher-priority role (e.g. CR over RQ)
+      localStorage.setItem('cogni_active_role', demoUser.roles[0]);
+
       const destination = path === 'ai' ? demoUser.aiDestination : demoUser.manualDestination;
       toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')}) — ${path === 'ai' ? 'AI-Assisted' : 'Manual Editor'}`);
       navigate(destination);

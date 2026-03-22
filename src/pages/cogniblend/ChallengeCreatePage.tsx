@@ -469,7 +469,7 @@ export default function ChallengeCreatePage() {
           <CreationContextBar />
         </div>
         <ConversationalIntakeContent
-          onSwitchToEditor={switchToEditor}
+          onSwitchToEditor={demoPath === 'ai' ? undefined : switchToEditor}
           sharedState={sharedState}
           onStateChange={handleIntakeStateChange}
           onSpecGenerated={handleSpecGenerated}
@@ -491,7 +491,7 @@ export default function ChallengeCreatePage() {
         </div>
         <ChallengeWizardPage
           embedded
-          onSwitchToSimple={switchToAI}
+          onSwitchToSimple={demoPath === 'manual' ? undefined : switchToAI}
           initialFromIntake={sharedState}
           governanceMode={governanceMode}
           engagementModel={engagementModel}
