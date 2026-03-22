@@ -697,6 +697,8 @@ export default function AISpecReviewPage() {
 
   // ═══════ Derived — role checks ═══════
   const isCR = userRoles.includes('CR');
+  const isCU = userRoles.includes('CU');
+  const isMP = challenge?.operating_model === 'MP';
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
