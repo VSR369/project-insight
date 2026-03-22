@@ -47,8 +47,8 @@ export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string 
 
 /** Role code → nav paths that are "relevant" for this workspace */
 export const ROLE_NAV_RELEVANCE: Record<string, string[]> = {
-  AM: ['/cogni/challenges/create', '/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
-  RQ: ['/cogni/challenges/create', '/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
+  AM: ['/cogni/challenges/create', '/cogni/submit-request', '/cogni/dashboard'],
+  RQ: ['/cogni/challenges/create', '/cogni/submit-request', '/cogni/dashboard'],
   CR: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
   CA: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
   CU: ['/cogni/curation', '/cogni/dashboard'],
@@ -58,7 +58,7 @@ export const ROLE_NAV_RELEVANCE: Record<string, string[]> = {
   FC: ['/cogni/escrow', '/cogni/payments', '/cogni/dashboard'],
 };
 
-/** Solver paths are always relevant regardless of active role */
+/** Solver paths — only relevant for non-seeking-org users */
 export const SOLVER_PATHS = [
   '/cogni/browse',
   '/cogni/my-solutions',

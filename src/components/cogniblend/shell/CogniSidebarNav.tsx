@@ -35,12 +35,14 @@ interface NavSection {
 /*  Navigation definition                                              */
 /* ------------------------------------------------------------------ */
 
+/** Seeking-org role codes — users with ONLY these roles should not see solver items */
+const SEEKING_ORG_ROLES = new Set(['AM', 'CR', 'CA', 'RQ', 'CU', 'ID', 'ER', 'LC', 'FC']);
+
 const SECTIONS: NavSection[] = [
   {
     title: 'CHALLENGES',
     items: [
       { label: 'New Challenge', path: '/cogni/challenges/create', icon: FilePlus, requiredRoles: ['CR', 'CA', 'AM', 'RQ'] },
-      { label: 'My Requests', path: '/cogni/my-requests', icon: FileInput, requiredRoles: ['AM', 'RQ'] },
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, requiredRoles: ['CR'], badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, requiredRoles: ['CU'], badgeKey: 'curationQueue' },
       { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, requiredRoles: ['ID'], badgeKey: 'approvalQueue' },
