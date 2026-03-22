@@ -45,6 +45,7 @@ export interface ChallengeDetail {
   challenge_visibility: string | null;
   hook: string | null;
   effort_level: string | null;
+  extended_brief: Record<string, unknown> | null;
 }
 
 /* ─── useChallengeDetail ─────────────────────────────────── */
