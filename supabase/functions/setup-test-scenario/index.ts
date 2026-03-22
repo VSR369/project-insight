@@ -12,6 +12,7 @@ interface ScenarioConfig {
   orgName: string;
   operatingModel: string;
   governanceProfile: string;
+  subscriptionTier: string;
   phase1Bypass: boolean;
   isEnterprise: boolean;
   users: { email: string; displayName: string; roles: string[] }[];
