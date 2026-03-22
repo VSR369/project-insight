@@ -324,13 +324,21 @@ export default function ChallengeCreatePage() {
 
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
-    if (currentOrg) {
+    const demoGov = sessionStorage.getItem('cogni_demo_governance') as GovernanceMode | null;
+    if (demoGov && ['QUICK', 'STRUCTURED', 'CONTROLLED'].includes(demoGov)) {
+      setGovernanceMode(demoGov);
+      sessionStorage.removeItem('cogni_demo_governance');
+    } else if (currentOrg) {
       setGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
     }
   }, [currentOrg?.governanceProfile]);
 
   useEffect(() => {
-    if (orgContext?.operatingModel) {
+    const demoEng = sessionStorage.getItem('cogni_demo_engagement');
+    if (demoEng && ['MP', 'AGG'].includes(demoEng)) {
+      setEngagementModel(demoEng);
+      sessionStorage.removeItem('cogni_demo_engagement');
+    } else if (orgContext?.operatingModel) {
       setEngagementModel(orgContext.operatingModel === 'AGG' ? 'AGG' : 'MP');
     }
   }, [orgContext?.operatingModel]);
