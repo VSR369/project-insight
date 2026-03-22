@@ -1,40 +1,52 @@
 
 
-# Plan: Add Governance & Engagement Selectors to Demo Login Page
+# Plan: Link Challenge Configuration to Demo Roles & Workflow
 
 ## Problem
 
-The governance mode and engagement model selectors are on `ChallengeCreatePage` (post-login), but the user wants them visible **on the demo login page itself** (`/cogni/demo-login`) — so testers can pick a governance mode + engagement model BEFORE logging in as a role, and the selection carries through to the creation flow.
+The demo login page's "Challenge Configuration" section (Governance Mode + Engagement Model) is visually present but **disconnected** from the demo user list and workflow steps below. When the user selects **Marketplace (MP)**, the first role card should show **Account Manager (AM)** — not Challenge Requestor (RQ). The workflow steps should also adapt (e.g., Step 1 role label changes from "RQ / CR" to "AM / CR").
 
-## Approach
+## Business Rules
 
-1. Add the `GovernanceEngagementSelector` UI to `DemoLoginPage.tsx` between the Seed Card and the Tabs
-2. Persist selections in `sessionStorage` (e.g., `cogni_demo_governance`, `cogni_demo_engagement`)
-3. On `ChallengeCreatePage`, read these sessionStorage values as initial defaults (overriding org defaults when present)
+- **Marketplace (MP)**: Step 1 actor = Account Manager (AM), direct provider browsing
+- **Aggregator (AGG)**: Step 1 actor = Challenge Requestor (RQ), platform-mediated
 
 ## Changes
 
 ### 1. `src/pages/cogniblend/DemoLoginPage.tsx`
 
-- Import governance utilities (`GovernanceMode`, `GOVERNANCE_MODE_CONFIG`, `getAvailableGovernanceModes`, `resolveGovernanceMode`) and the selector UI elements (cards grid + engagement dropdown) — inline since this page doesn't have org context pre-login
-- Add `governanceMode` and `engagementModel` state (defaults: `STRUCTURED`, `MP`)
-- Render a "Challenge Configuration" section between the Seed Card and the Tabs containing:
-  - 3-column governance mode cards (QUICK / STRUCTURED / CONTROLLED) — all enabled since this is a demo page for testing all behaviors
-  - Engagement model dropdown (MP / AGG)
-- On login (`handleLogin`), persist selections to sessionStorage:
-  - `sessionStorage.setItem('cogni_demo_governance', governanceMode)`
-  - `sessionStorage.setItem('cogni_demo_engagement', engagementModel)`
+**a) Dynamic DEMO_USERS list based on engagement model:**
+- Replace the static `DEMO_USERS` array with a function `getDemoUsers(engagementModel: string)` that returns the appropriate user list
+- When MP: First entry uses `nh-am@testsetup.dev` (or falls back to existing email) with roles `['AM']`, label "Account Manager", and MP-specific descriptions
+- When AGG: First entry uses `nh-rq@testsetup.dev` with roles `['RQ']` (current behavior)
+- The Solo user also adapts: MP includes AM in their role set, AGG includes RQ
 
-### 2. `src/pages/cogniblend/ChallengeCreatePage.tsx`
+**b) Dynamic workflow steps based on engagement model:**
+- Pass `engagementModel` as a prop to `DemoWorkflowSteps`
+- Step 1 role label changes: MP → "AM / CR", AGG → "RQ / CR"
+- Step 1 AI/manual notes adapt accordingly
 
-- In the `useEffect` that initializes `governanceMode`, check `sessionStorage.getItem('cogni_demo_governance')` first — if present, use it instead of org default
-- In the `useEffect` that initializes `engagementModel`, check `sessionStorage.getItem('cogni_demo_engagement')` first — if present, use it instead of org default
-- Clear these sessionStorage keys after reading (one-time override)
+### 2. `src/components/cogniblend/demo/DemoWorkflowSteps.tsx`
+
+- Add optional `engagementModel` prop
+- Dynamically resolve Step 1 role label and notes based on engagement model
+- MP: "AM submits problem brief" / AGG: "RQ shares idea"
+
+### 3. `src/pages/cogniblend/DemoLoginPage.tsx` (continued)
+
+**c) Wire governance mode to workflow display:**
+- Pass `governanceMode` to `DemoWorkflowSteps` so the step descriptions can reflect governance differences (e.g., QUICK mode shows "auto-complete" notes, CONTROLLED shows "formal gates")
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `DemoLoginPage.tsx` | Add governance mode cards + engagement model dropdown before the tabs; persist to sessionStorage on login |
-| `ChallengeCreatePage.tsx` | Read sessionStorage overrides for governance/engagement on mount |
+| `DemoLoginPage.tsx` | Make DEMO_USERS dynamic based on engagement model; pass engagement model + governance mode to workflow steps |
+| `DemoWorkflowSteps.tsx` | Accept engagement model prop; adapt Step 1 role/notes dynamically |
+
+## What is NOT Changed
+
+- `ChallengeCreatePage.tsx` — already correctly reads sessionStorage overrides
+- `SimpleIntakeForm.tsx` — already adapts based on operating model at runtime
+- `ConversationalIntakePage.tsx` — already receives props
 
