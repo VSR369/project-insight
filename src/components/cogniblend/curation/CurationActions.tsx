@@ -46,6 +46,7 @@ export default function CurationActions({
   checklistSummary,
   completedCount,
   totalCount,
+  operatingModel,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
