@@ -115,7 +115,10 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
-  const fallbackMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
+  const tierCode = (currentOrg as any)?.tierCode ?? null;
+  const fallbackMode: GovernanceMode = isEditMode
+    ? resolveGovernanceMode(rawGovernanceProfile)
+    : getDefaultGovernanceMode(tierCode, rawGovernanceProfile);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
 
   // ═══════ Hooks — form (must be before watch) ═══════
