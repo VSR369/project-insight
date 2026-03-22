@@ -344,9 +344,9 @@ export function ConversationalIntakeContent({
   // Sync governance mode & engagement model from org defaults once loaded (only when no props)
   useEffect(() => {
     if (currentOrg && !propGovernanceMode) {
-      setLocalGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
+      setLocalGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
-  }, [currentOrg?.governanceProfile, propGovernanceMode]);
+  }, [currentOrg?.governanceProfile, currentOrg?.tierCode, propGovernanceMode]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (orgLoading) {

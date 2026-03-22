@@ -330,7 +330,7 @@ export default function ChallengeCreatePage() {
       setGovernanceMode(demoGov);
       sessionStorage.removeItem('cogni_demo_governance');
     } else if (currentOrg) {
-      setGovernanceMode(resolveGovernanceMode(currentOrg.governanceProfile));
+      setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
   }, [currentOrg?.governanceProfile]);
 
