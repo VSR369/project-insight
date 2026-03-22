@@ -1259,6 +1259,49 @@ export default function CurationReviewPage() {
         </div>
       )}
 
+      {/* ═══ ORIGINAL BRIEF (Seeding Data) ═══ */}
+      {challenge.problem_statement && (
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="original-brief" className="border border-border rounded-lg">
+            <AccordionTrigger className="px-4 py-2 text-sm font-semibold hover:no-underline gap-2">
+              <div className="flex items-center gap-2 flex-1 text-left">
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span>Original Brief from {challenge.operating_model === 'MP' ? 'Account Manager' : 'Challenge Requestor'}</span>
+                <Badge variant="outline" className="text-[10px] ml-auto">Read Only</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Problem Statement</p>
+                <p className="text-sm text-foreground mt-0.5">{challenge.problem_statement || '—'}</p>
+              </div>
+              {(() => {
+                const reward = parseJson<any>(challenge.reward_structure);
+                if (!reward) return null;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Budget Range</p>
+                    <p className="text-sm text-foreground mt-0.5">
+                      {reward.currency ?? 'USD'} {(reward.budget_min ?? 0).toLocaleString()} – {(reward.budget_max ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                );
+              })()}
+              {(() => {
+                const sched = parseJson<any>(challenge.phase_schedule);
+                if (!sched?.expected_timeline) return null;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Timeline Urgency</p>
+                    <p className="text-sm text-foreground mt-0.5">{sched.expected_timeline} months</p>
+                  </div>
+                );
+              })()}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
+
       {/* ═══ PROGRESS STRIP ═══ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {GROUPS.map((group) => {
