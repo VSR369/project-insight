@@ -334,7 +334,7 @@ export default function CurationActions({
           ) : (
             <Send className="h-4 w-4 mr-1.5" />
           )}
-          {isMP ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
+          {amApprovalRequired ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
         </Button>
 
         <Button
