@@ -532,10 +532,10 @@ export function SimpleIntakeForm() {
           {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
         </div>
 
-        {/* Timeline */}
+        {/* Timeline Urgency */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
-            Expected Timeline <span className="text-destructive">*</span>
+            Timeline Urgency <span className="text-destructive">*</span>
           </Label>
           <Controller
             name="expected_timeline"
@@ -556,30 +556,24 @@ export function SimpleIntakeForm() {
           {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
         </div>
 
-        {/* Architect picker */}
-        {architects.length > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">
-              Assign Challenge Architect
-            </Label>
-            <Controller
-              name="architect_id"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an architect…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {architects.map((a: any) => (
-                      <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+        {/* What success looks like commercially (Optional) */}
+        <div className="space-y-1.5">
+          <Label htmlFor="si-expectations" className="text-sm font-medium">
+            What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
+          </Label>
+          <Textarea
+            id="si-expectations"
+            placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+            rows={3}
+            maxLength={500}
+            className="text-base resize-none"
+            {...register('solution_expectations')}
+          />
+          <div className="flex justify-end">
+            <span className="text-xs text-muted-foreground">{solutionCharCount} / 500</span>
           </div>
-        )}
+          {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+        </div>
       </div>
 
       {/* Actions */}
