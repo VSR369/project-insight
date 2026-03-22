@@ -1,14 +1,40 @@
 
-# Plan: Fix Demo Login for All Engagement Models & Governance Modes — ✅ COMPLETED
 
-## Changes Made
+# Fix: Challenge Requestor Not Seeing "Share Your Idea" Screen
 
-### 1. `supabase/functions/setup-test-scenario/index.ts`
-- Added robust cascading cleanup: resolves all scenario user IDs from auth, deletes orphaned `org_users`, `user_roles`, and `user_challenge_roles` before org cleanup
-- Added `sync_operating_model` action handler as fallback for RLS-blocked client updates
-- Redeployed edge function
+## Problem
 
-### 2. `src/pages/cogniblend/DemoLoginPage.tsx`
-- Wrapped `operating_model` update in try-catch with edge function fallback
-- Improved error message when org_users is missing: "Please click Seed Demo Scenario first"
-- Non-fatal warning toast if sync fails entirely
+The URL is `/cogni/challenges/create?tab=ai`. Line 366 reads the `tab` query param and sets `activeView = 'ai'`. The RQ routing check on line 434 only triggers when `activeView === 'landing'`:
+
+```
+if (isAMorRQ && activeView === 'landing') → SimpleIntakeForm
+```
+
+Since `activeView` is `'ai'`, RQ users fall through to the ConversationalIntakePage (the CR/CA form) instead of seeing their "Share Your Idea" SimpleIntakeForm.
+
+## Solution
+
+In `ChallengeCreatePage.tsx`, move the AM/RQ role check **before** the activeView derivation, or make the AM/RQ check independent of the tab parameter. AM and RQ users should **always** see SimpleIntakeForm regardless of URL params.
+
+## Change
+
+### `src/pages/cogniblend/ChallengeCreatePage.tsx`
+
+**Line 434** — Remove the `&& activeView === 'landing'` condition so AM/RQ users always get routed to SimpleIntakeForm:
+
+```tsx
+// Before:
+if (isAMorRQ && activeView === 'landing') {
+
+// After:
+if (isAMorRQ) {
+```
+
+This ensures that regardless of how the RQ user navigates to the page (direct link, sidebar click with `?tab=ai`, etc.), they always see their role-appropriate intake form.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Remove `activeView === 'landing'` guard from AM/RQ routing check |
+
