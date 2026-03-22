@@ -20,6 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Clock, Save, PauseCircle, XCircle, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
