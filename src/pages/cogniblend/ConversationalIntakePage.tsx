@@ -518,7 +518,7 @@ export function ConversationalIntakeContent({
 
       if (governanceMode === 'CONTROLLED') {
         toast.success('AI suggestions ready — complete each field manually in Controlled mode.');
-      } else if (govMode === 'STRUCTURED') {
+      } else if (governanceMode === 'STRUCTURED') {
         toast.success('AI specification generated! Review each section before submitting.');
       } else {
         toast.success('AI specification generated! Confirm to submit.');
