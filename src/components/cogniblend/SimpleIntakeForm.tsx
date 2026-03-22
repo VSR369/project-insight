@@ -134,6 +134,7 @@ export function SimpleIntakeForm() {
       solution_expectations: '',
       architect_id: '',
       selected_template: '',
+      beneficiaries_mapping: '',
     },
     mode: 'onBlur',
   });
