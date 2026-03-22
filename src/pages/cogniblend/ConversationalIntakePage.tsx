@@ -256,7 +256,7 @@ export function ConversationalIntakeContent({
   );
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
-  const [expandOpen, setExpandOpen] = useState(true);
+  const [expandOpen, setExpandOpen] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
