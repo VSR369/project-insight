@@ -65,13 +65,15 @@ const aggSchema = z.object({
   selected_template: z.string().min(1, 'Please select a challenge type'),
   problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(5000, 'Keep your idea under 5000 characters'),
   beneficiaries_mapping: z.string().optional().default(''),
+  expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
+    errorMap: () => ({ message: 'Please select a timeline' }),
+  }),
   // MP-only fields present but optional for unified form type
   title: z.string().optional(),
   industry_segment_id: z.string().optional(),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().optional(),
   budget_max: z.coerce.number().optional(),
-  expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+']).optional(),
   solution_expectations: z.string().optional(),
   architect_id: z.string().optional(),
 });
