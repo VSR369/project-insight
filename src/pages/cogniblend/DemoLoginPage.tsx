@@ -139,9 +139,21 @@ const DEMO_USERS: DemoUser[] = [
   },
 ];
 
+const GOVERNANCE_CARDS: Array<{
+  mode: GovernanceMode;
+  icon: typeof Zap;
+  summary: string;
+}> = [
+  { mode: 'QUICK', icon: Zap, summary: 'Simplified workflow, auto-completion, merged roles' },
+  { mode: 'STRUCTURED', icon: Settings2, summary: 'Full field set, manual curation, optional add-ons' },
+  { mode: 'CONTROLLED', icon: ShieldCheck, summary: 'Mandatory escrow, formal gates, full compliance' },
+];
+
 export default function DemoLoginPage() {
   const navigate = useNavigate();
   const [loadingEmail, setLoadingEmail] = useState<string | null>(null);
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [engagementModel, setEngagementModel] = useState<string>('MP');
 
   const handleLogin = useCallback(async (demoUser: DemoUser, path: DemoPath) => {
     setLoadingEmail(demoUser.email);
@@ -170,7 +182,11 @@ export default function DemoLoginPage() {
         }
       }
 
+      // Persist demo selections to sessionStorage
       sessionStorage.setItem('cogni_demo_path', path);
+      sessionStorage.setItem('cogni_demo_governance', governanceMode);
+      sessionStorage.setItem('cogni_demo_engagement', engagementModel);
+
       const destination = path === 'ai' ? demoUser.aiDestination : demoUser.manualDestination;
       toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')}) — ${path === 'ai' ? 'AI-Assisted' : 'Manual Editor'}`);
       navigate(destination);
@@ -180,7 +196,7 @@ export default function DemoLoginPage() {
     } finally {
       setLoadingEmail(null);
     }
-  }, [navigate]);
+  }, [navigate, governanceMode, engagementModel]);
 
   const getRoleBadge = (code: string) => {
     const color = ROLE_COLORS[code];
