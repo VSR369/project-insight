@@ -55,6 +55,7 @@ import { toast } from 'sonner';
 import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import ChallengeSettingsPanel from '@/components/cogniblend/spec/ChallengeSettingsPanel';
 import ExtendedBriefPreview from '@/components/cogniblend/spec/ExtendedBriefPreview';
+import DomainTargetingCard from '@/components/cogniblend/spec/DomainTargetingCard';
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
@@ -67,6 +68,7 @@ import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallenge
 import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
+import { autoAssignChallengeRole } from '@/hooks/cogniblend/useAutoAssignChallengeRoles';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
@@ -678,6 +680,10 @@ export default function AISpecReviewPage() {
   const [autoGenError, setAutoGenError] = useState<string | null>(null);
   // Org-policy settings state (Creator-facing)
   const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
+  // Domain targeting taxonomy state
+  const [selectedProfAreaIds, setSelectedProfAreaIds] = useState<string[]>([]);
+  const [selectedSubDomainIds, setSelectedSubDomainIds] = useState<string[]>([]);
+  const [selectedSpecialityIds, setSelectedSpecialityIds] = useState<string[]>([]);
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -699,6 +705,20 @@ export default function AISpecReviewPage() {
   const isCR = userRoles.includes('CR');
   const isCU = userRoles.includes('CU');
   const isMP = challenge?.operating_model === 'MP';
+
+  // ═══════ Derived — industry segment from eligibility ═══════
+  const eligibilityData = useMemo(() => {
+    if (!challenge) return null;
+    const raw = (challenge as any).eligibility;
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return raw as Record<string, unknown>;
+  }, [challenge]);
+
+  const industrySegmentId = (eligibilityData?.industry_segment_id as string) ?? null;
+
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
@@ -1099,6 +1119,17 @@ export default function AISpecReviewPage() {
     const policyFields = getOrgPolicyFields();
     Object.assign(fieldsToSave, policyFields);
 
+    // Merge taxonomy selections into eligibility JSON
+    if (industrySegmentId) {
+      fieldsToSave.eligibility = JSON.stringify({
+        ...(eligibilityData ?? {}),
+        industry_segment_id: industrySegmentId,
+        proficiency_area_ids: selectedProfAreaIds,
+        sub_domain_ids: selectedSubDomainIds,
+        speciality_ids: selectedSpecialityIds,
+      });
+    }
+
     if (Object.keys(fieldsToSave).length > 0 && challengeId) {
       try {
         await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
@@ -1134,6 +1165,32 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['cogni_user_roles'] });
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
+
+    // Auto-assign CU and ID roles using taxonomy
+    if (industrySegmentId && challengeId && user?.id) {
+      try {
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'CU',
+          industrySegmentId,
+          proficiencyAreaIds: selectedProfAreaIds,
+          subDomainIds: selectedSubDomainIds,
+          specialityIds: selectedSpecialityIds,
+          assignedBy: user.id,
+        });
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'ID',
+          industrySegmentId,
+          proficiencyAreaIds: selectedProfAreaIds,
+          subDomainIds: selectedSubDomainIds,
+          specialityIds: selectedSpecialityIds,
+          assignedBy: user.id,
+        });
+      } catch {
+        // Non-blocking — assignments may not find matches
+      }
+    }
 
     const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
     if (isAiPath) {
@@ -1173,6 +1230,17 @@ export default function AISpecReviewPage() {
     const policyFields = getOrgPolicyFields();
     Object.assign(fieldsToSave, policyFields);
 
+    // Merge taxonomy selections into eligibility JSON
+    if (industrySegmentId) {
+      fieldsToSave.eligibility = JSON.stringify({
+        ...(eligibilityData ?? {}),
+        industry_segment_id: industrySegmentId,
+        proficiency_area_ids: selectedProfAreaIds,
+        sub_domain_ids: selectedSubDomainIds,
+        speciality_ids: selectedSpecialityIds,
+      });
+    }
+
     if (Object.keys(fieldsToSave).length > 0 && challengeId) {
       try {
         await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
@@ -1207,6 +1275,32 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['cogni_user_roles'] });
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
+
+    // Auto-assign CU and ID roles using taxonomy
+    if (industrySegmentId && challengeId && user?.id) {
+      try {
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'CU',
+          industrySegmentId,
+          proficiencyAreaIds: selectedProfAreaIds,
+          subDomainIds: selectedSubDomainIds,
+          specialityIds: selectedSpecialityIds,
+          assignedBy: user.id,
+        });
+        await autoAssignChallengeRole({
+          challengeId,
+          roleCode: 'ID',
+          industrySegmentId,
+          proficiencyAreaIds: selectedProfAreaIds,
+          subDomainIds: selectedSubDomainIds,
+          specialityIds: selectedSpecialityIds,
+          assignedBy: user.id,
+        });
+      } catch {
+        // Non-blocking — assignments may not find matches
+      }
+    }
 
     const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
     if (isAiPath) {
@@ -1291,6 +1385,18 @@ export default function AISpecReviewPage() {
             </CollapsibleContent>
           </Collapsible>
         )}
+
+        {/* Domain Targeting — taxonomy cascade for CU/ID assignment */}
+        <DomainTargetingCard
+          industrySegmentId={industrySegmentId}
+          selectedProfAreaIds={selectedProfAreaIds}
+          selectedSubDomainIds={selectedSubDomainIds}
+          selectedSpecialityIds={selectedSpecialityIds}
+          onProfAreaIdsChange={setSelectedProfAreaIds}
+          onSubDomainIdsChange={setSelectedSubDomainIds}
+          onSpecialityIdsChange={setSelectedSpecialityIds}
+        />
+
         <div className="space-y-4">
           {SPEC_SECTIONS.map((section) => (
             <ReadOnlySectionCard
@@ -1402,7 +1508,17 @@ export default function AISpecReviewPage() {
           </Collapsible>
         )}
 
-        {/* CU Role Notice */}
+        {/* Domain Targeting — taxonomy cascade for CU/ID assignment */}
+        <DomainTargetingCard
+          industrySegmentId={industrySegmentId}
+          selectedProfAreaIds={selectedProfAreaIds}
+          selectedSubDomainIds={selectedSubDomainIds}
+          selectedSpecialityIds={selectedSpecialityIds}
+          onProfAreaIdsChange={setSelectedProfAreaIds}
+          onSubDomainIdsChange={setSelectedSubDomainIds}
+          onSpecialityIdsChange={setSelectedSpecialityIds}
+        />
+
         {isCU && (
           <div className="rounded-xl border-2 border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />

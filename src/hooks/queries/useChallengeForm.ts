@@ -45,6 +45,7 @@ export interface ChallengeDetail {
   challenge_visibility: string | null;
   hook: string | null;
   effort_level: string | null;
+  extended_brief: Record<string, unknown> | null;
 }
 
 /* ─── useChallengeDetail ─────────────────────────────────── */
@@ -66,7 +67,8 @@ export function useChallengeDetail(challengeId: string | undefined) {
           master_status, max_solutions, currency_code,
           solver_eligibility_types, solver_visibility_types,
           solver_eligibility_id,
-          challenge_visibility, hook, effort_level
+          challenge_visibility, hook, effort_level,
+          extended_brief
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
