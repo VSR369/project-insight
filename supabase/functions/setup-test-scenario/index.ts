@@ -34,6 +34,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "MP Enterprise Test Org",
     operatingModel: "MP",
     governanceProfile: "ENTERPRISE",
+    subscriptionTier: "enterprise",
     phase1Bypass: false,
     isEnterprise: true,
     users: [
