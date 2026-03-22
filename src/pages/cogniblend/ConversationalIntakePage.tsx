@@ -256,7 +256,7 @@ export function ConversationalIntakeContent({
   );
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
-  const [expandOpen, setExpandOpen] = useState(true);
+  const [expandOpen, setExpandOpen] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -636,86 +636,7 @@ export function ConversationalIntakeContent({
         )}
       </div>
 
-      {/* Expand Challenge Details — Domain Expert Fields */}
-      <Collapsible open={expandOpen} onOpenChange={setExpandOpen}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex items-center gap-2 w-full text-left group"
-          >
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expandOpen ? '' : '-rotate-90'}`} />
-            <span className="text-sm font-semibold text-foreground">Expand Challenge Details</span>
-            <span className="text-xs text-muted-foreground font-normal">(optional — recommended)</span>
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3">
-          <div className="rounded-xl border border-border bg-muted/30 p-5 space-y-5">
-            <p className="text-xs text-muted-foreground">
-              The more context you provide, the better the AI-generated specification will be.
-            </p>
 
-            <ExpandField
-              label="Context & Background"
-              fieldName="context_background"
-              placeholder="Provide relevant history, industry context, or organizational background that solvers should understand…"
-              maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('context_background') ?? ''}
-            />
-
-            <ExpandField
-              label="Root Causes"
-              fieldName="root_causes"
-              placeholder="What are the underlying causes of this problem? Why hasn't it been solved yet?"
-              maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('root_causes') ?? ''}
-            />
-
-            <ExpandField
-              label="Affected Stakeholders"
-              fieldName="affected_stakeholders"
-              placeholder="Who is impacted by this problem and how? (e.g., end users, operations teams, customers)"
-              maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('affected_stakeholders') ?? ''}
-            />
-
-            <ExpandField
-              label="Scope Definition"
-              fieldName="scope_definition"
-              placeholder="What is explicitly in scope and out of scope for this challenge?"
-              maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('scope_definition') ?? ''}
-            />
-
-            <ExpandField
-              label="Preferred Approach"
-              fieldName="preferred_approach"
-              placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
-              maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('preferred_approach') ?? ''}
-            />
-
-            <ExpandField
-              label="Approaches NOT of Interest"
-              fieldName="approaches_not_of_interest"
-              placeholder="What has been tried and failed? What approaches should solvers avoid?"
-              maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('approaches_not_of_interest') ?? ''}
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
 
       {/* Step 4: Maturity Level */}
       <div className="space-y-3">
@@ -828,6 +749,87 @@ export function ConversationalIntakeContent({
         onAdd={handleAddFiles}
         onRemove={handleRemoveFile}
       />
+
+      {/* Expand Challenge Details — Domain Expert Fields */}
+      <Collapsible open={expandOpen} onOpenChange={setExpandOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center gap-2 w-full text-left group"
+          >
+            <ChevronDown className={`h-5 w-5 text-destructive transition-transform duration-200 ${expandOpen ? '' : '-rotate-90'}`} />
+            <span className="text-lg font-bold text-destructive">Expand Challenge Details</span>
+            <span className="text-sm text-destructive/70 font-normal">(optional — recommended)</span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <div className="rounded-xl border border-border bg-muted/30 p-5 space-y-5">
+            <p className="text-xs text-muted-foreground">
+              The more context you provide, the better the AI-generated specification will be.
+            </p>
+
+            <ExpandField
+              label="Context & Background"
+              fieldName="context_background"
+              placeholder="Provide relevant history, industry context, or organizational background that solvers should understand…"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('context_background') ?? ''}
+            />
+
+            <ExpandField
+              label="Root Causes"
+              fieldName="root_causes"
+              placeholder="What are the underlying causes of this problem? Why hasn't it been solved yet?"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('root_causes') ?? ''}
+            />
+
+            <ExpandField
+              label="Affected Stakeholders"
+              fieldName="affected_stakeholders"
+              placeholder="Who is impacted by this problem and how? (e.g., end users, operations teams, customers)"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('affected_stakeholders') ?? ''}
+            />
+
+            <ExpandField
+              label="Scope Definition"
+              fieldName="scope_definition"
+              placeholder="What is explicitly in scope and out of scope for this challenge?"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('scope_definition') ?? ''}
+            />
+
+            <ExpandField
+              label="Preferred Approach"
+              fieldName="preferred_approach"
+              placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('preferred_approach') ?? ''}
+            />
+
+            <ExpandField
+              label="Approaches NOT of Interest"
+              fieldName="approaches_not_of_interest"
+              placeholder="What has been tried and failed? What approaches should solvers avoid?"
+              maxLength={1000}
+              rows={2}
+              register={form.register}
+              watchValue={form.watch('approaches_not_of_interest') ?? ''}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
