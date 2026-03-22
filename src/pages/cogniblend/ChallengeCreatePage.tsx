@@ -500,22 +500,26 @@ export default function ChallengeCreatePage() {
       {/* Governance & Engagement Selectors */}
       <GovernanceEngagementSelector {...selectorProps} />
 
-      {/* Track Cards — CR/CA see 2 cards with renamed labels */}
+      {/* Track Cards — CR/CA see 2 cards, filtered by demo path */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TrackCard
-          icon={<Sparkles className="h-5 w-5" />}
-          title="Describe Your Problem"
-          description="Tell us about your challenge and AI generates a complete specification for you to review and refine."
-          badge="Recommended"
-          badgeVariant="recommended"
-          onClick={() => setView('ai')}
-        />
-        <TrackCard
-          icon={<Settings2 className="h-5 w-5" />}
-          title="Build Spec Manually"
-          description="Full control. Build your challenge step-by-step using the advanced editor with all fields and configurations."
-          onClick={() => setView('editor')}
-        />
+        {demoPath !== 'manual' && (
+          <TrackCard
+            icon={<Sparkles className="h-5 w-5" />}
+            title="Describe Your Problem"
+            description="Tell us about your challenge and AI generates a complete specification for you to review and refine."
+            badge="Recommended"
+            badgeVariant="recommended"
+            onClick={() => setView('ai')}
+          />
+        )}
+        {demoPath !== 'ai' && (
+          <TrackCard
+            icon={<Settings2 className="h-5 w-5" />}
+            title="Build Spec Manually"
+            description="Full control. Build your challenge step-by-step using the advanced editor with all fields and configurations."
+            onClick={() => setView('editor')}
+          />
+        )}
       </div>
 
       {/* Governance Mode Explanation */}
