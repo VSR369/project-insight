@@ -601,6 +601,114 @@ export function ConversationalIntakeContent({
         </Alert>
       )}
 
+      {/* ═══ Governance Mode Selection ═══ */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Governance Mode</h3>
+          <p className="text-sm text-muted-foreground">
+            Choose how much structure and compliance this challenge requires.
+            {currentOrg?.tierCode && (
+              <span className="ml-1 text-xs text-muted-foreground">
+                (Your tier: <span className="font-medium capitalize">{currentOrg.tierCode}</span>)
+              </span>
+            )}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {([
+            { mode: 'QUICK' as GovernanceMode, icon: Zap, features: ['Simplified workflow with fewer required fields', 'Auto-completion & merged roles', 'Auto-attached legal defaults', 'Ideal for fast experiments & small challenges'] },
+            { mode: 'STRUCTURED' as GovernanceMode, icon: Settings2, features: ['Full field set with manual curation', 'Optional add-ons (escrow, targeting)', 'Distinct creator & curator roles', 'Best for standard enterprise challenges'] },
+            { mode: 'CONTROLLED' as GovernanceMode, icon: ShieldCheck, features: ['Mandatory escrow & formal gates', 'All legal documents required', 'Strict role separation enforced', 'Full compliance & audit trail'] },
+          ]).map(({ mode, icon: Icon, features }) => {
+            const cfg = GOVERNANCE_MODE_CONFIG[mode];
+            const isSelected = governanceMode === mode;
+            const isDisabled = disabledModes.includes(mode);
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={isDisabled}
+                onClick={() => { if (!isDisabled) setGovernanceMode(mode); }}
+                className={cn(
+                  'relative w-full text-left rounded-xl border-2 p-5 transition-all',
+                  isSelected ? 'shadow-md ring-1' : 'hover:shadow-sm',
+                  isDisabled && 'opacity-40 cursor-not-allowed',
+                )}
+                style={{
+                  borderColor: isSelected ? cfg.color : 'hsl(var(--border))',
+                  backgroundColor: isSelected ? cfg.bg : 'transparent',
+                  ...(isSelected ? { boxShadow: `0 0 0 1px ${cfg.color}20` } : {}),
+                }}
+              >
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-bold" style={{ color: cfg.color }}>{cfg.label}</p>
+                </div>
+                <ul className="space-y-1.5">
+                  {features.map((f) => (
+                    <li key={f} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <span className="mt-0.5 shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: cfg.color }} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isSelected && (
+                  <div
+                    className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: cfg.color }}
+                  >
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+                {isDisabled && (
+                  <Badge variant="secondary" className="absolute top-2.5 right-2.5 text-[9px]">
+                    Upgrade required
+                  </Badge>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ═══ Engagement Model Selection ═══ */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Engagement Model</h3>
+          <p className="text-sm text-muted-foreground">
+            Select the engagement model for this challenge. This determines how solvers are engaged and managed.
+          </p>
+        </div>
+
+        <Select value={engagementModel} onValueChange={setEngagementModel}>
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select engagement model" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="MP">Marketplace (MP) — Open competition</SelectItem>
+            <SelectItem value="AGG">Aggregator (AGG) — Curated selection</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5 max-w-sm">
+          <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            {engagementModel === 'AGG'
+              ? 'Aggregator model: solvers are curated and invited. An Account Manager (AM) role is not required.'
+              : 'Marketplace model: solvers discover and apply. An Account Manager (AM) role manages the process.'}
+          </p>
+        </div>
+      </div>
+
       {/* Step 1: Template Selector */}
       <TemplateSelector
         onSelect={handleTemplateSelect}
