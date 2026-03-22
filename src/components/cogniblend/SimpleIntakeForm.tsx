@@ -143,6 +143,7 @@ export function SimpleIntakeForm() {
     mode: 'onBlur',
   });
 
+  const { clearPersistedData } = useFormPersistence('cogni_intake_simple', form);
   const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors } } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
