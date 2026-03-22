@@ -490,7 +490,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "visibility_eligibility",
     label: "Visibility & Eligibility",
-    attribution: "by Creator",
+    attribution: "by Curator",
     dbField: "eligibility",
     isFilled: (ch) => !!ch.visibility || !!ch.eligibility,
     render: (ch) => {
