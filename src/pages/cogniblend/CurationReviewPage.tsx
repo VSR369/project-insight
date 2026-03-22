@@ -249,7 +249,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "submission_guidelines",
     label: "Submission Guidelines",
-    attribution: "by Creator",
+    attribution: "by CA",
     dbField: "description",
     isFilled: (ch) => !!ch.description?.trim(),
     render: (ch) => <AiContentRenderer content={ch.description} compact fallback="—" />,
