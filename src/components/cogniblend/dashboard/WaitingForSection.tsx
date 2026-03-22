@@ -14,9 +14,9 @@ import { PhaseProgressBar } from './PhaseProgressBar';
 
 /* ── Phase → role code mapping (mirrors NeedsActionSection) ── */
 
-const PHASE_ROLE_MAP: Record<number, string> = {
-  1: 'AM', 2: 'CR', 3: 'CU', 4: 'ID', 5: 'ID', 6: 'ID',
-  7: 'ER', 8: 'ER', 9: 'ID', 10: 'FC', 11: 'LC', 12: 'FC', 13: 'CR',
+const PHASE_ROLE_MAP: Record<number, string[]> = {
+  1: ['AM'], 2: ['CR', 'CA'], 3: ['CU'], 4: ['ID'], 5: ['ID'], 6: ['ID'],
+  7: ['ER'], 8: ['ER'], 9: ['ID'], 10: ['FC'], 11: ['LC'], 12: ['FC'], 13: ['CR', 'CA'],
 };
 
 /* ── Phase badge mapping ───────────────────────────────────── */
@@ -82,13 +82,10 @@ export function WaitingForSection({ items, isLoading, activeRole }: WaitingForSe
   const filteredItems = useMemo(() => {
     if (!activeRole) return items;
     return items.filter((item) => {
-      // Show if the user's next phase role matches activeRole
-      if (item.next_user_phase != null && PHASE_ROLE_MAP[item.next_user_phase] === activeRole) {
+      if (item.next_user_phase != null && (PHASE_ROLE_MAP[item.next_user_phase] ?? []).includes(activeRole)) {
         return true;
       }
-      // Also show if the current phase's owning role matches activeRole
-      // (user is waiting because someone else holds the current phase)
-      if (PHASE_ROLE_MAP[item.current_phase] === activeRole) {
+      if ((PHASE_ROLE_MAP[item.current_phase] ?? []).includes(activeRole)) {
         return true;
       }
       return false;
