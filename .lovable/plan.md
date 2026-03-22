@@ -1,21 +1,29 @@
 
 
-# Plan: Rearrange "Expand Challenge Details" Section
+# Plan: Fix "Challenge Requestor" Typo + Verify Role Separation
 
-## Changes (1 file)
+## Issue Identified
 
-**File: `src/pages/cogniblend/ConversationalIntakePage.tsx`**
+In `src/types/cogniRoles.ts` line 12, the RQ role display name is **"Change Requestor"** — this is a typo. It should be **"Challenge Requestor"**.
 
-1. **Move the Expand Challenge Details block** (lines 639-718) from its current position (between Expected Outcomes and Maturity Level) to **after Supporting Files** (after line 830, before the Actions/Generate button section).
+## Current State of Role Separation (Already Implemented)
 
-2. **Default to collapsed**: Change `useState(true)` to `useState(false)` on line 259.
+The previous approved plans already separated the screens correctly:
+- **RQ (AGG)** → SimpleIntakeForm with 3 lightweight fields (Title, Problem Idea 300 chars, Sector) — header: "Share Your Idea"
+- **AM (MP)** → SimpleIntakeForm with 6 mandatory fields (Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline) — header: "Submit a Problem Brief"
+- **CR/CA** → ConversationalIntakePage with full expert fields + "Expand Challenge Details" section
 
-3. **Restyle the trigger heading** — make it prominent with red color and larger font:
-   - Change `text-sm font-semibold text-foreground` → `text-lg font-bold text-destructive`
-   - Change the "(optional — recommended)" badge to also use `text-destructive/70` styling
-   - Increase the chevron icon to `h-5 w-5 text-destructive`
+No structural changes are needed — the forms are already correctly differentiated.
 
-## Result
+## Changes
 
-The form order becomes: Template → Problem → Expected Outcomes → Maturity → Prize → Deadline → Supporting Files → **Expand Challenge Details** (collapsed, red heading) → Generate with AI button.
+### 1. Fix typo in `src/types/cogniRoles.ts`
+
+**Line 12:** Change `RQ: 'Change Requestor'` → `RQ: 'Challenge Requestor'`
+
+This single fix propagates everywhere the RQ display name is used (RoleSwitcher, sidebar, dashboard widgets, badges).
+
+| File | Change |
+|------|--------|
+| `src/types/cogniRoles.ts` | Fix RQ display name from "Change Requestor" to "Challenge Requestor" |
 
