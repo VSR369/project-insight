@@ -1,35 +1,31 @@
 
 
-# Plan: Seed Subscription Tier on Demo Organization
+# Plan: Role-Appropriate Success Message After Intake Submission
 
 ## Problem
-The `seeker_organizations` insert in the seed function does not set the `subscription_tier` column. This defaults the org to "basic" tier, which only allows QUICK governance mode. The `new_horizon_demo` scenario sets `governance_profile: "ENTERPRISE"` (STRUCTURED mode), but the tier gate blocks it.
+After AM or RQ submits their intake, the toast just says "Solution Request submitted successfully" — it doesn't tell them what happens next or who will handle it. The AM/RQ should see a message indicating the challenge has been sent to the Challenge Creator/Architect for further action, with wording appropriate to the engagement model.
 
-## Fix
+## Changes
 
-### File: `supabase/functions/setup-test-scenario/index.ts`
+### File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
 
-Add `subscription_tier` to each scenario config and include it in the org insert:
+**1. Update `onSuccess` in `useSubmitSolutionRequest`** to use the `variables` parameter (2nd arg) to access `operatingModel` and show model-specific toast:
 
-| Scenario | `subscription_tier` | Reason |
-|----------|-------------------|--------|
-| `agg_enterprise` | `"enterprise"` | Full governance access |
-| `agg_lightweight_bypass` | `"basic"` | QUICK-only, matches LIGHTWEIGHT |
-| `new_horizon_demo` | `"premium"` | Unlocks QUICK + STRUCTURED + CONTROLLED |
+- **MP model**: `"Solution Request submitted — sent to Challenge Architect for Spec Review"`
+- **AGG model**: `"Solution Request submitted — sent to Challenge Creator for Spec Review"`
 
-**Changes:**
+```typescript
+onSuccess: (_data, variables) => {
+  const role = variables.operatingModel === 'MP'
+    ? 'Challenge Architect'
+    : 'Challenge Creator';
+  toast.success(`Solution Request submitted — sent to ${role} for Spec Review`);
+  // ... invalidations unchanged
+},
+```
 
-1. **Scenario configs** (lines 30-88): Add `subscriptionTier` field to each scenario definition.
+**2. Update `onSuccess` in `useSaveDraft`** — keep the existing "Draft saved successfully" message (drafts don't route anywhere).
 
-2. **Org insert** (line 195-207): Add `subscription_tier: config.subscriptionTier` to the insert object.
-
-3. **Results log**: Add a line showing the tier that was seeded so the user can verify.
-
-This ensures the governance mode engine (`getAvailableGovernanceModes`) returns the correct modes for the org, and the tier limit check (`useTierLimitCheck`) uses the right quota.
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `supabase/functions/setup-test-scenario/index.ts` | Add `subscriptionTier` to scenario configs and org insert |
+### No other files need changes
+The toast is centralized in the mutation hook — all callers (SimpleIntakeForm, CogniSubmitRequestPage, NewSolutionRequestPage, ConversationalIntakePage, ChallengeWizardPage) inherit the updated message automatically.
 
