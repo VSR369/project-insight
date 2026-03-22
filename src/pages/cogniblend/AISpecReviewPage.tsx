@@ -1529,9 +1529,11 @@ export default function AISpecReviewPage() {
         {/* Domain Targeting — taxonomy cascade for CU/ID assignment */}
         <DomainTargetingCard
           industrySegmentId={industrySegmentId}
+          originalIndustrySegmentId={originalIndustrySegmentId}
           selectedProfAreaIds={selectedProfAreaIds}
           selectedSubDomainIds={selectedSubDomainIds}
           selectedSpecialityIds={selectedSpecialityIds}
+          onIndustrySegmentChange={handleIndustrySegmentChange}
           onProfAreaIdsChange={setSelectedProfAreaIds}
           onSubDomainIdsChange={setSelectedSubDomainIds}
           onSpecialityIdsChange={setSelectedSpecialityIds}
