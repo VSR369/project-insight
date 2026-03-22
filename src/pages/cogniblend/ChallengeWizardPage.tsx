@@ -93,6 +93,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const navigate = useNavigate();
   const { id: challengeId } = useParams<{ id: string }>();
   const isEditMode = !!challengeId;
+  const { activeRole } = useCogniRoleContext();
+  const isCuratorView = activeRole === 'CU';
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
