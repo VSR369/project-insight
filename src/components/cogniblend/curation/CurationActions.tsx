@@ -259,8 +259,8 @@ export default function CurationActions({
       return;
     }
 
-    // MP model: route to AM for approval first
-    if (isMP) {
+    // MP model with AM approval required: route to AM first
+    if (amApprovalRequired) {
       amApprovalMutation.mutate();
       return;
     }
