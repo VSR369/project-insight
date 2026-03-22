@@ -17,6 +17,7 @@ interface SubmitPayload {
   orgId: string;
   creatorId: string;
   operatingModel: string;
+  title?: string;
   businessProblem: string;
   expectedOutcomes: string;
   constraints?: string;
