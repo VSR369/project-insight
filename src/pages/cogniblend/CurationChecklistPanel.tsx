@@ -291,7 +291,7 @@ export default function CurationChecklistPanel({
     "Phase schedule defined",
     "Submission guidelines provided",
     "Eligibility configured",
-    "Taxonomy tags applied",
+    "IP model confirmed",
     "Tier 1 legal docs attached",
     "Tier 2 legal templates attached",
     "Complexity parameters entered",

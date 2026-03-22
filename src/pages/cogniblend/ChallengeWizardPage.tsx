@@ -706,7 +706,16 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
             <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 3 && (
-            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            isCuratorView ? (
+              <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            ) : (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-foreground">Rewards & Payment</h2>
+                <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  Reward structure, escrow, payment milestones, and rejection fee settings are managed by the Curator during the curation review phase.
+                </div>
+              </div>
+            )
           )}
           {currentStep === 4 && (
             <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
