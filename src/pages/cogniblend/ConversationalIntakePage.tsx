@@ -532,8 +532,11 @@ export function ConversationalIntakeContent({
   };
 
   // ═══════ Derived governance state ═══════
-  const govMode = resolveGovernanceMode(currentOrg?.governanceProfile);
-  const isControlled = shouldRequireAdvancedEditor(govMode);
+  const availableModes = getAvailableGovernanceModes(currentOrg?.tierCode);
+  const disabledModes: GovernanceMode[] = (['QUICK', 'STRUCTURED', 'CONTROLLED'] as GovernanceMode[]).filter(
+    (m) => !availableModes.includes(m),
+  );
+  const isControlled = shouldRequireAdvancedEditor(governanceMode);
 
   // ═══════ Render ═══════
   return (
