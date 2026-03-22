@@ -360,7 +360,7 @@ const App = () => (
               <Route path="/cogni/submit-request" element={<LazyRoute><CogniSubmitRequestPage /></LazyRoute>} />
               <Route path="/cogni/my-requests/:id/view" element={<LazyRoute><AMRequestViewPage /></LazyRoute>} />
               <Route path="/cogni/my-requests/:id/review" element={<LazyRoute><AMChallengeReviewPage /></LazyRoute>} />
-              <Route path="/cogni/my-requests" element={<LazyRoute><CogniMyRequestsPage /></LazyRoute>} />
+              {/* /cogni/my-requests collection page removed — dashboard Section A covers this */}
               <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
               <Route path="/cogni/approval" element={<LazyRoute><ApprovalQueuePage /></LazyRoute>} />
               <Route path="/cogni/approval/:id" element={<LazyRoute><ApprovalReviewPage /></LazyRoute>} />

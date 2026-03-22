@@ -6,7 +6,7 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  FileInput, FilePlus, Folder, CheckSquare, ShieldCheck,
+  FilePlus, Folder, CheckSquare, ShieldCheck,
   FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
   Search, Lightbulb, User,
 } from 'lucide-react';
@@ -35,12 +35,14 @@ interface NavSection {
 /*  Navigation definition                                              */
 /* ------------------------------------------------------------------ */
 
+/** Seeking-org role codes — users with ONLY these roles should not see solver items */
+const SEEKING_ORG_ROLES = new Set(['AM', 'CR', 'CA', 'RQ', 'CU', 'ID', 'ER', 'LC', 'FC']);
+
 const SECTIONS: NavSection[] = [
   {
     title: 'CHALLENGES',
     items: [
       { label: 'New Challenge', path: '/cogni/challenges/create', icon: FilePlus, requiredRoles: ['CR', 'CA', 'AM', 'RQ'] },
-      { label: 'My Requests', path: '/cogni/my-requests', icon: FileInput, requiredRoles: ['AM', 'RQ'] },
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, requiredRoles: ['CR'], badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, requiredRoles: ['CU'], badgeKey: 'curationQueue' },
       { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, requiredRoles: ['ID'], badgeKey: 'approvalQueue' },
@@ -116,8 +118,11 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     roleChallengeCount,
   } = useCogniRoleContext();
 
-  // Derive allRoleCodes from availableRoles for visibility check
+   // Derive allRoleCodes from availableRoles for visibility check
   const allRoleCodes = new Set(availableRoles);
+
+  // Check if user holds only seeking-org roles (no solver role)
+  const isSeekingOrgOnly = availableRoles.length > 0 && availableRoles.every((r) => SEEKING_ORG_ROLES.has(r));
 
   // Badge counts from roleChallengeCount (approximate)
   const badgeCounts: Record<string, number> = {
@@ -134,10 +139,15 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
   /** Check if a nav path is relevant to the active workspace role */
   const isRelevant = (path: string): boolean => {
     if (!activeRole) return true;
-    // Solver paths are always relevant
     if (SOLVER_PATHS.includes(path)) return true;
     const relevantPaths = ROLE_NAV_RELEVANCE[activeRole] ?? [];
     return relevantPaths.some((rp) => path === rp || path.startsWith(rp + '/'));
+  };
+
+  /** Hide entire SOLVER section for seeking-org-only users */
+  const isSectionVisible = (sectionTitle: string): boolean => {
+    if (sectionTitle === 'SOLVER' && isSeekingOrgOnly) return false;
+    return true;
   };
 
   const handleNav = (path: string) => {
@@ -148,6 +158,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
   return (
     <nav className="px-3 py-3 space-y-5">
       {SECTIONS.map((section) => {
+        if (!isSectionVisible(section.title)) return null;
         const visibleItems = section.items.filter((item) => isVisible(item.requiredRoles));
         if (visibleItems.length === 0) return null;
 
