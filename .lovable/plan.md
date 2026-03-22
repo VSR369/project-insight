@@ -1,52 +1,59 @@
 
 
-# Plan: Link Challenge Configuration to Demo Roles & Workflow
+# Plan: Fix Demo Seed to Support Marketplace Model
 
-## Problem
+## Root Cause
 
-The demo login page's "Challenge Configuration" section (Governance Mode + Engagement Model) is visually present but **disconnected** from the demo user list and workflow steps below. When the user selects **Marketplace (MP)**, the first role card should show **Account Manager (AM)** — not Challenge Requestor (RQ). The workflow steps should also adapt (e.g., Step 1 role label changes from "RQ / CR" to "AM / CR").
+The `setup-test-scenario` edge function hardcodes:
+- `operatingModel: "AGG"` — the org is always Aggregator
+- Only `nh-rq@testsetup.dev` exists — no `nh-am@testsetup.dev` user is created
 
-## Business Rules
+When a user selects **Marketplace (MP)** on the demo login page, the UI shows `nh-am@testsetup.dev` but that user doesn't exist in the database, causing "No organization linked" error.
 
-- **Marketplace (MP)**: Step 1 actor = Account Manager (AM), direct provider browsing
-- **Aggregator (AGG)**: Step 1 actor = Challenge Requestor (RQ), platform-mediated
+## Solution
+
+Seed **both** AM and RQ users always, and update the org's `operating_model` at login time based on the demo selection.
 
 ## Changes
 
-### 1. `src/pages/cogniblend/DemoLoginPage.tsx`
+### 1. `supabase/functions/setup-test-scenario/index.ts`
 
-**a) Dynamic DEMO_USERS list based on engagement model:**
-- Replace the static `DEMO_USERS` array with a function `getDemoUsers(engagementModel: string)` that returns the appropriate user list
-- When MP: First entry uses `nh-am@testsetup.dev` (or falls back to existing email) with roles `['AM']`, label "Account Manager", and MP-specific descriptions
-- When AGG: First entry uses `nh-rq@testsetup.dev` with roles `['RQ']` (current behavior)
-- The Solo user also adapts: MP includes AM in their role set, AGG includes RQ
+- Add `nh-am@testsetup.dev` (Alex Morgan, roles: `["AM"]`) to the `new_horizon_demo` users list
+- Update Sam Solo's roles to include both `AM` and `RQ`
+- This ensures both MP and AGG demo paths have valid users
 
-**b) Dynamic workflow steps based on engagement model:**
-- Pass `engagementModel` as a prop to `DemoWorkflowSteps`
-- Step 1 role label changes: MP → "AM / CR", AGG → "RQ / CR"
-- Step 1 AI/manual notes adapt accordingly
+### 2. `src/pages/cogniblend/DemoLoginPage.tsx` — Update org operating_model at login
 
-### 2. `src/components/cogniblend/demo/DemoWorkflowSteps.tsx`
+In `handleLogin`, after successful sign-in and org_users check, update the org's `operating_model` to match the selected engagement model:
 
-- Add optional `engagementModel` prop
-- Dynamically resolve Step 1 role label and notes based on engagement model
-- MP: "AM submits problem brief" / AGG: "RQ shares idea"
+```ts
+// Update org operating model to match demo selection
+const { data: orgUser } = await supabase
+  .from('org_users')
+  .select('organization_id')
+  .eq('user_id', userId)
+  .eq('is_active', true)
+  .limit(1)
+  .maybeSingle();
 
-### 3. `src/pages/cogniblend/DemoLoginPage.tsx` (continued)
+if (orgUser) {
+  await supabase
+    .from('seeker_organizations')
+    .update({ operating_model: engagementModel === 'MP' ? 'MP' : 'AGG' })
+    .eq('id', orgUser.organization_id);
+}
+```
 
-**c) Wire governance mode to workflow display:**
-- Pass `governanceMode` to `DemoWorkflowSteps` so the step descriptions can reflect governance differences (e.g., QUICK mode shows "auto-complete" notes, CONTROLLED shows "formal gates")
+This ensures the downstream `OrgContext`, `SimpleIntakeForm`, and lifecycle logic all respect the selected model.
+
+### 3. Redeploy edge function
+
+The `setup-test-scenario` function must be redeployed after the user list change.
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `DemoLoginPage.tsx` | Make DEMO_USERS dynamic based on engagement model; pass engagement model + governance mode to workflow steps |
-| `DemoWorkflowSteps.tsx` | Accept engagement model prop; adapt Step 1 role/notes dynamically |
-
-## What is NOT Changed
-
-- `ChallengeCreatePage.tsx` — already correctly reads sessionStorage overrides
-- `SimpleIntakeForm.tsx` — already adapts based on operating model at runtime
-- `ConversationalIntakePage.tsx` — already receives props
+| File | Change |
+|------|--------|
+| `supabase/functions/setup-test-scenario/index.ts` | Add `nh-am@testsetup.dev` user; add AM to Solo's roles |
+| `src/pages/cogniblend/DemoLoginPage.tsx` | Update org `operating_model` on login based on engagement model selection |
 
