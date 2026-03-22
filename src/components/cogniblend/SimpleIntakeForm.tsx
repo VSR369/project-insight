@@ -89,6 +89,7 @@ const mpSchema = z.object({
   solution_expectations: z.string().trim().min(1, 'Solution expectations are required').max(500, 'Keep under 500 characters'),
   architect_id: z.string().optional(),
   selected_template: z.string().optional(),
+  beneficiaries_mapping: z.string().optional().default(''),
 }).refine(data => data.budget_min! < data.budget_max!, {
   message: 'Minimum must be less than maximum.',
   path: ['budget_min'],
