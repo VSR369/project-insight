@@ -257,7 +257,7 @@ const SECTIONS: SectionDef[] = [
   {
     key: "maturity_level",
     label: "Maturity Level",
-    attribution: "by Creator",
+    attribution: "by CA / Curator",
     dbField: "maturity_level",
     isFilled: (ch) => !!ch.maturity_level,
     render: (ch) => ch.maturity_level
