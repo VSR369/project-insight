@@ -82,7 +82,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     users: [
       { email: "nh-rq@testsetup.dev", displayName: "Alex Morgan", roles: ["RQ"] },
       { email: "nh-am@testsetup.dev", displayName: "Alex Morgan", roles: ["AM"] },
-      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CR"] },
+      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CA"] },
       { email: "nh-cu@testsetup.dev", displayName: "Casey Underwood", roles: ["CU"] },
       { email: "nh-id@testsetup.dev", displayName: "Dana Irving", roles: ["ID"] },
       { email: "nh-er1@testsetup.dev", displayName: "Evelyn Rhodes", roles: ["ER"] },
