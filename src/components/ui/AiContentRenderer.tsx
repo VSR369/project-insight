@@ -89,7 +89,7 @@ export function AiContentRenderer({
   }
 
   const proseClasses = cn(
-    'editor-content ai-content-prose',
+    'editor-content editor-content-display ai-content-prose',
     'max-w-none',
     compact && '[&]:text-[13px] [&]:leading-[1.7] [&]:p-0 [&]:min-h-0',
     !compact && '[&]:p-0 [&]:min-h-0',

@@ -300,6 +300,14 @@ All colors MUST be HSL.
   min-height: 1.85em;
 }
 
+/* Tighter display for read-only rendered content */
+.editor-content-display p {
+  min-height: unset;
+}
+.editor-content-display > *:last-child {
+  margin-bottom: 0 !important;
+}
+
 .editor-content h1 {
   font-size: 26px;
   font-weight: 700;
