@@ -539,6 +539,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
           navigate(`/cogni/challenges/${challengeId}/legal`);
         } else {
           await submitMutation.mutateAsync({ challengeId, userId: user.id });
+          clearWizardPersistence();
           toast.success('Challenge created successfully!');
           navigate('/cogni/dashboard');
         }
