@@ -90,3 +90,22 @@ export const TIER_GOVERNANCE_MODES: Record<string, GovernanceMode[]> = {
 export function getAvailableGovernanceModes(tierCode: string | null | undefined): GovernanceMode[] {
   return TIER_GOVERNANCE_MODES[(tierCode ?? 'basic').toLowerCase()] ?? ['QUICK'];
 }
+
+/**
+ * Returns the best default governance mode for a given tier.
+ * BASIC → always QUICK; Standard → STRUCTURED; Premium/Enterprise → STRUCTURED.
+ * Optionally accepts an org's governance profile to resolve the preferred mode,
+ * clamping it to available modes for the tier.
+ */
+export function getDefaultGovernanceMode(
+  tierCode: string | null | undefined,
+  governanceProfile?: string | null,
+): GovernanceMode {
+  const available = getAvailableGovernanceModes(tierCode);
+  if (governanceProfile) {
+    const preferred = resolveGovernanceMode(governanceProfile);
+    if (available.includes(preferred)) return preferred;
+  }
+  // Fallback: pick the highest available mode (last in the array)
+  return available[available.length - 1] ?? 'QUICK';
+}
