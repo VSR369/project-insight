@@ -341,6 +341,22 @@ export default function CurationActions({
         )}
       </div>
 
+      {/* AM Declined Alert */}
+      {isAmDeclined && amDeclineReason && (
+        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-destructive">Declined by Account Manager</p>
+              <p className="text-xs text-foreground mt-1">{amDeclineReason.reason}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Decline cycle {amDeclineReason.amendment_number} · {new Date(amDeclineReason.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="space-y-2">
         <Button
@@ -353,7 +369,11 @@ export default function CurationActions({
           ) : (
             <Send className="h-4 w-4 mr-1.5" />
           )}
-          {amApprovalRequired ? 'Send to Account Manager for Approval' : 'Submit to Innovation Director'}
+          {isAmDeclined
+            ? 'Resubmit to Account Manager'
+            : amApprovalRequired
+              ? 'Send to Account Manager for Approval'
+              : 'Submit to Innovation Director'}
         </Button>
 
         <Button
