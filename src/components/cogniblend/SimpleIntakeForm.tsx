@@ -52,10 +52,10 @@ const CURRENCY_OPTIONS = [
 ] as const;
 
 const TIMELINE_OPTIONS = [
-  { value: '1-3', label: '1–3 months' },
-  { value: '3-6', label: '3–6 months' },
-  { value: '6-12', label: '6–12 months' },
-  { value: '12+', label: '12+ months' },
+  { value: '1-3', label: 'Urgent (1–3 months)' },
+  { value: '3-6', label: 'Standard (3–6 months)' },
+  { value: '6-12', label: 'Flexible (6–12 months)' },
+  { value: '12+', label: 'Extended (12+ months)' },
 ] as const;
 
 /* ── Schemas ── */
