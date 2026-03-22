@@ -75,6 +75,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     isEnterprise: true,
     users: [
       { email: "nh-rq@testsetup.dev", displayName: "Alex Morgan", roles: ["RQ"] },
+      { email: "nh-am@testsetup.dev", displayName: "Alex Morgan", roles: ["AM"] },
       { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CR"] },
       { email: "nh-cu@testsetup.dev", displayName: "Casey Underwood", roles: ["CU"] },
       { email: "nh-id@testsetup.dev", displayName: "Dana Irving", roles: ["ID"] },
@@ -82,7 +83,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
       { email: "nh-er2@testsetup.dev", displayName: "Ethan Russell", roles: ["ER"] },
       { email: "nh-lc@testsetup.dev", displayName: "Leslie Chen", roles: ["LC"] },
       { email: "nh-fc@testsetup.dev", displayName: "Frank Coleman", roles: ["FC"] },
-      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["AM", "RQ", "CR", "CU", "ID", "ER", "FC"] },
     ],
   },
 };

@@ -185,7 +185,7 @@ export default function DemoLoginPage() {
       if (userId) {
         const { data: orgRow } = await supabase
           .from('org_users')
-          .select('id')
+          .select('id, organization_id')
           .eq('user_id', userId)
           .eq('is_active', true)
           .limit(1)
@@ -196,6 +196,12 @@ export default function DemoLoginPage() {
           toast.error('No organization linked. Seed the demo scenario first.');
           return;
         }
+
+        // Sync org operating_model to match selected engagement model
+        await supabase
+          .from('seeker_organizations')
+          .update({ operating_model: engagementModel === 'MP' ? 'MP' : 'AGG' })
+          .eq('id', orgRow.organization_id);
       }
 
       // Persist demo selections to sessionStorage
