@@ -12,6 +12,7 @@ interface ScenarioConfig {
   orgName: string;
   operatingModel: string;
   governanceProfile: string;
+  subscriptionTier: string;
   phase1Bypass: boolean;
   isEnterprise: boolean;
   users: { email: string; displayName: string; roles: string[] }[];
@@ -22,6 +23,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "MP Light Test Org",
     operatingModel: "MP",
     governanceProfile: "LIGHTWEIGHT",
+    subscriptionTier: "basic",
     phase1Bypass: false,
     isEnterprise: false,
     users: [
@@ -32,6 +34,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "MP Enterprise Test Org",
     operatingModel: "MP",
     governanceProfile: "ENTERPRISE",
+    subscriptionTier: "enterprise",
     phase1Bypass: false,
     isEnterprise: true,
     users: [
@@ -44,6 +47,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "AGG Enterprise Test Org",
     operatingModel: "AGG",
     governanceProfile: "ENTERPRISE",
+    subscriptionTier: "enterprise",
     phase1Bypass: false,
     isEnterprise: true,
     users: [
@@ -61,6 +65,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "AGG Light Bypass Org",
     operatingModel: "AGG",
     governanceProfile: "LIGHTWEIGHT",
+    subscriptionTier: "basic",
     phase1Bypass: true,
     isEnterprise: false,
     users: [
@@ -71,6 +76,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     orgName: "New Horizon Company",
     operatingModel: "AGG",
     governanceProfile: "ENTERPRISE",
+    subscriptionTier: "premium",
     phase1Bypass: false,
     isEnterprise: true,
     users: [
@@ -199,6 +205,7 @@ serve(async (req) => {
       legal_entity_name: config.orgName,
       operating_model: config.operatingModel,
       governance_profile: config.governanceProfile,
+      subscription_tier: config.subscriptionTier,
       phase1_bypass: config.phase1Bypass,
       is_enterprise: config.isEnterprise,
       is_active: true,
@@ -206,7 +213,7 @@ serve(async (req) => {
       registration_step: 5,
     });
     if (orgErr) throw new Error(`Org creation failed: ${orgErr.message}`);
-    results.push(`✅ Created org: "${config.orgName}" (${orgId})`);
+    results.push(`✅ Created org: "${config.orgName}" (${orgId}) — tier: ${config.subscriptionTier}`);
 
     // ─── Step 2: Create users + link to org ───
     const userIds: { userId: string; roles: string[]; displayName: string }[] = [];
