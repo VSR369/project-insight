@@ -267,7 +267,7 @@ export default function CurationChecklistPanel({
       /* 6  */ isJsonFilled(challenge.phase_schedule),
       /* 7  */ !!challenge.description?.trim(),
       /* 8  */ !!challenge.eligibility?.trim(),
-      /* 9  */ false, // Taxonomy tags — placeholder
+      /* 9  */ !!challenge.ip_model?.trim(),
       /* 10 */ !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
       /* 11 */ !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
       /* 12 */ challenge.complexity_score != null || !!challenge.complexity_parameters,
