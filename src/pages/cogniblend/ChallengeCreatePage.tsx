@@ -491,7 +491,7 @@ export default function ChallengeCreatePage() {
         </div>
         <ChallengeWizardPage
           embedded
-          onSwitchToSimple={switchToAI}
+          onSwitchToSimple={demoPath === 'manual' ? undefined : switchToAI}
           initialFromIntake={sharedState}
           governanceMode={governanceMode}
           engagementModel={engagementModel}
