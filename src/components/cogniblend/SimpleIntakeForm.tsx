@@ -502,30 +502,6 @@ export function SimpleIntakeForm() {
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Commercial Parameters — Only You Can Provide These</p>
 
-        {/* Sector / Domain */}
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">
-            Sector / Domain <span className="text-destructive">*</span>
-          </Label>
-          <Controller
-            name="industry_segment_id"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a sector…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {industrySegments.map((seg: any) => (
-                    <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
-        </div>
-
         {/* Budget Range */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
