@@ -128,7 +128,7 @@ export function NeedsActionSection({
   /* Filter by activeRole using PHASE_ROLE_MAP */
   const roleFilteredItems = useMemo(() => {
     if (!activeRole) return items;
-    return items.filter((item) => PHASE_ROLE_MAP[item.current_phase] === activeRole);
+    return items.filter((item) => (PHASE_ROLE_MAP[item.current_phase] ?? []).includes(activeRole));
   }, [items, activeRole]);
 
   const sortedItems = sortBySlaUrgency(roleFilteredItems);
