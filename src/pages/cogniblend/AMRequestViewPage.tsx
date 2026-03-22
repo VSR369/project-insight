@@ -174,7 +174,7 @@ export default function AMRequestViewPage() {
             label="Expected Outcomes"
             value={
               brief.scope ? (
-                <p className="whitespace-pre-wrap leading-relaxed">{brief.scope}</p>
+                <SafeHtmlRenderer html={brief.scope} />
               ) : null
             }
           />
