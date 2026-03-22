@@ -513,11 +513,10 @@ export function ConversationalIntakeContent({
         onStateChange({ generatedSpec: spec });
       }
 
-      // Route based on governance mode
-      const govMode = resolveGovernanceMode(currentOrg.governanceProfile);
-      const route = getPostGenerationRoute(challengeId, govMode);
+      // Route based on selected governance mode (per-challenge)
+      const route = getPostGenerationRoute(challengeId, governanceMode);
 
-      if (govMode === 'CONTROLLED') {
+      if (governanceMode === 'CONTROLLED') {
         toast.success('AI suggestions ready — complete each field manually in Controlled mode.');
       } else if (govMode === 'STRUCTURED') {
         toast.success('AI specification generated! Review each section before submitting.');
