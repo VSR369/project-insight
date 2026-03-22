@@ -101,6 +101,32 @@ serve(async (req) => {
     );
 
     const body = await req.json();
+
+    // ─── Handle sync_operating_model action (fallback for RLS-blocked client updates) ───
+    if (body.action === "sync_operating_model") {
+      const { orgId, operatingModel } = body;
+      if (!orgId || !operatingModel) {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "INVALID_PARAMS", message: "orgId and operatingModel required" } }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const { error: syncErr } = await supabaseAdmin
+        .from("seeker_organizations")
+        .update({ operating_model: operatingModel })
+        .eq("id", orgId);
+      if (syncErr) {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "SYNC_FAILED", message: syncErr.message } }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, data: { message: `Operating model updated to ${operatingModel}` } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const scenario = body.scenario as string;
 
     if (!scenario || !SCENARIOS[scenario]) {
@@ -114,8 +140,27 @@ serve(async (req) => {
     const results: string[] = [];
     const credentials: { email: string; password: string; roles: string[] }[] = [];
 
-    // ─── Step 0: Cleanup previous runs for this scenario ───
-    // Find and delete old orgs with the same name
+    // ─── Step 0: Robust cleanup of ALL previous runs for this scenario ───
+    // Collect all scenario user emails for orphan cleanup
+    const scenarioEmails = config.users.map(u => u.email);
+
+    // Resolve auth user IDs for all scenario emails
+    const { data: allAuthUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const scenarioUserIds = (allAuthUsers?.users ?? [])
+      .filter(u => u.email && scenarioEmails.includes(u.email))
+      .map(u => u.id);
+
+    // 0a. Delete orphaned org_users for scenario users (any org, handles partial runs)
+    if (scenarioUserIds.length > 0) {
+      await supabaseAdmin.from("org_users").delete().in("user_id", scenarioUserIds);
+      // Also clean up user_roles for these users
+      await supabaseAdmin.from("user_roles").delete().in("user_id", scenarioUserIds);
+      // Clean up user_challenge_roles for these users
+      await supabaseAdmin.from("user_challenge_roles").delete().in("user_id", scenarioUserIds);
+      results.push(`🧹 Cleaned orphaned records for ${scenarioUserIds.length} scenario user(s)`);
+    }
+
+    // 0b. Find and delete old orgs with the same name
     const { data: oldOrgs } = await supabaseAdmin
       .from("seeker_organizations")
       .select("id")
@@ -124,7 +169,7 @@ serve(async (req) => {
     if (oldOrgs && oldOrgs.length > 0) {
       const oldOrgIds = oldOrgs.map((o: { id: string }) => o.id);
 
-      // Delete user_challenge_roles for challenges in these orgs
+      // Delete challenges (and their user_challenge_roles) for these orgs
       const { data: oldChallenges } = await supabaseAdmin
         .from("challenges")
         .select("id")
@@ -136,7 +181,7 @@ serve(async (req) => {
         await supabaseAdmin.from("challenges").delete().in("id", oldChallengeIds);
       }
 
-      // Delete org_users for these orgs
+      // Delete any remaining org_users for these orgs (non-scenario users)
       await supabaseAdmin.from("org_users").delete().in("organization_id", oldOrgIds);
 
       // Delete the orgs themselves

@@ -193,15 +193,29 @@ export default function DemoLoginPage() {
 
         if (!orgRow) {
           await supabase.auth.signOut();
-          toast.error('No organization linked. Seed the demo scenario first.');
+          toast.error('User not linked to any organization. Please click "Seed Demo Scenario" first, then try again.');
           return;
         }
 
         // Sync org operating_model to match selected engagement model
-        await supabase
-          .from('seeker_organizations')
-          .update({ operating_model: engagementModel === 'MP' ? 'MP' : 'AGG' })
-          .eq('id', orgRow.organization_id);
+        // Wrapped in try-catch: RLS may block this update if tenant resolution fails
+        try {
+          const { error: updateErr } = await supabase
+            .from('seeker_organizations')
+            .update({ operating_model: engagementModel === 'MP' ? 'MP' : 'AGG' })
+            .eq('id', orgRow.organization_id);
+          if (updateErr) {
+            console.warn('Operating model sync failed (RLS), will use edge function fallback:', updateErr.message);
+            // Fallback: invoke edge function with service_role to update
+            await supabase.functions.invoke('setup-test-scenario', {
+              body: { action: 'sync_operating_model', orgId: orgRow.organization_id, operatingModel: engagementModel },
+            });
+          }
+        } catch (syncErr) {
+          // Non-fatal: log warning but continue login
+          console.warn('Operating model sync failed entirely, continuing login:', syncErr);
+          toast.warning('Could not sync engagement model. The org may use its default model.');
+        }
       }
 
       // Persist demo selections to sessionStorage
