@@ -366,6 +366,32 @@ export function SimpleIntakeForm() {
           </DialogContent>
         </Dialog>
 
+        {/* Step 4: Timeline Urgency */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Timeline Urgency <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              name="expected_timeline"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timeline…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMELINE_OPTIONS.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.expected_timeline && <p className="text-xs text-destructive">{errors.expected_timeline.message}</p>}
+          </div>
+        </div>
+
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
