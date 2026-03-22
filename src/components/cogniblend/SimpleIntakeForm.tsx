@@ -249,6 +249,35 @@ export function SimpleIntakeForm() {
           <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
         )}
 
+        {/* Industry Segment (Mandatory for RQ) */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Industry Segment <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              name="industry_segment_id"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an industry segment…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industrySegments.map((seg: any) => (
+                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs italic text-muted-foreground">
+              Required for auto-assigning the right Challenge Creator to your idea.
+            </p>
+            {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
+          </div>
+        </div>
+
         {/* Step 2: Problem / Idea Editor */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="space-y-1.5">
