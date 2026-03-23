@@ -439,33 +439,41 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">
-                Problem / Possibility Idea <span className="text-destructive">*</span>
+                Problem / Possibility Idea {!isViewMode && <span className="text-destructive">*</span>}
               </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => setProblemFullscreen(true)}
-              >
-                <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
-              </Button>
-            </div>
-            <Controller
-              name="problem_summary"
-              control={control}
-              render={({ field }) => (
-                <RichTextEditor
-                  value={field.value ?? ''}
-                  onChange={field.onChange}
-                  placeholder="Describe the problem or opportunity you've identified. Even a rough idea is fine — a domain expert will expand it into a full specification."
-                  storagePath="rq-problem-idea"
-                />
+              {!isViewMode && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => setProblemFullscreen(true)}
+                >
+                  <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+                </Button>
               )}
-            />
-            <p className="text-xs italic text-muted-foreground">
-              Share enough context so an Architect can understand the core issue.
-            </p>
+            </div>
+            {isViewMode ? (
+              <SafeHtmlRenderer html={problemSummary} fallback="No idea provided" />
+            ) : (
+              <Controller
+                name="problem_summary"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="Describe the problem or opportunity you've identified. Even a rough idea is fine — a domain expert will expand it into a full specification."
+                    storagePath="rq-problem-idea"
+                  />
+                )}
+              />
+            )}
+            {!isViewMode && (
+              <p className="text-xs italic text-muted-foreground">
+                Share enough context so an Architect can understand the core issue.
+              </p>
+            )}
             {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
           </div>
         </div>
