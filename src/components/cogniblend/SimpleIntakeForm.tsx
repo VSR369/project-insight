@@ -3,7 +3,8 @@
  * AGG (RQ): Template selector cards + single Problem/Idea editor — auto-derives title.
  * MP (AM): 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
  * 
- * Supports mode="create" (default) and mode="edit" (pre-fills from existing challenge).
+ * Supports mode="create" (default), mode="edit" (pre-fills from existing challenge),
+ * and mode="view" (read-only display with content-hugging heights).
  * On submit: creates challenge at Phase 1 (create) or updates existing challenge (edit).
  */
 
@@ -14,6 +15,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send, Save, Loader2, Maximize2, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { useFormPersistence, persistState, restoreState, clearState } from '@/hooks/useFormPersistence';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
