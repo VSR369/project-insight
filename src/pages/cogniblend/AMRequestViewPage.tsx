@@ -41,7 +41,7 @@ export default function AMRequestViewPage() {
       {isAmRq ? (
         <SimpleIntakeForm challengeId={id} mode={pageMode} />
       ) : (
-        <ConversationalIntakeContent challengeId={id} mode="edit" hideSpecReview />
+        <ConversationalIntakeContent challengeId={id} mode={pageMode} hideSpecReview />
       )}
     </div>
   );

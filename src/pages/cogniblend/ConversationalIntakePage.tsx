@@ -159,15 +159,18 @@ function MaturityCard({
   level,
   selected,
   onSelect,
+  disabled,
 }: {
   level: string;
   selected: boolean;
   onSelect: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      disabled={disabled}
       className={`
         relative flex flex-col items-start gap-1 rounded-xl border p-4 text-left
         transition-all duration-150 hover:shadow-md
@@ -175,6 +178,7 @@ function MaturityCard({
           ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
           : 'border-border bg-card hover:border-primary/40'
         }
+        ${disabled ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}
       `}
     >
       <span className="text-sm font-semibold text-foreground">
@@ -246,6 +250,7 @@ function ExpandField({
   rows = 3,
   register,
   watchValue,
+  disabled,
 }: {
   label: string;
   fieldName: string;
@@ -254,6 +259,7 @@ function ExpandField({
   rows?: number;
   register: any;
   watchValue: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="space-y-1.5">
@@ -263,6 +269,7 @@ function ExpandField({
         rows={rows}
         maxLength={maxLength}
         className="text-base resize-none"
+        disabled={disabled}
         {...register(fieldName)}
       />
       <div className="flex justify-end">
@@ -287,8 +294,8 @@ interface ConversationalIntakeContentProps {
   engagementModel?: string;
   /** When provided, form loads existing challenge data for editing */
   challengeId?: string;
-  /** 'create' (default) or 'edit' */
-  mode?: 'create' | 'edit';
+  /** 'create' (default), 'edit', or 'view' (read-only) */
+  mode?: 'create' | 'edit' | 'view';
   /** Hide the "Go to Spec Review" button (e.g. when embedded in dashboard view) */
   hideSpecReview?: boolean;
 }
@@ -330,9 +337,10 @@ export function ConversationalIntakeContent({
 
   // ═══════ Hooks — edit mode query ═══════
   const { data: editChallenge, isLoading: editLoading } = useChallengeDetail(
-    mode === 'edit' ? editChallengeId : undefined,
+    (mode === 'edit' || mode === 'view') ? editChallengeId : undefined,
   );
-  const isEditMode = mode === 'edit';
+  const isEditMode = mode === 'edit' || mode === 'view';
+  const isViewMode = mode === 'view';
 
   // ═══════ Hooks — industry segments ═══════
   const { data: industrySegments = [] } = useIndustrySegments();
@@ -770,17 +778,19 @@ export function ConversationalIntakeContent({
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">
-              {isEditMode ? 'Edit Challenge' : 'Create a Challenge'}
+              {isViewMode ? 'View Challenge' : isEditMode ? 'Edit Challenge' : 'Create a Challenge'}
             </h1>
             {!onSwitchToEditor && (
               <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs.
+            {isViewMode
+              ? 'Read-only view of the challenge inputs. Switch to Edit to make changes.'
+              : 'As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs.'}
           </p>
         </div>
-        {!onSwitchToEditor && (
+        {!isViewMode && !onSwitchToEditor && (
           <Button
             variant="outline"
             size="sm"
@@ -794,7 +804,7 @@ export function ConversationalIntakeContent({
       </div>
 
       {/* Controlled mode notice */}
-      {isControlled && (
+      {!isViewMode && isControlled && (
         <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-700">
           <ShieldCheck className="h-4 w-4 text-purple-600" />
           <AlertTitle className="text-purple-800 dark:text-purple-300">Controlled Governance</AlertTitle>
@@ -805,7 +815,7 @@ export function ConversationalIntakeContent({
       )}
 
       {/* AI Failure Fallback Banner */}
-      {aiFailure && (
+      {!isViewMode && aiFailure && (
         <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800 dark:text-amber-300">AI generation unavailable</AlertTitle>
@@ -854,8 +864,8 @@ export function ConversationalIntakeContent({
               <button
                 key={mode}
                 type="button"
-                disabled={isDisabled}
-                onClick={() => { if (!isDisabled) setLocalGovernanceMode(mode); }}
+                disabled={isDisabled || isViewMode}
+                onClick={() => { if (!isDisabled && !isViewMode) setLocalGovernanceMode(mode); }}
                 className={cn(
                   'relative w-full text-left rounded-xl border-2 p-5 transition-all',
                   isSelected ? 'shadow-md ring-1' : 'hover:shadow-sm',
@@ -914,7 +924,7 @@ export function ConversationalIntakeContent({
           </p>
         </div>
 
-        <Select value={engagementModel} onValueChange={setLocalEngagementModel}>
+        <Select value={engagementModel} onValueChange={setLocalEngagementModel} disabled={isViewMode}>
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select engagement model" />
           </SelectTrigger>
@@ -947,6 +957,7 @@ export function ConversationalIntakeContent({
           placeholder="e.g., Predictive Maintenance ML Model for Manufacturing"
           maxLength={200}
           className="text-base"
+          disabled={isViewMode}
           {...form.register('title')}
         />
         <div className="flex justify-end">
@@ -957,10 +968,12 @@ export function ConversationalIntakeContent({
       </div>
 
       {/* Step 1: Template Selector */}
-      <TemplateSelector
-        onSelect={handleTemplateSelect}
-        selectedId={selectedTemplate?.id}
-      />
+      {!isViewMode && (
+        <TemplateSelector
+          onSelect={handleTemplateSelect}
+          selectedId={selectedTemplate?.id}
+        />
+      )}
 
       {/* Step 2: Problem Statement */}
       <div className="space-y-2">
@@ -975,6 +988,7 @@ export function ConversationalIntakeContent({
           placeholder="e.g., We need a machine learning model that can predict equipment failures 48 hours in advance using sensor data from our manufacturing line..."
           rows={6}
           className="text-base resize-none"
+          disabled={isViewMode}
           {...form.register('problem_statement')}
         />
         {form.formState.errors.problem_statement && (
@@ -1002,6 +1016,7 @@ export function ConversationalIntakeContent({
           placeholder="e.g., A working ML model with at least 85% accuracy, documentation on the approach, and a deployment guide..."
           rows={4}
           className="text-base resize-none"
+          disabled={isViewMode}
           {...form.register('expected_outcomes')}
         />
         {form.formState.errors.expected_outcomes && (
@@ -1026,6 +1041,7 @@ export function ConversationalIntakeContent({
               level={level}
               selected={watchedMaturity === level}
               onSelect={() => form.setValue('maturity_level', level, { shouldValidate: true })}
+              disabled={isViewMode}
             />
           ))}
         </div>
@@ -1045,7 +1061,7 @@ export function ConversationalIntakeContent({
         <p className="text-xs text-muted-foreground">
           Which industry does this challenge relate to?
         </p>
-        <Select value={selectedIndustrySegmentId} onValueChange={setSelectedIndustrySegmentId}>
+        <Select value={selectedIndustrySegmentId} onValueChange={setSelectedIndustrySegmentId} disabled={isViewMode}>
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select industry segment" />
           </SelectTrigger>
@@ -1070,6 +1086,7 @@ export function ConversationalIntakeContent({
           <Select
             value={form.watch('currency_code')}
             onValueChange={(v) => form.setValue('currency_code', v, { shouldValidate: true })}
+            disabled={isViewMode}
           >
             <SelectTrigger className="w-32 shrink-0">
               <SelectValue placeholder="Currency" />
@@ -1086,6 +1103,7 @@ export function ConversationalIntakeContent({
             type="number"
             placeholder={form.watch('budget_min') ? 'Max budget' : '10,000'}
             className="flex-1"
+            disabled={isViewMode}
             {...form.register('prize_amount', { valueAsNumber: true })}
           />
         </div>
@@ -1097,6 +1115,7 @@ export function ConversationalIntakeContent({
               type="number"
               placeholder="Min budget"
               className="w-32"
+              disabled={isViewMode}
               {...form.register('budget_min', { valueAsNumber: true })}
             />
             <span className="text-xs text-muted-foreground">— Max (above)</span>
@@ -1123,28 +1142,41 @@ export function ConversationalIntakeContent({
         <p className="text-xs text-muted-foreground">
           Must be at least {MIN_DEADLINE_DAYS} days from today.
         </p>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={`w-full max-w-xs justify-start text-left font-normal ${!form.watch('deadline') ? 'text-muted-foreground' : ''}`}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {form.watch('deadline')
-                ? format(form.watch('deadline'), 'PPP')
-                : 'Pick a date'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={form.watch('deadline')}
-              onSelect={(d) => d && form.setValue('deadline', d, { shouldValidate: true })}
-              disabled={(d) => d < addDays(new Date(), MIN_DEADLINE_DAYS)}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        {isViewMode ? (
+          <Button
+            variant="outline"
+            disabled
+            className="w-full max-w-xs justify-start text-left font-normal"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {form.watch('deadline')
+              ? format(form.watch('deadline'), 'PPP')
+              : 'No date set'}
+          </Button>
+        ) : (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={`w-full max-w-xs justify-start text-left font-normal ${!form.watch('deadline') ? 'text-muted-foreground' : ''}`}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {form.watch('deadline')
+                  ? format(form.watch('deadline'), 'PPP')
+                  : 'Pick a date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={form.watch('deadline')}
+                onSelect={(d) => d && form.setValue('deadline', d, { shouldValidate: true })}
+                disabled={(d) => d < addDays(new Date(), MIN_DEADLINE_DAYS)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        )}
         {form.formState.errors.deadline && (
           <p className="text-xs text-destructive">
             {form.formState.errors.deadline.message}
@@ -1164,6 +1196,7 @@ export function ConversationalIntakeContent({
         <Select
           value={form.watch('expected_timeline') || ''}
           onValueChange={(v) => form.setValue('expected_timeline', v)}
+          disabled={isViewMode}
         >
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select timeline" />
@@ -1177,11 +1210,13 @@ export function ConversationalIntakeContent({
       </div>
 
       {/* Step 7: Supporting Files */}
-      <FileUploadArea
-        files={supportingFiles}
-        onAdd={handleAddFiles}
-        onRemove={handleRemoveFile}
-      />
+      {!isViewMode && (
+        <FileUploadArea
+          files={supportingFiles}
+          onAdd={handleAddFiles}
+          onRemove={handleRemoveFile}
+        />
+      )}
 
       {/* Expand Challenge Details — Domain Expert Fields */}
       <Collapsible open={expandOpen} onOpenChange={setExpandOpen}>
@@ -1209,6 +1244,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('context_background') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1219,6 +1255,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('root_causes') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1229,6 +1266,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('affected_stakeholders') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1239,6 +1277,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('scope_definition') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1249,6 +1288,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('preferred_approach') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1259,6 +1299,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('approaches_not_of_interest') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1269,6 +1310,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('beneficiaries_mapping') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1279,6 +1321,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('solution_expectations') ?? ''}
+              disabled={isViewMode}
             />
 
             {/* Dynamic fields from AM extended_brief (keys not in KNOWN_BRIEF_KEYS) */}
@@ -1297,6 +1340,7 @@ export function ConversationalIntakeContent({
                       maxLength={2000}
                       className="text-base resize-none"
                       value={value}
+                      disabled={isViewMode}
                       onChange={(e) =>
                         setDynamicBriefFields((prev) => ({ ...prev, [key]: e.target.value }))
                       }
@@ -1314,81 +1358,85 @@ export function ConversationalIntakeContent({
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-        {isEditMode ? (
-          <>
-            <Button
-              onClick={form.handleSubmit(handleUpdateChallenge)}
-              disabled={saveStep.isPending}
-              className="flex-1 sm:flex-none"
-              size="lg"
-            >
-              {saveStep.isPending ? (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Update Challenge
-                </>
+      {/* Actions — hidden in view mode */}
+      {!isViewMode && (
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
+          {isEditMode ? (
+            <>
+              <Button
+                onClick={form.handleSubmit(handleUpdateChallenge)}
+                disabled={saveStep.isPending}
+                className="flex-1 sm:flex-none"
+                size="lg"
+              >
+                {saveStep.isPending ? (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Update Challenge
+                  </>
+                )}
+              </Button>
+              {!hideSpecReview && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+                  size="lg"
+                >
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Go to Spec Review
+                </Button>
               )}
-            </Button>
-            {!hideSpecReview && (
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={form.handleSubmit(handleGenerateWithAI)}
+                disabled={isGenerating}
+                className="flex-1 sm:flex-none"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Generate with AI
+                  </>
+                )}
+              </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+                onClick={form.handleSubmit((data) => handleGoToEditor(data))}
                 size="lg"
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
-                Go to Spec Review
+                Continue manually
               </Button>
-            )}
-          </>
-        ) : (
-          <>
-            <Button
-              onClick={form.handleSubmit(handleGenerateWithAI)}
-              disabled={isGenerating}
-              className="flex-1 sm:flex-none"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Generate with AI
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={form.handleSubmit((data) => handleGoToEditor(data))}
-              size="lg"
-            >
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Continue manually
-            </Button>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Info badge */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="secondary" className="text-xs">
-          <Sparkles className="h-3 w-3 mr-1" />
-          AI-Assisted
-        </Badge>
-        <span>
-          AI will draft scope, deliverables, evaluation criteria, and more based on your inputs.
-        </span>
-      </div>
+      {/* Info badge — hidden in view mode */}
+      {!isViewMode && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary" className="text-xs">
+            <Sparkles className="h-3 w-3 mr-1" />
+            AI-Assisted
+          </Badge>
+          <span>
+            AI will draft scope, deliverables, evaluation criteria, and more based on your inputs.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
