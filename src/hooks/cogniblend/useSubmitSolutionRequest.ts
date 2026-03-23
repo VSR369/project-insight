@@ -89,6 +89,7 @@ export function useSubmitSolutionRequest() {
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.amApprovalRequired !== undefined ? { am_approval_required: payload.amApprovalRequired } : {}),
+            ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
           },
         } as any)
         .eq('id', challengeId);
