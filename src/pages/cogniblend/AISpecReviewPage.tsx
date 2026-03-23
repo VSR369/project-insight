@@ -53,6 +53,7 @@ import {
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
+import { AIReviewInline, type SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import ChallengeSettingsPanel from '@/components/cogniblend/spec/ChallengeSettingsPanel';
 import ExtendedBriefPreview from '@/components/cogniblend/spec/ExtendedBriefPreview';
