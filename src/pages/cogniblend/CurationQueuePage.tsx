@@ -339,7 +339,7 @@ export default function CurationQueuePage() {
               {count > 0 && (
                 <span
                   className={`inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-semibold ${
-                    activeTab === tab.key
+                    resolvedTab === tab.key
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   }`}
