@@ -975,23 +975,12 @@ export function ConversationalIntakeContent({
         </div>
       </div>
 
-      {/* Step 1: Template Selector (create/edit: full grid; view: read-only badge) */}
-      {isViewMode ? (
-        selectedTemplate ? (
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
-            <span className="text-xl" role="img" aria-label={selectedTemplate.name}>{selectedTemplate.emoji}</span>
-            <div>
-              <span className="text-sm font-semibold text-foreground">{selectedTemplate.name}</span>
-              <span className="text-xs text-muted-foreground ml-2">{selectedTemplate.description}</span>
-            </div>
-          </div>
-        ) : null
-      ) : (
-        <TemplateSelector
-          onSelect={handleTemplateSelect}
-          selectedId={selectedTemplate?.id}
-        />
-      )}
+      {/* Step 1: Template Selector (all modes: full grid) */}
+      <TemplateSelector
+        onSelect={handleTemplateSelect}
+        selectedId={selectedTemplate?.id}
+        disabled={isViewMode}
+      />
 
       {/* Step 2: Problem Statement */}
       <div className="space-y-2">
