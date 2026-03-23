@@ -2,21 +2,23 @@
  * SimpleIntakeForm — Model-adaptive intake form for AM/RQ roles.
  * AGG (RQ): Template selector cards + single Problem/Idea editor — auto-derives title.
  * MP (AM): 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
- * On submit: creates challenge at Phase 1 and assigns an Architect (MP only).
+ * 
+ * Supports mode="create" (default) and mode="edit" (pre-fills from existing challenge).
+ * On submit: creates challenge at Phase 1 (create) or updates existing challenge (edit).
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Save, Loader2, Maximize2, ShieldCheck } from 'lucide-react';
+import { Send, Save, Loader2, Maximize2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { useFormPersistence, persistState, restoreState, clearState } from '@/hooks/useFormPersistence';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import {
@@ -42,6 +44,10 @@ import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors'
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
+import { withUpdatedBy } from '@/lib/auditFields';
 
 /* ── Constants ── */
 
@@ -70,7 +76,6 @@ const aggSchema = z.object({
     errorMap: () => ({ message: 'Please select a timeline' }),
   }),
   industry_segment_id: z.string().min(1, 'Please select an industry segment'),
-  // MP-only fields present but optional for unified form type
   title: z.string().optional(),
   currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
   budget_min: z.coerce.number().optional(),
@@ -102,18 +107,75 @@ const mpSchema = z.object({
 
 type SimpleIntakeValues = z.infer<typeof mpSchema>;
 
+/* ── Props ── */
+
+interface SimpleIntakeFormProps {
+  /** Challenge ID for edit mode */
+  challengeId?: string;
+  /** 'create' (default) or 'edit' */
+  mode?: 'create' | 'edit';
+}
+
+/* ── Hook: fetch existing challenge for edit mode ── */
+
+function useExistingChallenge(challengeId?: string) {
+  return useQuery({
+    queryKey: ['challenge-intake-edit', challengeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('id, title, problem_statement, scope, operating_model, reward_structure, phase_schedule, eligibility, extended_brief')
+        .eq('id', challengeId!)
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!challengeId,
+    staleTime: 60_000,
+  });
+}
+
+/* ── Hook: update existing challenge ── */
+
+function useUpdateChallenge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ challengeId, payload }: { challengeId: string; payload: Record<string, unknown> }) => {
+      const withAudit = await withUpdatedBy(payload);
+      const { error } = await supabase
+        .from('challenges')
+        .update(withAudit as any)
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_data, variables) => {
+      toast.success('Challenge updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-intake-edit', variables.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-detail', variables.challengeId] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'update_challenge_intake' });
+    },
+  });
+}
+
 /* ── Component ── */
 
-export function SimpleIntakeForm() {
+export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeFormProps) {
+  const isEditMode = mode === 'edit' && !!challengeId;
+
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
-    () => restoreState<ChallengeTemplate>('cogni_intake_simple_template'),
+    () => isEditMode ? null : restoreState<ChallengeTemplate>('cogni_intake_simple_template'),
   );
   const [problemFullscreen, setProblemFullscreen] = useState(false);
   const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
   const [mpProblemFullscreen, setMpProblemFullscreen] = useState(false);
   const [commercialFullscreen, setCommercialFullscreen] = useState(false);
+  const [formInitialized, setFormInitialized] = useState(!isEditMode);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -124,12 +186,18 @@ export function SimpleIntakeForm() {
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegmentOptions();
   const { data: architects = [] } = useChallengeArchitects();
 
+  // ═══════ Hooks — edit mode data ═══════
+  const { data: existingChallenge, isLoading: editLoading } = useExistingChallenge(isEditMode ? challengeId : undefined);
+
   // ═══════ Hooks — mutations ═══════
   const submitMutation = useSubmitSolutionRequest();
   const draftMutation = useSaveDraft();
+  const updateMutation = useUpdateChallenge();
 
   // ═══════ Hooks — form ═══════
-  const isMP = orgContext?.operatingModel === 'MP';
+  const isMP = isEditMode
+    ? (existingChallenge?.operating_model === 'MP')
+    : (orgContext?.operatingModel === 'MP');
 
   const form = useForm<SimpleIntakeValues>({
     resolver: zodResolver(isMP ? mpSchema : aggSchema),
@@ -150,18 +218,51 @@ export function SimpleIntakeForm() {
     mode: 'onBlur',
   });
 
-  const { clearPersistedData } = useFormPersistence('cogni_intake_simple', form);
-  const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors } } = form;
+  const persistenceKey = isEditMode ? `cogni_intake_edit_${challengeId}` : 'cogni_intake_simple';
+  const { clearPersistedData } = useFormPersistence(persistenceKey, form);
+  const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors }, reset } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
 
+  // ═══════ Effect — pre-fill form from existing challenge ═══════
+  useEffect(() => {
+    if (!isEditMode || !existingChallenge || formInitialized) return;
+
+    const c = existingChallenge;
+    const reward = typeof c.reward_structure === 'object' ? (c.reward_structure as Record<string, any>) : {};
+    const schedule = typeof c.phase_schedule === 'object' ? (c.phase_schedule as Record<string, any>) : {};
+    const elig = typeof c.eligibility === 'string' ? (() => { try { return JSON.parse(c.eligibility); } catch { return {}; } })() : (c.eligibility ?? {});
+    const extBrief = typeof c.extended_brief === 'object' ? (c.extended_brief as Record<string, any>) : {};
+
+    const timeline = schedule?.expected_timeline;
+    const validTimelines = ['1-3', '3-6', '6-12', '12+'];
+
+    reset({
+      title: c.title || '',
+      problem_summary: c.problem_statement || '',
+      industry_segment_id: elig?.industry_segment_id || '',
+      currency: (reward?.currency as any) || 'USD',
+      budget_min: reward?.budget_min ?? 0,
+      budget_max: reward?.budget_max ?? 0,
+      expected_timeline: validTimelines.includes(timeline) ? timeline : undefined,
+      solution_expectations: c.scope || '',
+      am_approval_required: extBrief?.am_approval_required ?? true,
+      architect_id: '',
+      selected_template: '',
+      beneficiaries_mapping: extBrief?.beneficiaries_mapping || '',
+    });
+
+    setFormInitialized(true);
+  }, [isEditMode, existingChallenge, formInitialized, reset]);
+
   // ═══════ Derived ═══════
-  const isSubmitting = submitMutation.isPending;
+  const isSubmitting = submitMutation.isPending || updateMutation.isPending;
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || modelLoading || tierLoading || segmentsLoading) {
+  const isLoading = orgLoading || modelLoading || segmentsLoading || (isEditMode ? editLoading : tierLoading);
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -170,7 +271,7 @@ export function SimpleIntakeForm() {
     );
   }
 
-  if (tierLimit && !tierLimit.allowed) {
+  if (!isEditMode && tierLimit && !tierLimit.allowed) {
     return (
       <TierLimitModal
         isOpen={showTierLimit || true}
@@ -190,7 +291,6 @@ export function SimpleIntakeForm() {
   };
 
   const buildPayload = (data: SimpleIntakeValues) => {
-    // For RQ: auto-derive title from the selected template
     const derivedTitle = !isMP && selectedTemplate
       ? `${selectedTemplate.name} Idea`
       : data.title ?? '';
@@ -215,7 +315,33 @@ export function SimpleIntakeForm() {
     };
   };
 
+  const buildUpdatePayload = (data: SimpleIntakeValues): Record<string, unknown> => ({
+    title: data.title || undefined,
+    problem_statement: data.problem_summary,
+    scope: data.solution_expectations || null,
+    reward_structure: {
+      currency: data.currency,
+      budget_min: data.budget_min ?? 0,
+      budget_max: data.budget_max ?? 0,
+    },
+    phase_schedule: {
+      expected_timeline: data.expected_timeline ?? '',
+    },
+    eligibility: JSON.stringify({
+      industry_segment_id: data.industry_segment_id || undefined,
+    }),
+    extended_brief: {
+      ...(data.beneficiaries_mapping ? { beneficiaries_mapping: data.beneficiaries_mapping } : {}),
+      ...(data.am_approval_required !== undefined ? { am_approval_required: data.am_approval_required } : {}),
+    },
+  });
+
   const onSubmit = async (data: SimpleIntakeValues) => {
+    if (isEditMode) {
+      await updateMutation.mutateAsync({ challengeId, payload: buildUpdatePayload(data) });
+      navigate('/cogni/dashboard');
+      return;
+    }
     await submitMutation.mutateAsync(buildPayload(data));
     clearPersistedData();
     clearState('cogni_intake_simple_template');
@@ -223,6 +349,12 @@ export function SimpleIntakeForm() {
   };
 
   const onSaveDraft = async () => {
+    if (isEditMode) {
+      const data = getValues();
+      await updateMutation.mutateAsync({ challengeId, payload: buildUpdatePayload(data as SimpleIntakeValues) });
+      navigate('/cogni/dashboard');
+      return;
+    }
     const data = getValues();
     await draftMutation.mutateAsync(buildPayload(data as SimpleIntakeValues));
     clearPersistedData();
@@ -235,24 +367,38 @@ export function SimpleIntakeForm() {
     return (
       <div className="w-full max-w-2xl space-y-6">
         {/* Header */}
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Share Your Idea</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            As an internal employee, share your idea — a Challenge Creator from your team will expand it.
-            You don't need to know the budget, but please indicate your timeline.
-          </p>
+        <div className="flex items-center gap-3">
+          {isEditMode && (
+            <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/dashboard')}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
+            </Button>
+          )}
+          <div>
+            <h2 className="text-xl font-bold text-foreground">
+              {isEditMode ? 'Edit Your Idea' : 'Share Your Idea'}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isEditMode
+                ? 'Update your idea details below. Your changes will be saved immediately.'
+                : 'As an internal employee, share your idea — a Challenge Creator from your team will expand it. You don\'t need to know the budget, but please indicate your timeline.'}
+            </p>
+          </div>
         </div>
 
-        {/* Step 1: Template Selector */}
-        <TemplateSelector
-          onSelect={handleTemplateSelect}
-          selectedId={selectedTemplate?.id}
-        />
-        {errors.selected_template && (
-          <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
+        {/* Step 1: Template Selector (create mode only) */}
+        {!isEditMode && (
+          <>
+            <TemplateSelector
+              onSelect={handleTemplateSelect}
+              selectedId={selectedTemplate?.id}
+            />
+            {errors.selected_template && (
+              <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
+            )}
+          </>
         )}
 
-        {/* Industry Segment (Mandatory for RQ) */}
+        {/* Industry Segment */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">
@@ -433,23 +579,25 @@ export function SimpleIntakeForm() {
             className="flex-1 sm:flex-none"
           >
             {isSubmitting ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditMode ? 'Updating…' : 'Submitting…'}</>
             ) : (
-              <><Send className="h-4 w-4 mr-2" /> Submit Idea</>
+              <><Send className="h-4 w-4 mr-2" /> {isEditMode ? 'Update Idea' : 'Submit Idea'}</>
             )}
           </Button>
-          <Button
-            variant="outline"
-            onClick={onSaveDraft}
-            disabled={isBusy}
-            size="lg"
-          >
-            {isSaving ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-            ) : (
-              <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
-            )}
-          </Button>
+          {!isEditMode && (
+            <Button
+              variant="outline"
+              onClick={onSaveDraft}
+              disabled={isBusy}
+              size="lg"
+            >
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+              ) : (
+                <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -459,11 +607,22 @@ export function SimpleIntakeForm() {
   return (
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-foreground">Submit a Problem Brief</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          As your organization's representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.
-        </p>
+      <div className="flex items-center gap-3">
+        {isEditMode && (
+          <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/dashboard')}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
+          </Button>
+        )}
+        <div>
+          <h2 className="text-xl font-bold text-foreground">
+            {isEditMode ? 'Edit Problem Brief' : 'Submit a Problem Brief'}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isEditMode
+              ? 'Update your problem brief below. All formatting will be preserved.'
+              : 'As your organization\'s representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.'}
+          </p>
+        </div>
       </div>
 
       {/* THE PROBLEM — IN PLAIN BUSINESS LANGUAGE */}
@@ -717,23 +876,25 @@ export function SimpleIntakeForm() {
           className="flex-1 sm:flex-none"
         >
           {isSubmitting ? (
-            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditMode ? 'Updating…' : 'Submitting…'}</>
           ) : (
-            <><Send className="h-4 w-4 mr-2" /> Submit Brief</>
+            <><Send className="h-4 w-4 mr-2" /> {isEditMode ? 'Update Brief' : 'Submit Brief'}</>
           )}
         </Button>
-        <Button
-          variant="outline"
-          onClick={onSaveDraft}
-          disabled={isBusy}
-          size="lg"
-        >
-          {isSaving ? (
-            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-          ) : (
-            <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
-          )}
-        </Button>
+        {!isEditMode && (
+          <Button
+            variant="outline"
+            onClick={onSaveDraft}
+            disabled={isBusy}
+            size="lg"
+          >
+            {isSaving ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+            ) : (
+              <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );
