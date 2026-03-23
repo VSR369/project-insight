@@ -394,42 +394,32 @@ export default function CurationQueuePage() {
                 return (
                   <TableRow
                     key={ch.id}
-                    className={`${
-                      isIncoming
-                        ? "opacity-75 cursor-default"
-                        : "cursor-pointer hover:bg-muted/50"
-                    }`}
-                    onClick={() => {
-                      if (isIncoming) return;
-                      handleRowClick(ch);
-                    }}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(ch)}
                   >
                     <TableCell>
-                      {isIncoming ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {ch.title}
-                            </span>
-                          </TooltipTrigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="link"
+                            className={`p-0 h-auto text-sm font-medium hover:underline text-left whitespace-normal ${
+                              isIncoming ? "text-muted-foreground" : "text-primary"
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(ch);
+                            }}
+                          >
+                            {isIncoming && <Eye className="h-3.5 w-3.5 mr-1 inline shrink-0" />}
+                            {ch.title}
+                          </Button>
+                        </TooltipTrigger>
+                        {isIncoming && (
                           <TooltipContent>
-                            <p className="text-xs">
-                              {tooltipText}
-                            </p>
+                            <p className="text-xs">{tooltipText}</p>
                           </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Button
-                          variant="link"
-                          className="p-0 h-auto text-sm font-medium text-primary hover:underline text-left whitespace-normal"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRowClick(ch);
-                          }}
-                        >
-                          {ch.title}
-                        </Button>
-                      )}
+                        )}
+                      </Tooltip>
                     </TableCell>
                     <TableCell>{phaseBadge(ch.current_phase)}</TableCell>
                     <TableCell>{modelBadge(ch.operating_model)}</TableCell>
