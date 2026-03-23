@@ -289,6 +289,8 @@ interface ConversationalIntakeContentProps {
   challengeId?: string;
   /** 'create' (default) or 'edit' */
   mode?: 'create' | 'edit';
+  /** Hide the "Go to Spec Review" button (e.g. when embedded in dashboard view) */
+  hideSpecReview?: boolean;
 }
 
 export function ConversationalIntakeContent({
@@ -300,6 +302,7 @@ export function ConversationalIntakeContent({
   engagementModel: propEngagementModel,
   challengeId: editChallengeId,
   mode = 'create',
+  hideSpecReview = false,
 }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
@@ -1333,14 +1336,16 @@ export function ConversationalIntakeContent({
                 </>
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
-              size="lg"
-            >
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Go to Spec Review
-            </Button>
+            {!hideSpecReview && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+                size="lg"
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Go to Spec Review
+              </Button>
+            )}
           </>
         ) : (
           <>
