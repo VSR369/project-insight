@@ -448,10 +448,19 @@ export function ConversationalIntakeContent({
     if (phaseSchedule?.expected_timeline) {
       form.setValue('expected_timeline', phaseSchedule.expected_timeline as string);
     }
-    // Industry segment from targeting_filters or eligibility_model
+    // Industry segment from targeting_filters, with fallback to eligibility JSON
     const targeting = ch.targeting_filters as Record<string, unknown> | null;
     if (targeting?.industry_segment_id) {
       setSelectedIndustrySegmentId(targeting.industry_segment_id as string);
+    } else {
+      // Fallback: AM intake stores industry_segment_id in eligibility JSONB
+      let elig = ch.eligibility as Record<string, unknown> | string | null;
+      if (typeof elig === 'string') {
+        try { elig = JSON.parse(elig); } catch { elig = null; }
+      }
+      if (elig && typeof elig === 'object' && (elig as Record<string, unknown>).industry_segment_id) {
+        setSelectedIndustrySegmentId((elig as Record<string, unknown>).industry_segment_id as string);
+      }
     }
     // Extended brief fields
     const eb = ch.extended_brief as Record<string, string> | null;
