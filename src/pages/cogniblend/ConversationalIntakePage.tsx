@@ -294,8 +294,8 @@ interface ConversationalIntakeContentProps {
   engagementModel?: string;
   /** When provided, form loads existing challenge data for editing */
   challengeId?: string;
-  /** 'create' (default) or 'edit' */
-  mode?: 'create' | 'edit';
+  /** 'create' (default), 'edit', or 'view' (read-only) */
+  mode?: 'create' | 'edit' | 'view';
   /** Hide the "Go to Spec Review" button (e.g. when embedded in dashboard view) */
   hideSpecReview?: boolean;
 }
