@@ -1244,6 +1244,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('context_background') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
