@@ -1,83 +1,52 @@
 
 
-# Add AI Review to CR/CA Intake (ConversationalIntakeContent)
+# Fix: AI Review Key Mismatch in CR/CA Intake
 
-## Problem
+## Root Cause
 
-The CR/CA flow (`ConversationalIntakeContent`) has no AI review functionality. When a user clicks Edit, there is no "Review with AI" button and no inline review panels — unlike the AM/RQ flow (`SimpleIntakeForm`) which has full AI review integration.
+The "Review with AI" button works correctly -- it calls the edge function and gets results back. But the results never appear because of a **section key mismatch** between two layers:
 
-Additionally, in edit mode, all fields are already editable (RichTextEditor is rendered when `!isViewMode`), so manual editing works. The missing piece is solely the AI review layer.
+**Edge function (`SPEC_SECTIONS`)** reviews these 7 sections:
+`problem_statement`, `scope`, `description`, `deliverables`, `evaluation_criteria`, `hook`, `ip_model`
 
-## Changes
+**Form (`AIReviewInline` panels)** displays these 4 sections:
+`problem_statement`, `expected_outcomes`, `scope`, `beneficiaries_mapping`
 
-### File: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+Only `problem_statement` and `scope` overlap. The other 5 edge function results (`description`, `deliverables`, `evaluation_criteria`, `hook`, `ip_model`) have no panels in the form. And the 2 form panels (`expected_outcomes`, `beneficiaries_mapping`) never receive results because the edge function doesn't review them.
 
-**1. Add imports:**
-- `AIReviewInline`, `SectionReview` from `@/components/cogniblend/shared/AIReviewInline`
-- `Bot` from `lucide-react`
-- `supabase` from `@/integrations/supabase/client`
+## Fix (2 files)
 
-**2. Add state (alongside existing state declarations ~line 416):**
+### 1. Edge function: `supabase/functions/review-challenge-sections/index.ts`
+
+Update `SPEC_SECTIONS` to include `expected_outcomes` and `beneficiaries_mapping`:
+
 ```typescript
-const [aiReviews, setAiReviews] = useState<Record<string, SectionReview>>({});
-const [isAiReviewing, setIsAiReviewing] = useState(false);
+const SPEC_SECTIONS = [
+  { key: "problem_statement", desc: "..." },
+  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
+  { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity for solvers" },
+  { key: "beneficiaries_mapping", desc: "Stakeholders and beneficiaries clearly identified" },
+  { key: "description", desc: "..." },
+  { key: "deliverables", desc: "..." },
+  { key: "evaluation_criteria", desc: "..." },
+  { key: "hook", desc: "..." },
+  { key: "ip_model", desc: "..." },
+];
 ```
 
-**3. Add useEffect to load existing reviews from `editChallenge.ai_section_reviews` (~after line 623):**
-- Same pattern as SimpleIntakeForm lines 276-283
+Also update the `challengeFields` select for `spec` context to include `scope` (which stores `expected_outcomes` in DB) and ensure `extended_brief` is included for `beneficiaries_mapping`.
 
-**4. Add AI review handler functions (~before the conditional returns at line 626):**
-- `handleRunAiReview` — calls `review-challenge-sections` with `role_context: 'spec'`
-- `handleAcceptRefinement` — maps section keys to form fields (`problem_statement` → `problem_statement`, `expected_outcomes` → `expected_outcomes`, plus extended_brief fields like `scope_definition`, `beneficiaries_mapping`, etc.) and persists to DB
-- `handleSingleSectionReview` — updates single section review state
-- `handleMarkAddressed` — marks a review as addressed
+### 2. Form: `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-**5. Add "Review with AI" button in the form (edit mode only, after the title heading ~line 900):**
-```tsx
-{mode === 'edit' && editChallengeId && (
-  <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
-    {isAiReviewing ? <Loader2 /> : <Bot />}
-    {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
-  </Button>
-)}
+**a)** The `handleRunAiReview` handler already merges `data.data.sections` into `aiReviews` state -- this is correct. But also merge from `data.data.all_reviews` (which includes previously persisted reviews for sections not re-reviewed), so all sections populate:
+
+```typescript
+// Use all_reviews (merged set) instead of just sections (new only)
+const allReviews = data.data.all_reviews ?? data.data.sections;
+for (const r of allReviews as SectionReview[]) { map[r.section_key] = r; }
 ```
 
-**6. Add `AIReviewInline` panels after each major field (edit mode only):**
+**b)** Add `AIReviewInline` panels for the additional spec sections that exist in the form but currently lack review panels. The form already has description, deliverables, evaluation_criteria fields in the ExpandField/dynamic sections. Add review panels after those fields where they exist in the form UI.
 
-Sections to add review panels for:
-- **Problem Statement** (after line 1136) — `sectionKey="problem_statement"`
-- **Expected Outcomes** (after line 1189) — `sectionKey="expected_outcomes"`
-- **Scope Definition** (in ExpandField area) — `sectionKey="scope"`
-- **Beneficiaries Mapping** — `sectionKey="beneficiaries_mapping"`
-
-Each panel follows this pattern:
-```tsx
-{mode === 'edit' && editChallengeId && (
-  <AIReviewInline
-    sectionKey="problem_statement"
-    review={aiReviews['problem_statement']}
-    currentContent={form.watch('problem_statement')}
-    challengeId={editChallengeId}
-    challengeContext={{ title: form.watch('title') }}
-    onAcceptRefinement={handleAcceptRefinement}
-    onSingleSectionReview={handleSingleSectionReview}
-    onMarkAddressed={handleMarkAddressed}
-    roleContext="spec"
-    defaultOpen={aiReviews['problem_statement']?.status === 'needs_revision' || aiReviews['problem_statement']?.status === 'warning'}
-  />
-)}
-```
-
-**7. Field mapping for `handleAcceptRefinement`:**
-
-| Section Key | Form Field | DB Column |
-|---|---|---|
-| `problem_statement` | `problem_statement` | `problem_statement` |
-| `expected_outcomes` | `expected_outcomes` | `expected_outcomes` |
-| `scope` | `scope_definition` | `extended_brief.scope_definition` |
-| `beneficiaries_mapping` | `beneficiaries_mapping` | `extended_brief.beneficiaries_mapping` |
-
-**8. Need `updateMutation` reference** — add a `useSaveChallengeStep` or direct Supabase update call for persisting review data, matching the pattern already used in `handleUpdateChallenge`.
-
-**Files modified**: 1 (`ConversationalIntakePage.tsx`)
+**Files modified**: 2 (`review-challenge-sections/index.ts`, `ConversationalIntakePage.tsx`)
 
