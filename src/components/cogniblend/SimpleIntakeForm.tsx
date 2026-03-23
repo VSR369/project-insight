@@ -126,7 +126,7 @@ function useExistingChallenge(challengeId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenges')
-        .select('id, title, problem_statement, scope, operating_model, reward_structure, phase_schedule, eligibility, extended_brief')
+        .select('id, title, problem_statement, scope, operating_model, reward_structure, phase_schedule, eligibility, extended_brief, ai_section_reviews')
         .eq('id', challengeId!)
         .single();
       if (error) throw new Error(error.message);
