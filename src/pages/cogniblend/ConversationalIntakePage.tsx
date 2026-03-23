@@ -653,7 +653,7 @@ export function ConversationalIntakeContent({
         for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
         setAiReviews(map);
         // Persist review results to DB
-        saveStep.mutate({ challengeId: editChallengeId, payload: { ai_section_reviews: Object.values(map) } });
+        saveStep.mutate({ challengeId: editChallengeId, fields: { ai_section_reviews: Object.values(map) } });
         toast.success('AI review complete — see comments below each section.');
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response');
@@ -692,7 +692,7 @@ export function ConversationalIntakeContent({
       const briefKey = sectionKey === 'scope' ? 'scope_definition' : 'beneficiaries_mapping';
       saveStep.mutate({
         challengeId: editChallengeId,
-        payload: {
+        fields: {
           extended_brief: { ...extBrief, [briefKey]: newContent },
           ai_section_reviews: reviewsArray,
         },
@@ -706,7 +706,7 @@ export function ConversationalIntakeContent({
       if (dbCol) {
         saveStep.mutate({
           challengeId: editChallengeId,
-          payload: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
+          fields: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
         });
       }
     }
@@ -717,7 +717,7 @@ export function ConversationalIntakeContent({
     setAiReviews((prev) => {
       const updated = { ...prev, [sectionKey]: review };
       if (editChallengeId) {
-        saveStep.mutate({ challengeId: editChallengeId, payload: { ai_section_reviews: Object.values(updated) } });
+        saveStep.mutate({ challengeId: editChallengeId, fields: { ai_section_reviews: Object.values(updated) } });
       }
       return updated;
     });
@@ -730,7 +730,7 @@ export function ConversationalIntakeContent({
         [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
       };
       if (editChallengeId) {
-        saveStep.mutate({ challengeId: editChallengeId, payload: { ai_section_reviews: Object.values(updated) } });
+        saveStep.mutate({ challengeId: editChallengeId, fields: { ai_section_reviews: Object.values(updated) } });
       }
       return updated;
     });
