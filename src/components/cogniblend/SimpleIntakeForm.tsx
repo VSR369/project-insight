@@ -631,17 +631,19 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        {isEditMode && (
+        {(isEditMode || isViewMode) && (
           <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/dashboard')}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
           </Button>
         )}
         <div>
           <h2 className="text-xl font-bold text-foreground">
-            {isEditMode ? 'Edit Problem Brief' : 'Submit a Problem Brief'}
+            {isViewMode ? 'View Problem Brief' : isEditMode ? 'Edit Problem Brief' : 'Submit a Problem Brief'}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {isEditMode
+            {isViewMode
+              ? 'Read-only view of your submitted problem brief.'
+              : isEditMode
               ? 'Update your problem brief below. All formatting will be preserved.'
               : 'As your organization\'s representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.'}
           </p>
@@ -654,12 +656,13 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         {/* 1. Title */}
         <div className="space-y-1.5">
           <Label htmlFor="si-title" className="text-sm font-medium">
-            Title <span className="text-destructive">*</span>
+            Title {!isViewMode && <span className="text-destructive">*</span>}
           </Label>
           <Input
             id="si-title"
             placeholder="Brief title for your problem brief"
             maxLength={100}
+            disabled={isViewMode}
             {...register('title')}
           />
           {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
@@ -669,70 +672,80 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">
-              Problem Summary <span className="text-destructive">*</span>
+              Problem Summary {!isViewMode && <span className="text-destructive">*</span>}
             </Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => setMpProblemFullscreen(true)}
-            >
-              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
-            </Button>
-          </div>
-          <Controller
-            name="problem_summary"
-            control={control}
-            render={({ field }) => (
-              <RichTextEditor
-                value={field.value ?? ''}
-                onChange={field.onChange}
-                placeholder="What problem needs solving? Describe what is broken, who is affected, and what a good solution would achieve."
-                storagePath="am-problem-summary"
-              />
+            {!isViewMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => setMpProblemFullscreen(true)}
+              >
+                <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+              </Button>
             )}
-          />
-          <p className="text-xs italic text-muted-foreground">
-            Describe what is broken, who is affected, and what a good solution would achieve.
-          </p>
+          </div>
+          {isViewMode ? (
+            <SafeHtmlRenderer html={problemSummary} fallback="No problem summary provided" />
+          ) : (
+            <Controller
+              name="problem_summary"
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="What problem needs solving? Describe what is broken, who is affected, and what a good solution would achieve."
+                  storagePath="am-problem-summary"
+                />
+              )}
+            />
+          )}
+          {!isViewMode && (
+            <p className="text-xs italic text-muted-foreground">
+              Describe what is broken, who is affected, and what a good solution would achieve.
+            </p>
+          )}
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
         </div>
 
         {/* Fullscreen Dialog — MP Problem Summary */}
-        <Dialog open={mpProblemFullscreen} onOpenChange={setMpProblemFullscreen}>
-          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <DialogHeader className="shrink-0">
-              <DialogTitle>Problem Summary</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto py-2">
-              <Controller
-                name="problem_summary"
-                control={control}
-                render={({ field }) => (
-                  <RichTextEditor
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    placeholder="What problem needs solving?..."
-                    storagePath="am-problem-summary"
-                    className="min-h-[60vh]"
-                  />
-                )}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        {!isViewMode && (
+          <Dialog open={mpProblemFullscreen} onOpenChange={setMpProblemFullscreen}>
+            <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+              <DialogHeader className="shrink-0">
+                <DialogTitle>Problem Summary</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto py-2">
+                <Controller
+                  name="problem_summary"
+                  control={control}
+                  render={({ field }) => (
+                    <RichTextEditor
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      placeholder="What problem needs solving?..."
+                      storagePath="am-problem-summary"
+                      className="min-h-[60vh]"
+                    />
+                  )}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {/* 3. Sector / Domain */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
-            Sector / Domain <span className="text-destructive">*</span>
+            Sector / Domain {!isViewMode && <span className="text-destructive">*</span>}
           </Label>
           <Controller
             name="industry_segment_id"
             control={control}
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a sector…" />
                 </SelectTrigger>
@@ -755,14 +768,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         {/* Budget Range */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
-            Budget Range <span className="text-destructive">*</span>
+            Budget Range {!isViewMode && <span className="text-destructive">*</span>}
           </Label>
           <div className="flex items-center gap-3">
             <Controller
               name="currency"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
                   <SelectTrigger className="w-28 shrink-0">
                     <SelectValue />
                   </SelectTrigger>
@@ -774,9 +787,9 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
                 </Select>
               )}
             />
-            <Input type="number" placeholder="Min" className="flex-1" {...register('budget_min')} />
+            <Input type="number" placeholder="Min" className="flex-1" disabled={isViewMode} {...register('budget_min')} />
             <span className="text-muted-foreground text-sm">–</span>
-            <Input type="number" placeholder="Max" className="flex-1" {...register('budget_max')} />
+            <Input type="number" placeholder="Max" className="flex-1" disabled={isViewMode} {...register('budget_max')} />
           </div>
           {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
           {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
@@ -785,13 +798,13 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         {/* Timeline Urgency */}
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
-            Timeline Urgency <span className="text-destructive">*</span>
+            Timeline Urgency {!isViewMode && <span className="text-destructive">*</span>}
           </Label>
           <Controller
             name="expected_timeline"
             control={control}
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select timeline…" />
                 </SelectTrigger>
@@ -810,56 +823,64 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">
-              What success looks like commercially <span className="text-xs text-muted-foreground italic">(Optional)</span>
+              What success looks like commercially {!isViewMode && <span className="text-xs text-muted-foreground italic">(Optional)</span>}
             </Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => setCommercialFullscreen(true)}
-            >
-              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
-            </Button>
-          </div>
-          <Controller
-            name="solution_expectations"
-            control={control}
-            render={({ field }) => (
-              <RichTextEditor
-                value={field.value ?? ''}
-                onChange={field.onChange}
-                placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
-                storagePath="am-commercial-success"
-              />
+            {!isViewMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => setCommercialFullscreen(true)}
+              >
+                <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+              </Button>
             )}
-          />
+          </div>
+          {isViewMode ? (
+            <SafeHtmlRenderer html={solutionExpectations} fallback="Not provided" />
+          ) : (
+            <Controller
+              name="solution_expectations"
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+                  storagePath="am-commercial-success"
+                />
+              )}
+            />
+          )}
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
         </div>
 
         {/* Fullscreen Dialog — Commercial Success */}
-        <Dialog open={commercialFullscreen} onOpenChange={setCommercialFullscreen}>
-          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <DialogHeader className="shrink-0">
-              <DialogTitle>What success looks like commercially</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto py-2">
-              <Controller
-                name="solution_expectations"
-                control={control}
-                render={({ field }) => (
-                  <RichTextEditor
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    placeholder="What does a good outcome look like from a business perspective?..."
-                    storagePath="am-commercial-success"
-                    className="min-h-[60vh]"
-                  />
-                )}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        {!isViewMode && (
+          <Dialog open={commercialFullscreen} onOpenChange={setCommercialFullscreen}>
+            <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+              <DialogHeader className="shrink-0">
+                <DialogTitle>What success looks like commercially</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto py-2">
+                <Controller
+                  name="solution_expectations"
+                  control={control}
+                  render={({ field }) => (
+                    <RichTextEditor
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      placeholder="What does a good outcome look like from a business perspective?..."
+                      storagePath="am-commercial-success"
+                      className="min-h-[60vh]"
+                    />
+                  )}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Approval Gate Toggle */}
@@ -884,41 +905,44 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
                 id="am-approval-toggle"
                 checked={field.value}
                 onCheckedChange={field.onChange}
+                disabled={isViewMode}
               />
             )}
           />
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button
-          onClick={handleSubmit(onSubmit)}
-          disabled={isBusy}
-          size="lg"
-          className="flex-1 sm:flex-none"
-        >
-          {isSubmitting ? (
-            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditMode ? 'Updating…' : 'Submitting…'}</>
-          ) : (
-            <><Send className="h-4 w-4 mr-2" /> {isEditMode ? 'Update Brief' : 'Submit Brief'}</>
-          )}
-        </Button>
-        {!isEditMode && (
+      {/* Actions — hidden in view mode */}
+      {!isViewMode && (
+        <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            variant="outline"
-            onClick={onSaveDraft}
+            onClick={handleSubmit(onSubmit)}
             disabled={isBusy}
             size="lg"
+            className="flex-1 sm:flex-none"
           >
-            {isSaving ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+            {isSubmitting ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditMode ? 'Updating…' : 'Submitting…'}</>
             ) : (
-              <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+              <><Send className="h-4 w-4 mr-2" /> {isEditMode ? 'Update Brief' : 'Submit Brief'}</>
             )}
           </Button>
-        )}
-      </div>
+          {!isEditMode && (
+            <Button
+              variant="outline"
+              onClick={onSaveDraft}
+              disabled={isBusy}
+              size="lg"
+            >
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+              ) : (
+                <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
