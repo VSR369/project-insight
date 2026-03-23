@@ -73,7 +73,7 @@ export function useChallengeDetail(challengeId: string | undefined) {
           solver_eligibility_id,
           challenge_visibility, hook, effort_level,
           extended_brief, eligibility_model, domain_tags,
-          targeting_filters
+          targeting_filters, ai_section_reviews
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
