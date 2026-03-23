@@ -980,9 +980,22 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             />
           )}
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="scope"
+              review={aiReviews['scope']}
+              currentContent={solutionExpectations ?? null}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['scope']?.status === 'needs_revision' || aiReviews['scope']?.status === 'warning'}
+            />
+          )}
         </div>
 
-        {/* Fullscreen Dialog — Commercial Success */}
         {!isViewMode && (
           <Dialog open={commercialFullscreen} onOpenChange={setCommercialFullscreen}>
             <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
