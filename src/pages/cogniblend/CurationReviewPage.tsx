@@ -58,6 +58,7 @@ import {
   Pencil,
   Lock,
   Bot,
+  Eye,
   Loader2,
   Sparkles,
   RefreshCw,
