@@ -372,6 +372,8 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
+  const [problemExpanded, setProblemExpanded] = useState(false);
+  const [outcomesExpanded, setOutcomesExpanded] = useState(false);
   const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
 
