@@ -407,13 +407,13 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">
-              Industry Segment <span className="text-destructive">*</span>
+              Industry Segment {!isViewMode && <span className="text-destructive">*</span>}
             </Label>
             <Controller
               name="industry_segment_id"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an industry segment…" />
                   </SelectTrigger>
@@ -425,9 +425,11 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
                 </Select>
               )}
             />
-            <p className="text-xs italic text-muted-foreground">
-              Required for auto-assigning the right Challenge Creator to your idea.
-            </p>
+            {!isViewMode && (
+              <p className="text-xs italic text-muted-foreground">
+                Required for auto-assigning the right Challenge Creator to your idea.
+              </p>
+            )}
             {errors.industry_segment_id && <p className="text-xs text-destructive">{errors.industry_segment_id.message}</p>}
           </div>
         </div>
