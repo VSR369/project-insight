@@ -508,30 +508,36 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Label className="text-sm font-medium">Beneficiaries & Benefits Mapping</Label>
-                <span className="text-xs text-muted-foreground italic">(Optional)</span>
+                {!isViewMode && <span className="text-xs text-muted-foreground italic">(Optional)</span>}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => setBeneficiariesFullscreen(true)}
-              >
-                <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
-              </Button>
-            </div>
-            <Controller
-              name="beneficiaries_mapping"
-              control={control}
-              render={({ field }) => (
-                <RichTextEditor
-                  value={field.value ?? ''}
-                  onChange={field.onChange}
-                  placeholder="Who will benefit from solving this? Map stakeholders to expected benefits..."
-                  storagePath="rq-beneficiaries"
-                />
+              {!isViewMode && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => setBeneficiariesFullscreen(true)}
+                >
+                  <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+                </Button>
               )}
-            />
+            </div>
+            {isViewMode ? (
+              <SafeHtmlRenderer html={watch('beneficiaries_mapping')} fallback="Not provided" />
+            ) : (
+              <Controller
+                name="beneficiaries_mapping"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="Who will benefit from solving this? Map stakeholders to expected benefits..."
+                    storagePath="rq-beneficiaries"
+                  />
+                )}
+              />
+            )}
           </div>
         </div>
 
