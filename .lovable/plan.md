@@ -1,46 +1,68 @@
 
 
-# Fix: Seed Demo Scenario Failure
+# Fix: AM → CA Data Flow + Demo Data Cleanup
 
-## Root Cause
+## Root Cause (Confirmed)
 
-The `setup-test-scenario` edge function was updated to insert `role_code = 'CA'` for Marketplace challenges, but **`CA` does not exist in the `platform_roles` table**. The table only has `CR` (named "Challenge Creator/Architect"). This causes a foreign key violation on `user_challenge_roles.role_code`.
+Three distinct issues prevent the AM → CA handoff from working:
 
-## Solution
+### Issue 1: Backend role matching ignores CA
+- `get_phase_required_role(2)` returns `'CR'` (hardcoded)
+- `get_user_dashboard_data` checks `v_required_role = ANY(rec.role_codes)` — Chris has `['CA']` but required is `'CR'` → item goes to `waiting_for` instead of `needs_action`
+- `can_perform` checks `role_code = p_required_role` — Chris has `CA`, system expects `CR` → returns `false` → phase completion would also fail
 
-There are two options:
+### Issue 2: Demo cleanup fails silently
+- 11 duplicate "New Horizon Company" orgs exist with 18 orphaned challenges
+- Edge function tries to `DELETE FROM challenges` but `audit_trail` (32 rows) and `sla_timers` (6 rows) have `NO ACTION` FK constraints blocking deletion
+- Cleanup silently fails, old data persists
 
-### Option A: Add `CA` as a new platform role (recommended by plan)
-- Add a row to `platform_roles`: `CA` / "Challenge Architect"
-- Also add FK entry in `challenge_role_assignments` if it has the same constraint
-- Keep `CR` for AGG model, use `CA` for MP model
-- This requires a migration + updating the seed function
+### Issue 3: CA login lands on wrong page
+- `DemoLoginPage` routes Chris to `/cogni/challenges/create` instead of `/cogni/dashboard`
+- CA should land on dashboard to see incoming requests from AM
 
-### Option B: Revert to using `CR` for both models (simpler)
-- Revert the seed function to use `CR` everywhere
-- Distinguish MP vs AGG behavior via `operating_model` on the challenge, not role code
-- Less invasive but doesn't achieve the role separation the plan calls for
+## Implementation
 
-**Recommended: Option A** — Add `CA` to `platform_roles` table, then the seed will work.
+### Step 1: DB Migration — CA/CR Role Equivalence
 
-## Changes
+Create two SQL changes:
 
-### 1. Database migration
-Insert new platform role:
+**A) Helper function `roles_equivalent`:**
 ```sql
-INSERT INTO platform_roles (role_code, role_name, description)
-VALUES ('CA', 'Challenge Architect', 'Specification owner for Marketplace model challenges');
+CREATE OR REPLACE FUNCTION public.roles_equivalent(p_required text, p_actual text)
+RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT p_required = p_actual
+      OR (p_required = 'CR' AND p_actual = 'CA')
+      OR (p_required = 'CA' AND p_actual = 'CR');
+$$;
 ```
 
-### 2. Verify `challenge_role_assignments` constraint
-Check if that table also has a FK to `platform_roles` on `role_code` — if so, `CA` will now be valid there too after the migration.
+**B) Update `can_perform`:** Replace `role_code = p_required_role` with `roles_equivalent(p_required_role, role_code)` in the EXISTS check.
 
-### 3. No edge function changes needed
-The current `setup-test-scenario` code already uses `CA` for MP challenges — it just needs the DB role to exist.
+**C) Update `get_user_dashboard_data`:** Replace `v_required_role = ANY(rec.role_codes)` with a check that uses `roles_equivalent` to match any of the user's role codes.
 
-## Technical Details
-- **Table**: `platform_roles` (lookup table for valid role codes)
-- **Constraint**: `user_challenge_roles_role_code_fkey` → `platform_roles(role_code)`
-- **Files modified**: 1 migration only
-- **Risk**: Very low — additive insert, no existing data affected
+### Step 2: Fix Edge Function Cleanup
+
+Update `setup-test-scenario/index.ts` to delete dependent rows before challenges:
+```
+audit_trail → sla_timers → user_challenge_roles → challenge_legal_docs → challenges → org_users → seeker_organizations
+```
+
+### Step 3: Fix CA Login Destination
+
+In `DemoLoginPage.tsx`, change Chris Rivera's `aiDestination` and `manualDestination` to `/cogni/dashboard` instead of `/cogni/challenges/create`.
+
+### Step 4: Redeploy Edge Function
+
+Deploy the updated `setup-test-scenario` function so the cleanup works properly.
+
+## Files Changed
+- 1 new migration (role equivalence + function updates)
+- `supabase/functions/setup-test-scenario/index.ts` (cleanup order fix)
+- `src/pages/cogniblend/DemoLoginPage.tsx` (CA destination)
+
+## Expected Result
+1. Re-seed creates fresh data with no duplicates
+2. Chris (CA) logs in → lands on dashboard → sees "Predictive Maintenance" in Incoming Requests
+3. Clicking "Review" opens spec page with AM's problem statement, scope, budget, timeline prefilled
+4. Phase completion works because `can_perform` now accepts CA for Phase 2
 
