@@ -93,6 +93,14 @@ function slaIndicator(sla: SlaStatus | null) {
 }
 
 function phaseBadge(phase: number | null) {
+  if (phase === 1) {
+    return (
+      <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-semibold gap-1">
+        <Clock className="h-3 w-3" />
+        Spec in Progress
+      </Badge>
+    );
+  }
   if (phase === 2) {
     return (
       <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold gap-1">
