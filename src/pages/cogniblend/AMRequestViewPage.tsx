@@ -24,11 +24,14 @@ export default function AMRequestViewPage() {
 
   return (
     <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
-      <div className="flex items-center justify-between">
-        <CreationContextBar />
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <CreationContextBar />
+        </div>
         <Button
           variant="outline"
           size="sm"
+          className="shrink-0"
           onClick={() => setPageMode(pageMode === 'view' ? 'edit' : 'view')}
         >
           {pageMode === 'view' ? (
