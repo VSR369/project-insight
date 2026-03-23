@@ -1041,6 +1041,7 @@ export function ConversationalIntakeContent({
               level={level}
               selected={watchedMaturity === level}
               onSelect={() => form.setValue('maturity_level', level, { shouldValidate: true })}
+              disabled={isViewMode}
             />
           ))}
         </div>
