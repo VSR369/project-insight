@@ -134,7 +134,7 @@ export default function DomainTargetingCard({
   );
 
   return (
-    <Collapsible defaultOpen>
+    <Collapsible>
       <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border-2 border-border bg-card p-4 hover:bg-accent/30 transition-colors">
         <Layers className="h-5 w-5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
