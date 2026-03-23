@@ -1321,10 +1321,22 @@ export function ConversationalIntakeContent({
           </DialogContent>
         </Dialog>
       </div>
+      {mode === 'edit' && editChallengeId && (
+        <AIReviewInline
+          sectionKey="expected_outcomes"
+          review={aiReviews['expected_outcomes']}
+          currentContent={form.watch('expected_outcomes')}
+          challengeId={editChallengeId}
+          challengeContext={{ title: form.watch('title'), maturity_level: form.watch('maturity_level') }}
+          onAcceptRefinement={handleAcceptRefinement}
+          onSingleSectionReview={handleSingleSectionReview}
+          onMarkAddressed={handleMarkAddressed}
+          roleContext="spec"
+          defaultOpen={aiReviews['expected_outcomes']?.status === 'needs_revision' || aiReviews['expected_outcomes']?.status === 'warning'}
+        />
+      )}
 
 
-
-      {/* Step 4: Maturity Level */}
       <div className="space-y-3">
         <label className="text-sm font-semibold text-foreground">
           What do you need back?
