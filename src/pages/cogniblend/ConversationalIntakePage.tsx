@@ -1086,6 +1086,7 @@ export function ConversationalIntakeContent({
           <Select
             value={form.watch('currency_code')}
             onValueChange={(v) => form.setValue('currency_code', v, { shouldValidate: true })}
+            disabled={isViewMode}
           >
             <SelectTrigger className="w-32 shrink-0">
               <SelectValue placeholder="Currency" />
@@ -1102,6 +1103,7 @@ export function ConversationalIntakeContent({
             type="number"
             placeholder={form.watch('budget_min') ? 'Max budget' : '10,000'}
             className="flex-1"
+            disabled={isViewMode}
             {...form.register('prize_amount', { valueAsNumber: true })}
           />
         </div>
