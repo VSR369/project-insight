@@ -7,7 +7,7 @@ import { Building2, Shield, Network, Gem } from 'lucide-react';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import {
-  resolveGovernanceMode,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
 } from '@/lib/governanceMode';
 import {
