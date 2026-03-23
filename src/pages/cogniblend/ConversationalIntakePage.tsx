@@ -73,7 +73,7 @@ import {
 import { computeSolverAssignment } from '@/lib/cogniblend/solverAutoAssign';
 import { getPostGenerationRoute, shouldRequireAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
-import type { ChallengeTemplate } from '@/lib/challengeTemplates';
+import { CHALLENGE_TEMPLATES, type ChallengeTemplate } from '@/lib/challengeTemplates';
 import type { SharedIntakeState } from './ChallengeCreatePage';
 
 /* ─── Constants ───────────────────────────────────────── */
