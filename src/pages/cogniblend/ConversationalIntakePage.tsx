@@ -337,9 +337,10 @@ export function ConversationalIntakeContent({
 
   // ═══════ Hooks — edit mode query ═══════
   const { data: editChallenge, isLoading: editLoading } = useChallengeDetail(
-    mode === 'edit' ? editChallengeId : undefined,
+    (mode === 'edit' || mode === 'view') ? editChallengeId : undefined,
   );
-  const isEditMode = mode === 'edit';
+  const isEditMode = mode === 'edit' || mode === 'view';
+  const isViewMode = mode === 'view';
 
   // ═══════ Hooks — industry segments ═══════
   const { data: industrySegments = [] } = useIndustrySegments();
