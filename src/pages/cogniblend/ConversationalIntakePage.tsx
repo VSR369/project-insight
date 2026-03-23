@@ -1142,28 +1142,41 @@ export function ConversationalIntakeContent({
         <p className="text-xs text-muted-foreground">
           Must be at least {MIN_DEADLINE_DAYS} days from today.
         </p>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={`w-full max-w-xs justify-start text-left font-normal ${!form.watch('deadline') ? 'text-muted-foreground' : ''}`}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {form.watch('deadline')
-                ? format(form.watch('deadline'), 'PPP')
-                : 'Pick a date'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={form.watch('deadline')}
-              onSelect={(d) => d && form.setValue('deadline', d, { shouldValidate: true })}
-              disabled={(d) => d < addDays(new Date(), MIN_DEADLINE_DAYS)}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        {isViewMode ? (
+          <Button
+            variant="outline"
+            disabled
+            className="w-full max-w-xs justify-start text-left font-normal"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {form.watch('deadline')
+              ? format(form.watch('deadline'), 'PPP')
+              : 'No date set'}
+          </Button>
+        ) : (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={`w-full max-w-xs justify-start text-left font-normal ${!form.watch('deadline') ? 'text-muted-foreground' : ''}`}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {form.watch('deadline')
+                  ? format(form.watch('deadline'), 'PPP')
+                  : 'Pick a date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={form.watch('deadline')}
+                onSelect={(d) => d && form.setValue('deadline', d, { shouldValidate: true })}
+                disabled={(d) => d < addDays(new Date(), MIN_DEADLINE_DAYS)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        )}
         {form.formState.errors.deadline && (
           <p className="text-xs text-destructive">
             {form.formState.errors.deadline.message}
