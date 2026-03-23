@@ -335,6 +335,49 @@ function ExpandField({
   );
 }
 
+/* ─── Dynamic Brief Field (RichTextEditor for AM extras) ── */
+
+function DynamicBriefField({
+  fieldKey,
+  value,
+  disabled,
+  onChange,
+}: {
+  fieldKey: string;
+  value: string;
+  disabled?: boolean;
+  onChange: (val: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const label = humanizeKey(fieldKey);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground">{label}</label>
+        {!disabled && (
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpanded(true)}>
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+      {disabled ? (
+        <SafeHtmlRenderer html={value} className="min-h-[60px]" />
+      ) : (
+        <RichTextEditor value={value ?? ''} onChange={onChange} placeholder={`Enter ${label.toLowerCase()}...`} className="min-h-[100px]" />
+      )}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{label}</DialogTitle></DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto py-2">
+            <RichTextEditor value={value ?? ''} onChange={onChange} placeholder={`Enter ${label.toLowerCase()}...`} className="min-h-[60vh]" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 /* ─── Content Component (embeddable) ──────────────────── */
 
 interface ConversationalIntakeContentProps {
