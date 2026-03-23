@@ -330,7 +330,7 @@ export default function CurationQueuePage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
-                activeTab === tab.key
+                resolvedTab === tab.key
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
