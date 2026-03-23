@@ -8,6 +8,7 @@
 
 import ModificationPointsTracker from '@/components/cogniblend/ModificationPointsTracker';
 import { useState, useMemo, useCallback } from "react";
+import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
