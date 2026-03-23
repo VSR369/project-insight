@@ -572,6 +572,7 @@ export function ConversationalIntakeContent({
       if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
       if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
       if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+      if (selectedTemplate?.id) extendedBrief.challenge_template_id = selectedTemplate.id;
       if (data.beneficiaries_mapping?.trim()) extendedBrief.beneficiaries_mapping = data.beneficiaries_mapping.trim();
       if (data.solution_expectations?.trim()) extendedBrief.solution_expectations = data.solution_expectations.trim();
       // Preserve dynamic AM fields
