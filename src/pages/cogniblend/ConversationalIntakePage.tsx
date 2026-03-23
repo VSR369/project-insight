@@ -804,7 +804,7 @@ export function ConversationalIntakeContent({
       </div>
 
       {/* Controlled mode notice */}
-      {isControlled && (
+      {!isViewMode && isControlled && (
         <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-700">
           <ShieldCheck className="h-4 w-4 text-purple-600" />
           <AlertTitle className="text-purple-800 dark:text-purple-300">Controlled Governance</AlertTitle>
@@ -815,7 +815,7 @@ export function ConversationalIntakeContent({
       )}
 
       {/* AI Failure Fallback Banner */}
-      {aiFailure && (
+      {!isViewMode && aiFailure && (
         <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800 dark:text-amber-300">AI generation unavailable</AlertTitle>
