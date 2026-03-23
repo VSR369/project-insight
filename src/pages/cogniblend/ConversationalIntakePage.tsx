@@ -460,6 +460,40 @@ export function ConversationalIntakeContent({
     setSupportingFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  /** Edit mode: save updated fields directly without AI generation */
+  const handleUpdateChallenge = async (data: IntakeFormValues) => {
+    if (!editChallengeId) return;
+
+    try {
+      const extendedBrief: Record<string, string> = {};
+      if (data.context_background?.trim()) extendedBrief.context_background = data.context_background.trim();
+      if (data.root_causes?.trim()) extendedBrief.root_causes = data.root_causes.trim();
+      if (data.affected_stakeholders?.trim()) extendedBrief.affected_stakeholders = data.affected_stakeholders.trim();
+      if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
+      if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
+      if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+
+      await saveStep.mutateAsync({
+        challengeId: editChallengeId,
+        fields: {
+          problem_statement: data.problem_statement,
+          scope: data.expected_outcomes,
+          maturity_level: data.maturity_level?.toUpperCase() ?? null,
+          currency_code: data.currency_code,
+          submission_deadline: data.deadline ? data.deadline.toISOString() : null,
+          governance_profile: governanceMode,
+          operating_model: engagementModel,
+          ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
+        },
+      });
+
+      toast.success('Challenge updated successfully');
+      navigate(`/cogni/challenges/${editChallengeId}/spec`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Failed to update challenge: ${message}`, { duration: 8000 });
+    }
+  };
   const isGenerating = generateSpec.isPending || createChallenge.isPending;
 
   const handleGoToEditor = (data?: IntakeFormValues) => {
