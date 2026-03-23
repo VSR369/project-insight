@@ -924,7 +924,7 @@ export function ConversationalIntakeContent({
           </p>
         </div>
 
-        <Select value={engagementModel} onValueChange={setLocalEngagementModel}>
+        <Select value={engagementModel} onValueChange={setLocalEngagementModel} disabled={isViewMode}>
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select engagement model" />
           </SelectTrigger>
