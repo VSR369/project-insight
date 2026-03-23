@@ -800,7 +800,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       </div>
 
       {/* AI Review Button — edit/view mode only */}
-      {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
         <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
           {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
           {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
