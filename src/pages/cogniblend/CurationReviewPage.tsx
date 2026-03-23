@@ -66,6 +66,8 @@ import {
   Tag,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
+import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
+import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 
 import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
