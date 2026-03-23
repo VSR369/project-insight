@@ -1336,14 +1336,16 @@ export function ConversationalIntakeContent({
                 </>
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
-              size="lg"
-            >
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Go to Spec Review
-            </Button>
+            {!hideSpecReview && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+                size="lg"
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Go to Spec Review
+              </Button>
+            )}
           </>
         ) : (
           <>
