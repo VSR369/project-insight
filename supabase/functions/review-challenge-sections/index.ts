@@ -45,7 +45,9 @@ const INTAKE_SECTIONS = [
 
 const SPEC_SECTIONS = [
   { key: "problem_statement", desc: "Clarity, specificity, solver-readiness — would a solver understand the problem?" },
+  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
   { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity for solvers" },
+  { key: "beneficiaries_mapping", desc: "Stakeholders and beneficiaries clearly identified" },
   { key: "description", desc: "Detailed enough for solvers to understand context and constraints" },
   { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
   { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
