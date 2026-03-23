@@ -1115,6 +1115,7 @@ export function ConversationalIntakeContent({
               type="number"
               placeholder="Min budget"
               className="w-32"
+              disabled={isViewMode}
               {...form.register('budget_min', { valueAsNumber: true })}
             />
             <span className="text-xs text-muted-foreground">— Max (above)</span>
