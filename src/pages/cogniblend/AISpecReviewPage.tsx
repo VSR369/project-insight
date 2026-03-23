@@ -1625,14 +1625,28 @@ export default function AISpecReviewPage() {
             </Badge>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/cogni/challenges/create')}
-        >
-          <ArrowLeft className="h-4 w-4 mr-1.5" />
-          Back
-        </Button>
+        <div className="flex items-center gap-2">
+          {!isCU && challengeId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunSpecAiReview}
+              disabled={isAiReviewing}
+              className="gap-1.5"
+            >
+              {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+              {isAiReviewing ? 'Reviewing…' : 'Review Sections by AI'}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/cogni/challenges/create')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
+          </Button>
+        </div>
       </div>
 
         {/* AM Brief Reference Panel (Marketplace only) */}
