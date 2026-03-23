@@ -1023,6 +1023,27 @@ export function ConversationalIntakeContent({
         )}
       </div>
 
+      {/* Industry Segment */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-foreground">
+          Industry Segment
+          <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Which industry does this challenge relate to?
+        </p>
+        <Select value={selectedIndustrySegmentId} onValueChange={setSelectedIndustrySegmentId}>
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select industry segment" />
+          </SelectTrigger>
+          <SelectContent>
+            {industrySegments.map((seg) => (
+              <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Step 5: Prize Amount + Currency */}
       <div className="space-y-2">
         <label className="text-sm font-semibold text-foreground">
