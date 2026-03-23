@@ -7,7 +7,7 @@ import { Building2, Shield, Network, Gem } from 'lucide-react';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import {
-  resolveGovernanceMode,
+  getDefaultGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
 } from '@/lib/governanceMode';
 import {
@@ -72,7 +72,7 @@ export function CreationContextBar() {
 
   if (!currentOrg) return null;
 
-  const govMode = resolveGovernanceMode(currentOrg.governanceProfile);
+  const govMode = getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile);
   const govConfig = GOVERNANCE_MODE_CONFIG[govMode];
   const modelLabel = orgContext?.operatingModel === 'MP' ? 'Marketplace' : orgContext?.operatingModel === 'AGG' ? 'Aggregator' : '—';
   const tierLabel = (currentOrg.tierCode ?? 'Basic').charAt(0).toUpperCase() + (currentOrg.tierCode ?? 'basic').slice(1).toLowerCase();
