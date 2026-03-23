@@ -1277,6 +1277,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('scope_definition') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1287,6 +1288,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('preferred_approach') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1297,6 +1299,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('approaches_not_of_interest') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1307,6 +1310,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('beneficiaries_mapping') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
@@ -1317,6 +1321,7 @@ export function ConversationalIntakeContent({
               rows={3}
               register={form.register}
               watchValue={form.watch('solution_expectations') ?? ''}
+              disabled={isViewMode}
             />
 
             {/* Dynamic fields from AM extended_brief (keys not in KNOWN_BRIEF_KEYS) */}
