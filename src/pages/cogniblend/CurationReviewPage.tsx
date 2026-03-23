@@ -376,8 +376,24 @@ const SECTIONS: SectionDef[] = [
     key: "escrow_funding",
     label: "Escrow & Funding",
     attribution: "by FC",
-    isFilled: (_ch, _ld, _ldd, escrow) => escrow?.escrow_status === "FUNDED",
-    render: (_ch, _ld, _ldd, escrow) => {
+    isFilled: (ch, _ld, _ldd, escrow) => {
+      const controlled = isControlledMode(resolveGovernanceMode(ch.governance_profile));
+      return controlled ? escrow?.escrow_status === "FUNDED" : true;
+    },
+    render: (ch, _ld, _ldd, escrow) => {
+      const controlled = isControlledMode(resolveGovernanceMode(ch.governance_profile));
+
+      // Non-CONTROLLED modes: escrow is not required
+      if (!controlled) {
+        return (
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-emerald-700">Escrow not required for this governance mode.</p>
+          </div>
+        );
+      }
+
+      // CONTROLLED mode: escrow is mandatory
       if (!escrow) return (
         <div className="flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
