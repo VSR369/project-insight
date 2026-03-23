@@ -166,7 +166,8 @@ function useUpdateChallenge() {
 /* ── Component ── */
 
 export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeFormProps) {
-  const isEditMode = mode === 'edit' && !!challengeId;
+  const isEditMode = (mode === 'edit' || mode === 'view') && !!challengeId;
+  const isViewMode = mode === 'view';
 
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
