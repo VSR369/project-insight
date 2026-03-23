@@ -67,6 +67,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useSaveChallengeStep, useChallengeDetail } from '@/hooks/queries/useChallengeForm';
