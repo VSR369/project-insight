@@ -1792,6 +1792,21 @@ export default function AISpecReviewPage() {
               ) : undefined
             }
           />
+          {challengeId && aiReviews[section.fieldKey] && (
+            <AIReviewInline
+              sectionKey={section.fieldKey}
+              review={aiReviews[section.fieldKey]}
+              currentContent={getFieldValue(section.fieldKey)}
+              challengeId={challengeId}
+              challengeContext={{ title: challenge.title, maturity_level: challenge.maturity_level as string | null }}
+              onAcceptRefinement={handleSpecAcceptRefinement}
+              onSingleSectionReview={handleSpecSingleReview}
+              onMarkAddressed={handleSpecMarkAddressed}
+              roleContext="spec"
+              defaultOpen={aiReviews[section.fieldKey]?.status === 'needs_revision' || aiReviews[section.fieldKey]?.status === 'warning'}
+            />
+          )}
+          </>
           )
         ))}
       </div>
