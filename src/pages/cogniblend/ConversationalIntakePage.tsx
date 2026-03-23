@@ -433,6 +433,7 @@ export function ConversationalIntakeContent({
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
+  const { activeRole } = useCogniRoleContext();
   const navigate = useNavigate();
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
 
