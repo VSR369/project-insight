@@ -764,7 +764,9 @@ function computeAutoChecks(
       const artifacts = del?.permitted_artifact_types;
       return Array.isArray(artifacts) && artifacts.length > 0;
     })(),
-    escrowRecord?.escrow_status === "FUNDED",
+    isControlledMode(resolveGovernanceMode(challenge.governance_profile))
+      ? escrowRecord?.escrow_status === "FUNDED"
+      : true,
   ];
 }
 

@@ -300,7 +300,9 @@ export default function CurationChecklistPanel({
     "Complexity parameters entered",
     "Maturity level + legal match",
     "Artifact types configured",
-    "Escrow funding confirmed",
+    isControlledMode(resolveGovernanceMode(challenge.governance_profile))
+      ? "Escrow funding confirmed"
+      : "Escrow funding (not required)",
   ];
 
   const checklistItems: ChecklistItem[] = useMemo(
