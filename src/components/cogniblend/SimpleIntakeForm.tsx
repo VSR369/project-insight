@@ -224,19 +224,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     mode: 'onBlur',
   });
 
+  const isCreateMode = mode === 'create';
   const persistenceKey = isEditMode ? `cogni_intake_edit_${challengeId}` : 'cogni_intake_simple';
-  const { clearPersistedData } = useFormPersistence(persistenceKey, form);
+  const { clearPersistedData } = useFormPersistence(persistenceKey, form, {
+    skipRestore: isCreateMode,
+  });
   const { register, control, handleSubmit, setValue, watch, getValues, formState: { errors }, reset } = form;
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
-
-  // ═══════ Effect — clear stale data for fresh create ═══════
-  useEffect(() => {
-    if (mode === 'create') {
-      sessionStorage.removeItem('cogni_intake_simple');
-      sessionStorage.removeItem('cogni_intake_simple_template');
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ═══════ Effect — pre-fill form from existing challenge ═══════
   useEffect(() => {

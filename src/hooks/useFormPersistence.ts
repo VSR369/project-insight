@@ -19,17 +19,29 @@ interface PersistedFormData {
   savedAt: number;
 }
 
+interface FormPersistenceOptions {
+  /** When true, clears stored data and skips restoration (use for fresh create mode). */
+  skipRestore?: boolean;
+}
+
 export function useFormPersistence<T extends FieldValues>(
   storageKey: string,
   form: UseFormReturn<T>,
+  options?: FormPersistenceOptions,
 ) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef(false);
 
-  // Restore on mount (once)
+  // Restore on mount (once) — or clear if skipRestore is set
   useEffect(() => {
     if (restoredRef.current) return;
     restoredRef.current = true;
+
+    // When skipRestore is true, proactively clear storage and skip restoration
+    if (options?.skipRestore) {
+      try { sessionStorage.removeItem(storageKey); } catch { /* ignore */ }
+      return;
+    }
 
     try {
       const raw = sessionStorage.getItem(storageKey);
