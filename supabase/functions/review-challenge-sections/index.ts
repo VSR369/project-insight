@@ -283,6 +283,19 @@ serve(async (req) => {
       reviewed_at: new Date().toISOString(),
     }));
 
+    // Backfill any sections the AI skipped with a default "pass"
+    const returnedKeys = new Set(newSections.map((s: any) => s.section_key));
+    for (const sec of sectionsToReview) {
+      if (!returnedKeys.has(sec.key)) {
+        newSections.push({
+          section_key: sec.key,
+          status: "pass",
+          comments: [],
+          reviewed_at: new Date().toISOString(),
+        });
+      }
+    }
+
     // Merge with existing reviews
     const existingReviews: any[] = Array.isArray(challengeResult.data.ai_section_reviews)
       ? challengeResult.data.ai_section_reviews
