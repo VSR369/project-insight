@@ -28,6 +28,8 @@ import {
   ShieldCheck,
   Users,
   ChevronDown,
+  Loader2,
+  Bot,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
