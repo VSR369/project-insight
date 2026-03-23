@@ -37,6 +37,7 @@ interface CurationActionsProps {
   completedCount: number;
   totalCount: number;
   operatingModel?: string | null;
+  readOnly?: boolean;
 }
 
 export default function CurationActions({
@@ -47,6 +48,7 @@ export default function CurationActions({
   completedCount,
   totalCount,
   operatingModel,
+  readOnly = false,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -326,6 +328,12 @@ export default function CurationActions({
 
   return (
     <>
+      {readOnly && (
+        <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
+          <p className="text-xs text-muted-foreground font-medium">View-only mode — actions disabled until Legal & Finance review is complete.</p>
+        </div>
+      )}
+
       {/* Modification Cycle */}
       <div className="p-3 rounded-lg border border-border bg-muted/30">
         <p className="text-xs font-medium text-foreground">
@@ -358,33 +366,35 @@ export default function CurationActions({
       )}
 
       {/* Action Buttons */}
-      <div className="space-y-2">
-        <Button
-          className="w-full"
-          onClick={handleSubmitClick}
-          disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired}
-        >
-          {(completePhase.isPending || amApprovalMutation.isPending) ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-          ) : (
-            <Send className="h-4 w-4 mr-1.5" />
-          )}
-          {isAmDeclined
-            ? 'Resubmit to Account Manager'
-            : amApprovalRequired
-              ? 'Send to Account Manager for Approval'
-              : 'Submit to Innovation Director'}
-        </Button>
+      {!readOnly && (
+        <div className="space-y-2">
+          <Button
+            className="w-full"
+            onClick={handleSubmitClick}
+            disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired}
+          >
+            {(completePhase.isPending || amApprovalMutation.isPending) ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+            ) : (
+              <Send className="h-4 w-4 mr-1.5" />
+            )}
+            {isAmDeclined
+              ? 'Resubmit to Account Manager'
+              : amApprovalRequired
+                ? 'Send to Account Manager for Approval'
+                : 'Submit to Innovation Director'}
+          </Button>
 
-        <Button
-          variant="outline"
-          className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-          onClick={() => setShowReturnModal(true)}
-        >
-          <RotateCcw className="h-4 w-4 mr-1.5" />
-          Return to Creator
-        </Button>
-      </div>
+          <Button
+            variant="outline"
+            className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            onClick={() => setShowReturnModal(true)}
+          >
+            <RotateCcw className="h-4 w-4 mr-1.5" />
+            Return to Creator
+          </Button>
+        </div>
+      )}
 
       {/* Incomplete Items Modal */}
       <Dialog open={showIncompleteModal} onOpenChange={setShowIncompleteModal}>

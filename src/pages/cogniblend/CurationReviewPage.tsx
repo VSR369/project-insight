@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,6 +58,7 @@ import {
   Pencil,
   Lock,
   Bot,
+  Eye,
   Loader2,
   Sparkles,
   RefreshCw,
@@ -768,6 +769,7 @@ export default function CurationReviewPage() {
   // SECTION 1: Hooks & state
   // ══════════════════════════════════════
   const { id: challengeId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -1220,6 +1222,13 @@ export default function CurationReviewPage() {
   }
 
   const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
+  const isReadOnly = (challenge.current_phase ?? 0) < 3 || searchParams.get('mode') === 'view';
+
+  const phaseDescription = challenge.current_phase === 1
+    ? 'Spec Creation (Phase 1)'
+    : challenge.current_phase === 2
+      ? 'Legal & Finance Review (Phase 2)'
+      : '';
 
   // ══════════════════════════════════════
   // SECTION 7: Render
@@ -1232,12 +1241,19 @@ export default function CurationReviewPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-foreground truncate">Curation Review</h1>
+          <h1 className="text-xl font-bold text-foreground truncate">
+            {isReadOnly ? 'Curation Preview' : 'Curation Review'}
+          </h1>
           <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
         </div>
+        {isReadOnly && (
+          <Badge variant="outline" className="text-xs shrink-0 gap-1">
+            <Eye className="h-3 w-3" />View Only
+          </Badge>
+        )}
         <GovernanceProfileBadge profile={challenge.governance_profile} compact />
 
-        {user?.id && (
+        {user?.id && !isReadOnly && (
           <HoldResumeActions
             challengeId={challengeId!}
             challengeTitle={challenge.title}
@@ -1248,6 +1264,21 @@ export default function CurationReviewPage() {
           />
         )}
       </div>
+
+      {/* Read-only banner for Phase 1/2 */}
+      {isReadOnly && phaseDescription && (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-400/40 bg-blue-50/60 dark:bg-blue-900/20 dark:border-blue-700/40 p-4">
+          <Eye className="h-5 w-5 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              This challenge is in {phaseDescription} — view only.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Editing will be enabled once Legal & Finance review is complete and the challenge advances to Phase 3 (Curation).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* LEGAL_VERIFICATION_PENDING banner */}
       {isLegalPending && (
@@ -1447,7 +1478,7 @@ export default function CurationReviewPage() {
                   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
                   const isLocked = LOCKED_SECTIONS.has(section.key);
                   const isEditing = editingSection === section.key;
-                  const canEdit = !isLocked && (!!section.dbField || section.key === "complexity");
+                  const canEdit = !isReadOnly && !isLocked && (!!section.dbField || section.key === "complexity");
                   const aiReview = aiReviews.find((r) => r.section_key === section.key);
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
@@ -1475,6 +1506,7 @@ export default function CurationReviewPage() {
                               checked={isApproved}
                               onCheckedChange={() => toggleSectionApproval(section.key)}
                               className="shrink-0"
+                              disabled={isReadOnly}
                             />
                           </div>
                           {filled ? (
@@ -1605,8 +1637,8 @@ export default function CurationReviewPage() {
                             saving={savingSection}
                           />
 
-                        /* ── Domain Tags — Always-editable inline ── */
-                        ) : section.key === "domain_tags" ? (
+                        /* ── Domain Tags — Always-editable inline (unless read-only) ── */
+                        ) : section.key === "domain_tags" && !isReadOnly ? (
                           <div className="space-y-3">
                             <div className="flex flex-wrap gap-1.5 min-h-[32px]">
                               {currentTags.length === 0 && (
@@ -1713,21 +1745,23 @@ export default function CurationReviewPage() {
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Quality
                 </CardTitle>
-                <Button
-                  size="sm"
-                  variant={aiQuality ? "ghost" : "outline"}
-                  onClick={handleAIQualityAnalysis}
-                  disabled={aiQualityLoading}
-                  className="text-xs h-7 px-2"
-                >
-                  {aiQualityLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : aiQuality ? (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  ) : (
-                    "Analyze"
-                  )}
-                </Button>
+                {!isReadOnly && (
+                  <Button
+                    size="sm"
+                    variant={aiQuality ? "ghost" : "outline"}
+                    onClick={handleAIQualityAnalysis}
+                    disabled={aiQualityLoading}
+                    className="text-xs h-7 px-2"
+                  >
+                    {aiQualityLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : aiQuality ? (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    ) : (
+                      "Analyze"
+                    )}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -1755,16 +1789,18 @@ export default function CurationReviewPage() {
           </Card>
 
           {/* Per-section AI Review button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAIReview}
-            disabled={aiReviewLoading}
-            className="w-full"
-          >
-            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-            Review Sections by AI
-           </Button>
+          {!isReadOnly && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAIReview}
+              disabled={aiReviewLoading}
+              className="w-full"
+            >
+              {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+              Review Sections by AI
+            </Button>
+          )}
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
@@ -1834,10 +1870,11 @@ export default function CurationReviewPage() {
             completedCount={completedCount}
             totalCount={15}
             operatingModel={challenge.operating_model}
+            readOnly={isReadOnly}
           />
 
           {/* Modification Points Tracker */}
-          <ModificationPointsTracker challengeId={challengeId!} mode="curator" />
+          <ModificationPointsTracker challengeId={challengeId!} mode={isReadOnly ? "readonly" : "curator"} />
         </div>
       </div>
     </div>
