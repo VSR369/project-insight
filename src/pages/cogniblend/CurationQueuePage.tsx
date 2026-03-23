@@ -413,9 +413,7 @@ export default function CurationQueuePage() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">
-                              This challenge is awaiting Legal & Finance review.
-                              You'll be able to curate it once it advances to
-                              Phase 3.
+                              {tooltipText}
                             </p>
                           </TooltipContent>
                         </Tooltip>
