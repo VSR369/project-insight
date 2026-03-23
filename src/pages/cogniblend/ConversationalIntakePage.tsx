@@ -159,15 +159,18 @@ function MaturityCard({
   level,
   selected,
   onSelect,
+  disabled,
 }: {
   level: string;
   selected: boolean;
   onSelect: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      disabled={disabled}
       className={`
         relative flex flex-col items-start gap-1 rounded-xl border p-4 text-left
         transition-all duration-150 hover:shadow-md
@@ -175,6 +178,7 @@ function MaturityCard({
           ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
           : 'border-border bg-card hover:border-primary/40'
         }
+        ${disabled ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}
       `}
     >
       <span className="text-sm font-semibold text-foreground">
