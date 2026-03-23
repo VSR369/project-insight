@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Save, Loader2, Maximize2, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Send, Save, Loader2, Maximize2, ShieldCheck, ArrowLeft, Bot } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { useFormPersistence, persistState, restoreState, clearState } from '@/hooks/useFormPersistence';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
