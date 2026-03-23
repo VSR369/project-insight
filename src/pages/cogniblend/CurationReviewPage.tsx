@@ -1265,6 +1265,21 @@ export default function CurationReviewPage() {
         )}
       </div>
 
+      {/* Read-only banner for Phase 1/2 */}
+      {isReadOnly && phaseDescription && (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-400/40 bg-blue-50/60 dark:bg-blue-900/20 dark:border-blue-700/40 p-4">
+          <Eye className="h-5 w-5 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              This challenge is in {phaseDescription} — view only.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Editing will be enabled once Legal & Finance review is complete and the challenge advances to Phase 3 (Curation).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* LEGAL_VERIFICATION_PENDING banner */}
       {isLegalPending && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50/60 p-4">
