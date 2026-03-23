@@ -49,6 +49,7 @@ export interface ChallengeDetail {
   eligibility_model: string | null;
   domain_tags: unknown;
   targeting_filters: Record<string, unknown> | null;
+  ai_section_reviews: unknown;
 }
 
 /* ─── useChallengeDetail ─────────────────────────────────── */
