@@ -921,6 +921,28 @@ export function ConversationalIntakeContent({
         </div>
       </div>
 
+      {/* Title (shown in edit mode or when user wants to set one) */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-foreground">
+          Challenge Title
+          <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          A concise, descriptive title. AI will generate one if left blank.
+        </p>
+        <Input
+          placeholder="e.g., Predictive Maintenance ML Model for Manufacturing"
+          maxLength={200}
+          className="text-base"
+          {...form.register('title')}
+        />
+        <div className="flex justify-end">
+          <span className="text-xs text-muted-foreground">
+            {(form.watch('title') ?? '').length} / 200
+          </span>
+        </div>
+      </div>
+
       {/* Step 1: Template Selector */}
       <TemplateSelector
         onSelect={handleTemplateSelect}
