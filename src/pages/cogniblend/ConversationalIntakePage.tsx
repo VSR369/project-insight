@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Zap,
   Info,
+  Check,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -56,7 +57,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
-import { useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
+import { useSaveChallengeStep, useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { useGenerateChallengeSpec, type GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
@@ -256,6 +257,10 @@ interface ConversationalIntakeContentProps {
   governanceMode?: GovernanceMode;
   /** Engagement model from parent landing page */
   engagementModel?: string;
+  /** When provided, form loads existing challenge data for editing */
+  challengeId?: string;
+  /** 'create' (default) or 'edit' */
+  mode?: 'create' | 'edit';
 }
 
 export function ConversationalIntakeContent({
@@ -265,6 +270,8 @@ export function ConversationalIntakeContent({
   onSpecGenerated,
   governanceMode: propGovernanceMode,
   engagementModel: propEngagementModel,
+  challengeId: editChallengeId,
+  mode = 'create',
 }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
@@ -289,6 +296,12 @@ export function ConversationalIntakeContent({
   const generateSpec = useGenerateChallengeSpec();
   const createChallenge = useSubmitSolutionRequest();
   const saveStep = useSaveChallengeStep();
+
+  // ═══════ Hooks — edit mode query ═══════
+  const { data: editChallenge, isLoading: editLoading } = useChallengeDetail(
+    mode === 'edit' ? editChallengeId : undefined,
+  );
+  const isEditMode = mode === 'edit';
 
   // ═══════ Hooks — form ═══════
   const form = useForm<IntakeFormValues>({
@@ -348,8 +361,69 @@ export function ConversationalIntakeContent({
     }
   }, [currentOrg?.governanceProfile, currentOrg?.tierCode, propGovernanceMode]);
 
+  // ═══════ Hooks — edit mode pre-fill ═══════
+  const [editPrefilled, setEditPrefilled] = useState(false);
+
+  useEffect(() => {
+    if (!isEditMode || !editChallenge || editPrefilled) return;
+
+    // Pre-fill form fields from existing challenge
+    const ch = editChallenge as unknown as Record<string, unknown>;
+
+    if (ch.problem_statement) {
+      form.setValue('problem_statement', ch.problem_statement as string);
+    }
+    if (ch.scope) {
+      form.setValue('expected_outcomes', ch.scope as string);
+    }
+    if (ch.maturity_level) {
+      const ml = (ch.maturity_level as string).toLowerCase();
+      if (['blueprint', 'poc', 'prototype', 'pilot'].includes(ml)) {
+        form.setValue('maturity_level', ml as IntakeFormValues['maturity_level']);
+      }
+    }
+    // Prize / currency from reward_structure or direct fields
+    const rewardStructure = ch.reward_structure as Record<string, unknown> | null;
+    if (rewardStructure?.budget_max) {
+      form.setValue('prize_amount', Number(rewardStructure.budget_max));
+    }
+    if (rewardStructure?.currency) {
+      form.setValue('currency_code', rewardStructure.currency as string);
+    } else if (ch.currency_code) {
+      form.setValue('currency_code', ch.currency_code as string);
+    }
+    // Deadline
+    if (ch.submission_deadline) {
+      form.setValue('deadline', new Date(ch.submission_deadline as string));
+    }
+    // Extended brief fields
+    const eb = ch.extended_brief as Record<string, string> | null;
+    if (eb) {
+      if (eb.context_background) form.setValue('context_background', eb.context_background);
+      if (eb.root_causes) form.setValue('root_causes', eb.root_causes);
+      if (eb.affected_stakeholders) form.setValue('affected_stakeholders', eb.affected_stakeholders);
+      if (eb.scope_definition) form.setValue('scope_definition', eb.scope_definition);
+      if (eb.preferred_approach) form.setValue('preferred_approach', eb.preferred_approach);
+      if (eb.approaches_not_of_interest) form.setValue('approaches_not_of_interest', eb.approaches_not_of_interest);
+      // Auto-expand if any detail fields have content
+      const hasExpanded = Object.values(eb).some((v) => v?.trim());
+      if (hasExpanded) setExpandOpen(true);
+    }
+    // Governance mode from challenge
+    if (ch.governance_profile && !propGovernanceMode) {
+      const mode = resolveGovernanceMode(ch.governance_profile as string);
+      setLocalGovernanceMode(mode);
+    }
+    // Engagement model from challenge
+    if (ch.operating_model && !propEngagementModel) {
+      setLocalEngagementModel(ch.operating_model as string);
+    }
+
+    setEditPrefilled(true);
+  }, [isEditMode, editChallenge, editPrefilled]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ═══════ Conditional returns (after all hooks) ═══════
-  if (orgLoading) {
+  if (orgLoading || (isEditMode && editLoading)) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <Skeleton className="h-8 w-64" />
@@ -387,6 +461,40 @@ export function ConversationalIntakeContent({
     setSupportingFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  /** Edit mode: save updated fields directly without AI generation */
+  const handleUpdateChallenge = async (data: IntakeFormValues) => {
+    if (!editChallengeId) return;
+
+    try {
+      const extendedBrief: Record<string, string> = {};
+      if (data.context_background?.trim()) extendedBrief.context_background = data.context_background.trim();
+      if (data.root_causes?.trim()) extendedBrief.root_causes = data.root_causes.trim();
+      if (data.affected_stakeholders?.trim()) extendedBrief.affected_stakeholders = data.affected_stakeholders.trim();
+      if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
+      if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
+      if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+
+      await saveStep.mutateAsync({
+        challengeId: editChallengeId,
+        fields: {
+          problem_statement: data.problem_statement,
+          scope: data.expected_outcomes,
+          maturity_level: data.maturity_level?.toUpperCase() ?? null,
+          currency_code: data.currency_code,
+          submission_deadline: data.deadline ? data.deadline.toISOString() : null,
+          governance_profile: governanceMode,
+          operating_model: engagementModel,
+          ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
+        },
+      });
+
+      toast.success('Challenge updated successfully');
+      navigate(`/cogni/challenges/${editChallengeId}/spec`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Failed to update challenge: ${message}`, { duration: 8000 });
+    }
+  };
   const isGenerating = generateSpec.isPending || createChallenge.isPending;
 
   const handleGoToEditor = (data?: IntakeFormValues) => {
@@ -560,7 +668,7 @@ export function ConversationalIntakeContent({
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">
-              Create a Challenge
+              {isEditMode ? 'Edit Challenge' : 'Create a Challenge'}
             </h1>
             {!onSwitchToEditor && (
               <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
@@ -976,33 +1084,65 @@ export function ConversationalIntakeContent({
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-        <Button
-          onClick={form.handleSubmit(handleGenerateWithAI)}
-          disabled={isGenerating}
-          className="flex-1 sm:flex-none"
-          size="lg"
-        >
-          {isGenerating ? (
-            <>
-              <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Wand2 className="h-4 w-4 mr-2" />
-              Generate with AI
-            </>
-          )}
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={form.handleSubmit((data) => handleGoToEditor(data))}
-          size="lg"
-        >
-          <ArrowRight className="h-4 w-4 mr-2" />
-          Continue manually
-        </Button>
+        {isEditMode ? (
+          <>
+            <Button
+              onClick={form.handleSubmit(handleUpdateChallenge)}
+              disabled={saveStep.isPending}
+              className="flex-1 sm:flex-none"
+              size="lg"
+            >
+              {saveStep.isPending ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Update Challenge
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+              size="lg"
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Go to Spec Review
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={form.handleSubmit(handleGenerateWithAI)}
+              disabled={isGenerating}
+              className="flex-1 sm:flex-none"
+              size="lg"
+            >
+              {isGenerating ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate with AI
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={form.handleSubmit((data) => handleGoToEditor(data))}
+              size="lg"
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Continue manually
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Info badge */}

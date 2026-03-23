@@ -1,11 +1,11 @@
 /**
- * AMRequestViewPage — Renders the intake form in edit mode for existing challenges.
- * Reuses the same SimpleIntakeForm used during creation, pre-filled with existing data.
+ * AMRequestViewPage — Renders the ConversationalIntakeContent form in edit mode.
+ * Reuses the exact same layout as "New Challenge" creation, pre-filled with existing data.
  * Route: /cogni/my-requests/:id/view
  */
 
 import { useParams } from 'react-router-dom';
-import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
+import { ConversationalIntakeContent } from '@/pages/cogniblend/ConversationalIntakePage';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 
 export default function AMRequestViewPage() {
@@ -14,7 +14,7 @@ export default function AMRequestViewPage() {
   return (
     <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
       <CreationContextBar />
-      <SimpleIntakeForm challengeId={id} mode="edit" />
+      <ConversationalIntakeContent challengeId={id} mode="edit" />
     </div>
   );
 }
