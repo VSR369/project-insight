@@ -675,7 +675,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               />
             )}
           </div>
-          {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
             <AIReviewInline
               sectionKey="beneficiaries_mapping"
               review={aiReviews['beneficiaries_mapping']}
