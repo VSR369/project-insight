@@ -342,6 +342,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     extended_brief: {
       ...(data.beneficiaries_mapping ? { beneficiaries_mapping: data.beneficiaries_mapping } : {}),
       ...(data.am_approval_required !== undefined ? { am_approval_required: data.am_approval_required } : {}),
+      ...(selectedTemplate?.id ? { challenge_template_id: selectedTemplate.id } : {}),
     },
   });
 
