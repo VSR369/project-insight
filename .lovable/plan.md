@@ -1,32 +1,30 @@
 
 
-# Fix: AM Dashboard View — Template Badge + Edit Toggle
+# Fix: Show Selected Template in View & Edit Modes
 
-## Issues
-
-1. **Template badge not showing in AM view mode**: When viewing a challenge from the dashboard, the "Challenge Type" card doesn't appear even if a template was selected during creation. Root cause: the `selected_template` form field value is set during init (line 260), but the `selectedTemplate` state (which controls the badge render) depends on `extended_brief.challenge_template_id` being present (line 244-247). If the challenge was created before the persistence fix, or if the template wasn't selected, the badge won't show.
-
-2. **Edit button not visible**: The `AMRequestViewPage.tsx` already has the Edit/View toggle button (lines 29-39). However, the `CreationContextBar` and the Edit button are in a `flex justify-between` container — if `CreationContextBar` renders wide content, the button may be pushed off-screen or not visible. Need to verify layout and ensure the button is always visible.
+## Problem
+1. **View mode** shows only a small badge or "No template selected" — user wants the full template grid visible with the selected one highlighted (read-only)
+2. **Edit mode** shows the grid but doesn't highlight the previously selected template because `selectedTemplate` state may not be restored from DB
 
 ## Changes
 
 ### File: `src/components/cogniblend/SimpleIntakeForm.tsx`
 
-**Fix template restoration in view/edit mode:**
-- In the edit init effect (line 244-247), also check `selected_template` form field as a fallback — some challenges may have the template ID in different locations
-- Ensure `selectedTemplate` state is always set when a valid template ID is found anywhere in the challenge data
+**View mode — show full grid (read-only) instead of badge:**
+- Replace the view-mode badge/placeholder (lines 402-419 for AGG, lines 680-697 for MP) with the full `TemplateSelector` grid
+- Pass a `disabled` or `readOnly` prop so cards are non-interactive in view mode
+- Keep the selected card highlighted via `selectedId`
 
-**Fix view mode template visibility:**
-- In both AGG and MP view mode sections, if no `selectedTemplate` is found but `selected_template` form value exists, look it up from `CHALLENGE_TEMPLATES` and display the badge
-- Add a "No template selected" placeholder when viewing a challenge without a template, instead of rendering nothing
+**Edit mode — ensure selected template is highlighted:**
+- The init effect already restores `selectedTemplate` from `extended_brief.challenge_template_id` — this should work for both view and edit since `isEditMode` covers both
 
-### File: `src/pages/cogniblend/AMRequestViewPage.tsx`
+### File: `src/components/cogniblend/TemplateSelector.tsx`
 
-**Ensure Edit button is always visible:**
-- Add `shrink-0` to the Edit button to prevent flex shrinking
-- Wrap `CreationContextBar` with `min-w-0 flex-1` to allow truncation instead of pushing the button off-screen
-- Ensure the header layout works on all viewport widths
+**Add `disabled` prop:**
+- Accept an optional `disabled?: boolean` prop
+- When `disabled`, suppress `onClick` and apply a `pointer-events-none` / reduced-opacity style to non-selected cards, keeping the selected card visually prominent
+- Include the "What kind of challenge are you creating?" heading in both modes
 
 ## Summary
-Two targeted fixes: (1) robust template state restoration from DB data so the "Challenge Type" badge always appears in view mode, and (2) layout fix to guarantee the Edit/View toggle button remains visible alongside the context bar.
+Two files changed: TemplateSelector gets a `disabled` prop, and SimpleIntakeForm shows the full grid in view mode (read-only with selection highlighted) instead of a minimal badge.
 
