@@ -297,6 +297,9 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         const map: Record<string, SectionReview> = { ...aiReviews };
         for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
         setAiReviews(map);
+        // Persist review results to DB
+        const reviewsArray = Object.values(map);
+        updateMutation.mutate({ challengeId, payload: { ai_section_reviews: reviewsArray } });
         toast.success('AI review complete — see comments below each section.');
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response');
@@ -319,22 +322,63 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     if (formField) {
       setValue(formField as any, newContent, { shouldValidate: true });
     }
-    // Also persist the addressed state
+    // Update local state
     const updated = { ...aiReviews };
     if (updated[sectionKey]) { updated[sectionKey] = { ...updated[sectionKey], addressed: true }; }
     setAiReviews(updated);
-    toast.success('Refinement accepted and applied.');
+
+    // Persist refined content + review state to DB
+    const reviewsArray = Object.values(updated);
+    const extBrief = typeof existingChallenge?.extended_brief === 'object'
+      ? (existingChallenge.extended_brief as Record<string, any>) : {};
+
+    if (sectionKey === 'beneficiaries_mapping') {
+      updateMutation.mutate({
+        challengeId,
+        payload: {
+          extended_brief: { ...extBrief, beneficiaries_mapping: newContent },
+          ai_section_reviews: reviewsArray,
+        },
+      });
+    } else {
+      const dbFieldMap: Record<string, string> = {
+        problem_statement: 'problem_statement',
+        scope: 'scope',
+      };
+      const dbCol = dbFieldMap[sectionKey];
+      if (dbCol) {
+        updateMutation.mutate({
+          challengeId,
+          payload: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
+        });
+      }
+    }
+    toast.success('Refinement accepted and saved.');
   };
 
   const handleSingleSectionReview = (sectionKey: string, review: SectionReview) => {
-    setAiReviews((prev) => ({ ...prev, [sectionKey]: review }));
+    setAiReviews((prev) => {
+      const updated = { ...prev, [sectionKey]: review };
+      // Persist to DB
+      if (challengeId) {
+        updateMutation.mutate({ challengeId, payload: { ai_section_reviews: Object.values(updated) } });
+      }
+      return updated;
+    });
   };
 
   const handleMarkAddressed = (sectionKey: string) => {
-    setAiReviews((prev) => ({
-      ...prev,
-      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
-    }));
+    setAiReviews((prev) => {
+      const updated = {
+        ...prev,
+        [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+      };
+      // Persist to DB
+      if (challengeId) {
+        updateMutation.mutate({ challengeId, payload: { ai_section_reviews: Object.values(updated) } });
+      }
+      return updated;
+    });
   };
 
   // ═══════ Conditional returns ═══════

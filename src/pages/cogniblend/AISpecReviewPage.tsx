@@ -56,6 +56,7 @@ import {
 import { toast } from 'sonner';
 import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import { AIReviewInline, type SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
+import { withUpdatedBy } from '@/lib/auditFields';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import ChallengeSettingsPanel from '@/components/cogniblend/spec/ChallengeSettingsPanel';
 import ExtendedBriefPreview from '@/components/cogniblend/spec/ExtendedBriefPreview';
@@ -878,6 +879,8 @@ export default function AISpecReviewPage() {
         const map: Record<string, SectionReview> = { ...aiReviews };
         for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
         setAiReviews(map);
+        // Persist review results to DB
+        persistAiReviewsToDB(map);
         toast.success('AI review complete — see comments below each section.');
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response');
@@ -889,25 +892,48 @@ export default function AISpecReviewPage() {
     }
   }, [challengeId, aiReviews]);
 
+  /** Persist aiReviews map to the ai_section_reviews JSONB column */
+  const persistAiReviewsToDB = useCallback(async (reviewsMap: Record<string, SectionReview>) => {
+    if (!challengeId) return;
+    try {
+      const payload = await withUpdatedBy({ ai_section_reviews: Object.values(reviewsMap) });
+      await supabase.from('challenges').update(payload as any).eq('id', challengeId);
+    } catch (e: any) {
+      // Silent — don't block UX for review persistence
+    }
+  }, [challengeId]);
+
   const handleSpecAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
     handleSave(sectionKey, newContent);
-    setAiReviews((prev) => ({
-      ...prev,
-      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
-    }));
+    setAiReviews((prev) => {
+      const updated = {
+        ...prev,
+        [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+      };
+      persistAiReviewsToDB(updated);
+      return updated;
+    });
     toast.success('Refinement accepted and saved.');
-  }, []);
+  }, [persistAiReviewsToDB]);
 
   const handleSpecSingleReview = useCallback((sectionKey: string, review: SectionReview) => {
-    setAiReviews((prev) => ({ ...prev, [sectionKey]: review }));
-  }, []);
+    setAiReviews((prev) => {
+      const updated = { ...prev, [sectionKey]: review };
+      persistAiReviewsToDB(updated);
+      return updated;
+    });
+  }, [persistAiReviewsToDB]);
 
   const handleSpecMarkAddressed = useCallback((sectionKey: string) => {
-    setAiReviews((prev) => ({
-      ...prev,
-      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
-    }));
-  }, []);
+    setAiReviews((prev) => {
+      const updated = {
+        ...prev,
+        [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+      };
+      persistAiReviewsToDB(updated);
+      return updated;
+    });
+  }, [persistAiReviewsToDB]);
   // ═══════ Effects — initialize solver state from AI spec ═══════
   useEffect(() => {
     if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
