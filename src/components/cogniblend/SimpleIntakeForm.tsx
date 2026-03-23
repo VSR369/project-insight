@@ -591,35 +591,37 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            onClick={handleSubmit(onSubmit)}
-            disabled={isBusy}
-            size="lg"
-            className="flex-1 sm:flex-none"
-          >
-            {isSubmitting ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditMode ? 'Updating…' : 'Submitting…'}</>
-            ) : (
-              <><Send className="h-4 w-4 mr-2" /> {isEditMode ? 'Update Idea' : 'Submit Idea'}</>
-            )}
-          </Button>
-          {!isEditMode && (
+        {/* Actions — hidden in view mode */}
+        {!isViewMode && (
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
-              variant="outline"
-              onClick={onSaveDraft}
+              onClick={handleSubmit(onSubmit)}
               disabled={isBusy}
               size="lg"
+              className="flex-1 sm:flex-none"
             >
-              {isSaving ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+              {isSubmitting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditMode ? 'Updating…' : 'Submitting…'}</>
               ) : (
-                <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+                <><Send className="h-4 w-4 mr-2" /> {isEditMode ? 'Update Idea' : 'Submit Idea'}</>
               )}
             </Button>
-          )}
-        </div>
+            {!isEditMode && (
+              <Button
+                variant="outline"
+                onClick={onSaveDraft}
+                disabled={isBusy}
+                size="lg"
+              >
+                {isSaving ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                ) : (
+                  <><Save className="h-4 w-4 mr-2" /> Save as Draft</>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
