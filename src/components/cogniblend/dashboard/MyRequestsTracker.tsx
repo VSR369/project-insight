@@ -73,9 +73,9 @@ function getViewRoute(
   if (item.master_status === 'DRAFT') {
     return { route: `/cogni/challenges/${item.id}/edit`, label: 'Edit', icon: Pencil };
   }
-  // CA/CR viewing Phase 2 challenges → spec review
+  // CA/CR viewing Phase 2 challenges → intake form in edit mode (same layout as "New Challenge")
   if (isSpecRole && item.current_phase === 2) {
-    return { route: `/cogni/challenges/${item.id}/spec`, label: 'Review', icon: FileSearch };
+    return { route: `/cogni/my-requests/${item.id}/view`, label: 'Review', icon: Eye };
   }
   // AM read-only view
   return { route: `/cogni/my-requests/${item.id}/view`, label: 'View', icon: Eye };
