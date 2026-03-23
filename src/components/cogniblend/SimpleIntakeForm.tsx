@@ -230,6 +230,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   const problemSummary = watch('problem_summary');
   const solutionExpectations = watch('solution_expectations');
 
+  // ═══════ Effect — clear stale data for fresh create ═══════
+  useEffect(() => {
+    if (mode === 'create') {
+      sessionStorage.removeItem('cogni_intake_simple');
+      sessionStorage.removeItem('cogni_intake_simple_template');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ═══════ Effect — pre-fill form from existing challenge ═══════
   useEffect(() => {
     if (!isEditMode || !existingChallenge || formInitialized) return;
