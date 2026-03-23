@@ -1037,53 +1037,108 @@ export function ConversationalIntakeContent({
 
       {/* Step 2: Problem Statement */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold text-foreground">
-          Describe your challenge
-          <span className="text-destructive ml-1">*</span>
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-foreground">
+            Describe your challenge
+            <span className="text-destructive ml-1">*</span>
+          </label>
+          {!isViewMode && (
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setProblemExpanded(true)}>
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           What problem are you trying to solve? Be as specific as possible — AI will help fill in the rest.
         </p>
-        <Textarea
-          placeholder="e.g., We need a machine learning model that can predict equipment failures 48 hours in advance using sensor data from our manufacturing line..."
-          rows={6}
-          className="text-base resize-none"
-          disabled={isViewMode}
-          {...form.register('problem_statement')}
-        />
+        {isViewMode ? (
+          <SafeHtmlRenderer html={form.watch('problem_statement')} className="min-h-[60px]" />
+        ) : (
+          <Controller
+            name="problem_statement"
+            control={form.control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="e.g., We need a machine learning model that can predict equipment failures 48 hours in advance using sensor data from our manufacturing line..."
+                className="min-h-[150px]"
+              />
+            )}
+          />
+        )}
         {form.formState.errors.problem_statement && (
           <p className="text-xs text-destructive">
             {form.formState.errors.problem_statement.message}
           </p>
         )}
-        <div className="flex justify-end">
-          <span className="text-xs text-muted-foreground">
-            {(form.watch('problem_statement') ?? '').length} / 5,000
-          </span>
-        </div>
+        <Dialog open={problemExpanded} onOpenChange={setProblemExpanded}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0"><DialogTitle>Describe your challenge</DialogTitle></DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="problem_statement"
+                control={form.control}
+                render={({ field }) => (
+                  <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe your challenge..." className="min-h-[60vh]" />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Step 3: Expected Outcomes */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold text-foreground">
-          Expected Outcomes
-          <span className="text-destructive ml-1">*</span>
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-foreground">
+            Expected Outcomes
+            <span className="text-destructive ml-1">*</span>
+          </label>
+          {!isViewMode && (
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOutcomesExpanded(true)}>
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           What does success look like? What deliverables or results do you expect from solvers?
         </p>
-        <Textarea
-          placeholder="e.g., A working ML model with at least 85% accuracy, documentation on the approach, and a deployment guide..."
-          rows={4}
-          className="text-base resize-none"
-          disabled={isViewMode}
-          {...form.register('expected_outcomes')}
-        />
+        {isViewMode ? (
+          <SafeHtmlRenderer html={form.watch('expected_outcomes')} className="min-h-[60px]" />
+        ) : (
+          <Controller
+            name="expected_outcomes"
+            control={form.control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="e.g., A working ML model with at least 85% accuracy, documentation on the approach, and a deployment guide..."
+                className="min-h-[100px]"
+              />
+            )}
+          />
+        )}
         {form.formState.errors.expected_outcomes && (
           <p className="text-xs text-destructive">
             {form.formState.errors.expected_outcomes.message}
           </p>
         )}
+        <Dialog open={outcomesExpanded} onOpenChange={setOutcomesExpanded}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0"><DialogTitle>Expected Outcomes</DialogTitle></DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="expected_outcomes"
+                control={form.control}
+                render={({ field }) => (
+                  <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe expected outcomes..." className="min-h-[60vh]" />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
 
