@@ -302,6 +302,7 @@ export function ConversationalIntakeContent({
   engagementModel: propEngagementModel,
   challengeId: editChallengeId,
   mode = 'create',
+  hideSpecReview = false,
 }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
