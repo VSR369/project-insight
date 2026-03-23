@@ -773,6 +773,7 @@ export default function CurationReviewPage() {
   const queryClient = useQueryClient();
   const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
   const { data: complexityParams = [] } = useComplexityParams();
+  const { data: industrySegments } = useIndustrySegments();
 
   const [activeGroup, setActiveGroup] = useState<string>("content");
   const [editingSection, setEditingSection] = useState<string | null>(null);
