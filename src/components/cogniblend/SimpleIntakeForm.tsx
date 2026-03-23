@@ -1032,7 +1032,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             />
           )}
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
-          {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
             <AIReviewInline
               sectionKey="scope"
               review={aiReviews['scope']}
