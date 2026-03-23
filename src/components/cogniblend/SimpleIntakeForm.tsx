@@ -173,7 +173,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   // ═══════ Hooks — state ═══════
   const [showTierLimit, setShowTierLimit] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
-    () => isEditMode ? null : restoreState<ChallengeTemplate>('cogni_intake_simple_template'),
+    () => (isEditMode || isCreateMode) ? null : restoreState<ChallengeTemplate>('cogni_intake_simple_template'),
   );
   const [problemFullscreen, setProblemFullscreen] = useState(false);
   const [beneficiariesFullscreen, setBeneficiariesFullscreen] = useState(false);
