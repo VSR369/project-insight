@@ -180,6 +180,8 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   const [mpProblemFullscreen, setMpProblemFullscreen] = useState(false);
   const [commercialFullscreen, setCommercialFullscreen] = useState(false);
   const [formInitialized, setFormInitialized] = useState(!isEditMode);
+  const [aiReviews, setAiReviews] = useState<Record<string, SectionReview>>({});
+  const [isAiReviewing, setIsAiReviewing] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
