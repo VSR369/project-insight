@@ -1247,6 +1247,56 @@ export function ConversationalIntakeContent({
               register={form.register}
               watchValue={form.watch('approaches_not_of_interest') ?? ''}
             />
+
+            <ExpandField
+              label="Beneficiaries Mapping"
+              fieldName="beneficiaries_mapping"
+              placeholder="Who benefits from solving this challenge? Map internal and external beneficiaries…"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('beneficiaries_mapping') ?? ''}
+            />
+
+            <ExpandField
+              label="Solution Expectations"
+              fieldName="solution_expectations"
+              placeholder="What does commercial or operational success look like for the solution?"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('solution_expectations') ?? ''}
+            />
+
+            {/* Dynamic fields from AM extended_brief (keys not in KNOWN_BRIEF_KEYS) */}
+            {Object.entries(dynamicBriefFields).length > 0 && (
+              <>
+                <div className="border-t border-border pt-4 mt-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-3">
+                    Additional fields from Account Manager
+                  </p>
+                </div>
+                {Object.entries(dynamicBriefFields).map(([key, value]) => (
+                  <div key={key} className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">{humanizeKey(key)}</label>
+                    <Textarea
+                      rows={3}
+                      maxLength={2000}
+                      className="text-base resize-none"
+                      value={value}
+                      onChange={(e) =>
+                        setDynamicBriefFields((prev) => ({ ...prev, [key]: e.target.value }))
+                      }
+                    />
+                    <div className="flex justify-end">
+                      <span className="text-xs text-muted-foreground">
+                        {(value ?? '').length} / 2,000
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
