@@ -296,6 +296,12 @@ export function ConversationalIntakeContent({
   const createChallenge = useSubmitSolutionRequest();
   const saveStep = useSaveChallengeStep();
 
+  // ═══════ Hooks — edit mode query ═══════
+  const { data: editChallenge, isLoading: editLoading } = useChallengeDetail(
+    mode === 'edit' ? editChallengeId : undefined,
+  );
+  const isEditMode = mode === 'edit';
+
   // ═══════ Hooks — form ═══════
   const form = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeSchema),
