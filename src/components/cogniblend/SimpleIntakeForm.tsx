@@ -240,6 +240,12 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     const timeline = schedule?.expected_timeline;
     const validTimelines = ['1-3', '3-6', '6-12', '12+'];
 
+    // Restore template from extended_brief
+    if (extBrief?.challenge_template_id) {
+      const found = CHALLENGE_TEMPLATES.find(t => t.id === extBrief.challenge_template_id);
+      if (found) setSelectedTemplate(found);
+    }
+
     reset({
       title: c.title || '',
       problem_summary: c.problem_statement || '',
@@ -251,7 +257,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       solution_expectations: c.scope || '',
       am_approval_required: extBrief?.am_approval_required ?? true,
       architect_id: '',
-      selected_template: '',
+      selected_template: extBrief?.challenge_template_id || '',
       beneficiaries_mapping: extBrief?.beneficiaries_mapping || '',
     });
 
