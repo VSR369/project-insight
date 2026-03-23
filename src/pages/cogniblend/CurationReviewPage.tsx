@@ -1273,6 +1273,42 @@ export default function CurationReviewPage() {
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4 space-y-3">
+              {/* Challenge Template */}
+              {(() => {
+                const extBrief = parseJson<any>(challenge.extended_brief);
+                const templateId = extBrief?.challenge_template_id;
+                const template = templateId ? CHALLENGE_TEMPLATES.find(t => t.id === templateId) : null;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Challenge Template</p>
+                    {template ? (
+                      <Badge variant="secondary" className="mt-1 text-xs">
+                        <span className="mr-1">{template.emoji}</span>{template.name}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic mt-0.5">No template selected</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Industry Segment */}
+              {(() => {
+                const targeting = parseJson<any>(challenge.eligibility);
+                const segmentId = targeting?.industry_segment_id;
+                const segmentName = industrySegments?.find(s => s.id === segmentId)?.name;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Industry Segment</p>
+                    {segmentName ? (
+                      <Badge variant="outline" className="mt-1 text-xs">{segmentName}</Badge>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic mt-0.5">No industry segment specified</p>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Problem Statement</p>
                 <p className="text-sm text-foreground mt-0.5">{challenge.problem_statement || '—'}</p>
@@ -1296,6 +1332,56 @@ export default function CurationReviewPage() {
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Timeline Urgency</p>
                     <p className="text-sm text-foreground mt-0.5">{sched.expected_timeline} months</p>
+                  </div>
+                );
+              })()}
+
+              {/* Solution Expectations */}
+              {(() => {
+                const extBrief = parseJson<any>(challenge.extended_brief);
+                const val = extBrief?.solution_expectations;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Solution Expectations</p>
+                    {val && String(val).trim() ? (
+                      <p className="text-sm text-foreground mt-0.5">{String(val)}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic mt-0.5">No content added</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Beneficiaries Mapping */}
+              {(() => {
+                const extBrief = parseJson<any>(challenge.extended_brief);
+                const val = extBrief?.beneficiaries_mapping;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Beneficiaries Mapping</p>
+                    {val && String(val).trim() ? (
+                      <p className="text-sm text-foreground mt-0.5">{String(val)}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic mt-0.5">No content added</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* AM Approval Required (MP only) */}
+              {challenge.operating_model === 'MP' && (() => {
+                const extBrief = parseJson<any>(challenge.extended_brief);
+                const amApproval = extBrief?.am_approval_required;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">AM Approval Required</p>
+                    {amApproval ? (
+                      <Badge className="mt-1 text-[10px] bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">
+                        <AlertTriangle className="h-3 w-3 mr-1" />AM Gate Active
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic mt-0.5">No — direct to curation</p>
+                    )}
                   </div>
                 );
               })()}
