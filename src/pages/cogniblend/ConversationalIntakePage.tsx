@@ -667,7 +667,7 @@ export function ConversationalIntakeContent({
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">
-              Create a Challenge
+              {isEditMode ? 'Edit Challenge' : 'Create a Challenge'}
             </h1>
             {!onSwitchToEditor && (
               <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
