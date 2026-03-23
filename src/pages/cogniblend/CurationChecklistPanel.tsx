@@ -278,7 +278,9 @@ export default function CurationChecklistPanel({
         const artifacts = del?.permitted_artifact_types;
         return Array.isArray(artifacts) && artifacts.length > 0;
       })(),
-      /* 15 */ escrowRecord?.escrow_status === "FUNDED",
+      /* 15 */ isControlledMode(resolveGovernanceMode(challenge.governance_profile))
+        ? escrowRecord?.escrow_status === "FUNDED"
+        : true,
     ],
     [challenge, legalDocs, evalWeightSum, tier1Docs, tier2Docs, escrowRecord]
   );
