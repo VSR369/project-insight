@@ -1083,33 +1083,65 @@ export function ConversationalIntakeContent({
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-        <Button
-          onClick={form.handleSubmit(handleGenerateWithAI)}
-          disabled={isGenerating}
-          className="flex-1 sm:flex-none"
-          size="lg"
-        >
-          {isGenerating ? (
-            <>
-              <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Wand2 className="h-4 w-4 mr-2" />
-              Generate with AI
-            </>
-          )}
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={form.handleSubmit((data) => handleGoToEditor(data))}
-          size="lg"
-        >
-          <ArrowRight className="h-4 w-4 mr-2" />
-          Continue manually
-        </Button>
+        {isEditMode ? (
+          <>
+            <Button
+              onClick={form.handleSubmit(handleUpdateChallenge)}
+              disabled={saveStep.isPending}
+              className="flex-1 sm:flex-none"
+              size="lg"
+            >
+              {saveStep.isPending ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Update Challenge
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+              size="lg"
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Go to Spec Review
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={form.handleSubmit(handleGenerateWithAI)}
+              disabled={isGenerating}
+              className="flex-1 sm:flex-none"
+              size="lg"
+            >
+              {isGenerating ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate with AI
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={form.handleSubmit((data) => handleGoToEditor(data))}
+              size="lg"
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Continue manually
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Info badge */}
