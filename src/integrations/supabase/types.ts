@@ -12409,6 +12409,10 @@ export type Database = {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: Json
       }
+      roles_equivalent: {
+        Args: { p_actual: string; p_required: string }
+        Returns: boolean
+      }
       select_reviewers_weighted: {
         Args: {
           p_end_at: string

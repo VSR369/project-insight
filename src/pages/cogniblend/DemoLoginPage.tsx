@@ -83,8 +83,8 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
       manualDescription: isMP
         ? 'Receives AM brief, builds challenge spec manually using the 8-step wizard'
         : 'Builds challenge spec manually using the 8-step wizard',
-      aiDestination: '/cogni/challenges/create?tab=ai',
-      manualDestination: '/cogni/challenges/create?tab=editor',
+      aiDestination: '/cogni/dashboard',
+      manualDestination: '/cogni/dashboard',
       stepLabel: 'Step 1–2',
     },
     {
