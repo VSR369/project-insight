@@ -1,55 +1,55 @@
 
 
-# Fix Missing AI Review UI for AM/RQ and CR/CA Roles
+# Fix: Persist AI Refinement Content and Review State to Database
 
-## Problems Found
+## Problem
 
-### 1. SimpleIntakeForm (AM/RQ) — AI Review button hidden in view mode
-The "Review with AI" button and `AIReviewInline` panels only render when `isEditMode` is true. While `isEditMode` technically includes view mode (line 170), the condition `{isEditMode && challengeId && (` works correctly. However, the user on the **create page** (`/cogni/challenges/create`) sees nothing because create mode has no challengeId yet.
+When an AM/RQ user accepts an AI refinement in the SimpleIntakeForm:
 
-**Fix**: Also show the AI Review button and inline panels in **view mode** (not just edit). The button should appear whenever viewing an existing challenge. Currently this works on the view page but NOT on create — which is correct by design. The real gap is that the user has no clear path to the view page after creation. Additionally, in view mode the inline panels should be visible even without clicking "Edit".
+1. **Refined content is only set in the form state** (`setValue`) — it is never saved to the database via the `useUpdateChallenge` mutation
+2. **AI review state** (`aiReviews` with addressed flags) is never written back to the `ai_section_reviews` JSONB column
+3. On navigation away and back, both the refined content and review statuses are lost
 
-### 2. AISpecReviewPage (CR/CA) — Handlers defined but UI never rendered
-- `handleRunSpecAiReview` is defined (line 867) but **never called from any button in the JSX**
-- `AIReviewInline` is imported (line 56) but **never rendered in the JSX** — neither in QUICK mode nor STRUCTURED mode
-- `handleSpecAcceptRefinement`, `handleSpecSingleReview`, `handleSpecMarkAddressed` are all defined but unused
+## Fix — File: `src/components/cogniblend/SimpleIntakeForm.tsx`
 
-**Fix**: Wire the "Review Sections by AI" button into the header area of STRUCTURED mode, and render `AIReviewInline` below each `EditableSectionCard`.
+### Change 1: `handleAcceptRefinement` — Save content + reviews to DB
 
-## Changes
+Currently (lines 311-327):
+- Calls `setValue(formField, newContent)` — form-only, lost on navigation
+- Updates `aiReviews` state in memory only
 
-### File 1: `src/pages/cogniblend/AISpecReviewPage.tsx`
+Fix: After updating form state, call `updateChallenge.mutate()` to persist both the refined field value AND the updated `ai_section_reviews` to the database. The field mapping is:
 
-**STRUCTURED mode header** (after line 1635, before the AM Brief panel):
-- Add "Review Sections by AI" button calling `handleRunSpecAiReview`
+| sectionKey | DB column |
+|---|---|
+| `problem_statement` | `problem_statement` |
+| `scope` | `scope` |
+| `beneficiaries_mapping` | `extended_brief.beneficiaries_mapping` |
 
-**STRUCTURED mode section cards** (inside the SPEC_SECTIONS map, after each `EditableSectionCard` at line 1778):
-- Render `AIReviewInline` for each section with matching `sectionKey`, passing `roleContext="spec"`, the review data from `aiReviews`, and the accept/review/addressed handlers
+### Change 2: `handleMarkAddressed` — Persist review state
 
-### File 2: `src/components/cogniblend/SimpleIntakeForm.tsx`
+Currently (lines 333-338): Only updates local state. Fix: Also save the updated `ai_section_reviews` JSONB to the database.
 
-- Change AI Review button visibility from `isEditMode` to `(isEditMode || isViewMode)` so the button and inline panels also show in read-only view mode (they already do since `isEditMode` includes view, but ensure consistency)
-- No functional change needed — the current code already supports view mode. The user's issue is they are on the create page which has no challengeId.
+### Change 3: Batch review handler — Persist review results
+
+After receiving batch AI review results (line 299), save them to `ai_section_reviews` in the database so they survive navigation.
+
+### Change 4: `handleSingleSectionReview` — Persist re-review results
+
+Same pattern: after updating local state, write to DB.
 
 ## Technical Details
 
-For AISpecReviewPage STRUCTURED mode, after each `EditableSectionCard`:
+All four handlers will use the existing `useUpdateChallenge` mutation. The `updateChallenge` ref needs to be accessible from the component body (it already is — declared at line ~270 area).
 
-```tsx
-<AIReviewInline
-  sectionKey={section.fieldKey}
-  review={aiReviews[section.fieldKey]}
-  currentContent={getFieldValue(section.fieldKey)}
-  challengeId={challengeId!}
-  challengeContext={{ title: challenge.title, maturity_level: challenge.maturity_level as string | null }}
-  onAcceptRefinement={handleSpecAcceptRefinement}
-  onSingleSectionReview={handleSpecSingleReview}
-  onMarkAddressed={handleSpecMarkAddressed}
-  roleContext="spec"
-  defaultOpen={aiReviews[section.fieldKey]?.status === 'needs_revision' || aiReviews[section.fieldKey]?.status === 'warning'}
-/>
+For `beneficiaries_mapping`, since it lives in `extended_brief` JSONB, the update payload will merge with existing `extended_brief`:
+```typescript
+const payload = sectionKey === 'beneficiaries_mapping'
+  ? { extended_brief: { ...existingChallenge?.extended_brief, beneficiaries_mapping: newContent }, ai_section_reviews: updatedReviews }
+  : { [dbColumn]: newContent, ai_section_reviews: updatedReviews };
+updateChallenge.mutate({ challengeId, payload });
 ```
 
-**Files modified**: 1 (`AISpecReviewPage.tsx`)
-**Files unchanged**: `SimpleIntakeForm.tsx` (already works in view/edit mode — the user just needs to navigate to the view page)
+**Files modified**: 1 (`src/components/cogniblend/SimpleIntakeForm.tsx`)
+**No database changes needed** — `ai_section_reviews` column already exists.
 
