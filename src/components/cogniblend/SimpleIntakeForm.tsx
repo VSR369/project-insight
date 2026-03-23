@@ -397,8 +397,8 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           </div>
         </div>
 
-        {/* Step 1: Template Selector (create mode only) */}
-        {!isEditMode && (
+        {/* Step 1: Template Selector (create mode: full grid; edit/view: read-only badge) */}
+        {!isEditMode ? (
           <>
             <TemplateSelector
               onSelect={handleTemplateSelect}
@@ -408,7 +408,15 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
             )}
           </>
-        )}
+        ) : selectedTemplate ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+            <span className="text-xl" role="img" aria-label={selectedTemplate.name}>{selectedTemplate.emoji}</span>
+            <div>
+              <span className="text-sm font-semibold text-foreground">{selectedTemplate.name}</span>
+              <span className="text-xs text-muted-foreground ml-2">{selectedTemplate.description}</span>
+            </div>
+          </div>
+        ) : null}
 
         {/* Industry Segment */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
