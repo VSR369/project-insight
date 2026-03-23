@@ -656,30 +656,11 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       </div>
 
       {/* Template Selector — create/edit: full grid; view: read-only badge */}
-      {isViewMode ? (
-        selectedTemplate ? (
-          <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Challenge Type</p>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl" role="img" aria-label={selectedTemplate.name}>{selectedTemplate.emoji}</span>
-              <div>
-                <span className="text-sm font-semibold text-foreground">{selectedTemplate.name}</span>
-                <span className="text-xs text-muted-foreground block mt-0.5">{selectedTemplate.description}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Challenge Type</p>
-            <p className="text-sm text-muted-foreground mt-1">No template selected</p>
-          </div>
-        )
-      ) : (
-        <TemplateSelector
-          onSelect={handleTemplateSelect}
-          selectedId={selectedTemplate?.id}
-        />
-      )}
+      <TemplateSelector
+        onSelect={handleTemplateSelect}
+        selectedId={selectedTemplate?.id}
+        disabled={isViewMode}
+      />
 
       {/* THE PROBLEM — IN PLAIN BUSINESS LANGUAGE */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
