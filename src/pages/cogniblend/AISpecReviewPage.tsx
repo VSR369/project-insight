@@ -1759,8 +1759,8 @@ export default function AISpecReviewPage() {
               challenge={challengeRecord}
             />
           ) : (
+          <React.Fragment key={section.key}>
           <EditableSectionCard
-            key={section.key}
             section={section}
             value={getFieldValue(section.fieldKey)}
             rawData={getRawData(section.fieldKey)}
