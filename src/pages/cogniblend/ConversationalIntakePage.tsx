@@ -1210,11 +1210,13 @@ export function ConversationalIntakeContent({
       </div>
 
       {/* Step 7: Supporting Files */}
-      <FileUploadArea
-        files={supportingFiles}
-        onAdd={handleAddFiles}
-        onRemove={handleRemoveFile}
-      />
+      {!isViewMode && (
+        <FileUploadArea
+          files={supportingFiles}
+          onAdd={handleAddFiles}
+          onRemove={handleRemoveFile}
+        />
+      )}
 
       {/* Expand Challenge Details — Domain Expert Fields */}
       <Collapsible open={expandOpen} onOpenChange={setExpandOpen}>
