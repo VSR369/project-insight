@@ -157,6 +157,7 @@ interface DraftPayload {
   subDomainIds?: string[];
   specialtyTags?: string[];
   beneficiariesMapping?: string;
+  templateId?: string;
 }
 
 export function useSaveDraft() {
