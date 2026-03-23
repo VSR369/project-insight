@@ -250,6 +250,7 @@ function ExpandField({
   rows = 3,
   register,
   watchValue,
+  disabled,
 }: {
   label: string;
   fieldName: string;
@@ -258,6 +259,7 @@ function ExpandField({
   rows?: number;
   register: any;
   watchValue: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="space-y-1.5">
@@ -267,6 +269,7 @@ function ExpandField({
         rows={rows}
         maxLength={maxLength}
         className="text-base resize-none"
+        disabled={disabled}
         {...register(fieldName)}
       />
       <div className="flex justify-end">
