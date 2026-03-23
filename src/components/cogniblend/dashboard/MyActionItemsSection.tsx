@@ -1,12 +1,13 @@
 /**
  * MyActionItemsSection — Unified action items queue.
  * Shows: AM_APPROVAL_PENDING, DRAFT, RETURNED items for the active role.
- * For CA/CR: also shows Phase 2 ACTIVE challenges assigned to them.
+ * For CA/CR: also shows unread lifecycle notifications (SLA, amendments, etc.)
  */
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Eye, Pencil, ShieldCheck, FileSearch } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle, Eye, Pencil, ShieldCheck, AlertTriangle, Bell, Info } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,7 @@ import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { ROLE_DISPLAY } from '@/types/cogniRoles';
+import { supabase } from '@/integrations/supabase/client';
 
 /* ── Phase labels ──────────────────────────────────── */
 
@@ -37,21 +39,49 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   AM_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-violet-100 text-violet-700' },
   IN_PREPARATION: { label: 'In Progress', className: 'bg-blue-100 text-blue-700' },
   ACTIVE: { label: 'Active', className: 'bg-blue-100 text-blue-700' },
-  SPEC_REVIEW: { label: 'Spec Review', className: 'bg-indigo-100 text-indigo-700' },
+  SLA_BREACH: { label: 'SLA Breach', className: 'bg-destructive/10 text-destructive' },
+  SLA_WARNING: { label: 'SLA Warning', className: 'bg-orange-100 text-orange-700' },
+  AMENDMENT_NOTICE: { label: 'Amendment', className: 'bg-violet-100 text-violet-700' },
+  PHASE_COMPLETE: { label: 'Phase Complete', className: 'bg-emerald-100 text-emerald-700' },
+  WAITING_FOR_YOU: { label: 'Waiting for You', className: 'bg-blue-100 text-blue-700' },
+  ROLE_ASSIGNED: { label: 'Role Assigned', className: 'bg-emerald-100 text-emerald-700' },
+  ROLE_REASSIGNED: { label: 'Role Reassigned', className: 'bg-amber-100 text-amber-700' },
+  NOTIFICATION: { label: 'Notification', className: 'bg-muted text-muted-foreground' },
 };
+
+/* ── Notification type to icon ──────────────────────── */
+
+function getNotificationIcon(type: string) {
+  if (type.includes('SLA') || type.includes('BREACH')) return AlertTriangle;
+  if (type.includes('WAITING') || type.includes('AMENDMENT')) return Bell;
+  return Info;
+}
 
 /* ── Route helper ────────────────────────────────── */
 
-function getActionRoute(item: { id: string; status: string; phase?: number; phase_status?: string | null; isSpecWork?: boolean }): {
+interface ActionItem {
+  id: string;
+  title: string;
+  status: string;
+  phase?: number;
+  phase_status?: string | null;
+  created_at: string;
+  isNotification?: boolean;
+  notificationId?: string;
+  challengeId?: string;
+}
+
+function getActionRoute(item: ActionItem): {
   route: string; label: string; icon: typeof Eye;
 } {
   // AM approval items → AM review page
   if (item.phase_status === 'AM_APPROVAL_PENDING' || item.status === 'AM_APPROVAL_PENDING') {
     return { route: `/cogni/my-requests/${item.id}/review`, label: 'Review & Approve', icon: ShieldCheck };
   }
-  // CA/CR Phase 2 spec work → intake form in edit mode (same layout as "New Challenge")
-  if (item.isSpecWork) {
-    return { route: `/cogni/my-requests/${item.id}/view`, label: 'Review', icon: FileSearch };
+  // Notification-based items → challenge view (or dashboard if no challenge)
+  if (item.isNotification) {
+    const targetId = item.challengeId || item.id;
+    return { route: `/cogni/my-requests/${targetId}/view`, label: 'View', icon: Eye };
   }
   // Drafts
   if (item.status === 'DRAFT') {
@@ -68,11 +98,33 @@ function getActionRoute(item: { id: string; status: string; phase?: number; phas
 export function MyActionItemsSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
 
-  const isLoading = chLoading || reqLoading || isRolesLoading;
+  const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
+
+  // Fetch unread notifications for CA/CR roles
+  const { data: unreadNotifications = [], isLoading: notifLoading } = useQuery({
+    queryKey: ['cogni-notifications-unread', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('cogni_notifications')
+        .select('id, user_id, challenge_id, notification_type, title, message, is_read, created_at')
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: !!user?.id && isSpecRole,
+    staleTime: 10_000,
+  });
+
+  const isLoading = chLoading || reqLoading || isRolesLoading || (isSpecRole && notifLoading);
 
   const challengeItems = challengesData?.items ?? [];
   const allSRRows = useMemo(
@@ -80,19 +132,23 @@ export function MyActionItemsSection() {
     [requestsData],
   );
 
-  // Build action items: challenges needing action + draft SRs
-  const actionItems = useMemo(() => {
-    const items: Array<{
-      id: string;
-      title: string;
-      status: string;
-      phase?: number;
-      phase_status?: string | null;
-      created_at: string;
-      isSpecWork?: boolean;
-    }> = [];
+  // Mark notification as read + navigate
+  const handleNotificationAction = useCallback(
+    async (notifId: string, challengeId: string | null) => {
+      await supabase.rpc('mark_notification_read', { p_notification_id: notifId });
+      queryClient.invalidateQueries({ queryKey: ['cogni-notifications-unread', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-notifications', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-unread-count', user?.id] });
+      if (challengeId) {
+        navigate(`/cogni/my-requests/${challengeId}/view`);
+      }
+    },
+    [user?.id, queryClient, navigate],
+  );
 
-    const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
+  // Build action items
+  const actionItems = useMemo(() => {
+    const items: ActionItem[] = [];
 
     // Challenges the user has a role on that need action
     for (const ch of challengeItems) {
@@ -106,22 +162,14 @@ export function MyActionItemsSection() {
         ch.master_status === 'RETURNED' ||
         ch.phase_status === 'AM_APPROVAL_PENDING';
 
-      // CA/CR Phase 2 active spec work — these are incoming requests to review
-      const isPhase2SpecWork = isSpecRole &&
-        ch.current_phase === 2 &&
-        (ch.master_status === 'IN_PREPARATION' || ch.master_status === 'ACTIVE') &&
-        ch.phase_status === 'ACTIVE';
-
-      if (needsAction || isPhase2SpecWork) {
+      if (needsAction) {
         items.push({
           id: ch.challenge_id,
           title: ch.title,
-          status: isPhase2SpecWork ? 'SPEC_REVIEW' :
-            ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING' : ch.master_status,
+          status: ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING' : ch.master_status,
           phase: ch.current_phase,
           phase_status: ch.phase_status,
           created_at: '',
-          isSpecWork: isPhase2SpecWork,
         });
       }
     }
@@ -143,8 +191,30 @@ export function MyActionItemsSection() {
       }
     }
 
+    // Unread notifications for CA/CR (lifecycle alerts)
+    if (isSpecRole) {
+      for (const notif of unreadNotifications) {
+        // Avoid duplicate if challenge is already in the list
+        if (notif.challenge_id && items.some((i) => i.id === notif.challenge_id)) continue;
+
+        const badgeKey = STATUS_BADGE[notif.notification_type]
+          ? notif.notification_type
+          : 'NOTIFICATION';
+
+        items.push({
+          id: notif.id,
+          title: notif.title,
+          status: badgeKey,
+          created_at: notif.created_at,
+          isNotification: true,
+          notificationId: notif.id,
+          challengeId: notif.challenge_id ?? undefined,
+        });
+      }
+    }
+
     return items;
-  }, [challengeItems, allSRRows, activeRole, challengeRoleMap]);
+  }, [challengeItems, allSRRows, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
 
@@ -188,13 +258,17 @@ export function MyActionItemsSection() {
             </TableHeader>
             <TableBody>
               {actionItems.map((item) => {
-                const badge = STATUS_BADGE[item.status] ?? STATUS_BADGE.ACTIVE;
+                const badge = STATUS_BADGE[item.status] ?? STATUS_BADGE.NOTIFICATION;
                 const { route, label, icon: ActionIcon } = getActionRoute(item);
+                const NotifIcon = item.isNotification ? getNotificationIcon(item.status) : null;
 
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.isNotification ? `notif-${item.id}` : item.id}>
                     <TableCell className="font-medium text-sm text-foreground truncate max-w-[260px]">
-                      {item.title}
+                      <span className="flex items-center gap-1.5">
+                        {NotifIcon && <NotifIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                        {item.title}
+                      </span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {item.phase ? PHASE_LABELS[item.phase] ?? `Phase ${item.phase}` : '—'}
@@ -209,7 +283,13 @@ export function MyActionItemsSection() {
                         variant="ghost"
                         size="sm"
                         className="h-7 gap-1 text-xs"
-                        onClick={() => navigate(route)}
+                        onClick={() => {
+                          if (item.isNotification && item.notificationId) {
+                            handleNotificationAction(item.notificationId, item.challengeId ?? null);
+                          } else {
+                            navigate(route);
+                          }
+                        }}
                       >
                         <ActionIcon className="h-3.5 w-3.5" />
                         <span className="hidden lg:inline">{label}</span>
