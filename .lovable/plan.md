@@ -1,39 +1,52 @@
 
 
-# Fix: AM Content Not Fully Visible in CA Role — Industry Segment Missing
+# Add View Mode to ConversationalIntakeContent + Fix AMRequestViewPage Toggle
 
-## Problem
-When the AM creates a challenge, the `industry_segment_id` is saved inside the `eligibility` JSONB field (as `{"industry_segment_id": "..."}`). However, when CA/CR opens the same challenge via `ConversationalIntakeContent`, it only reads `industry_segment_id` from `targeting_filters` (line 452-454), which is always `{}` for AM-created challenges. This means the industry segment selected by the AM is never shown to the CA.
+## What's Broken
+1. `AMRequestViewPage` passes hardcoded `mode="edit"` to `ConversationalIntakeContent` (line 44) instead of the dynamic `pageMode` state — so the View/Edit toggle does nothing for CA/CR roles.
+2. `ConversationalIntakeContent` only accepts `'create' | 'edit'` — it has no `'view'` mode, so even if `pageMode` were passed, fields would remain editable.
 
-All other fields (title, problem_statement, scope, budget, timeline, beneficiaries_mapping) flow correctly.
+## What Will NOT Change
+- AM/RQ flow (SimpleIntakeForm) — already working with view/edit toggle.
+- No separate code for MP vs AGG — the same `ConversationalIntakeContent` component is reused; only a `mode` prop changes behavior.
+- All existing create/edit functionality remains intact.
 
-## Fix
+## Changes
 
-**File: `src/pages/cogniblend/ConversationalIntakePage.tsx`** (lines 451-455)
+### File 1: `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-Add a fallback to read `industry_segment_id` from the `eligibility` field when `targeting_filters` doesn't have it:
+**Props**: Extend `mode` type from `'create' | 'edit'` to `'create' | 'edit' | 'view'`.
 
-```typescript
-// Industry segment from targeting_filters, eligibility, or eligibility_model
-const targeting = ch.targeting_filters as Record<string, unknown> | null;
-if (targeting?.industry_segment_id) {
-  setSelectedIndustrySegmentId(targeting.industry_segment_id as string);
-} else {
-  // Fallback: AM intake stores industry_segment_id in eligibility JSON
-  let elig = ch.eligibility as Record<string, unknown> | string | null;
-  if (typeof elig === 'string') {
-    try { elig = JSON.parse(elig); } catch { elig = null; }
-  }
-  if (elig && typeof elig === 'object' && (elig as Record<string, unknown>).industry_segment_id) {
-    setSelectedIndustrySegmentId((elig as Record<string, unknown>).industry_segment_id as string);
-  }
-}
+**Add `isViewMode` flag** (alongside existing `isEditMode`):
+```
+const isViewMode = mode === 'view';
 ```
 
-This is a single-location change. The `eligibility` field is already fetched by the edit query (confirmed in network data). No other files need modification.
+**When `isViewMode` is true**:
+- All `Input`, `Textarea`, `Select`, `Calendar` fields get `disabled` prop
+- `MaturityCard` buttons get `disabled` / `pointer-events-none`
+- `TemplateSelector` gets a `disabled` prop (or is hidden)
+- `FileUploadArea` section is hidden
+- "Expand Challenge Details" collapsible auto-opens if content exists, fields are disabled
+- Governance Mode cards and Engagement Model selector are disabled
+- "Advanced Editor" button is hidden
+- Action buttons section (Generate/Update/Continue) is hidden entirely
+- "AI-Assisted" info badge is hidden
+- Dynamic brief fields from AM are shown as disabled textareas
 
-## Technical Details
-- The `eligibility` column stores a JSON-stringified object: `"{\"industry_segment_id\":\"b1a248ce-...\"}"` (double-encoded string in the DB response)
-- The fix handles both parsed-object and string forms of the `eligibility` field
-- This also fixes the console warning about `Function components cannot be given refs` for `ConversationalIntakeContent` as a side benefit — actually no, that's a separate ref-forwarding issue
+This reuses the exact same layout/component — no duplicate code. Just conditional `disabled` attributes and a few `{!isViewMode && ...}` wrappers for action-only sections.
+
+### File 2: `src/pages/cogniblend/AMRequestViewPage.tsx`
+
+Single-line fix: change `mode="edit"` to `mode={pageMode}` so the toggle actually works for CA/CR:
+
+```typescript
+<ConversationalIntakeContent challengeId={id} mode={pageMode} hideSpecReview />
+```
+
+## Summary
+- 2 files modified, 0 new files
+- No code duplication between MP and AGG
+- AM/RQ path untouched
+- CA/CR get the same view/edit toggle behavior that AM/RQ already has
 
