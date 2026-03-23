@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Zap,
   Info,
+  Check,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
