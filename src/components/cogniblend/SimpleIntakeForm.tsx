@@ -510,7 +510,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         </div>
 
         {/* AI Review Button — edit/view mode only */}
-        {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
           <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
             {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
             {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
@@ -599,7 +599,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             )}
             {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
           </div>
-          {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
             <AIReviewInline
               sectionKey="problem_statement"
               review={aiReviews['problem_statement']}
@@ -675,7 +675,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               />
             )}
           </div>
-          {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
             <AIReviewInline
               sectionKey="beneficiaries_mapping"
               review={aiReviews['beneficiaries_mapping']}
@@ -800,7 +800,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       </div>
 
       {/* AI Review Button — edit/view mode only */}
-      {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
         <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
           {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
           {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
@@ -872,7 +872,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             </p>
           )}
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
-          {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
             <AIReviewInline
               sectionKey="problem_statement"
               review={aiReviews['problem_statement']}
@@ -1032,7 +1032,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             />
           )}
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
-          {isEditMode && challengeId && (
+{mode === 'edit' && challengeId && (
             <AIReviewInline
               sectionKey="scope"
               review={aiReviews['scope']}
