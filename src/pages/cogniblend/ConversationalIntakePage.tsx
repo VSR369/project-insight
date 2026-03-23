@@ -73,7 +73,7 @@ import {
 import { computeSolverAssignment } from '@/lib/cogniblend/solverAutoAssign';
 import { getPostGenerationRoute, shouldRequireAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
-import type { ChallengeTemplate } from '@/lib/challengeTemplates';
+import { CHALLENGE_TEMPLATES, type ChallengeTemplate } from '@/lib/challengeTemplates';
 import type { SharedIntakeState } from './ChallengeCreatePage';
 
 /* ─── Constants ───────────────────────────────────────── */
@@ -92,6 +92,7 @@ const KNOWN_BRIEF_KEYS = new Set([
   'context_background', 'root_causes', 'affected_stakeholders',
   'scope_definition', 'preferred_approach', 'approaches_not_of_interest',
   'beneficiaries_mapping', 'solution_expectations', 'am_approval_required',
+  'challenge_template_id',
 ]);
 
 /** Convert snake_case key to human-readable label */
@@ -485,6 +486,12 @@ export function ConversationalIntakeContent({
       if (eb.beneficiaries_mapping) form.setValue('beneficiaries_mapping', eb.beneficiaries_mapping);
       if (eb.solution_expectations) form.setValue('solution_expectations', eb.solution_expectations);
 
+      // Restore template selection from stored challenge_template_id
+      if (eb.challenge_template_id) {
+        const found = CHALLENGE_TEMPLATES.find(t => t.id === eb.challenge_template_id);
+        if (found) setSelectedTemplate(found);
+      }
+
       // Dynamic: collect any extra keys not in KNOWN_BRIEF_KEYS
       const extras: Record<string, string> = {};
       for (const [key, val] of Object.entries(eb)) {
@@ -565,6 +572,7 @@ export function ConversationalIntakeContent({
       if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
       if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
       if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+      if (selectedTemplate?.id) extendedBrief.challenge_template_id = selectedTemplate.id;
       if (data.beneficiaries_mapping?.trim()) extendedBrief.beneficiaries_mapping = data.beneficiaries_mapping.trim();
       if (data.solution_expectations?.trim()) extendedBrief.solution_expectations = data.solution_expectations.trim();
       // Preserve dynamic AM fields
@@ -967,8 +975,18 @@ export function ConversationalIntakeContent({
         </div>
       </div>
 
-      {/* Step 1: Template Selector */}
-      {!isViewMode && (
+      {/* Step 1: Template Selector (create/edit: full grid; view: read-only badge) */}
+      {isViewMode ? (
+        selectedTemplate ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+            <span className="text-xl" role="img" aria-label={selectedTemplate.name}>{selectedTemplate.emoji}</span>
+            <div>
+              <span className="text-sm font-semibold text-foreground">{selectedTemplate.name}</span>
+              <span className="text-xs text-muted-foreground ml-2">{selectedTemplate.description}</span>
+            </div>
+          </div>
+        ) : null
+      ) : (
         <TemplateSelector
           onSelect={handleTemplateSelect}
           selectedId={selectedTemplate?.id}

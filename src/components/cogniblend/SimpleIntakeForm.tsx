@@ -240,6 +240,12 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     const timeline = schedule?.expected_timeline;
     const validTimelines = ['1-3', '3-6', '6-12', '12+'];
 
+    // Restore template from extended_brief
+    if (extBrief?.challenge_template_id) {
+      const found = CHALLENGE_TEMPLATES.find(t => t.id === extBrief.challenge_template_id);
+      if (found) setSelectedTemplate(found);
+    }
+
     reset({
       title: c.title || '',
       problem_summary: c.problem_statement || '',
@@ -251,7 +257,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       solution_expectations: c.scope || '',
       am_approval_required: extBrief?.am_approval_required ?? true,
       architect_id: '',
-      selected_template: '',
+      selected_template: extBrief?.challenge_template_id || '',
       beneficiaries_mapping: extBrief?.beneficiaries_mapping || '',
     });
 
@@ -336,6 +342,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     extended_brief: {
       ...(data.beneficiaries_mapping ? { beneficiaries_mapping: data.beneficiaries_mapping } : {}),
       ...(data.am_approval_required !== undefined ? { am_approval_required: data.am_approval_required } : {}),
+      ...(selectedTemplate?.id ? { challenge_template_id: selectedTemplate.id } : {}),
     },
   });
 
@@ -390,8 +397,8 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           </div>
         </div>
 
-        {/* Step 1: Template Selector (create mode only) */}
-        {!isEditMode && (
+        {/* Step 1: Template Selector (create mode: full grid; edit/view: read-only badge) */}
+        {!isEditMode ? (
           <>
             <TemplateSelector
               onSelect={handleTemplateSelect}
@@ -401,7 +408,15 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               <p className="text-xs text-destructive -mt-3">{errors.selected_template.message}</p>
             )}
           </>
-        )}
+        ) : selectedTemplate ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+            <span className="text-xl" role="img" aria-label={selectedTemplate.name}>{selectedTemplate.emoji}</span>
+            <div>
+              <span className="text-sm font-semibold text-foreground">{selectedTemplate.name}</span>
+              <span className="text-xs text-muted-foreground ml-2">{selectedTemplate.description}</span>
+            </div>
+          </div>
+        ) : null}
 
         {/* Industry Segment */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -649,6 +664,24 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           </p>
         </div>
       </div>
+
+      {/* Template Selector — create mode: full grid; view/edit mode: read-only badge */}
+      {!isEditMode ? (
+        <>
+          <TemplateSelector
+            onSelect={handleTemplateSelect}
+            selectedId={selectedTemplate?.id}
+          />
+        </>
+      ) : selectedTemplate ? (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+          <span className="text-xl" role="img" aria-label={selectedTemplate.name}>{selectedTemplate.emoji}</span>
+          <div>
+            <span className="text-sm font-semibold text-foreground">{selectedTemplate.name}</span>
+            <span className="text-xs text-muted-foreground ml-2">{selectedTemplate.description}</span>
+          </div>
+        </div>
+      ) : null}
 
       {/* THE PROBLEM — IN PLAIN BUSINESS LANGUAGE */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
