@@ -544,17 +544,35 @@ export function ConversationalIntakeContent({
       if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
       if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
       if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+      if (data.beneficiaries_mapping?.trim()) extendedBrief.beneficiaries_mapping = data.beneficiaries_mapping.trim();
+      if (data.solution_expectations?.trim()) extendedBrief.solution_expectations = data.solution_expectations.trim();
+      // Preserve dynamic AM fields
+      for (const [key, val] of Object.entries(dynamicBriefFields)) {
+        if (val?.trim()) extendedBrief[key] = val.trim();
+      }
+
+      const rewardStructure: Record<string, unknown> = {
+        budget_max: data.prize_amount,
+        currency: data.currency_code,
+      };
+      if (data.budget_min != null && data.budget_min > 0) {
+        rewardStructure.budget_min = data.budget_min;
+      }
 
       await saveStep.mutateAsync({
         challengeId: editChallengeId,
         fields: {
+          title: data.title?.trim() || undefined,
           problem_statement: data.problem_statement,
           scope: data.expected_outcomes,
           maturity_level: data.maturity_level?.toUpperCase() ?? null,
+          reward_structure: rewardStructure,
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
           governance_profile: governanceMode,
           operating_model: engagementModel,
+          ...(data.expected_timeline ? { phase_schedule: { expected_timeline: data.expected_timeline } } : {}),
+          ...(selectedIndustrySegmentId ? { targeting_filters: { industry_segment_id: selectedIndustrySegmentId } } : {}),
           ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
         },
       });
