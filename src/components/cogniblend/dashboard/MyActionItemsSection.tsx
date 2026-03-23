@@ -49,9 +49,9 @@ function getActionRoute(item: { id: string; status: string; phase?: number; phas
   if (item.phase_status === 'AM_APPROVAL_PENDING' || item.status === 'AM_APPROVAL_PENDING') {
     return { route: `/cogni/my-requests/${item.id}/review`, label: 'Review & Approve', icon: ShieldCheck };
   }
-  // CA/CR Phase 2 spec work → spec review page
+  // CA/CR Phase 2 spec work → intake form in edit mode (same layout as "New Challenge")
   if (item.isSpecWork) {
-    return { route: `/cogni/challenges/${item.id}/spec`, label: 'Review Spec', icon: FileSearch };
+    return { route: `/cogni/my-requests/${item.id}/view`, label: 'Review', icon: FileSearch };
   }
   // Drafts
   if (item.status === 'DRAFT') {
