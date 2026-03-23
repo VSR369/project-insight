@@ -268,10 +268,74 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     setFormInitialized(true);
   }, [isEditMode, existingChallenge, formInitialized, reset]);
 
+  // ═══════ Effect — load persisted AI reviews ═══════
+  useEffect(() => {
+    if (!existingChallenge?.ai_section_reviews) return;
+    const reviews = Array.isArray(existingChallenge.ai_section_reviews)
+      ? existingChallenge.ai_section_reviews as unknown as SectionReview[]
+      : [];
+    const map: Record<string, SectionReview> = {};
+    for (const r of reviews) { if (r.section_key) map[r.section_key] = r; }
+    setAiReviews(map);
+  }, [existingChallenge?.ai_section_reviews]);
+
   // ═══════ Derived ═══════
   const isSubmitting = submitMutation.isPending || updateMutation.isPending;
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
+
+  // ═══════ AI Review handlers ═══════
+  const handleRunAiReview = async () => {
+    if (!challengeId) return;
+    setIsAiReviewing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
+        body: { challenge_id: challengeId, role_context: 'intake' },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success && data.data?.sections) {
+        const map: Record<string, SectionReview> = { ...aiReviews };
+        for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
+        setAiReviews(map);
+        toast.success('AI review complete — see comments below each section.');
+      } else {
+        throw new Error(data?.error?.message ?? 'Unexpected response');
+      }
+    } catch (e: any) {
+      toast.error(`AI review failed: ${e.message ?? 'Unknown error'}`);
+    } finally {
+      setIsAiReviewing(false);
+    }
+  };
+
+  const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
+    if (!challengeId) return;
+    const fieldMap: Record<string, string> = {
+      problem_statement: 'problem_summary',
+      scope: 'solution_expectations',
+      beneficiaries_mapping: 'beneficiaries_mapping',
+    };
+    const formField = fieldMap[sectionKey];
+    if (formField) {
+      setValue(formField as any, newContent, { shouldValidate: true });
+    }
+    // Also persist the addressed state
+    const updated = { ...aiReviews };
+    if (updated[sectionKey]) { updated[sectionKey] = { ...updated[sectionKey], addressed: true }; }
+    setAiReviews(updated);
+    toast.success('Refinement accepted and applied.');
+  };
+
+  const handleSingleSectionReview = (sectionKey: string, review: SectionReview) => {
+    setAiReviews((prev) => ({ ...prev, [sectionKey]: review }));
+  };
+
+  const handleMarkAddressed = (sectionKey: string) => {
+    setAiReviews((prev) => ({
+      ...prev,
+      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+    }));
+  };
 
   // ═══════ Conditional returns ═══════
   const isLoading = orgLoading || modelLoading || segmentsLoading || (isEditMode ? editLoading : tierLoading);
