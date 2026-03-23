@@ -37,6 +37,7 @@ interface CurationActionsProps {
   completedCount: number;
   totalCount: number;
   operatingModel?: string | null;
+  readOnly?: boolean;
 }
 
 export default function CurationActions({
@@ -47,6 +48,7 @@ export default function CurationActions({
   completedCount,
   totalCount,
   operatingModel,
+  readOnly = false,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
