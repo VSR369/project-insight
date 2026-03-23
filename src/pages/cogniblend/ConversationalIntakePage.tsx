@@ -1071,11 +1071,24 @@ export function ConversationalIntakeContent({
           </Select>
           <Input
             type="number"
-            placeholder="10,000"
+            placeholder={form.watch('budget_min') ? 'Max budget' : '10,000'}
             className="flex-1"
             {...form.register('prize_amount', { valueAsNumber: true })}
           />
         </div>
+        {/* Budget min (range support) */}
+        {(isEditMode && form.watch('budget_min') != null && form.watch('budget_min')! > 0) && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-muted-foreground">Budget Range: Min</span>
+            <Input
+              type="number"
+              placeholder="Min budget"
+              className="w-32"
+              {...form.register('budget_min', { valueAsNumber: true })}
+            />
+            <span className="text-xs text-muted-foreground">— Max (above)</span>
+          </div>
+        )}
         {form.formState.errors.prize_amount && (
           <p className="text-xs text-destructive">
             {form.formState.errors.prize_amount.message}
