@@ -1358,81 +1358,85 @@ export function ConversationalIntakeContent({
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-        {isEditMode ? (
-          <>
-            <Button
-              onClick={form.handleSubmit(handleUpdateChallenge)}
-              disabled={saveStep.isPending}
-              className="flex-1 sm:flex-none"
-              size="lg"
-            >
-              {saveStep.isPending ? (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Update Challenge
-                </>
+      {/* Actions — hidden in view mode */}
+      {!isViewMode && (
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
+          {isEditMode ? (
+            <>
+              <Button
+                onClick={form.handleSubmit(handleUpdateChallenge)}
+                disabled={saveStep.isPending}
+                className="flex-1 sm:flex-none"
+                size="lg"
+              >
+                {saveStep.isPending ? (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Update Challenge
+                  </>
+                )}
+              </Button>
+              {!hideSpecReview && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+                  size="lg"
+                >
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Go to Spec Review
+                </Button>
               )}
-            </Button>
-            {!hideSpecReview && (
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={form.handleSubmit(handleGenerateWithAI)}
+                disabled={isGenerating}
+                className="flex-1 sm:flex-none"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Generate with AI
+                  </>
+                )}
+              </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate(`/cogni/challenges/${editChallengeId}/spec`)}
+                onClick={form.handleSubmit((data) => handleGoToEditor(data))}
                 size="lg"
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
-                Go to Spec Review
+                Continue manually
               </Button>
-            )}
-          </>
-        ) : (
-          <>
-            <Button
-              onClick={form.handleSubmit(handleGenerateWithAI)}
-              disabled={isGenerating}
-              className="flex-1 sm:flex-none"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Generate with AI
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={form.handleSubmit((data) => handleGoToEditor(data))}
-              size="lg"
-            >
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Continue manually
-            </Button>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Info badge */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="secondary" className="text-xs">
-          <Sparkles className="h-3 w-3 mr-1" />
-          AI-Assisted
-        </Badge>
-        <span>
-          AI will draft scope, deliverables, evaluation criteria, and more based on your inputs.
-        </span>
-      </div>
+      {/* Info badge — hidden in view mode */}
+      {!isViewMode && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary" className="text-xs">
+            <Sparkles className="h-3 w-3 mr-1" />
+            AI-Assisted
+          </Badge>
+          <span>
+            AI will draft scope, deliverables, evaluation criteria, and more based on your inputs.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
