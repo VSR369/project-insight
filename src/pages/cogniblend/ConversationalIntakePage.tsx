@@ -477,7 +477,7 @@ export function ConversationalIntakeContent({
       }
 
       // Auto-expand if any detail fields have content
-      const hasExpanded = Object.values(eb).some((v) => v?.trim());
+      const hasExpanded = Object.values(eb).some((v) => typeof v === 'string' && v.trim());
       if (hasExpanded) setExpandOpen(true);
     }
     // Governance mode from challenge
