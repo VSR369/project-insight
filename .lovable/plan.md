@@ -1,44 +1,43 @@
 
 
-# Fix: CA/CR "My Action Items" Should Show Lifecycle Actions, Not Requests
+# Add Template Selector to AM (Marketplace) Intake + Persist to DB
 
-## Problem
-Currently, for CA/CR roles, "My Action Items" shows Phase 2 SPEC_REVIEW challenges — the exact same items already listed in "Incoming Requests." This is redundant. Action items should instead surface actionable lifecycle events: returned challenges needing revision, notifications requiring attention (SLA warnings, role assignments, amendment notices), and approval-pending items.
+## Current State
+- **RQ (Aggregator)**: Has TemplateSelector — required field, shown in create mode
+- **AM (Marketplace)**: No TemplateSelector — goes straight to title + problem summary
+- **Persistence bug**: `templateId` is in the submit payload but never saved to the DB (`extended_brief` or elsewhere)
+- **CA/CR view**: ConversationalIntakeContent shows TemplateSelector in create/edit but has no way to read a pre-selected template from the challenge record
 
-## What Changes
+## Changes
 
-### File: `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
+### File 1: `src/components/cogniblend/SimpleIntakeForm.tsx`
+- **Add TemplateSelector to the MP (AM) render section** (line ~653, after the header, before "The Problem" card) — same pattern as the AGG section
+- Show it only in create mode (`!isEditMode`), optional for AM (not a required field — AM already provides title)
+- In edit/view mode, if a template was stored, show a read-only badge with the template name
+- Wire `handleTemplateSelect` (already exists and works for both models)
+- Pre-fill `domain_tags` from template into the payload (already happens via `selectedTemplate?.prefill?.domain_tags`)
 
-**Remove** the `isPhase2SpecWork` logic (lines 109-113, 115, 119, 124) that adds incoming requests as action items for CA/CR roles.
+### File 2: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
+- **Persist `templateId`** into `extended_brief.challenge_template_id` during challenge creation (both `useSubmitSolutionRequest` and `useSaveDraft`)
+- Add `templateId` to both `SubmitPayload` and `DraftPayload` interfaces (already in SubmitPayload but unused)
 
-**Add** unread `cogni_notifications` as action items for CA/CR roles. These are already stored in the DB and fetched by `NotificationBell`, but not surfaced in the action items widget. The section will query unread notifications for the current user and display them as actionable rows.
+### File 3: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+- In edit mode, read `extended_brief.challenge_template_id` from the existing challenge data
+- Initialize `selectedTemplate` from it by looking up `CHALLENGE_TEMPLATES`
+- Show a read-only template badge in view mode (instead of hiding entirely)
 
-For CA/CR, action items will now include:
-1. **RETURNED challenges** — challenges returned for modification (already works, just `master_status === 'RETURNED'`)
-2. **Unread notifications** — SLA_BREACH, SLA_WARNING, AMENDMENT_NOTICE, curation_returned, PHASE_COMPLETE, WAITING_FOR_YOU, ROLE_ASSIGNED, etc.
-3. **AM_APPROVAL_PENDING** items (if the CA/CR also holds AM role — already works)
+### File 4: `src/components/cogniblend/SimpleIntakeForm.tsx` (edit/view mode)
+- In edit/view mode for both MP and AGG, read `extended_brief.challenge_template_id` from the existing challenge
+- Show a read-only badge (template emoji + name) instead of the full selector grid
 
-**Specific changes:**
-- Add a query for unread `cogni_notifications` (reuse the existing query key pattern from NotificationBell)
-- Remove `isPhase2SpecWork` condition from the action items builder
-- Map unread notifications into the action items array with appropriate status badges and routes (clicking navigates to the challenge view)
-- Add new status badges: `SLA_BREACH`, `SLA_WARNING`, `AMENDMENT`, `NOTIFICATION`
-- Add notification-specific route: navigate to `/cogni/my-requests/{challengeId}/view` or mark as read
-
-**Table columns for notification-based items:**
-- Title (notification title)
-- Type (badge: SLA Breach, Amendment, etc.)
-- Status (Unread)
-- Action (View / Dismiss)
-
-### No other files change
-- `MyRequestsTracker` (Incoming Requests) stays unchanged — it correctly shows all assigned challenges
-- AM/RQ action items logic stays unchanged
-- NotificationBell continues to work independently
+## What stays the same
+- TemplateSelector component — reused as-is, no changes
+- Template data structure (`CHALLENGE_TEMPLATES`) — unchanged
+- RQ flow — unchanged (template remains required)
+- For AM, template is optional (MP schema already has `selected_template: z.string().optional()`)
 
 ## Technical Details
-- Reuses `cogni_notifications` table already populated by lifecycle hooks
-- No new queries needed — just a direct `supabase.from('cogni_notifications')` select filtered to `is_read = false`
-- Notification items and challenge-based items (RETURNED, DRAFT) merge into one unified list, sorted by recency
-- Clicking a notification-based action item marks it as read and navigates to the challenge
+- Storage: `extended_brief.challenge_template_id` (JSONB field, no migration needed)
+- The template selection flows from AM → CA just like all other `extended_brief` fields via the dynamic brief rendering system
+- CA/CR can see the AM's template choice and change it (editable in edit mode)
 
