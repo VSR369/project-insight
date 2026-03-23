@@ -1620,9 +1620,21 @@ export function ConversationalIntakeContent({
               control={form.control}
               disabled={isViewMode}
             />
+            {mode === 'edit' && editChallengeId && (
+              <AIReviewInline
+                sectionKey="beneficiaries_mapping"
+                review={aiReviews['beneficiaries_mapping']}
+                currentContent={form.watch('beneficiaries_mapping')}
+                challengeId={editChallengeId}
+                challengeContext={{ title: form.watch('title'), maturity_level: form.watch('maturity_level') }}
+                onAcceptRefinement={handleAcceptRefinement}
+                onSingleSectionReview={handleSingleSectionReview}
+                onMarkAddressed={handleMarkAddressed}
+                roleContext="spec"
+                defaultOpen={aiReviews['beneficiaries_mapping']?.status === 'needs_revision' || aiReviews['beneficiaries_mapping']?.status === 'warning'}
+              />
+            )}
 
-            <ExpandField
-              label="Solution Expectations"
               fieldName="solution_expectations"
               placeholder="What does commercial or operational success look like for the solution?"
               maxLength={2000}
