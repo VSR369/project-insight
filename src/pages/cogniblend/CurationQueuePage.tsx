@@ -360,12 +360,12 @@ export default function CurationQueuePage() {
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <CheckSquare className="h-12 w-12 text-muted-foreground/40" />
           <p className="text-base font-medium text-muted-foreground">
-            {activeTab === "incoming"
+            {resolvedTab === "incoming"
               ? "No incoming challenges"
               : "No challenges awaiting curation"}
           </p>
           <p className="text-sm text-muted-foreground/70 max-w-sm">
-            {activeTab === "incoming"
+            {resolvedTab === "incoming"
               ? "Challenges will appear here once you're assigned as Curator, while Legal and Finance complete their review."
               : "Challenges submitted for review will appear here."}
           </p>
