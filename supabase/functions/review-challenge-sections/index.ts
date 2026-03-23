@@ -194,13 +194,14 @@ serve(async (req) => {
 
     let challengeData = challengeResult.data;
 
-    // For intake context, extract extended_brief fields into the review payload
-    if (resolvedContext === "intake" && challengeData.extended_brief) {
+    // For intake/spec context, extract extended_brief fields into the review payload
+    if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
       const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
       challengeData = {
         ...challengeData,
         beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
         solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
+        expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
       };
     }
 
