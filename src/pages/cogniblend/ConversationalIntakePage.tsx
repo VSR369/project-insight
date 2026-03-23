@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -31,11 +31,19 @@ import {
   Zap,
   Info,
   Check,
+  Maximize2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -248,9 +256,7 @@ function ExpandField({
   fieldName,
   placeholder,
   maxLength,
-  rows = 3,
-  register,
-  watchValue,
+  control,
   disabled,
 }: {
   label: string;
@@ -258,26 +264,116 @@ function ExpandField({
   placeholder: string;
   maxLength: number;
   rows?: number;
-  register: any;
-  watchValue: string;
+  control: any;
   disabled?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground">{label}</label>
-      <Textarea
-        placeholder={placeholder}
-        rows={rows}
-        maxLength={maxLength}
-        className="text-base resize-none"
-        disabled={disabled}
-        {...register(fieldName)}
-      />
-      <div className="flex justify-end">
-        <span className="text-xs text-muted-foreground">
-          {(watchValue ?? '').length} / {maxLength.toLocaleString()}
-        </span>
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground">{label}</label>
+        {!disabled && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setExpanded(true)}
+            aria-label={`Expand ${label}`}
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
+      {disabled ? (
+        <Controller
+          name={fieldName}
+          control={control}
+          render={({ field }) => (
+            <SafeHtmlRenderer html={field.value} className="min-h-[60px]" />
+          )}
+        />
+      ) : (
+        <Controller
+          name={fieldName}
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              placeholder={placeholder}
+              className="min-h-[100px]"
+            />
+          )}
+        />
+      )}
+
+      {/* Fullscreen expand dialog */}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>{label}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto py-2">
+            <Controller
+              name={fieldName}
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder={placeholder}
+                  className="min-h-[60vh]"
+                />
+              )}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ─── Dynamic Brief Field (RichTextEditor for AM extras) ── */
+
+function DynamicBriefField({
+  fieldKey,
+  value,
+  disabled,
+  onChange,
+}: {
+  fieldKey: string;
+  value: string;
+  disabled?: boolean;
+  onChange: (val: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const label = humanizeKey(fieldKey);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground">{label}</label>
+        {!disabled && (
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpanded(true)}>
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+      {disabled ? (
+        <SafeHtmlRenderer html={value} className="min-h-[60px]" />
+      ) : (
+        <RichTextEditor value={value ?? ''} onChange={onChange} placeholder={`Enter ${label.toLowerCase()}...`} className="min-h-[100px]" />
+      )}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{label}</DialogTitle></DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto py-2">
+            <RichTextEditor value={value ?? ''} onChange={onChange} placeholder={`Enter ${label.toLowerCase()}...`} className="min-h-[60vh]" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -319,6 +415,8 @@ export function ConversationalIntakeContent({
   const [aiFailure, setAiFailure] = useState(false);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [expandOpen, setExpandOpen] = useState(false);
+  const [problemExpanded, setProblemExpanded] = useState(false);
+  const [outcomesExpanded, setOutcomesExpanded] = useState(false);
   const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
 
@@ -377,6 +475,13 @@ export function ConversationalIntakeContent({
   const { clearPersistedData } = useFormPersistence('cogni_intake_conversational', form);
   const watchedMaturity = form.watch('maturity_level');
   const watchedProblem = form.watch('problem_statement');
+
+  // ═══════ Hooks — clear stale data for fresh create ═══════
+  useEffect(() => {
+    if (mode === 'create' && !editChallengeId) {
+      sessionStorage.removeItem('cogni_intake_conversational');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ═══════ Hooks — effects ═══════
 
@@ -984,53 +1089,108 @@ export function ConversationalIntakeContent({
 
       {/* Step 2: Problem Statement */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold text-foreground">
-          Describe your challenge
-          <span className="text-destructive ml-1">*</span>
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-foreground">
+            Describe your challenge
+            <span className="text-destructive ml-1">*</span>
+          </label>
+          {!isViewMode && (
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setProblemExpanded(true)}>
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           What problem are you trying to solve? Be as specific as possible — AI will help fill in the rest.
         </p>
-        <Textarea
-          placeholder="e.g., We need a machine learning model that can predict equipment failures 48 hours in advance using sensor data from our manufacturing line..."
-          rows={6}
-          className="text-base resize-none"
-          disabled={isViewMode}
-          {...form.register('problem_statement')}
-        />
+        {isViewMode ? (
+          <SafeHtmlRenderer html={form.watch('problem_statement')} className="min-h-[60px]" />
+        ) : (
+          <Controller
+            name="problem_statement"
+            control={form.control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="e.g., We need a machine learning model that can predict equipment failures 48 hours in advance using sensor data from our manufacturing line..."
+                className="min-h-[150px]"
+              />
+            )}
+          />
+        )}
         {form.formState.errors.problem_statement && (
           <p className="text-xs text-destructive">
             {form.formState.errors.problem_statement.message}
           </p>
         )}
-        <div className="flex justify-end">
-          <span className="text-xs text-muted-foreground">
-            {(form.watch('problem_statement') ?? '').length} / 5,000
-          </span>
-        </div>
+        <Dialog open={problemExpanded} onOpenChange={setProblemExpanded}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0"><DialogTitle>Describe your challenge</DialogTitle></DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="problem_statement"
+                control={form.control}
+                render={({ field }) => (
+                  <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe your challenge..." className="min-h-[60vh]" />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Step 3: Expected Outcomes */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold text-foreground">
-          Expected Outcomes
-          <span className="text-destructive ml-1">*</span>
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-foreground">
+            Expected Outcomes
+            <span className="text-destructive ml-1">*</span>
+          </label>
+          {!isViewMode && (
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOutcomesExpanded(true)}>
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           What does success look like? What deliverables or results do you expect from solvers?
         </p>
-        <Textarea
-          placeholder="e.g., A working ML model with at least 85% accuracy, documentation on the approach, and a deployment guide..."
-          rows={4}
-          className="text-base resize-none"
-          disabled={isViewMode}
-          {...form.register('expected_outcomes')}
-        />
+        {isViewMode ? (
+          <SafeHtmlRenderer html={form.watch('expected_outcomes')} className="min-h-[60px]" />
+        ) : (
+          <Controller
+            name="expected_outcomes"
+            control={form.control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="e.g., A working ML model with at least 85% accuracy, documentation on the approach, and a deployment guide..."
+                className="min-h-[100px]"
+              />
+            )}
+          />
+        )}
         {form.formState.errors.expected_outcomes && (
           <p className="text-xs text-destructive">
             {form.formState.errors.expected_outcomes.message}
           </p>
         )}
+        <Dialog open={outcomesExpanded} onOpenChange={setOutcomesExpanded}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0"><DialogTitle>Expected Outcomes</DialogTitle></DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              <Controller
+                name="expected_outcomes"
+                control={form.control}
+                render={({ field }) => (
+                  <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe expected outcomes..." className="min-h-[60vh]" />
+                )}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
 
@@ -1248,9 +1408,7 @@ export function ConversationalIntakeContent({
               fieldName="context_background"
               placeholder="Provide relevant history, industry context, or organizational background that solvers should understand…"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('context_background') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1259,9 +1417,7 @@ export function ConversationalIntakeContent({
               fieldName="root_causes"
               placeholder="What are the underlying causes of this problem? Why hasn't it been solved yet?"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('root_causes') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1270,9 +1426,7 @@ export function ConversationalIntakeContent({
               fieldName="affected_stakeholders"
               placeholder="Who is impacted by this problem and how? (e.g., end users, operations teams, customers)"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('affected_stakeholders') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1281,9 +1435,7 @@ export function ConversationalIntakeContent({
               fieldName="scope_definition"
               placeholder="What is explicitly in scope and out of scope for this challenge?"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('scope_definition') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1292,9 +1444,7 @@ export function ConversationalIntakeContent({
               fieldName="preferred_approach"
               placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('preferred_approach') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1303,9 +1453,7 @@ export function ConversationalIntakeContent({
               fieldName="approaches_not_of_interest"
               placeholder="What has been tried and failed? What approaches should solvers avoid?"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('approaches_not_of_interest') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1314,9 +1462,7 @@ export function ConversationalIntakeContent({
               fieldName="beneficiaries_mapping"
               placeholder="Who benefits from solving this challenge? Map internal and external beneficiaries…"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('beneficiaries_mapping') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1325,9 +1471,7 @@ export function ConversationalIntakeContent({
               fieldName="solution_expectations"
               placeholder="What does commercial or operational success look like for the solution?"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('solution_expectations') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1340,24 +1484,15 @@ export function ConversationalIntakeContent({
                   </p>
                 </div>
                 {Object.entries(dynamicBriefFields).map(([key, value]) => (
-                  <div key={key} className="space-y-1.5">
-                    <label className="text-sm font-medium text-foreground">{humanizeKey(key)}</label>
-                    <Textarea
-                      rows={3}
-                      maxLength={2000}
-                      className="text-base resize-none"
-                      value={value}
-                      disabled={isViewMode}
-                      onChange={(e) =>
-                        setDynamicBriefFields((prev) => ({ ...prev, [key]: e.target.value }))
-                      }
-                    />
-                    <div className="flex justify-end">
-                      <span className="text-xs text-muted-foreground">
-                        {(value ?? '').length} / 2,000
-                      </span>
-                    </div>
-                  </div>
+                  <DynamicBriefField
+                    key={key}
+                    fieldKey={key}
+                    value={value}
+                    disabled={isViewMode}
+                    onChange={(val) =>
+                      setDynamicBriefFields((prev) => ({ ...prev, [key]: val }))
+                    }
+                  />
                 ))}
               </>
             )}
