@@ -367,7 +367,7 @@ export function ConversationalIntakeContent({
     if (!isEditMode || !editChallenge || editPrefilled) return;
 
     // Pre-fill form fields from existing challenge
-    const ch = editChallenge as Record<string, unknown>;
+    const ch = editChallenge as unknown as Record<string, unknown>;
 
     if (ch.problem_statement) {
       form.setValue('problem_statement', ch.problem_statement as string);
