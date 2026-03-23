@@ -29,7 +29,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckSquare, Clock, FileCheck } from "lucide-react";
+import { CheckSquare, Clock, Eye, FileCheck } from "lucide-react";
 import type { SlaStatus } from "@/hooks/cogniblend/useCogniDashboard";
 
 // ---------------------------------------------------------------------------
