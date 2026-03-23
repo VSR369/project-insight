@@ -112,10 +112,10 @@ type SimpleIntakeValues = z.infer<typeof mpSchema>;
 /* ── Props ── */
 
 interface SimpleIntakeFormProps {
-  /** Challenge ID for edit mode */
+  /** Challenge ID for edit/view mode */
   challengeId?: string;
-  /** 'create' (default) or 'edit' */
-  mode?: 'create' | 'edit';
+  /** 'create' (default), 'edit', or 'view' (read-only) */
+  mode?: 'create' | 'edit' | 'view';
 }
 
 /* ── Hook: fetch existing challenge for edit mode ── */
