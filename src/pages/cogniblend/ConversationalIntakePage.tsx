@@ -360,8 +360,69 @@ export function ConversationalIntakeContent({
     }
   }, [currentOrg?.governanceProfile, currentOrg?.tierCode, propGovernanceMode]);
 
+  // ═══════ Hooks — edit mode pre-fill ═══════
+  const [editPrefilled, setEditPrefilled] = useState(false);
+
+  useEffect(() => {
+    if (!isEditMode || !editChallenge || editPrefilled) return;
+
+    // Pre-fill form fields from existing challenge
+    const ch = editChallenge as Record<string, unknown>;
+
+    if (ch.problem_statement) {
+      form.setValue('problem_statement', ch.problem_statement as string);
+    }
+    if (ch.scope) {
+      form.setValue('expected_outcomes', ch.scope as string);
+    }
+    if (ch.maturity_level) {
+      const ml = (ch.maturity_level as string).toLowerCase();
+      if (['blueprint', 'poc', 'prototype', 'pilot'].includes(ml)) {
+        form.setValue('maturity_level', ml as IntakeFormValues['maturity_level']);
+      }
+    }
+    // Prize / currency from reward_structure or direct fields
+    const rewardStructure = ch.reward_structure as Record<string, unknown> | null;
+    if (rewardStructure?.budget_max) {
+      form.setValue('prize_amount', Number(rewardStructure.budget_max));
+    }
+    if (rewardStructure?.currency) {
+      form.setValue('currency_code', rewardStructure.currency as string);
+    } else if (ch.currency_code) {
+      form.setValue('currency_code', ch.currency_code as string);
+    }
+    // Deadline
+    if (ch.submission_deadline) {
+      form.setValue('deadline', new Date(ch.submission_deadline as string));
+    }
+    // Extended brief fields
+    const eb = ch.extended_brief as Record<string, string> | null;
+    if (eb) {
+      if (eb.context_background) form.setValue('context_background', eb.context_background);
+      if (eb.root_causes) form.setValue('root_causes', eb.root_causes);
+      if (eb.affected_stakeholders) form.setValue('affected_stakeholders', eb.affected_stakeholders);
+      if (eb.scope_definition) form.setValue('scope_definition', eb.scope_definition);
+      if (eb.preferred_approach) form.setValue('preferred_approach', eb.preferred_approach);
+      if (eb.approaches_not_of_interest) form.setValue('approaches_not_of_interest', eb.approaches_not_of_interest);
+      // Auto-expand if any detail fields have content
+      const hasExpanded = Object.values(eb).some((v) => v?.trim());
+      if (hasExpanded) setExpandOpen(true);
+    }
+    // Governance mode from challenge
+    if (ch.governance_profile && !propGovernanceMode) {
+      const mode = resolveGovernanceMode(ch.governance_profile as string);
+      setLocalGovernanceMode(mode);
+    }
+    // Engagement model from challenge
+    if (ch.operating_model && !propEngagementModel) {
+      setLocalEngagementModel(ch.operating_model as string);
+    }
+
+    setEditPrefilled(true);
+  }, [isEditMode, editChallenge, editPrefilled]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ═══════ Conditional returns (after all hooks) ═══════
-  if (orgLoading) {
+  if (orgLoading || (isEditMode && editLoading)) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <Skeleton className="h-8 w-64" />
