@@ -555,9 +555,22 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             )}
             {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
           </div>
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="problem_statement"
+              review={aiReviews['problem_statement']}
+              currentContent={problemSummary}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['problem_statement']?.status === 'needs_revision' || aiReviews['problem_statement']?.status === 'warning'}
+            />
+          )}
         </div>
 
-        {/* Fullscreen Dialog — Problem Editor */}
         <Dialog open={problemFullscreen} onOpenChange={setProblemFullscreen}>
           <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader className="shrink-0">
