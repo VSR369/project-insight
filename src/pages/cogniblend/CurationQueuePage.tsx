@@ -310,7 +310,8 @@ export default function CurationQueuePage() {
   // SECTION 6: Handlers
   // ══════════════════════════════════════
   const handleRowClick = (ch: EnrichedCurationChallenge) => {
-    navigate(`/cogni/curation/${ch.id}`);
+    const isIncoming = ch.current_phase === 1 || ch.current_phase === 2;
+    navigate(`/cogni/curation/${ch.id}${isIncoming ? '?mode=view' : ''}`);
   };
 
   // ══════════════════════════════════════
