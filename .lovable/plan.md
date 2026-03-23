@@ -1,28 +1,24 @@
 
 
-# Fix: `v?.trim is not a function` crash in ConversationalIntakeContent
+# Fix: Clamp Governance Mode to Tier-Allowed Modes
 
-## Root Cause
-Line 480 in `ConversationalIntakePage.tsx`:
-```typescript
-const hasExpanded = Object.values(eb).some((v) => v?.trim());
-```
-
-The `extended_brief` JSON column can contain nested objects or arrays as values, not just strings. Calling `.trim()` on an object throws `TypeError`.
-
-Same issue on line 471:
-```typescript
-if (!KNOWN_BRIEF_KEYS.has(key) && typeof val === 'string' && val.trim()) {
-```
-This line is safe (has `typeof val === 'string'` guard), but line 480 lacks the guard.
+## Problem
+When loading a challenge in edit mode, the code at line 484-486 sets governance mode directly from `ch.governance_profile` via `resolveGovernanceMode()`, without checking if that mode is allowed for the org's current tier. A Basic-tier org seeing a challenge stored as STRUCTURED violates BR: Basic tier = QUICK only.
 
 ## Fix
 **File: `src/pages/cogniblend/ConversationalIntakePage.tsx`**
 
-Line 480 — add a type guard:
+Line 484-487 — clamp the resolved mode to available modes for the org's tier:
+
 ```typescript
-const hasExpanded = Object.values(eb).some((v) => typeof v === 'string' && v.trim());
+if (ch.governance_profile && !propGovernanceMode) {
+  const resolved = resolveGovernanceMode(ch.governance_profile as string);
+  const allowed = getAvailableGovernanceModes(currentOrg?.tierCode);
+  setLocalGovernanceMode(allowed.includes(resolved) ? resolved : allowed[0] ?? 'QUICK');
+}
 ```
 
-This is a one-line fix. No other files need changes.
+Also apply the same clamping at line 399-401 (the org-defaults sync), which already uses `getDefaultGovernanceMode` and is correct — no change needed there.
+
+This is a 1-line logic change in a single file.
 
