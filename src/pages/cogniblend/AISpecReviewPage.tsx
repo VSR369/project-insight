@@ -791,6 +791,8 @@ export default function AISpecReviewPage() {
   const [autoRepairDone, setAutoRepairDone] = useState(false);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenError, setAutoGenError] = useState<string | null>(null);
+  const [isAiReviewing, setIsAiReviewing] = useState(false);
+  const [aiReviews, setAiReviews] = useState<Record<string, SectionReview>>({});
   // Org-policy settings state (Creator-facing)
   const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
   // Domain targeting taxonomy state
