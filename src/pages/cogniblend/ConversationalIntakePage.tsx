@@ -1266,6 +1266,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('affected_stakeholders') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
