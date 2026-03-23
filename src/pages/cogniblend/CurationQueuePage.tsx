@@ -1,10 +1,10 @@
 /**
  * Curation Queue Page — /cogni/curation
  *
- * Lists challenges assigned to the Curator (CU role).
- * Phase 2 challenges appear as "Incoming" (read-only, awaiting LC/FC).
- * Phase 3 challenges are "Ready for Review" (full curation access).
- * Filter tabs: Awaiting Review | Incoming | Under Revision | All.
+ * Shows ALL active challenges (phases 1-3) within the curator's organization.
+ * Access restricted to users holding at least one active CU role.
+ * Phase 1/2 challenges open in read-only mode; Phase 3 is fully editable.
+ * Includes assignment indicators (Assigned to Me / Other / Unassigned).
  */
 
 import { useMemo, useState } from "react";
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrgContext } from "@/contexts/OrgContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckSquare, Clock, Eye, FileCheck } from "lucide-react";
+import { CheckSquare, Clock, Eye, FileCheck, User } from "lucide-react";
 import type { SlaStatus } from "@/hooks/cogniblend/useCogniDashboard";
 
 // ---------------------------------------------------------------------------
@@ -47,9 +48,17 @@ interface CurationChallenge {
   organization_id: string;
 }
 
+interface CuAssignment {
+  challenge_id: string;
+  user_id: string;
+  user_name: string | null;
+}
+
 interface EnrichedCurationChallenge extends CurationChallenge {
   sla: SlaStatus | null;
   modificationCycle: string;
+  assignmentLabel: "mine" | "other" | "unassigned";
+  assigneeName: string | null;
 }
 
 type FilterTab = "awaiting" | "incoming" | "revision" | "all";
@@ -139,6 +148,30 @@ function maturityBadge(level: string | null) {
   );
 }
 
+function assignmentBadge(label: "mine" | "other" | "unassigned", name: string | null) {
+  if (label === "mine") {
+    return (
+      <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold gap-1">
+        <User className="h-3 w-3" />
+        Assigned to Me
+      </Badge>
+    );
+  }
+  if (label === "other") {
+    return (
+      <Badge variant="secondary" className="text-[10px] font-semibold gap-1">
+        <User className="h-3 w-3" />
+        {name ?? "Other"}
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold">
+      Unassigned
+    </Badge>
+  );
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
@@ -158,9 +191,10 @@ export default function CurationQueuePage() {
   const [activeTab, setActiveTab] = useState<FilterTab | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { organizationId } = useOrgContext();
 
   // ══════════════════════════════════════
-  // SECTION 2: Permission check
+  // SECTION 2: Permission check — user must hold at least one active CU role
   // ══════════════════════════════════════
   const { data: hasPermission, isLoading: permLoading } = useQuery({
     queryKey: ["curation-permission", user?.id],
@@ -180,32 +214,20 @@ export default function CurationQueuePage() {
   });
 
   // ══════════════════════════════════════
-  // SECTION 3: Query — curation queue challenges (Phase 2 + 3)
+  // SECTION 3: Query — ALL org challenges in phases 1-3
   // ══════════════════════════════════════
   const { data: challenges = [], isLoading } = useQuery({
-    queryKey: ["curation-queue", user?.id],
+    queryKey: ["curation-queue", organizationId],
     queryFn: async (): Promise<EnrichedCurationChallenge[]> => {
-      if (!user?.id) return [];
+      if (!user?.id || !organizationId) return [];
 
-      // Step 1: Get challenge IDs where user holds active CU role
-      const { data: cuRoles, error: rolesError } = await supabase
-        .from("user_challenge_roles")
-        .select("challenge_id")
-        .eq("user_id", user.id)
-        .eq("role_code", "CU")
-        .eq("is_active", true);
-
-      if (rolesError) throw new Error(rolesError.message);
-      const cuChallengeIds = (cuRoles ?? []).map((r) => r.challenge_id);
-      if (cuChallengeIds.length === 0) return [];
-
-      // Step 2: Fetch challenges at phase 2 or 3
+      // Step 1: Fetch all org challenges in phases 1-3
       const { data: rows, error } = await supabase
         .from("challenges")
         .select(
           "id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id"
         )
-        .in("id", cuChallengeIds)
+        .eq("organization_id", organizationId)
         .in("current_phase", [1, 2, 3])
         .eq("is_deleted", false)
         .eq("is_active", true)
@@ -214,10 +236,29 @@ export default function CurationQueuePage() {
       if (error) throw new Error(error.message);
       if (!rows || rows.length === 0) return [];
 
-      // Enrich with SLA status in parallel
+      // Step 2: Fetch CU role assignments for these challenges to show assignment indicators
+      const challengeIds = rows.map((r) => r.id);
+      const { data: cuAssignments } = await supabase
+        .from("user_challenge_roles")
+        .select("challenge_id, user_id")
+        .in("challenge_id", challengeIds)
+        .eq("role_code", "CU")
+        .eq("is_active", true);
+
+      // Build a map: challenge_id → CuAssignment[]
+      const assignmentMap = new Map<string, CuAssignment[]>();
+      if (cuAssignments) {
+        for (const a of cuAssignments) {
+          const list = assignmentMap.get(a.challenge_id) ?? [];
+          list.push({ challenge_id: a.challenge_id, user_id: a.user_id, user_name: null });
+          assignmentMap.set(a.challenge_id, list);
+        }
+      }
+
+      // Step 3: Enrich with SLA status + assignment label
       const enriched = await Promise.all(
         (rows as CurationChallenge[]).map(async (ch) => {
-          // Only fetch SLA for Phase 3 challenges
+          // SLA only for Phase 3
           let sla: SlaStatus | null = null;
           if (ch.current_phase === 3) {
             const slaRes = await supabase.rpc("check_sla_status", {
@@ -231,17 +272,33 @@ export default function CurationQueuePage() {
                   : slaRes.data) as SlaStatus | null);
           }
 
+          // Assignment indicator
+          const assignments = assignmentMap.get(ch.id) ?? [];
+          let assignmentLabel: "mine" | "other" | "unassigned" = "unassigned";
+          let assigneeName: string | null = null;
+          if (assignments.length > 0) {
+            const isMine = assignments.some((a) => a.user_id === user!.id);
+            if (isMine) {
+              assignmentLabel = "mine";
+            } else {
+              assignmentLabel = "other";
+              assigneeName = "Another Curator";
+            }
+          }
+
           return {
             ...ch,
             sla,
             modificationCycle: "Cycle 1 of 3",
+            assignmentLabel,
+            assigneeName,
           } satisfies EnrichedCurationChallenge;
         })
       );
 
       return enriched;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !!organizationId,
     staleTime: 30_000,
   });
 
@@ -367,7 +424,7 @@ export default function CurationQueuePage() {
           </p>
           <p className="text-sm text-muted-foreground/70 max-w-sm">
             {resolvedTab === "incoming"
-              ? "Challenges will appear here once you're assigned as Curator, while Legal and Finance complete their review."
+              ? "Challenges will appear here once they enter the curation pipeline."
               : "Challenges submitted for review will appear here."}
           </p>
         </div>
@@ -378,6 +435,7 @@ export default function CurationQueuePage() {
               <TableRow>
                 <TableHead className="min-w-[200px]">Challenge Title</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Assignment</TableHead>
                 <TableHead>Operating Model</TableHead>
                 <TableHead>Maturity Level</TableHead>
                 <TableHead>Modification Cycle</TableHead>
@@ -390,7 +448,9 @@ export default function CurationQueuePage() {
                 const isIncoming = ch.current_phase === 1 || ch.current_phase === 2;
                 const tooltipText = ch.current_phase === 1
                   ? "Challenge specification is still being developed."
-                  : "This challenge is awaiting Legal & Finance review. You'll be able to curate it once it advances to Phase 3.";
+                  : ch.current_phase === 2
+                  ? "This challenge is awaiting Legal & Finance review."
+                  : undefined;
                 return (
                   <TableRow
                     key={ch.id}
@@ -414,7 +474,7 @@ export default function CurationQueuePage() {
                             {ch.title}
                           </Button>
                         </TooltipTrigger>
-                        {isIncoming && (
+                        {tooltipText && (
                           <TooltipContent>
                             <p className="text-xs">{tooltipText}</p>
                           </TooltipContent>
@@ -422,6 +482,7 @@ export default function CurationQueuePage() {
                       </Tooltip>
                     </TableCell>
                     <TableCell>{phaseBadge(ch.current_phase)}</TableCell>
+                    <TableCell>{assignmentBadge(ch.assignmentLabel, ch.assigneeName)}</TableCell>
                     <TableCell>{modelBadge(ch.operating_model)}</TableCell>
                     <TableCell>{maturityBadge(ch.maturity_level)}</TableCell>
                     <TableCell>
