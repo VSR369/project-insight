@@ -357,14 +357,28 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   };
 
   const handleSingleSectionReview = (sectionKey: string, review: SectionReview) => {
-    setAiReviews((prev) => ({ ...prev, [sectionKey]: review }));
+    setAiReviews((prev) => {
+      const updated = { ...prev, [sectionKey]: review };
+      // Persist to DB
+      if (challengeId) {
+        updateMutation.mutate({ challengeId, payload: { ai_section_reviews: Object.values(updated) } });
+      }
+      return updated;
+    });
   };
 
   const handleMarkAddressed = (sectionKey: string) => {
-    setAiReviews((prev) => ({
-      ...prev,
-      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
-    }));
+    setAiReviews((prev) => {
+      const updated = {
+        ...prev,
+        [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+      };
+      // Persist to DB
+      if (challengeId) {
+        updateMutation.mutate({ challengeId, payload: { ai_section_reviews: Object.values(updated) } });
+      }
+      return updated;
+    });
   };
 
   // ═══════ Conditional returns ═══════
