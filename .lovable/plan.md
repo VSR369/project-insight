@@ -1,41 +1,39 @@
 
 
-# Fix: AM Dashboard View — Same Screen as New Challenge, with View/Edit Toggle
+# Fix: AM Content Not Fully Visible in CA Role — Industry Segment Missing
 
-## What's Wrong
-`AMRequestViewPage` renders `ConversationalIntakeContent` (CA/CR form) for all roles. AM users should see the exact same `SimpleIntakeForm` layout they used to create the challenge, starting in **read-only view mode** with an option to switch to edit.
+## Problem
+When the AM creates a challenge, the `industry_segment_id` is saved inside the `eligibility` JSONB field (as `{"industry_segment_id": "..."}`). However, when CA/CR opens the same challenge via `ConversationalIntakeContent`, it only reads `industry_segment_id` from `targeting_filters` (line 452-454), which is always `{}` for AM-created challenges. This means the industry segment selected by the AM is never shown to the CA.
 
-## Changes
+All other fields (title, problem_statement, scope, budget, timeline, beneficiaries_mapping) flow correctly.
 
-### 1. Add `view` mode to `SimpleIntakeForm`
-**File: `src/components/cogniblend/SimpleIntakeForm.tsx`**
+## Fix
 
-- Extend `mode` prop type: `'create' | 'edit' | 'view'`
-- Add `isViewMode = mode === 'view'` flag
-- When `isViewMode`:
-  - All form fields become read-only/disabled (inputs get `disabled`, selects get `disabled`, rich text editors render as `SafeHtmlRenderer` instead of editable)
-  - Hide "Expand" buttons on rich text fields
-  - Hide action buttons (Submit/Save Draft)
-  - Hide approval gate toggle (or show it disabled)
-  - Content boxes dynamically hug their content (apply `editor-content-display` class on rich text containers)
-- Pre-fill logic reuses the existing `useExistingChallenge` hook (same as edit mode)
+**File: `src/pages/cogniblend/ConversationalIntakePage.tsx`** (lines 451-455)
 
-### 2. Update `AMRequestViewPage` — role-aware with view/edit toggle
-**File: `src/pages/cogniblend/AMRequestViewPage.tsx`**
+Add a fallback to read `industry_segment_id` from the `eligibility` field when `targeting_filters` doesn't have it:
 
-- Import `useCogniRoleContext` to detect active role
-- Add local state: `const [pageMode, setPageMode] = useState<'view' | 'edit'>('view')`
-- Show a top-right "Edit" button when in view mode, "Back to View" when in edit mode
-- Route by role:
-  - **AM/RQ** → `<SimpleIntakeForm challengeId={id} mode={pageMode} />`
-  - **CA/CR** → `<ConversationalIntakeContent challengeId={id} mode={pageMode} />` (existing behavior)
-- Include `CreationContextBar` for both
+```typescript
+// Industry segment from targeting_filters, eligibility, or eligibility_model
+const targeting = ch.targeting_filters as Record<string, unknown> | null;
+if (targeting?.industry_segment_id) {
+  setSelectedIndustrySegmentId(targeting.industry_segment_id as string);
+} else {
+  // Fallback: AM intake stores industry_segment_id in eligibility JSON
+  let elig = ch.eligibility as Record<string, unknown> | string | null;
+  if (typeof elig === 'string') {
+    try { elig = JSON.parse(elig); } catch { elig = null; }
+  }
+  if (elig && typeof elig === 'object' && (elig as Record<string, unknown>).industry_segment_id) {
+    setSelectedIndustrySegmentId((elig as Record<string, unknown>).industry_segment_id as string);
+  }
+}
+```
 
-### 3. Dynamic content box heights
-Already handled by the `isViewMode` flag — rich text fields will render via `SafeHtmlRenderer` with `editor-content-display` class (content-hugging), and disabled select/input fields will retain their natural height. No fixed min-heights in view mode.
+This is a single-location change. The `eligibility` field is already fetched by the edit query (confirmed in network data). No other files need modification.
 
-## Summary
-- **SimpleIntakeForm** gets a third `view` mode (read-only, content-hugging)
-- **AMRequestViewPage** becomes role-aware, defaults to view mode with edit toggle
-- CA/CR dashboard view is untouched
+## Technical Details
+- The `eligibility` column stores a JSON-stringified object: `"{\"industry_segment_id\":\"b1a248ce-...\"}"` (double-encoded string in the DB response)
+- The fix handles both parsed-object and string forms of the `eligibility` field
+- This also fixes the console warning about `Function components cannot be given refs` for `ConversationalIntakeContent` as a side benefit — actually no, that's a separate ref-forwarding issue
 
