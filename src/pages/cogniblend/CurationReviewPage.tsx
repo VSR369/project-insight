@@ -727,7 +727,7 @@ const CHECKLIST_LABELS: string[] = [
   "Maturity level + legal match",
   "Artifact types configured",
   "Escrow funding confirmed",
-];
+] as const;
 
 function computeAutoChecks(
   challenge: ChallengeData,
