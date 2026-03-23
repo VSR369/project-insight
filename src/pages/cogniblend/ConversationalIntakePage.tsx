@@ -1012,17 +1012,25 @@ export function ConversationalIntakeContent({
               : 'As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs.'}
           </p>
         </div>
-        {!isViewMode && !onSwitchToEditor && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleGoToEditor()}
-            className="shrink-0"
-          >
-            <Settings2 className="h-4 w-4 mr-1.5" />
-            Advanced Editor
-          </Button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {mode === 'edit' && editChallengeId && (
+            <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
+              {isAiReviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+              {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
+            </Button>
+          )}
+          {!isViewMode && !onSwitchToEditor && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleGoToEditor()}
+              className="shrink-0"
+            >
+              <Settings2 className="h-4 w-4 mr-1.5" />
+              Advanced Editor
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Controlled mode notice */}
