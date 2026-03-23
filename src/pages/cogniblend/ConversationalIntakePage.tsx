@@ -1365,9 +1365,7 @@ export function ConversationalIntakeContent({
               fieldName="context_background"
               placeholder="Provide relevant history, industry context, or organizational background that solvers should understand…"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('context_background') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1376,9 +1374,7 @@ export function ConversationalIntakeContent({
               fieldName="root_causes"
               placeholder="What are the underlying causes of this problem? Why hasn't it been solved yet?"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('root_causes') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1387,9 +1383,7 @@ export function ConversationalIntakeContent({
               fieldName="affected_stakeholders"
               placeholder="Who is impacted by this problem and how? (e.g., end users, operations teams, customers)"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('affected_stakeholders') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1398,9 +1392,7 @@ export function ConversationalIntakeContent({
               fieldName="scope_definition"
               placeholder="What is explicitly in scope and out of scope for this challenge?"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('scope_definition') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1409,9 +1401,7 @@ export function ConversationalIntakeContent({
               fieldName="preferred_approach"
               placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('preferred_approach') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1420,9 +1410,7 @@ export function ConversationalIntakeContent({
               fieldName="approaches_not_of_interest"
               placeholder="What has been tried and failed? What approaches should solvers avoid?"
               maxLength={1000}
-              rows={2}
-              register={form.register}
-              watchValue={form.watch('approaches_not_of_interest') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1431,9 +1419,7 @@ export function ConversationalIntakeContent({
               fieldName="beneficiaries_mapping"
               placeholder="Who benefits from solving this challenge? Map internal and external beneficiaries…"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('beneficiaries_mapping') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1442,9 +1428,7 @@ export function ConversationalIntakeContent({
               fieldName="solution_expectations"
               placeholder="What does commercial or operational success look like for the solution?"
               maxLength={2000}
-              rows={3}
-              register={form.register}
-              watchValue={form.watch('solution_expectations') ?? ''}
+              control={form.control}
               disabled={isViewMode}
             />
 
@@ -1457,24 +1441,15 @@ export function ConversationalIntakeContent({
                   </p>
                 </div>
                 {Object.entries(dynamicBriefFields).map(([key, value]) => (
-                  <div key={key} className="space-y-1.5">
-                    <label className="text-sm font-medium text-foreground">{humanizeKey(key)}</label>
-                    <Textarea
-                      rows={3}
-                      maxLength={2000}
-                      className="text-base resize-none"
-                      value={value}
-                      disabled={isViewMode}
-                      onChange={(e) =>
-                        setDynamicBriefFields((prev) => ({ ...prev, [key]: e.target.value }))
-                      }
-                    />
-                    <div className="flex justify-end">
-                      <span className="text-xs text-muted-foreground">
-                        {(value ?? '').length} / 2,000
-                      </span>
-                    </div>
-                  </div>
+                  <DynamicBriefField
+                    key={key}
+                    fieldKey={key}
+                    value={value}
+                    disabled={isViewMode}
+                    onChange={(val) =>
+                      setDynamicBriefFields((prev) => ({ ...prev, [key]: val }))
+                    }
+                  />
                 ))}
               </>
             )}
