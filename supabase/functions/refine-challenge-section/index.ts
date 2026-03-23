@@ -1,7 +1,9 @@
 /**
- * refine-challenge-section — AI-powered section refinement for Curation.
- * Accepts curator instructions (edited review comments) and rewrites a
- * specific section of the challenge specification accordingly.
+ * refine-challenge-section — AI-powered section refinement.
+ * Accepts role_context to tailor refinement prompts per role:
+ *   'intake' → brief clarity for AM/RQ
+ *   'spec'   → solver-readiness for CR/CA
+ *   'curation' → publication quality for CU (default)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -15,7 +17,40 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are an expert innovation challenge specification writer.
+function getSystemPrompt(roleContext: string): string {
+  if (roleContext === "intake") {
+    return `You are an expert business brief writer helping Account Managers and Challenge Requestors improve their intake submissions.
+
+Your task: Rewrite or improve a specific section of an intake brief based on the reviewer's instructions.
+
+Rules:
+- Follow the reviewer's instructions precisely.
+- Focus on clarity, specificity, and completeness for downstream Challenge Creators/Architects.
+- Use clear, professional business language — avoid jargon unless appropriate to the domain.
+- Be specific and actionable — replace vague phrases with concrete descriptions.
+- For text fields, return plain text or HTML (matching the input format).
+- Keep the length appropriate — provide enough detail without padding.
+- Do NOT add markdown formatting unless the input already uses it.`;
+  }
+
+  if (roleContext === "spec") {
+    return `You are an expert innovation challenge specification writer helping Challenge Creators and Architects refine their specifications.
+
+Your task: Rewrite or improve a specific section of a challenge specification based on the reviewer's instructions.
+
+Rules:
+- Follow the reviewer's instructions precisely.
+- Ensure the content is solver-ready: a solver should clearly understand expectations from this section alone.
+- Maintain consistency with the challenge context (title, maturity level, domain).
+- Use clear, professional, unambiguous language appropriate for innovation challenges.
+- Be specific and actionable — avoid vague phrases like "as needed" or "if applicable."
+- For text fields, return plain text or HTML (matching the input format).
+- For structured fields (deliverables, evaluation_criteria), return valid JSON matching the input structure.
+- Do NOT add markdown formatting unless the input already uses it.`;
+  }
+
+  // Default: curation context
+  return `You are an expert innovation challenge specification writer.
 
 Your task: Rewrite or improve a specific section of a challenge specification based on the curator's instructions.
 
@@ -37,6 +72,7 @@ For monetary/prize data:
 
 For evaluation/scoring:
 {"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}`;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -60,7 +96,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, current_content, curator_instructions, context } = await req.json();
+    const { challenge_id, section_key, current_content, curator_instructions, context, role_context } = await req.json();
 
     if (!challenge_id || !section_key || !curator_instructions) {
       return new Response(
@@ -69,10 +105,14 @@ serve(async (req) => {
       );
     }
 
+    const resolvedRoleContext = ["intake", "spec", "curation"].includes(role_context) ? role_context : "curation";
+
     const contextParts: string[] = [];
     if (context?.title) contextParts.push(`Challenge Title: ${context.title}`);
     if (context?.maturity_level) contextParts.push(`Maturity Level: ${context.maturity_level}`);
     if (context?.domain_tags?.length) contextParts.push(`Domain Tags: ${context.domain_tags.join(", ")}`);
+
+    const instructionLabel = resolvedRoleContext === "intake" ? "REVIEWER'S" : resolvedRoleContext === "spec" ? "CREATOR'S" : "CURATOR'S";
 
     const userPrompt = `SECTION: ${section_key}
 
@@ -82,10 +122,10 @@ ${typeof current_content === "string" ? current_content : JSON.stringify(current
 CHALLENGE CONTEXT:
 ${contextParts.length > 0 ? contextParts.join("\n") : "No additional context provided."}
 
-CURATOR'S INSTRUCTIONS (follow these precisely):
+${instructionLabel} INSTRUCTIONS (follow these precisely):
 ${curator_instructions}
 
-Rewrite the section content following the curator's instructions. Return ONLY the refined content, nothing else.`;
+Rewrite the section content following the instructions. Return ONLY the refined content, nothing else.`;
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
@@ -96,7 +136,7 @@ Rewrite the section content following the curator's instructions. Return ONLY th
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: getSystemPrompt(resolvedRoleContext) },
           { role: "user", content: userPrompt },
         ],
       }),
