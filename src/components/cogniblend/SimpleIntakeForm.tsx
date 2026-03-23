@@ -371,17 +371,19 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       <div className="w-full max-w-2xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          {isEditMode && (
+          {(isEditMode || isViewMode) && (
             <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/dashboard')}>
               <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
             </Button>
           )}
           <div>
             <h2 className="text-xl font-bold text-foreground">
-              {isEditMode ? 'Edit Your Idea' : 'Share Your Idea'}
+              {isViewMode ? 'View Your Idea' : isEditMode ? 'Edit Your Idea' : 'Share Your Idea'}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {isEditMode
+              {isViewMode
+                ? 'Read-only view of your submitted idea.'
+                : isEditMode
                 ? 'Update your idea details below. Your changes will be saved immediately.'
                 : 'As an internal employee, share your idea — a Challenge Creator from your team will expand it. You don\'t need to know the budget, but please indicate your timeline.'}
             </p>
