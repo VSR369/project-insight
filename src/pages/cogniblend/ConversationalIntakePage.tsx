@@ -32,8 +32,12 @@ import {
   Info,
   Check,
   Maximize2,
+  Bot,
+  Loader2,
 } from 'lucide-react';
 
+import { AIReviewInline, type SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
