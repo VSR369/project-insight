@@ -1256,8 +1256,20 @@ export function ConversationalIntakeContent({
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Step 3: Expected Outcomes */}
+      {mode === 'edit' && editChallengeId && (
+        <AIReviewInline
+          sectionKey="problem_statement"
+          review={aiReviews['problem_statement']}
+          currentContent={form.watch('problem_statement')}
+          challengeId={editChallengeId}
+          challengeContext={{ title: form.watch('title'), maturity_level: form.watch('maturity_level') }}
+          onAcceptRefinement={handleAcceptRefinement}
+          onSingleSectionReview={handleSingleSectionReview}
+          onMarkAddressed={handleMarkAddressed}
+          roleContext="spec"
+          defaultOpen={aiReviews['problem_statement']?.status === 'needs_revision' || aiReviews['problem_statement']?.status === 'warning'}
+        />
+      )}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-semibold text-foreground">
