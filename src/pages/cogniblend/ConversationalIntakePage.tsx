@@ -433,6 +433,13 @@ export function ConversationalIntakeContent({
   const watchedMaturity = form.watch('maturity_level');
   const watchedProblem = form.watch('problem_statement');
 
+  // ═══════ Hooks — clear stale data for fresh create ═══════
+  useEffect(() => {
+    if (mode === 'create' && !editChallengeId) {
+      sessionStorage.removeItem('cogni_intake_conversational');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ═══════ Hooks — effects ═══════
 
   useEffect(() => {
