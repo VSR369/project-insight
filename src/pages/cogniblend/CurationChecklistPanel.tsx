@@ -8,6 +8,7 @@
 
 import ModificationPointsTracker from '@/components/cogniblend/ModificationPointsTracker';
 import { useState, useMemo, useCallback } from "react";
+import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -277,7 +278,9 @@ export default function CurationChecklistPanel({
         const artifacts = del?.permitted_artifact_types;
         return Array.isArray(artifacts) && artifacts.length > 0;
       })(),
-      /* 15 */ escrowRecord?.escrow_status === "FUNDED",
+      /* 15 */ isControlledMode(resolveGovernanceMode(challenge.governance_profile))
+        ? escrowRecord?.escrow_status === "FUNDED"
+        : true,
     ],
     [challenge, legalDocs, evalWeightSum, tier1Docs, tier2Docs, escrowRecord]
   );
@@ -297,7 +300,9 @@ export default function CurationChecklistPanel({
     "Complexity parameters entered",
     "Maturity level + legal match",
     "Artifact types configured",
-    "Escrow funding confirmed",
+    isControlledMode(resolveGovernanceMode(challenge.governance_profile))
+      ? "Escrow funding confirmed"
+      : "Escrow funding (not required)",
   ];
 
   const checklistItems: ChecklistItem[] = useMemo(
