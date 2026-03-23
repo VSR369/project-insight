@@ -53,7 +53,7 @@ export function useCogniUserRoles() {
   ).length ?? 0;
 
   const curationQueueCount = query.data?.filter(
-    (r) => r.current_phase === 3 && r.master_status === 'IN_PREPARATION'
+    (r) => (r.current_phase === 1 || r.current_phase === 2 || r.current_phase === 3) && r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
   const approvalQueueCount = query.data?.filter(
