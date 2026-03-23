@@ -1594,6 +1594,8 @@ export function ConversationalIntakeContent({
               />
             )}
 
+            <ExpandField
+              label="Preferred Approach"
               fieldName="preferred_approach"
               placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
               maxLength={1000}
