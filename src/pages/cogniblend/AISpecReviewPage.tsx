@@ -659,7 +659,11 @@ function SectionContent({
       const displayValue = section.fieldKey === 'ip_model'
         ? getIpModelLabel(value || null)
         : value;
-      return (
+      // Use SafeHtmlRenderer for HTML content to preserve AM's original formatting
+      const isHtml = typeof displayValue === 'string' && displayValue.trim().startsWith('<');
+      return isHtml ? (
+        <SafeHtmlRenderer html={displayValue} fallback="No content yet" />
+      ) : (
         <AiContentRenderer content={displayValue} fallback="No content yet" compact />
       );
     }
