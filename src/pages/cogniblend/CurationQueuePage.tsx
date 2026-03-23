@@ -191,7 +191,8 @@ export default function CurationQueuePage() {
   const [activeTab, setActiveTab] = useState<FilterTab | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { organizationId } = useOrgContext();
+  const { data: currentOrg } = useCurrentOrg();
+  const organizationId = currentOrg?.organizationId;
 
   // ══════════════════════════════════════
   // SECTION 2: Permission check — user must hold at least one active CU role
