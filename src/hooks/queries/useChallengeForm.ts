@@ -46,6 +46,9 @@ export interface ChallengeDetail {
   hook: string | null;
   effort_level: string | null;
   extended_brief: Record<string, unknown> | null;
+  eligibility_model: string | null;
+  domain_tags: unknown;
+  targeting_filters: Record<string, unknown> | null;
 }
 
 /* ─── useChallengeDetail ─────────────────────────────────── */
