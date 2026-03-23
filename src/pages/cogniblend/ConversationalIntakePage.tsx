@@ -482,8 +482,9 @@ export function ConversationalIntakeContent({
     }
     // Governance mode from challenge
     if (ch.governance_profile && !propGovernanceMode) {
-      const mode = resolveGovernanceMode(ch.governance_profile as string);
-      setLocalGovernanceMode(mode);
+      const resolved = resolveGovernanceMode(ch.governance_profile as string);
+      const allowed = getAvailableGovernanceModes(currentOrg?.tierCode);
+      setLocalGovernanceMode(allowed.includes(resolved) ? resolved : allowed[0] ?? 'QUICK');
     }
     // Engagement model from challenge
     if (ch.operating_model && !propEngagementModel) {
