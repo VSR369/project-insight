@@ -1196,6 +1196,7 @@ export function ConversationalIntakeContent({
         <Select
           value={form.watch('expected_timeline') || ''}
           onValueChange={(v) => form.setValue('expected_timeline', v)}
+          disabled={isViewMode}
         >
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select timeline" />
