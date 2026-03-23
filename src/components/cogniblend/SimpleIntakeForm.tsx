@@ -631,9 +631,22 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               />
             )}
           </div>
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="beneficiaries_mapping"
+              review={aiReviews['beneficiaries_mapping']}
+              currentContent={watch('beneficiaries_mapping') ?? null}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['beneficiaries_mapping']?.status === 'needs_revision' || aiReviews['beneficiaries_mapping']?.status === 'warning'}
+            />
+          )}
         </div>
 
-        {/* Fullscreen Dialog — Beneficiaries Editor */}
         <Dialog open={beneficiariesFullscreen} onOpenChange={setBeneficiariesFullscreen}>
           <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader className="shrink-0">
