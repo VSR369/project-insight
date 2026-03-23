@@ -1222,6 +1222,13 @@ export default function CurationReviewPage() {
   }
 
   const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
+  const isReadOnly = (challenge.current_phase ?? 0) < 3 || searchParams.get('mode') === 'view';
+
+  const phaseDescription = challenge.current_phase === 1
+    ? 'Spec Creation (Phase 1)'
+    : challenge.current_phase === 2
+      ? 'Legal & Finance Review (Phase 2)'
+      : '';
 
   // ══════════════════════════════════════
   // SECTION 7: Render
