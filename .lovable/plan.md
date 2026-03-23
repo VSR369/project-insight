@@ -1,145 +1,70 @@
 
 
-# Field Mapping Matrix: Role-to-Curator Data Flow
+# Expand Curation Queue to Show Incoming (Phase 2) Challenges
 
-## Analysis Summary
+## Confirmed Assumption
 
-I traced every field from intake (AM/RQ) through specification (CA/CR) to the Curation Review page. Below are the two mapping matrices and the gaps found.
+Yes — challenges appear in the Curator's queue as soon as they're assigned the CU role, but remain **read-only** ("Incoming") until LC/FC complete their work and the challenge advances to Phase 3. At Phase 3, the Curator gains full edit access to prepare the challenge package.
 
----
+## Changes
 
-## Matrix 1: AGG Flow — Challenge Requestor (RQ) → Challenge Creator (CR) → Curator (CU)
+### File: `src/pages/cogniblend/CurationQueuePage.tsx`
 
-```text
-┌──────────────────────────┬────────────┬────────────┬────────────┬──────────────────────┐
-│ Field                    │ RQ Creates │ CR Creates │ CU Sees    │ Gap?                 │
-├──────────────────────────┼────────────┼────────────┼────────────┼──────────────────────┤
-│ Title                    │ Auto-derived│ AI/Edit   │ ✅ Header  │ —                    │
-│ Problem Statement        │ ✅          │ AI refines│ ✅         │ —                    │
-│ Scope (Expected Outcomes)│ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Deliverables             │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Submission Guidelines    │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Maturity Level           │ —          │ ✅         │ ✅         │ —                    │
-│ Challenge Hook           │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Evaluation Criteria      │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Reward Structure         │ —          │ ✅ (prize) │ ✅         │ —                    │
-│ IP Model                 │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Phase Schedule           │ ✅ timeline │ ✅ deadline│ ✅         │ —                    │
-│ Submission Deadline      │ —          │ ✅         │ ✅         │ —                    │
-│ Challenge Visibility     │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Domain Tags              │ ✅ template │ ✅         │ ✅         │ —                    │
-│ Extended Brief           │ —          │ ✅ opt.    │ ✅         │ —                    │
-│ Eligibility              │ ✅ segment  │ ✅ AI gen  │ ✅         │ —                    │
-│ Complexity Assessment    │ —          │ —          │ ✅ (CU own)│ —                    │
-│ Legal Docs               │ —          │ —          │ ✅ (LC own)│ —                    │
-│ Escrow & Funding         │ —          │ —          │ ✅ (FC own)│ —                    │
-│ Effort Level             │ —          │ —          │ ✅ (CU own)│ —                    │
-├──────────────────────────┼────────────┼────────────┼────────────┼──────────────────────┤
-│ Challenge Template ID    │ ✅          │ ✅ carried │ ❌ MISSING │ Not shown to Curator │
-│ Industry Segment         │ ✅          │ Stored in  │ ❌ MISSING │ Not shown to Curator │
-│                          │            │ eligibility│            │                      │
-│ Beneficiaries Mapping    │ ✅ optional │ Carried    │ ❌ MISSING │ In extended_brief    │
-│                          │            │            │            │ but not rendered     │
-│ Solution Expectations    │ ✅ optional │ Carried    │ ❌ MISSING │ In extended_brief    │
-│                          │            │            │            │ but not rendered     │
-│ AM Approval Required     │ — (AGG)    │ —          │ ❌ N/A     │ — (MP only)          │
-│ Currency Code (display)  │ ✅          │ ✅         │ ✅         │ —                    │
-└──────────────────────────┴────────────┴────────────┴────────────┴──────────────────────┘
+**1. Expand query to fetch Phase 2 + Phase 3 challenges (lines 159-170)**
+
+Replace the single `eq('current_phase', 3)` query with a two-step approach:
+- First fetch challenge IDs where user holds active CU role from `user_challenge_roles`
+- Then fetch those challenges where `current_phase` is 2 or 3
+
+```typescript
+// Step 1: Get CU-assigned challenge IDs
+const { data: cuRoles } = await supabase
+  .from('user_challenge_roles')
+  .select('challenge_id')
+  .eq('user_id', user.id)
+  .eq('role_code', 'CU')
+  .eq('is_active', true);
+
+const cuChallengeIds = (cuRoles ?? []).map(r => r.challenge_id);
+
+// Step 2: Fetch challenges at phase 2 or 3
+const { data: rows } = await supabase
+  .from('challenges')
+  .select('id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id')
+  .in('id', cuChallengeIds)
+  .in('current_phase', [2, 3])
+  .eq('is_deleted', false)
+  .eq('is_active', true)
+  .order('created_at', { ascending: true });
 ```
 
----
+**2. Add "Incoming" tab (line 55-59)**
 
-## Matrix 2: MP Flow — Account Manager (AM) → Challenge Architect (CA) → Curator (CU)
+Add a new tab between existing ones:
 
 ```text
-┌──────────────────────────┬────────────┬────────────┬────────────┬──────────────────────┐
-│ Field                    │ AM Creates │ CA Creates │ CU Sees    │ Gap?                 │
-├──────────────────────────┼────────────┼────────────┼────────────┼──────────────────────┤
-│ Title                    │ ✅          │ AI refines│ ✅ Header  │ —                    │
-│ Problem Statement/Summary│ ✅          │ AI refines│ ✅         │ —                    │
-│ Scope (Expected Outcomes)│ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Deliverables             │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Submission Guidelines    │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Maturity Level           │ —          │ ✅         │ ✅         │ —                    │
-│ Challenge Hook           │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Evaluation Criteria      │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Reward Structure         │ ✅ budget   │ ✅ (prize) │ ✅         │ —                    │
-│ IP Model                 │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Phase Schedule           │ ✅ timeline │ ✅ deadline│ ✅         │ —                    │
-│ Submission Deadline      │ —          │ ✅         │ ✅         │ —                    │
-│ Challenge Visibility     │ —          │ ✅ AI gen  │ ✅         │ —                    │
-│ Domain Tags              │ ✅ template │ ✅         │ ✅         │ —                    │
-│ Extended Brief           │ —          │ ✅ opt.    │ ✅         │ —                    │
-│ Eligibility              │ ✅ segment  │ ✅ AI gen  │ ✅         │ —                    │
-│ Complexity Assessment    │ —          │ —          │ ✅ (CU own)│ —                    │
-│ Legal Docs               │ —          │ —          │ ✅ (LC own)│ —                    │
-│ Escrow & Funding         │ —          │ —          │ ✅ (FC own)│ —                    │
-│ Effort Level             │ —          │ —          │ ✅ (CU own)│ —                    │
-├──────────────────────────┼────────────┼────────────┼────────────┼──────────────────────┤
-│ Challenge Template ID    │ ✅ optional │ ✅ carried │ ❌ MISSING │ Not shown to Curator │
-│ Industry Segment         │ ✅          │ Stored in  │ ❌ MISSING │ Not shown to Curator │
-│                          │            │ eligibility│            │                      │
-│ Solution Expectations    │ ✅          │ Carried    │ ❌ MISSING │ In extended_brief    │
-│                          │            │            │            │ but not rendered     │
-│ Beneficiaries Mapping    │ ✅ optional │ Carried    │ ❌ MISSING │ In extended_brief    │
-│                          │            │            │            │ but not rendered     │
-│ AM Approval Required     │ ✅          │ Carried    │ ❌ MISSING │ In extended_brief    │
-│                          │            │            │            │ but not rendered     │
-│ Architect ID (assigned)  │ ✅ auto     │ —          │ ❌ MISSING │ Not shown to Curator │
-│ Currency Code (display)  │ ✅          │ ✅         │ ✅         │ —                    │
-└──────────────────────────┴────────────┴────────────┴────────────┴──────────────────────┘
+Awaiting Review (phase 3) | Incoming (phase 2) | Under Revision | All
 ```
 
----
+Filter logic:
+- **Awaiting Review**: `current_phase === 3` and not breached
+- **Incoming**: `current_phase === 2` (awaiting LC/FC)
+- **Under Revision**: phase 3 + SLA breached
+- **All**: everything
 
-## AI Assist: ✅ Fully Available
+**3. Add phase status column + row styling (lines 280-325)**
 
-AI assist is active across both models via edge functions: `generate-challenge-spec`, `review-challenge-sections`, `refine-challenge-section`, `check-challenge-quality`, `ai-field-assist`, `suggest-legal-documents`, `assess-complexity`.
+- New "Status" column showing:
+  - Phase 2: amber `Awaiting Legal` badge
+  - Phase 3: green `Ready for Review` badge
+- Phase 2 rows: muted styling, click navigates to a **read-only** curation review (existing `CurationReviewPage` already respects phase checks)
+- Phase 3 rows: normal clickable → full edit access
 
----
+**4. Update `EnrichedCurationChallenge` type (line 44)**
 
-## Gaps to Fix (4 items for Curation Review Page)
+Add `current_phase` to the type (already in the select but not explicitly typed for filtering).
 
-All gaps are in `CurationReviewPage.tsx` — data exists in DB but is not rendered for the Curator:
+### No other files need changes
 
-### 1. Challenge Template — show in "Original Brief" accordion or as a badge in header
-- Read from `extended_brief.challenge_template_id`, look up from `CHALLENGE_TEMPLATES`, display as a read-only badge (emoji + name)
-
-### 2. Industry Segment — show in "Original Brief" or Content group
-- Read from `eligibility` JSON (`industry_segment_id`), look up name from `industry_segments` table, display as a label
-
-### 3. Beneficiaries Mapping + Solution Expectations — render in "Original Brief" accordion
-- Both are stored in `extended_brief` but the Original Brief accordion only shows problem_statement, budget, and timeline
-- Add these as additional read-only fields in the accordion
-
-### 4. AM Approval Required (MP only) — show as indicator badge
-- Stored in `extended_brief.am_approval_required`, display as a small badge/flag so curator knows the challenge will route to AM for approval after curation
-
-### 5. Empty optional fields — show "No content added" message
-- For any field that CR/CA left empty (even optional ones like `context_background`, `root_causes`, etc.), the curator should see a "No content added" placeholder instead of nothing
-- The `extended_brief` section's `render` function currently returns `null` and defers to `ExtendedBriefDisplay` — need to ensure that component shows placeholders for empty keys
-
-## Implementation Plan
-
-### File: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-1. **Expand "Original Brief" accordion** (lines 1262-1302):
-   - Add Challenge Template badge (lookup from `CHALLENGE_TEMPLATES`)
-   - Add Industry Segment label (query or parse from `eligibility`)
-   - Add Solution Expectations field (from `extended_brief.solution_expectations`)
-   - Add Beneficiaries Mapping field (from `extended_brief.beneficiaries_mapping`)
-   - Add AM Approval Required flag (from `extended_brief.am_approval_required`, MP only)
-
-2. **Add "No content added" placeholders**: For each field in the Extended Brief section, if the value is empty/null, render a muted "No content added" message instead of hiding it entirely
-
-3. **Import** `CHALLENGE_TEMPLATES` from `@/lib/challengeTemplates`
-
-### No other files need changes — all data already flows to the DB correctly.
-
-## Technical Details
-
-- Challenge template lookup: `CHALLENGE_TEMPLATES.find(t => t.id === extBrief?.challenge_template_id)`
-- Industry segment: parse `challenge.eligibility` JSON → extract `industry_segment_id` → display (or add a small query)
-- All extended_brief fields are already in the `select` query (line 806): `extended_brief` is fetched
-- The "Original Brief" accordion is the right location since these are seeding data from AM/RQ
+The `CurationReviewPage` already checks `current_phase` and will naturally restrict editing for Phase 2 challenges. The Curator can view the content but cannot modify until LC/FC advance it to Phase 3.
 
