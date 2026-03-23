@@ -183,6 +183,13 @@ serve(async (req) => {
 
       if (oldChallenges && oldChallenges.length > 0) {
         const oldChallengeIds = oldChallenges.map((c: { id: string }) => c.id);
+        // Delete dependent rows in correct FK order to avoid constraint violations
+        await supabaseAdmin.from("audit_trail").delete().in("challenge_id", oldChallengeIds);
+        await supabaseAdmin.from("sla_timers").delete().in("challenge_id", oldChallengeIds);
+        await supabaseAdmin.from("cogni_notifications").delete().in("challenge_id", oldChallengeIds);
+        await supabaseAdmin.from("challenge_legal_docs").delete().in("challenge_id", oldChallengeIds);
+        await supabaseAdmin.from("challenge_package_versions").delete().in("challenge_id", oldChallengeIds);
+        await supabaseAdmin.from("challenge_qa").delete().in("challenge_id", oldChallengeIds);
         await supabaseAdmin.from("user_challenge_roles").delete().in("challenge_id", oldChallengeIds);
         await supabaseAdmin.from("challenges").delete().in("id", oldChallengeIds);
       }
