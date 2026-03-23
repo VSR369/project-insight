@@ -1,70 +1,48 @@
 
 
-# Expand Curation Queue to Show Incoming (Phase 2) Challenges
+# Fix: Curation Queue Not Showing All Assigned Challenges
 
-## Confirmed Assumption
+## Root Cause
 
-Yes — challenges appear in the Curator's queue as soon as they're assigned the CU role, but remain **read-only** ("Incoming") until LC/FC complete their work and the challenge advances to Phase 3. At Phase 3, the Curator gains full edit access to prepare the challenge package.
+Two issues:
 
-## Changes
+1. **Phase 1 challenges excluded**: The query filters `.in("current_phase", [2, 3])` but 3 of the 5 CU-assigned challenges are at phase 1 (intake/spec creation). These should also appear as "Incoming" since the CU role is already assigned.
 
-### File: `src/pages/cogniblend/CurationQueuePage.tsx`
+2. **Default tab shows empty**: The default tab is "Awaiting Review" (phase 3 only), but no challenges have reached phase 3 yet. User lands on an empty view despite having 5 assigned challenges.
 
-**1. Expand query to fetch Phase 2 + Phase 3 challenges (lines 159-170)**
+## Database Evidence
 
-Replace the single `eq('current_phase', 3)` query with a two-step approach:
-- First fetch challenge IDs where user holds active CU role from `user_challenge_roles`
-- Then fetch those challenges where `current_phase` is 2 or 3
+| Challenge | Phase | Status |
+|-----------|-------|--------|
+| Predictive Maintenance... | 2 | IN_PREPARATION |
+| Healthcare Cost Reduction... | 2 | IN_PREPARATION |
+| Patient Engagement... | 1 | IN_PREPARATION |
+| AI-Driven Supply Chain... | 1 | IN_PREPARATION |
+| Green Energy Transition... | 1 | IN_PREPARATION |
 
-```typescript
-// Step 1: Get CU-assigned challenge IDs
-const { data: cuRoles } = await supabase
-  .from('user_challenge_roles')
-  .select('challenge_id')
-  .eq('user_id', user.id)
-  .eq('role_code', 'CU')
-  .eq('is_active', true);
+All 5 have active CU roles but none are at phase 3.
 
-const cuChallengeIds = (cuRoles ?? []).map(r => r.challenge_id);
+## Changes — `src/pages/cogniblend/CurationQueuePage.tsx`
 
-// Step 2: Fetch challenges at phase 2 or 3
-const { data: rows } = await supabase
-  .from('challenges')
-  .select('id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id')
-  .in('id', cuChallengeIds)
-  .in('current_phase', [2, 3])
-  .eq('is_deleted', false)
-  .eq('is_active', true)
-  .order('created_at', { ascending: true });
-```
+### 1. Expand query to include phases 1, 2, and 3
+Change `.in("current_phase", [2, 3])` to `.in("current_phase", [1, 2, 3])` so all CU-assigned challenges appear.
 
-**2. Add "Incoming" tab (line 55-59)**
+### 2. Update phaseBadge helper
+- Phase 1: blue "Spec in Progress" badge
+- Phase 2: amber "Awaiting Legal" badge (existing)
+- Phase 3: green "Ready for Review" badge (existing)
 
-Add a new tab between existing ones:
+### 3. Update tab filtering logic
+- **Incoming**: phases 1 and 2 (not just 2)
+- **Awaiting Review**: phase 3, non-breached (unchanged)
+- **Under Revision**: phase 3, breached (unchanged)
+- **All**: everything (unchanged)
 
-```text
-Awaiting Review (phase 3) | Incoming (phase 2) | Under Revision | All
-```
+### 4. Default to "All" tab when "Awaiting Review" is empty
+Auto-select "All" tab on initial load if there are no phase 3 challenges, so the user sees their assigned work immediately.
 
-Filter logic:
-- **Awaiting Review**: `current_phase === 3` and not breached
-- **Incoming**: `current_phase === 2` (awaiting LC/FC)
-- **Under Revision**: phase 3 + SLA breached
-- **All**: everything
+### 5. Phase 1 rows: read-only with tooltip
+Phase 1 rows get muted styling + tooltip "Challenge specification is still being developed" and navigate to a read-only view on click.
 
-**3. Add phase status column + row styling (lines 280-325)**
-
-- New "Status" column showing:
-  - Phase 2: amber `Awaiting Legal` badge
-  - Phase 3: green `Ready for Review` badge
-- Phase 2 rows: muted styling, click navigates to a **read-only** curation review (existing `CurationReviewPage` already respects phase checks)
-- Phase 3 rows: normal clickable → full edit access
-
-**4. Update `EnrichedCurationChallenge` type (line 44)**
-
-Add `current_phase` to the type (already in the select but not explicitly typed for filtering).
-
-### No other files need changes
-
-The `CurationReviewPage` already checks `current_phase` and will naturally restrict editing for Phase 2 challenges. The Curator can view the content but cannot modify until LC/FC advance it to Phase 3.
+## No other files need changes.
 
