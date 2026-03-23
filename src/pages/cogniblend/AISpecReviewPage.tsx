@@ -1806,7 +1806,7 @@ export default function AISpecReviewPage() {
               defaultOpen={aiReviews[section.fieldKey]?.status === 'needs_revision' || aiReviews[section.fieldKey]?.status === 'warning'}
             />
           )}
-          </>
+          </React.Fragment>
           )
         ))}
       </div>
