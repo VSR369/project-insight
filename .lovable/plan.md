@@ -1,43 +1,62 @@
 
 
-# Fix: AI Review Not Generating for All Sections
+# Phase-Based Edit Locking + Change Notifications for CA/CR
 
-## Root Cause
+## The Problem
 
-The AI model (via tool calling) does **not reliably return reviews for ALL requested sections**. When the edge function sends 9 SPEC_SECTIONS to the AI, the model sometimes returns only 7 -- skipping sections it deems less critical or that have minimal content. This is confirmed by the actual stored data: `expected_outcomes` and `beneficiaries_mapping` have NO review entries despite being in SPEC_SECTIONS.
+Currently, the Challenge Architect (CA/CR) can click "Edit" and modify challenge content **at any phase** -- even after the challenge has moved to Phase 3 (Curation) or beyond. The Curator has no way to know content was changed behind their back. This breaks governance integrity.
 
-The frontend panels check `review={aiReviews['expected_outcomes']}` which is `undefined`, so the `AIReviewInline` component shows the "Pending" message.
+## Solution: Two Layers of Protection
 
-## Fix: 1 File
+### Layer 1: Phase-Based Edit Lock (AMRequestViewPage)
 
-### Edge Function: `supabase/functions/review-challenge-sections/index.ts`
+**File: `src/pages/cogniblend/AMRequestViewPage.tsx`**
 
-After parsing the AI's tool call response (line 280-284), backfill any missing sections with a default entry. This guarantees every section in `sectionsToReview` gets a review result regardless of AI model behavior.
+Fetch the challenge's `current_phase` using the existing `useChallengeDetail` hook. Based on the active role and current phase, control whether the Edit button is shown:
 
-**After line 284** (after `newSections` is built), add:
+- **CA/CR**: Edit allowed only in Phase 1 and Phase 2 (their ownership phases). Phase 3+ = view-only with a tooltip explaining "This challenge is now with the Curator."
+- **AM/RQ**: Edit allowed only in Phase 1 (intake). Phase 2+ = view-only.
 
-```typescript
-// Backfill any sections the AI skipped with a default "pass"
-const returnedKeys = new Set(newSections.map((s: any) => s.section_key));
-for (const sec of sectionsToReview) {
-  if (!returnedKeys.has(sec.key)) {
-    newSections.push({
-      section_key: sec.key,
-      status: "pass",
-      comments: [],
-      reviewed_at: new Date().toISOString(),
-    });
-  }
-}
+When editing is locked, the Edit button is replaced with a disabled state + info badge showing who currently owns the challenge (e.g., "With Curator" or "With Legal").
+
+### Layer 2: Change Notification to Downstream Roles (Safety Net)
+
+**File: `src/pages/cogniblend/ConversationalIntakePage.tsx`** (in `handleUpdateChallenge`)
+
+If the challenge is in Phase 3+ and the user somehow edits (e.g., via a race condition or future admin override), insert a `cogni_notifications` record to alert the Curator:
+
+- `notification_type: 'CONTENT_MODIFIED'`
+- `message: "Challenge spec was updated by [role] after handoff to curation"`
+- Target: all users with `CU` role for that challenge (queried from `user_challenge_roles`)
+
+### Implementation Details
+
+**AMRequestViewPage changes:**
+```
+1. Import useChallengeDetail
+2. Fetch challenge data using the challengeId
+3. Derive editAllowed:
+   - CA/CR: current_phase <= 2
+   - AM/RQ: current_phase <= 1
+4. Show phase ownership badge when locked
+5. Pass mode='view' unconditionally when !editAllowed
 ```
 
-This ensures:
-- ALL sections in the role's section list always have review data
-- The frontend panels always receive a `review` prop (never `undefined`)
-- Sections the AI skipped appear as "Pass" rather than stuck on "Pending"
-- No frontend changes needed -- the existing code already handles "pass" with empty comments correctly (shows "This section looks good -- no issues found.")
+**ConversationalIntakePage changes (handleUpdateChallenge):**
+```
+After successful save, if current_phase >= 3:
+  1. Query user_challenge_roles for CU role holders on this challenge
+  2. Insert cogni_notifications for each CU user
+```
 
-**Redeploy** the edge function after the change.
+**Phase ownership labels:**
+| Phase | Owner Label |
+|-------|------------|
+| 1 | Intake |
+| 2 | Spec Review (CR/CA) |
+| 3 | Curation (CU) |
+| 4 | Approval (ID) |
+| 5+ | Active / Published |
 
-**Files modified**: 1 (`supabase/functions/review-challenge-sections/index.ts`)
+**Files modified**: 2 (`AMRequestViewPage.tsx`, `ConversationalIntakePage.tsx`)
 
