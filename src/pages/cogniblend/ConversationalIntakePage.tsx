@@ -1255,6 +1255,7 @@ export function ConversationalIntakeContent({
               rows={2}
               register={form.register}
               watchValue={form.watch('root_causes') ?? ''}
+              disabled={isViewMode}
             />
 
             <ExpandField
