@@ -256,9 +256,7 @@ function ExpandField({
   fieldName,
   placeholder,
   maxLength,
-  rows = 3,
-  register,
-  watchValue,
+  control,
   disabled,
 }: {
   label: string;
@@ -266,26 +264,73 @@ function ExpandField({
   placeholder: string;
   maxLength: number;
   rows?: number;
-  register: any;
-  watchValue: string;
+  control: any;
   disabled?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground">{label}</label>
-      <Textarea
-        placeholder={placeholder}
-        rows={rows}
-        maxLength={maxLength}
-        className="text-base resize-none"
-        disabled={disabled}
-        {...register(fieldName)}
-      />
-      <div className="flex justify-end">
-        <span className="text-xs text-muted-foreground">
-          {(watchValue ?? '').length} / {maxLength.toLocaleString()}
-        </span>
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground">{label}</label>
+        {!disabled && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setExpanded(true)}
+            aria-label={`Expand ${label}`}
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
+      {disabled ? (
+        <Controller
+          name={fieldName}
+          control={control}
+          render={({ field }) => (
+            <SafeHtmlRenderer html={field.value} className="min-h-[60px]" />
+          )}
+        />
+      ) : (
+        <Controller
+          name={fieldName}
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              placeholder={placeholder}
+              className="min-h-[100px]"
+            />
+          )}
+        />
+      )}
+
+      {/* Fullscreen expand dialog */}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>{label}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto py-2">
+            <Controller
+              name={fieldName}
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder={placeholder}
+                  className="min-h-[60vh]"
+                />
+              )}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
