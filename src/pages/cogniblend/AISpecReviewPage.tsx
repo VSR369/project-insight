@@ -574,6 +574,40 @@ function EditableSectionCard({
     }
   };
 
+  // Solver sections render inside a Collapsible (collapsed by default)
+  if (isSolverSection) {
+    return (
+      <Collapsible>
+        <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border border-border bg-card p-4 hover:bg-accent/30 transition-colors">
+          <Users className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">{section.label}</h3>
+              {section.isAiDrafted && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  <Sparkles className="h-3 w-3 mr-0.5 text-amber-500" /> AI
+                </Badge>
+              )}
+              {status === 'accepted' && <Check className="h-4 w-4 text-primary" />}
+            </div>
+            <p className="text-xs text-muted-foreground">Click to expand and configure solver types</p>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="rounded-xl border border-t-0 border-border bg-card px-5 pb-5 pt-3">
+          <SectionContent section={section} value={value} rawData={rawData} challenge={challenge} solverEditor={solverEditor} />
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+            {status !== 'accepted' && (
+              <Button size="sm" variant="outline" onClick={onAccept} className="gap-1.5 text-xs">
+                <Check className="h-3.5 w-3.5" /> Accept
+              </Button>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
   return (
     <div
       className={`rounded-xl border p-5 transition-all ${
@@ -582,8 +616,53 @@ function EditableSectionCard({
           : 'border-border bg-card'
       }`}
     >
-...
-      {status === 'editing' && !isEditableStructured && !isSolverSection ? (
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">{section.label}</h3>
+          {section.isAiDrafted && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              <Sparkles className="h-3 w-3 mr-0.5 text-amber-500" /> AI
+            </Badge>
+          )}
+          {status === 'accepted' && <Check className="h-4 w-4 text-primary" />}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {status === 'pending' && (
+            <>
+              <Button size="sm" variant="ghost" onClick={onEdit} className="gap-1.5 text-xs h-7">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Button>
+              <Button size="sm" variant="outline" onClick={onAccept} className="gap-1.5 text-xs h-7">
+                <Check className="h-3.5 w-3.5" /> Accept
+              </Button>
+            </>
+          )}
+          {status === 'accepted' && (
+            <Button size="sm" variant="ghost" onClick={onEdit} className="gap-1.5 text-xs h-7">
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          )}
+          {status === 'editing' && (
+            <Button
+              size="sm"
+              onClick={() => {
+                if (isEditableStructured) {
+                  handleSaveStructured();
+                } else {
+                  onSave(editValue);
+                }
+              }}
+              className="gap-1.5 text-xs h-7"
+            >
+              <Check className="h-3.5 w-3.5" /> Save
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      {status === 'editing' && !isEditableStructured ? (
         <RichTextEditor
           value={editValue}
           onChange={setEditValue}
@@ -615,6 +694,34 @@ function ReadOnlySectionCard({
   rawData: unknown;
   challenge: Record<string, unknown>;
 }) {
+  const isSolverSection = section.renderer === 'solver_eligibility' || section.renderer === 'solver_visibility';
+
+  // Solver sections render inside a Collapsible (collapsed by default)
+  if (isSolverSection) {
+    return (
+      <Collapsible>
+        <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border border-border bg-card p-4 hover:bg-accent/30 transition-colors">
+          <Users className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">{section.label}</h3>
+              {section.isAiDrafted && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  <Sparkles className="h-3 w-3 mr-0.5 text-amber-500" /> AI
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Click to expand</p>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="rounded-xl border border-t-0 border-border bg-card px-5 pb-5 pt-3">
+          <SectionContent section={section} value={value} rawData={rawData} challenge={challenge} />
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-3">
