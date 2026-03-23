@@ -423,6 +423,8 @@ export function ConversationalIntakeContent({
   const [outcomesExpanded, setOutcomesExpanded] = useState(false);
   const [localGovernanceMode, setLocalGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [localEngagementModel, setLocalEngagementModel] = useState<string>('MP');
+  const [aiReviews, setAiReviews] = useState<Record<string, SectionReview>>({});
+  const [isAiReviewing, setIsAiReviewing] = useState(false);
 
   // Use props if provided (from landing page), otherwise fall back to local state
   const governanceMode = propGovernanceMode ?? localGovernanceMode;
