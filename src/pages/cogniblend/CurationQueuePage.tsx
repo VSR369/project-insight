@@ -386,7 +386,10 @@ export default function CurationQueuePage() {
             </TableHeader>
             <TableBody>
               {filtered.map((ch) => {
-                const isIncoming = ch.current_phase === 2;
+                const isIncoming = ch.current_phase === 1 || ch.current_phase === 2;
+                const tooltipText = ch.current_phase === 1
+                  ? "Challenge specification is still being developed."
+                  : "This challenge is awaiting Legal & Finance review. You'll be able to curate it once it advances to Phase 3.";
                 return (
                   <TableRow
                     key={ch.id}
