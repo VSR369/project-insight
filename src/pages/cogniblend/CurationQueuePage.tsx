@@ -155,7 +155,7 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 1: State & hooks
   // ══════════════════════════════════════
-  const [activeTab, setActiveTab] = useState<FilterTab>("awaiting");
+  const [activeTab, setActiveTab] = useState<FilterTab | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
