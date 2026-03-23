@@ -1241,9 +1241,16 @@ export default function CurationReviewPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-foreground truncate">Curation Review</h1>
+          <h1 className="text-xl font-bold text-foreground truncate">
+            {isReadOnly ? 'Curation Preview' : 'Curation Review'}
+          </h1>
           <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
         </div>
+        {isReadOnly && (
+          <Badge variant="outline" className="text-xs shrink-0 gap-1">
+            <Eye className="h-3 w-3" />View Only
+          </Badge>
+        )}
         <GovernanceProfileBadge profile={challenge.governance_profile} compact />
 
         {user?.id && (
