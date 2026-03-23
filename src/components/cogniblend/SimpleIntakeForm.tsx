@@ -465,7 +465,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           </div>
         </div>
 
-        {/* Step 1: Template Selector (create/edit: full grid; view: read-only badge) */}
+        {/* AI Review Button — edit/view mode only */}
+        {isEditMode && challengeId && (
+          <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
+            {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+            {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
+          </Button>
+        )}
+
         <TemplateSelector
           onSelect={handleTemplateSelect}
           selectedId={selectedTemplate?.id}
