@@ -485,6 +485,12 @@ export function ConversationalIntakeContent({
       if (eb.beneficiaries_mapping) form.setValue('beneficiaries_mapping', eb.beneficiaries_mapping);
       if (eb.solution_expectations) form.setValue('solution_expectations', eb.solution_expectations);
 
+      // Restore template selection from stored challenge_template_id
+      if (eb.challenge_template_id) {
+        const found = CHALLENGE_TEMPLATES.find(t => t.id === eb.challenge_template_id);
+        if (found) setSelectedTemplate(found);
+      }
+
       // Dynamic: collect any extra keys not in KNOWN_BRIEF_KEYS
       const extras: Record<string, string> = {};
       for (const [key, val] of Object.entries(eb)) {
