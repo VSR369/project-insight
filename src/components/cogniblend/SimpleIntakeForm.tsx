@@ -225,7 +225,6 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     mode: 'onBlur',
   });
 
-  const isCreateMode = mode === 'create';
   const persistenceKey = isEditMode ? `cogni_intake_edit_${challengeId}` : 'cogni_intake_simple';
   const { clearPersistedData } = useFormPersistence(persistenceKey, form, {
     skipRestore: isCreateMode,
