@@ -93,6 +93,14 @@ function slaIndicator(sla: SlaStatus | null) {
 }
 
 function phaseBadge(phase: number | null) {
+  if (phase === 1) {
+    return (
+      <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-semibold gap-1">
+        <Clock className="h-3 w-3" />
+        Spec in Progress
+      </Badge>
+    );
+  }
   if (phase === 2) {
     return (
       <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold gap-1">
@@ -147,7 +155,7 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 1: State & hooks
   // ══════════════════════════════════════
-  const [activeTab, setActiveTab] = useState<FilterTab>("awaiting");
+  const [activeTab, setActiveTab] = useState<FilterTab | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -198,7 +206,7 @@ export default function CurationQueuePage() {
           "id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id"
         )
         .in("id", cuChallengeIds)
-        .in("current_phase", [2, 3])
+        .in("current_phase", [1, 2, 3])
         .eq("is_deleted", false)
         .eq("is_active", true)
         .order("created_at", { ascending: true });
@@ -240,24 +248,8 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 4: Filtered data + tab counts
   // ══════════════════════════════════════
-  const filtered = useMemo(() => {
-    if (activeTab === "all") return challenges;
-    if (activeTab === "incoming") {
-      return challenges.filter((c) => c.current_phase === 2);
-    }
-    if (activeTab === "revision") {
-      return challenges.filter(
-        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
-      );
-    }
-    // "awaiting" — phase 3, non-breached
-    return challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
-    );
-  }, [challenges, activeTab]);
-
   const tabCounts = useMemo(() => {
-    const incoming = challenges.filter((c) => c.current_phase === 2).length;
+    const incoming = challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2).length;
     const revision = challenges.filter(
       (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
     ).length;
@@ -266,6 +258,28 @@ export default function CurationQueuePage() {
     ).length;
     return { awaiting, incoming, revision, all: challenges.length };
   }, [challenges]);
+
+  // Smart default: show "All" if no phase 3 challenges exist yet
+  const resolvedTab = useMemo<FilterTab>(() => {
+    if (activeTab !== null) return activeTab;
+    return tabCounts.awaiting > 0 ? "awaiting" : "all";
+  }, [activeTab, tabCounts.awaiting]);
+
+  const filtered = useMemo(() => {
+    if (resolvedTab === "all") return challenges;
+    if (resolvedTab === "incoming") {
+      return challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2);
+    }
+    if (resolvedTab === "revision") {
+      return challenges.filter(
+        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
+      );
+    }
+    // "awaiting" — phase 3, non-breached
+    return challenges.filter(
+      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+    );
+  }, [challenges, resolvedTab]);
 
   // ══════════════════════════════════════
   // SECTION 5: Conditional returns
@@ -316,7 +330,7 @@ export default function CurationQueuePage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
-                activeTab === tab.key
+                resolvedTab === tab.key
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -325,7 +339,7 @@ export default function CurationQueuePage() {
               {count > 0 && (
                 <span
                   className={`inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-semibold ${
-                    activeTab === tab.key
+                    resolvedTab === tab.key
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   }`}
@@ -333,7 +347,7 @@ export default function CurationQueuePage() {
                   {count}
                 </span>
               )}
-              {activeTab === tab.key && (
+              {resolvedTab === tab.key && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
               )}
             </button>
@@ -346,12 +360,12 @@ export default function CurationQueuePage() {
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <CheckSquare className="h-12 w-12 text-muted-foreground/40" />
           <p className="text-base font-medium text-muted-foreground">
-            {activeTab === "incoming"
+            {resolvedTab === "incoming"
               ? "No incoming challenges"
               : "No challenges awaiting curation"}
           </p>
           <p className="text-sm text-muted-foreground/70 max-w-sm">
-            {activeTab === "incoming"
+            {resolvedTab === "incoming"
               ? "Challenges will appear here once you're assigned as Curator, while Legal and Finance complete their review."
               : "Challenges submitted for review will appear here."}
           </p>
@@ -372,7 +386,10 @@ export default function CurationQueuePage() {
             </TableHeader>
             <TableBody>
               {filtered.map((ch) => {
-                const isIncoming = ch.current_phase === 2;
+                const isIncoming = ch.current_phase === 1 || ch.current_phase === 2;
+                const tooltipText = ch.current_phase === 1
+                  ? "Challenge specification is still being developed."
+                  : "This challenge is awaiting Legal & Finance review. You'll be able to curate it once it advances to Phase 3.";
                 return (
                   <TableRow
                     key={ch.id}
@@ -396,9 +413,7 @@ export default function CurationQueuePage() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">
-                              This challenge is awaiting Legal & Finance review.
-                              You'll be able to curate it once it advances to
-                              Phase 3.
+                              {tooltipText}
                             </p>
                           </TooltipContent>
                         </Tooltip>
