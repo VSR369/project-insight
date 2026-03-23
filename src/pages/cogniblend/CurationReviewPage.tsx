@@ -1478,7 +1478,7 @@ export default function CurationReviewPage() {
                   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
                   const isLocked = LOCKED_SECTIONS.has(section.key);
                   const isEditing = editingSection === section.key;
-                  const canEdit = !isLocked && (!!section.dbField || section.key === "complexity");
+                  const canEdit = !isReadOnly && !isLocked && (!!section.dbField || section.key === "complexity");
                   const aiReview = aiReviews.find((r) => r.section_key === section.key);
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
