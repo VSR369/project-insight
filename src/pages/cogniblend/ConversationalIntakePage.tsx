@@ -628,7 +628,114 @@ export function ConversationalIntakeContent({
     setEditPrefilled(true);
   }, [isEditMode, editChallenge, editPrefilled]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ═══════ Conditional returns (after all hooks) ═══════
+  // ═══════ Effect — load persisted AI reviews ═══════
+  useEffect(() => {
+    if (!editChallenge?.ai_section_reviews) return;
+    const reviews = Array.isArray(editChallenge.ai_section_reviews)
+      ? (editChallenge.ai_section_reviews as unknown as SectionReview[])
+      : [];
+    const map: Record<string, SectionReview> = {};
+    for (const r of reviews) { if (r.section_key) map[r.section_key] = r; }
+    setAiReviews(map);
+  }, [editChallenge?.ai_section_reviews]);
+
+  // ═══════ AI Review handlers ═══════
+  const handleRunAiReview = async () => {
+    if (!editChallengeId) return;
+    setIsAiReviewing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
+        body: { challenge_id: editChallengeId, role_context: 'spec' },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success && data.data?.sections) {
+        const map: Record<string, SectionReview> = { ...aiReviews };
+        for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
+        setAiReviews(map);
+        // Persist review results to DB
+        saveStep.mutate({ challengeId: editChallengeId, payload: { ai_section_reviews: Object.values(map) } });
+        toast.success('AI review complete — see comments below each section.');
+      } else {
+        throw new Error(data?.error?.message ?? 'Unexpected response');
+      }
+    } catch (e: any) {
+      toast.error(`AI review failed: ${e.message ?? 'Unknown error'}`);
+    } finally {
+      setIsAiReviewing(false);
+    }
+  };
+
+  const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
+    if (!editChallengeId) return;
+    // Map section keys to form fields
+    const formFieldMap: Record<string, string> = {
+      problem_statement: 'problem_statement',
+      expected_outcomes: 'expected_outcomes',
+      scope: 'scope_definition',
+      beneficiaries_mapping: 'beneficiaries_mapping',
+    };
+    const formField = formFieldMap[sectionKey];
+    if (formField) {
+      form.setValue(formField as any, newContent, { shouldValidate: true });
+    }
+    // Mark addressed in local state
+    const updated = { ...aiReviews };
+    if (updated[sectionKey]) { updated[sectionKey] = { ...updated[sectionKey], addressed: true }; }
+    setAiReviews(updated);
+
+    // Persist refined content + review state to DB
+    const reviewsArray = Object.values(updated);
+    const extBrief = typeof editChallenge?.extended_brief === 'object'
+      ? (editChallenge.extended_brief as Record<string, any>) : {};
+
+    if (sectionKey === 'scope' || sectionKey === 'beneficiaries_mapping') {
+      const briefKey = sectionKey === 'scope' ? 'scope_definition' : 'beneficiaries_mapping';
+      saveStep.mutate({
+        challengeId: editChallengeId,
+        payload: {
+          extended_brief: { ...extBrief, [briefKey]: newContent },
+          ai_section_reviews: reviewsArray,
+        },
+      });
+    } else {
+      const dbFieldMap: Record<string, string> = {
+        problem_statement: 'problem_statement',
+        expected_outcomes: 'scope',
+      };
+      const dbCol = dbFieldMap[sectionKey];
+      if (dbCol) {
+        saveStep.mutate({
+          challengeId: editChallengeId,
+          payload: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
+        });
+      }
+    }
+    toast.success('Refinement accepted and saved.');
+  };
+
+  const handleSingleSectionReview = (sectionKey: string, review: SectionReview) => {
+    setAiReviews((prev) => {
+      const updated = { ...prev, [sectionKey]: review };
+      if (editChallengeId) {
+        saveStep.mutate({ challengeId: editChallengeId, payload: { ai_section_reviews: Object.values(updated) } });
+      }
+      return updated;
+    });
+  };
+
+  const handleMarkAddressed = (sectionKey: string) => {
+    setAiReviews((prev) => {
+      const updated = {
+        ...prev,
+        [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+      };
+      if (editChallengeId) {
+        saveStep.mutate({ challengeId: editChallengeId, payload: { ai_section_reviews: Object.values(updated) } });
+      }
+      return updated;
+    });
+  };
+
   if (orgLoading || (isEditMode && editLoading)) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
