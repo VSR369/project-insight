@@ -689,7 +689,12 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               </div>
             </div>
           </div>
-        ) : null
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Challenge Type</p>
+            <p className="text-sm text-muted-foreground mt-1">No template selected</p>
+          </div>
+        )
       ) : (
         <TemplateSelector
           onSelect={handleTemplateSelect}
