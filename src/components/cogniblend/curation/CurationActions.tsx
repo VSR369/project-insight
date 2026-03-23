@@ -328,6 +328,12 @@ export default function CurationActions({
 
   return (
     <>
+      {readOnly && (
+        <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
+          <p className="text-xs text-muted-foreground font-medium">View-only mode — actions disabled until Legal & Finance review is complete.</p>
+        </div>
+      )}
+
       {/* Modification Cycle */}
       <div className="p-3 rounded-lg border border-border bg-muted/30">
         <p className="text-xs font-medium text-foreground">
