@@ -1253,7 +1253,7 @@ export default function CurationReviewPage() {
         )}
         <GovernanceProfileBadge profile={challenge.governance_profile} compact />
 
-        {user?.id && (
+        {user?.id && !isReadOnly && (
           <HoldResumeActions
             challengeId={challengeId!}
             challengeTitle={challenge.title}
