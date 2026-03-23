@@ -32,6 +32,7 @@ interface SubmitPayload {
   specialtyTags?: string[];
   beneficiariesMapping?: string;
   amApprovalRequired?: boolean;
+  templateId?: string;
 }
 
 interface SubmitResult {
