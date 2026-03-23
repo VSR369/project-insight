@@ -248,24 +248,8 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 4: Filtered data + tab counts
   // ══════════════════════════════════════
-  const filtered = useMemo(() => {
-    if (activeTab === "all") return challenges;
-    if (activeTab === "incoming") {
-      return challenges.filter((c) => c.current_phase === 2);
-    }
-    if (activeTab === "revision") {
-      return challenges.filter(
-        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
-      );
-    }
-    // "awaiting" — phase 3, non-breached
-    return challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
-    );
-  }, [challenges, activeTab]);
-
   const tabCounts = useMemo(() => {
-    const incoming = challenges.filter((c) => c.current_phase === 2).length;
+    const incoming = challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2).length;
     const revision = challenges.filter(
       (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
     ).length;
@@ -274,6 +258,28 @@ export default function CurationQueuePage() {
     ).length;
     return { awaiting, incoming, revision, all: challenges.length };
   }, [challenges]);
+
+  // Smart default: show "All" if no phase 3 challenges exist yet
+  const resolvedTab = useMemo<FilterTab>(() => {
+    if (activeTab !== null) return activeTab;
+    return tabCounts.awaiting > 0 ? "awaiting" : "all";
+  }, [activeTab, tabCounts.awaiting]);
+
+  const filtered = useMemo(() => {
+    if (resolvedTab === "all") return challenges;
+    if (resolvedTab === "incoming") {
+      return challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2);
+    }
+    if (resolvedTab === "revision") {
+      return challenges.filter(
+        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
+      );
+    }
+    // "awaiting" — phase 3, non-breached
+    return challenges.filter(
+      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+    );
+  }, [challenges, resolvedTab]);
 
   // ══════════════════════════════════════
   // SECTION 5: Conditional returns
