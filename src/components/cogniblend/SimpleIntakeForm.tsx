@@ -241,7 +241,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     const validTimelines = ['1-3', '3-6', '6-12', '12+'];
 
     // Restore template from extended_brief OR selected_template form field
-    const storedTemplateId = extBrief?.challenge_template_id || c.selected_template || '';
+    const storedTemplateId = extBrief?.challenge_template_id || (c as any).selected_template || '';
     if (storedTemplateId) {
       const found = CHALLENGE_TEMPLATES.find(t => t.id === storedTemplateId);
       if (found) setSelectedTemplate(found);
