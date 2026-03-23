@@ -1866,10 +1866,11 @@ export default function CurationReviewPage() {
             completedCount={completedCount}
             totalCount={15}
             operatingModel={challenge.operating_model}
+            readOnly={isReadOnly}
           />
 
           {/* Modification Points Tracker */}
-          <ModificationPointsTracker challengeId={challengeId!} mode="curator" />
+          <ModificationPointsTracker challengeId={challengeId!} mode={isReadOnly ? "readonly" : "curator"} />
         </div>
       </div>
     </div>
