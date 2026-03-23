@@ -569,13 +569,13 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">
-              Timeline Urgency <span className="text-destructive">*</span>
+              Timeline Urgency {!isViewMode && <span className="text-destructive">*</span>}
             </Label>
             <Controller
               name="expected_timeline"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select timeline…" />
                   </SelectTrigger>
