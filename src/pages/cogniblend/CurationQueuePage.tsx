@@ -217,7 +217,7 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 3: Query — ALL org challenges in phases 1-3
   // ══════════════════════════════════════
-  const { data: challenges = [], isLoading } = useQuery({
+  const { data: challenges = [], isLoading } = useQuery<EnrichedCurationChallenge[]>({
     queryKey: ["curation-queue", organizationId],
     queryFn: async (): Promise<EnrichedCurationChallenge[]> => {
       if (!user?.id || !organizationId) return [];
