@@ -256,6 +256,10 @@ interface ConversationalIntakeContentProps {
   governanceMode?: GovernanceMode;
   /** Engagement model from parent landing page */
   engagementModel?: string;
+  /** When provided, form loads existing challenge data for editing */
+  challengeId?: string;
+  /** 'create' (default) or 'edit' */
+  mode?: 'create' | 'edit';
 }
 
 export function ConversationalIntakeContent({
@@ -265,6 +269,8 @@ export function ConversationalIntakeContent({
   onSpecGenerated,
   governanceMode: propGovernanceMode,
   engagementModel: propEngagementModel,
+  challengeId: editChallengeId,
+  mode = 'create',
 }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
