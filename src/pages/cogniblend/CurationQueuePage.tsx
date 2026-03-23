@@ -206,7 +206,7 @@ export default function CurationQueuePage() {
           "id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id"
         )
         .in("id", cuChallengeIds)
-        .in("current_phase", [2, 3])
+        .in("current_phase", [1, 2, 3])
         .eq("is_deleted", false)
         .eq("is_active", true)
         .order("created_at", { ascending: true });
