@@ -1,43 +1,32 @@
 
 
-# Add Template Selector to AM (Marketplace) Intake + Persist to DB
+# Fix: AM Dashboard View — Template Badge + Edit Toggle
 
-## Current State
-- **RQ (Aggregator)**: Has TemplateSelector — required field, shown in create mode
-- **AM (Marketplace)**: No TemplateSelector — goes straight to title + problem summary
-- **Persistence bug**: `templateId` is in the submit payload but never saved to the DB (`extended_brief` or elsewhere)
-- **CA/CR view**: ConversationalIntakeContent shows TemplateSelector in create/edit but has no way to read a pre-selected template from the challenge record
+## Issues
+
+1. **Template badge not showing in AM view mode**: When viewing a challenge from the dashboard, the "Challenge Type" card doesn't appear even if a template was selected during creation. Root cause: the `selected_template` form field value is set during init (line 260), but the `selectedTemplate` state (which controls the badge render) depends on `extended_brief.challenge_template_id` being present (line 244-247). If the challenge was created before the persistence fix, or if the template wasn't selected, the badge won't show.
+
+2. **Edit button not visible**: The `AMRequestViewPage.tsx` already has the Edit/View toggle button (lines 29-39). However, the `CreationContextBar` and the Edit button are in a `flex justify-between` container — if `CreationContextBar` renders wide content, the button may be pushed off-screen or not visible. Need to verify layout and ensure the button is always visible.
 
 ## Changes
 
-### File 1: `src/components/cogniblend/SimpleIntakeForm.tsx`
-- **Add TemplateSelector to the MP (AM) render section** (line ~653, after the header, before "The Problem" card) — same pattern as the AGG section
-- Show it only in create mode (`!isEditMode`), optional for AM (not a required field — AM already provides title)
-- In edit/view mode, if a template was stored, show a read-only badge with the template name
-- Wire `handleTemplateSelect` (already exists and works for both models)
-- Pre-fill `domain_tags` from template into the payload (already happens via `selectedTemplate?.prefill?.domain_tags`)
+### File: `src/components/cogniblend/SimpleIntakeForm.tsx`
 
-### File 2: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
-- **Persist `templateId`** into `extended_brief.challenge_template_id` during challenge creation (both `useSubmitSolutionRequest` and `useSaveDraft`)
-- Add `templateId` to both `SubmitPayload` and `DraftPayload` interfaces (already in SubmitPayload but unused)
+**Fix template restoration in view/edit mode:**
+- In the edit init effect (line 244-247), also check `selected_template` form field as a fallback — some challenges may have the template ID in different locations
+- Ensure `selectedTemplate` state is always set when a valid template ID is found anywhere in the challenge data
 
-### File 3: `src/pages/cogniblend/ConversationalIntakePage.tsx`
-- In edit mode, read `extended_brief.challenge_template_id` from the existing challenge data
-- Initialize `selectedTemplate` from it by looking up `CHALLENGE_TEMPLATES`
-- Show a read-only template badge in view mode (instead of hiding entirely)
+**Fix view mode template visibility:**
+- In both AGG and MP view mode sections, if no `selectedTemplate` is found but `selected_template` form value exists, look it up from `CHALLENGE_TEMPLATES` and display the badge
+- Add a "No template selected" placeholder when viewing a challenge without a template, instead of rendering nothing
 
-### File 4: `src/components/cogniblend/SimpleIntakeForm.tsx` (edit/view mode)
-- In edit/view mode for both MP and AGG, read `extended_brief.challenge_template_id` from the existing challenge
-- Show a read-only badge (template emoji + name) instead of the full selector grid
+### File: `src/pages/cogniblend/AMRequestViewPage.tsx`
 
-## What stays the same
-- TemplateSelector component — reused as-is, no changes
-- Template data structure (`CHALLENGE_TEMPLATES`) — unchanged
-- RQ flow — unchanged (template remains required)
-- For AM, template is optional (MP schema already has `selected_template: z.string().optional()`)
+**Ensure Edit button is always visible:**
+- Add `shrink-0` to the Edit button to prevent flex shrinking
+- Wrap `CreationContextBar` with `min-w-0 flex-1` to allow truncation instead of pushing the button off-screen
+- Ensure the header layout works on all viewport widths
 
-## Technical Details
-- Storage: `extended_brief.challenge_template_id` (JSONB field, no migration needed)
-- The template selection flows from AM → CA just like all other `extended_brief` fields via the dynamic brief rendering system
-- CA/CR can see the AM's template choice and change it (editable in edit mode)
+## Summary
+Two targeted fixes: (1) robust template state restoration from DB data so the "Challenge Type" badge always appears in view mode, and (2) layout fix to guarantee the Edit/View toggle button remains visible alongside the context bar.
 
