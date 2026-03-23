@@ -1,9 +1,10 @@
 /**
  * Curation Queue Page — /cogni/curation
  *
- * Lists challenges awaiting curation review (Phase 3).
- * Filter tabs: Awaiting Review | Under Revision | All.
- * Each row shows SLA status (via check_sla_status) and links to /cogni/curation/:id.
+ * Lists challenges assigned to the Curator (CU role).
+ * Phase 2 challenges appear as "Incoming" (read-only, awaiting LC/FC).
+ * Phase 3 challenges are "Ready for Review" (full curation access).
+ * Filter tabs: Awaiting Review | Incoming | Under Revision | All.
  */
 
 import { useMemo, useState } from "react";
@@ -23,7 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckSquare } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CheckSquare, Clock, FileCheck } from "lucide-react";
 import type { SlaStatus } from "@/hooks/cogniblend/useCogniDashboard";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +52,7 @@ interface EnrichedCurationChallenge extends CurationChallenge {
   modificationCycle: string;
 }
 
-type FilterTab = "awaiting" | "revision" | "all";
+type FilterTab = "awaiting" | "incoming" | "revision" | "all";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -54,6 +60,7 @@ type FilterTab = "awaiting" | "revision" | "all";
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "awaiting", label: "Awaiting Review" },
+  { key: "incoming", label: "Incoming" },
   { key: "revision", label: "Under Revision" },
   { key: "all", label: "All" },
 ];
@@ -82,6 +89,23 @@ function slaIndicator(sla: SlaStatus | null) {
       <span className={`inline-block h-2 w-2 rounded-full ${dotColor}`} />
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
+  );
+}
+
+function phaseBadge(phase: number | null) {
+  if (phase === 2) {
+    return (
+      <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold gap-1">
+        <Clock className="h-3 w-3" />
+        Awaiting Legal
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-green-100 text-green-800 border-green-200 text-[10px] font-semibold gap-1">
+      <FileCheck className="h-3 w-3" />
+      Ready for Review
+    </Badge>
   );
 }
 
@@ -133,7 +157,6 @@ export default function CurationQueuePage() {
   const { data: hasPermission, isLoading: permLoading } = useQuery({
     queryKey: ["curation-permission", user?.id],
     queryFn: async () => {
-      // Check if user holds an active CU role for at least one challenge
       const { data, error } = await supabase
         .from("user_challenge_roles")
         .select("challenge_id")
@@ -149,21 +172,33 @@ export default function CurationQueuePage() {
   });
 
   // ══════════════════════════════════════
-  // SECTION 3: Query — curation queue challenges
+  // SECTION 3: Query — curation queue challenges (Phase 2 + 3)
   // ══════════════════════════════════════
   const { data: challenges = [], isLoading } = useQuery({
     queryKey: ["curation-queue", user?.id],
     queryFn: async (): Promise<EnrichedCurationChallenge[]> => {
       if (!user?.id) return [];
 
-      // Fetch Phase 3 challenges
+      // Step 1: Get challenge IDs where user holds active CU role
+      const { data: cuRoles, error: rolesError } = await supabase
+        .from("user_challenge_roles")
+        .select("challenge_id")
+        .eq("user_id", user.id)
+        .eq("role_code", "CU")
+        .eq("is_active", true);
+
+      if (rolesError) throw new Error(rolesError.message);
+      const cuChallengeIds = (cuRoles ?? []).map((r) => r.challenge_id);
+      if (cuChallengeIds.length === 0) return [];
+
+      // Step 2: Fetch challenges at phase 2 or 3
       const { data: rows, error } = await supabase
         .from("challenges")
         .select(
           "id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id"
         )
-        .eq("current_phase", 3)
-        .eq("phase_status", "ACTIVE")
+        .in("id", cuChallengeIds)
+        .in("current_phase", [2, 3])
         .eq("is_deleted", false)
         .eq("is_active", true)
         .order("created_at", { ascending: true });
@@ -174,16 +209,19 @@ export default function CurationQueuePage() {
       // Enrich with SLA status in parallel
       const enriched = await Promise.all(
         (rows as CurationChallenge[]).map(async (ch) => {
-          const slaRes = await supabase.rpc("check_sla_status", {
-            p_challenge_id: ch.id,
-            p_phase: ch.current_phase ?? 3,
-          });
-
-          const sla = slaRes.error
-            ? null
-            : ((typeof slaRes.data === "string"
-                ? JSON.parse(slaRes.data)
-                : slaRes.data) as SlaStatus | null);
+          // Only fetch SLA for Phase 3 challenges
+          let sla: SlaStatus | null = null;
+          if (ch.current_phase === 3) {
+            const slaRes = await supabase.rpc("check_sla_status", {
+              p_challenge_id: ch.id,
+              p_phase: 3,
+            });
+            sla = slaRes.error
+              ? null
+              : ((typeof slaRes.data === "string"
+                  ? JSON.parse(slaRes.data)
+                  : slaRes.data) as SlaStatus | null);
+          }
 
           return {
             ...ch,
@@ -200,16 +238,34 @@ export default function CurationQueuePage() {
   });
 
   // ══════════════════════════════════════
-  // SECTION 4: Filtered data
+  // SECTION 4: Filtered data + tab counts
   // ══════════════════════════════════════
   const filtered = useMemo(() => {
     if (activeTab === "all") return challenges;
-    if (activeTab === "revision") {
-      return challenges.filter((c) => c.sla?.status === "BREACHED");
+    if (activeTab === "incoming") {
+      return challenges.filter((c) => c.current_phase === 2);
     }
-    // "awaiting" — non-breached
-    return challenges.filter((c) => c.sla?.status !== "BREACHED");
+    if (activeTab === "revision") {
+      return challenges.filter(
+        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
+      );
+    }
+    // "awaiting" — phase 3, non-breached
+    return challenges.filter(
+      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+    );
   }, [challenges, activeTab]);
+
+  const tabCounts = useMemo(() => {
+    const incoming = challenges.filter((c) => c.current_phase === 2).length;
+    const revision = challenges.filter(
+      (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
+    ).length;
+    const awaiting = challenges.filter(
+      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+    ).length;
+    return { awaiting, incoming, revision, all: challenges.length };
+  }, [challenges]);
 
   // ══════════════════════════════════════
   // SECTION 5: Conditional returns
@@ -237,31 +293,52 @@ export default function CurationQueuePage() {
   }
 
   // ══════════════════════════════════════
-  // SECTION 6: Render
+  // SECTION 6: Handlers
+  // ══════════════════════════════════════
+  const handleRowClick = (ch: EnrichedCurationChallenge) => {
+    navigate(`/cogni/curation/${ch.id}`);
+  };
+
+  // ══════════════════════════════════════
+  // SECTION 7: Render
   // ══════════════════════════════════════
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
       {/* Page title */}
       <h1 className="text-[22px] font-bold text-foreground">Curation Queue</h1>
 
-      {/* Filter tabs */}
+      {/* Filter tabs with counts */}
       <div className="flex items-center gap-1 border-b border-border">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-              activeTab === tab.key
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {activeTab === tab.key && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
-        ))}
+        {TABS.map((tab) => {
+          const count = tabCounts[tab.key];
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
+                activeTab === tab.key
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+              {count > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-semibold ${
+                    activeTab === tab.key
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {count}
+                </span>
+              )}
+              {activeTab === tab.key && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Table or empty state */}
@@ -269,10 +346,14 @@ export default function CurationQueuePage() {
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <CheckSquare className="h-12 w-12 text-muted-foreground/40" />
           <p className="text-base font-medium text-muted-foreground">
-            No challenges awaiting curation
+            {activeTab === "incoming"
+              ? "No incoming challenges"
+              : "No challenges awaiting curation"}
           </p>
           <p className="text-sm text-muted-foreground/70 max-w-sm">
-            Challenges submitted for review will appear here.
+            {activeTab === "incoming"
+              ? "Challenges will appear here once you're assigned as Curator, while Legal and Finance complete their review."
+              : "Challenges submitted for review will appear here."}
           </p>
         </div>
       ) : (
@@ -281,6 +362,7 @@ export default function CurationQueuePage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Challenge Title</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Operating Model</TableHead>
                 <TableHead>Maturity Level</TableHead>
                 <TableHead>Modification Cycle</TableHead>
@@ -289,39 +371,73 @@ export default function CurationQueuePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((ch) => (
-                <TableRow
-                  key={ch.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/cogni/curation/${ch.id}`)}
-                >
-                  <TableCell>
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-sm font-medium text-primary hover:underline text-left whitespace-normal"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/cogni/curation/${ch.id}`);
-                      }}
-                    >
-                      {ch.title}
-                    </Button>
-                  </TableCell>
-                  <TableCell>{modelBadge(ch.operating_model)}</TableCell>
-                  <TableCell>{maturityBadge(ch.maturity_level)}</TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">
-                      {ch.modificationCycle}
-                    </span>
-                  </TableCell>
-                  <TableCell>{slaIndicator(ch.sla)}</TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(ch.created_at)}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((ch) => {
+                const isIncoming = ch.current_phase === 2;
+                return (
+                  <TableRow
+                    key={ch.id}
+                    className={`${
+                      isIncoming
+                        ? "opacity-75 cursor-default"
+                        : "cursor-pointer hover:bg-muted/50"
+                    }`}
+                    onClick={() => {
+                      if (isIncoming) return;
+                      handleRowClick(ch);
+                    }}
+                  >
+                    <TableCell>
+                      {isIncoming ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {ch.title}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">
+                              This challenge is awaiting Legal & Finance review.
+                              You'll be able to curate it once it advances to
+                              Phase 3.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-sm font-medium text-primary hover:underline text-left whitespace-normal"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(ch);
+                          }}
+                        >
+                          {ch.title}
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell>{phaseBadge(ch.current_phase)}</TableCell>
+                    <TableCell>{modelBadge(ch.operating_model)}</TableCell>
+                    <TableCell>{maturityBadge(ch.maturity_level)}</TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">
+                        {isIncoming ? "—" : ch.modificationCycle}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {isIncoming ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        slaIndicator(ch.sla)
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(ch.created_at)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
