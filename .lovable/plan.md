@@ -1,48 +1,45 @@
 
 
-# Fix: Curation Queue Not Showing All Assigned Challenges
+# Enable View Mode for Incoming Challenges in Curation Queue
 
-## Root Cause
+## Problem
+Phase 1 and Phase 2 challenges in the Curation Queue are listed but completely non-clickable. The curator cannot view the challenge content at all — they just see a muted row with a tooltip. The user wants to be able to **view** (read-only) these challenges, with **edit** only enabled once LC/FC complete their work (Phase 3).
 
-Two issues:
+## Changes
 
-1. **Phase 1 challenges excluded**: The query filters `.in("current_phase", [2, 3])` but 3 of the 5 CU-assigned challenges are at phase 1 (intake/spec creation). These should also appear as "Incoming" since the CU role is already assigned.
+### File 1: `src/pages/cogniblend/CurationQueuePage.tsx`
 
-2. **Default tab shows empty**: The default tab is "Awaiting Review" (phase 3 only), but no challenges have reached phase 3 yet. User lands on an empty view despite having 5 assigned challenges.
+**Make Phase 1/2 rows clickable** — navigate to the same curation review page but with a `?mode=view` query param:
 
-## Database Evidence
+- Remove the `if (isIncoming) return;` guard on row click (line 402)
+- Change navigation for incoming challenges to `/cogni/curation/${ch.id}?mode=view`
+- Make the title a styled link (like Phase 3) but with an Eye icon instead, and muted color
+- Keep the amber/blue badge and tooltip but allow click-through
 
-| Challenge | Phase | Status |
-|-----------|-------|--------|
-| Predictive Maintenance... | 2 | IN_PREPARATION |
-| Healthcare Cost Reduction... | 2 | IN_PREPARATION |
-| Patient Engagement... | 1 | IN_PREPARATION |
-| AI-Driven Supply Chain... | 1 | IN_PREPARATION |
-| Green Energy Transition... | 1 | IN_PREPARATION |
+### File 2: `src/pages/cogniblend/CurationReviewPage.tsx`
 
-All 5 have active CU roles but none are at phase 3.
+**Add a `isReadOnly` flag** derived from `challenge.current_phase < 3` (or from `?mode=view` query param):
 
-## Changes — `src/pages/cogniblend/CurationQueuePage.tsx`
+1. **Read `mode` from URL search params** at the top of the component
+2. **Compute `isReadOnly`**: `true` when `challenge.current_phase < 3`
+3. **Show a read-only banner** at the top: "This challenge is in [Phase description] — view only until Legal & Finance review is complete"
+4. **Suppress all edit controls when `isReadOnly`**:
+   - Hide the "Edit" button on each section (`canEdit && !isReadOnly`)
+   - Disable the checklist checkboxes
+   - Hide "Submit to ID" and other action buttons in `CurationActions` (pass `readOnly` prop)
+   - Disable AI quality analysis and AI review buttons
+   - Hide `ModificationPointsTracker` actions
+5. **Keep all content visible** — sections render normally, the curator can read everything the CR/CA produced
 
-### 1. Expand query to include phases 1, 2, and 3
-Change `.in("current_phase", [2, 3])` to `.in("current_phase", [1, 2, 3])` so all CU-assigned challenges appear.
+### File 3: `src/components/cogniblend/curation/CurationActions.tsx`
 
-### 2. Update phaseBadge helper
-- Phase 1: blue "Spec in Progress" badge
-- Phase 2: amber "Awaiting Legal" badge (existing)
-- Phase 3: green "Ready for Review" badge (existing)
+**Add `readOnly` prop** — when true, hide or disable all action buttons (Submit, Hold, Return, etc.)
 
-### 3. Update tab filtering logic
-- **Incoming**: phases 1 and 2 (not just 2)
-- **Awaiting Review**: phase 3, non-breached (unchanged)
-- **Under Revision**: phase 3, breached (unchanged)
-- **All**: everything (unchanged)
+## Summary
 
-### 4. Default to "All" tab when "Awaiting Review" is empty
-Auto-select "All" tab on initial load if there are no phase 3 challenges, so the user sees their assigned work immediately.
+Two behavioral changes:
+1. **Queue page**: Phase 1/2 rows become clickable → open read-only curation view
+2. **Review page**: When `current_phase < 3`, all editing/action controls are hidden; content is fully visible
 
-### 5. Phase 1 rows: read-only with tooltip
-Phase 1 rows get muted styling + tooltip "Challenge specification is still being developed" and navigate to a read-only view on click.
-
-## No other files need changes.
+This ensures the curator can preview incoming work while respecting the LC/FC gate for editability.
 
