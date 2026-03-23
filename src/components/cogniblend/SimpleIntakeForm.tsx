@@ -297,6 +297,9 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         const map: Record<string, SectionReview> = { ...aiReviews };
         for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
         setAiReviews(map);
+        // Persist review results to DB
+        const reviewsArray = Object.values(map);
+        updateMutation.mutate({ challengeId, payload: { ai_section_reviews: reviewsArray } });
         toast.success('AI review complete — see comments below each section.');
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response');
