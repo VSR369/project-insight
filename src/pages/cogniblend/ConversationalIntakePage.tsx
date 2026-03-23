@@ -1016,6 +1016,7 @@ export function ConversationalIntakeContent({
           placeholder="e.g., A working ML model with at least 85% accuracy, documentation on the approach, and a deployment guide..."
           rows={4}
           className="text-base resize-none"
+          disabled={isViewMode}
           {...form.register('expected_outcomes')}
         />
         {form.formState.errors.expected_outcomes && (
