@@ -1,10 +1,8 @@
 /**
- * CogniBlend Dashboard — Clean 3-section layout for Account Managers.
+ * CogniBlend Dashboard — Role-adaptive layout.
+ * AM/RQ: My Requests → Action Items → Request Journey
+ * CA/CR: Incoming Requests → Action Items
  * Route: /cogni/dashboard
- *
- * Section 1: My Requests (what AM entered)
- * Section 2: My Action Items (needs attention)
- * Section 3: Request Lifecycle Journey (state transitions)
  */
 
 import { useMemo } from 'react';
@@ -15,13 +13,17 @@ import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyAction
 import { MyRequestsTracker } from '@/components/cogniblend/dashboard/MyRequestsTracker';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
 import { useMyRequests } from '@/hooks/queries/useMyRequests';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { Zap } from 'lucide-react';
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();
   const { data: orgContext } = useOrgModelContext();
+  const { activeRole } = useCogniRoleContext();
 
-  // AM-scoped requests for the journey section
+  const isAmRq = activeRole === 'AM' || activeRole === 'RQ' || !activeRole;
+
+  // AM-scoped requests for the journey section (only needed for AM/RQ)
   const { data: requestsData } = useMyRequests('all', '', 'mine');
   const allMyRequests = useMemo(
     () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
@@ -48,14 +50,14 @@ export default function CogniDashboardPage() {
         </div>
       )}
 
-      {/* ── Section 1: My Requests ────────────────────── */}
+      {/* ── Section 1: Requests (role-adaptive) ──────── */}
       <MyRequestsTracker />
 
       {/* ── Section 2: My Action Items ────────────────── */}
       <MyActionItemsSection />
 
-      {/* ── Section 3: Request Lifecycle Journey ──────── */}
-      <RequestJourneySection requests={allMyRequests} />
+      {/* ── Section 3: Request Lifecycle Journey (AM/RQ only) ── */}
+      {isAmRq && <RequestJourneySection requests={allMyRequests} />}
     </>
   );
 }

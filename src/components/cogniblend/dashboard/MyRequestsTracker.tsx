@@ -1,10 +1,12 @@
 /**
- * MyRequestsTracker — AM's own requests table with "View" routing to AM read-only brief.
+ * MyRequestsTracker — Role-adaptive requests table.
+ * AM/RQ: Shows "My Requests" (created by me).
+ * CA/CR: Shows "Incoming Requests" (assigned to me via user_challenge_roles).
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, FileText, Pencil } from 'lucide-react';
+import { Eye, FileText, Pencil, FileSearch } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +16,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useMyRequests, type RequestRow } from '@/hooks/queries/useMyRequests';
+import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useAuth } from '@/hooks/useAuth';
 
 /* ── Phase → current owner role ──────────────────────── */
 
@@ -58,47 +63,140 @@ function formatDate(dateStr: string): string {
 }
 
 /**
- * Route helper: AM "View" always goes to the AM read-only brief page.
- * DRAFT goes to edit. Everything else → AM read-only view.
+ * Route helper: AM "View" goes to AM read-only brief page.
+ * CA/CR goes to spec review page for Phase 2.
  */
-function getViewRoute(item: RequestRow): { route: string; label: string; icon: typeof Eye } {
+function getViewRoute(
+  item: { id: string; master_status: string; current_phase?: number | null },
+  isSpecRole: boolean,
+): { route: string; label: string; icon: typeof Eye } {
   if (item.master_status === 'DRAFT') {
     return { route: `/cogni/challenges/${item.id}/edit`, label: 'Edit', icon: Pencil };
   }
-  // All non-draft: show AM's read-only brief (what they entered)
+  // CA/CR viewing Phase 2 challenges → spec review
+  if (isSpecRole && item.current_phase === 2) {
+    return { route: `/cogni/challenges/${item.id}/spec`, label: 'Review', icon: FileSearch };
+  }
+  // AM read-only view
   return { route: `/cogni/my-requests/${item.id}/view`, label: 'View', icon: Eye };
 }
 
 /* ── Main Component ──────────────────────────────────── */
 
 export function MyRequestsTracker() {
-  // scope='mine' ensures only this AM's created requests
-  const { data: requestsData, isLoading } = useMyRequests('all', '', 'mine');
+  const { user } = useAuth();
+  const { activeRole } = useCogniRoleContext();
 
-  const allRows = useMemo(
+  const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
+  const isAmRqRole = activeRole === 'AM' || activeRole === 'RQ' || !activeRole;
+
+  // AM/RQ: show requests created by this user
+  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
+  // CA/CR: show challenges assigned to user via user_challenge_roles
+  const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
+
+  const isLoading = isSpecRole ? chLoading : reqLoading;
+
+  // AM/RQ rows
+  const amRows = useMemo(
     () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
     [requestsData],
   );
 
+  // CA/CR rows: challenges assigned to them (filter to Phase 2 active)
+  const specRows = useMemo(() => {
+    if (!isSpecRole) return [];
+    const items = challengesData?.items ?? [];
+    // Show Phase 2 challenges where user has CA/CR role
+    return items.filter((ch) =>
+      (ch.role_code === 'CA' || ch.role_code === 'CR') &&
+      ch.current_phase >= 2
+    );
+  }, [challengesData, isSpecRole]);
+
+  const sectionTitle = isSpecRole ? 'Incoming Requests' : 'My Requests';
+  const emptyMessage = isSpecRole
+    ? 'No challenges assigned to you for specification review.'
+    : 'No requests submitted yet. Create your first challenge request to get started.';
+
   if (isLoading) {
     return (
       <section className="mb-6">
-        <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">My Requests</h2>
+        <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">{sectionTitle}</h2>
         <Skeleton className="h-48 w-full rounded-xl" />
       </section>
     );
   }
 
-  if (allRows.length === 0) {
+  // Render CA/CR view
+  if (isSpecRole) {
+    if (specRows.length === 0) {
+      return (
+        <section className="mb-6">
+          <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">{sectionTitle}</h2>
+          <Card className="border-border">
+            <CardContent className="py-8 text-center">
+              <FileText className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            </CardContent>
+          </Card>
+        </section>
+      );
+    }
+
     return (
       <section className="mb-6">
-        <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">My Requests</h2>
+        <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">{sectionTitle}</h2>
+        <Card className="border-border">
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[180px]">Title</TableHead>
+                  <TableHead className="w-[120px]">Status</TableHead>
+                  <TableHead className="w-[100px]">Phase</TableHead>
+                  <TableHead className="w-[100px]">Model</TableHead>
+                  <TableHead className="w-[80px] text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {specRows.map((row) => {
+                  const badge = STATUS_BADGE[row.master_status] ?? STATUS_BADGE.ACTIVE;
+                  const phaseLabel = PHASE_LABELS[row.current_phase] ?? `Phase ${row.current_phase}`;
+                  const { route, label, icon: ActionIcon } = getViewRoute(
+                    { id: row.challenge_id, master_status: row.master_status, current_phase: row.current_phase },
+                    true,
+                  );
+
+                  return (
+                    <SpecRowView
+                      key={row.challenge_id}
+                      row={row}
+                      badge={badge}
+                      phaseLabel={phaseLabel}
+                      route={route}
+                      label={label}
+                      ActionIcon={ActionIcon}
+                    />
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      </section>
+    );
+  }
+
+  // Render AM/RQ view
+  if (amRows.length === 0) {
+    return (
+      <section className="mb-6">
+        <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">{sectionTitle}</h2>
         <Card className="border-border">
           <CardContent className="py-8 text-center">
             <FileText className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No requests submitted yet. Create your first challenge request to get started.
-            </p>
+            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
           </CardContent>
         </Card>
       </section>
@@ -107,7 +205,7 @@ export function MyRequestsTracker() {
 
   return (
     <section className="mb-6">
-      <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">My Requests</h2>
+      <h2 className="text-base lg:text-lg font-bold text-foreground mb-3">{sectionTitle}</h2>
       <Card className="border-border">
         <div className="relative w-full overflow-auto">
           <Table>
@@ -122,12 +220,12 @@ export function MyRequestsTracker() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allRows.map((row) => {
+              {amRows.map((row) => {
                 const badge = STATUS_BADGE[row.master_status] ?? STATUS_BADGE.ACTIVE;
                 const phase = row.current_phase;
                 const withWhom = phase ? (PHASE_OWNER[phase] ?? '—') : '—';
                 const phaseLabel = phase ? (PHASE_LABELS[phase] ?? `Phase ${phase}`) : '—';
-                const { route, label, icon: ActionIcon } = getViewRoute(row);
+                const { route, label, icon: ActionIcon } = getViewRoute(row, false);
 
                 return (
                   <RequestRowView
@@ -150,7 +248,7 @@ export function MyRequestsTracker() {
   );
 }
 
-/* ── Row Component (no Collapsible to avoid DOM warnings) ── */
+/* ── AM/RQ Row Component ── */
 
 function RequestRowView({
   row, badge, phaseLabel, withWhom, route, label, ActionIcon,
@@ -179,6 +277,49 @@ function RequestRowView({
       <TableCell className="text-xs text-muted-foreground">{withWhom}</TableCell>
       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
         {formatDate(row.created_at)}
+      </TableCell>
+      <TableCell className="text-right">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+          onClick={() => navigate(route)}
+        >
+          <ActionIcon className="h-3.5 w-3.5" />
+          <span className="hidden lg:inline">{label}</span>
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/* ── CA/CR Row Component ── */
+
+function SpecRowView({
+  row, badge, phaseLabel, route, label, ActionIcon,
+}: {
+  row: { challenge_id: string; title: string; master_status: string; operating_model: string | null };
+  badge: { label: string; className: string };
+  phaseLabel: string;
+  route: string;
+  label: string;
+  ActionIcon: typeof Eye;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium text-sm text-foreground truncate max-w-[220px]">
+        {row.title}
+      </TableCell>
+      <TableCell>
+        <Badge variant="secondary" className={cn('text-[10px]', badge.className)}>
+          {badge.label}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">{phaseLabel}</TableCell>
+      <TableCell className="text-xs text-muted-foreground">
+        {row.operating_model === 'MP' ? 'Marketplace' : 'Aggregator'}
       </TableCell>
       <TableCell className="text-right">
         <Button

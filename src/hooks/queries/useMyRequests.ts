@@ -89,7 +89,7 @@ export function useMyRequests(
           .from('user_challenge_roles')
           .select('challenge_id, user_id')
           .in('challenge_id', challengeIds)
-          .eq('role_code', 'CR')
+          .in('role_code', ['CR', 'CA'])
           .eq('is_active', true)
           .limit(200);
 

@@ -1,11 +1,12 @@
 /**
  * MyActionItemsSection — Unified action items queue.
  * Shows: AM_APPROVAL_PENDING, DRAFT, RETURNED items for the active role.
+ * For CA/CR: also shows Phase 2 ACTIVE challenges assigned to them.
  */
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Eye, Pencil, ShieldCheck, Bell } from 'lucide-react';
+import { CheckCircle, Eye, Pencil, ShieldCheck, FileSearch } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,16 +37,21 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   AM_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-violet-100 text-violet-700' },
   IN_PREPARATION: { label: 'In Progress', className: 'bg-blue-100 text-blue-700' },
   ACTIVE: { label: 'Active', className: 'bg-blue-100 text-blue-700' },
+  SPEC_REVIEW: { label: 'Spec Review', className: 'bg-indigo-100 text-indigo-700' },
 };
 
 /* ── Route helper ────────────────────────────────── */
 
-function getActionRoute(item: { id: string; status: string; phase?: number; phase_status?: string | null }): {
+function getActionRoute(item: { id: string; status: string; phase?: number; phase_status?: string | null; isSpecWork?: boolean }): {
   route: string; label: string; icon: typeof Eye;
 } {
   // AM approval items → AM review page
   if (item.phase_status === 'AM_APPROVAL_PENDING' || item.status === 'AM_APPROVAL_PENDING') {
     return { route: `/cogni/my-requests/${item.id}/review`, label: 'Review & Approve', icon: ShieldCheck };
+  }
+  // CA/CR Phase 2 spec work → spec review page
+  if (item.isSpecWork) {
+    return { route: `/cogni/challenges/${item.id}/spec`, label: 'Review Spec', icon: FileSearch };
   }
   // Drafts
   if (item.status === 'DRAFT') {
@@ -83,7 +89,10 @@ export function MyActionItemsSection() {
       phase?: number;
       phase_status?: string | null;
       created_at: string;
+      isSpecWork?: boolean;
     }> = [];
+
+    const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
 
     // Challenges the user has a role on that need action
     for (const ch of challengeItems) {
@@ -91,19 +100,28 @@ export function MyActionItemsSection() {
       const isRelevant = !activeRole || roles.includes(activeRole) || ch.master_status === 'DRAFT';
       if (!isRelevant) continue;
 
+      // Standard action items: DRAFT, RETURNED, AM_APPROVAL_PENDING
       const needsAction =
         ch.master_status === 'DRAFT' ||
         ch.master_status === 'RETURNED' ||
         ch.phase_status === 'AM_APPROVAL_PENDING';
 
-      if (needsAction) {
+      // CA/CR Phase 2 active spec work — these are incoming requests to review
+      const isPhase2SpecWork = isSpecRole &&
+        ch.current_phase === 2 &&
+        (ch.master_status === 'IN_PREPARATION' || ch.master_status === 'ACTIVE') &&
+        ch.phase_status === 'ACTIVE';
+
+      if (needsAction || isPhase2SpecWork) {
         items.push({
           id: ch.challenge_id,
           title: ch.title,
-          status: ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING' : ch.master_status,
+          status: isPhase2SpecWork ? 'SPEC_REVIEW' :
+            ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING' : ch.master_status,
           phase: ch.current_phase,
           phase_status: ch.phase_status,
           created_at: '',
+          isSpecWork: isPhase2SpecWork,
         });
       }
     }

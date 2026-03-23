@@ -391,10 +391,26 @@ serve(async (req) => {
     challengeIds.push(aggChallengeId);
     results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
 
-    // ─── Step 5: Assign user_challenge_roles on BOTH challenges ───
+    // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
+    // MP roles (AM, CA) → MP challenge only; AGG roles (RQ, CR) → AGG challenge only
+    // Shared roles (CU, ID, ER, LC, FC) → both challenges
+    const MP_ONLY_ROLES = new Set(["AM", "CA"]);
+    const AGG_ONLY_ROLES = new Set(["RQ", "CR"]);
+
     for (const u of userIds) {
       for (const roleCode of u.roles) {
-        for (const cId of challengeIds) {
+        const targetChallengeIds: string[] = [];
+
+        if (MP_ONLY_ROLES.has(roleCode)) {
+          targetChallengeIds.push(mpChallengeId);
+        } else if (AGG_ONLY_ROLES.has(roleCode)) {
+          targetChallengeIds.push(aggChallengeId);
+        } else {
+          // Shared roles go on both challenges
+          targetChallengeIds.push(mpChallengeId, aggChallengeId);
+        }
+
+        for (const cId of targetChallengeIds) {
           const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({
             user_id: u.userId,
             challenge_id: cId,
@@ -405,7 +421,7 @@ serve(async (req) => {
           if (ucrErr) throw new Error(`user_challenge_roles insert failed for ${u.displayName}/${roleCode}: ${ucrErr.message}`);
         }
       }
-      results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")} (on both challenges)`);
+      results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")} (model-aware)`);
     }
 
     results.push("");
