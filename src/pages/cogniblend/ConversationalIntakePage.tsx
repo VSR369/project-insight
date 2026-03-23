@@ -58,7 +58,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useSaveChallengeStep, useChallengeDetail } from '@/hooks/queries/useChallengeForm';
-import { useGenerateChallengeSpec, type GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
+import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { cn } from '@/lib/utils';
