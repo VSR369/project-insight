@@ -85,9 +85,32 @@ const CURRENCY_OPTIONS = [
   { value: 'INR', label: 'INR (₹)' },
 ];
 
+/* ─── Known extended_brief keys ────────────────────────── */
+
+const KNOWN_BRIEF_KEYS = new Set([
+  'context_background', 'root_causes', 'affected_stakeholders',
+  'scope_definition', 'preferred_approach', 'approaches_not_of_interest',
+  'beneficiaries_mapping', 'solution_expectations', 'am_approval_required',
+]);
+
+/** Convert snake_case key to human-readable label */
+function humanizeKey(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const TIMELINE_OPTIONS = [
+  { value: '1-3', label: '1–3 months' },
+  { value: '3-6', label: '3–6 months' },
+  { value: '6-12', label: '6–12 months' },
+  { value: '12+', label: '12+ months' },
+];
+
 /* ─── Schema ──────────────────────────────────────────── */
 
 const intakeSchema = z.object({
+  title: z.string().trim().max(200, 'Title must be 200 characters or less').optional().default(''),
   problem_statement: z
     .string()
     .trim()
@@ -105,6 +128,7 @@ const intakeSchema = z.object({
     .number()
     .min(1, 'Prize amount must be at least 1')
     .max(10_000_000, 'Prize amount seems too high'),
+  budget_min: z.coerce.number().min(0).optional(),
   currency_code: z.string().min(1, 'Select a currency').default('USD'),
   deadline: z.date({
     required_error: 'Select a submission deadline',
@@ -112,6 +136,7 @@ const intakeSchema = z.object({
     (d) => d >= addDays(new Date(), MIN_DEADLINE_DAYS),
     `Deadline must be at least ${MIN_DEADLINE_DAYS} days from today`,
   ),
+  expected_timeline: z.string().optional().default(''),
   // Expand Challenge Details — optional domain-expert fields
   context_background: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
   root_causes: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
@@ -119,6 +144,8 @@ const intakeSchema = z.object({
   scope_definition: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
   preferred_approach: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
   approaches_not_of_interest: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
+  beneficiaries_mapping: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
+  solution_expectations: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
 });
 
 type IntakeFormValues = z.infer<typeof intakeSchema>;
