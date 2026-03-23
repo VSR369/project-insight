@@ -1,30 +1,23 @@
 
 
-# Fix: Show Selected Template in View & Edit Modes
+# Show TemplateSelector Grid in CA/CR View (ConversationalIntakePage)
 
 ## Problem
-1. **View mode** shows only a small badge or "No template selected" — user wants the full template grid visible with the selected one highlighted (read-only)
-2. **Edit mode** shows the grid but doesn't highlight the previously selected template because `selectedTemplate` state may not be restored from DB
+The CA/CR dashboard view (ConversationalIntakePage) shows only a tiny badge for the challenge template in view mode, instead of the full 8-card grid like the AM/RQ view. The AM/RQ-selected template should carry over and be visible + editable by CA/CR.
 
 ## Changes
 
-### File: `src/components/cogniblend/SimpleIntakeForm.tsx`
+### File: `src/pages/cogniblend/ConversationalIntakePage.tsx` (lines 978-993)
 
-**View mode — show full grid (read-only) instead of badge:**
-- Replace the view-mode badge/placeholder (lines 402-419 for AGG, lines 680-697 for MP) with the full `TemplateSelector` grid
-- Pass a `disabled` or `readOnly` prop so cards are non-interactive in view mode
-- Keep the selected card highlighted via `selectedId`
+Replace the view-mode badge with the full `TemplateSelector` grid using the `disabled` prop (already built in previous work):
 
-**Edit mode — ensure selected template is highlighted:**
-- The init effect already restores `selectedTemplate` from `extended_brief.challenge_template_id` — this should work for both view and edit since `isEditMode` covers both
+- **View mode**: Show `<TemplateSelector disabled selectedId={selectedTemplate?.id} />` — full grid, selected card highlighted, non-interactive
+- **Edit/Create mode**: Show `<TemplateSelector onSelect={handleTemplateSelect} selectedId={selectedTemplate?.id} />` — full grid, interactive (already works)
 
-### File: `src/components/cogniblend/TemplateSelector.tsx`
+This is a single block replacement — same pattern already used in `SimpleIntakeForm.tsx`.
 
-**Add `disabled` prop:**
-- Accept an optional `disabled?: boolean` prop
-- When `disabled`, suppress `onClick` and apply a `pointer-events-none` / reduced-opacity style to non-selected cards, keeping the selected card visually prominent
-- Include the "What kind of challenge are you creating?" heading in both modes
-
-## Summary
-Two files changed: TemplateSelector gets a `disabled` prop, and SimpleIntakeForm shows the full grid in view mode (read-only with selection highlighted) instead of a minimal badge.
+## What stays the same
+- Template restoration from `extended_brief.challenge_template_id` (line 490-493) — already works
+- Template persistence on submit (line 575) — already works
+- TemplateSelector component — no changes needed
 
