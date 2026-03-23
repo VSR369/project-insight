@@ -45,7 +45,9 @@ const INTAKE_SECTIONS = [
 
 const SPEC_SECTIONS = [
   { key: "problem_statement", desc: "Clarity, specificity, solver-readiness — would a solver understand the problem?" },
+  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
   { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity for solvers" },
+  { key: "beneficiaries_mapping", desc: "Stakeholders and beneficiaries clearly identified" },
   { key: "description", desc: "Detailed enough for solvers to understand context and constraints" },
   { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
   { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
@@ -192,13 +194,14 @@ serve(async (req) => {
 
     let challengeData = challengeResult.data;
 
-    // For intake context, extract extended_brief fields into the review payload
-    if (resolvedContext === "intake" && challengeData.extended_brief) {
+    // For intake/spec context, extract extended_brief fields into the review payload
+    if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
       const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
       challengeData = {
         ...challengeData,
         beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
         solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
+        expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
       };
     }
 

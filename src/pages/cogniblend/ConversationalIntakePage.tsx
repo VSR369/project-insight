@@ -650,7 +650,8 @@ export function ConversationalIntakeContent({
       if (error) throw new Error(error.message);
       if (data?.success && data.data?.sections) {
         const map: Record<string, SectionReview> = { ...aiReviews };
-        for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
+        const allReviews = data.data.all_reviews ?? data.data.sections;
+        for (const r of allReviews as SectionReview[]) { map[r.section_key] = r; }
         setAiReviews(map);
         // Persist review results to DB
         saveStep.mutate({ challengeId: editChallengeId, fields: { ai_section_reviews: Object.values(map) } });
