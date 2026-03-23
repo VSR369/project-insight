@@ -203,11 +203,10 @@ export function useSaveDraft() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
-          ...(payload.beneficiariesMapping ? {
-            extended_brief: {
-              beneficiaries_mapping: payload.beneficiariesMapping,
-            },
-          } : {}),
+          extended_brief: {
+            ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
+            ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
+          },
         } as any)
         .eq('id', challengeId);
 
