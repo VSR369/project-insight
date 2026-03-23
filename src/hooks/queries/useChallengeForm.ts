@@ -118,7 +118,13 @@ export function useSaveChallengeStep() {
       challengeId: string;
       fields: Record<string, unknown>;
     }) => {
-      const normalized = normalizeChallengeFields(fields);
+      // Strip immutable fields that DB triggers reject after phase 1
+      const IMMUTABLE_AFTER_CREATION = ['governance_profile', 'operating_model', 'organization_id', 'tenant_id'];
+      const safeFields = { ...fields };
+      for (const key of IMMUTABLE_AFTER_CREATION) {
+        delete safeFields[key];
+      }
+      const normalized = normalizeChallengeFields(safeFields);
       const withAudit = await withUpdatedBy(normalized);
       const { error } = await supabase
         .from('challenges')
