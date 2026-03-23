@@ -92,6 +92,7 @@ const KNOWN_BRIEF_KEYS = new Set([
   'context_background', 'root_causes', 'affected_stakeholders',
   'scope_definition', 'preferred_approach', 'approaches_not_of_interest',
   'beneficiaries_mapping', 'solution_expectations', 'am_approval_required',
+  'challenge_template_id',
 ]);
 
 /** Convert snake_case key to human-readable label */
