@@ -968,10 +968,12 @@ export function ConversationalIntakeContent({
       </div>
 
       {/* Step 1: Template Selector */}
-      <TemplateSelector
-        onSelect={handleTemplateSelect}
-        selectedId={selectedTemplate?.id}
-      />
+      {!isViewMode && (
+        <TemplateSelector
+          onSelect={handleTemplateSelect}
+          selectedId={selectedTemplate?.id}
+        />
+      )}
 
       {/* Step 2: Problem Statement */}
       <div className="space-y-2">
