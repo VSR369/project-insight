@@ -59,6 +59,7 @@ import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useSaveChallengeStep, useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { useGenerateChallengeSpec, type GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
+import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { cn } from '@/lib/utils';
@@ -85,9 +86,32 @@ const CURRENCY_OPTIONS = [
   { value: 'INR', label: 'INR (₹)' },
 ];
 
+/* ─── Known extended_brief keys ────────────────────────── */
+
+const KNOWN_BRIEF_KEYS = new Set([
+  'context_background', 'root_causes', 'affected_stakeholders',
+  'scope_definition', 'preferred_approach', 'approaches_not_of_interest',
+  'beneficiaries_mapping', 'solution_expectations', 'am_approval_required',
+]);
+
+/** Convert snake_case key to human-readable label */
+function humanizeKey(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const TIMELINE_OPTIONS = [
+  { value: '1-3', label: '1–3 months' },
+  { value: '3-6', label: '3–6 months' },
+  { value: '6-12', label: '6–12 months' },
+  { value: '12+', label: '12+ months' },
+];
+
 /* ─── Schema ──────────────────────────────────────────── */
 
 const intakeSchema = z.object({
+  title: z.string().trim().max(200, 'Title must be 200 characters or less').optional().default(''),
   problem_statement: z
     .string()
     .trim()
@@ -105,6 +129,7 @@ const intakeSchema = z.object({
     .number()
     .min(1, 'Prize amount must be at least 1')
     .max(10_000_000, 'Prize amount seems too high'),
+  budget_min: z.coerce.number().min(0).optional(),
   currency_code: z.string().min(1, 'Select a currency').default('USD'),
   deadline: z.date({
     required_error: 'Select a submission deadline',
@@ -112,6 +137,7 @@ const intakeSchema = z.object({
     (d) => d >= addDays(new Date(), MIN_DEADLINE_DAYS),
     `Deadline must be at least ${MIN_DEADLINE_DAYS} days from today`,
   ),
+  expected_timeline: z.string().optional().default(''),
   // Expand Challenge Details — optional domain-expert fields
   context_background: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
   root_causes: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
@@ -119,6 +145,8 @@ const intakeSchema = z.object({
   scope_definition: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
   preferred_approach: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
   approaches_not_of_interest: z.string().max(1000, 'Keep under 1,000 characters').optional().default(''),
+  beneficiaries_mapping: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
+  solution_expectations: z.string().max(2000, 'Keep under 2,000 characters').optional().default(''),
 });
 
 type IntakeFormValues = z.infer<typeof intakeSchema>;
@@ -303,22 +331,34 @@ export function ConversationalIntakeContent({
   );
   const isEditMode = mode === 'edit';
 
+  // ═══════ Hooks — industry segments ═══════
+  const { data: industrySegments = [] } = useIndustrySegments();
+  const [selectedIndustrySegmentId, setSelectedIndustrySegmentId] = useState<string>('');
+
+  // ═══════ Hooks — dynamic extended_brief keys (AM extras) ═══════
+  const [dynamicBriefFields, setDynamicBriefFields] = useState<Record<string, string>>({});
+
   // ═══════ Hooks — form ═══════
   const form = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeSchema),
     defaultValues: {
+      title: '',
       problem_statement: sharedState?.problemStatement ?? '',
       expected_outcomes: '',
       maturity_level: (sharedState?.maturityLevel as IntakeFormValues['maturity_level']) || undefined,
       prize_amount: undefined,
+      budget_min: undefined,
       currency_code: 'USD',
       deadline: undefined,
+      expected_timeline: '',
       context_background: '',
       root_causes: '',
       affected_stakeholders: '',
       scope_definition: '',
       preferred_approach: '',
       approaches_not_of_interest: '',
+      beneficiaries_mapping: '',
+      solution_expectations: '',
     },
   });
 
@@ -370,6 +410,10 @@ export function ConversationalIntakeContent({
     // Pre-fill form fields from existing challenge
     const ch = editChallenge as unknown as Record<string, unknown>;
 
+    // Title
+    if (ch.title) {
+      form.setValue('title', ch.title as string);
+    }
     if (ch.problem_statement) {
       form.setValue('problem_statement', ch.problem_statement as string);
     }
@@ -387,6 +431,9 @@ export function ConversationalIntakeContent({
     if (rewardStructure?.budget_max) {
       form.setValue('prize_amount', Number(rewardStructure.budget_max));
     }
+    if (rewardStructure?.budget_min) {
+      form.setValue('budget_min', Number(rewardStructure.budget_min));
+    }
     if (rewardStructure?.currency) {
       form.setValue('currency_code', rewardStructure.currency as string);
     } else if (ch.currency_code) {
@@ -395,6 +442,16 @@ export function ConversationalIntakeContent({
     // Deadline
     if (ch.submission_deadline) {
       form.setValue('deadline', new Date(ch.submission_deadline as string));
+    }
+    // Expected timeline from phase_schedule
+    const phaseSchedule = ch.phase_schedule as Record<string, unknown> | null;
+    if (phaseSchedule?.expected_timeline) {
+      form.setValue('expected_timeline', phaseSchedule.expected_timeline as string);
+    }
+    // Industry segment from targeting_filters or eligibility_model
+    const targeting = ch.targeting_filters as Record<string, unknown> | null;
+    if (targeting?.industry_segment_id) {
+      setSelectedIndustrySegmentId(targeting.industry_segment_id as string);
     }
     // Extended brief fields
     const eb = ch.extended_brief as Record<string, string> | null;
@@ -405,6 +462,20 @@ export function ConversationalIntakeContent({
       if (eb.scope_definition) form.setValue('scope_definition', eb.scope_definition);
       if (eb.preferred_approach) form.setValue('preferred_approach', eb.preferred_approach);
       if (eb.approaches_not_of_interest) form.setValue('approaches_not_of_interest', eb.approaches_not_of_interest);
+      if (eb.beneficiaries_mapping) form.setValue('beneficiaries_mapping', eb.beneficiaries_mapping);
+      if (eb.solution_expectations) form.setValue('solution_expectations', eb.solution_expectations);
+
+      // Dynamic: collect any extra keys not in KNOWN_BRIEF_KEYS
+      const extras: Record<string, string> = {};
+      for (const [key, val] of Object.entries(eb)) {
+        if (!KNOWN_BRIEF_KEYS.has(key) && typeof val === 'string' && val.trim()) {
+          extras[key] = val;
+        }
+      }
+      if (Object.keys(extras).length > 0) {
+        setDynamicBriefFields(extras);
+      }
+
       // Auto-expand if any detail fields have content
       const hasExpanded = Object.values(eb).some((v) => v?.trim());
       if (hasExpanded) setExpandOpen(true);
@@ -473,17 +544,35 @@ export function ConversationalIntakeContent({
       if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
       if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
       if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
+      if (data.beneficiaries_mapping?.trim()) extendedBrief.beneficiaries_mapping = data.beneficiaries_mapping.trim();
+      if (data.solution_expectations?.trim()) extendedBrief.solution_expectations = data.solution_expectations.trim();
+      // Preserve dynamic AM fields
+      for (const [key, val] of Object.entries(dynamicBriefFields)) {
+        if (val?.trim()) extendedBrief[key] = val.trim();
+      }
+
+      const rewardStructure: Record<string, unknown> = {
+        budget_max: data.prize_amount,
+        currency: data.currency_code,
+      };
+      if (data.budget_min != null && data.budget_min > 0) {
+        rewardStructure.budget_min = data.budget_min;
+      }
 
       await saveStep.mutateAsync({
         challengeId: editChallengeId,
         fields: {
+          title: data.title?.trim() || undefined,
           problem_statement: data.problem_statement,
           scope: data.expected_outcomes,
           maturity_level: data.maturity_level?.toUpperCase() ?? null,
+          reward_structure: rewardStructure,
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
           governance_profile: governanceMode,
           operating_model: engagementModel,
+          ...(data.expected_timeline ? { phase_schedule: { expected_timeline: data.expected_timeline } } : {}),
+          ...(selectedIndustrySegmentId ? { targeting_filters: { industry_segment_id: selectedIndustrySegmentId } } : {}),
           ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
         },
       });
@@ -832,6 +921,28 @@ export function ConversationalIntakeContent({
         </div>
       </div>
 
+      {/* Title (shown in edit mode or when user wants to set one) */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-foreground">
+          Challenge Title
+          <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          A concise, descriptive title. AI will generate one if left blank.
+        </p>
+        <Input
+          placeholder="e.g., Predictive Maintenance ML Model for Manufacturing"
+          maxLength={200}
+          className="text-base"
+          {...form.register('title')}
+        />
+        <div className="flex justify-end">
+          <span className="text-xs text-muted-foreground">
+            {(form.watch('title') ?? '').length} / 200
+          </span>
+        </div>
+      </div>
+
       {/* Step 1: Template Selector */}
       <TemplateSelector
         onSelect={handleTemplateSelect}
@@ -912,6 +1023,27 @@ export function ConversationalIntakeContent({
         )}
       </div>
 
+      {/* Industry Segment */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-foreground">
+          Industry Segment
+          <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Which industry does this challenge relate to?
+        </p>
+        <Select value={selectedIndustrySegmentId} onValueChange={setSelectedIndustrySegmentId}>
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select industry segment" />
+          </SelectTrigger>
+          <SelectContent>
+            {industrySegments.map((seg) => (
+              <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Step 5: Prize Amount + Currency */}
       <div className="space-y-2">
         <label className="text-sm font-semibold text-foreground">
@@ -939,11 +1071,24 @@ export function ConversationalIntakeContent({
           </Select>
           <Input
             type="number"
-            placeholder="10,000"
+            placeholder={form.watch('budget_min') ? 'Max budget' : '10,000'}
             className="flex-1"
             {...form.register('prize_amount', { valueAsNumber: true })}
           />
         </div>
+        {/* Budget min (range support) */}
+        {(isEditMode && form.watch('budget_min') != null && form.watch('budget_min')! > 0) && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-muted-foreground">Budget Range: Min</span>
+            <Input
+              type="number"
+              placeholder="Min budget"
+              className="w-32"
+              {...form.register('budget_min', { valueAsNumber: true })}
+            />
+            <span className="text-xs text-muted-foreground">— Max (above)</span>
+          </div>
+        )}
         {form.formState.errors.prize_amount && (
           <p className="text-xs text-destructive">
             {form.formState.errors.prize_amount.message}
@@ -992,6 +1137,30 @@ export function ConversationalIntakeContent({
             {form.formState.errors.deadline.message}
           </p>
         )}
+      </div>
+
+      {/* Expected Timeline */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-foreground">
+          Expected Timeline
+          <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          How long do you expect the challenge to take?
+        </p>
+        <Select
+          value={form.watch('expected_timeline') || ''}
+          onValueChange={(v) => form.setValue('expected_timeline', v)}
+        >
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select timeline" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIMELINE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Step 7: Supporting Files */}
@@ -1078,6 +1247,56 @@ export function ConversationalIntakeContent({
               register={form.register}
               watchValue={form.watch('approaches_not_of_interest') ?? ''}
             />
+
+            <ExpandField
+              label="Beneficiaries Mapping"
+              fieldName="beneficiaries_mapping"
+              placeholder="Who benefits from solving this challenge? Map internal and external beneficiaries…"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('beneficiaries_mapping') ?? ''}
+            />
+
+            <ExpandField
+              label="Solution Expectations"
+              fieldName="solution_expectations"
+              placeholder="What does commercial or operational success look like for the solution?"
+              maxLength={2000}
+              rows={3}
+              register={form.register}
+              watchValue={form.watch('solution_expectations') ?? ''}
+            />
+
+            {/* Dynamic fields from AM extended_brief (keys not in KNOWN_BRIEF_KEYS) */}
+            {Object.entries(dynamicBriefFields).length > 0 && (
+              <>
+                <div className="border-t border-border pt-4 mt-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-3">
+                    Additional fields from Account Manager
+                  </p>
+                </div>
+                {Object.entries(dynamicBriefFields).map(([key, value]) => (
+                  <div key={key} className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">{humanizeKey(key)}</label>
+                    <Textarea
+                      rows={3}
+                      maxLength={2000}
+                      className="text-base resize-none"
+                      value={value}
+                      onChange={(e) =>
+                        setDynamicBriefFields((prev) => ({ ...prev, [key]: e.target.value }))
+                      }
+                    />
+                    <div className="flex justify-end">
+                      <span className="text-xs text-muted-foreground">
+                        {(value ?? '').length} / 2,000
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
