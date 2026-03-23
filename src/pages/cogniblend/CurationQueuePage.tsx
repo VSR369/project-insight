@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useOrgContext } from "@/contexts/OrgContext";
+import { useCurrentOrg } from "@/hooks/queries/useCurrentOrg";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -191,7 +191,8 @@ export default function CurationQueuePage() {
   const [activeTab, setActiveTab] = useState<FilterTab | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { organizationId } = useOrgContext();
+  const { data: currentOrg } = useCurrentOrg();
+  const organizationId = currentOrg?.organizationId;
 
   // ══════════════════════════════════════
   // SECTION 2: Permission check — user must hold at least one active CU role
@@ -216,7 +217,7 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 3: Query — ALL org challenges in phases 1-3
   // ══════════════════════════════════════
-  const { data: challenges = [], isLoading } = useQuery({
+  const { data: challenges = [], isLoading } = useQuery<EnrichedCurationChallenge[]>({
     queryKey: ["curation-queue", organizationId],
     queryFn: async (): Promise<EnrichedCurationChallenge[]> => {
       if (!user?.id || !organizationId) return [];
