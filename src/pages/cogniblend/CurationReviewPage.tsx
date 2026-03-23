@@ -1637,8 +1637,8 @@ export default function CurationReviewPage() {
                             saving={savingSection}
                           />
 
-                        /* ── Domain Tags — Always-editable inline ── */
-                        ) : section.key === "domain_tags" ? (
+                        /* ── Domain Tags — Always-editable inline (unless read-only) ── */
+                        ) : section.key === "domain_tags" && !isReadOnly ? (
                           <div className="space-y-3">
                             <div className="flex flex-wrap gap-1.5 min-h-[32px]">
                               {currentTags.length === 0 && (
