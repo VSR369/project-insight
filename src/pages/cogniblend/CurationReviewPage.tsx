@@ -1506,6 +1506,7 @@ export default function CurationReviewPage() {
                               checked={isApproved}
                               onCheckedChange={() => toggleSectionApproval(section.key)}
                               className="shrink-0"
+                              disabled={isReadOnly}
                             />
                           </div>
                           {filled ? (
