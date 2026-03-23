@@ -1,45 +1,41 @@
 
 
-# Enable View Mode for Incoming Challenges in Curation Queue
+# Show All Challenges in Curation Queue (Not Just CU-Assigned)
 
 ## Problem
-Phase 1 and Phase 2 challenges in the Curation Queue are listed but completely non-clickable. The curator cannot view the challenge content at all — they just see a muted row with a tooltip. The user wants to be able to **view** (read-only) these challenges, with **edit** only enabled once LC/FC complete their work (Phase 3).
 
-## Changes
+The Curation Queue only shows challenges where the current user has an explicit `CU` role in `user_challenge_roles`. Challenges created directly by CR/CA users (without going through AM/RQ intake) often have **no CU role assignment**, so they never appear in any curator's queue. Three such challenges exist right now with zero role assignments.
 
-### File 1: `src/pages/cogniblend/CurationQueuePage.tsx`
+## Solution
 
-**Make Phase 1/2 rows clickable** — navigate to the same curation review page but with a `?mode=view` query param:
+Change the query strategy: instead of filtering by CU role assignment, show **all active challenges in the curator's organization** that are in phases 1-3. The CU permission check remains (user must hold at least one CU role to access the page), but the queue itself shows all org-level challenges awaiting curation.
 
-- Remove the `if (isIncoming) return;` guard on row click (line 402)
-- Change navigation for incoming challenges to `/cogni/curation/${ch.id}?mode=view`
-- Make the title a styled link (like Phase 3) but with an Eye icon instead, and muted color
-- Keep the amber/blue badge and tooltip but allow click-through
+## Changes — `src/pages/cogniblend/CurationQueuePage.tsx`
 
-### File 2: `src/pages/cogniblend/CurationReviewPage.tsx`
+### 1. Replace user-scoped query with org-scoped query
 
-**Add a `isReadOnly` flag** derived from `challenge.current_phase < 3` (or from `?mode=view` query param):
+**Current**: Fetch CU role assignments → fetch only those challenge IDs.
 
-1. **Read `mode` from URL search params** at the top of the component
-2. **Compute `isReadOnly`**: `true` when `challenge.current_phase < 3`
-3. **Show a read-only banner** at the top: "This challenge is in [Phase description] — view only until Legal & Finance review is complete"
-4. **Suppress all edit controls when `isReadOnly`**:
-   - Hide the "Edit" button on each section (`canEdit && !isReadOnly`)
-   - Disable the checklist checkboxes
-   - Hide "Submit to ID" and other action buttons in `CurationActions` (pass `readOnly` prop)
-   - Disable AI quality analysis and AI review buttons
-   - Hide `ModificationPointsTracker` actions
-5. **Keep all content visible** — sections render normally, the curator can read everything the CR/CA produced
+**New**: 
+- Keep the permission check (user must have at least one active CU role — already exists)
+- Fetch the user's organization ID from their profile/org context
+- Query all challenges in that org where `current_phase IN (1, 2, 3)` and `is_active = true` and `is_deleted = false`
 
-### File 3: `src/components/cogniblend/curation/CurationActions.tsx`
+This ensures challenges created by CR, CA, AM, or RQ all appear regardless of whether a CU was explicitly assigned.
 
-**Add `readOnly` prop** — when true, hide or disable all action buttons (Submit, Hold, Return, etc.)
+### 2. Add "Assigned to Me" indicator
+
+Since the queue is now org-wide, add a visual indicator showing which challenges have the current user assigned as CU vs unassigned ones. This helps curators prioritize their own assignments while still seeing the full pipeline.
+
+- Challenges with CU assignment to current user: normal row
+- Challenges with CU assignment to another curator: show "Assigned: [Name]" in a new column
+- Challenges with no CU assignment: show "Unassigned" badge (amber) — curator can claim or view
+
+### 3. Keep read-only logic intact
+
+Phase 1/2 challenges remain read-only (view only). Phase 3 challenges remain fully editable. No changes needed to `CurationReviewPage.tsx` or `CurationActions.tsx`.
 
 ## Summary
 
-Two behavioral changes:
-1. **Queue page**: Phase 1/2 rows become clickable → open read-only curation view
-2. **Review page**: When `current_phase < 3`, all editing/action controls are hidden; content is fully visible
-
-This ensures the curator can preview incoming work while respecting the LC/FC gate for editability.
+One file change: `CurationQueuePage.tsx` query broadened from user-role-scoped to org-scoped, ensuring every challenge in phases 1-3 lands in the curator's queue regardless of who created it or whether a CU role was assigned.
 
