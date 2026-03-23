@@ -1,52 +1,44 @@
 
 
-# Add View Mode to ConversationalIntakeContent + Fix AMRequestViewPage Toggle
+# Fix: CA/CR "My Action Items" Should Show Lifecycle Actions, Not Requests
 
-## What's Broken
-1. `AMRequestViewPage` passes hardcoded `mode="edit"` to `ConversationalIntakeContent` (line 44) instead of the dynamic `pageMode` state — so the View/Edit toggle does nothing for CA/CR roles.
-2. `ConversationalIntakeContent` only accepts `'create' | 'edit'` — it has no `'view'` mode, so even if `pageMode` were passed, fields would remain editable.
+## Problem
+Currently, for CA/CR roles, "My Action Items" shows Phase 2 SPEC_REVIEW challenges — the exact same items already listed in "Incoming Requests." This is redundant. Action items should instead surface actionable lifecycle events: returned challenges needing revision, notifications requiring attention (SLA warnings, role assignments, amendment notices), and approval-pending items.
 
-## What Will NOT Change
-- AM/RQ flow (SimpleIntakeForm) — already working with view/edit toggle.
-- No separate code for MP vs AGG — the same `ConversationalIntakeContent` component is reused; only a `mode` prop changes behavior.
-- All existing create/edit functionality remains intact.
+## What Changes
 
-## Changes
+### File: `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
 
-### File 1: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+**Remove** the `isPhase2SpecWork` logic (lines 109-113, 115, 119, 124) that adds incoming requests as action items for CA/CR roles.
 
-**Props**: Extend `mode` type from `'create' | 'edit'` to `'create' | 'edit' | 'view'`.
+**Add** unread `cogni_notifications` as action items for CA/CR roles. These are already stored in the DB and fetched by `NotificationBell`, but not surfaced in the action items widget. The section will query unread notifications for the current user and display them as actionable rows.
 
-**Add `isViewMode` flag** (alongside existing `isEditMode`):
-```
-const isViewMode = mode === 'view';
-```
+For CA/CR, action items will now include:
+1. **RETURNED challenges** — challenges returned for modification (already works, just `master_status === 'RETURNED'`)
+2. **Unread notifications** — SLA_BREACH, SLA_WARNING, AMENDMENT_NOTICE, curation_returned, PHASE_COMPLETE, WAITING_FOR_YOU, ROLE_ASSIGNED, etc.
+3. **AM_APPROVAL_PENDING** items (if the CA/CR also holds AM role — already works)
 
-**When `isViewMode` is true**:
-- All `Input`, `Textarea`, `Select`, `Calendar` fields get `disabled` prop
-- `MaturityCard` buttons get `disabled` / `pointer-events-none`
-- `TemplateSelector` gets a `disabled` prop (or is hidden)
-- `FileUploadArea` section is hidden
-- "Expand Challenge Details" collapsible auto-opens if content exists, fields are disabled
-- Governance Mode cards and Engagement Model selector are disabled
-- "Advanced Editor" button is hidden
-- Action buttons section (Generate/Update/Continue) is hidden entirely
-- "AI-Assisted" info badge is hidden
-- Dynamic brief fields from AM are shown as disabled textareas
+**Specific changes:**
+- Add a query for unread `cogni_notifications` (reuse the existing query key pattern from NotificationBell)
+- Remove `isPhase2SpecWork` condition from the action items builder
+- Map unread notifications into the action items array with appropriate status badges and routes (clicking navigates to the challenge view)
+- Add new status badges: `SLA_BREACH`, `SLA_WARNING`, `AMENDMENT`, `NOTIFICATION`
+- Add notification-specific route: navigate to `/cogni/my-requests/{challengeId}/view` or mark as read
 
-This reuses the exact same layout/component — no duplicate code. Just conditional `disabled` attributes and a few `{!isViewMode && ...}` wrappers for action-only sections.
+**Table columns for notification-based items:**
+- Title (notification title)
+- Type (badge: SLA Breach, Amendment, etc.)
+- Status (Unread)
+- Action (View / Dismiss)
 
-### File 2: `src/pages/cogniblend/AMRequestViewPage.tsx`
+### No other files change
+- `MyRequestsTracker` (Incoming Requests) stays unchanged — it correctly shows all assigned challenges
+- AM/RQ action items logic stays unchanged
+- NotificationBell continues to work independently
 
-Single-line fix: change `mode="edit"` to `mode={pageMode}` so the toggle actually works for CA/CR:
-
-```typescript
-<ConversationalIntakeContent challengeId={id} mode={pageMode} hideSpecReview />
-```
-
-## Summary
-- 2 files modified, 0 new files
-- No code duplication between MP and AGG
-- AM/RQ path untouched
-- CA/CR get the same view/edit toggle behavior that AM/RQ already has
+## Technical Details
+- Reuses `cogni_notifications` table already populated by lifecycle hooks
+- No new queries needed — just a direct `supabase.from('cogni_notifications')` select filtered to `is_read = false`
+- Notification items and challenge-based items (RETURNED, DRAFT) merge into one unified list, sorted by recency
+- Clicking a notification-based action item marks it as read and navigates to the challenge
 
