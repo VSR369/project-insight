@@ -1061,7 +1061,7 @@ export function ConversationalIntakeContent({
         <p className="text-xs text-muted-foreground">
           Which industry does this challenge relate to?
         </p>
-        <Select value={selectedIndustrySegmentId} onValueChange={setSelectedIndustrySegmentId}>
+        <Select value={selectedIndustrySegmentId} onValueChange={setSelectedIndustrySegmentId} disabled={isViewMode}>
           <SelectTrigger className="w-full max-w-sm">
             <SelectValue placeholder="Select industry segment" />
           </SelectTrigger>
