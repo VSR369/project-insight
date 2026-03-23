@@ -820,6 +820,20 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             </p>
           )}
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="problem_statement"
+              review={aiReviews['problem_statement']}
+              currentContent={problemSummary}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['problem_statement']?.status === 'needs_revision' || aiReviews['problem_statement']?.status === 'warning'}
+            />
+          )}
         </div>
 
         {/* Fullscreen Dialog — MP Problem Summary */}
