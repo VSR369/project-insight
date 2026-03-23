@@ -330,22 +330,34 @@ export function ConversationalIntakeContent({
   );
   const isEditMode = mode === 'edit';
 
+  // ═══════ Hooks — industry segments ═══════
+  const { data: industrySegments = [] } = useIndustrySegments();
+  const [selectedIndustrySegmentId, setSelectedIndustrySegmentId] = useState<string>('');
+
+  // ═══════ Hooks — dynamic extended_brief keys (AM extras) ═══════
+  const [dynamicBriefFields, setDynamicBriefFields] = useState<Record<string, string>>({});
+
   // ═══════ Hooks — form ═══════
   const form = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeSchema),
     defaultValues: {
+      title: '',
       problem_statement: sharedState?.problemStatement ?? '',
       expected_outcomes: '',
       maturity_level: (sharedState?.maturityLevel as IntakeFormValues['maturity_level']) || undefined,
       prize_amount: undefined,
+      budget_min: undefined,
       currency_code: 'USD',
       deadline: undefined,
+      expected_timeline: '',
       context_background: '',
       root_causes: '',
       affected_stakeholders: '',
       scope_definition: '',
       preferred_approach: '',
       approaches_not_of_interest: '',
+      beneficiaries_mapping: '',
+      solution_expectations: '',
     },
   });
 
