@@ -824,6 +824,34 @@ export function ConversationalIntakeContent({
       });
 
       toast.success('Challenge updated successfully');
+
+      // Safety net: notify CU role holders if challenge is already in Phase 3+
+      const phase = editChallenge?.current_phase ?? 1;
+      if (phase >= 3 && editChallengeId) {
+        try {
+          const { data: cuUsers } = await supabase
+            .from('user_challenge_roles')
+            .select('user_id')
+            .eq('challenge_id', editChallengeId)
+            .eq('role_code', 'CU')
+            .eq('is_active', true);
+
+          if (cuUsers && cuUsers.length > 0) {
+            const notifications = cuUsers.map((u) => ({
+              user_id: u.user_id,
+              challenge_id: editChallengeId,
+              notification_type: 'CONTENT_MODIFIED',
+              title: 'Challenge content modified after handoff',
+              message: `Challenge spec was updated by ${activeRole || 'a user'} after handoff to curation.`,
+              is_read: false,
+            }));
+            await supabase.from('cogni_notifications').insert(notifications as any);
+          }
+        } catch (notifErr) {
+          // Non-blocking — don't fail the save over notification errors
+        }
+      }
+
       navigate(`/cogni/challenges/${editChallengeId}/spec`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
