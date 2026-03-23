@@ -769,6 +769,7 @@ export default function CurationReviewPage() {
   // SECTION 1: Hooks & state
   // ══════════════════════════════════════
   const { id: challengeId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
