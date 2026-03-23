@@ -50,6 +50,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withUpdatedBy } from '@/lib/auditFields';
+import { AIReviewInline, type SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 
 /* ── Constants ── */
 
