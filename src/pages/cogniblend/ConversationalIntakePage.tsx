@@ -289,6 +289,8 @@ interface ConversationalIntakeContentProps {
   challengeId?: string;
   /** 'create' (default) or 'edit' */
   mode?: 'create' | 'edit';
+  /** Hide the "Go to Spec Review" button (e.g. when embedded in dashboard view) */
+  hideSpecReview?: boolean;
 }
 
 export function ConversationalIntakeContent({
