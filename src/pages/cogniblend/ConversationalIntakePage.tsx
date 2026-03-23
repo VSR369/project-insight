@@ -1635,6 +1635,8 @@ export function ConversationalIntakeContent({
               />
             )}
 
+            <ExpandField
+              label="Solution Expectations"
               fieldName="solution_expectations"
               placeholder="What does commercial or operational success look like for the solution?"
               maxLength={2000}
