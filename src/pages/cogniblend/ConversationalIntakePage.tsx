@@ -778,17 +778,19 @@ export function ConversationalIntakeContent({
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">
-              {isEditMode ? 'Edit Challenge' : 'Create a Challenge'}
+              {isViewMode ? 'View Challenge' : isEditMode ? 'Edit Challenge' : 'Create a Challenge'}
             </h1>
             {!onSwitchToEditor && (
               <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs.
+            {isViewMode
+              ? 'Read-only view of the challenge inputs. Switch to Edit to make changes.'
+              : 'As a domain expert, provide the context solvers need. AI will draft the full specification from your inputs.'}
           </p>
         </div>
-        {!onSwitchToEditor && (
+        {!isViewMode && !onSwitchToEditor && (
           <Button
             variant="outline"
             size="sm"
