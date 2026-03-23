@@ -957,6 +957,7 @@ export function ConversationalIntakeContent({
           placeholder="e.g., Predictive Maintenance ML Model for Manufacturing"
           maxLength={200}
           className="text-base"
+          disabled={isViewMode}
           {...form.register('title')}
         />
         <div className="flex justify-end">
