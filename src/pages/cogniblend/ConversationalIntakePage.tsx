@@ -410,6 +410,10 @@ export function ConversationalIntakeContent({
     // Pre-fill form fields from existing challenge
     const ch = editChallenge as unknown as Record<string, unknown>;
 
+    // Title
+    if (ch.title) {
+      form.setValue('title', ch.title as string);
+    }
     if (ch.problem_statement) {
       form.setValue('problem_statement', ch.problem_statement as string);
     }
@@ -427,6 +431,9 @@ export function ConversationalIntakeContent({
     if (rewardStructure?.budget_max) {
       form.setValue('prize_amount', Number(rewardStructure.budget_max));
     }
+    if (rewardStructure?.budget_min) {
+      form.setValue('budget_min', Number(rewardStructure.budget_min));
+    }
     if (rewardStructure?.currency) {
       form.setValue('currency_code', rewardStructure.currency as string);
     } else if (ch.currency_code) {
@@ -435,6 +442,16 @@ export function ConversationalIntakeContent({
     // Deadline
     if (ch.submission_deadline) {
       form.setValue('deadline', new Date(ch.submission_deadline as string));
+    }
+    // Expected timeline from phase_schedule
+    const phaseSchedule = ch.phase_schedule as Record<string, unknown> | null;
+    if (phaseSchedule?.expected_timeline) {
+      form.setValue('expected_timeline', phaseSchedule.expected_timeline as string);
+    }
+    // Industry segment from targeting_filters or eligibility_model
+    const targeting = ch.targeting_filters as Record<string, unknown> | null;
+    if (targeting?.industry_segment_id) {
+      setSelectedIndustrySegmentId(targeting.industry_segment_id as string);
     }
     // Extended brief fields
     const eb = ch.extended_brief as Record<string, string> | null;
@@ -445,6 +462,20 @@ export function ConversationalIntakeContent({
       if (eb.scope_definition) form.setValue('scope_definition', eb.scope_definition);
       if (eb.preferred_approach) form.setValue('preferred_approach', eb.preferred_approach);
       if (eb.approaches_not_of_interest) form.setValue('approaches_not_of_interest', eb.approaches_not_of_interest);
+      if (eb.beneficiaries_mapping) form.setValue('beneficiaries_mapping', eb.beneficiaries_mapping);
+      if (eb.solution_expectations) form.setValue('solution_expectations', eb.solution_expectations);
+
+      // Dynamic: collect any extra keys not in KNOWN_BRIEF_KEYS
+      const extras: Record<string, string> = {};
+      for (const [key, val] of Object.entries(eb)) {
+        if (!KNOWN_BRIEF_KEYS.has(key) && typeof val === 'string' && val.trim()) {
+          extras[key] = val;
+        }
+      }
+      if (Object.keys(extras).length > 0) {
+        setDynamicBriefFields(extras);
+      }
+
       // Auto-expand if any detail fields have content
       const hasExpanded = Object.values(eb).some((v) => v?.trim());
       if (hasExpanded) setExpandOpen(true);
