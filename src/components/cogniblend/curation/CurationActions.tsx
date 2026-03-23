@@ -100,7 +100,7 @@ export default function CurationActions({
         .select("user_id")
         .eq("challenge_id", challengeId)
         .in("role_code", ["CR", "CA"])
-        .eq("status", "ACTIVE")
+        .eq("is_active", true)
         .limit(1)
         .maybeSingle();
       const { data, error } = await query;
