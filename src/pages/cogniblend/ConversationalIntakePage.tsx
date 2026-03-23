@@ -1579,9 +1579,21 @@ export function ConversationalIntakeContent({
               control={form.control}
               disabled={isViewMode}
             />
+            {mode === 'edit' && editChallengeId && (
+              <AIReviewInline
+                sectionKey="scope"
+                review={aiReviews['scope']}
+                currentContent={form.watch('scope_definition')}
+                challengeId={editChallengeId}
+                challengeContext={{ title: form.watch('title'), maturity_level: form.watch('maturity_level') }}
+                onAcceptRefinement={handleAcceptRefinement}
+                onSingleSectionReview={handleSingleSectionReview}
+                onMarkAddressed={handleMarkAddressed}
+                roleContext="spec"
+                defaultOpen={aiReviews['scope']?.status === 'needs_revision' || aiReviews['scope']?.status === 'warning'}
+              />
+            )}
 
-            <ExpandField
-              label="Preferred Approach"
               fieldName="preferred_approach"
               placeholder="Any specific methodologies, technologies, or frameworks you'd prefer solvers to use?"
               maxLength={1000}
