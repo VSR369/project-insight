@@ -1340,6 +1340,7 @@ export function ConversationalIntakeContent({
                       maxLength={2000}
                       className="text-base resize-none"
                       value={value}
+                      disabled={isViewMode}
                       onChange={(e) =>
                         setDynamicBriefFields((prev) => ({ ...prev, [key]: e.target.value }))
                       }
