@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Save, Loader2, Maximize2, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Send, Save, Loader2, Maximize2, ShieldCheck, ArrowLeft, Bot } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { useFormPersistence, persistState, restoreState, clearState } from '@/hooks/useFormPersistence';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -50,6 +50,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withUpdatedBy } from '@/lib/auditFields';
+import { AIReviewInline, type SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 
 /* ── Constants ── */
 
@@ -126,7 +127,7 @@ function useExistingChallenge(challengeId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenges')
-        .select('id, title, problem_statement, scope, operating_model, reward_structure, phase_schedule, eligibility, extended_brief')
+        .select('id, title, problem_statement, scope, operating_model, reward_structure, phase_schedule, eligibility, extended_brief, ai_section_reviews')
         .eq('id', challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -179,6 +180,8 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   const [mpProblemFullscreen, setMpProblemFullscreen] = useState(false);
   const [commercialFullscreen, setCommercialFullscreen] = useState(false);
   const [formInitialized, setFormInitialized] = useState(!isEditMode);
+  const [aiReviews, setAiReviews] = useState<Record<string, SectionReview>>({});
+  const [isAiReviewing, setIsAiReviewing] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -265,10 +268,74 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     setFormInitialized(true);
   }, [isEditMode, existingChallenge, formInitialized, reset]);
 
+  // ═══════ Effect — load persisted AI reviews ═══════
+  useEffect(() => {
+    if (!existingChallenge?.ai_section_reviews) return;
+    const reviews = Array.isArray(existingChallenge.ai_section_reviews)
+      ? existingChallenge.ai_section_reviews as unknown as SectionReview[]
+      : [];
+    const map: Record<string, SectionReview> = {};
+    for (const r of reviews) { if (r.section_key) map[r.section_key] = r; }
+    setAiReviews(map);
+  }, [existingChallenge?.ai_section_reviews]);
+
   // ═══════ Derived ═══════
   const isSubmitting = submitMutation.isPending || updateMutation.isPending;
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
+
+  // ═══════ AI Review handlers ═══════
+  const handleRunAiReview = async () => {
+    if (!challengeId) return;
+    setIsAiReviewing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
+        body: { challenge_id: challengeId, role_context: 'intake' },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success && data.data?.sections) {
+        const map: Record<string, SectionReview> = { ...aiReviews };
+        for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
+        setAiReviews(map);
+        toast.success('AI review complete — see comments below each section.');
+      } else {
+        throw new Error(data?.error?.message ?? 'Unexpected response');
+      }
+    } catch (e: any) {
+      toast.error(`AI review failed: ${e.message ?? 'Unknown error'}`);
+    } finally {
+      setIsAiReviewing(false);
+    }
+  };
+
+  const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
+    if (!challengeId) return;
+    const fieldMap: Record<string, string> = {
+      problem_statement: 'problem_summary',
+      scope: 'solution_expectations',
+      beneficiaries_mapping: 'beneficiaries_mapping',
+    };
+    const formField = fieldMap[sectionKey];
+    if (formField) {
+      setValue(formField as any, newContent, { shouldValidate: true });
+    }
+    // Also persist the addressed state
+    const updated = { ...aiReviews };
+    if (updated[sectionKey]) { updated[sectionKey] = { ...updated[sectionKey], addressed: true }; }
+    setAiReviews(updated);
+    toast.success('Refinement accepted and applied.');
+  };
+
+  const handleSingleSectionReview = (sectionKey: string, review: SectionReview) => {
+    setAiReviews((prev) => ({ ...prev, [sectionKey]: review }));
+  };
+
+  const handleMarkAddressed = (sectionKey: string) => {
+    setAiReviews((prev) => ({
+      ...prev,
+      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+    }));
+  };
 
   // ═══════ Conditional returns ═══════
   const isLoading = orgLoading || modelLoading || segmentsLoading || (isEditMode ? editLoading : tierLoading);
@@ -398,7 +465,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
           </div>
         </div>
 
-        {/* Step 1: Template Selector (create/edit: full grid; view: read-only badge) */}
+        {/* AI Review Button — edit/view mode only */}
+        {isEditMode && challengeId && (
+          <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
+            {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+            {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
+          </Button>
+        )}
+
         <TemplateSelector
           onSelect={handleTemplateSelect}
           selectedId={selectedTemplate?.id}
@@ -481,9 +555,22 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             )}
             {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
           </div>
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="problem_statement"
+              review={aiReviews['problem_statement']}
+              currentContent={problemSummary}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['problem_statement']?.status === 'needs_revision' || aiReviews['problem_statement']?.status === 'warning'}
+            />
+          )}
         </div>
 
-        {/* Fullscreen Dialog — Problem Editor */}
         <Dialog open={problemFullscreen} onOpenChange={setProblemFullscreen}>
           <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader className="shrink-0">
@@ -544,9 +631,22 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               />
             )}
           </div>
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="beneficiaries_mapping"
+              review={aiReviews['beneficiaries_mapping']}
+              currentContent={watch('beneficiaries_mapping') ?? null}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['beneficiaries_mapping']?.status === 'needs_revision' || aiReviews['beneficiaries_mapping']?.status === 'warning'}
+            />
+          )}
         </div>
 
-        {/* Fullscreen Dialog — Beneficiaries Editor */}
         <Dialog open={beneficiariesFullscreen} onOpenChange={setBeneficiariesFullscreen}>
           <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader className="shrink-0">
@@ -655,6 +755,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
         </div>
       </div>
 
+      {/* AI Review Button — edit/view mode only */}
+      {isEditMode && challengeId && (
+        <Button variant="outline" size="sm" onClick={handleRunAiReview} disabled={isAiReviewing} className="gap-1.5">
+          {isAiReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+          {isAiReviewing ? 'Reviewing…' : 'Review with AI'}
+        </Button>
+      )}
+
       {/* Template Selector — create/edit: full grid; view: read-only badge */}
       <TemplateSelector
         onSelect={handleTemplateSelect}
@@ -720,6 +828,20 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             </p>
           )}
           {errors.problem_summary && <p className="text-xs text-destructive">{errors.problem_summary.message}</p>}
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="problem_statement"
+              review={aiReviews['problem_statement']}
+              currentContent={problemSummary}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['problem_statement']?.status === 'needs_revision' || aiReviews['problem_statement']?.status === 'warning'}
+            />
+          )}
         </div>
 
         {/* Fullscreen Dialog — MP Problem Summary */}
@@ -866,9 +988,22 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
             />
           )}
           {errors.solution_expectations && <p className="text-xs text-destructive">{errors.solution_expectations.message}</p>}
+          {isEditMode && challengeId && (
+            <AIReviewInline
+              sectionKey="scope"
+              review={aiReviews['scope']}
+              currentContent={solutionExpectations ?? null}
+              challengeId={challengeId}
+              challengeContext={{ title: existingChallenge?.title }}
+              onAcceptRefinement={handleAcceptRefinement}
+              onSingleSectionReview={handleSingleSectionReview}
+              onMarkAddressed={handleMarkAddressed}
+              roleContext="intake"
+              defaultOpen={aiReviews['scope']?.status === 'needs_revision' || aiReviews['scope']?.status === 'warning'}
+            />
+          )}
         </div>
 
-        {/* Fullscreen Dialog — Commercial Success */}
         {!isViewMode && (
           <Dialog open={commercialFullscreen} onOpenChange={setCommercialFullscreen}>
             <DialogContent className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">

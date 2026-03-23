@@ -1,7 +1,8 @@
 /**
- * review-challenge-sections — Per-section AI review for Curation.
+ * review-challenge-sections — Role-aware per-section AI review.
  * Returns granular pass/warning/needs_revision per section with comments.
  * Supports single-section mode via optional `section_key` parameter.
+ * Supports role contexts: 'intake' (AM/RQ), 'spec' (CR/CA), 'curation' (CU, default).
  * Persists results to challenges.ai_section_reviews.
  */
 
@@ -16,7 +17,9 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-const ALL_SECTIONS = [
+/* ── Section definitions per role context ──────────────── */
+
+const CURATION_SECTIONS = [
   { key: "problem_statement", desc: "Clarity, specificity, context, why it matters, what has been tried" },
   { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity, no ambiguity" },
   { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
@@ -33,22 +36,63 @@ const ALL_SECTIONS = [
   { key: "visibility_eligibility", desc: "Visibility and eligibility properly configured" },
 ];
 
-function buildSystemPrompt(sections: typeof ALL_SECTIONS): string {
+const INTAKE_SECTIONS = [
+  { key: "problem_statement", desc: "Clarity of the business problem: is it specific, well-bounded, and understandable?" },
+  { key: "scope", desc: "Solution expectations: are the desired outcomes clearly described?" },
+  { key: "beneficiaries_mapping", desc: "Stakeholder mapping: are affected parties and expected benefits identified?" },
+  { key: "budget_reasonableness", desc: "Budget range: is it reasonable for the described problem scope?" },
+];
+
+const SPEC_SECTIONS = [
+  { key: "problem_statement", desc: "Clarity, specificity, solver-readiness — would a solver understand the problem?" },
+  { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity for solvers" },
+  { key: "description", desc: "Detailed enough for solvers to understand context and constraints" },
+  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
+  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
+  { key: "hook", desc: "Engaging, concise, motivating for potential solvers" },
+  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
+];
+
+type RoleContext = "intake" | "spec" | "curation";
+
+function getSectionsForContext(roleContext: RoleContext) {
+  switch (roleContext) {
+    case "intake": return INTAKE_SECTIONS;
+    case "spec": return SPEC_SECTIONS;
+    case "curation": return CURATION_SECTIONS;
+    default: return CURATION_SECTIONS;
+  }
+}
+
+function buildSystemPrompt(sections: typeof CURATION_SECTIONS, roleContext: RoleContext): string {
   const sectionList = sections.map((s, i) => `${i + 1}. ${s.key} - ${s.desc}`).join("\n");
 
-  return `You are an expert innovation challenge quality reviewer performing a deep, contextual review.
-
+  const roleGuidance = roleContext === "intake"
+    ? `You are reviewing an intake brief submitted by an Account Manager or Challenge Requestor.
+Focus on:
+- **Clarity for downstream creators**: Will a Challenge Creator/Architect understand the problem well enough to draft a full specification?
+- **Completeness**: Are the key business parameters (problem, expectations, budget, stakeholders) adequately described?
+- **Actionability**: Can the next team member start working without needing clarification?`
+    : roleContext === "spec"
+    ? `You are reviewing an AI-generated challenge specification from the Creator/Architect perspective.
+Focus on:
+- **Solver readiness**: Would a solver clearly understand what is expected?
+- **Technical accuracy**: Are deliverables, evaluation criteria, and scope well-defined?
+- **Consistency**: Do sections align with each other (deliverables match criteria, scope matches problem)?`
+    : `You are an expert innovation challenge quality reviewer performing a deep, contextual review.
 For each section, assess:
-- **Content quality**: Is the language clear, specific, unambiguous, and free of vague phrases like "as needed" or "if applicable"?
-- **Completeness**: Are all required aspects covered? Are there missing quantifiers, timelines, or specifics?
-- **Industry-appropriateness**: Does the content fit the stated industry/domain and maturity level?
-- **Cross-section consistency**: Do deliverables align with evaluation criteria? Does reward structure match complexity? Does scope match problem statement?
-- **Actionability for solvers**: Would a solver clearly understand what is expected from reading this section alone?
-- **Maturity-level fit**: Is the depth and rigor appropriate for the stated maturity level (Blueprint vs Pilot vs Prototype)?
+- **Content quality**: Is the language clear, specific, unambiguous?
+- **Completeness**: Are all required aspects covered?
+- **Industry-appropriateness**: Does the content fit the stated industry/domain?
+- **Cross-section consistency**: Do deliverables align with evaluation criteria?
+- **Actionability for solvers**: Would a solver clearly understand what is expected?
+- **Maturity-level fit**: Is the depth appropriate for the stated maturity level?`;
+
+  return `${roleGuidance}
 
 For each section provide:
-- status: "pass" (publication-ready), "warning" (functional but improvable), or "needs_revision" (has specific issues that must be fixed)
-- comments: 1-3 specific, actionable improvement instructions. Each comment should be written as an instruction that a curator can directly use to refine the section. For "pass" status, provide 0-1 optional enhancement suggestions.
+- status: "pass" (ready), "warning" (functional but improvable), or "needs_revision" (has specific issues that must be fixed)
+- comments: 1-3 specific, actionable improvement instructions. For "pass" status, provide 0-1 optional enhancement suggestions.
 
 Sections to review:
 ${sectionList}
@@ -78,7 +122,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key } = await req.json();
+    const { challenge_id, section_key, role_context } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
@@ -86,10 +130,13 @@ serve(async (req) => {
       );
     }
 
+    const resolvedContext: RoleContext = (["intake", "spec", "curation"].includes(role_context) ? role_context : "curation") as RoleContext;
+    const allSections = getSectionsForContext(resolvedContext);
+
     // Determine which sections to review
     const sectionsToReview = section_key
-      ? ALL_SECTIONS.filter((s) => s.key === section_key)
-      : ALL_SECTIONS;
+      ? allSections.filter((s) => s.key === section_key)
+      : allSections;
 
     if (section_key && sectionsToReview.length === 0) {
       return new Response(
@@ -103,22 +150,38 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const [challengeResult, legalResult, escrowResult] = await Promise.all([
+    // Select fields based on role context
+    const challengeFields = resolvedContext === "intake"
+      ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
+      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief";
+
+    const fetchPromises: Promise<any>[] = [
       adminClient
         .from("challenges")
-        .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews")
+        .select(challengeFields)
         .eq("id", challenge_id)
         .single(),
-      adminClient
-        .from("challenge_legal_docs")
-        .select("document_type, tier, status, lc_status, document_name")
-        .eq("challenge_id", challenge_id),
-      adminClient
-        .from("escrow_records")
-        .select("escrow_status, deposit_amount, currency")
-        .eq("challenge_id", challenge_id)
-        .maybeSingle(),
-    ]);
+    ];
+
+    // Only fetch legal/escrow for curation context
+    if (resolvedContext === "curation") {
+      fetchPromises.push(
+        adminClient
+          .from("challenge_legal_docs")
+          .select("document_type, tier, status, lc_status, document_name")
+          .eq("challenge_id", challenge_id),
+        adminClient
+          .from("escrow_records")
+          .select("escrow_status, deposit_amount, currency")
+          .eq("challenge_id", challenge_id)
+          .maybeSingle(),
+      );
+    }
+
+    const results = await Promise.all(fetchPromises);
+    const challengeResult = results[0];
+    const legalResult = resolvedContext === "curation" ? results[1] : null;
+    const escrowResult = resolvedContext === "curation" ? results[2] : null;
 
     if (challengeResult.error || !challengeResult.data) {
       return new Response(
@@ -127,9 +190,22 @@ serve(async (req) => {
       );
     }
 
+    let challengeData = challengeResult.data;
+
+    // For intake context, extract extended_brief fields into the review payload
+    if (resolvedContext === "intake" && challengeData.extended_brief) {
+      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+      challengeData = {
+        ...challengeData,
+        beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
+        solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
+      };
+    }
+
+    const contextLabel = resolvedContext === "intake" ? "intake brief" : resolvedContext === "spec" ? "specification" : "challenge";
     const userPrompt = section_key
-      ? `Review ONLY the "${section_key}" section of this challenge:\n\nCHALLENGE: ${JSON.stringify(challengeResult.data, null, 2)}\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`
-      : `Review each section of this challenge:\n\nCHALLENGE: ${JSON.stringify(challengeResult.data, null, 2)}\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}`;
+      ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${legalResult ? `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}` : ""}${escrowResult ? `\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}` : ""}`
+      : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${legalResult ? `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}` : ""}${escrowResult ? `\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}` : ""}`;
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
@@ -140,7 +216,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: buildSystemPrompt(sectionsToReview) },
+          { role: "system", content: buildSystemPrompt(sectionsToReview, resolvedContext) },
           { role: "user", content: userPrompt },
         ],
         tools: [
@@ -204,7 +280,7 @@ serve(async (req) => {
       reviewed_at: new Date().toISOString(),
     }));
 
-    // Merge with existing reviews: replace matching section_keys, keep others
+    // Merge with existing reviews
     const existingReviews: any[] = Array.isArray(challengeResult.data.ai_section_reviews)
       ? challengeResult.data.ai_section_reviews
       : [];
@@ -215,7 +291,6 @@ serve(async (req) => {
       ...newSections,
     ];
 
-    // Persist to DB
     const { error: updateError } = await adminClient
       .from("challenges")
       .update({ ai_section_reviews: merged })

@@ -53,6 +53,7 @@ import {
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
+import { AIReviewInline, type SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import ChallengeSettingsPanel from '@/components/cogniblend/spec/ChallengeSettingsPanel';
 import ExtendedBriefPreview from '@/components/cogniblend/spec/ExtendedBriefPreview';
@@ -790,6 +791,8 @@ export default function AISpecReviewPage() {
   const [autoRepairDone, setAutoRepairDone] = useState(false);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenError, setAutoGenError] = useState<string | null>(null);
+  const [isAiReviewing, setIsAiReviewing] = useState(false);
+  const [aiReviews, setAiReviews] = useState<Record<string, SectionReview>>({});
   // Org-policy settings state (Creator-facing)
   const [orgPolicyOverrides, setOrgPolicyOverrides] = useState<Record<string, unknown>>({});
   // Domain targeting taxonomy state
@@ -850,6 +853,59 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
+  // ═══════ Effect — load persisted AI reviews ═══════
+  useEffect(() => {
+    if (!challenge) return;
+    const raw = (challenge as any).ai_section_reviews;
+    if (!Array.isArray(raw)) return;
+    const map: Record<string, SectionReview> = {};
+    for (const r of raw) { if (r.section_key) map[r.section_key] = r; }
+    setAiReviews(map);
+  }, [challenge]);
+
+  // ═══════ AI Review handlers ═══════
+  const handleRunSpecAiReview = useCallback(async () => {
+    if (!challengeId) return;
+    setIsAiReviewing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
+        body: { challenge_id: challengeId, role_context: 'spec' },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success && data.data?.sections) {
+        const map: Record<string, SectionReview> = { ...aiReviews };
+        for (const r of data.data.sections as SectionReview[]) { map[r.section_key] = r; }
+        setAiReviews(map);
+        toast.success('AI review complete — see comments below each section.');
+      } else {
+        throw new Error(data?.error?.message ?? 'Unexpected response');
+      }
+    } catch (e: any) {
+      toast.error(`AI review failed: ${e.message ?? 'Unknown error'}`);
+    } finally {
+      setIsAiReviewing(false);
+    }
+  }, [challengeId, aiReviews]);
+
+  const handleSpecAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
+    handleSave(sectionKey, newContent);
+    setAiReviews((prev) => ({
+      ...prev,
+      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+    }));
+    toast.success('Refinement accepted and saved.');
+  }, []);
+
+  const handleSpecSingleReview = useCallback((sectionKey: string, review: SectionReview) => {
+    setAiReviews((prev) => ({ ...prev, [sectionKey]: review }));
+  }, []);
+
+  const handleSpecMarkAddressed = useCallback((sectionKey: string) => {
+    setAiReviews((prev) => ({
+      ...prev,
+      [sectionKey]: prev[sectionKey] ? { ...prev[sectionKey], addressed: true } : prev[sectionKey],
+    }));
+  }, []);
   // ═══════ Effects — initialize solver state from AI spec ═══════
   useEffect(() => {
     if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
