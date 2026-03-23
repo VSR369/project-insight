@@ -988,6 +988,7 @@ export function ConversationalIntakeContent({
           placeholder="e.g., We need a machine learning model that can predict equipment failures 48 hours in advance using sensor data from our manufacturing line..."
           rows={6}
           className="text-base resize-none"
+          disabled={isViewMode}
           {...form.register('problem_statement')}
         />
         {form.formState.errors.problem_statement && (
