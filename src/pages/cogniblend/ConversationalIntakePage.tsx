@@ -1139,6 +1139,30 @@ export function ConversationalIntakeContent({
         )}
       </div>
 
+      {/* Expected Timeline */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-foreground">
+          Expected Timeline
+          <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          How long do you expect the challenge to take?
+        </p>
+        <Select
+          value={form.watch('expected_timeline') || ''}
+          onValueChange={(v) => form.setValue('expected_timeline', v)}
+        >
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select timeline" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIMELINE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Step 7: Supporting Files */}
       <FileUploadArea
         files={supportingFiles}
