@@ -7,51 +7,63 @@ All items below are implemented and live. This serves as the authoritative refer
 
 ---
 
-## 1. Configuration Scope
+## 1. Capability Matrix by Pricing Tier
 
-| Setting | Org-Level | Challenge-Level | Notes |
-|---------|-----------|-----------------|-------|
-| Pricing Tier | ✅ Fixed | ✗ No | Set via subscription |
-| Engagement Model (MP/AGG) | ✅ Default | ✅ Override at Step 0 | Locked once ACTIVE (phase 7+) |
-| Governance Mode (Q/S/C) | ✅ Default | ✅ Override at Step 0 | Clamped to tier ceiling |
-| Role Fusion Rules | ✗ Not directly set | ✅ Derived from governance mode | Auto-resolved |
-
-## 2. Tier → Governance Ceiling
-
-| Tier | Allowed Modes | Default |
-|------|---------------|---------|
-| Basic | QUICK only | QUICK |
-| Standard | QUICK, STRUCTURED | STRUCTURED |
-| Premium | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
-| Enterprise | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
+| Capability | Basic | Standard | Premium | Enterprise |
+|---|---|---|---|---|
+| Governance modes available | QUICK | QUICK, STRUCTURED | QUICK, STRUCTURED, CONTROLLED | QUICK, STRUCTURED, CONTROLLED |
+| Org default governance | QUICK (fixed) | STRUCTURED | STRUCTURED | STRUCTURED |
+| Org can SET default gov. | No (only Q) | Yes (Q/S) | Yes (Q/S/C) | Yes (Q/S/C) |
+| Per-challenge gov override | No (only Q) | Yes (Q or S) | Yes (Q/S/C) | Yes (Q/S/C) |
+| Custom fusion policies | No | No | No | No |
+| Engagement models allowed | MP, AGG | MP, AGG | MP, AGG | MP, AGG |
 
 Implemented in `TIER_GOVERNANCE_MODES` and `getDefaultGovernanceMode()` in `src/lib/governanceMode.ts`.
 
-## 3. Engagement Model — Independent of Governance
+---
 
-| Feature | MP | AGG |
-|---------|-----|-----|
-| Intake role | AM | RQ |
-| Spec role | CA (Architect) | CR (Creator) |
+## 2. Org-Level vs Challenge-Level Control
 
-Engagement model does NOT affect role fusion. It only determines role names.
+| Setting | Org-Level | Challenge Override | Tier Unlock |
+|---|---|---|---|
+| Pricing Tier | SET (fixed) | — | All (subscription) |
+| Engagement Model (MP/AGG) | DEFAULT | OVERRIDE at Step 0 | All tiers (locked at ACTIVE) |
+| Governance Mode (Q/S/C) | DEFAULT | OVERRIDE at Step 0 | Clamped to tier ceiling |
+| Role Fusion Rules | — | DERIVED from mode | Follows governance mode |
+| Field Visibility Rules | — | DERIVED from mode | Follows governance mode |
+| Legal Entity Name | LOCKED | — | All (immutable) |
+| Org Type / HQ Country | LOCKED | — | All (immutable) |
+| Org Name / Brand / URL | EDITABLE | — | All |
 
-## 4. Governance Mode → Role Fusion
+**Resolution order**: Challenge `governance_mode_override` → Org `governance_profile` → Tier ceiling clamp.
 
-### QUICK — Zero conflict rules, solo operator
-All 9 roles auto-assigned to creator. Any combination allowed.
+---
 
-### STRUCTURED — 5 SOFT_WARN rules
-- CR+CU, CR+ID, CU+ID, CR+ER, ID+ER → warnings only
+## 3. Role Fusion Matrix (9 Pairs × 3 Modes)
 
-### CONTROLLED — 3 HARD_BLOCK + 6 SOFT_WARN
-- CR+CU, CR+ID, CU+ID → HARD_BLOCK (system prevents)
-- AM+CR, AM+CU, RQ+CR, RQ+CU, CR+ER, ID+ER → SOFT_WARN
+| Pair | QUICK | STRUCTURED | CONTROLLED |
+|---|---|---|---|
+| CR + CU | ALLOWED | SOFT_WARN | HARD_BLOCK |
+| CR + ID | ALLOWED | SOFT_WARN | HARD_BLOCK |
+| CU + ID | ALLOWED | SOFT_WARN | HARD_BLOCK |
+| CR + ER | ALLOWED | SOFT_WARN | SOFT_WARN |
+| ID + ER | ALLOWED | SOFT_WARN | SOFT_WARN |
+| AM + CR | ALLOWED | ALLOWED | SOFT_WARN |
+| AM + CU | ALLOWED | ALLOWED | SOFT_WARN |
+| RQ + CR | ALLOWED | ALLOWED | SOFT_WARN |
+| RQ + CU | ALLOWED | ALLOWED | SOFT_WARN |
+| **Totals** | **0 rules** | **5 SOFT_WARN** | **3 HARD_BLOCK + 6 SOFT_WARN** |
 
-## 5. Combined: Tier × Governance → Min Users
+- **ALLOWED**: No check, assignment proceeds silently.
+- **SOFT_WARN**: Amber banner + override checkbox required. Logged to `audit_trail` as `ROLE_CONFLICT_OVERRIDE`.
+- **HARD_BLOCK**: Red banner, assign button disabled. In auto-assignment, candidate skipped silently.
+
+---
+
+## 4. Tier × Governance → Min Users
 
 | Tier | Mode | Fusion | Min Users |
-|------|------|--------|-----------|
+|---|---|---|---|
 | Basic | QUICK | All merged | 1 |
 | Standard | QUICK | All merged | 1 |
 | Standard | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
@@ -59,30 +71,54 @@ All 9 roles auto-assigned to creator. Any combination allowed.
 | Premium/Enterprise | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
 | Premium/Enterprise | CONTROLLED | Block 3 core, warn 6 | Min 3 (CR, CU, ID separate) |
 
-## 6. Implementation Status
+---
 
-| Layer | Status |
-|-------|--------|
-| Tier → governance ceiling | ✅ Done |
-| Governance mode selector (Step 0) | ✅ Done |
-| Engagement model selector (Step 0) | ✅ Done |
-| `validate_role_assignment()` | ✅ Done |
-| `auto_assign_roles_on_creation()` | ✅ Done |
-| Conflict rules in DB (14 rows) | ✅ Done |
-| `resolveGovernanceMode()` | ✅ Done |
-| Frontend `isQuick` rename (18 files) | ✅ Done |
-| `isStructuredOrAbove` + deprecated alias | ✅ Done |
+## 5. End-to-End Scenarios
 
-### Completed (was Future Enhancement)
-- ✅ Per-challenge `governance_mode_override` column added to `challenges`
-- ✅ `resolve_challenge_governance(p_challenge_id)` SQL function (3-layer: override → org default → tier ceiling)
-- ✅ `validate_role_assignment()` and `auto_assign_roles_on_creation()` now call resolver
-- ✅ Client-side `resolveChallengeGovernance()` in `governanceMode.ts`
-- ✅ `ChallengeWizardPage.tsx` writes `governance_mode_override` on save
+### A: Basic → QUICK → 1 person
+1. `StepModeSelection` shows only QUICK (others greyed with tier upgrade prompt)
+2. `auto_assign_roles_on_creation()` assigns all 9 roles to creator
+3. Zero conflict checks — QUICK has 0 rules
 
-### Role Fusion Enforcement — Frontend Integration (Completed)
-- ✅ `useValidateRoleAssignment` hook — calls `validate_role_assignment` RPC
-- ✅ `ConflictWarningBanner` component — HARD_BLOCK (red) / SOFT_WARN (amber + override checkbox)
-- ✅ `AssignRoleSheet` — conflict check integrated with reset on role/member change
-- ✅ `useAutoAssignChallengeRoles` — pre-insert validation, skips HARD_BLOCK candidates, logs SOFT_WARN overrides
-- ✅ `useAssignMember` (useSolutionRequests) — pre-insert validation, blocks on HARD_BLOCK, logs SOFT_WARN overrides to audit_trail
+### B: Standard → STRUCTURED → CR+CU same person
+1. Admin assigns CU to user already holding CR
+2. `validate_role_assignment` RPC returns `SOFT_WARN`
+3. Amber `ConflictWarningBanner` appears with override checkbox
+4. Override logged to `audit_trail`
+
+### C: Premium → CONTROLLED → CR+ID blocked
+1. Admin assigns ID to user holding CR
+2. `validate_role_assignment` RPC returns `HARD_BLOCK`
+3. Red `ConflictWarningBanner` with lock icon, assign button disabled
+4. In auto-assignment, candidate skipped, next-best tried
+
+---
+
+## 6. Implementation Status — All Complete
+
+| Layer | Status | Enforcement Point |
+|---|---|---|
+| Tier → governance ceiling | ✅ | `TIER_GOVERNANCE_MODES` in `governanceMode.ts` |
+| Tier ceiling clamping | ✅ | `resolveChallengeGovernance()` in `governanceMode.ts` |
+| Org default governance | ✅ | `seeker_organizations.governance_profile` CHECK constraint |
+| Per-challenge override | ✅ | `challenges.governance_mode_override` CHECK constraint |
+| 3-layer resolution (SQL) | ✅ | `resolve_challenge_governance()` SECURITY DEFINER function |
+| 3-layer resolution (client) | ✅ | `resolveChallengeGovernance()` in `governanceMode.ts` |
+| Role conflict rules (data) | ✅ | `role_conflict_rules` table — 14 rows |
+| Role validation (SQL) | ✅ | `validate_role_assignment()` SQL function |
+| Role validation (frontend) | ✅ | `useValidateRoleAssignment` hook |
+| HARD_BLOCK UI | ✅ | `ConflictWarningBanner` (red, lock icon) |
+| SOFT_WARN UI + checkbox | ✅ | `ConflictWarningBanner` (amber, checkbox) |
+| AssignRoleSheet integration | ✅ | `AssignRoleSheet.tsx` — conflict check + banner + gate |
+| Auto-assign skip HARD_BLOCK | ✅ | `useAutoAssignChallengeRoles.ts` |
+| Auto-assign log SOFT_WARN | ✅ | `audit_trail` insert with `ROLE_CONFLICT_OVERRIDE` |
+| Manual challenge assignment | ✅ | `useSolutionRequests.ts` — pre-insert validation |
+| QUICK auto-assign all roles | ✅ | `auto_assign_roles_on_creation()` SQL function |
+| Engagement model per-challenge | ✅ | `challenges.operating_model` + lock trigger |
+| Governance mode selector (Step 0) | ✅ | `StepModeSelection.tsx` |
+| Engagement model selector (Step 0) | ✅ | Per-challenge, locked at ACTIVE |
+| `resolveGovernanceMode()` | ✅ | Legacy LIGHTWEIGHT/ENTERPRISE mapped |
+| `isStructuredOrAbove` + alias | ✅ | `isEnterpriseGrade` deprecated alias |
+| ChallengeWizardPage override write | ✅ | Writes `governance_mode_override` on save |
+| Governance badge rendering | ✅ | `GOVERNANCE_MODE_CONFIG` in `governanceMode.ts` |
+| Permission guarding | ✅ | `PermissionGuard` + `tier_permissions` table |
