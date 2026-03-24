@@ -1,7 +1,7 @@
 /**
  * useCurationMasterData — Batch-fetches master data options used by
  * curator section renderers (maturity levels, complexity levels,
- * visibility options, effort levels, IP models).
+ * visibility options, effort levels, IP models, eligibility/solver profiles).
  *
  * Centralizes all master data lookups so renderers don't hardcode options.
  */
@@ -32,6 +32,7 @@ export interface CurationMasterData {
   visibilityOptions: MasterDataOption[];
   effortOptions: MasterDataOption[];
   ipModelOptions: MasterDataOption[];
+  eligibilityOptions: MasterDataOption[];
   isLoading: boolean;
 }
 
@@ -50,6 +51,16 @@ const IP_MODEL_OPTIONS: MasterDataOption[] = [
   { value: "shared", label: "Shared IP", description: "Joint ownership between solver and seeker" },
   { value: "open_source", label: "Open Source", description: "Solution released under open source license" },
   { value: "retained", label: "Solver Retains", description: "Solver retains full IP ownership" },
+];
+
+/** Eligibility / solver profile types — static until a DB table is created */
+const ELIGIBILITY_OPTIONS: MasterDataOption[] = [
+  { value: "individual", label: "Individual Solver", description: "Single person can submit" },
+  { value: "team", label: "Team", description: "Multi-person team submissions" },
+  { value: "organization", label: "Organization", description: "Corporate or institutional submissions" },
+  { value: "academic", label: "Academic", description: "University or research institution" },
+  { value: "startup", label: "Startup", description: "Early-stage company submissions" },
+  { value: "any", label: "Any", description: "Open to all solver types" },
 ];
 
 /* ── Hook ──────────────────────────────────────────────── */
@@ -106,6 +117,7 @@ export function useCurationMasterData(): CurationMasterData {
     visibilityOptions,
     effortOptions: EFFORT_OPTIONS,
     ipModelOptions: IP_MODEL_OPTIONS,
+    eligibilityOptions: ELIGIBILITY_OPTIONS,
     isLoading: complexityLoading,
   };
 }
