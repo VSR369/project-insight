@@ -888,7 +888,38 @@ export default function CurationReviewPage() {
     ...CACHE_STANDARD,
   });
 
-  // Load persisted AI reviews from challenge data
+  // Section-level curator actions (approvals + modification requests)
+  const { data: sectionActions = [] } = useQuery({
+    queryKey: ["curator-section-actions", challengeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("curator_section_actions" as any)
+        .select("id, section_key, action_type, status, addressed_to, priority, comment_html, created_at, responded_at, response_html")
+        .eq("challenge_id", challengeId!)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return (data ?? []) as Array<{
+        id: string;
+        section_key: string;
+        action_type: string;
+        status: string;
+        addressed_to: string | null;
+        priority: string | null;
+        comment_html: string | null;
+        created_at: string;
+        responded_at: string | null;
+        response_html: string | null;
+      }>;
+    },
+    enabled: !!challengeId,
+    ...CACHE_STANDARD,
+  });
+
+  const getSectionActions = useCallback((sectionKey: string) => {
+    return sectionActions.filter(a => a.section_key === sectionKey);
+  }, [sectionActions]);
+
+
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       const stored = Array.isArray(challenge.ai_section_reviews)
