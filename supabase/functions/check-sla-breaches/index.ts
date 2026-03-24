@@ -117,16 +117,16 @@ serve(async (req) => {
     }
 
     // ── Step 4: Governance-aware auto-hold enforcement (GAP-07) ──
-    // For LIGHTWEIGHT governance, revert any auto-holds that were just set
+    // For QUICK governance, revert any auto-holds that were just set
     // (LIGHTWEIGHT = inform only, no auto-hold or auto-cancel)
-    let lightweightRevertCount = 0;
+    let quickRevertCount = 0;
     try {
-      // Find challenges that are ON_HOLD with LIGHTWEIGHT governance
+      // Find challenges that are ON_HOLD with QUICK governance
       const { data: lwHeld } = await supabaseAdmin
         .from("challenges")
         .select("id")
         .eq("phase_status", "ON_HOLD")
-        .eq("governance_profile", "LIGHTWEIGHT")
+        .eq("governance_profile", "QUICK")
         .eq("is_deleted", false);
 
       if (lwHeld?.length) {
@@ -136,7 +136,7 @@ serve(async (req) => {
             .from("challenges")
             .update({ phase_status: "ACTIVE" })
             .eq("id", ch.id)
-            .eq("governance_profile", "LIGHTWEIGHT");
+            .eq("governance_profile", "QUICK");
 
           // Un-pause any timers that were paused by auto-hold
           await supabaseAdmin
@@ -145,18 +145,18 @@ serve(async (req) => {
             .eq("challenge_id", ch.id)
             .eq("status", "PAUSED");
 
-          lightweightRevertCount++;
+          quickRevertCount++;
         }
-        if (lightweightRevertCount > 0) {
-          console.log(`Reverted ${lightweightRevertCount} LIGHTWEIGHT auto-holds (inform only)`);
+        if (quickRevertCount > 0) {
+          console.log(`Reverted ${quickRevertCount} QUICK auto-holds (inform only)`);
         }
       }
     } catch (lwErr: any) {
-      console.error("Lightweight governance revert failed:", lwErr.message);
+      console.error("Quick governance revert failed:", lwErr.message);
     }
 
     // ── Step 5: Auto-cancel challenges on hold too long ──────
-    // Only for ENTERPRISE governance (GAP-07: LIGHTWEIGHT skips auto-cancel)
+    // Only for ENTERPRISE governance (GAP-07: QUICK skips auto-cancel)
     let autoCancelCount = 0;
 
     const { data: onHoldChallenges, error: holdErr } = await supabaseAdmin
@@ -169,8 +169,8 @@ serve(async (req) => {
       console.error("Error fetching ON_HOLD challenges:", holdErr.message);
     } else if (onHoldChallenges?.length) {
       for (const challenge of onHoldChallenges) {
-        // GAP-07: Skip auto-cancel for LIGHTWEIGHT governance
-        if (challenge.governance_profile === "LIGHTWEIGHT") {
+        // GAP-07: Skip auto-cancel for QUICK governance
+        if (challenge.governance_profile === "QUICK") {
           continue;
         }
 
@@ -296,7 +296,7 @@ serve(async (req) => {
       console.error("Legal re-acceptance suspension failed:", reaccErr.message);
     }
 
-    console.log(`SLA check complete: ${breachCount} breaches, ${warningCount} warnings, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${lightweightRevertCount} lw-reverted, ${autoCancelCount} auto-cancelled, ${reacceptSuspendCount} reaccept-suspended`);
+    console.log(`SLA check complete: ${breachCount} breaches, ${warningCount} warnings, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${quickRevertCount} quick-reverted, ${autoCancelCount} auto-cancelled, ${reacceptSuspendCount} reaccept-suspended`);
 
     return new Response(
       JSON.stringify({
@@ -306,7 +306,7 @@ serve(async (req) => {
           warnings_sent: warningCount,
           escalations_processed: escalatedCount,
           auto_held: autoHeldCount,
-          lightweight_reverted: lightweightRevertCount,
+          quick_reverted: quickRevertCount,
           auto_cancelled: autoCancelCount,
           reaccept_suspended: reacceptSuspendCount,
           checked_at: new Date().toISOString(),

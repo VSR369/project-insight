@@ -109,7 +109,7 @@ serve(async (req) => {
       tenant_id: mpOrgId,
       organization_name: "CogniTest Marketplace Corp",
       operating_model: "MP",
-      governance_profile: "LIGHTWEIGHT",
+      governance_profile: "QUICK",
       verification_status: "verified",
       verified_at: new Date().toISOString(),
       is_active: true,
@@ -126,7 +126,7 @@ serve(async (req) => {
       tenant_id: aggOrgId,
       organization_name: "CogniTest Aggregator Corp",
       operating_model: "AGG",
-      governance_profile: "ENTERPRISE",
+      governance_profile: "STRUCTURED",
       verification_status: "verified",
       verified_at: new Date().toISOString(),
       is_active: true,
@@ -264,8 +264,8 @@ serve(async (req) => {
           master_status: p.masterStatus,
           current_phase: p.phase,
           operating_model: model,
-          governance_profile: model === "MP" ? "LIGHTWEIGHT" : "ENTERPRISE",
-          maturity_level: model === "MP" ? "LIGHTWEIGHT_STANDARD" : "ENTERPRISE_STANDARD",
+          governance_profile: model === "MP" ? "QUICK" : "STRUCTURED",
+          maturity_level: model === "MP" ? "QUICK_STANDARD" : "STRUCTURED_STANDARD",
           ip_model: "SHARED",
           visibility: "PRIVATE",
           is_active: true,
@@ -332,7 +332,7 @@ serve(async (req) => {
             document_type: doc.document_type,
             tier: doc.tier,
             status: "Default Applied",
-            maturity_level: model === "mp" ? "LIGHTWEIGHT_STANDARD" : "ENTERPRISE_STANDARD",
+            maturity_level: model === "mp" ? "QUICK_STANDARD" : "STRUCTURED_STANDARD",
           });
           if (error) results.push(`⚠️ legal doc ${model}/${doc.document_type}: ${error.message}`);
         }
