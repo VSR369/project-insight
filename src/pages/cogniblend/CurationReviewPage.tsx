@@ -145,6 +145,8 @@ interface ChallengeData {
   // Phase 5A: solver-tier fields for eligibility/visibility
   solver_eligibility_types: Json | null;
   solver_visibility_types: Json | null;
+  // Phase: solver expertise requirements
+  solver_expertise_requirements: Json | null;
 }
 
 interface LegalDocSummary {
