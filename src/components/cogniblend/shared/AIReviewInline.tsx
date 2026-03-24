@@ -555,7 +555,29 @@ export function AIReviewInline({
               </div>
             )}
 
-            {!refinedContent && !isPassWithNoComments && (
+            {/* Locked sections: Send to LC/FC button instead of Refine */}
+            {isLockedSection && !isPassWithNoComments && onSendToCoordinator && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs h-7"
+                onClick={() => {
+                  const selectedText = comments
+                    .filter((_, i) => selectedComments.has(i))
+                    .join("\n\n");
+                  onSendToCoordinator(selectedText || comments.join("\n\n"));
+                }}
+                disabled={selectedComments.size === 0}
+              >
+                <Send className="h-3.5 w-3.5 mr-1" />
+                {hasSentBefore
+                  ? `Send Follow-up to ${coordinatorRole ?? "Coordinator"}`
+                  : `Send to ${coordinatorRole ?? "Coordinator"}`}
+              </Button>
+            )}
+
+            {/* Non-locked sections: Refine with AI button */}
+            {!isLockedSection && !refinedContent && !isPassWithNoComments && (
               <Button
                 size="sm"
                 variant="outline"
@@ -568,7 +590,8 @@ export function AIReviewInline({
               </Button>
             )}
 
-            {refinedContent && (
+            {/* Non-locked sections: Result panel with Accept/Discard */}
+            {!isLockedSection && refinedContent && (
               <AIReviewResultPanel
                 sectionKey={sectionKey}
                 result={{
