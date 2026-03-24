@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { ROLE_DISPLAY } from '@/types/cogniRoles';
 import { supabase } from '@/integrations/supabase/client';
 
