@@ -229,38 +229,54 @@ function SectionEditor({
       </div>
 
       <div className="space-y-2">
-        <Label>Section Description</Label>
+        <div className="flex items-center justify-between">
+          <Label>Section Description</Label>
+          <CharCounter value={form.section_description ?? ''} max={500} />
+        </div>
         <Textarea
           value={form.section_description ?? ''}
-          onChange={e => setForm(f => ({ ...f, section_description: e.target.value }))}
-          rows={2}
+          onChange={e => setForm(f => ({ ...f, section_description: e.target.value.slice(0, 500) }))}
+          rows={3}
+          maxLength={500}
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Review Instructions</Label>
+        <div className="flex items-center justify-between">
+          <Label>Review Instructions</Label>
+          <CharCounter value={form.review_instructions ?? ''} max={2000} />
+        </div>
         <Textarea
           value={form.review_instructions ?? ''}
-          onChange={e => setForm(f => ({ ...f, review_instructions: e.target.value }))}
-          rows={3}
+          onChange={e => setForm(f => ({ ...f, review_instructions: e.target.value.slice(0, 2000) }))}
+          rows={6}
+          maxLength={2000}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Do's</Label>
+          <div className="flex items-center justify-between">
+            <Label>Do's</Label>
+            <CharCounter value={form.dos ?? ''} max={1000} />
+          </div>
           <Textarea
             value={form.dos ?? ''}
-            onChange={e => setForm(f => ({ ...f, dos: e.target.value }))}
-            rows={2}
+            onChange={e => setForm(f => ({ ...f, dos: e.target.value.slice(0, 1000) }))}
+            rows={4}
+            maxLength={1000}
           />
         </div>
         <div className="space-y-2">
-          <Label>Don'ts</Label>
+          <div className="flex items-center justify-between">
+            <Label>Don'ts</Label>
+            <CharCounter value={form.donts ?? ''} max={1000} />
+          </div>
           <Textarea
             value={form.donts ?? ''}
-            onChange={e => setForm(f => ({ ...f, donts: e.target.value }))}
-            rows={2}
+            onChange={e => setForm(f => ({ ...f, donts: e.target.value.slice(0, 1000) }))}
+            rows={4}
+            maxLength={1000}
           />
         </div>
       </div>
