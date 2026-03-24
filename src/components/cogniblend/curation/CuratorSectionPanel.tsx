@@ -218,6 +218,7 @@ export function CuratorSectionPanel({
   defaultExpanded,
   sectionActions,
   promptSource,
+  expandVersion,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
