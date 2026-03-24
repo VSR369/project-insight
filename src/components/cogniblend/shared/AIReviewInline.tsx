@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -423,70 +424,22 @@ export function AIReviewInline({
             )}
 
             {refinedContent && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-primary uppercase tracking-wide">Proposed Refinement</p>
-
-                {/* Structured item-level rendering for deliverables / eval criteria */}
-                {isStructured && structuredItems && structuredItems.length > 0 ? (
-                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-60 overflow-y-auto space-y-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] text-muted-foreground">
-                        {selectedItems.size}/{structuredItems.length} items selected
-                      </span>
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                          onClick={() => setSelectedItems(new Set(structuredItems.map((_, i) => i)))}
-                        >
-                          Select all
-                        </button>
-                        <button
-                          type="button"
-                          className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                          onClick={() => setSelectedItems(new Set())}
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    </div>
-                    {structuredItems.map((item, i) => (
-                      <label
-                        key={i}
-                        className={cn(
-                          "flex items-start gap-2 rounded p-1.5 cursor-pointer transition-colors text-sm",
-                          selectedItems.has(i) ? "bg-primary/10" : "opacity-50"
-                        )}
-                      >
-                        <Checkbox
-                          checked={selectedItems.has(i)}
-                          onCheckedChange={() => handleToggleItem(i)}
-                          className="mt-0.5 h-3.5 w-3.5"
-                        />
-                        <span className="flex-1 leading-relaxed">{item}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  /* Text-based rendering for non-structured sections */
-                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
-                    <AiContentRenderer content={refinedContent} compact />
-                  </div>
-                )}
-
-                <div className="flex gap-2 justify-end">
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDiscard}>
-                    <X className="h-3.5 w-3.5 mr-1" />Discard
-                  </Button>
-                  <Button size="sm" className="h-7 text-xs" onClick={handleAccept}>
-                    <Check className="h-3.5 w-3.5 mr-1" />
-                    {isStructured && structuredItems
-                      ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? 's' : ''}`
-                      : "Accept & Save"
-                    }
-                  </Button>
-                </div>
-              </div>
+              <AIReviewResultPanel
+                sectionKey={sectionKey}
+                result={{
+                  status: review?.status ?? "warning",
+                  comments: comments,
+                  suggested_version: refinedContent,
+                }}
+                structuredItems={structuredItems}
+                selectedItems={selectedItems}
+                onToggleItem={handleToggleItem}
+                onSelectAllItems={() => structuredItems && setSelectedItems(new Set(structuredItems.map((_, i) => i)))}
+                onClearItems={() => setSelectedItems(new Set())}
+                onAccept={handleAccept}
+                onDiscard={handleDiscard}
+                isStructured={isStructured}
+              />
             )}
           </>
         )}

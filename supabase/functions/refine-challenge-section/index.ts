@@ -127,16 +127,20 @@ ${curator_instructions}
 
 Rewrite the section content following the instructions. Return ONLY the refined content, nothing else.`;
 
-    // For structured sections, add explicit JSON instruction to the user prompt
-    const STRUCTURED_SECTIONS = ["deliverables", "evaluation_criteria"];
-    const isStructuredSection = STRUCTURED_SECTIONS.includes(section_key);
+    // For structured sections, add explicit format instruction
+    const FORMAT_INSTRUCTIONS: Record<string, string> = {
+      deliverables: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per deliverable item. Example: ["Deliverable 1 description", "Deliverable 2 description"]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`,
+      evaluation_criteria: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of objects with "name", "weight", and "description" keys. Example: [{"name":"Innovation","weight":30,"description":"..."},{"name":"Feasibility","weight":25,"description":"..."}]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`,
+      submission_guidelines: `\n\nCRITICAL FORMAT REQUIREMENT: Return formatted markdown text with headings and bullet lists. Do NOT return JSON.`,
+      phase_schedule: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of phase objects with keys: "phase_name", "start_date", "end_date", "milestone" (boolean), "dependencies" (string or null). Example: [{"phase_name":"Registration","start_date":"Day 1","end_date":"Day 14","milestone":false,"dependencies":null}].`,
+      reward_structure: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with reward structure fields. Include "total_prize", "tiers" (array of {tier, amount, currency}), and "payment_trigger" where applicable.`,
+      domain_tags: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of tag strings. Example: ["AI", "Healthcare", "Data Science"]. No prose.`,
+    };
 
     let finalUserPrompt = userPrompt;
-    if (isStructuredSection) {
-      const structuredInstruction = section_key === "deliverables"
-        ? `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per deliverable item. Example: ["Deliverable 1 description", "Deliverable 2 description"]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`
-        : `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of objects with "name", "weight", and "description" keys. Example: [{"name":"Innovation","weight":30,"description":"..."},{"name":"Feasibility","weight":25,"description":"..."}]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`;
-      finalUserPrompt += structuredInstruction;
+    const fmtInstruction = FORMAT_INSTRUCTIONS[section_key];
+    if (fmtInstruction) {
+      finalUserPrompt += fmtInstruction;
     }
 
     const response = await fetch(AI_GATEWAY_URL, {
