@@ -1702,18 +1702,14 @@ export default function CurationReviewPage() {
                           <>
                             <CheckboxSingleSectionRenderer
                               value={challenge.maturity_level}
-                              options={Object.entries(MATURITY_LABELS).map(([key, label]) => ({
-                                value: key,
-                                label: label as string,
-                                description: MATURITY_DESCRIPTIONS[key],
-                              }))}
+                              options={masterData.maturityOptions}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={(val) => handleSaveMaturityLevel(val)}
                               onCancel={cancelEdit}
                               saving={savingSection}
                               getLabel={getMaturityLabel}
-                              getDescription={(val) => MATURITY_DESCRIPTIONS[val]}
+                              getDescription={(val) => masterData.maturityOptions.find(o => o.value === val)?.description}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
