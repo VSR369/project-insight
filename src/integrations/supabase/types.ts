@@ -1273,6 +1273,7 @@ export type Database = {
           solutions_awarded: number
           solver_eligibility_id: string | null
           solver_eligibility_types: Json | null
+          solver_expertise_requirements: Json | null
           solver_visibility_types: Json | null
           status: string
           submission_deadline: string | null
@@ -1338,6 +1339,7 @@ export type Database = {
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
+          solver_expertise_requirements?: Json | null
           solver_visibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
@@ -1403,6 +1405,7 @@ export type Database = {
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
+          solver_expertise_requirements?: Json | null
           solver_visibility_types?: Json | null
           status?: string
           submission_deadline?: string | null

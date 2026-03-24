@@ -238,6 +238,13 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['deliverables', 'scope', 'phase_schedule'],
   },
+  solver_expertise: {
+    format: 'custom',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['scope', 'deliverables', 'evaluation_criteria', 'eligibility', 'domain_tags'],
+  },
 };
 
 /** Sections where the curator has no edit access */
