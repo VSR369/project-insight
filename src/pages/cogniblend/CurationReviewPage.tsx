@@ -2088,7 +2088,24 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Extended brief (nested subsection panels) ──
+                      // ── Solver expertise requirements ──
+                      case "solver_expertise": {
+                        const targeting = parseJson<any>(challenge.eligibility);
+                        const industrySegId = targeting?.industry_segment_id ?? null;
+                        return (
+                          <SolverExpertiseSection
+                            data={challenge.solver_expertise_requirements}
+                            industrySegmentId={industrySegId}
+                            readOnly={isReadOnly}
+                            onSave={(expertiseData) => {
+                              setSavingSection(true);
+                              saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+                            }}
+                            saving={savingSection}
+                          />
+                        );
+                      }
+
                       case "extended_brief":
                         return (
                           <ExtendedBriefDisplay
