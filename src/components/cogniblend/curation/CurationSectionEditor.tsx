@@ -77,7 +77,7 @@ export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, i
           <Input
             value={item}
             onChange={(e) => update(i, e.target.value)}
-            placeholder={`Deliverable ${i + 1}`}
+            placeholder={`${itemLabel} ${i + 1}`}
             className="flex-1"
           />
           {items.length > 1 && (
