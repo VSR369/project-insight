@@ -1704,6 +1704,65 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_section_actions: {
+        Row: {
+          action_type: string
+          addressed_to: string | null
+          challenge_id: string
+          comment_html: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          priority: string | null
+          responded_at: string | null
+          response_html: string | null
+          section_key: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          action_type: string
+          addressed_to?: string | null
+          challenge_id: string
+          comment_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          priority?: string | null
+          responded_at?: string | null
+          response_html?: string | null
+          section_key: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          action_type?: string
+          addressed_to?: string | null
+          challenge_id?: string
+          comment_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          priority?: string | null
+          responded_at?: string | null
+          response_html?: string | null
+          section_key?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_section_actions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delegated_soa_scope_audit: {
         Row: {
           confirmation_given: boolean
