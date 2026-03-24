@@ -1,52 +1,21 @@
 
+# Governance Cleanup — COMPLETED
 
-# Final Cleanup: Migrate 3 Remaining Raw Role Checks
+## What was done
 
-## Changes (3 files)
+### SQL Migration (Part A)
+- ✅ Dropped old CHECK constraints on `seeker_organizations` and `role_conflict_rules`
+- ✅ Migrated data: `LIGHTWEIGHT` → `QUICK`, `ENTERPRISE` → `STRUCTURED` (disabled trigger during migration)
+- ✅ Added new constraints enforcing `QUICK/STRUCTURED/CONTROLLED`
+- ✅ Deleted old `ENTERPRISE_ONLY` conflict rules, inserted 14 new rules for STRUCTURED and CONTROLLED modes
+- ✅ Replaced 8 SQL functions with backward-compat mode mapping at top of each
 
-### File 1: `src/pages/cogniblend/ChallengeCreatePage.tsx`
-
-Since `isAMorRQ` and `isCreatorRole` are referenced multiple times (11 occurrences), use the alias destructuring approach to avoid a large rename:
-
-```typescript
-// Add import:
-import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
-
-// Replace lines 399-400:
-const { isBusinessOwner: isAMorRQ, isSpecRole: isCreatorRole } = useCogniPermissions();
-```
-
-### File 2: `src/components/cogniblend/dashboard/ActionItemsWidget.tsx`
-
-```typescript
-// Add import:
-import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
-
-// Add to component body:
-const { isBusinessOwner } = useCogniPermissions();
-
-// Replace line 53:
-// FROM: ).length + ((!activeRole || ['AM', 'RQ'].includes(activeRole))
-// TO:   ).length + (isBusinessOwner
-```
-
-### File 3: `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
-
-```typescript
-// Add import:
-import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
-
-// Add to component body:
-const { isBusinessOwner } = useCogniPermissions();
-
-// Replace line 179:
-// FROM: const showSRs = !activeRole || ['AM', 'RQ'].includes(activeRole);
-// TO:   const showSRs = isBusinessOwner;
-```
+### Frontend (Part B)
+- ✅ Renamed `isLightweight` → `isQuick` across 18 files
+- ✅ Renamed `isEnterpriseGrade` → `isStructuredOrAbove` (deprecated alias kept)
+- ✅ Updated GovernanceProfileBadge test (11 tests, all passing)
+- ✅ Updated 3 edge functions: `setup-test-scenario`, `seed-cogni-master`, `check-sla-breaches`
+- ✅ Renamed internal constants: `PROBLEM_MIN_LIGHTWEIGHT` → `PROBLEM_MIN_QUICK`, etc.
 
 ## Result
-
-Zero raw role-based permission checks remain. All permission gating flows through `useCogniPermissions`. Raw `activeRole` usage is limited to display labels, challenge-level filtering, and nav dimming.
-
-**Files modified**: 3
-
+Zero `isLightweight` variables remain. All governance logic uses QUICK/STRUCTURED/CONTROLLED. Legacy `LIGHTWEIGHT`/`ENTERPRISE` DB values are mapped via backward-compat in `resolveGovernanceMode()` and SQL functions.
