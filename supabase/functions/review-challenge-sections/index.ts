@@ -524,6 +524,7 @@ serve(async (req) => {
         }
       }
 
+      const promptSource = useDbConfig ? "supervisor" : "default";
       try {
         const batchResults = await callAIBatch(
           LOVABLE_API_KEY,
@@ -532,6 +533,10 @@ serve(async (req) => {
           userPrompt,
           batch.map(s => s.key),
         );
+        // Tag each result with prompt source
+        for (const r of batchResults) {
+          (r as any).prompt_source = promptSource;
+        }
         allNewSections.push(...batchResults);
       } catch (err: any) {
         if (err.message === "RATE_LIMIT") {

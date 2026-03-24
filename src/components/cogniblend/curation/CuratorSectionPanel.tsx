@@ -77,6 +77,8 @@ export interface CuratorSectionPanelProps {
   defaultExpanded?: boolean;
   /** Existing section action records for this section */
   sectionActions?: SectionActionRecord[];
+  /** Whether AI used supervisor-configured or default prompt */
+  promptSource?: "supervisor" | "default" | null;
 }
 
 // ---------------------------------------------------------------------------
