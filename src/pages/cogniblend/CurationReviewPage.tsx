@@ -1335,6 +1335,41 @@ export default function CurationReviewPage() {
     });
   }, [saveSectionMutation]);
 
+  /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
+  const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
+    const jsonbField = EXTENDED_BRIEF_FIELD_MAP[subsectionKey];
+    if (!jsonbField) {
+      // Not an extended brief subsection — delegate to main handler
+      handleAcceptRefinement(subsectionKey, newContent);
+      return;
+    }
+
+    const currentBrief = parseJson<Record<string, unknown>>(challenge?.extended_brief ?? null) ?? {};
+    let valueToSave: unknown = newContent;
+
+    // Parse JSON for structured fields (line_items, table)
+    const config = SECTION_FORMAT_CONFIG[subsectionKey];
+    if (config && (config.format === 'line_items' || config.format === 'table')) {
+      const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+      if (jsonMatch) {
+        try {
+          valueToSave = JSON.parse(jsonMatch[1]);
+        } catch {
+          toast.error(`AI returned invalid JSON for ${subsectionKey}. Please try again.`);
+          return;
+        }
+      }
+    } else if (config?.format === 'rich_text' && typeof newContent === 'string') {
+      const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
+      valueToSave = normalizeAiContentForEditor(newContent);
+    }
+
+    const updated = { ...currentBrief, [jsonbField]: valueToSave };
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "extended_brief", value: updated });
+  }, [challenge?.extended_brief, saveSectionMutation, handleAcceptRefinement]);
+
   /** Persist "addressed" flag when a refinement is accepted */
   const handleMarkAddressed = useCallback((sectionKey: string) => {
     setAiReviews((prev) => {
