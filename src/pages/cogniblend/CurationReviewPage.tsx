@@ -1255,6 +1255,22 @@ export default function CurationReviewPage() {
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
 
+    // ── Solver expertise: parse JSON and save directly ──
+    if (sectionKey === "solver_expertise") {
+      try {
+        const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        const jsonMatch = cleaned.match(/(\{[\s\S]*\})/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
+          return;
+        }
+      } catch { /* fall through */ }
+      toast.error("AI returned invalid expertise data. Please try again.");
+      return;
+    }
+
     // ── Master-data multi-select sections: save to solver_*_types as {code, label}[] ──
     if (sectionKey === "eligibility") {
       try {
