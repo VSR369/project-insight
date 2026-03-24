@@ -56,9 +56,10 @@ interface DeliverablesEditorProps {
   onSave: (items: string[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  itemLabel?: string;
 }
 
-export function DeliverablesEditor({ items: initial, onSave, onCancel, saving }: DeliverablesEditorProps) {
+export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, itemLabel = "Item" }: DeliverablesEditorProps) {
   const [items, setItems] = useState<string[]>(initial.length ? initial : [""]);
 
   const update = (i: number, v: string) => {
