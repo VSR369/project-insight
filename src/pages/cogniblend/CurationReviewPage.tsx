@@ -888,7 +888,38 @@ export default function CurationReviewPage() {
     ...CACHE_STANDARD,
   });
 
-  // Load persisted AI reviews from challenge data
+  // Section-level curator actions (approvals + modification requests)
+  const { data: sectionActions = [] } = useQuery({
+    queryKey: ["curator-section-actions", challengeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("curator_section_actions" as any)
+        .select("id, section_key, action_type, status, addressed_to, priority, comment_html, created_at, responded_at, response_html")
+        .eq("challenge_id", challengeId!)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return (data ?? []) as unknown as Array<{
+        id: string;
+        section_key: string;
+        action_type: string;
+        status: string;
+        addressed_to: string | null;
+        priority: string | null;
+        comment_html: string | null;
+        created_at: string;
+        responded_at: string | null;
+        response_html: string | null;
+      }>;
+    },
+    enabled: !!challengeId,
+    ...CACHE_STANDARD,
+  });
+
+  const getSectionActions = useCallback((sectionKey: string) => {
+    return sectionActions.filter(a => a.section_key === sectionKey);
+  }, [sectionActions]);
+
+
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       const stored = Array.isArray(challenge.ai_section_reviews)
@@ -993,6 +1024,26 @@ export default function CurationReviewPage() {
         setSavingSection(false);
       });
   }, [complexityParams, challengeId, user?.id, queryClient]);
+
+  /** Approve a locked section (Legal/Escrow) */
+  const handleApproveLockedSection = useCallback(async (sectionKey: string) => {
+    if (!user?.id || !challengeId) return;
+    const { error } = await supabase
+      .from("curator_section_actions" as any)
+      .insert({
+        challenge_id: challengeId,
+        section_key: sectionKey,
+        action_type: "approval",
+        status: "approved",
+        created_by: user.id,
+      });
+    if (error) {
+      toast.error(`Failed to approve: ${error.message}`);
+    } else {
+      toast.success("Section approved");
+      queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
+    }
+  }, [user?.id, challengeId, queryClient]);
 
   /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
@@ -1823,10 +1874,12 @@ export default function CurationReviewPage() {
                       isReadOnly={isReadOnly}
                       isApproved={isApproved}
                       onToggleApproval={() => toggleSectionApproval(section.key)}
+                      onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
                       challengeId={challengeId!}
                       inlineFlags={inlineFlags}
                       defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
                       aiReviewSlot={aiReviewContent}
+                      sectionActions={getSectionActions(section.key)}
                     >
                       {sectionContent}
                     </CuratorSectionPanel>

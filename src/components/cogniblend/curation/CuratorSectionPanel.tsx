@@ -31,14 +31,30 @@ import {
   XCircle,
   AlertTriangle,
   Eye,
+  ShieldCheck,
+  MessageSquare,
+  Clock,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
+import { SendForModificationModal } from "./SendForModificationModal";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type SectionStatus = "not_reviewed" | "pass" | "warning" | "needs_revision" | "view_only";
+export type SectionStatus = "not_reviewed" | "pass" | "warning" | "needs_revision" | "view_only" | "pending_modification" | "curator_approved";
+
+export interface SectionActionRecord {
+  id: string;
+  action_type: string;
+  status: string;
+  addressed_to: string | null;
+  priority: string | null;
+  comment_html: string | null;
+  created_at: string;
+  responded_at: string | null;
+  response_html: string | null;
+}
 
 export interface CuratorSectionPanelProps {
   sectionKey: string;
@@ -50,6 +66,7 @@ export interface CuratorSectionPanelProps {
   isReadOnly: boolean;
   isApproved: boolean;
   onToggleApproval: () => void;
+  onApproveSection?: () => void;
   challengeId: string;
   inlineFlags?: string[];
   /** Content rendered inside the panel body */
@@ -58,6 +75,8 @@ export interface CuratorSectionPanelProps {
   aiReviewSlot?: React.ReactNode;
   /** Default open override (e.g. for sections with warnings) */
   defaultExpanded?: boolean;
+  /** Existing section action records for this section */
+  sectionActions?: SectionActionRecord[];
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +134,18 @@ function StatusBadge({ status }: { status: SectionStatus }) {
           <Eye className="h-3 w-3 mr-1" />View Only
         </Badge>
       );
+    case "pending_modification":
+      return (
+        <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-[10px] hover:bg-orange-100">
+          <Clock className="h-3 w-3 mr-1" />Pending Modification
+        </Badge>
+      );
+    case "curator_approved":
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] hover:bg-emerald-100">
+          <ShieldCheck className="h-3 w-3 mr-1" />Curator Approved
+        </Badge>
+      );
     default:
       return null;
   }
@@ -134,12 +165,15 @@ export function CuratorSectionPanel({
   isReadOnly,
   isApproved,
   onToggleApproval,
+  onApproveSection,
   challengeId,
   inlineFlags,
   children,
   aiReviewSlot,
   defaultExpanded,
+  sectionActions,
 }: CuratorSectionPanelProps) {
+  const [showModificationModal, setShowModificationModal] = useState(false);
   // ── Expand/collapse state with localStorage persistence ──
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = loadExpandState(challengeId);
@@ -172,7 +206,26 @@ export function CuratorSectionPanel({
     }
   }, [defaultExpanded]); // intentionally limited deps
 
-  const effectiveStatus: SectionStatus = isLocked ? "view_only" : status;
+  const effectiveStatus: SectionStatus = (() => {
+    if (isLocked) {
+      // Check if there's a pending modification request
+      const pendingMod = sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"));
+      if (pendingMod) return "pending_modification";
+      // Check if curator approved this locked section
+      const approved = sectionActions?.find(a => a.action_type === "approval" && a.status === "approved");
+      if (approved) return "curator_approved";
+      return "view_only";
+    }
+    return status;
+  })();
+
+  // Most recent pending modification
+  const pendingModification = sectionActions?.find(
+    a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending")
+  );
+  const isCuratorApproved = sectionActions?.some(
+    a => a.action_type === "approval" && a.status === "approved"
+  ) ?? false;
 
   return (
     <>
@@ -260,6 +313,58 @@ export function CuratorSectionPanel({
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
             {children}
 
+            {/* Locked section action buttons (Legal Docs / Escrow) */}
+            {isLocked && !isReadOnly && (
+              <div className="mt-4 space-y-3">
+                {/* Pending modification banner */}
+                {pendingModification && (
+                  <div className="flex items-start gap-2 rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-3 py-2">
+                    <Clock className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium text-orange-800 dark:text-orange-300">Modification Request Sent</p>
+                      <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
+                        Priority: <span className="capitalize">{pendingModification.priority}</span> — Sent {new Date(pendingModification.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Curator approved banner */}
+                {isCuratorApproved && !pendingModification && (
+                  <div className="flex items-center gap-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <p className="text-sm text-emerald-800 dark:text-emerald-300">This section has been approved by the curator.</p>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2">
+                  {!isCuratorApproved && !pendingModification && onApproveSection && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={onApproveSection}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+                      Approve Section
+                    </Button>
+                  )}
+                  {!pendingModification && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setShowModificationModal(true)}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                      Send for Modification
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* AI Review slot */}
             {aiReviewSlot}
 
@@ -298,7 +403,7 @@ export function CuratorSectionPanel({
             <div className="flex items-center gap-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-2 shrink-0">
               <Eye className="h-4 w-4 text-blue-600 shrink-0" />
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                This section is view-only — use the comment form to communicate with the responsible coordinator.
+                This section is view-only — use the buttons below to approve or request modifications.
               </p>
             </div>
           )}
@@ -309,6 +414,15 @@ export function CuratorSectionPanel({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Send for Modification Modal ── */}
+      <SendForModificationModal
+        open={showModificationModal}
+        onOpenChange={setShowModificationModal}
+        challengeId={challengeId}
+        sectionKey={sectionKey}
+        sectionLabel={label}
+      />
     </>
   );
 }
