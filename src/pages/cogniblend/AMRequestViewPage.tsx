@@ -39,14 +39,14 @@ function getPhaseOwnerLabel(phase: number): string {
 
 export default function AMRequestViewPage() {
   const { id } = useParams<{ id: string }>();
-  const { activeRole } = useCogniRoleContext();
+  const { isBusinessOwner, isSpecRole } = useCogniPermissions();
   const [pageMode, setPageMode] = useState<'view' | 'edit'>('view');
 
   const { data: challenge } = useChallengeDetail(id);
   const currentPhase = challenge?.current_phase ?? 1;
 
-  const isAmRq = activeRole === 'AM' || activeRole === 'RQ';
-  const isCaCr = activeRole === 'CA' || activeRole === 'CR';
+  const isAmRq = isBusinessOwner;
+  const isCaCr = isSpecRole;
 
   /** Phase-based edit permission */
   const editAllowed = useMemo(() => {

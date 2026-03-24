@@ -155,7 +155,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     <nav className="px-3 py-3 space-y-5">
       {SECTIONS.map((section) => {
         if (!isSectionVisible(section.title)) return null;
-        const visibleItems = section.items.filter((item) => isVisible(item.requiredRoles));
+        const visibleItems = section.items.filter(checkVisible);
         if (visibleItems.length === 0) return null;
 
         return (

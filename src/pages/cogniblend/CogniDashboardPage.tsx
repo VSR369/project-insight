@@ -21,10 +21,10 @@ import type { RequestRow } from '@/hooks/queries/useMyRequests';
 export default function CogniDashboardPage() {
   const { user } = useAuth();
   const { data: orgContext } = useOrgModelContext();
-  const { activeRole } = useCogniRoleContext();
+  const { isBusinessOwner, isSpecRole } = useCogniPermissions();
 
-  const isAmRq = activeRole === 'AM' || activeRole === 'RQ' || !activeRole;
-  const isCaCr = activeRole === 'CA' || activeRole === 'CR';
+  const isAmRq = isBusinessOwner;
+  const isCaCr = isSpecRole;
 
   // AM-scoped requests for the journey section (only needed for AM/RQ)
   const { data: requestsData } = useMyRequests('all', '', 'mine');

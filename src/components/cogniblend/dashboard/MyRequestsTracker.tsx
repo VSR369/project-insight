@@ -85,10 +85,9 @@ function getViewRoute(
 
 export function MyRequestsTracker() {
   const { user } = useAuth();
-  const { activeRole } = useCogniRoleContext();
+  const { isSpecRole, isBusinessOwner } = useCogniPermissions();
 
-  const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
-  const isAmRqRole = activeRole === 'AM' || activeRole === 'RQ' || !activeRole;
+  const isAmRqRole = isBusinessOwner;
 
   // AM/RQ: show requests created by this user
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
