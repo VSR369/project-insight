@@ -253,6 +253,15 @@ export function CuratorSectionPanel({
     }
   }, [defaultExpanded]); // intentionally limited deps
 
+  // Re-sync from localStorage when parent triggers expand/collapse all
+  useEffect(() => {
+    if (expandVersion === undefined) return;
+    const saved = loadExpandState(challengeId);
+    if (saved[sectionKey] !== undefined) {
+      setIsExpanded(saved[sectionKey]);
+    }
+  }, [expandVersion, challengeId, sectionKey]);
+
   // Derive effective status from action records
   const effectiveStatus: SectionStatus = (() => {
     if (isLocked) {
