@@ -13,6 +13,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { ROLE_NAV_RELEVANCE, SOLVER_PATHS } from '@/types/cogniRoles';
+import { useCogniPermissions, type CogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
