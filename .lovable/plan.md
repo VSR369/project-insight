@@ -1,54 +1,52 @@
 
 
-# Fix: Focused Mode Hides Nav Items Instead of Dimming
+# Final Cleanup: Migrate 3 Remaining Raw Role Checks
 
-## The Bug
+## Changes (3 files)
 
-When `activeRole = CA`, `effectiveRoles = ['CA']`, so `canCurate = false`. The `isVisible` function returns `false` for "Curation Queue" — **hiding it entirely** instead of dimming it. A user with roles [AM, CA, CU] who focuses on CA loses sight of their CU and AM nav items completely.
+### File 1: `src/pages/cogniblend/ChallengeCreatePage.tsx`
 
-**Root cause**: `isVisible` uses action permissions (focused) when it should use visibility permissions (all available roles).
-
-## Fix: 2 files
-
-### File 1: `src/hooks/cogniblend/useCogniPermissions.ts`
-
-Add a second resolver `sees` that always checks against `availableRoles` (not focused role). This separates "can this user see this nav item" from "can this user perform this action right now."
+Since `isAMorRQ` and `isCreatorRole` are referenced multiple times (11 occurrences), use the alias destructuring approach to avoid a large rename:
 
 ```typescript
-const visibilityRoles = availableRoles;
-const effectiveRoles = activeRole ? [activeRole] : availableRoles;
-const can  = (codes: string[]) => codes.some(c => effectiveRoles.includes(c));
-const sees = (codes: string[]) => codes.some(c => visibilityRoles.includes(c));
+// Add import:
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
+
+// Replace lines 399-400:
+const { isBusinessOwner: isAMorRQ, isSpecRole: isCreatorRole } = useCogniPermissions();
 ```
 
-Add `canSee*` flags for nav visibility:
-- `canSeeChallengePage: sees(['CA', 'CR'])`
-- `canSeeRequests: sees(['AM', 'RQ'])`
-- `canSeeCurationQueue: sees(['CU'])`
-- `canSeeApprovalQueue: sees(['ID'])`
-- `canSeeLegalWorkspace: sees(['LC'])`
-- `canSeeEvaluation: sees(['ER'])`
-- `canSeeEscrow: sees(['FC'])`
+### File 2: `src/components/cogniblend/dashboard/ActionItemsWidget.tsx`
 
-All existing `can*` and `is*` flags stay unchanged (they use focused `effectiveRoles`).
+```typescript
+// Add import:
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 
-### File 2: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
+// Add to component body:
+const { isBusinessOwner } = useCogniPermissions();
 
-Update `isVisible` functions in SECTIONS to use `canSee*` flags instead of `can*` flags:
+// Replace line 53:
+// FROM: ).length + ((!activeRole || ['AM', 'RQ'].includes(activeRole))
+// TO:   ).length + (isBusinessOwner
+```
 
-| Nav Item | Old `isVisible` | New `isVisible` |
-|---|---|---|
-| New Challenge | `p.canCreateChallenge \|\| p.canSubmitRequest` | `p.canSeeChallengePage \|\| p.canSeeRequests` |
-| My Challenges | `p.canEditSpec` | `p.canSeeChallengePage` |
-| Curation Queue | `p.canCurate` | `p.canSeeCurationQueue` |
-| Approval Queue | `p.canApprove` | `p.canSeeApprovalQueue` |
-| Legal Workspace/Review | `p.canReviewLegal` | `p.canSeeLegalWorkspace` |
-| Review Queue | `p.canReviewEvaluation` | `p.canSeeEvaluation` |
-| Evaluation Panel | `p.canReviewEvaluation \|\| p.canApprove` | `p.canSeeEvaluation \|\| p.canSeeApprovalQueue` |
-| Selection & IP | `p.canApprove` | `p.canSeeApprovalQueue` |
-| Escrow/Payments | `p.canManageEscrow` | `p.canSeeEscrow` |
+### File 3: `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
 
-The existing `ROLE_NAV_RELEVANCE` dimming (opacity-50) continues to work on top — it dims non-relevant items. No other files change.
+```typescript
+// Add import:
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 
-**Result**: User [AM, CA, CU] focused on CA sees ALL their nav items (visible), with CU and AM items dimmed. Dashboard/actions still respect focused permissions via `can*` flags.
+// Add to component body:
+const { isBusinessOwner } = useCogniPermissions();
+
+// Replace line 179:
+// FROM: const showSRs = !activeRole || ['AM', 'RQ'].includes(activeRole);
+// TO:   const showSRs = isBusinessOwner;
+```
+
+## Result
+
+Zero raw role-based permission checks remain. All permission gating flows through `useCogniPermissions`. Raw `activeRole` usage is limited to display labels, challenge-level filtering, and nav dimming.
+
+**Files modified**: 3
 
