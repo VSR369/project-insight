@@ -2254,6 +2254,7 @@ export default function CurationReviewPage() {
                             onSingleSectionReview={handleSingleSectionReview}
                             onMarkAddressed={handleMarkAddressed}
                             challengeContext={challengeCtx}
+                            expandVersion={expandVersion}
                           />
                         );
 

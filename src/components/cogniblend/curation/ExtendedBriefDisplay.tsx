@@ -474,6 +474,7 @@ export default function ExtendedBriefDisplay({
             challengeId={challengeId}
             defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === "warning" || aiReview.status === "needs_revision"))}
             aiReviewSlot={aiReviewContent}
+            expandVersion={expandVersion}
           >
             {sectionContent}
           </CuratorSectionPanel>
