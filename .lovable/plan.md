@@ -1,77 +1,82 @@
 
 
-# Extended Brief Subsections — Format-Native Rebuild
+# Two Changes: Solver Expertise Section + Extended Brief AI Review Fix
 
-## What Changes
+## Problem 1: Missing "Solver Expertise Requirements" Section
 
-The current `ExtendedBriefDisplay` treats all 7 subsections as either plain text or simple arrays with no format-aware rendering, no per-subsection AI review, no nested `CuratorSectionPanel` layout, and no format-specific editors. This rebuild replaces it with a nested panel architecture where each subsection is a proper `CuratorSectionPanel` with its own expand/collapse, status, fullscreen, and AI review — all using the correct format renderers (rich_text, line_items, table).
+Currently, there is no way for the curator to specify what proficiency areas, sub-domains, and specialities solvers should possess. The challenge already has an industry segment (via `targeting_filters`), but there's no mechanism to map required expertise from the 5-level taxonomy (Industry Segment → Expertise Level → Proficiency Area → Sub-domain → Speciality).
+
+## Problem 2: Extended Brief Subsections Get No Individual AI Reviews
+
+When "Review Sections by AI" is clicked, the edge function sends `extended_brief` as one section key. The AI returns a single review for the whole Extended Brief — but the subsections (`context_and_background`, `root_causes`, etc.) never get individual reviews. The `CURATION_SECTIONS` array in the edge function has `extended_brief` as one entry, not the 7 subsections.
+
+---
+
+## Fix 1: Solver Expertise Requirements Section
+
+### Database
+- Add `solver_expertise_requirements` JSONB column to `challenges` table via migration
+- Structure: `{ expertise_levels: [{id, name}], proficiency_areas: [{id, name}], sub_domains: [{id, name}], specialities: [{id, name}] }`
+- When empty/null = "ALL applicable" (no restriction)
+
+### New Component: `SolverExpertiseSection.tsx`
+- Located at `src/components/cogniblend/curation/SolverExpertiseSection.tsx`
+- Shows the challenge's industry segment (read-only, from `targeting_filters`)
+- For each expertise level (from `expertise_levels` table):
+  - Shows proficiency areas, sub-domains, specialities as a collapsible tree
+  - Checkboxes to select/deselect at each level
+  - When nothing is selected: shows "All applicable" badge
+- Uses existing `useProficiencyTaxonomy` hook to fetch the tree
+- Edit mode: multi-select tree with checkboxes
+- View mode: shows selected items as chips/badges grouped by level
+
+### Section Config
+- Add `solver_expertise` to `SECTION_FORMAT_CONFIG` as format `custom`, `aiCanDraft: true`, `aiReviewEnabled: true`, `curatorCanEdit: true`
+- `aiUsesContext: ['scope', 'deliverables', 'evaluation_criteria', 'eligibility', 'domain_tags']`
+
+### AI Integration
+- When AI reviews this section, it reads all challenge content and suggests which proficiency areas / sub-domains / specialities are most relevant
+- AI output: JSON object with arrays of IDs + names from master data
+- Edge function fetches the taxonomy tree for the challenge's industry segment and injects allowed options into the prompt
+- Accept flow: validates IDs against master data before saving
+
+### CurationReviewPage Integration
+- Add `solver_expertise` to the SECTIONS array in `publication` group (after `eligibility`)
+- Add to challenge query select
+- Add renderer/editor switch case
+- Add to `getSectionContent`, `handleAcceptRefinement`, `masterDataOptions` resolution
+
+---
+
+## Fix 2: Extended Brief Subsection-Level AI Reviews
+
+### Root Cause
+The `CURATION_SECTIONS` array in the edge function has `extended_brief` as a single entry. When the AI reviews it, it returns one review with key `extended_brief`. The 7 subsection keys (`context_and_background`, `root_causes`, etc.) are never sent to the AI as separate section keys.
+
+### Fix in Edge Function (`review-challenge-sections/index.ts`)
+- Replace the single `extended_brief` entry in `CURATION_SECTIONS` with the 7 individual subsection keys:
+  - `context_and_background`, `root_causes`, `affected_stakeholders`, `current_deficiencies`, `extended_brief_expected_outcomes`, `preferred_approach`, `approaches_not_of_interest`
+- Each with its own description matching the format-specific instructions
+- When building the user prompt data, extract each subsection's value from `extended_brief` JSONB and include as separate data fields
+- Keep `extended_brief` in the data payload so AI has full context
+
+### Fix in Frontend (CurationReviewPage)
+- When batch AI review returns, the 7 subsection reviews will now have individual `section_key` values matching `EXTENDED_BRIEF_SUBSECTION_KEYS`
+- `ExtendedBriefDisplay` already maps `aiSectionReviews` by subsection key — so this will "just work" once the edge function returns per-subsection reviews
+- Remove the parent-level `extended_brief` from `CURATION_SECTIONS` since it's no longer reviewed as one block
+
+---
 
 ## Files to Create/Modify
 
-### 1. `src/lib/cogniblend/curationSectionFormats.ts`
-Add 7 new entries to `SECTION_FORMAT_CONFIG`:
-- `context_and_background`: `rich_text`
-- `root_causes`: `line_items`
-- `affected_stakeholders`: `table` with columns `[stakeholder_name, role, impact_description, adoption_challenge]`
-- `current_deficiencies`: `line_items`
-- `extended_brief_expected_outcomes`: `line_items`
-- `preferred_approach`: `rich_text`
-- `approaches_not_of_interest`: `line_items`, `aiCanDraft: false`
-
-Add a new export: `EXTENDED_BRIEF_SUBSECTION_KEYS` array listing these 7 keys in order.
-
-### 2. `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx` — Full Rewrite
-Replace current flat `Collapsible` layout with nested `CuratorSectionPanel` architecture:
-
-- Each of the 7 subsections renders as a `CuratorSectionPanel` child with its own status, expand/collapse, fullscreen modal
-- **Parent panel header** shows aggregate worst score across all 7 subsections
-- Format-native rendering per subsection:
-  - `context_and_background` + `preferred_approach` → `RichTextSectionRenderer`
-  - `root_causes` + `current_deficiencies` + `extended_brief_expected_outcomes` + `approaches_not_of_interest` → `LineItemsSectionRenderer`
-  - `affected_stakeholders` → table with 4 columns (stakeholder_name, role, impact_description, adoption_challenge) using a simple table renderer
-- `approaches_not_of_interest` shows persistent placeholder when empty: "Add approaches you want solvers to avoid..."
-- `preferred_approach` empty state shows AI-drafted neutral placeholder
-- Each subsection has its own "Refine with AI" button
-- Parent header "Review with AI" button reviews all 7 subsections
-
-New props needed: `challengeId`, `aiSectionReviews`, `onRefine`, `onAcceptRefinement`, `readOnly`
-
-### 3. `src/pages/cogniblend/CurationReviewPage.tsx`
-- Update the `extended_brief` case in the section switch to pass new props to `ExtendedBriefDisplay`
-- Add `getSectionContent` handlers for each of the 7 subsection keys (reading from `challenge.extended_brief` JSONB sub-fields)
-- Update `handleAcceptRefinement` to handle subsection saves — writing back into the `extended_brief` JSONB object (merge, not replace)
-- Update `handleSaveExtendedBrief` to support per-subsection saves
-
-### 4. `supabase/functions/review-challenge-sections/promptTemplate.ts` + `src/lib/aiReviewPromptTemplate.ts`
-Add the 7 subsection keys to `SECTION_FORMAT_MAP` with correct format types. Add format-specific AI instructions:
-- `root_causes`: "JSON array of short phrase strings only. Max 8 items."
-- `affected_stakeholders`: "JSON array of row objects with keys stakeholder_name, role, impact_description (max 100 chars), adoption_challenge (max 100 chars). Always populate adoption_challenge."
-- `current_deficiencies`: "JSON array of current-state observation phrases. Max 10 items."
-- `approaches_not_of_interest`: "Always set requires_human_input: true. Never produce items."
-- `preferred_approach`: "If content exists, do NOT rewrite. Review comments only."
-
-### 5. `supabase/functions/refine-challenge-section/index.ts`
-Add the 7 subsection keys to the allowed fields list. For `approaches_not_of_interest`, return `requires_human_input: true` immediately without calling LLM. For `preferred_approach` with existing content, instruct AI to return the content unchanged with review comments only.
-
-## Data Flow
-
-All 7 subsections read from and write to `challenges.extended_brief` JSONB — no new columns needed. The subsection key maps to the JSONB field:
-- `context_and_background` → `extended_brief.context_background`
-- `root_causes` → `extended_brief.root_causes`
-- `affected_stakeholders` → `extended_brief.affected_stakeholders`
-- `current_deficiencies` → `extended_brief.current_deficiencies`
-- `extended_brief_expected_outcomes` → `extended_brief.expected_outcomes`
-- `preferred_approach` → `extended_brief.preferred_approach`
-- `approaches_not_of_interest` → `extended_brief.approaches_not_of_interest`
-
-## Nesting Depth
-
-Exactly two levels: Extended Brief parent panel → 7 subsection panels. No deeper nesting.
-
-## What Does NOT Change
-
-- Edge function input/output contract shape
-- `challenges.ai_section_reviews` storage
-- Admin AI Review Config page
-- Any page outside curator role
+| File | Action |
+|------|--------|
+| SQL migration | Add `solver_expertise_requirements JSONB` column to `challenges` |
+| `src/components/cogniblend/curation/SolverExpertiseSection.tsx` | New — tree-based expertise selector |
+| `src/lib/cogniblend/curationSectionFormats.ts` | Add `solver_expertise` entry |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add section def, renderer, handlers |
+| `supabase/functions/review-challenge-sections/index.ts` | Replace `extended_brief` with 7 subsection keys, extract subsection data |
+| `supabase/functions/refine-challenge-section/index.ts` | Add `solver_expertise` handling with taxonomy injection |
+| `src/lib/aiReviewPromptTemplate.ts` | Add `solver_expertise` format mapping |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Add subsection keys + `solver_expertise` to format map |
 
