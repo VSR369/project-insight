@@ -736,9 +736,9 @@ const GROUPS: GroupDef[] = [
   {
     id: "extended_brief",
     label: "Extended Brief",
-    colorDone: "bg-sky-100 text-sky-800 border-sky-300",
-    colorActive: "bg-sky-50 border-sky-400",
-    colorBorder: "border-sky-200",
+    colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    colorActive: "bg-emerald-50 border-emerald-400",
+    colorBorder: "border-emerald-200",
     sectionKeys: ["extended_brief"],
   },
 ];
