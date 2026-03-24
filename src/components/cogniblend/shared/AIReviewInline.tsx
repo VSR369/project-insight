@@ -202,6 +202,10 @@ export function AIReviewInline({
   defaultOpen = false,
   roleContext = "curation",
   masterDataOptions,
+  isLockedSection = false,
+  onSendToCoordinator,
+  coordinatorRole,
+  hasSentBefore = false,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
