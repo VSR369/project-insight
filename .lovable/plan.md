@@ -1,63 +1,94 @@
 
 
-# Plan: Update AI Review Config — Increase Limits + Seed Claude's Content
+# Analysis: AI Review Prompt Configuration Usage for Curator Role
 
-## Summary
+## Current State Assessment
 
-Two changes: (1) increase character limits on DB columns and UI textareas, (2) update all 28 provided sections with Claude's detailed prompt engineering content via UPDATE statements.
+The edge function (`review-challenge-sections/index.ts`) **is correctly loading** the 14 configured sections from `ai_review_section_config` for the `curation` role context. The DB has all 14 rows with full Claude content (review_instructions, dos, donts, required_elements, examples). The `buildConfiguredBatchPrompt()` function is used when DB configs are found.
 
-## Deliverable 1 — SQL Migration: ALTER example columns
+However, there are **three issues** preventing the system from working fully as intended:
 
-The `example_good` and `example_poor` columns are currently `VARCHAR(500)`. Claude's examples (e.g., spec/problem_statement at ~530 chars) exceed this.
+---
 
-```sql
-ALTER TABLE public.ai_review_section_config
-  ALTER COLUMN example_good TYPE TEXT,
-  ALTER COLUMN example_poor TYPE TEXT;
+## Issue 1: Missing `role_context` Parameter (Minor)
+
+**CurationReviewPage line 1025** calls the edge function without `role_context`:
+```js
+body: { challenge_id: challengeId }  // missing role_context: 'curation'
 ```
+The edge function defaults to `"curation"` so this works, but it's fragile and should be explicit.
 
-No other columns need schema changes — `review_instructions`, `dos`, `donts` are already `TEXT`.
+**Fix**: Add `role_context: 'curation'` to the invoke call.
 
-## Deliverable 2 — UI Updates in AIReviewConfigPage.tsx
+---
 
-| Field | Current | New | Rationale |
-|-------|---------|-----|-----------|
-| `example_good` | 500 chars, 3 rows | 800 chars, 5 rows | Claude's examples are 400-530 chars |
-| `example_poor` | 500 chars, 3 rows | 800 chars, 5 rows | Same |
-| `review_instructions` | No limit, 3 rows | 2000 char counter, 6 rows | Claude's instructions are 500-900 chars |
-| `dos` | No limit, 2 rows | 1000 char counter, 4 rows | Claude's dos are 200-400 chars |
-| `donts` | No limit, 2 rows | 1000 char counter, 4 rows | Same |
-| `section_description` | No limit, 2 rows | 500 char counter, 3 rows | Keeps descriptions concise |
+## Issue 2: Section Key Mismatch — `eligibility` vs `visibility_eligibility`
 
-Changes in `AIReviewConfigPage.tsx`:
-- Lines 300, 304, 306: Change `max={500}` → `max={800}`, `.slice(0, 500)` → `.slice(0, 800)`, `maxLength={500}` → `maxLength={800}`
-- Lines 313, 317, 319: Same for `example_poor`
-- Lines 242-246: Add `CharCounter` for `review_instructions` with max 2000, increase rows to 6
-- Lines 252-256: Add `CharCounter` for `dos` with max 1000, increase rows to 4
-- Lines 260-264: Add `CharCounter` for `donts` with max 1000, increase rows to 4
-- Lines 233-236: Add `CharCounter` for `section_description` with max 500, increase rows to 3
+The DB config has section key `eligibility`. The edge function sends back results with key `eligibility`. But the **CurationReviewPage UI** looks for `visibility_eligibility` (line 1501):
+```js
+const aiReview = aiReviews.find((r) => r.section_key === section.key);
+// section.key = "visibility_eligibility" but AI returns "eligibility"
+```
+This means the AI review for eligibility is **never displayed** in the UI.
 
-## Deliverable 3 — Data Updates: 28 Sections
+**Fix**: Either rename the DB config key to `visibility_eligibility` or update the UI lookup. The simplest approach: update the DB config `section_key` from `eligibility` to `visibility_eligibility` and update the edge function's hardcoded fallback to match.
 
-Update all 28 sections (intake: 4, spec: 9, curation: 14, legal: 1) with Claude's detailed content using the INSERT tool (UPDATE statements). Each section gets updated `review_instructions`, `dos`, `donts`, `required_elements`, `example_good`, and `example_poor`.
+---
 
-The remaining 8 sections (legal: 2, finance: 3, evaluation: 3) keep their current seed content — Claude's message was truncated at section 28.
+## Issue 3: 6 UI Sections Have No AI Review Config
 
-Updates are grouped into 6 batches by role_context:
-1. **intake** — 4 UPDATEs (problem_statement, scope, beneficiaries_mapping, budget_reasonableness)
-2. **spec** — 9 UPDATEs (problem_statement, expected_outcomes, scope, beneficiaries_mapping, description, deliverables, evaluation_criteria, hook, ip_model)
-3. **curation** — 14 UPDATEs (problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, submission_guidelines, eligibility, complexity, ip_model, legal_docs, escrow_funding, maturity_level, visibility_eligibility)
-4. **legal** — 1 UPDATE (nda_adequacy)
+The Curation page renders **20 sections** but only **14 have AI review configuration**. These 6 UI sections get no AI review feedback:
+
+| Section Key | Why Missing |
+|-------------|-------------|
+| `hook` | Not in DB config, not in edge function section list |
+| `extended_brief` | Not in DB config |
+| `domain_tags` | Not in DB config |
+| `submission_deadline` | Not in DB config |
+| `challenge_visibility` | Not in DB config |
+| `effort_level` | Not in DB config |
+| `payment_schedule` | Not in DB config, not even in SECTIONS array |
+
+These are newer fields added after the AI review config was seeded. The AI model never reviews them because they are not in the `sectionsToReview` list.
+
+**Fix**: Add AI review config rows for the 6 missing sections (or decide they don't need AI review). At minimum, `hook` and `extended_brief` should have review configs since they contain substantive content.
+
+---
+
+## Implementation Plan
+
+### Step 1 — Fix `role_context` in CurationReviewPage
+Add `role_context: 'curation'` to the edge function call body on line 1025.
+
+### Step 2 — Fix `eligibility` → `visibility_eligibility` Key Mismatch
+- SQL migration: `UPDATE ai_review_section_config SET section_key = 'visibility_eligibility' WHERE role_context = 'curation' AND section_key = 'eligibility'`
+- Update the hardcoded fallback `CURATION_SECTIONS` array in the edge function
+
+### Step 3 — Add Missing Section Configs
+Insert new `ai_review_section_config` rows for curation sections that need AI review. Recommended additions:
+
+| Section Key | Label | Importance |
+|-------------|-------|------------|
+| `hook` | Challenge Hook | Medium |
+| `extended_brief` | Extended Brief | Medium |
+| `submission_deadline` | Submission Deadline | Medium |
+| `challenge_visibility` | Challenge Visibility | Medium |
+| `effort_level` | Effort Level | Low |
+| `domain_tags` | Domain Tags | Low |
+
+Each will have basic `review_instructions`, `dos`, `donts`, `required_elements`, and examples.
+
+### Step 4 — Update Edge Function Fallback
+Update `CURATION_SECTIONS` hardcoded array to include the new sections and fix the `eligibility` → `visibility_eligibility` rename.
+
+### Step 5 — Redeploy Edge Function
+The edge function must be redeployed for the key rename and new section support to take effect.
 
 ## Files Changed
 
-| Type | File | Change |
-|------|------|--------|
-| Migration | New SQL migration | ALTER example_good/example_poor to TEXT |
-| UI | `src/pages/admin/seeker-config/AIReviewConfigPage.tsx` | Increase textarea rows, add CharCounters, raise char limits |
-| Data | 28 UPDATE statements via insert tool | Full Claude content for all provided sections |
-
-## What Does NOT Change
-
-Edge function, promptTemplate.ts, aiReviewPromptTemplate.ts, AIReviewInline, any review orchestration files.
+| File | Change |
+|------|--------|
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add `role_context: 'curation'` to edge function call |
+| `supabase/functions/review-challenge-sections/index.ts` | Rename `eligibility` → `visibility_eligibility` in fallback; add new section entries |
+| New SQL migration | Rename key in DB + INSERT 6 new config rows |
 
