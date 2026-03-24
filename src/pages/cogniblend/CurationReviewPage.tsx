@@ -710,14 +710,6 @@ const GROUPS: GroupDef[] = [
     sectionKeys: ["problem_statement", "scope", "deliverables", "expected_outcomes", "submission_guidelines", "maturity_level", "hook"],
   },
   {
-    id: "extended_brief",
-    label: "Extended Brief",
-    colorDone: "bg-violet-100 text-violet-800 border-violet-300",
-    colorActive: "bg-violet-50 border-violet-400",
-    colorBorder: "border-violet-200",
-    sectionKeys: ["extended_brief"],
-  },
-  {
     id: "evaluation",
     label: "Evaluation",
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
@@ -740,6 +732,14 @@ const GROUPS: GroupDef[] = [
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
     sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "submission_deadline", "challenge_visibility", "effort_level"],
+  },
+  {
+    id: "extended_brief",
+    label: "Extended Brief",
+    colorDone: "bg-sky-100 text-sky-800 border-sky-300",
+    colorActive: "bg-sky-50 border-sky-400",
+    colorBorder: "border-sky-200",
+    sectionKeys: ["extended_brief"],
   },
 ];
 
