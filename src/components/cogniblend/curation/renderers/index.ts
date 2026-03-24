@@ -6,6 +6,7 @@ export { LineItemsSectionRenderer } from './LineItemsSectionRenderer';
 export { TableSectionRenderer } from './TableSectionRenderer';
 export { ScheduleTableSectionRenderer } from './ScheduleTableSectionRenderer';
 export { CheckboxSingleSectionRenderer } from './CheckboxSingleSectionRenderer';
+export { CheckboxMultiSectionRenderer } from './CheckboxMultiSectionRenderer';
 export { DateSectionRenderer } from './DateSectionRenderer';
 export { SelectSectionRenderer } from './SelectSectionRenderer';
 export { RadioSectionRenderer } from './RadioSectionRenderer';

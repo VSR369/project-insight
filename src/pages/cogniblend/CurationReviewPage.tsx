@@ -82,6 +82,7 @@ import {
   TableSectionRenderer,
   ScheduleTableSectionRenderer,
   CheckboxSingleSectionRenderer,
+  CheckboxMultiSectionRenderer,
   DateSectionRenderer,
   SelectSectionRenderer,
   RadioSectionRenderer,
@@ -208,7 +209,7 @@ function LcStatusBadge({ status }: { status: string | null }) {
 // ---------------------------------------------------------------------------
 
 const LOCKED_SECTIONS = new Set(["legal_docs", "escrow_funding"]);
-const TEXT_SECTIONS = new Set(["problem_statement", "scope", "submission_guidelines", "ip_model", "visibility_eligibility", "hook"]);
+const TEXT_SECTIONS = new Set(["problem_statement", "scope", "hook"]);
 
 interface SectionDef {
   key: string;
@@ -267,8 +268,57 @@ const SECTIONS: SectionDef[] = [
     label: "Submission Guidelines",
     attribution: "by CA",
     dbField: "description",
-    isFilled: (ch) => !!ch.description?.trim(),
-    render: (ch) => <AiContentRenderer content={ch.description} compact fallback="—" />,
+    isFilled: (ch) => {
+      const raw = parseJson<any>(ch.description);
+      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
+      if (items && items.length > 0) return true;
+      return !!ch.description?.trim();
+    },
+    render: (ch) => {
+      // Try parsing as structured line items first
+      const raw = parseJson<any>(ch.description);
+      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
+      if (items && items.length > 0) {
+        return (
+          <div className="space-y-2">
+            {items.map((item: any, i: number) => (
+              <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
+                {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // Fallback to rich text display
+      return <AiContentRenderer content={ch.description} compact fallback="—" />;
+    },
+  },
+  {
+    key: "expected_outcomes",
+    label: "Expected Outcomes",
+    attribution: "by CA",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const outcomes = eb?.expected_outcomes;
+      return Array.isArray(outcomes) && outcomes.length > 0;
+    },
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+      if (outcomes.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
+      return (
+        <div className="space-y-2">
+          {outcomes.map((item: any, i: number) => (
+            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
+              <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
+              {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
+            </div>
+          ))}
+        </div>
+      );
+    },
   },
   {
     key: "maturity_level",
@@ -344,7 +394,12 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Curator",
     dbField: "ip_model",
     isFilled: (ch) => !!ch.ip_model?.trim(),
-    render: (ch) => <p className="text-sm font-medium text-foreground">{ch.ip_model || "—"}</p>,
+    render: (ch) => {
+      if (!ch.ip_model) return <p className="text-sm text-muted-foreground">Not set.</p>;
+      return (
+        <Badge variant="secondary" className="capitalize">{ch.ip_model.replace(/_/g, " ")}</Badge>
+      );
+    },
   },
   {
     key: "legal_docs",
@@ -510,19 +565,46 @@ const SECTIONS: SectionDef[] = [
     },
   },
   {
-    key: "visibility_eligibility",
-    label: "Visibility & Eligibility",
+    key: "eligibility",
+    label: "Eligibility",
     attribution: "by Curator",
     dbField: "eligibility",
-    isFilled: (ch) => !!ch.visibility || !!ch.eligibility,
+    isFilled: (ch) => !!ch.eligibility,
     render: (ch) => {
-      if (!ch.visibility && !ch.eligibility) return <p className="text-sm text-muted-foreground italic">Not yet configured</p>;
-      return (
-        <div className="space-y-2">
-          {ch.visibility && <div><p className="text-xs text-muted-foreground">Visibility</p><p className="text-sm text-foreground capitalize">{ch.visibility}</p></div>}
-          {ch.eligibility && <div><p className="text-xs text-muted-foreground">Eligibility</p><p className="text-sm text-foreground">{ch.eligibility}</p></div>}
-        </div>
-      );
+      if (!ch.eligibility) return <p className="text-sm text-muted-foreground italic">Not configured</p>;
+      // Try to parse as array of selected values
+      const parsed = parseJson<string[]>(ch.eligibility);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (
+          <div className="flex flex-wrap gap-2">
+            {parsed.map((v: string) => (
+              <Badge key={v} variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
+            ))}
+          </div>
+        );
+      }
+      return <p className="text-sm text-foreground">{ch.eligibility}</p>;
+    },
+  },
+  {
+    key: "visibility",
+    label: "Visibility",
+    attribution: "by Curator",
+    dbField: "visibility",
+    isFilled: (ch) => !!ch.visibility,
+    render: (ch) => {
+      if (!ch.visibility) return <p className="text-sm text-muted-foreground italic">Not configured</p>;
+      const parsed = parseJson<string[]>(ch.visibility);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (
+          <div className="flex flex-wrap gap-2">
+            {parsed.map((v: string) => (
+              <Badge key={v} variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
+            ))}
+          </div>
+        );
+      }
+      return <p className="text-sm text-foreground capitalize">{ch.visibility}</p>;
     },
   },
   // ── Phase 1 additions: Challenge Settings (Org Policy) ──
@@ -607,7 +689,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["problem_statement", "scope", "deliverables", "submission_guidelines", "maturity_level", "hook", "extended_brief"],
+    sectionKeys: ["problem_statement", "scope", "deliverables", "expected_outcomes", "submission_guidelines", "maturity_level", "hook", "extended_brief"],
   },
   {
     id: "evaluation",
@@ -631,7 +713,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "visibility_eligibility", "submission_deadline", "challenge_visibility", "effort_level"],
+    sectionKeys: ["phase_schedule", "eligibility", "visibility", "submission_deadline", "challenge_visibility", "effort_level"],
   },
 ];
 
@@ -645,9 +727,6 @@ function getFieldValue(ch: ChallengeData, sectionKey: string): string {
   switch (sectionKey) {
     case "problem_statement": return ch.problem_statement ?? "";
     case "scope": return ch.scope ?? "";
-    case "submission_guidelines": return ch.description ?? "";
-    case "ip_model": return ch.ip_model ?? "";
-    case "visibility_eligibility": return ch.eligibility ?? "";
     case "hook": return ch.hook ?? "";
     default: return "";
   }
@@ -675,7 +754,8 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "scope": return ch.scope;
     case "submission_guidelines": return ch.description;
     case "ip_model": return ch.ip_model;
-    case "visibility_eligibility": return ch.eligibility;
+    case "eligibility": return ch.eligibility;
+    case "visibility": return ch.visibility;
     case "deliverables": return ch.deliverables ? JSON.stringify(ch.deliverables) : null;
     case "evaluation_criteria": return ch.evaluation_criteria ? JSON.stringify(ch.evaluation_criteria) : null;
     case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
@@ -687,6 +767,10 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "challenge_visibility": return ch.challenge_visibility;
     case "effort_level": return ch.effort_level;
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
+    case "expected_outcomes": {
+      const eb = parseJson<any>(ch.extended_brief);
+      return eb?.expected_outcomes ? JSON.stringify(eb.expected_outcomes) : null;
+    }
     default: return null;
   }
 }
@@ -701,8 +785,8 @@ const GAP_FIELD_TO_SECTION: Record<string, string> = {
   phase_schedule: "phase_schedule",
   complexity: "complexity",
   ip_model: "ip_model",
-  eligibility: "visibility_eligibility",
-  visibility: "visibility_eligibility",
+  eligibility: "eligibility",
+  visibility: "visibility",
   description: "submission_guidelines",
   maturity_level: "maturity_level",
   legal: "legal_docs",
@@ -1603,9 +1687,6 @@ export default function CurationReviewPage() {
                       // ── Rich text sections ──
                       case "problem_statement":
                       case "scope":
-                      case "submission_guidelines":
-                      case "ip_model":
-                      case "visibility_eligibility":
                       case "hook":
                         return (
                           <>
@@ -1646,6 +1727,137 @@ export default function CurationReviewPage() {
                           </>
                         );
 
+                      // ── Submission guidelines (line items) ──
+                      case "submission_guidelines": {
+                        const raw = parseJson<any>(challenge.description);
+                        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
+                        const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+                        // If no structured items, treat existing text as single item
+                        const finalItems = lineItems.length > 0 ? lineItems : (challenge.description?.trim() ? [challenge.description] : []);
+                        return (
+                          <>
+                            <LineItemsSectionRenderer
+                              items={finalItems}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(items) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "description", value: { items } });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // ── Expected outcomes (line items) ──
+                      case "expected_outcomes": {
+                        const eb = parseJson<any>(challenge.extended_brief);
+                        const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+                        const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+                        return (
+                          <>
+                            <LineItemsSectionRenderer
+                              items={outcomeItems}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(items) => {
+                                setSavingSection(true);
+                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
+                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items } });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // ── IP Model (checkbox single from master data) ──
+                      case "ip_model":
+                        return (
+                          <>
+                            <CheckboxSingleSectionRenderer
+                              value={challenge.ip_model}
+                              options={masterData.ipModelOptions}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveOrgPolicyField("ip_model", val)}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Eligibility (checkbox multi from master data) ──
+                      case "eligibility": {
+                        const eligParsed = parseJson<string[]>(challenge.eligibility);
+                        const eligValues = Array.isArray(eligParsed) ? eligParsed : [];
+                        return (
+                          <>
+                            <CheckboxMultiSectionRenderer
+                              selectedValues={eligValues}
+                              options={masterData.eligibilityOptions}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(values) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "eligibility", value: JSON.stringify(values) });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // ── Visibility (checkbox multi from master data) ──
+                      case "visibility": {
+                        const visParsed = parseJson<string[]>(challenge.visibility);
+                        const visValues = Array.isArray(visParsed) ? visParsed : [];
+                        return (
+                          <>
+                            <CheckboxMultiSectionRenderer
+                              selectedValues={visValues}
+                              options={masterData.visibilityOptions}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(values) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "visibility", value: JSON.stringify(values) });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
                       // ── Evaluation criteria (table) ──
                       case "evaluation_criteria":
                         return (
