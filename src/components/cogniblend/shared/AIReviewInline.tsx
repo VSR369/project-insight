@@ -30,6 +30,7 @@ export interface SectionReview {
   comments: string[];
   reviewed_at?: string;
   addressed?: boolean;
+  prompt_source?: "supervisor" | "default";
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
