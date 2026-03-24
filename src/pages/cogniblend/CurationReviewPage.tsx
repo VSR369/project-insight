@@ -757,8 +757,22 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "scope": return ch.scope;
     case "submission_guidelines": return ch.description;
     case "ip_model": return ch.ip_model;
-    case "eligibility": return ch.eligibility;
-    case "visibility": return ch.visibility;
+    case "eligibility": {
+      const solverTypes = parseJson<any>(ch.solver_eligibility_types);
+      if (Array.isArray(solverTypes) && solverTypes.length > 0) {
+        const codes = solverTypes.map((t: any) => typeof t === "string" ? t : t?.code ?? "");
+        return JSON.stringify(codes);
+      }
+      return ch.eligibility;
+    }
+    case "visibility": {
+      const solverVis = parseJson<any>(ch.solver_visibility_types);
+      if (Array.isArray(solverVis) && solverVis.length > 0) {
+        const codes = solverVis.map((t: any) => typeof t === "string" ? t : t?.code ?? "");
+        return JSON.stringify(codes);
+      }
+      return ch.visibility;
+    }
     case "deliverables": return ch.deliverables ? JSON.stringify(ch.deliverables) : null;
     case "evaluation_criteria": return ch.evaluation_criteria ? JSON.stringify(ch.evaluation_criteria) : null;
     case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
