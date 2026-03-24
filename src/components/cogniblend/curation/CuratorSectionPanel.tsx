@@ -134,6 +134,18 @@ function StatusBadge({ status }: { status: SectionStatus }) {
           <Eye className="h-3 w-3 mr-1" />View Only
         </Badge>
       );
+    case "pending_modification":
+      return (
+        <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-[10px] hover:bg-orange-100">
+          <Clock className="h-3 w-3 mr-1" />Pending Modification
+        </Badge>
+      );
+    case "curator_approved":
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] hover:bg-emerald-100">
+          <ShieldCheck className="h-3 w-3 mr-1" />Curator Approved
+        </Badge>
+      );
     default:
       return null;
   }
@@ -153,12 +165,15 @@ export function CuratorSectionPanel({
   isReadOnly,
   isApproved,
   onToggleApproval,
+  onApproveSection,
   challengeId,
   inlineFlags,
   children,
   aiReviewSlot,
   defaultExpanded,
+  sectionActions,
 }: CuratorSectionPanelProps) {
+  const [showModificationModal, setShowModificationModal] = useState(false);
   // ── Expand/collapse state with localStorage persistence ──
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = loadExpandState(challengeId);
