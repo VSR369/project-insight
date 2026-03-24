@@ -1,127 +1,74 @@
 
 
-# Curator Screen Rebuild — Phased Implementation Plan
+# Audit: Section Format Config — Spec vs Implementation
 
-## Current State
+## Discrepancies Found
 
-The CurationReviewPage is a monolithic 1925-line file with section definitions, renderers, editors, queries, mutations, checklist logic, and layout all in one place. The AI review system (`AIReviewInline`) treats all sections as text, writing prose into structured fields. There is no expand-to-fullscreen, no format-native rendering of AI suggestions, no Send for Modification workflow, and no master-data-driven checkbox sections.
+| Section | Your Spec | Current Implementation | Issue |
+|---------|-----------|----------------------|-------|
+| `submission_guidelines` | `line_items` | `rich_text` | Wrong format |
+| `expected_outcomes` | `line_items` | **Missing entirely** | Section not defined |
+| `eligibility` | `checkbox_multi`, masterDataTable: `solver_profiles` | **Missing** (merged into `visibility_eligibility` as `rich_text`) | Wrong — should be separate checkbox section |
+| `visibility` | `checkbox_multi`, masterDataTable: `visibility_options` | **Missing** (merged into `visibility_eligibility` as `rich_text`) | Wrong — should be separate checkbox section |
+| `complexity` | `checkbox_single`, masterDataTable: `complexity_levels` | `custom` (no masterDataTable) | Wrong format, missing master data ref |
+| `ip_model` | `checkbox_single`, masterDataTable: `ip_models` | `rich_text` (no masterDataTable) | Wrong format entirely |
+| `reward_structure` | `table`, columns: `[prize_tier, amount, currency, payment_trigger]` | `structured_fields` (no columns) | Wrong format, missing columns |
+| `evaluation_criteria` columns | `[parameter, weight_percent, scoring_type, evaluator_role]` | `[criterion_name, weight_percentage, scoring_type, evaluator_role]` | Column name mismatch (`parameter` vs `criterion_name`, `weight_percent` vs `weight_percentage`) |
 
----
+## Sections NOT in Your Spec but Present in Code
 
-## Phase Breakdown
+| Section | Current Format | Action Needed |
+|---------|---------------|---------------|
+| `domain_tags` | `tag_input` | Not in spec — keep or remove? |
+| `hook` | `rich_text` | Not in spec — keep or remove? |
+| `extended_brief` | `custom` | Not in spec — keep or remove? |
+| `challenge_visibility` | `select` | Not in spec — keep or remove? |
+| `effort_level` | `radio` | Not in spec — keep or remove? |
+| `visibility_eligibility` | `rich_text` | Should be split into `eligibility` + `visibility` per spec |
 
-### Phase 1 — Foundation: Section Format Config + CuratorSectionPanel Shell
+## Sections Correctly Implemented
 
-**Goal**: Define the `SECTION_FORMAT_CONFIG` constant and build the `CuratorSectionPanel` wrapper component with expand/collapse + fullscreen modal. Replace the current Accordion-based layout with the new panel shell. No renderer changes yet — existing render functions are temporarily wrapped inside the new shell.
+| Section | Format | Status |
+|---------|--------|--------|
+| `problem_statement` | `rich_text` | Correct |
+| `scope` | `rich_text` | Correct |
+| `deliverables` | `line_items` | Correct |
+| `maturity_level` | `checkbox_single` + masterDataTable | Correct |
+| `legal_docs` | `table` + correct columns + aiCanDraft:false | Correct |
+| `escrow_funding` | `structured_fields` + aiCanDraft:false | Correct |
+| `phase_schedule` | `schedule_table` + correct columns | Correct |
+| `submission_deadline` | `date` | Correct |
 
-**Files created/modified**:
-- `src/lib/cogniblend/curationSectionFormats.ts` — `SECTION_FORMAT_CONFIG` constant with all 16 sections, format types, flags (`aiCanDraft`, `aiReviewEnabled`, `curatorCanEdit`), column definitions, and `aiUsesContext` arrays
-- `src/components/cogniblend/curation/CuratorSectionPanel.tsx` — Panel shell with:
-  - Collapsible header row (chevron toggle, section label, status badge, fullscreen button, AI review button slot, approve/modify buttons for locked sections)
-  - Inline expand/collapse with localStorage persistence per challenge ID
-  - Fullscreen dialog overlay rendering the same children at viewport size
-  - Auto-expand for sections with warnings/blocks on load
-- `src/pages/cogniblend/CurationReviewPage.tsx` — Replace `<Accordion>` section loop with `<CuratorSectionPanel>` mapping. Remove existing expand/collapse logic. Existing `section.render()` calls remain temporarily as panel children.
+## Extra Format Types Not in Your Spec
 
-**What does NOT change**: Edge functions, AIReviewInline, data queries, mutations, checklist logic.
+Your spec defines 8 format types. The implementation has 4 extra: `select`, `radio`, `tag_input`, `custom`. These are used by sections not in your spec (`challenge_visibility`, `effort_level`, `domain_tags`, `extended_brief`, `complexity`).
 
----
+## Proposed Fix
 
-### Phase 2 — Format-Native Renderers (A through H)
+**File: `src/lib/cogniblend/curationSectionFormats.ts`**
 
-**Goal**: Build one renderer component per format type. Each receives `data`, `onSave`, `readOnly`, and renders the correct UI. Replace existing inline render functions and editor branches in CurationReviewPage with renderer calls driven by `SECTION_FORMAT_CONFIG`.
+1. Change `submission_guidelines` format from `rich_text` to `line_items`
+2. Add `expected_outcomes` as `line_items` with `aiUsesContext: ['spec.expected_outcomes']`
+3. Remove `visibility_eligibility` — replace with two separate entries:
+   - `eligibility`: `checkbox_multi`, masterDataTable: `solver_profiles`
+   - `visibility`: `checkbox_multi`, masterDataTable: `visibility_options`
+4. Change `complexity` from `custom` to `checkbox_single`, add masterDataTable: `complexity_levels`
+5. Change `ip_model` from `rich_text` to `checkbox_single`, add masterDataTable: `ip_models`
+6. Change `reward_structure` from `structured_fields` to `table`, add columns: `[prize_tier, amount, currency, payment_trigger]`
+7. Align `evaluation_criteria` column names to spec: `parameter`, `weight_percent`
+8. Keep `domain_tags`, `hook`, `extended_brief`, `challenge_visibility`, `effort_level` as-is (they exist in the app but were not in the 16-section spec — removal would break existing functionality)
 
-**Files created**:
-- `src/components/cogniblend/curation/renderers/RichTextSectionRenderer.tsx` — Tiptap editor (view/edit), used for `problem_statement`, `scope`
-- `src/components/cogniblend/curation/renderers/LineItemsSectionRenderer.tsx` — Vertical item list with add/delete/reorder, used for `deliverables`, `expected_outcomes`, `submission_guidelines`
-- `src/components/cogniblend/curation/renderers/TableSectionRenderer.tsx` — Editable table with column config, weight total footer for eval criteria, used for `evaluation_criteria`, `reward_structure`, `legal_docs`
-- `src/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer.tsx` — Table with date pickers, auto-duration, milestone checkbox, used for `phase_schedule`
-- `src/components/cogniblend/curation/renderers/CheckboxMultiSectionRenderer.tsx` — Master-data-driven checkbox list, used for `eligibility`, `visibility`
-- `src/components/cogniblend/curation/renderers/CheckboxSingleSectionRenderer.tsx` — Radio-style single select from master data, used for `complexity`, `ip_model`, `maturity_level`
-- `src/components/cogniblend/curation/renderers/DateSectionRenderer.tsx` — Date picker, used for `submission_deadline`
-- `src/components/cogniblend/curation/renderers/StructuredFieldsSectionRenderer.tsx` — Read-only structured display, used for `escrow_funding`
+**File: `src/components/cogniblend/curation/renderers/CheckboxMultiSectionRenderer.tsx`** — New file for `checkbox_multi` format (master-data-driven multi-select checkboxes for eligibility/visibility)
 
-**Files modified**:
-- `src/pages/cogniblend/CurationReviewPage.tsx` — Remove all inline render/editor branches (the large if/else chain from lines 1574-1746). Replace with a single `<SectionRenderer format={config.format} ... />` dispatcher. Delete `CurationSectionEditor.tsx` imports. Significant line count reduction (~400 lines removed).
+**File: `src/hooks/cogniblend/useCurationMasterData.ts`** — Add `eligibilityOptions` and update complexity/ip_model to use master data tables
 
-**Files deleted** (absorbed into renderers):
-- `src/components/cogniblend/curation/CurationSectionEditor.tsx` — Functionality moved into individual renderers
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`** — Update the section dispatcher switch to handle:
+- `submission_guidelines` as line items instead of rich text
+- `expected_outcomes` as new line items section
+- `eligibility` and `visibility` as checkbox_multi (replacing `visibility_eligibility`)
+- `complexity` and `ip_model` as checkbox_single with master data
+- `reward_structure` as table with columns
+- Corrected eval criteria column names
 
----
-
-### Phase 3 — AI Review Result Panel + Format-Aware AI Prompts
-
-**Goal**: Rebuild the AI review result display so it uses format-native renderers for the "AI Suggested Version" and supports structured comment display with severity badges and blockquote `applies_to`.
-
-**Files created/modified**:
-- `src/components/cogniblend/curation/AIReviewResultPanel.tsx` — New component replacing the current inline refinement display in `AIReviewInline`. Shows:
-  - Summary in rich text
-  - Comments with `[STRENGTH]` / `[WARNING]` / `[REQUIRED]` badges
-  - `applies_to` as styled blockquote
-  - AI suggested version rendered through the correct format renderer in readOnly mode
-  - Accept / Reject buttons
-  - Collapsible (badge + summary when collapsed)
-- `src/components/cogniblend/shared/AIReviewInline.tsx` — Refactored to delegate result rendering to `AIReviewResultPanel`. Comment selection and refinement trigger remain here. Format-aware accept flow: structured merge for tables/line items, full replace for rich text, ID-based for checkboxes.
-- `supabase/functions/review-challenge-sections/index.ts` — Add format instruction block per section (from Step 7 of the prompt). Section prompts include format type, column definitions, and master data option IDs for checkbox sections.
-- `supabase/functions/refine-challenge-section/index.ts` — Add format-specific output instructions so AI returns JSON for tables/line items, option IDs for checkboxes, dates for date sections.
-
----
-
-### Phase 4 — Legal/Escrow Special Treatment + Send for Modification
-
-**Goal**: Implement the special read-only behavior for `legal_docs` and `escrow_funding` with the "Approve" and "Send for Modification" workflow.
-
-**Files created/modified**:
-- `src/components/cogniblend/curation/SendForModificationModal.tsx` — Modal with auto-filled "To" field (LC for legal, FC for escrow), rich text comment editor, priority selector, Send action that creates a notification record
-- `src/pages/cogniblend/CurationReviewPage.tsx` — Wire Approve and Send for Modification buttons into `CuratorSectionPanel` header for locked sections. Add status badges (View Only, Curator Approved, Pending Modification, Response Received).
-- SQL migration — Add `section_approvals` or extend `cogni_notifications` table for tracking curator approval status and modification request threads per section per challenge.
-
----
-
-### Phase 5 — Master Data Context + Creator-to-Curator Data Streaming
-
-**Goal**: Load master data for checkbox sections and implement the data transformation layer for creator content arriving in free-text format.
-
-**Files created/modified**:
-- `src/contexts/MasterDataContext.tsx` — Context provider that batch-fetches `solver_profiles`, `visibility_options`, `complexity_levels`, `ip_models`, `maturity_levels` (some may need new DB tables/seed data)
-- `src/lib/cogniblend/creatorDataTransformer.ts` — Parser utilities that attempt to extract structured items from creator free-text (rich text to line items, text to table rows). Shows fallback banner when parsing fails with raw content in collapsed panel.
-- SQL migration — Create any missing master data lookup tables (`visibility_options`, `ip_models`) if they do not already exist, with seed data.
-
----
-
-## Implementation Order and Dependencies
-
-```text
-Phase 1 ──► Phase 2 ──► Phase 3
-                 │            │
-                 └──► Phase 4 (can start after Phase 2)
-                 │
-                 └──► Phase 5 (can start after Phase 2)
-```
-
-Phase 1 is the prerequisite for everything — it establishes the panel shell. Phases 4 and 5 are independent of Phase 3 and can proceed in parallel after Phase 2.
-
-## What Does NOT Change (across all phases)
-
-- Edge function input/output contract shape (sections array, status/comments structure)
-- `challenges.ai_section_reviews` storage format
-- Admin AI Review Config page
-- `refine-challenge-section` and `check-challenge-quality` edge function core logic (only prompt additions)
-- Any page outside the curator role
-
-## Estimated Scope
-
-| Phase | New Files | Modified Files | Complexity |
-|-------|-----------|---------------|------------|
-| 1     | 2         | 1             | Medium     |
-| 2     | 8         | 1             | High       |
-| 3     | 1         | 3             | High       |
-| 4     | 1         | 1 + migration | Medium     |
-| 5     | 2         | 0 + migration | Medium     |
-
----
-
-## Recommendation
-
-Start with **Phase 1** only. It is self-contained, testable, and does not break any existing functionality — it wraps the current content in the new panel shell. Once verified, proceed to Phase 2 to replace the rendering layer.
+**File: `src/components/cogniblend/curation/renderers/index.ts`** — Export new `CheckboxMultiSectionRenderer`
 
