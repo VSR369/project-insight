@@ -79,3 +79,10 @@ All 9 roles auto-assigned to creator. Any combination allowed.
 - ✅ `validate_role_assignment()` and `auto_assign_roles_on_creation()` now call resolver
 - ✅ Client-side `resolveChallengeGovernance()` in `governanceMode.ts`
 - ✅ `ChallengeWizardPage.tsx` writes `governance_mode_override` on save
+
+### Role Fusion Enforcement — Frontend Integration (Completed)
+- ✅ `useValidateRoleAssignment` hook — calls `validate_role_assignment` RPC
+- ✅ `ConflictWarningBanner` component — HARD_BLOCK (red) / SOFT_WARN (amber + override checkbox)
+- ✅ `AssignRoleSheet` — conflict check integrated with reset on role/member change
+- ✅ `useAutoAssignChallengeRoles` — pre-insert validation, skips HARD_BLOCK candidates, logs SOFT_WARN overrides
+- ✅ `useAssignMember` (useSolutionRequests) — pre-insert validation, blocks on HARD_BLOCK, logs SOFT_WARN overrides to audit_trail
