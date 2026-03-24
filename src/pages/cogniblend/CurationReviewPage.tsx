@@ -613,6 +613,18 @@ const SECTIONS: SectionDef[] = [
       return <p className="text-sm text-foreground capitalize">{ch.visibility}</p>;
     },
   },
+  {
+    key: "solver_expertise",
+    label: "Solver Expertise Requirements",
+    attribution: "by Curator / AI",
+    dbField: "solver_expertise_requirements",
+    isFilled: (ch) => {
+      const data = parseJson<any>(ch.solver_expertise_requirements);
+      if (!data) return false;
+      return (data.proficiency_areas?.length ?? 0) + (data.sub_domains?.length ?? 0) + (data.specialities?.length ?? 0) > 0;
+    },
+    render: () => null, // Rendered via SolverExpertiseSection component
+  },
   // ── Phase 1 additions: Challenge Settings (Org Policy) ──
   {
     key: "hook",
