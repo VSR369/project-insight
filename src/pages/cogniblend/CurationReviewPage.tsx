@@ -7,7 +7,7 @@
  *  - RIGHT (25%): Action rail + AI summary
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,19 @@ import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
+import {
+  RichTextSectionRenderer,
+  LineItemsSectionRenderer,
+  TableSectionRenderer,
+  ScheduleTableSectionRenderer,
+  CheckboxSingleSectionRenderer,
+  DateSectionRenderer,
+  SelectSectionRenderer,
+  RadioSectionRenderer,
+  TagInputSectionRenderer,
+  StructuredFieldsSectionRenderer,
+  LegalDocsSectionRenderer,
+} from "@/components/cogniblend/curation/renderers";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
@@ -85,16 +98,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
-const DEFAULT_DOMAIN_TAGS = [
-  'AI/ML', 'Biotech', 'Clean Energy', 'Materials Science',
-  'Digital Health', 'Manufacturing', 'Software', 'Sustainability',
-  'Cybersecurity', 'FinTech', 'IoT', 'Robotics',
-  'Data Analytics', 'Supply Chain', 'Telecommunications',
-];
+
 
 
 
@@ -808,11 +813,7 @@ export default function CurationReviewPage() {
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
 
-  // Domain tags editing state
-
-  // Domain tags editing state
-  const [domainTagInput, setDomainTagInput] = useState("");
-  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  // Domain tags editing state (now managed inside TagInputSectionRenderer)
 
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -1003,8 +1004,6 @@ export default function CurationReviewPage() {
       const updated = [...current, trimmed];
       saveSectionMutation.mutate({ field: "domain_tags", value: updated });
     }
-    setDomainTagInput("");
-    setShowTagDropdown(false);
   }, [challenge, saveSectionMutation]);
 
   const handleRemoveDomainTag = useCallback((tag: string) => {
@@ -1542,178 +1541,260 @@ export default function CurationReviewPage() {
                   const currentTags = section.key === "domain_tags"
                     ? (() => { const t = parseJson<string[]>(challenge.domain_tags); return Array.isArray(t) ? t : []; })()
                     : [];
-                  const filteredTags = section.key === "domain_tags" && domainTagInput
-                    ? DEFAULT_DOMAIN_TAGS.filter(
-                        (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !currentTags.includes(tag),
-                      )
-                    : [];
 
-                  // Build section content
-                  const sectionContent = (
-                    <>
-                      {/* ── Maturity Level Editor ── */}
-                      {isEditing && section.key === "maturity_level" ? (
-                        <div className="space-y-3">
-                          <Select
-                            value={challenge.maturity_level ?? ""}
-                            onValueChange={(val) => handleSaveMaturityLevel(val)}
-                          >
-                            <SelectTrigger className="w-full max-w-xs">
-                              <SelectValue placeholder="Select maturity level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(MATURITY_LABELS).map(([key, label]) => (
-                                <SelectItem key={key} value={key}>
-                                  <div>
-                                    <span className="font-medium">{label}</span>
-                                    {MATURITY_DESCRIPTIONS[key] && (
-                                      <span className="text-xs text-muted-foreground ml-2">— {MATURITY_DESCRIPTIONS[key]}</span>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
-                            <X className="h-3.5 w-3.5 mr-1" />Cancel
-                          </Button>
-                        </div>
+                  // Build section content using format-native renderers
+                  const sectionContent = (() => {
+                    const cancelEdit = () => setEditingSection(null);
 
-                      ) : isComplexity ? (
-                        <ComplexityAssessmentModule
-                          challengeId={challengeId!}
-                          currentScore={challenge.complexity_score ?? null}
-                          currentLevel={challenge.complexity_level ?? null}
-                          currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
-                          complexityParams={complexityParams}
-                          onSave={handleSaveComplexity}
-                          saving={savingSection}
-                        />
-
-                      ) : isEditing && section.key === "deliverables" ? (
-                        <DeliverablesEditor
-                          items={getDeliverableItems(challenge)}
-                          onSave={handleSaveDeliverables}
-                          onCancel={() => setEditingSection(null)}
-                          saving={savingSection}
-                        />
-                      ) : isEditing && section.key === "evaluation_criteria" ? (
-                        <EvalCriteriaEditor
-                          criteria={getEvalCriteria(challenge)}
-                          onSave={handleSaveEvalCriteria}
-                          onCancel={() => setEditingSection(null)}
-                          saving={savingSection}
-                        />
-                      ) : isEditing && TEXT_SECTIONS.has(section.key) && section.dbField ? (
-                        <TextSectionEditor
-                          value={getFieldValue(challenge, section.key)}
-                          onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
-                          onCancel={() => setEditingSection(null)}
-                          saving={savingSection}
-                        />
-                      ) : section.key === "extended_brief" ? (
-                        <ExtendedBriefDisplay
-                          data={challenge.extended_brief}
-                          onSave={handleSaveExtendedBrief}
-                          saving={savingSection}
-                        />
-                      ) : isEditing && section.key === "submission_deadline" ? (
-                        <DateFieldEditor
-                          value={challenge.submission_deadline ?? ""}
-                          onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
-                          onCancel={() => setEditingSection(null)}
-                          saving={savingSection}
-                        />
-                      ) : isEditing && section.key === "challenge_visibility" ? (
-                        <SelectFieldEditor
-                          value={challenge.challenge_visibility ?? ""}
-                          options={[
-                            { value: "public", label: "Public" },
-                            { value: "private", label: "Private" },
-                            { value: "invite_only", label: "Invite Only" },
-                          ]}
-                          onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
-                          onCancel={() => setEditingSection(null)}
-                          saving={savingSection}
-                        />
-                      ) : isEditing && section.key === "effort_level" ? (
-                        <RadioFieldEditor
-                          value={challenge.effort_level ?? ""}
-                          options={[
-                            { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-                            { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-                            { value: "high", label: "High", description: "160–500 hours estimated effort" },
-                            { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-                          ]}
-                          onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
-                          onCancel={() => setEditingSection(null)}
-                          saving={savingSection}
-                        />
-                      ) : section.key === "domain_tags" && !isReadOnly ? (
-                        <div className="space-y-3">
-                          <div className="flex flex-wrap gap-1.5 min-h-[32px]">
-                            {currentTags.length === 0 && (
-                              <p className="text-sm text-muted-foreground italic">No domain tags — type below to add.</p>
-                            )}
-                            {currentTags.map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
-                                <Tag className="h-3 w-3" />{tag}
-                                <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="relative">
-                            <Input
-                              value={domainTagInput}
-                              onChange={(e) => {
-                                setDomainTagInput(e.target.value);
-                                setShowTagDropdown(true);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && domainTagInput.trim()) {
-                                  e.preventDefault();
-                                  handleAddDomainTag(domainTagInput);
-                                }
-                              }}
-                              onFocus={() => setShowTagDropdown(true)}
-                              onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
-                              placeholder="Type to search or add a tag…"
-                              className="text-sm"
+                    switch (section.key) {
+                      // ── Rich text sections ──
+                      case "problem_statement":
+                      case "scope":
+                      case "submission_guidelines":
+                      case "ip_model":
+                      case "visibility_eligibility":
+                      case "hook":
+                        return (
+                          <>
+                            <RichTextSectionRenderer
+                              value={getFieldValue(challenge, section.key)}
+                              readOnly={isReadOnly || isLocked}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
+                              onCancel={cancelEdit}
+                              onEdit={() => setEditingSection(section.key)}
+                              saving={savingSection}
                             />
-                            {showTagDropdown && filteredTags.length > 0 && (
-                              <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-                                {filteredTags.map((tag) => (
-                                  <button
-                                    key={tag}
-                                    onClick={() => handleAddDomainTag(tag)}
-                                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                                  >
-                                    {tag}
-                                  </button>
-                                ))}
-                              </div>
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
                             )}
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-                          {canEdit && !isEditing && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="mt-3 text-xs"
-                              onClick={() => setEditingSection(section.key)}
-                            >
-                              <Pencil className="h-3 w-3 mr-1" />Edit
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </>
-                  );
+                          </>
+                        );
+
+                      // ── Deliverables (line items) ──
+                      case "deliverables":
+                        return (
+                          <>
+                            <LineItemsSectionRenderer
+                              items={getDeliverableItems(challenge)}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={handleSaveDeliverables}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Evaluation criteria (table) ──
+                      case "evaluation_criteria":
+                        return (
+                          <>
+                            <TableSectionRenderer
+                              sectionKey={section.key}
+                              rows={getEvalCriteria(challenge)}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={handleSaveEvalCriteria}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                              showWeightTotal
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Reward structure (custom component) ──
+                      case "reward_structure":
+                        return (
+                          <RewardStructureDisplay
+                            rewardStructure={challenge.reward_structure}
+                            currencyCode={challenge.currency_code ?? undefined}
+                            challengeId={challenge.id}
+                            problemStatement={challenge.problem_statement}
+                          />
+                        );
+
+                      // ── Complexity (custom component) ──
+                      case "complexity":
+                        return (
+                          <ComplexityAssessmentModule
+                            challengeId={challengeId!}
+                            currentScore={challenge.complexity_score ?? null}
+                            currentLevel={challenge.complexity_level ?? null}
+                            currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
+                            complexityParams={complexityParams}
+                            onSave={handleSaveComplexity}
+                            saving={savingSection}
+                          />
+                        );
+
+                      // ── Maturity level (checkbox single / select) ──
+                      case "maturity_level":
+                        return (
+                          <>
+                            <CheckboxSingleSectionRenderer
+                              value={challenge.maturity_level}
+                              options={Object.entries(MATURITY_LABELS).map(([key, label]) => ({
+                                value: key,
+                                label: label as string,
+                                description: MATURITY_DESCRIPTIONS[key],
+                              }))}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveMaturityLevel(val)}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                              getLabel={getMaturityLabel}
+                              getDescription={(val) => MATURITY_DESCRIPTIONS[val]}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Phase schedule (schedule table) ──
+                      case "phase_schedule":
+                        return (
+                          <ScheduleTableSectionRenderer
+                            data={parseJson<any>(challenge.phase_schedule)}
+                            readOnly={isReadOnly}
+                          />
+                        );
+
+                      // ── Legal docs (read-only table) ──
+                      case "legal_docs":
+                        return <LegalDocsSectionRenderer documents={legalDetails} />;
+
+                      // ── Escrow funding (structured fields, read-only) ──
+                      case "escrow_funding":
+                        return (
+                          <StructuredFieldsSectionRenderer
+                            escrow={escrowRecord}
+                            isControlledMode={isControlledMode(resolveGovernanceMode(challenge.governance_profile))}
+                          />
+                        );
+
+                      // ── Domain tags (tag input) ──
+                      case "domain_tags":
+                        return (
+                          <TagInputSectionRenderer
+                            tags={currentTags}
+                            readOnly={isReadOnly}
+                            onAdd={handleAddDomainTag}
+                            onRemove={handleRemoveDomainTag}
+                          />
+                        );
+
+                      // ── Extended brief (custom component) ──
+                      case "extended_brief":
+                        return (
+                          <ExtendedBriefDisplay
+                            data={challenge.extended_brief}
+                            onSave={handleSaveExtendedBrief}
+                            saving={savingSection}
+                          />
+                        );
+
+                      // ── Submission deadline (date picker) ──
+                      case "submission_deadline":
+                        return (
+                          <>
+                            <DateSectionRenderer
+                              value={challenge.submission_deadline}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Challenge visibility (select) ──
+                      case "challenge_visibility":
+                        return (
+                          <>
+                            <SelectSectionRenderer
+                              value={challenge.challenge_visibility}
+                              options={[
+                                { value: "public", label: "Public" },
+                                { value: "private", label: "Private" },
+                                { value: "invite_only", label: "Invite Only" },
+                              ]}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Effort level (radio) ──
+                      case "effort_level":
+                        return (
+                          <>
+                            <RadioSectionRenderer
+                              value={challenge.effort_level}
+                              options={[
+                                { value: "low", label: "Low", description: "< 40 hours estimated effort" },
+                                { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
+                                { value: "high", label: "High", description: "160–500 hours estimated effort" },
+                                { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
+                              ]}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Fallback ──
+                      default:
+                        return (
+                          <>
+                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                    }
+                  })();
 
                   // Build AI review slot
                   const aiReviewContent = (
