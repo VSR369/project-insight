@@ -409,6 +409,90 @@ export type Database = {
           },
         ]
       }
+      ai_review_global_config: {
+        Row: {
+          batch_split_threshold: number
+          default_model: string
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          batch_split_threshold?: number
+          default_model?: string
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          batch_split_threshold?: number
+          default_model?: string
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      ai_review_section_config: {
+        Row: {
+          donts: string | null
+          dos: string | null
+          example_good: string | null
+          example_poor: string | null
+          importance_level: string
+          is_active: boolean
+          max_words: number
+          min_words: number
+          required_elements: string[]
+          review_instructions: string | null
+          role_context: string
+          section_description: string | null
+          section_key: string
+          section_label: string
+          tone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          donts?: string | null
+          dos?: string | null
+          example_good?: string | null
+          example_poor?: string | null
+          importance_level?: string
+          is_active?: boolean
+          max_words?: number
+          min_words?: number
+          required_elements?: string[]
+          review_instructions?: string | null
+          role_context: string
+          section_description?: string | null
+          section_key: string
+          section_label: string
+          tone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          donts?: string | null
+          dos?: string | null
+          example_good?: string | null
+          example_poor?: string | null
+          importance_level?: string
+          is_active?: boolean
+          max_words?: number
+          min_words?: number
+          required_elements?: string[]
+          review_instructions?: string | null
+          role_context?: string
+          section_description?: string | null
+          section_key?: string
+          section_label?: string
+          tone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       amendment_records: {
         Row: {
           amendment_number: number
