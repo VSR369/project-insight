@@ -42,6 +42,11 @@ function isStructuredSection(sectionKey: string): boolean {
   return ['line_items', 'table', 'schedule_table'].includes(fmt.format);
 }
 
+/** Determine the format type of a section */
+function getSectionFormatType(sectionKey: string): string | null {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format ?? null;
+}
+
 /** Determine if a section is a master-data selection (codes, not prose) */
 function isMasterDataSection(sectionKey: string): boolean {
   const fmt = SECTION_FORMAT_CONFIG[sectionKey];
