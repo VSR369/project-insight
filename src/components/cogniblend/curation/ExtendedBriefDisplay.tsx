@@ -252,6 +252,7 @@ export default function ExtendedBriefDisplay({
   onSingleSectionReview,
   onMarkAddressed,
   challengeContext,
+  expandVersion,
 }: ExtendedBriefDisplayProps) {
   const brief = parseExtendedBrief(data);
   const [editingKey, setEditingKey] = useState<string | null>(null);
