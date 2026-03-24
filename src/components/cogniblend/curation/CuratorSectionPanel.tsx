@@ -243,13 +243,17 @@ export function CuratorSectionPanel({
     });
   }, [challengeId, sectionKey]);
 
-  // Auto-expand on status change to warning/needs_revision
+  // Auto-expand on status change to warning/needs_revision — only if user hasn't
+  // explicitly set this section's state in localStorage
   useEffect(() => {
-    if (defaultExpanded && !isExpanded) {
-      setIsExpanded(true);
-      const state = loadExpandState(challengeId);
-      state[sectionKey] = true;
-      saveExpandState(challengeId, state);
+    if (defaultExpanded) {
+      const saved = loadExpandState(challengeId);
+      // Only auto-expand if there's no explicit user choice persisted
+      if (saved[sectionKey] === undefined) {
+        setIsExpanded(true);
+        saved[sectionKey] = true;
+        saveExpandState(challengeId, saved);
+      }
     }
   }, [defaultExpanded]); // intentionally limited deps
 
