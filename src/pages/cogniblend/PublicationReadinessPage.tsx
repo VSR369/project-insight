@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, XCircle, ArrowLeft, ShieldCheck, AlertTriangle, Loader2, Rocket } from 'lucide-react';
 import { cn } from '@/lib/utils';
