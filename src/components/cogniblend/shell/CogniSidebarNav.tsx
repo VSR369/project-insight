@@ -130,10 +130,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     approvalQueue: roleChallengeCount['ID'] ?? 0,
   };
 
-  const isVisible = (requiredRoles: string[]): boolean => {
-    if (requiredRoles.length === 0) return true;
-    return requiredRoles.some((r) => allRoleCodes.has(r));
-  };
+  const checkVisible = (item: NavItem): boolean => item.isVisible(permissions);
 
   /** Check if a nav path is relevant to the active workspace role */
   const isRelevant = (path: string): boolean => {
