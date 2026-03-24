@@ -2294,6 +2294,7 @@ export default function CurationReviewPage() {
                       defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
                       aiReviewSlot={aiReviewContent}
                       sectionActions={getSectionActions(section.key)}
+                      promptSource={aiReview?.prompt_source ?? null}
                     >
                       {sectionContent}
                     </CuratorSectionPanel>
