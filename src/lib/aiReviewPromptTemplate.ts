@@ -116,11 +116,13 @@ export function buildConfiguredBatchPrompt(
 
   const SECTION_FORMAT_MAP: Record<string, string> = {
     problem_statement: 'rich_text', scope: 'rich_text', deliverables: 'line_items',
-    submission_guidelines: 'rich_text', evaluation_criteria: 'table', reward_structure: 'structured_fields',
-    phase_schedule: 'schedule_table', complexity: 'custom', ip_model: 'rich_text',
-    maturity_level: 'checkbox_single', visibility_eligibility: 'rich_text', hook: 'rich_text',
-    extended_brief: 'custom', submission_deadline: 'date', challenge_visibility: 'select',
-    effort_level: 'radio', domain_tags: 'tag_input', legal_docs: 'table', escrow_funding: 'structured_fields',
+    expected_outcomes: 'line_items', submission_guidelines: 'line_items',
+    evaluation_criteria: 'table', reward_structure: 'table',
+    phase_schedule: 'schedule_table', complexity: 'checkbox_single', ip_model: 'checkbox_single',
+    maturity_level: 'checkbox_single', eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
+    hook: 'rich_text', extended_brief: 'custom', submission_deadline: 'date',
+    challenge_visibility: 'select', effort_level: 'radio', domain_tags: 'tag_input',
+    legal_docs: 'table', escrow_funding: 'structured_fields',
   };
 
   const parts: string[] = [];

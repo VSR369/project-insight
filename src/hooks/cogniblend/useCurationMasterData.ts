@@ -51,11 +51,11 @@ const EFFORT_OPTIONS: MasterDataOption[] = [
 ];
 
 const IP_MODEL_OPTIONS: MasterDataOption[] = [
-  { value: "full_transfer", label: "Full IP Transfer", description: "All intellectual property transfers to the challenge seeker" },
-  { value: "licensed", label: "Licensed Use", description: "Solver retains ownership, grants license to seeker" },
-  { value: "shared", label: "Shared IP", description: "Joint ownership between solver and seeker" },
-  { value: "open_source", label: "Open Source", description: "Solution released under open source license" },
-  { value: "retained", label: "Solver Retains", description: "Solver retains full IP ownership" },
+  { value: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
+  { value: "IP-NEL", label: "Non-Exclusive License", description: "Solver retains ownership, grants license to seeker" },
+  { value: "IP-EL", label: "Exclusive License", description: "Solver grants exclusive license to seeker" },
+  { value: "IP-JO", label: "Joint Ownership", description: "Joint ownership between solver and seeker" },
+  { value: "IP-NONE", label: "No IP Transfer", description: "Solver retains full IP ownership" },
 ];
 
 /* ── Hook ──────────────────────────────────────────────── */
@@ -91,10 +91,10 @@ export function useCurationMasterData(): CurationMasterData {
     ...CACHE_STABLE,
   });
 
-  // Build maturity options from constants
+  // Build maturity options from constants — use UPPERCASE values to match DB normalizer
   const maturityOptions = useMemo<MasterDataOption[]>(() =>
     Object.entries(MATURITY_LABELS).map(([key, label]) => ({
-      value: key,
+      value: key.toUpperCase(),
       label: label as string,
       description: MATURITY_DESCRIPTIONS[key],
     })),

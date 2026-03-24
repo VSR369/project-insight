@@ -2099,6 +2099,20 @@ export default function CurationReviewPage() {
                     }
                   })();
 
+                  // Resolve masterDataOptions for this section
+                  const sectionMasterDataOptions = (() => {
+                    switch (section.key) {
+                      case "eligibility": return masterData.eligibilityOptions;
+                      case "visibility": return masterData.visibilityOptions;
+                      case "ip_model": return masterData.ipModelOptions;
+                      case "maturity_level": return masterData.maturityOptions;
+                      case "complexity": return masterData.complexityOptions;
+                      case "challenge_visibility": return masterData.challengeVisibilityOptions;
+                      case "effort_level": return masterData.effortOptions;
+                      default: return undefined;
+                    }
+                  })();
+
                   // Build AI review slot
                   const aiReviewContent = (
                     <CurationAIReviewInline
@@ -2111,6 +2125,7 @@ export default function CurationReviewPage() {
                       onSingleSectionReview={handleSingleSectionReview}
                       onMarkAddressed={handleMarkAddressed}
                       defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
+                      masterDataOptions={sectionMasterDataOptions}
                     />
                   );
 
