@@ -102,7 +102,12 @@ export interface CuratorSectionPanelProps {
   sectionActions?: SectionActionRecord[];
   /** Whether AI used supervisor-configured or default prompt */
   promptSource?: "supervisor" | "default" | null;
+  /** Increment to force re-read expand state from localStorage (for expand/collapse all) */
+  expandVersion?: number;
 }
+
+// Export localStorage helpers so parent can bulk-update expand state
+export { loadExpandState, saveExpandState };
 
 // ---------------------------------------------------------------------------
 // localStorage helpers
