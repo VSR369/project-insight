@@ -266,9 +266,9 @@ export function AIReviewInline({
             )}
 
             {!refinedContent && !isPassWithNoComments && (
-              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleRefineWithAI} disabled={isRefining || !currentContent}>
+              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleRefineWithAI} disabled={isRefining}>
                 {isRefining ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-                {isRefining ? "Refining…" : "Refine with AI"}
+                {isRefining ? "Refining…" : currentContent ? "Refine with AI" : "Draft with AI"}
               </Button>
             )}
 
