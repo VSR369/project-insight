@@ -455,10 +455,10 @@ export default function LegalDocumentAttachmentPage() {
   // ══════════════════════════════════════
   // SECTION 6: Auto-attach defaults for Quick mode
   // ══════════════════════════════════════
-  const isLightweight = isQuickMode(resolveGovernanceMode(challenge?.governance_profile));
+  const isQuick = isQuickMode(resolveGovernanceMode(challenge?.governance_profile));
 
   useEffect(() => {
-    if (!isLightweight || !requiredDocs || attachedDocs.length > 0) return;
+    if (!isQuick || !requiredDocs || attachedDocs.length > 0) return;
 
     const allTemplates = [
       ...(requiredDocs.tier_1 ?? []),
@@ -486,7 +486,7 @@ export default function LegalDocumentAttachmentPage() {
         }
       });
   }, [
-    isLightweight,
+    isQuick,
     requiredDocs,
     attachedDocs.length,
     challengeId,
@@ -866,7 +866,7 @@ export default function LegalDocumentAttachmentPage() {
       )}
 
       {/* Lightweight auto-attach banner */}
-      {isLightweight && (
+      {isQuick && (
         <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
           <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <p className="text-sm text-foreground">

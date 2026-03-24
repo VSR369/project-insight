@@ -35,10 +35,13 @@ export function isQuickMode(mode: GovernanceMode): boolean {
   return mode === 'QUICK';
 }
 
-/** True when enterprise-grade anonymity and review rigor apply */
-export function isEnterpriseGrade(mode: GovernanceMode): boolean {
+/** True when structured or controlled governance applies (review rigor, anonymity) */
+export function isStructuredOrAbove(mode: GovernanceMode): boolean {
   return mode === 'STRUCTURED' || mode === 'CONTROLLED';
 }
+
+/** @deprecated Use isStructuredOrAbove instead */
+export const isEnterpriseGrade = isStructuredOrAbove;
 
 /** True only for the strictest governance tier */
 export function isControlledMode(mode: GovernanceMode): boolean {

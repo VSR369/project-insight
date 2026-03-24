@@ -37,7 +37,7 @@ const RUBRIC_LEVELS = [
 interface StepEvaluationProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 

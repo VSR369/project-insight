@@ -19,15 +19,15 @@ interface ScenarioConfig {
 }
 
 const SCENARIOS: Record<string, ScenarioConfig> = {
-  mp_lightweight: {
-    orgName: "MP Light Test Org",
+  mp_quick: {
+    orgName: "MP Quick Test Org",
     operatingModel: "MP",
     governanceProfile: "LIGHTWEIGHT",
     subscriptionTier: "basic",
     phase1Bypass: false,
     isEnterprise: false,
     users: [
-      { email: "mp-light-admin@testsetup.dev", displayName: "MP Light Admin", roles: ["AM", "CA", "CU", "ID", "ER", "FC"] },
+      { email: "mp-quick-admin@testsetup.dev", displayName: "MP Quick Admin", roles: ["AM", "CA", "CU", "ID", "ER", "FC"] },
     ],
   },
   mp_enterprise_3: {
@@ -61,15 +61,15 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
       { email: "agg-ent-lc@testsetup.dev", displayName: "AGG Legal", roles: ["LC"] },
     ],
   },
-  agg_lightweight_bypass: {
-    orgName: "AGG Light Bypass Org",
+  agg_quick_bypass: {
+    orgName: "AGG Quick Bypass Org",
     operatingModel: "AGG",
     governanceProfile: "LIGHTWEIGHT",
     subscriptionTier: "basic",
     phase1Bypass: true,
     isEnterprise: false,
     users: [
-      { email: "agg-light-admin@testsetup.dev", displayName: "AGG Light Admin", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "agg-quick-admin@testsetup.dev", displayName: "AGG Quick Admin", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
     ],
   },
   new_horizon_demo: {

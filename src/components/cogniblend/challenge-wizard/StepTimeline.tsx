@@ -46,7 +46,7 @@ import type { ChallengeFormValues } from './challengeFormSchema';
 interface StepTimelineProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 
@@ -183,7 +183,7 @@ function GanttView({ phases, phaseDurations, startDate, totalDays }: GanttViewPr
 
 /* ─── Main Component ─────────────────────────────────────── */
 
-export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimelineProps) {
+export function StepTimeline({ form, mandatoryFields, isQuick }: StepTimelineProps) {
   const { setValue, watch } = form;
 
   // Phase durations state
@@ -240,7 +240,7 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
   });
 
   // Visible phases
-  const visiblePhases = isLightweight ? PHASES.filter((p) => p.lightweightVisible) : PHASES;
+  const visiblePhases = isQuick ? PHASES.filter((p) => p.lightweightVisible) : PHASES;
 
   // Total duration
   const totalDays = useMemo(() => {
@@ -299,13 +299,13 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
   }, [startDate, setValue]);
 
   useEffect(() => {
-    if (!isLightweight) {
+    if (!isQuick) {
       setValue('complexity_params', paramValues as any, { shouldDirty: true });
       setValue('complexity_notes', complexityScore.toFixed(1), { shouldDirty: true });
     } else {
       setValue('complexity_notes', lwComplexity, { shouldDirty: true });
     }
-  }, [paramValues, complexityScore, lwComplexity, isLightweight, setValue]);
+  }, [paramValues, complexityScore, lwComplexity, isQuick, setValue]);
 
   const handleDurationChange = (key: string, val: number) => {
     setPhaseDurations((prev) => ({ ...prev, [key]: Math.max(1, val) }));
@@ -498,11 +498,11 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         <div className="space-y-1">
           <h3 className="text-base font-bold text-foreground">Complexity Assessment</h3>
           <p className="text-xs text-muted-foreground">
-            {isLightweight ? 'Select the overall complexity level for this challenge.' : 'Rate each parameter to calculate the complexity score.'}
+            {isQuick ? 'Select the overall complexity level for this challenge.' : 'Rate each parameter to calculate the complexity score.'}
           </p>
         </div>
 
-        {isLightweight ? (
+        {isQuick ? (
           <div className="space-y-3 max-w-md">
             <Label className="text-[13px] font-semibold">Challenge Complexity</Label>
             <Select value={lwComplexity} onValueChange={setLwComplexity}>

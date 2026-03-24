@@ -97,11 +97,11 @@ const EFFORT_LEVELS = [
 interface StepRewardsProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 
-export function StepRewards({ form, isLightweight }: StepRewardsProps) {
+export function StepRewards({ form, isQuick }: StepRewardsProps) {
   const { register, control, watch, setValue } = form;
 
   const platinumAward = watch('platinum_award') ?? 0;
@@ -119,11 +119,11 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
 
   // Auto-set IP model default from maturity level
   useEffect(() => {
-    if (isLightweight && maturityLevel && !ipModel) {
+    if (isQuick && maturityLevel && !ipModel) {
       const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
       if (defaultIp) setValue('ip_model', defaultIp);
     }
-  }, [maturityLevel, isLightweight, ipModel, setValue]);
+  }, [maturityLevel, isQuick, ipModel, setValue]);
 
   // Compute reward guidance from effort level
   const rewardGuidance = EFFORT_LEVELS.find((e) => e.value === effortLevel)?.guidance ?? '';
@@ -175,7 +175,7 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
           Reward Category <span className="text-destructive">*</span>
         </Label>
 
-        {isLightweight ? (
+        {isQuick ? (
           <div className="flex gap-3">
             <button type="button" onClick={() => setValue('reward_type', 'monetary', { shouldDirty: true })}
               className={cn('flex-1 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors',
@@ -392,7 +392,7 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
           </div>
 
           {/* ═══ 5. Payment Mode ═══ */}
-          {!isLightweight && (
+          {!isQuick && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Mode</Label>
               <p className="text-xs text-muted-foreground">How award payments are disbursed to winning solvers.</p>
@@ -423,7 +423,7 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
           )}
 
           {/* ═══ 6. Payment Schedule ═══ */}
-          {!isLightweight && (
+          {!isQuick && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Schedule (Milestone-based)</Label>
               <p className="text-xs text-muted-foreground">Define when portions of the award are released to solvers.</p>
@@ -529,7 +529,7 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
       )}
 
       {/* ═══ 7. Platform Provider Fee banner ═══ */}
-      {!isLightweight && rewardType === 'monetary' && (
+      {!isQuick && rewardType === 'monetary' && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-4 flex items-start gap-3">
           <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
           <div>
@@ -544,7 +544,7 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
       )}
 
       {/* ═══ 8. Rejection Fee (Enterprise only) ═══ */}
-      {!isLightweight && rewardType === 'monetary' && (
+      {!isQuick && rewardType === 'monetary' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Label className="text-sm font-medium">Rejection Fee</Label>

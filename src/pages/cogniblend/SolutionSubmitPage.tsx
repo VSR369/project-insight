@@ -283,7 +283,7 @@ export default function SolutionSubmitPage() {
   const isAlreadySubmitted = existingSolution?.phase_status === 'ACTIVE' && !!existingSolution?.submitted_at;
   const isWithdrawn = existingSolution?.phase_status === 'TERMINAL' || existingSolution?.selection_status === 'WITHDRAWN';
   const _govMode = resolveGovernanceMode(challenge?.governance_profile);
-  const isLightweight = isQuickMode(_govMode);
+  const isQuick = isQuickMode(_govMode);
   const isEnterprise = isEnterpriseGrade(_govMode);
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
   const needsReacceptance = reacceptStatus?.hasPending ?? false;
@@ -727,21 +727,21 @@ export default function SolutionSubmitPage() {
             </CardContent>
           </Card>
 
-          {/* File Attachments — LIGHTWEIGHT: "Solution Files (optional)"; ENTERPRISE: standard */}
+          {/* File Attachments — QUICK: "Solution Files (optional)"; STRUCTURED/CONTROLLED: standard */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                {isLightweight ? 'Solution Files' : 'File Attachments'}
+                {isQuick ? 'Solution Files' : 'File Attachments'}
                 <span className="text-xs text-muted-foreground font-normal">
-                  {isLightweight
+                  {isQuick
                     ? '(Optional — attach solution files for direct owner review, max 10 files, 50MB total)'
                     : '(Optional, max 10 files, 50MB total)'}
                 </span>
               </CardTitle>
-              {isLightweight && (
+              {isQuick && (
                 <CardDescription>
-                  Lightweight challenges use single-stage submission. Your solution files are reviewed directly by the challenge owner — no screening step.
+                  Quick-mode challenges use single-stage submission. Your solution files are reviewed directly by the challenge owner — no screening step.
                 </CardDescription>
               )}
             </CardHeader>
@@ -797,7 +797,7 @@ export default function SolutionSubmitPage() {
               disabled={submitMutation.isPending || needsLegalAcceptance || fileSizeExceeded}
             >
               <Send className="h-4 w-4 mr-2" />
-              {submitMutation.isPending ? 'Submitting...' : isLightweight ? 'Submit Solution' : 'Submit Abstract'}
+              {submitMutation.isPending ? 'Submitting...' : isQuick ? 'Submit Solution' : 'Submit Abstract'}
             </Button>
           </div>
         </form>

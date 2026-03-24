@@ -42,14 +42,14 @@ function QuestionRow({
   challengeId,
   challengeTitle,
   operatingModel,
-  isLightweight,
+  isQuick,
 }: {
   qa: ManagedQARow;
   userId: string;
   challengeId: string;
   challengeTitle: string;
   operatingModel: string;
-  isLightweight: boolean;
+  isQuick: boolean;
 }) {
   const [showAnswer, setShowAnswer] = useState(false);
   const [answerText, setAnswerText] = useState(qa.answer_text ?? '');
@@ -68,7 +68,7 @@ function QuestionRow({
     });
 
     // In LIGHTWEIGHT mode, auto-publish immediately
-    if (isLightweight) {
+    if (isQuick) {
       await publishMutation.mutateAsync({ qaId: qa.qa_id, challengeId, userId });
     }
 
@@ -105,7 +105,7 @@ function QuestionRow({
               Unanswered
             </Badge>
           )}
-          {qa.answer_text && !qa.is_published && !isLightweight && (
+          {qa.answer_text && !qa.is_published && !isQuick && (
             <Badge variant="secondary" className="text-[10px] font-medium ml-1">
               Answered · Unpublished
             </Badge>
@@ -147,7 +147,7 @@ function QuestionRow({
         )}
 
         {/* Route to Architect/Creator (Enterprise only) */}
-        {!isLightweight && !qa.answer_text && (
+        {!isQuick && !qa.answer_text && (
           <Button
             variant="outline"
             size="sm"
@@ -161,7 +161,7 @@ function QuestionRow({
         )}
 
         {/* Publish answer (Enterprise only, when answered but unpublished) */}
-        {!isLightweight && qa.answer_text && !qa.is_published && (
+        {!isQuick && qa.answer_text && !qa.is_published && (
           <Button
             variant="default"
             size="sm"
@@ -203,7 +203,7 @@ function QuestionRow({
               onClick={handleSaveAnswer}
               disabled={!answerText.trim() || answerMutation.isPending}
             >
-              {answerMutation.isPending ? 'Saving…' : isLightweight ? 'Save & Publish' : 'Save Answer'}
+              {answerMutation.isPending ? 'Saving…' : isQuick ? 'Save & Publish' : 'Save Answer'}
             </Button>
             <Button
               variant="ghost"
@@ -251,7 +251,7 @@ export function QAManagementCard({
 
   const operatingModel = (challengeMeta as any)?.operating_model ?? 'MP';
   const isQaClosed = (challengeMeta as any)?.is_qa_closed ?? false;
-  const isLightweight = governanceProfile === 'LIGHTWEIGHT';
+  const isQuick = governanceProfile === 'LIGHTWEIGHT';
 
   const unansweredCount = questions.filter((q) => !q.answer_text).length;
 
@@ -330,7 +330,7 @@ export function QAManagementCard({
                   challengeId={challengeId}
                   challengeTitle={challengeTitle}
                   operatingModel={operatingModel}
-                  isLightweight={isLightweight}
+                  isQuick={isQuick}
                 />
               ))}
             </div>

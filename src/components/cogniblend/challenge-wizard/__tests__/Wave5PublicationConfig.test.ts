@@ -173,9 +173,9 @@ describe('TW5-04: LW still uses Public/Private toggle (no change)', () => {
     expect(overlap).toHaveLength(0);
   });
 
-  it('render branching is mutually exclusive via isLightweight', () => {
+  it('render branching is mutually exclusive via isQuick', () => {
     expect(true).toBe(true); // LW → LightweightVisibilityToggle
     expect(false).toBe(false); // Enterprise → EnterprisePublicationConfig
-    // isLightweight && <LW> / !isLightweight && <Enterprise> — cannot both render
+    // isQuick && <LW> / !isQuick && <Enterprise> — cannot both render
   });
 });

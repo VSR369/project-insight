@@ -170,13 +170,13 @@ function MasterDataMultiSelect({
 interface StepProviderEligibilityProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 
 /* ─── Main Component ─────────────────────────────────── */
 
-export function StepProviderEligibility({ form, mandatoryFields, isLightweight }: StepProviderEligibilityProps) {
+export function StepProviderEligibility({ form, mandatoryFields, isQuick }: StepProviderEligibilityProps) {
   const { formState: { errors }, control, watch, setValue, register } = form;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
@@ -495,7 +495,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         )}
 
         {/* ── Enterprise: Visibility Dropdown ── */}
-        {!isLightweight && (solverEligibilityIds.length > 0 || isAllTiers) && (
+        {!isQuick && (solverEligibilityIds.length > 0 || isAllTiers) && (
           <div className="space-y-3 border-t border-border pt-4">
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-foreground">Challenge Visibility</h4>
@@ -525,7 +525,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         )}
 
         {/* ── Lightweight: Summary note ── */}
-        {isLightweight && (
+        {isQuick && (
           <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
             <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground">
@@ -742,13 +742,13 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
       )}
 
       {/* ═══ SECTION 5: Targeting Filters (Enterprise) ═══ */}
-      {!isLightweight && (
+      {!isQuick && (
         <div className="border-t border-border pt-6">
-          <TargetingFiltersSection value={currentFilters} onChange={handleFiltersChange} isLightweight={isLightweight} />
+          <TargetingFiltersSection value={currentFilters} onChange={handleFiltersChange} isQuick={isQuick} />
         </div>
       )}
 
-      {isLightweight && (
+      {isQuick && (
         <div className="rounded-lg border border-border bg-muted/30 p-4">
           <p className="text-sm text-muted-foreground">
             Lightweight governance uses open enrollment by default. Upgrade to Enterprise for advanced targeting filters.

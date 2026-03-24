@@ -141,7 +141,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   // Use parent prop → form-selected mode (Step 0) → fallback
   const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
   const governanceMode: GovernanceMode = propGovernanceMode ?? formSelectedMode ?? fallbackMode;
-  const isLightweight = isQuickMode(governanceMode);
+  const isQuick = isQuickMode(governanceMode);
 
   // Sync parent prop into form if provided
   useEffect(() => {
@@ -385,7 +385,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         submission_guidelines: values.submission_guidelines || null,
       },
       evaluation_criteria: criteria.length ? { criteria } : null,
-      reward_structure: isLightweight
+      reward_structure: isQuick
         ? values.reward_type === 'non_monetary'
           ? { type: 'non_monetary', description: values.reward_description || '' }
           : { type: 'monetary', amount: values.platinum_award, currency: values.currency_code }
@@ -407,7 +407,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       solver_eligibility_types: values.eligible_participation_modes?.length
         ? values.eligible_participation_modes
         : null,
-      challenge_visibility: isLightweight ? null : (values.challenge_visibility || 'public'),
+      challenge_visibility: isQuick ? null : (values.challenge_visibility || 'public'),
       rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: values.submission_deadline || null,
       submission_template_url: values.submission_template_url || null,
@@ -735,14 +735,14 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
             />
           )}
           {currentStep === 1 && (
-            <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            <StepProblem form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} />
           )}
           {currentStep === 2 && (
-            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} />
           )}
           {currentStep === 3 && (
             isCuratorView ? (
-              <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+              <StepRewards form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} />
             ) : (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-foreground">Rewards & Payment</h2>
@@ -753,16 +753,16 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
             )
           )}
           {currentStep === 4 && (
-            <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            <StepTimeline form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} />
           )}
           {currentStep === 5 && (
-            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} />
           )}
           {currentStep === 6 && (
-            <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
+            <StepTemplates form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} />
           )}
           {currentStep === 7 && (
-            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} onNavigateToStep={(step) => setCurrentStep(step)} />
+            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isQuick={isQuick} fieldRules={fieldRules} onNavigateToStep={(step) => setCurrentStep(step)} />
           )}
 
           {/* Bottom Bar */}
