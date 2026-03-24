@@ -23,7 +23,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  requiredRoles: string[];
+  isVisible: (perms: CogniPermissions) => boolean;
   badgeKey?: 'activeChallenges' | 'curationQueue' | 'approvalQueue';
 }
 
