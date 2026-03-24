@@ -890,6 +890,9 @@ export default function CurationReviewPage() {
     ...CACHE_STANDARD,
   });
 
+  // Master data for select/checkbox/radio renderers
+  const masterData = useCurationMasterData();
+
   // Section-level curator actions (approvals + modification requests)
   const { data: sectionActions = [] } = useQuery({
     queryKey: ["curator-section-actions", challengeId],
