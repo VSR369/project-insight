@@ -1227,24 +1227,78 @@ export default function CurationReviewPage() {
   }, [challengeId]);
 
   const handleAcceptRefinement = useCallback(async (sectionKey: string, newContent: string) => {
-    // Map section key to db field
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
+
+    // ── Master-data multi-select sections: save to solver_*_types as {code, label}[] ──
+    if (sectionKey === "eligibility") {
+      try {
+        const codes = JSON.parse(newContent);
+        if (Array.isArray(codes)) {
+          const typed = codes.map((c: string) => ({
+            code: c,
+            label: masterData.eligibilityOptions.find(o => o.value === c)?.label ?? c,
+          }));
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_eligibility_types", value: typed });
+          return;
+        }
+      } catch { /* not JSON array, fall through */ }
+    }
+    if (sectionKey === "visibility") {
+      try {
+        const codes = JSON.parse(newContent);
+        if (Array.isArray(codes)) {
+          const typed = codes.map((c: string) => ({
+            code: c,
+            label: masterData.visibilityOptions.find(o => o.value === c)?.label ?? c,
+          }));
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_visibility_types", value: typed });
+          return;
+        }
+      } catch { /* not JSON array, fall through */ }
+    }
+
+    // ── Single-code master-data sections: validate and save directly ──
+    const SINGLE_CODE_MAP: Record<string, { field: string; options: typeof masterData.ipModelOptions }> = {
+      ip_model: { field: "ip_model", options: masterData.ipModelOptions },
+      maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
+      complexity: { field: "complexity_level", options: masterData.complexityOptions },
+      challenge_visibility: { field: "challenge_visibility", options: masterData.challengeVisibilityOptions },
+      effort_level: { field: "effort_level", options: masterData.effortOptions },
+    };
+    const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
+    if (singleCodeCfg) {
+      const code = newContent.trim().replace(/^["']|["']$/g, '');
+      const validCodes = new Set(singleCodeCfg.options.map(o => o.value));
+      // Try case-insensitive match
+      const matched = singleCodeCfg.options.find(o => o.value.toLowerCase() === code.toLowerCase());
+      if (matched) {
+        setSavingSection(true);
+        saveSectionMutation.mutate({ field: singleCodeCfg.field, value: matched.value });
+        return;
+      }
+      if (!validCodes.has(code)) {
+        toast.error(`Invalid ${sectionKey}: "${code}" is not a valid option. Valid: ${Array.from(validCodes).join(", ")}`);
+        return;
+      }
+      setSavingSection(true);
+      saveSectionMutation.mutate({ field: singleCodeCfg.field, value: code });
+      return;
+    }
+
     if (!dbField) {
       toast.error("Cannot save refinement for this section type.");
       return;
     }
 
-    // For constrained fields, normalize through challengeFieldNormalizer
-    // to extract the DB code from AI-generated descriptive text
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
     const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'];
     if (JSON_FIELDS.includes(dbField)) {
-      // Strip markdown code fences
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      // Try to extract JSON from the response
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
       if (jsonMatch) {
         try {
@@ -1266,33 +1320,9 @@ export default function CurationReviewPage() {
       valueToSave = normalizeAiContentForEditor(valueToSave);
     }
 
-    const CONSTRAINED_FIELDS = ['maturity_level', 'ip_model', 'complexity_level', 'rejection_fee_percentage'];
-    if (CONSTRAINED_FIELDS.includes(dbField)) {
-      try {
-        const normalized = normalizeChallengeFields({ [dbField]: newContent });
-        valueToSave = normalized[dbField];
-      } catch {
-        // AI may return descriptive text like "IP-NEL (Non-Exclusive License): ..."
-        // Try to extract the code from the beginning of the string
-        const codeMatch = newContent.match(/^(IP-[A-Z]+|L[1-5]|BLUEPRINT|POC|PROTOTYPE|PILOT)/i);
-        if (codeMatch) {
-          try {
-            const retryNormalized = normalizeChallengeFields({ [dbField]: codeMatch[1] });
-            valueToSave = retryNormalized[dbField];
-          } catch (e2: any) {
-            toast.error(`Invalid ${dbField}: ${e2.message}`);
-            return;
-          }
-        } else {
-          toast.error(`Could not extract a valid ${dbField} code from AI refinement.`);
-          return;
-        }
-      }
-    }
-
     setSavingSection(true);
     saveSectionMutation.mutate({ field: dbField, value: valueToSave });
-  }, [saveSectionMutation]);
+  }, [saveSectionMutation, masterData]);
 
   /** Handle a single-section re-review result from the inline panel */
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
