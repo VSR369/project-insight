@@ -137,10 +137,16 @@ function parseTableRows(content: string): Record<string, unknown>[] | null {
     }
     if (parsed?.criteria && Array.isArray(parsed.criteria)) return parsed.criteria;
     if (parsed?.rows && Array.isArray(parsed.rows)) return parsed.rows;
+    if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
   } catch {
     // not JSON
   }
   return null;
+}
+
+/** Determine if a section is a schedule_table format */
+function isScheduleFormat(sectionKey: string): boolean {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'schedule_table';
 }
 
 /* ── Component ─────────────────────────────────────────── */
