@@ -187,6 +187,17 @@ export function AssignRoleSheet({
   const handleRoleChange = (code: string) => {
     setManualRoleCode(code);
     form.setValue("role_code", code);
+    resetConflict();
+    setConflictAcknowledged(false);
+  };
+
+  const handleExistingMemberRoleChange = (code: string) => {
+    setExistingMemberRoleCode(code);
+    setConflictAcknowledged(false);
+    // Note: conflict check requires a challenge context (user_challenge_roles).
+    // At org-level, we can't run the RPC without a specific challenge_id.
+    // The actual enforcement happens at challenge-level assignment time.
+    resetConflict();
   };
 
   const isMutating = createAssignment.isPending || directEnroll.isPending;
