@@ -313,26 +313,26 @@ function SectionEditor({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Good Example</Label>
-            <CharCounter value={form.example_good ?? ''} max={500} />
+            <CharCounter value={form.example_good ?? ''} max={800} />
           </div>
           <Textarea
             value={form.example_good ?? ''}
-            onChange={e => setForm(f => ({ ...f, example_good: e.target.value.slice(0, 500) }))}
-            rows={3}
-            maxLength={500}
+            onChange={e => setForm(f => ({ ...f, example_good: e.target.value.slice(0, 800) }))}
+            rows={5}
+            maxLength={800}
             placeholder="A high-quality example of this section..."
           />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Poor Example</Label>
-            <CharCounter value={form.example_poor ?? ''} max={500} />
+            <CharCounter value={form.example_poor ?? ''} max={800} />
           </div>
           <Textarea
             value={form.example_poor ?? ''}
-            onChange={e => setForm(f => ({ ...f, example_poor: e.target.value.slice(0, 500) }))}
-            rows={3}
-            maxLength={500}
+            onChange={e => setForm(f => ({ ...f, example_poor: e.target.value.slice(0, 800) }))}
+            rows={5}
+            maxLength={800}
             placeholder="A low-quality example to avoid..."
           />
         </div>
