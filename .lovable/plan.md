@@ -1,21 +1,77 @@
 
-# Governance Cleanup — COMPLETED
+# Final Matrix: Pricing Tier × Engagement Model × Governance × Role Fusion
 
-## What was done
+## Status: COMPLETE (Reference Document)
 
-### SQL Migration (Part A)
-- ✅ Dropped old CHECK constraints on `seeker_organizations` and `role_conflict_rules`
-- ✅ Migrated data: `LIGHTWEIGHT` → `QUICK`, `ENTERPRISE` → `STRUCTURED` (disabled trigger during migration)
-- ✅ Added new constraints enforcing `QUICK/STRUCTURED/CONTROLLED`
-- ✅ Deleted old `ENTERPRISE_ONLY` conflict rules, inserted 14 new rules for STRUCTURED and CONTROLLED modes
-- ✅ Replaced 8 SQL functions with backward-compat mode mapping at top of each
+All items below are implemented and live. This serves as the authoritative reference.
 
-### Frontend (Part B)
-- ✅ Renamed `isLightweight` → `isQuick` across 18 files
-- ✅ Renamed `isEnterpriseGrade` → `isStructuredOrAbove` (deprecated alias kept)
-- ✅ Updated GovernanceProfileBadge test (11 tests, all passing)
-- ✅ Updated 3 edge functions: `setup-test-scenario`, `seed-cogni-master`, `check-sla-breaches`
-- ✅ Renamed internal constants: `PROBLEM_MIN_LIGHTWEIGHT` → `PROBLEM_MIN_QUICK`, etc.
+---
 
-## Result
-Zero `isLightweight` variables remain. All governance logic uses QUICK/STRUCTURED/CONTROLLED. Legacy `LIGHTWEIGHT`/`ENTERPRISE` DB values are mapped via backward-compat in `resolveGovernanceMode()` and SQL functions.
+## 1. Configuration Scope
+
+| Setting | Org-Level | Challenge-Level | Notes |
+|---------|-----------|-----------------|-------|
+| Pricing Tier | ✅ Fixed | ✗ No | Set via subscription |
+| Engagement Model (MP/AGG) | ✅ Default | ✅ Override at Step 0 | Locked once ACTIVE (phase 7+) |
+| Governance Mode (Q/S/C) | ✅ Default | ✅ Override at Step 0 | Clamped to tier ceiling |
+| Role Fusion Rules | ✗ Not directly set | ✅ Derived from governance mode | Auto-resolved |
+
+## 2. Tier → Governance Ceiling
+
+| Tier | Allowed Modes | Default |
+|------|---------------|---------|
+| Basic | QUICK only | QUICK |
+| Standard | QUICK, STRUCTURED | STRUCTURED |
+| Premium | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
+| Enterprise | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
+
+Implemented in `TIER_GOVERNANCE_MODES` and `getDefaultGovernanceMode()` in `src/lib/governanceMode.ts`.
+
+## 3. Engagement Model — Independent of Governance
+
+| Feature | MP | AGG |
+|---------|-----|-----|
+| Intake role | AM | RQ |
+| Spec role | CA (Architect) | CR (Creator) |
+
+Engagement model does NOT affect role fusion. It only determines role names.
+
+## 4. Governance Mode → Role Fusion
+
+### QUICK — Zero conflict rules, solo operator
+All 9 roles auto-assigned to creator. Any combination allowed.
+
+### STRUCTURED — 5 SOFT_WARN rules
+- CR+CU, CR+ID, CU+ID, CR+ER, ID+ER → warnings only
+
+### CONTROLLED — 3 HARD_BLOCK + 6 SOFT_WARN
+- CR+CU, CR+ID, CU+ID → HARD_BLOCK (system prevents)
+- AM+CR, AM+CU, RQ+CR, RQ+CU, CR+ER, ID+ER → SOFT_WARN
+
+## 5. Combined: Tier × Governance → Min Users
+
+| Tier | Mode | Fusion | Min Users |
+|------|------|--------|-----------|
+| Basic | QUICK | All merged | 1 |
+| Standard | QUICK | All merged | 1 |
+| Standard | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
+| Premium/Enterprise | QUICK | All merged | 1 |
+| Premium/Enterprise | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
+| Premium/Enterprise | CONTROLLED | Block 3 core, warn 6 | Min 3 (CR, CU, ID separate) |
+
+## 6. Implementation Status
+
+| Layer | Status |
+|-------|--------|
+| Tier → governance ceiling | ✅ Done |
+| Governance mode selector (Step 0) | ✅ Done |
+| Engagement model selector (Step 0) | ✅ Done |
+| `validate_role_assignment()` | ✅ Done |
+| `auto_assign_roles_on_creation()` | ✅ Done |
+| Conflict rules in DB (14 rows) | ✅ Done |
+| `resolveGovernanceMode()` | ✅ Done |
+| Frontend `isQuick` rename (18 files) | ✅ Done |
+| `isStructuredOrAbove` + deprecated alias | ✅ Done |
+
+### Future Enhancement
+- Per-challenge `governance_mode_override` column + `resolve_challenge_governance()` SQL function
