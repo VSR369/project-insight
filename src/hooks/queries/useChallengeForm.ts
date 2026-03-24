@@ -68,7 +68,7 @@ export function useChallengeDetail(challengeId: string | undefined) {
           deliverables, evaluation_criteria, reward_structure,
           maturity_level, phase_schedule, complexity_parameters,
           ip_model, visibility, eligibility, submission_deadline,
-          governance_profile, operating_model, current_phase,
+          governance_profile, governance_mode_override, operating_model, current_phase,
           master_status, max_solutions, currency_code,
           solver_eligibility_types, solver_visibility_types,
           solver_eligibility_id,
