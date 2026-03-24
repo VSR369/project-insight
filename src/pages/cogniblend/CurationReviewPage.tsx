@@ -754,7 +754,8 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "scope": return ch.scope;
     case "submission_guidelines": return ch.description;
     case "ip_model": return ch.ip_model;
-    case "visibility_eligibility": return ch.eligibility;
+    case "eligibility": return ch.eligibility;
+    case "visibility": return ch.visibility;
     case "deliverables": return ch.deliverables ? JSON.stringify(ch.deliverables) : null;
     case "evaluation_criteria": return ch.evaluation_criteria ? JSON.stringify(ch.evaluation_criteria) : null;
     case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
@@ -766,6 +767,10 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "challenge_visibility": return ch.challenge_visibility;
     case "effort_level": return ch.effort_level;
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
+    case "expected_outcomes": {
+      const eb = parseJson<any>(ch.extended_brief);
+      return eb?.expected_outcomes ? JSON.stringify(eb.expected_outcomes) : null;
+    }
     default: return null;
   }
 }
