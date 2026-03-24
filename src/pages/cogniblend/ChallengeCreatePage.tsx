@@ -321,7 +321,6 @@ export default function ChallengeCreatePage() {
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
-  const { activeRole } = useCogniRoleContext();
 
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
