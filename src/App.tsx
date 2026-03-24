@@ -757,6 +757,7 @@ const App = () => (
               <Route path="seeker-config/billing-cycles" element={<PermissionGuard permissionKey="seeker_config.view"><BillingCyclesPage /></PermissionGuard>} />
               <Route path="seeker-config/payment-methods" element={<PermissionGuard permissionKey="seeker_config.view"><PaymentMethodsPage /></PermissionGuard>} />
               <Route path="seeker-config/governance-rules" element={<PermissionGuard permissionKey="seeker_config.view"><GovernanceRulesPage /></PermissionGuard>} />
+              <Route path="seeker-config/ai-review-config" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIReviewConfigPage /></PermissionGuard>} />
               
               <Route path="saas-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><SaasAgreementPage /></PermissionGuard>} />
               {/* Org Approvals — permission: org_approvals.view */}
