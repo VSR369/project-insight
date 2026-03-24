@@ -16,6 +16,7 @@ import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { ROLE_DISPLAY, ROLE_PRIMARY_ACTION } from '@/types/cogniRoles';
 
 export function ActionItemsWidget() {
