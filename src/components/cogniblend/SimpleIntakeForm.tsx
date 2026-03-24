@@ -317,6 +317,10 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
 
   const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
     if (!challengeId) return;
+
+    // Normalize markdown to HTML so RichTextEditor preserves formatting
+    const normalizedContent = normalizeAiContentForEditor(newContent);
+
     const fieldMap: Record<string, string> = {
       problem_statement: 'problem_summary',
       scope: 'solution_expectations',
@@ -324,7 +328,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     };
     const formField = fieldMap[sectionKey];
     if (formField) {
-      setValue(formField as any, newContent, { shouldValidate: true });
+      setValue(formField as any, normalizedContent, { shouldValidate: true });
     }
     // Update local state
     const updated = { ...aiReviews };
@@ -340,7 +344,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       updateMutation.mutate({
         challengeId,
         payload: {
-          extended_brief: { ...extBrief, beneficiaries_mapping: newContent },
+          extended_brief: { ...extBrief, beneficiaries_mapping: normalizedContent },
           ai_section_reviews: reviewsArray,
         },
       });
@@ -353,7 +357,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       if (dbCol) {
         updateMutation.mutate({
           challengeId,
-          payload: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
+          payload: { [dbCol]: normalizedContent, ai_section_reviews: reviewsArray },
         });
       }
     }
