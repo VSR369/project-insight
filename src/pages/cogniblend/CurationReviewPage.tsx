@@ -945,6 +945,15 @@ export default function CurationReviewPage() {
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
+  // Locked section Send to LC/FC modal state
+  const [lockedSendState, setLockedSendState] = useState<{
+    open: boolean;
+    sectionKey: string;
+    sectionLabel: string;
+    initialComment: string;
+    aiOriginalComments: string;
+  }>({ open: false, sectionKey: "", sectionLabel: "", initialComment: "", aiOriginalComments: "" });
+
 
   // Domain tags editing state (now managed inside TagInputSectionRenderer)
 
