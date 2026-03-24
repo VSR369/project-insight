@@ -9,7 +9,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
@@ -317,24 +316,14 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
 
   const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
     if (!challengeId) return;
-
     const fieldMap: Record<string, string> = {
       problem_statement: 'problem_summary',
       scope: 'solution_expectations',
       beneficiaries_mapping: 'beneficiaries_mapping',
     };
     const formField = fieldMap[sectionKey];
-
-    // Append AI content below existing human content, then normalize
-    const existingContent = formField ? watch(formField as any) : null;
-    let merged = newContent;
-    if (existingContent && typeof existingContent === 'string' && existingContent.trim()) {
-      merged = `${existingContent}<hr><p><em>— AI suggestion —</em></p>${newContent}`;
-    }
-    const normalizedContent = normalizeAiContentForEditor(merged);
-
     if (formField) {
-      setValue(formField as any, normalizedContent, { shouldValidate: true });
+      setValue(formField as any, newContent, { shouldValidate: true });
     }
     // Update local state
     const updated = { ...aiReviews };
@@ -350,7 +339,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       updateMutation.mutate({
         challengeId,
         payload: {
-          extended_brief: { ...extBrief, beneficiaries_mapping: normalizedContent },
+          extended_brief: { ...extBrief, beneficiaries_mapping: newContent },
           ai_section_reviews: reviewsArray,
         },
       });
@@ -363,7 +352,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       if (dbCol) {
         updateMutation.mutate({
           challengeId,
-          payload: { [dbCol]: normalizedContent, ai_section_reviews: reviewsArray },
+          payload: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
         });
       }
     }

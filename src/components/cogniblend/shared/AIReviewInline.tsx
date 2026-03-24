@@ -182,15 +182,14 @@ export function AIReviewInline({
   }, [challengeId, sectionKey, currentContent, comments, challengeContext, roleContext]);
 
   const handleAccept = useCallback(() => {
-    if (!refinedContent) return;
-    // Pass raw refined content — page-level handlers decide how to merge
-    // based on field type (JSON merge for structured, HTML append for text)
-    onAcceptRefinement(sectionKey, refinedContent);
-    setRefinedContent(null);
-    setEditedComments([]);
-    setIsAddressed(true);
-    setIsOpen(false);
-    onMarkAddressed?.(sectionKey);
+    if (refinedContent) {
+      onAcceptRefinement(sectionKey, refinedContent);
+      setRefinedContent(null);
+      setEditedComments([]);
+      setIsAddressed(true);
+      setIsOpen(false);
+      onMarkAddressed?.(sectionKey);
+    }
   }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
 
   const handleDiscard = useCallback(() => {
@@ -257,9 +256,7 @@ export function AIReviewInline({
                       </div>
                     ) : (
                       <div className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors" onClick={() => handleEditComment(i)}>
-                        <div className="text-xs text-muted-foreground leading-relaxed flex-1">
-                          <AiContentRenderer content={comment} compact className="text-xs" />
-                        </div>
+                        <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
                         <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
                       </div>
                     )}

@@ -11,7 +11,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -671,7 +670,6 @@ export function ConversationalIntakeContent({
 
   const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
     if (!editChallengeId) return;
-
     // Map section keys to form fields
     const formFieldMap: Record<string, string> = {
       problem_statement: 'problem_statement',
@@ -680,17 +678,8 @@ export function ConversationalIntakeContent({
       beneficiaries_mapping: 'beneficiaries_mapping',
     };
     const formField = formFieldMap[sectionKey];
-
-    // Append AI content below existing human content, then normalize
-    const existingContent = formField ? form.watch(formField as any) : null;
-    let merged = newContent;
-    if (existingContent && typeof existingContent === 'string' && existingContent.trim()) {
-      merged = `${existingContent}<hr><p><em>— AI suggestion —</em></p>${newContent}`;
-    }
-    const normalizedContent = normalizeAiContentForEditor(merged);
-
     if (formField) {
-      form.setValue(formField as any, normalizedContent, { shouldValidate: true });
+      form.setValue(formField as any, newContent, { shouldValidate: true });
     }
     // Mark addressed in local state
     const updated = { ...aiReviews };
@@ -707,7 +696,7 @@ export function ConversationalIntakeContent({
       saveStep.mutate({
         challengeId: editChallengeId,
         fields: {
-          extended_brief: { ...extBrief, [briefKey]: normalizedContent },
+          extended_brief: { ...extBrief, [briefKey]: newContent },
           ai_section_reviews: reviewsArray,
         },
       });
@@ -720,7 +709,7 @@ export function ConversationalIntakeContent({
       if (dbCol) {
         saveStep.mutate({
           challengeId: editChallengeId,
-          fields: { [dbCol]: normalizedContent, ai_section_reviews: reviewsArray },
+          fields: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
         });
       }
     }
