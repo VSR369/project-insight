@@ -488,7 +488,7 @@ export default function ApprovalPublicationConfigTab({
           <TargetingFiltersSection
             value={targetingFilters}
             onChange={setTargetingFilters}
-            isLightweight={!isEnterprise}
+            isQuick={!isEnterprise}
           />
         </CardContent>
       </Card>

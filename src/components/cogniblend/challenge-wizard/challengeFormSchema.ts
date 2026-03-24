@@ -67,7 +67,7 @@ function isHidden(fieldRules: FieldRulesMap | null, fieldKey: string): boolean {
  * Accepts:
  *   - FieldRulesMap (DB-driven, preferred)
  *   - GovernanceMode string
- *   - boolean (legacy isLightweight)
+ *   - boolean (legacy isQuick)
  */
 export function createChallengeFormSchema(
   modeOrLightweightOrRules: GovernanceMode | boolean | FieldRulesMap,

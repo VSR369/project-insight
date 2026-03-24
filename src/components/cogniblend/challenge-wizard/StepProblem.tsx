@@ -95,13 +95,13 @@ const MATURITY_OPTIONS = [
 interface StepProblemProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 
 /* ─── Component ──────────────────────────────────────────── */
 
-export function StepProblem({ form, mandatoryFields, isLightweight }: StepProblemProps) {
+export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
@@ -113,8 +113,8 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
   const titleValue = watch('title') ?? '';
   const titleLen = titleValue.length;
-  const problemMin = isLightweight ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
-  const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
+  const problemMin = isQuick ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
+  const scopeMin = isQuick ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
   const problemStatement = watch('problem_statement') ?? '';
@@ -410,7 +410,7 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
       </div>
 
       {/* ── 8. Scope Definition ──────────────────────── */}
-      {!isLightweight ? (
+      {!isQuick ? (
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
             Scope {isRequired('scope') && <span className="text-destructive">*</span>}

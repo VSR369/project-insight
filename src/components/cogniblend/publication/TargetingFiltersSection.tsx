@@ -79,7 +79,7 @@ const CLUSTER_OPTIONS = [
 interface TargetingFiltersSectionProps {
   value: TargetingFilters;
   onChange: (filters: TargetingFilters) => void;
-  isLightweight: boolean;
+  isQuick: boolean;
   disabled?: boolean;
 }
 
@@ -237,7 +237,7 @@ function TextChipInput({ label, icon, values, onChange, placeholder, disabled }:
 export function TargetingFiltersSection({
   value,
   onChange,
-  isLightweight,
+  isQuick,
   disabled,
 }: TargetingFiltersSectionProps) {
   const { data: industries = [] } = useIndustrySegments();
@@ -267,7 +267,7 @@ export function TargetingFiltersSection({
           Targeting Filters
         </h4>
         <p className="text-xs text-muted-foreground">
-          {isLightweight
+          {isQuick
             ? 'Set industry and geography preferences for solver targeting.'
             : 'Configure all 8 targeting dimensions to narrow solver eligibility.'}
         </p>
@@ -294,7 +294,7 @@ export function TargetingFiltersSection({
       />
 
       {/* ── Enterprise-only filters (3–8) ──────── */}
-      {!isLightweight && (
+      {!isQuick && (
         <>
           {/* 3. Expertise Domain */}
           <ChipMultiSelect

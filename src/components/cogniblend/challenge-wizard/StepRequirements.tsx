@@ -106,12 +106,12 @@ const MATURITY_IP_DEFAULTS: Record<string, string> = {
 interface StepRequirementsProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
 }
 
 /* ─── Component ──────────────────────────────────────── */
 
-export function StepRequirements({ form, mandatoryFields, isLightweight }: StepRequirementsProps) {
+export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequirementsProps) {
   const { register, formState: { errors }, control, watch, setValue } = form;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
@@ -169,11 +169,11 @@ export function StepRequirements({ form, mandatoryFields, isLightweight }: StepR
   // ── IP model default ──
   const ipModel = watch('ip_model');
   useEffect(() => {
-    if (isLightweight && maturityLevel && !ipModel) {
+    if (isQuick && maturityLevel && !ipModel) {
       const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
       if (defaultIp) setValue('ip_model', defaultIp);
     }
-  }, [maturityLevel, isLightweight, ipModel, setValue]);
+  }, [maturityLevel, isQuick, ipModel, setValue]);
 
   return (
     <div className="space-y-6">
@@ -281,10 +281,10 @@ export function StepRequirements({ form, mandatoryFields, isLightweight }: StepR
       <div className="space-y-1.5">
         <Label htmlFor="submission_guidelines" className="text-sm font-medium">
           Submission Guidelines{' '}
-          {!isLightweight && isRequired('submission_guidelines') && (
+          {!isQuick && isRequired('submission_guidelines') && (
             <span className="text-destructive">*</span>
           )}
-          {isLightweight && (
+          {isQuick && (
             <span className="text-xs text-muted-foreground ml-1">(optional)</span>
           )}
         </Label>
@@ -313,10 +313,10 @@ export function StepRequirements({ form, mandatoryFields, isLightweight }: StepR
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           IP Model{' '}
-          {!isLightweight && isRequired('ip_model') && (
+          {!isQuick && isRequired('ip_model') && (
             <span className="text-destructive">*</span>
           )}
-          {isLightweight && (
+          {isQuick && (
             <span className="text-xs text-muted-foreground ml-1">(optional)</span>
           )}
         </Label>

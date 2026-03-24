@@ -14,7 +14,7 @@ import type { ChallengeFormValues } from './challengeFormSchema';
 interface StepReviewSubmitProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
   onNavigateToStep?: (step: number) => void;
 }
@@ -55,7 +55,7 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').trim();
 }
 
-export function StepReviewSubmit({ form, isLightweight, onNavigateToStep }: StepReviewSubmitProps) {
+export function StepReviewSubmit({ form, isQuick, onNavigateToStep }: StepReviewSubmitProps) {
   const v = form.getValues();
 
   const sections = [

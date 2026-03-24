@@ -156,11 +156,11 @@ export function usePublicationReadiness(challengeId: string | undefined) {
       }
 
       const c = challenge as Record<string, unknown>;
-      const isLightweight = isQuickMode(resolveGovernanceMode(c.governance_profile as string | null));
+      const isQuick = isQuickMode(resolveGovernanceMode(c.governance_profile as string | null));
       const docs = legalDocs ?? [];
       const lcRequired = !!(c.lc_review_required);
 
-      const checks = isLightweight
+      const checks = isQuick
         ? buildLightweightChecks(c, docs, solverMatchCount)
         : buildEnterpriseChecks(c, docs, solverMatchCount);
 

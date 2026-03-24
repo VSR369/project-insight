@@ -66,10 +66,10 @@ export default function PublicationReadinessPage() {
     );
   }
 
-  const isLightweight = data.governanceProfile === 'LIGHTWEIGHT';
+  const isQuick = data.governanceProfile === 'LIGHTWEIGHT';
 
   // Publish disabled logic
-  const escrowBlocking = !isLightweight && escrowQuery.data?.escrow?.escrow_status !== 'FUNDED';
+  const escrowBlocking = !isQuick && escrowQuery.data?.escrow?.escrow_status !== 'FUNDED';
   const canPublish = data.allPassed && !escrowBlocking;
 
   const handlePublish = () => {
@@ -147,7 +147,7 @@ export default function PublicationReadinessPage() {
                 READY TO PUBLISH — All checks passed
               </p>
               <p className="text-xs text-emerald-600 mt-0.5">
-                This challenge meets all {isLightweight ? 'GATE-11-L' : 'GATE-11'} requirements.
+                This challenge meets all {isQuick ? 'GATE-11-L' : 'GATE-11'} requirements.
               </p>
             </div>
           </>
@@ -159,7 +159,7 @@ export default function PublicationReadinessPage() {
                 {data.failCount} item{data.failCount !== 1 ? 's' : ''} need{data.failCount === 1 ? 's' : ''} attention before publishing
               </p>
               <p className="text-xs text-red-600 mt-0.5">
-                Resolve the items below to pass {isLightweight ? 'GATE-11-L' : 'GATE-11'} validation.
+                Resolve the items below to pass {isQuick ? 'GATE-11-L' : 'GATE-11'} validation.
               </p>
             </div>
           </>
@@ -173,7 +173,7 @@ export default function PublicationReadinessPage() {
             <ShieldCheck className="h-4 w-4 text-primary" />
             Pre-Publication Validation
             <Badge variant="outline" className="ml-auto text-xs font-normal">
-              {isLightweight ? 'GATE-11-L' : 'GATE-11'}
+              {isQuick ? 'GATE-11-L' : 'GATE-11'}
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -230,7 +230,7 @@ export default function PublicationReadinessPage() {
       )}
 
       {/* ═══ Escrow Section (Enterprise only) ═══ */}
-      {!isLightweight && id && (
+      {!isQuick && id && (
         <EscrowDepositSection challengeId={id} userId={user?.id} />
       )}
 

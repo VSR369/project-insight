@@ -27,7 +27,7 @@ const TEMPLATE_MAX_SIZE = 10 * 1024 * 1024;
 interface StepTemplatesProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
-  isLightweight: boolean;
+  isQuick: boolean;
   fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 
@@ -39,7 +39,7 @@ const LEGAL_DOC_TYPES = [
   { type: 'ESCROW_AGREEMENT', label: 'Escrow Agreement', tier: 'solution', required: false, enterpriseOnly: true },
 ];
 
-export function StepTemplates({ form, isLightweight }: StepTemplatesProps) {
+export function StepTemplates({ form, isQuick }: StepTemplatesProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const legalInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [uploading, setUploading] = useState(false);
@@ -127,7 +127,7 @@ export function StepTemplates({ form, isLightweight }: StepTemplatesProps) {
     });
   };
 
-  const visibleDocs = LEGAL_DOC_TYPES.filter((d) => !d.enterpriseOnly || !isLightweight);
+  const visibleDocs = LEGAL_DOC_TYPES.filter((d) => !d.enterpriseOnly || !isQuick);
 
   return (
     <div className="space-y-6">
