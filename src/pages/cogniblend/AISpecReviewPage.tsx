@@ -904,7 +904,14 @@ export default function AISpecReviewPage() {
   }, [challengeId]);
 
   const handleSpecAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
-    handleSave(sectionKey, newContent);
+    // Append AI content below existing human content for text fields
+    const existing = sectionValues[sectionKey];
+    let merged = newContent;
+    if (existing && typeof existing === 'string' && existing.trim()) {
+      merged = `${existing}<hr><p><em>— AI suggestion —</em></p>${newContent}`;
+    }
+    const normalized = normalizeAiContentForEditor(merged);
+    handleSave(sectionKey, normalized);
     setAiReviews((prev) => {
       const updated = {
         ...prev,
@@ -914,7 +921,7 @@ export default function AISpecReviewPage() {
       return updated;
     });
     toast.success('Refinement accepted and saved.');
-  }, [persistAiReviewsToDB]);
+  }, [persistAiReviewsToDB, sectionValues]);
 
   const handleSpecSingleReview = useCallback((sectionKey: string, review: SectionReview) => {
     setAiReviews((prev) => {

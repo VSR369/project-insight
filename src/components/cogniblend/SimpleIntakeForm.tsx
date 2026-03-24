@@ -318,15 +318,21 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
     if (!challengeId) return;
 
-    // Normalize markdown to HTML so RichTextEditor preserves formatting
-    const normalizedContent = normalizeAiContentForEditor(newContent);
-
     const fieldMap: Record<string, string> = {
       problem_statement: 'problem_summary',
       scope: 'solution_expectations',
       beneficiaries_mapping: 'beneficiaries_mapping',
     };
     const formField = fieldMap[sectionKey];
+
+    // Append AI content below existing human content, then normalize
+    const existingContent = formField ? watch(formField as any) : null;
+    let merged = newContent;
+    if (existingContent && typeof existingContent === 'string' && existingContent.trim()) {
+      merged = `${existingContent}<hr><p><em>— AI suggestion —</em></p>${newContent}`;
+    }
+    const normalizedContent = normalizeAiContentForEditor(merged);
+
     if (formField) {
       setValue(formField as any, normalizedContent, { shouldValidate: true });
     }

@@ -672,9 +672,6 @@ export function ConversationalIntakeContent({
   const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
     if (!editChallengeId) return;
 
-    // Normalize markdown to HTML so RichTextEditor preserves formatting
-    const normalizedContent = normalizeAiContentForEditor(newContent);
-
     // Map section keys to form fields
     const formFieldMap: Record<string, string> = {
       problem_statement: 'problem_statement',
@@ -683,6 +680,15 @@ export function ConversationalIntakeContent({
       beneficiaries_mapping: 'beneficiaries_mapping',
     };
     const formField = formFieldMap[sectionKey];
+
+    // Append AI content below existing human content, then normalize
+    const existingContent = formField ? form.watch(formField as any) : null;
+    let merged = newContent;
+    if (existingContent && typeof existingContent === 'string' && existingContent.trim()) {
+      merged = `${existingContent}<hr><p><em>— AI suggestion —</em></p>${newContent}`;
+    }
+    const normalizedContent = normalizeAiContentForEditor(merged);
+
     if (formField) {
       form.setValue(formField as any, normalizedContent, { shouldValidate: true });
     }

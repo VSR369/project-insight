@@ -183,19 +183,15 @@ export function AIReviewInline({
 
   const handleAccept = useCallback(() => {
     if (!refinedContent) return;
-    let merged = refinedContent;
-
-    if (currentContent && currentContent !== "[empty — no content yet]" && currentContent.trim()) {
-      merged = `${currentContent}<hr><p><em>— AI suggestion —</em></p>${refinedContent}`;
-    }
-
-    onAcceptRefinement(sectionKey, merged);
+    // Pass raw refined content — page-level handlers decide how to merge
+    // based on field type (JSON merge for structured, HTML append for text)
+    onAcceptRefinement(sectionKey, refinedContent);
     setRefinedContent(null);
     setEditedComments([]);
     setIsAddressed(true);
     setIsOpen(false);
     onMarkAddressed?.(sectionKey);
-  }, [refinedContent, currentContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);

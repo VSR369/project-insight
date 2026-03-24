@@ -903,6 +903,42 @@ export default function CurationReviewPage() {
     }
   }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
 
+  // Auto-repair corrupted JSONB fields (HTML/JSON chimeras from previous bug)
+  useEffect(() => {
+    if (!challenge || !challengeId) return;
+    const JSON_REPAIR_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'] as const;
+    const repairs: Record<string, any> = {};
+
+    for (const field of JSON_REPAIR_FIELDS) {
+      const val = (challenge as any)[field];
+      if (typeof val === 'string' && (val.includes('<hr>') || val.includes('<p>'))) {
+        // Corrupted: try to extract all JSON segments and merge items
+        const segments = val.split(/<hr>/);
+        const allItems: any[] = [];
+        for (const seg of segments) {
+          const cleaned = seg.replace(/<[^>]+>/g, '').trim();
+          const match = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[1]);
+              const items = Array.isArray(parsed) ? parsed : parsed?.items ?? parsed?.criteria ?? [];
+              allItems.push(...items);
+            } catch { /* skip unparseable */ }
+          }
+        }
+        if (allItems.length > 0) {
+          const wrapperKey = field === 'evaluation_criteria' ? 'criteria' : 'items';
+          repairs[field] = { [wrapperKey]: allItems };
+        }
+      }
+    }
+
+    if (Object.keys(repairs).length > 0) {
+      supabase.from('challenges').update(repairs).eq('id', challengeId)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['curation-challenge', challengeId] }));
+    }
+  }, [challenge?.id]); // Only run once per challenge load
+
   // ══════════════════════════════════════
   // SECTION 3: Mutations
   // ══════════════════════════════════════
@@ -1112,19 +1148,42 @@ export default function CurationReviewPage() {
       }
     }
 
-    // Normalize structured JSON fields (strip code fences, parse JSON)
+    // Field-aware merge: JSON merge for structured, HTML append for text
     const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'];
     const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'description', 'hook',
       'eligibility', 'submission_guidelines', 'extended_brief'];
 
     if (JSON_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
+      // Strip code fences and extract JSON
       const cleaned = valueToSave.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+      let newItems: any[] = [];
       if (jsonMatch) {
-        try { valueToSave = JSON.parse(jsonMatch[1]); } catch { /* save as-is string */ }
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          newItems = Array.isArray(parsed) ? parsed : parsed?.items ?? parsed?.criteria ?? [parsed];
+        } catch { /* save as-is string if parse fails */ }
+      }
+      if (newItems.length > 0) {
+        // Merge with existing data from challenge state
+        const existingRaw = challenge ? jsonParse<any>((challenge as any)[dbField]) : null;
+        const wrapperKey = dbField === 'evaluation_criteria' ? 'criteria' : 'items';
+        const existingItems = Array.isArray(existingRaw) ? existingRaw
+          : (existingRaw?.[wrapperKey] ?? existingRaw?.items ?? []);
+        valueToSave = { [wrapperKey]: [...existingItems, ...newItems] };
+      } else if (jsonMatch) {
+        try { valueToSave = JSON.parse(jsonMatch[1]); } catch { /* keep as string */ }
       }
     } else if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
-      valueToSave = normalizeAiContentForEditor(valueToSave);
+      // Append AI content below existing human content with separator
+      const existingContent = challenge ? (challenge as any)[dbField] : null;
+      if (existingContent && typeof existingContent === 'string' && existingContent.trim()) {
+        valueToSave = normalizeAiContentForEditor(
+          `${existingContent}<hr><p><em>— AI suggestion —</em></p>${valueToSave}`
+        );
+      } else {
+        valueToSave = normalizeAiContentForEditor(valueToSave);
+      }
     }
 
     setSavingSection(true);
