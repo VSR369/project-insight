@@ -715,7 +715,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["evaluation_criteria", "reward_structure", "payment_schedule", "complexity"],
+    sectionKeys: ["evaluation_criteria", "reward_structure", "complexity"],
   },
   {
     id: "legal_finance",
