@@ -31,7 +31,7 @@ import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { cn } from '@/lib/utils';
 import {
   resolveGovernanceMode,
