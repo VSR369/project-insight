@@ -1890,7 +1890,7 @@ export default function CurationReviewPage() {
                   </div>
                 </div>
               </CardHeader>
-            
+            )}
             <CardContent className="pt-0">
               <div className="space-y-3">
                 {activeGroupDef.sectionKeys.map((sectionKey) => {
