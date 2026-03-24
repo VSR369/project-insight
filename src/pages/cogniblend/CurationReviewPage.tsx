@@ -1809,12 +1809,7 @@ export default function CurationReviewPage() {
                           <>
                             <RadioSectionRenderer
                               value={challenge.effort_level}
-                              options={[
-                                { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-                                { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-                                { value: "high", label: "High", description: "160–500 hours estimated effort" },
-                                { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-                              ]}
+                              options={masterData.effortOptions}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
