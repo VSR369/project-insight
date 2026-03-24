@@ -741,7 +741,7 @@ export default function SolutionSubmitPage() {
               </CardTitle>
               {isQuick && (
                 <CardDescription>
-                  Lightweight challenges use single-stage submission. Your solution files are reviewed directly by the challenge owner — no screening step.
+                  Quick-mode challenges use single-stage submission. Your solution files are reviewed directly by the challenge owner — no screening step.
                 </CardDescription>
               )}
             </CardHeader>
