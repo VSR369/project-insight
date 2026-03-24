@@ -821,11 +821,7 @@ export default function CurationReviewPage() {
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
 
-  // Domain tags editing state
-
-  // Domain tags editing state
-  const [domainTagInput, setDomainTagInput] = useState("");
-  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  // Domain tags editing state (now managed inside TagInputSectionRenderer)
 
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
