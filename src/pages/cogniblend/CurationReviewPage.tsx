@@ -727,9 +727,6 @@ function getFieldValue(ch: ChallengeData, sectionKey: string): string {
   switch (sectionKey) {
     case "problem_statement": return ch.problem_statement ?? "";
     case "scope": return ch.scope ?? "";
-    case "submission_guidelines": return ch.description ?? "";
-    case "ip_model": return ch.ip_model ?? "";
-    case "visibility_eligibility": return ch.eligibility ?? "";
     case "hook": return ch.hook ?? "";
     default: return "";
   }
