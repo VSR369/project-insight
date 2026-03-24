@@ -368,6 +368,15 @@ export function AIReviewResultPanel({
                     </label>
                   ))}
                 </div>
+              ) : scheduleRows ? (
+                /* Schedule-format suggested version (phase_schedule) */
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
+                  <ScheduleTableSectionRenderer
+                    data={scheduleRows}
+                    readOnly
+                    editing={false}
+                  />
+                </div>
               ) : tableRows ? (
                 /* Table-format suggested version (eval criteria, reward) */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
