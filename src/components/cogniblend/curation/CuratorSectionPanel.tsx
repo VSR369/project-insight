@@ -277,6 +277,18 @@ export function CuratorSectionPanel({
             </span>
           )}
 
+          {/* Prompt source indicator */}
+          {promptSource === "supervisor" && (
+            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
+              ✅ Supervisor
+            </Badge>
+          )}
+          {promptSource === "default" && (
+            <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
+              ⚠️ Default AI
+            </Badge>
+          )}
+
           {/* Lock icon for restricted sections */}
           {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
 
