@@ -35,13 +35,21 @@ const CURATION_SECTIONS = [
   { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
   { key: "escrow_funding", desc: "Escrow funded (if required)" },
   { key: "maturity_level", desc: "Set and consistent with challenge depth" },
-  { key: "visibility_eligibility", desc: "Visibility and eligibility properly configured" },
   { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "extended_brief", desc: "Comprehensive background context and supporting information" },
   { key: "submission_deadline", desc: "Realistic submission deadline with adequate solver time" },
   { key: "challenge_visibility", desc: "Appropriate visibility setting for the challenge type" },
   { key: "effort_level", desc: "Effort level consistent with scope and complexity" },
   { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
+  { key: "visibility", desc: "Solver visibility types properly configured" },
+  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
+  // Extended Brief subsections (replaces single 'extended_brief' entry)
+  { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
+  { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
+  { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
+  { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
+  { key: "extended_brief_expected_outcomes", desc: "Expected outcomes aligned with deliverables — never remove streamed items" },
+  { key: "preferred_approach", desc: "Seeker's strategic preferences — never rewrite human content" },
+  { key: "approaches_not_of_interest", desc: "Human-only section — approaches to exclude" },
 ];
 
 const INTAKE_SECTIONS = [
