@@ -4,6 +4,9 @@
  *   'intake' → brief clarity for AM/RQ
  *   'spec'   → solver-readiness for CR/CA
  *   'curation' → publication quality for CU (default)
+ *
+ * Phase 5C: Master-data sections inject allowed codes so AI can only
+ * pick from valid options — never prose.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -16,6 +19,18 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+/** Sections whose AI output must be a JSON array of valid codes */
+const MULTI_CODE_SECTIONS = new Set(["eligibility", "visibility"]);
+
+/** Sections whose AI output must be a single valid code string */
+const SINGLE_CODE_SECTIONS = new Set([
+  "ip_model",
+  "maturity_level",
+  "complexity",
+  "challenge_visibility",
+  "effort_level",
+]);
 
 function getSystemPrompt(roleContext: string): string {
   if (roleContext === "intake") {
@@ -64,6 +79,7 @@ Rules:
 - For structured fields (deliverables, evaluation_criteria, reward_structure, phase_schedule), return valid JSON matching the input structure.
 - Do NOT add markdown formatting unless the input already uses it.
 - Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
+- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, effort_level, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.
 
 When providing feedback on reward structures, evaluation criteria, scoring, or any structured data, return a JSON object using these schemas:
 
@@ -72,6 +88,60 @@ For monetary/prize data:
 
 For evaluation/scoring:
 {"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}`;
+}
+
+/**
+ * Fetch allowed master-data codes from DB for a given section.
+ */
+async function fetchMasterDataCodes(
+  supabaseClient: ReturnType<typeof createClient>,
+  sectionKey: string,
+): Promise<{ code: string; label: string; description: string | null }[] | null> {
+  if (sectionKey === "eligibility" || sectionKey === "visibility") {
+    const { data } = await supabaseClient
+      .from("md_solver_eligibility")
+      .select("code, label, description")
+      .eq("is_active", true)
+      .order("display_order");
+    return data ?? null;
+  }
+  if (sectionKey === "complexity") {
+    const { data } = await supabaseClient
+      .from("md_challenge_complexity")
+      .select("complexity_code, complexity_label")
+      .eq("is_active", true)
+      .order("display_order");
+    return (data ?? []).map((r: any) => ({ code: r.complexity_code, label: r.complexity_label, description: null }));
+  }
+  // ip_model, maturity_level, challenge_visibility, effort_level are static for now
+  const STATIC_OPTIONS: Record<string, { code: string; label: string; description: string | null }[]> = {
+    ip_model: [
+      { code: "full_transfer", label: "Full IP Transfer", description: null },
+      { code: "licensed", label: "Licensed Use", description: null },
+      { code: "shared", label: "Shared IP", description: null },
+      { code: "open_source", label: "Open Source", description: null },
+      { code: "retained", label: "Solver Retains", description: null },
+    ],
+    maturity_level: [
+      { code: "BLUEPRINT", label: "Blueprint", description: null },
+      { code: "POC", label: "Proof of Concept", description: null },
+      { code: "PROTOTYPE", label: "Prototype", description: null },
+      { code: "PILOT", label: "Pilot", description: null },
+      { code: "PRODUCTION", label: "Production", description: null },
+    ],
+    effort_level: [
+      { code: "low", label: "Low", description: null },
+      { code: "medium", label: "Medium", description: null },
+      { code: "high", label: "High", description: null },
+      { code: "expert", label: "Expert", description: null },
+    ],
+    challenge_visibility: [
+      { code: "public", label: "Public", description: null },
+      { code: "registered_users", label: "Registered Users", description: null },
+      { code: "invite_only", label: "Invite Only", description: null },
+    ],
+  };
+  return STATIC_OPTIONS[sectionKey] ?? null;
 }
 
 serve(async (req) => {
@@ -114,7 +184,7 @@ serve(async (req) => {
 
     const instructionLabel = resolvedRoleContext === "intake" ? "REVIEWER'S" : resolvedRoleContext === "spec" ? "CREATOR'S" : "CURATOR'S";
 
-    const userPrompt = `SECTION: ${section_key}
+    let userPrompt = `SECTION: ${section_key}
 
 CURRENT CONTENT:
 ${typeof current_content === "string" ? current_content : JSON.stringify(current_content, null, 2)}
@@ -127,20 +197,38 @@ ${curator_instructions}
 
 Rewrite the section content following the instructions. Return ONLY the refined content, nothing else.`;
 
-    // For structured sections, add explicit format instruction
-    const FORMAT_INSTRUCTIONS: Record<string, string> = {
-      deliverables: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per deliverable item. Example: ["Deliverable 1 description", "Deliverable 2 description"]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`,
-      evaluation_criteria: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of objects with "name", "weight", and "description" keys. Example: [{"name":"Innovation","weight":30,"description":"..."},{"name":"Feasibility","weight":25,"description":"..."}]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`,
-      submission_guidelines: `\n\nCRITICAL FORMAT REQUIREMENT: Return formatted markdown text with headings and bullet lists. Do NOT return JSON.`,
-      phase_schedule: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of phase objects with keys: "phase_name", "start_date", "end_date", "milestone" (boolean), "dependencies" (string or null). Example: [{"phase_name":"Registration","start_date":"Day 1","end_date":"Day 14","milestone":false,"dependencies":null}].`,
-      reward_structure: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with reward structure fields. Include "total_prize", "tiers" (array of {tier, amount, currency}), and "payment_trigger" where applicable.`,
-      domain_tags: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of tag strings. Example: ["AI", "Healthcare", "Data Science"]. No prose.`,
-    };
+    // ── Master-data constraint injection ──
+    const isMasterDataSection = MULTI_CODE_SECTIONS.has(section_key) || SINGLE_CODE_SECTIONS.has(section_key);
 
-    let finalUserPrompt = userPrompt;
-    const fmtInstruction = FORMAT_INSTRUCTIONS[section_key];
-    if (fmtInstruction) {
-      finalUserPrompt += fmtInstruction;
+    if (isMasterDataSection) {
+      const masterCodes = await fetchMasterDataCodes(supabaseClient, section_key);
+      if (masterCodes && masterCodes.length > 0) {
+        const optionsList = masterCodes
+          .map((o) => `  - "${o.code}" → ${o.label}${o.description ? ` (${o.description})` : ""}`)
+          .join("\n");
+
+        if (MULTI_CODE_SECTIONS.has(section_key)) {
+          userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: You MUST return ONLY a valid JSON array of code strings from the allowed options below. Pick the most appropriate codes based on the challenge context and instructions. Do NOT invent new codes. Do NOT return prose.\n\nALLOWED OPTIONS:\n${optionsList}\n\nExample output: ["certified_expert", "registered"]`;
+        } else {
+          userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: You MUST return ONLY a single code string (no quotes, no JSON) from the allowed options below. Pick the most appropriate option. Do NOT invent new codes. Do NOT return prose.\n\nALLOWED OPTIONS:\n${optionsList}\n\nExample output: certified_expert`;
+        }
+      }
+    } else {
+      // Standard format instructions for non-master-data sections
+      const FORMAT_INSTRUCTIONS: Record<string, string> = {
+        deliverables: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per deliverable item. Example: ["Deliverable 1 description", "Deliverable 2 description"]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`,
+        evaluation_criteria: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of objects with "name", "weight", and "description" keys. Example: [{"name":"Innovation","weight":30,"description":"..."},{"name":"Feasibility","weight":25,"description":"..."}]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`,
+        submission_guidelines: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per guideline item. Example: ["Guideline 1", "Guideline 2"]. Do NOT return prose paragraphs.`,
+        expected_outcomes: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per expected outcome. Example: ["Outcome 1", "Outcome 2"]. Do NOT return prose paragraphs.`,
+        phase_schedule: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of phase objects with keys: "phase_name", "start_date", "end_date", "milestone" (boolean), "dependencies" (string or null). Example: [{"phase_name":"Registration","start_date":"Day 1","end_date":"Day 14","milestone":false,"dependencies":null}].`,
+        reward_structure: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of row objects with keys: "prize_tier", "amount", "currency", "payment_trigger". Example: [{"prize_tier":"1st Place","amount":50000,"currency":"USD","payment_trigger":"upon selection"}].`,
+        domain_tags: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of tag strings. Example: ["AI", "Healthcare", "Data Science"]. No prose.`,
+      };
+
+      const fmtInstruction = FORMAT_INSTRUCTIONS[section_key];
+      if (fmtInstruction) {
+        userPrompt += fmtInstruction;
+      }
     }
 
     const response = await fetch(AI_GATEWAY_URL, {
@@ -153,7 +241,7 @@ Rewrite the section content following the instructions. Return ONLY the refined 
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: getSystemPrompt(resolvedRoleContext) },
-          { role: "user", content: finalUserPrompt },
+          { role: "user", content: userPrompt },
         ],
       }),
     });

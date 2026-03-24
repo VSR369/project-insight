@@ -2,13 +2,12 @@
  * AIReviewInline — Role-agnostic per-section AI review panel.
  * Extracted from CurationAIReviewInline for reuse across AM/RQ, CR/CA, and CU roles.
  *
+ * Phase 5B: Now format-aware for master-data sections (checkbox_multi, checkbox_single,
+ * select, radio). AI suggestions for these sections are parsed as code arrays/strings
+ * and rendered natively — never as prose.
+ *
  * Flow: AI reviews → user selects comments → "Refine with AI" →
  *       AI rewrites section → Accept / Discard (item-level for structured sections)
- *
- * States:
- *   Never reviewed  →  "Pending" badge, collapsed
- *   Batch reviewed  →  Shows comments, auto-expands if warning/needs_revision
- *   Addressed       →  "Addressed" badge, collapsed, "Re-review" button
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -20,6 +19,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
+import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -34,8 +34,25 @@ export interface SectionReview {
 
 export type RoleContext = "intake" | "spec" | "curation";
 
-/** Sections that return structured JSON arrays from AI refinement */
-const STRUCTURED_SECTIONS = new Set(["deliverables", "evaluation_criteria"]);
+/** Determine if a section returns structured JSON arrays from AI refinement */
+function isStructuredSection(sectionKey: string): boolean {
+  const fmt = SECTION_FORMAT_CONFIG[sectionKey];
+  if (!fmt) return false;
+  return ['line_items', 'table', 'schedule_table'].includes(fmt.format);
+}
+
+/** Determine if a section is a master-data selection (codes, not prose) */
+function isMasterDataSection(sectionKey: string): boolean {
+  const fmt = SECTION_FORMAT_CONFIG[sectionKey];
+  if (!fmt) return false;
+  return ['checkbox_multi', 'checkbox_single', 'select', 'radio'].includes(fmt.format);
+}
+
+interface MasterDataOption {
+  value: string;
+  label: string;
+  description?: string;
+}
 
 interface AIReviewInlineProps {
   sectionKey: string;
@@ -53,6 +70,8 @@ interface AIReviewInlineProps {
   defaultOpen?: boolean;
   /** Role context for edge function — tailors review & refinement prompts */
   roleContext?: RoleContext;
+  /** Master data options for this section (if applicable) */
+  masterDataOptions?: MasterDataOption[];
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -67,11 +86,8 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
  */
 function parseStructuredItems(content: string, sectionKey: string): string[] | null {
   const trimmed = content.trim();
-
-  // Strip markdown code fences
   const cleaned = trimmed.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
-  // Try JSON parse
   try {
     const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
@@ -79,7 +95,6 @@ function parseStructuredItems(content: string, sectionKey: string): string[] | n
         typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
       );
     }
-    // Object with wrapper key
     const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
     if (parsed && typeof parsed === "object" && Array.isArray(parsed[wrapperKey])) {
       return parsed[wrapperKey].map((item: any) =>
@@ -90,13 +105,42 @@ function parseStructuredItems(content: string, sectionKey: string): string[] | n
     // Not JSON — try line-based parsing
   }
 
-  // Try numbered/bulleted list parsing
   const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
   const listItems = lines
     .map(l => l.replace(/^(?:\d+[\.\)]\s*|[-*•]\s*)/, '').trim())
     .filter(l => l.length > 0);
 
   if (listItems.length >= 2) return listItems;
+  return null;
+}
+
+/**
+ * Parse AI output as master-data code(s).
+ * For multi-select: returns array of code strings.
+ * For single-select: returns array with one code string.
+ */
+function parseMasterDataCodes(content: string, sectionKey: string): string[] | null {
+  const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+
+  // Try JSON array parse (multi-select)
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((v: any) => typeof v === "string" && v.trim().length > 0);
+    }
+  } catch {
+    // Not a JSON array
+  }
+
+  // For single-code sections, treat the whole string as a code (strip quotes)
+  const singleCode = cleaned.replace(/^["']|["']$/g, '').trim();
+  if (singleCode.length > 0 && !singleCode.includes(' ')) {
+    return [singleCode];
+  }
+
+  // Try comma-separated
+  const parts = singleCode.split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+  if (parts.length > 0) return parts;
 
   return null;
 }
@@ -112,6 +156,7 @@ export function AIReviewInline({
   onMarkAddressed,
   defaultOpen = false,
   roleContext = "curation",
+  masterDataOptions,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -122,10 +167,11 @@ export function AIReviewInline({
   const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
 
-  // Structured items state (for deliverables, eval criteria)
+  // Structured items state (for deliverables, eval criteria, line_items)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
-  const isStructured = STRUCTURED_SECTIONS.has(sectionKey);
+  const isStructured = isStructuredSection(sectionKey);
+  const isMasterData = isMasterDataSection(sectionKey);
 
   useEffect(() => {
     if (defaultOpen && !isAddressed) setIsOpen(true);
@@ -133,7 +179,6 @@ export function AIReviewInline({
 
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
 
-  // Initialize all comments as selected when comments change
   useEffect(() => {
     if (comments.length > 0 && selectedComments.size === 0) {
       setSelectedComments(new Set(comments.map((_, i) => i)));
@@ -146,12 +191,25 @@ export function AIReviewInline({
     return parseStructuredItems(refinedContent, sectionKey);
   }, [isStructured, refinedContent, sectionKey]);
 
+  // Parse master-data codes from refined content
+  const suggestedCodes = useMemo(() => {
+    if (!isMasterData || !refinedContent) return null;
+    return parseMasterDataCodes(refinedContent, sectionKey);
+  }, [isMasterData, refinedContent, sectionKey]);
+
   // Select all structured items by default when they appear
   useEffect(() => {
     if (structuredItems && structuredItems.length > 0) {
       setSelectedItems(new Set(structuredItems.map((_, i) => i)));
     }
   }, [structuredItems]);
+
+  // Select all master-data codes by default when they appear
+  useEffect(() => {
+    if (suggestedCodes && suggestedCodes.length > 0) {
+      setSelectedItems(new Set(suggestedCodes.map((_, i) => i)));
+    }
+  }, [suggestedCodes]);
 
   const handleEditComment = useCallback((index: number) => {
     if (editedComments.length === 0 && review?.comments) {
@@ -233,7 +291,6 @@ export function AIReviewInline({
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;
 
-    // Use only selected comments
     const selectedInstructions = comments
       .filter((_, i) => selectedComments.has(i))
       .join("\n\n");
@@ -284,8 +341,31 @@ export function AIReviewInline({
   const handleAccept = useCallback(() => {
     if (!refinedContent) return;
 
-    // For structured sections with parsed items, build JSON from selected items only
-    if (isStructured && structuredItems && structuredItems.length > 0) {
+    // Master-data sections: validate codes against options and pass as JSON array
+    if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
+      const accepted = suggestedCodes.filter((_, i) => selectedItems.has(i));
+      if (accepted.length === 0) {
+        toast.error("Select at least one option to accept.");
+        return;
+      }
+      // Validate against master data options if available
+      if (masterDataOptions && masterDataOptions.length > 0) {
+        const validCodes = new Set(masterDataOptions.map(o => o.value));
+        const invalid = accepted.filter(c => !validCodes.has(c));
+        if (invalid.length > 0) {
+          toast.error(`AI returned invalid codes: ${invalid.join(", ")}. Only valid master data codes are allowed.`);
+          return;
+        }
+      }
+      // For single-select, pass just the code string; for multi, pass JSON array
+      const fmt = SECTION_FORMAT_CONFIG[sectionKey];
+      if (fmt && ['checkbox_single', 'select', 'radio'].includes(fmt.format)) {
+        onAcceptRefinement(sectionKey, accepted[0]);
+      } else {
+        onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+      }
+    } else if (isStructured && structuredItems && structuredItems.length > 0) {
+      // Structured line items / tables
       const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
       if (accepted.length === 0) {
         toast.error("Select at least one item to accept.");
@@ -304,7 +384,7 @@ export function AIReviewInline({
     setIsAddressed(true);
     setIsOpen(false);
     onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
@@ -354,7 +434,6 @@ export function AIReviewInline({
               </p>
             ) : (
               <div className="space-y-2">
-                {/* Select all / Clear all toggle for comments */}
                 {comments.length > 1 && !refinedContent && (
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <button
@@ -434,11 +513,17 @@ export function AIReviewInline({
                 structuredItems={structuredItems}
                 selectedItems={selectedItems}
                 onToggleItem={handleToggleItem}
-                onSelectAllItems={() => structuredItems && setSelectedItems(new Set(structuredItems.map((_, i) => i)))}
+                onSelectAllItems={() => {
+                  const items = suggestedCodes ?? structuredItems;
+                  if (items) setSelectedItems(new Set(items.map((_, i) => i)));
+                }}
                 onClearItems={() => setSelectedItems(new Set())}
                 onAccept={handleAccept}
                 onDiscard={handleDiscard}
                 isStructured={isStructured}
+                isMasterData={isMasterData}
+                suggestedCodes={suggestedCodes}
+                masterDataOptions={masterDataOptions}
               />
             )}
           </>

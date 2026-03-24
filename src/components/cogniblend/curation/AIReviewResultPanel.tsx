@@ -7,7 +7,8 @@
  *  - AI Suggested Version using the section's native renderer in readOnly mode
  *  - Accept / Reject actions
  *
- * This replaces the inline refined-content rendering in AIReviewInline.
+ * Phase 5B: Now supports master-data sections — renders suggested codes as
+ * selectable chips instead of prose text.
  */
 
 import { useState, useMemo, useCallback } from "react";
@@ -36,6 +37,12 @@ export interface AIReviewResult {
   suggested_version?: string;
 }
 
+interface MasterDataOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
 interface AIReviewResultPanelProps {
   sectionKey: string;
   result: AIReviewResult;
@@ -50,6 +57,12 @@ interface AIReviewResultPanelProps {
   onDiscard: () => void;
   /** Whether the section uses structured rendering (deliverables, eval_criteria) */
   isStructured: boolean;
+  /** Whether this is a master-data selection section */
+  isMasterData?: boolean;
+  /** AI-suggested code values for master-data sections */
+  suggestedCodes?: string[] | null;
+  /** Master data options for resolving labels */
+  masterDataOptions?: MasterDataOption[];
 }
 
 /* ── Severity helpers ──────────────────────────────────── */
@@ -78,9 +91,6 @@ const STATUS_BADGE = {
   needs_revision: { label: "Needs Revision", className: "bg-red-100 text-red-800 border-red-300" },
 };
 
-/**
- * Attempt to infer severity from comment text using keyword heuristics.
- */
 function inferSeverity(comment: string): ReviewComment["severity"] {
   const lower = comment.toLowerCase();
   if (
@@ -104,11 +114,7 @@ function inferSeverity(comment: string): ReviewComment["severity"] {
   return "warning";
 }
 
-/**
- * Parse a raw comment string into a structured ReviewComment.
- */
 function parseComment(raw: string): ReviewComment {
-  // Check for "applies_to:" pattern at end
   let text = raw;
   let applies_to: string | undefined;
   const appliesMatch = raw.match(/\[applies[_ ]to:\s*(.+?)\]\s*$/i);
@@ -116,14 +122,10 @@ function parseComment(raw: string): ReviewComment {
     applies_to = appliesMatch[1];
     text = raw.slice(0, appliesMatch.index).trim();
   }
-
   const severity = inferSeverity(text);
   return { text, severity, applies_to };
 }
 
-/**
- * Parse structured items from refined content for table sections like eval_criteria.
- */
 function parseTableRows(content: string): Record<string, unknown>[] | null {
   const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
   try {
@@ -152,6 +154,9 @@ export function AIReviewResultPanel({
   onAccept,
   onDiscard,
   isStructured,
+  isMasterData = false,
+  suggestedCodes,
+  masterDataOptions,
 }: AIReviewResultPanelProps) {
   const [detailsOpen, setDetailsOpen] = useState(true);
 
@@ -166,15 +171,27 @@ export function AIReviewResultPanel({
     return null;
   }, [sectionKey, result.suggested_version]);
 
+  // Resolve master data code labels
+  const resolvedCodes = useMemo(() => {
+    if (!isMasterData || !suggestedCodes) return null;
+    const optMap = new Map((masterDataOptions ?? []).map(o => [o.value, o]));
+    return suggestedCodes.map(code => ({
+      code,
+      label: optMap.get(code)?.label ?? code.replace(/_/g, " "),
+      description: optMap.get(code)?.description,
+      isValid: optMap.size === 0 || optMap.has(code),
+    }));
+  }, [isMasterData, suggestedCodes, masterDataOptions]);
+
   const hasSuggestedVersion = !!(
     result.suggested_version ||
     (isStructured && structuredItems && structuredItems.length > 0) ||
+    (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows
   );
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
-      {/* Header: status badge */}
       <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -233,11 +250,68 @@ export function AIReviewResultPanel({
           {hasSuggestedVersion && (
             <div className="space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                AI Suggested Version
+                AI Suggested {isMasterData ? "Selection" : "Version"}
               </p>
 
-              {/* Structured line items (deliverables etc.) */}
-              {isStructured && structuredItems && structuredItems.length > 0 ? (
+              {/* ── Master-data codes as selectable chips ── */}
+              {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      {selectedItems.size}/{resolvedCodes.length} selected
+                    </span>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                        onClick={onSelectAllItems}
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                        onClick={onClearItems}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  {resolvedCodes.map((item, i) => (
+                    <label
+                      key={item.code}
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer transition-colors",
+                        selectedItems.has(i)
+                          ? "bg-primary/10 border-primary/40"
+                          : "bg-background/50 border-border opacity-60",
+                        !item.isValid && "border-destructive/40 bg-destructive/5"
+                      )}
+                    >
+                      <Checkbox
+                        checked={selectedItems.has(i)}
+                        onCheckedChange={() => onToggleItem(i)}
+                        className="mt-0.5 h-3.5 w-3.5"
+                      />
+                      <div className="flex-1 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{item.label}</span>
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground font-mono">
+                            {item.code}
+                          </Badge>
+                          {!item.isValid && (
+                            <Badge variant="destructive" className="text-[9px] px-1 py-0">Invalid</Badge>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{item.description}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              ) : isStructured && structuredItems && structuredItems.length > 0 ? (
+                /* Structured line items (deliverables etc.) */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto space-y-1">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] text-muted-foreground">
@@ -283,8 +357,8 @@ export function AIReviewResultPanel({
                   <TableSectionRenderer
                     sectionKey={sectionKey}
                     rows={tableRows.map((r) => ({
-                      name: String(r.name ?? r.criterion_name ?? ""),
-                      weight: Number(r.weight ?? r.weight_percentage ?? 0),
+                      name: String(r.name ?? r.criterion_name ?? r.parameter ?? ""),
+                      weight: Number(r.weight ?? r.weight_percentage ?? r.weight_percent ?? 0),
                       scoring_type: String(r.scoring_type ?? "score"),
                       evaluator_role: String(r.evaluator_role ?? ""),
                       description: String(r.description ?? ""),
@@ -313,9 +387,11 @@ export function AIReviewResultPanel({
             </Button>
             <Button size="sm" className="h-7 text-xs" onClick={onAccept}>
               <Check className="h-3.5 w-3.5 mr-1" />
-              {isStructured && structuredItems
-                ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
-                : "Accept & Save"}
+              {isMasterData && resolvedCodes
+                ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
+                : isStructured && structuredItems
+                  ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
+                  : "Accept & Save"}
             </Button>
           </div>
         </CollapsibleContent>

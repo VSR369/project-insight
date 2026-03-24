@@ -4,6 +4,7 @@
  * visibility options, effort levels, IP models, eligibility/solver profiles).
  *
  * Centralizes all master data lookups so renderers don't hardcode options.
+ * Phase 5A: Now fetches solver eligibility tiers from md_solver_eligibility.
  */
 
 import { useMemo } from "react";
@@ -29,9 +30,13 @@ export interface MasterDataOption {
 export interface CurationMasterData {
   maturityOptions: MasterDataOption[];
   complexityOptions: MasterDataOption[];
+  /** Challenge visibility options (public, registered_users, etc.) */
+  challengeVisibilityOptions: MasterDataOption[];
+  /** Solver-tier visibility options from md_solver_eligibility */
   visibilityOptions: MasterDataOption[];
   effortOptions: MasterDataOption[];
   ipModelOptions: MasterDataOption[];
+  /** Solver-tier eligibility options from md_solver_eligibility */
   eligibilityOptions: MasterDataOption[];
   isLoading: boolean;
 }
@@ -53,16 +58,6 @@ const IP_MODEL_OPTIONS: MasterDataOption[] = [
   { value: "retained", label: "Solver Retains", description: "Solver retains full IP ownership" },
 ];
 
-/** Eligibility / solver profile types — static until a DB table is created */
-const ELIGIBILITY_OPTIONS: MasterDataOption[] = [
-  { value: "individual", label: "Individual Solver", description: "Single person can submit" },
-  { value: "team", label: "Team", description: "Multi-person team submissions" },
-  { value: "organization", label: "Organization", description: "Corporate or institutional submissions" },
-  { value: "academic", label: "Academic", description: "University or research institution" },
-  { value: "startup", label: "Startup", description: "Early-stage company submissions" },
-  { value: "any", label: "Any", description: "Open to all solver types" },
-];
-
 /* ── Hook ──────────────────────────────────────────────── */
 
 export function useCurationMasterData(): CurationMasterData {
@@ -73,6 +68,21 @@ export function useCurationMasterData(): CurationMasterData {
       const { data, error } = await supabase
         .from("md_challenge_complexity")
         .select("id, complexity_code, complexity_label, complexity_level, display_order")
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) return [];
+      return data ?? [];
+    },
+    ...CACHE_STABLE,
+  });
+
+  // Fetch solver eligibility tiers from DB (used for BOTH eligibility & visibility sections)
+  const { data: solverTierRows, isLoading: solverTierLoading } = useQuery({
+    queryKey: ["master-solver-eligibility-tiers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("md_solver_eligibility")
+        .select("id, code, label, description, display_order")
         .eq("is_active", true)
         .order("display_order");
       if (error) return [];
@@ -101,8 +111,18 @@ export function useCurationMasterData(): CurationMasterData {
     [complexityRows],
   );
 
-  // Build visibility options from constants
-  const visibilityOptions = useMemo<MasterDataOption[]>(() =>
+  // Build solver tier options from DB (shared for eligibility & visibility)
+  const solverTierOptions = useMemo<MasterDataOption[]>(() =>
+    (solverTierRows ?? []).map((r) => ({
+      value: r.code,
+      label: r.label,
+      description: r.description ?? undefined,
+    })),
+    [solverTierRows],
+  );
+
+  // Build challenge visibility options from constants (separate from solver tiers)
+  const challengeVisibilityOptions = useMemo<MasterDataOption[]>(() =>
     VISIBILITY_OPTIONS.map((o) => ({
       value: o.value,
       label: o.label,
@@ -114,10 +134,11 @@ export function useCurationMasterData(): CurationMasterData {
   return {
     maturityOptions,
     complexityOptions,
-    visibilityOptions,
+    challengeVisibilityOptions,
+    visibilityOptions: solverTierOptions,
     effortOptions: EFFORT_OPTIONS,
     ipModelOptions: IP_MODEL_OPTIONS,
-    eligibilityOptions: ELIGIBILITY_OPTIONS,
-    isLoading: complexityLoading,
+    eligibilityOptions: solverTierOptions,
+    isLoading: complexityLoading || solverTierLoading,
   };
 }

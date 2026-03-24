@@ -141,6 +141,9 @@ interface ChallengeData {
   hook: string | null;
   max_solutions: number | null;
   extended_brief: Json | null;
+  // Phase 5A: solver-tier fields for eligibility/visibility
+  solver_eligibility_types: Json | null;
+  solver_visibility_types: Json | null;
 }
 
 interface LegalDocSummary {
@@ -754,8 +757,22 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "scope": return ch.scope;
     case "submission_guidelines": return ch.description;
     case "ip_model": return ch.ip_model;
-    case "eligibility": return ch.eligibility;
-    case "visibility": return ch.visibility;
+    case "eligibility": {
+      const solverTypes = parseJson<any>(ch.solver_eligibility_types);
+      if (Array.isArray(solverTypes) && solverTypes.length > 0) {
+        const codes = solverTypes.map((t: any) => typeof t === "string" ? t : t?.code ?? "");
+        return JSON.stringify(codes);
+      }
+      return ch.eligibility;
+    }
+    case "visibility": {
+      const solverVis = parseJson<any>(ch.solver_visibility_types);
+      if (Array.isArray(solverVis) && solverVis.length > 0) {
+        const codes = solverVis.map((t: any) => typeof t === "string" ? t : t?.code ?? "");
+        return JSON.stringify(codes);
+      }
+      return ch.visibility;
+    }
     case "deliverables": return ch.deliverables ? JSON.stringify(ch.deliverables) : null;
     case "evaluation_criteria": return ch.evaluation_criteria ? JSON.stringify(ch.evaluation_criteria) : null;
     case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
@@ -908,7 +925,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1210,24 +1227,78 @@ export default function CurationReviewPage() {
   }, [challengeId]);
 
   const handleAcceptRefinement = useCallback(async (sectionKey: string, newContent: string) => {
-    // Map section key to db field
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
+
+    // ── Master-data multi-select sections: save to solver_*_types as {code, label}[] ──
+    if (sectionKey === "eligibility") {
+      try {
+        const codes = JSON.parse(newContent);
+        if (Array.isArray(codes)) {
+          const typed = codes.map((c: string) => ({
+            code: c,
+            label: masterData.eligibilityOptions.find(o => o.value === c)?.label ?? c,
+          }));
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_eligibility_types", value: typed });
+          return;
+        }
+      } catch { /* not JSON array, fall through */ }
+    }
+    if (sectionKey === "visibility") {
+      try {
+        const codes = JSON.parse(newContent);
+        if (Array.isArray(codes)) {
+          const typed = codes.map((c: string) => ({
+            code: c,
+            label: masterData.visibilityOptions.find(o => o.value === c)?.label ?? c,
+          }));
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_visibility_types", value: typed });
+          return;
+        }
+      } catch { /* not JSON array, fall through */ }
+    }
+
+    // ── Single-code master-data sections: validate and save directly ──
+    const SINGLE_CODE_MAP: Record<string, { field: string; options: typeof masterData.ipModelOptions }> = {
+      ip_model: { field: "ip_model", options: masterData.ipModelOptions },
+      maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
+      complexity: { field: "complexity_level", options: masterData.complexityOptions },
+      challenge_visibility: { field: "challenge_visibility", options: masterData.challengeVisibilityOptions },
+      effort_level: { field: "effort_level", options: masterData.effortOptions },
+    };
+    const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
+    if (singleCodeCfg) {
+      const code = newContent.trim().replace(/^["']|["']$/g, '');
+      const validCodes = new Set(singleCodeCfg.options.map(o => o.value));
+      // Try case-insensitive match
+      const matched = singleCodeCfg.options.find(o => o.value.toLowerCase() === code.toLowerCase());
+      if (matched) {
+        setSavingSection(true);
+        saveSectionMutation.mutate({ field: singleCodeCfg.field, value: matched.value });
+        return;
+      }
+      if (!validCodes.has(code)) {
+        toast.error(`Invalid ${sectionKey}: "${code}" is not a valid option. Valid: ${Array.from(validCodes).join(", ")}`);
+        return;
+      }
+      setSavingSection(true);
+      saveSectionMutation.mutate({ field: singleCodeCfg.field, value: code });
+      return;
+    }
+
     if (!dbField) {
       toast.error("Cannot save refinement for this section type.");
       return;
     }
 
-    // For constrained fields, normalize through challengeFieldNormalizer
-    // to extract the DB code from AI-generated descriptive text
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
     const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'];
     if (JSON_FIELDS.includes(dbField)) {
-      // Strip markdown code fences
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      // Try to extract JSON from the response
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
       if (jsonMatch) {
         try {
@@ -1249,33 +1320,9 @@ export default function CurationReviewPage() {
       valueToSave = normalizeAiContentForEditor(valueToSave);
     }
 
-    const CONSTRAINED_FIELDS = ['maturity_level', 'ip_model', 'complexity_level', 'rejection_fee_percentage'];
-    if (CONSTRAINED_FIELDS.includes(dbField)) {
-      try {
-        const normalized = normalizeChallengeFields({ [dbField]: newContent });
-        valueToSave = normalized[dbField];
-      } catch {
-        // AI may return descriptive text like "IP-NEL (Non-Exclusive License): ..."
-        // Try to extract the code from the beginning of the string
-        const codeMatch = newContent.match(/^(IP-[A-Z]+|L[1-5]|BLUEPRINT|POC|PROTOTYPE|PILOT)/i);
-        if (codeMatch) {
-          try {
-            const retryNormalized = normalizeChallengeFields({ [dbField]: codeMatch[1] });
-            valueToSave = retryNormalized[dbField];
-          } catch (e2: any) {
-            toast.error(`Invalid ${dbField}: ${e2.message}`);
-            return;
-          }
-        } else {
-          toast.error(`Could not extract a valid ${dbField} code from AI refinement.`);
-          return;
-        }
-      }
-    }
-
     setSavingSection(true);
     saveSectionMutation.mutate({ field: dbField, value: valueToSave });
-  }, [saveSectionMutation]);
+  }, [saveSectionMutation, masterData]);
 
   /** Handle a single-section re-review result from the inline panel */
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
@@ -1805,10 +1852,12 @@ export default function CurationReviewPage() {
                           </>
                         );
 
-                      // ── Eligibility (checkbox multi from master data) ──
+                      // ── Eligibility (checkbox multi from solver tiers) ──
                       case "eligibility": {
-                        const eligParsed = parseJson<string[]>(challenge.eligibility);
-                        const eligValues = Array.isArray(eligParsed) ? eligParsed : [];
+                        const solverElig = parseJson<any>(challenge.solver_eligibility_types);
+                        const eligValues = Array.isArray(solverElig)
+                          ? solverElig.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
+                          : [];
                         return (
                           <>
                             <CheckboxMultiSectionRenderer
@@ -1818,7 +1867,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(values) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "eligibility", value: JSON.stringify(values) });
+                                saveSectionMutation.mutate({ field: "solver_eligibility_types", value: values.map(v => ({ code: v, label: masterData.eligibilityOptions.find(o => o.value === v)?.label ?? v })) });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
@@ -1832,10 +1881,12 @@ export default function CurationReviewPage() {
                         );
                       }
 
-                      // ── Visibility (checkbox multi from master data) ──
+                      // ── Visibility (checkbox multi from solver tiers) ──
                       case "visibility": {
-                        const visParsed = parseJson<string[]>(challenge.visibility);
-                        const visValues = Array.isArray(visParsed) ? visParsed : [];
+                        const solverVis = parseJson<any>(challenge.solver_visibility_types);
+                        const visValues = Array.isArray(solverVis)
+                          ? solverVis.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
+                          : [];
                         return (
                           <>
                             <CheckboxMultiSectionRenderer
@@ -1845,7 +1896,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(values) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "visibility", value: JSON.stringify(values) });
+                                saveSectionMutation.mutate({ field: "solver_visibility_types", value: values.map(v => ({ code: v, label: masterData.visibilityOptions.find(o => o.value === v)?.label ?? v })) });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
