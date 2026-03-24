@@ -1874,10 +1874,12 @@ export default function CurationReviewPage() {
                       isReadOnly={isReadOnly}
                       isApproved={isApproved}
                       onToggleApproval={() => toggleSectionApproval(section.key)}
+                      onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
                       challengeId={challengeId!}
                       inlineFlags={inlineFlags}
                       defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
                       aiReviewSlot={aiReviewContent}
+                      sectionActions={getSectionActions(section.key)}
                     >
                       {sectionContent}
                     </CuratorSectionPanel>
