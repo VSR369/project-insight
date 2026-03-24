@@ -394,7 +394,12 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Curator",
     dbField: "ip_model",
     isFilled: (ch) => !!ch.ip_model?.trim(),
-    render: (ch) => <p className="text-sm font-medium text-foreground">{ch.ip_model || "—"}</p>,
+    render: (ch) => {
+      if (!ch.ip_model) return <p className="text-sm text-muted-foreground">Not set.</p>;
+      return (
+        <Badge variant="secondary" className="capitalize">{ch.ip_model.replace(/_/g, " ")}</Badge>
+      );
+    },
   },
   {
     key: "legal_docs",
