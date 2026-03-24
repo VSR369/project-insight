@@ -242,11 +242,14 @@ const SECTIONS: SectionDef[] = [
       const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       if (!d || d.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
       return (
-        <ol className="list-decimal list-inside space-y-1">
+        <div className="space-y-2">
           {d.map((item: any, i: number) => (
-            <li key={i} className="text-sm text-foreground">{typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}</li>
+            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
+              <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
+              {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
+            </div>
           ))}
-        </ol>
+        </div>
       );
     },
   },
@@ -290,23 +293,16 @@ const SECTIONS: SectionDef[] = [
       const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : null;
       if (!ec || ec.length === 0) return <p className="text-sm text-muted-foreground">Not defined.</p>;
       return (
-        <div className="relative w-full overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Criterion</TableHead>
-                <TableHead className="w-24 text-right">Weight %</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ec.map((c: any, i: number) => (
-                <TableRow key={i}>
-                  <TableCell className="text-sm">{c.criterion_name ?? c.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm text-right font-medium">{c.weight_percentage ?? c.weight ?? "—"}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="space-y-2">
+          {ec.map((c: any, i: number) => (
+            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2">
+              <span>
+                <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
+                {c.criterion_name ?? c.name ?? "—"}
+              </span>
+              <span className="shrink-0 font-medium text-muted-foreground">{c.weight_percentage ?? c.weight ?? "—"}%</span>
+            </div>
+          ))}
         </div>
       );
     },
