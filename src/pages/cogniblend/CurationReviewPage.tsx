@@ -1022,7 +1022,7 @@ export default function CurationReviewPage() {
     setAiReviewLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
-        body: { challenge_id: challengeId },
+        body: { challenge_id: challengeId, role_context: 'curation' },
       });
       if (error) {
         let msg = error.message;
