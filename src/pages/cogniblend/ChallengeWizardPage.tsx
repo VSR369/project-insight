@@ -423,6 +423,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       complexity_score: complexityScore,
       complexity_level: complexityLevel,
       targeting_filters: values.targeting_filters || {},
+      governance_mode_override: values.governance_mode || null,
     };
   };
 
