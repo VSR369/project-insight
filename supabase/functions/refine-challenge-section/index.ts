@@ -127,6 +127,18 @@ ${curator_instructions}
 
 Rewrite the section content following the instructions. Return ONLY the refined content, nothing else.`;
 
+    // For structured sections, add explicit JSON instruction to the user prompt
+    const STRUCTURED_SECTIONS = ["deliverables", "evaluation_criteria"];
+    const isStructuredSection = STRUCTURED_SECTIONS.includes(section_key);
+
+    let finalUserPrompt = userPrompt;
+    if (isStructuredSection) {
+      const structuredInstruction = section_key === "deliverables"
+        ? `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per deliverable item. Example: ["Deliverable 1 description", "Deliverable 2 description"]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`
+        : `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of objects with "name", "weight", and "description" keys. Example: [{"name":"Innovation","weight":30,"description":"..."},{"name":"Feasibility","weight":25,"description":"..."}]. Do NOT return prose, markdown tables, or numbered lists — ONLY a raw JSON array.`;
+      finalUserPrompt += structuredInstruction;
+    }
+
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -137,7 +149,7 @@ Rewrite the section content following the instructions. Return ONLY the refined 
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: getSystemPrompt(resolvedRoleContext) },
-          { role: "user", content: userPrompt },
+          { role: "user", content: finalUserPrompt },
         ],
       }),
     });

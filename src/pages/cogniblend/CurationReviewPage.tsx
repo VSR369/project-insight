@@ -530,7 +530,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "AI / Creator",
     dbField: "hook",
     isFilled: (ch) => !!(ch as any).hook?.trim(),
-    render: (ch) => <p className="text-sm text-foreground">{(ch as any).hook || "—"}</p>,
+    render: (ch) => <AiContentRenderer content={(ch as any).hook} compact fallback="—" />,
   },
   {
     key: "extended_brief",
@@ -1075,7 +1075,7 @@ export default function CurationReviewPage() {
     }
   }, [challengeId]);
 
-  const handleAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
+  const handleAcceptRefinement = useCallback(async (sectionKey: string, newContent: string) => {
     // Map section key to db field
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
@@ -1087,6 +1087,34 @@ export default function CurationReviewPage() {
     // For constrained fields, normalize through challengeFieldNormalizer
     // to extract the DB code from AI-generated descriptive text
     let valueToSave: any = newContent;
+
+    // ── Structured JSON fields: parse AI output into proper JSON ──
+    const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'];
+    if (JSON_FIELDS.includes(dbField)) {
+      // Strip markdown code fences
+      let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      // Try to extract JSON from the response
+      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+      if (jsonMatch) {
+        try {
+          valueToSave = JSON.parse(jsonMatch[1]);
+        } catch {
+          toast.error(`AI returned invalid structured data for ${dbField}. Please try again.`);
+          return;
+        }
+      } else {
+        toast.error(`AI did not return structured JSON for ${dbField}. Please try again.`);
+        return;
+      }
+    }
+
+    // ── Text fields: normalize markdown → sanitized HTML ──
+    const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'description', 'hook'];
+    if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
+      const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
+      valueToSave = normalizeAiContentForEditor(valueToSave);
+    }
+
     const CONSTRAINED_FIELDS = ['maturity_level', 'ip_model', 'complexity_level', 'rejection_fee_percentage'];
     if (CONSTRAINED_FIELDS.includes(dbField)) {
       try {
