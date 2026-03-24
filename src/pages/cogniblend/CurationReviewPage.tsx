@@ -76,6 +76,8 @@ import ModificationPointsTracker from "@/components/cogniblend/ModificationPoint
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
+import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
+import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
@@ -1513,7 +1515,7 @@ export default function CurationReviewPage() {
               <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <Accordion type="single" collapsible className="w-full">
+              <div className="space-y-3">
                 {activeGroupDef.sectionKeys.map((sectionKey) => {
                   const section = SECTION_MAP.get(sectionKey);
                   if (!section) return null;
@@ -1525,12 +1527,18 @@ export default function CurationReviewPage() {
                   const aiReview = aiReviews.find((r) => r.section_key === section.key);
                   const isApproved = approvedSections[section.key] ?? false;
                   const inlineFlags = sectionAIFlags[section.key];
-
-                  // Special renders
-                  
                   const isComplexity = section.key === "complexity";
 
-                  // Filtered domain tag suggestions (plain calculation)
+                  // Compute panel status from AI review
+                  let panelStatus: SectionStatus = "not_reviewed";
+                  if (isLocked) panelStatus = "view_only";
+                  else if (aiReview) {
+                    if (aiReview.status === "pass") panelStatus = "pass";
+                    else if (aiReview.status === "warning") panelStatus = "warning";
+                    else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
+                  }
+
+                  // Domain tag state
                   const currentTags = section.key === "domain_tags"
                     ? (() => { const t = parseJson<string[]>(challenge.domain_tags); return Array.isArray(t) ? t : []; })()
                     : [];
@@ -1540,240 +1548,210 @@ export default function CurationReviewPage() {
                       )
                     : [];
 
-                  return (
-                    <AccordionItem key={section.key} value={section.key} className="border-b border-border/40">
-                      <AccordionTrigger className="text-sm font-medium hover:no-underline gap-2 py-3">
-                        <div className="flex items-center gap-2 flex-1 text-left min-w-0">
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={isApproved}
-                              onCheckedChange={() => toggleSectionApproval(section.key)}
-                              className="shrink-0"
-                              disabled={isReadOnly}
-                            />
-                          </div>
-                          {filled ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                          )}
-                          <span className="truncate">{section.label}</span>
-                          {section.attribution && (
-                            <span className="text-[10px] text-muted-foreground font-normal ml-1 shrink-0">({section.attribution})</span>
-                          )}
-                          {isLocked && <Lock className="h-3 w-3 text-muted-foreground ml-1 shrink-0" />}
-                          {/* Inline AI flags */}
-                          {inlineFlags && inlineFlags.length > 0 && (
-                            <span className="text-[10px] text-amber-700 ml-2 truncate shrink min-w-0">
-                              ⚠ {inlineFlags[0]}
-                            </span>
-                          )}
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pl-8 pr-2 pb-4">
-                        {/* ── Maturity Level Editor ── */}
-                        {isEditing && section.key === "maturity_level" ? (
-                          <div className="space-y-3">
-                            <Select
-                              value={challenge.maturity_level ?? ""}
-                              onValueChange={(val) => handleSaveMaturityLevel(val)}
-                            >
-                              <SelectTrigger className="w-full max-w-xs">
-                                <SelectValue placeholder="Select maturity level" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(MATURITY_LABELS).map(([key, label]) => (
-                                  <SelectItem key={key} value={key}>
-                                    <div>
-                                      <span className="font-medium">{label}</span>
-                                      {MATURITY_DESCRIPTIONS[key] && (
-                                        <span className="text-xs text-muted-foreground ml-2">— {MATURITY_DESCRIPTIONS[key]}</span>
-                                      )}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
-                              <X className="h-3.5 w-3.5 mr-1" />Cancel
-                            </Button>
-                          </div>
-
-                        /* ── Complexity Assessment Module (always-visible) ── */
-                        ) : isComplexity ? (
-                          <ComplexityAssessmentModule
-                            challengeId={challengeId!}
-                            currentScore={challenge.complexity_score ?? null}
-                            currentLevel={challenge.complexity_level ?? null}
-                            currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
-                            complexityParams={complexityParams}
-                            onSave={handleSaveComplexity}
-                            saving={savingSection}
-                          />
-
-
-                        /* ── Deliverables Editor ── */
-                        ) : isEditing && section.key === "deliverables" ? (
-                          <DeliverablesEditor
-                            items={getDeliverableItems(challenge)}
-                            onSave={handleSaveDeliverables}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
-                        ) : isEditing && section.key === "evaluation_criteria" ? (
-                          <EvalCriteriaEditor
-                            criteria={getEvalCriteria(challenge)}
-                            onSave={handleSaveEvalCriteria}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
-                        ) : isEditing && TEXT_SECTIONS.has(section.key) && section.dbField ? (
-                          <TextSectionEditor
-                            value={getFieldValue(challenge, section.key)}
-                            onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
-                        /* ── Extended Brief — Always rendered via component ── */
-                        ) : section.key === "extended_brief" ? (
-                          <ExtendedBriefDisplay
-                            data={challenge.extended_brief}
-                            onSave={handleSaveExtendedBrief}
-                            saving={savingSection}
-                          />
-
-                        /* ── Submission Deadline — Inline date editor ── */
-                        ) : isEditing && section.key === "submission_deadline" ? (
-                          <DateFieldEditor
-                            value={challenge.submission_deadline ?? ""}
-                            onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
-
-                        /* ── Challenge Visibility — Inline select ── */
-                        ) : isEditing && section.key === "challenge_visibility" ? (
-                          <SelectFieldEditor
-                            value={challenge.challenge_visibility ?? ""}
-                            options={[
-                              { value: "public", label: "Public" },
-                              { value: "private", label: "Private" },
-                              { value: "invite_only", label: "Invite Only" },
-                            ]}
-                            onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
-
-                        /* ── Effort Level — Inline radio ── */
-                        ) : isEditing && section.key === "effort_level" ? (
-                          <RadioFieldEditor
-                            value={challenge.effort_level ?? ""}
-                            options={[
-                              { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-                              { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-                              { value: "high", label: "High", description: "160–500 hours estimated effort" },
-                              { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-                            ]}
-                            onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
-
-                        /* ── Domain Tags — Always-editable inline (unless read-only) ── */
-                        ) : section.key === "domain_tags" && !isReadOnly ? (
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
-                              {currentTags.length === 0 && (
-                                <p className="text-sm text-muted-foreground italic">No domain tags — type below to add.</p>
-                              )}
-                              {currentTags.map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
-                                  <Tag className="h-3 w-3" />{tag}
-                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
+                  // Build section content
+                  const sectionContent = (
+                    <>
+                      {/* ── Maturity Level Editor ── */}
+                      {isEditing && section.key === "maturity_level" ? (
+                        <div className="space-y-3">
+                          <Select
+                            value={challenge.maturity_level ?? ""}
+                            onValueChange={(val) => handleSaveMaturityLevel(val)}
+                          >
+                            <SelectTrigger className="w-full max-w-xs">
+                              <SelectValue placeholder="Select maturity level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(MATURITY_LABELS).map(([key, label]) => (
+                                <SelectItem key={key} value={key}>
+                                  <div>
+                                    <span className="font-medium">{label}</span>
+                                    {MATURITY_DESCRIPTIONS[key] && (
+                                      <span className="text-xs text-muted-foreground ml-2">— {MATURITY_DESCRIPTIONS[key]}</span>
+                                    )}
+                                  </div>
+                                </SelectItem>
                               ))}
-                            </div>
-                            <div className="relative">
-                              <Input
-                                value={domainTagInput}
-                                onChange={(e) => {
-                                  setDomainTagInput(e.target.value);
-                                  setShowTagDropdown(true);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && domainTagInput.trim()) {
-                                    e.preventDefault();
-                                    handleAddDomainTag(domainTagInput);
-                                  }
-                                }}
-                                onFocus={() => setShowTagDropdown(true)}
-                                onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
-                                placeholder="Type to search or add a tag…"
-                                className="text-sm"
-                              />
-                              {showTagDropdown && filteredTags.length > 0 && (
-                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-                                  {filteredTags.map((tag) => (
-                                    <button
-                                      key={tag}
-                                      onClick={() => handleAddDomainTag(tag)}
-                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                                    >
-                                      {tag}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-                            {canEdit && !isEditing && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="mt-3 text-xs"
-                                onClick={() => setEditingSection(section.key)}
-                              >
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        )}
+                            </SelectContent>
+                          </Select>
+                          <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                            <X className="h-3.5 w-3.5 mr-1" />Cancel
+                          </Button>
+                        </div>
 
-                        {/* AI review inline — interactive with refinement */}
-                        <CurationAIReviewInline
-                          sectionKey={section.key}
-                          review={aiReview}
-                          currentContent={getSectionContent(challenge, section.key)}
+                      ) : isComplexity ? (
+                        <ComplexityAssessmentModule
                           challengeId={challengeId!}
-                          challengeContext={challengeCtx}
-                          onAcceptRefinement={handleAcceptRefinement}
-                          onSingleSectionReview={handleSingleSectionReview}
-                          onMarkAddressed={handleMarkAddressed}
-                          defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
+                          currentScore={challenge.complexity_score ?? null}
+                          currentLevel={challenge.complexity_level ?? null}
+                          currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
+                          complexityParams={complexityParams}
+                          onSave={handleSaveComplexity}
+                          saving={savingSection}
                         />
 
-                        {/* All inline AI flags expanded */}
-                        {inlineFlags && inlineFlags.length > 1 && (
-                          <div className="mt-2 space-y-1">
-                            {inlineFlags.slice(1).map((flag, i) => (
-                              <p key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
-                                <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                                {flag}
-                              </p>
+                      ) : isEditing && section.key === "deliverables" ? (
+                        <DeliverablesEditor
+                          items={getDeliverableItems(challenge)}
+                          onSave={handleSaveDeliverables}
+                          onCancel={() => setEditingSection(null)}
+                          saving={savingSection}
+                        />
+                      ) : isEditing && section.key === "evaluation_criteria" ? (
+                        <EvalCriteriaEditor
+                          criteria={getEvalCriteria(challenge)}
+                          onSave={handleSaveEvalCriteria}
+                          onCancel={() => setEditingSection(null)}
+                          saving={savingSection}
+                        />
+                      ) : isEditing && TEXT_SECTIONS.has(section.key) && section.dbField ? (
+                        <TextSectionEditor
+                          value={getFieldValue(challenge, section.key)}
+                          onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
+                          onCancel={() => setEditingSection(null)}
+                          saving={savingSection}
+                        />
+                      ) : section.key === "extended_brief" ? (
+                        <ExtendedBriefDisplay
+                          data={challenge.extended_brief}
+                          onSave={handleSaveExtendedBrief}
+                          saving={savingSection}
+                        />
+                      ) : isEditing && section.key === "submission_deadline" ? (
+                        <DateFieldEditor
+                          value={challenge.submission_deadline ?? ""}
+                          onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
+                          onCancel={() => setEditingSection(null)}
+                          saving={savingSection}
+                        />
+                      ) : isEditing && section.key === "challenge_visibility" ? (
+                        <SelectFieldEditor
+                          value={challenge.challenge_visibility ?? ""}
+                          options={[
+                            { value: "public", label: "Public" },
+                            { value: "private", label: "Private" },
+                            { value: "invite_only", label: "Invite Only" },
+                          ]}
+                          onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
+                          onCancel={() => setEditingSection(null)}
+                          saving={savingSection}
+                        />
+                      ) : isEditing && section.key === "effort_level" ? (
+                        <RadioFieldEditor
+                          value={challenge.effort_level ?? ""}
+                          options={[
+                            { value: "low", label: "Low", description: "< 40 hours estimated effort" },
+                            { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
+                            { value: "high", label: "High", description: "160–500 hours estimated effort" },
+                            { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
+                          ]}
+                          onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
+                          onCancel={() => setEditingSection(null)}
+                          saving={savingSection}
+                        />
+                      ) : section.key === "domain_tags" && !isReadOnly ? (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                            {currentTags.length === 0 && (
+                              <p className="text-sm text-muted-foreground italic">No domain tags — type below to add.</p>
+                            )}
+                            {currentTags.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
+                                <Tag className="h-3 w-3" />{tag}
+                                <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
                             ))}
                           </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
+                          <div className="relative">
+                            <Input
+                              value={domainTagInput}
+                              onChange={(e) => {
+                                setDomainTagInput(e.target.value);
+                                setShowTagDropdown(true);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && domainTagInput.trim()) {
+                                  e.preventDefault();
+                                  handleAddDomainTag(domainTagInput);
+                                }
+                              }}
+                              onFocus={() => setShowTagDropdown(true)}
+                              onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+                              placeholder="Type to search or add a tag…"
+                              className="text-sm"
+                            />
+                            {showTagDropdown && filteredTags.length > 0 && (
+                              <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                                {filteredTags.map((tag) => (
+                                  <button
+                                    key={tag}
+                                    onClick={() => handleAddDomainTag(tag)}
+                                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                  >
+                                    {tag}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
+                          {canEdit && !isEditing && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-3 text-xs"
+                              onClick={() => setEditingSection(section.key)}
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />Edit
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </>
+                  );
+
+                  // Build AI review slot
+                  const aiReviewContent = (
+                    <CurationAIReviewInline
+                      sectionKey={section.key}
+                      review={aiReview}
+                      currentContent={getSectionContent(challenge, section.key)}
+                      challengeId={challengeId!}
+                      challengeContext={challengeCtx}
+                      onAcceptRefinement={handleAcceptRefinement}
+                      onSingleSectionReview={handleSingleSectionReview}
+                      onMarkAddressed={handleMarkAddressed}
+                      defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
+                    />
+                  );
+
+                  return (
+                    <CuratorSectionPanel
+                      key={section.key}
+                      sectionKey={section.key}
+                      label={section.label}
+                      attribution={section.attribution}
+                      filled={filled}
+                      status={panelStatus}
+                      isLocked={isLocked}
+                      isReadOnly={isReadOnly}
+                      isApproved={isApproved}
+                      onToggleApproval={() => toggleSectionApproval(section.key)}
+                      challengeId={challengeId!}
+                      inlineFlags={inlineFlags}
+                      defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
+                      aiReviewSlot={aiReviewContent}
+                    >
+                      {sectionContent}
+                    </CuratorSectionPanel>
                   );
                 })}
-              </Accordion>
+              </div>
             </CardContent>
           </Card>
         </div>
