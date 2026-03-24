@@ -1,105 +1,46 @@
 
-I understand the requirement clearly: for master-data-backed sections, AI must only suggest valid master options, and accepting AI output must populate/save the native control format (checkbox/radio/select), never prose.
 
-## What is currently broken (root causes)
+# Audit: What Is Implemented vs What Is Missing
 
-1. **Wrong data source for Eligibility/Visibility in curation**
-   - Curation page reads/saves `eligibility` and `visibility` (legacy/general fields), but solver-type choices are actually in:
-     - `solver_eligibility_types` (e.g., registered, certified, signed_in, open_community)
-     - `solver_visibility_types`
-   - Current challenge confirms this mismatch: `solver_*` has codes, while `eligibility` is carrying targeting JSON.
+## Implemented (working)
 
-2. **Master data hook is mostly static**
-   - `useCurationMasterData` uses hardcoded Eligibility/IP/Visibility options instead of pulling real master rows (notably `md_solver_eligibility`).
+| Feature | Status | Details |
+|---------|--------|---------|
+| `SECTION_FORMAT_CONFIG` with all 16+ sections | Done | Correct format types, `masterDataTable` refs, `aiCanDraft`, `aiUsesContext` |
+| `useCurationMasterData` hook — fetches from DB | Partial | Complexity + solver eligibility tiers fetched from DB. **But**: maturity, IP model, effort, challenge visibility are still hardcoded static arrays, not from DB |
+| `CheckboxMultiSectionRenderer` component | Done | View + edit modes, save/cancel |
+| Eligibility/Visibility wired as `checkbox_multi` | Done | Reads from `solver_eligibility_types`/`solver_visibility_types`, renders via `CheckboxMultiSectionRenderer` with master data options |
+| `handleAcceptRefinement` — master-data-aware save | Done | Eligibility/visibility save to `solver_*_types` as `{code, label}[]`. Single-code sections (ip_model, maturity, complexity, etc.) validate against options |
+| `AIReviewInline` — `parseMasterDataCodes()` | Done | Parses AI output as code arrays for master-data sections |
+| `AIReviewResultPanel` — master-data chip rendering | Done | Shows selectable chips with code/label/description for master-data suggestions |
+| Edge function `refine-challenge-section` — code constraints | Done | Injects allowed codes into prompt for both multi-code and single-code sections. Fetches `md_solver_eligibility` and `md_challenge_complexity` from DB |
 
-3. **AI refinement is not format-aware for master-data controls**
-   - `AIReviewInline` treats only `deliverables` + `evaluation_criteria` as structured.
-   - Checkbox/select/radio sections fall back to text suggestions.
+## NOT Implemented / Broken
 
-4. **Accept flow does not parse/save master-data selections**
-   - `handleAcceptRefinement` parses JSON for table/list fields only.
-   - For eligibility/visibility/ip/maturity/complexity, AI output can still be saved as plain string.
+| Issue | Impact | Fix needed |
+|-------|--------|------------|
+| **`masterDataOptions` prop NOT passed** to `CurationAIReviewInline` | AI accept validation skipped — no valid-code checking on accept | Line 2104: must resolve options per section and pass `masterDataOptions={...}` |
+| **`review-challenge-sections/promptTemplate.ts` STALE** | Review prompts still have `visibility_eligibility` (merged), `ip_model` as `rich_text`, `complexity` as `custom`, `reward_structure` as `structured_fields`, `submission_guidelines` as `rich_text` | Must align `SECTION_FORMAT_MAP` to match `SECTION_FORMAT_CONFIG` |
+| **Maturity options use lowercase keys** (`blueprint`, `poc`) but normalizer expects uppercase (`BLUEPRINT`, `POC`) | AI might return lowercase, save might fail | Inconsistency between `maturityLabels.ts` (lowercase) and `challengeFieldNormalizer.ts` (uppercase). The hook uses lowercase values from constants |
+| **IP model static options use aliases** (`full_transfer`, `licensed`, etc.) not DB codes (`IP-EA`, `IP-NEL`) | AI suggestions won't match normalizer codes; save may fail or save wrong value | Must align static IP options with actual DB trigger codes, or pull from DB |
+| **No `expected_outcomes` section** in CurationReviewPage sections array | Section defined in format config but not rendered | Need to add section definition with render/edit |
 
-5. **Prompt maps are stale/inconsistent**
-   - `review-challenge-sections` prompt templates still include old mappings (`visibility_eligibility`, `ip_model` as rich_text, etc.), so AI isn’t consistently constrained to option IDs.
+## Recommended Fix (single implementation pass)
 
-## Implementation plan (phased, no business-rule removal)
+1. **Pass `masterDataOptions`** to `CurationAIReviewInline` — resolve per-section from `masterData` hook based on section key
+2. **Align `SECTION_FORMAT_MAP`** in `promptTemplate.ts` — update:
+   - `submission_guidelines` → `line_items`
+   - `ip_model` → `checkbox_single`
+   - `complexity` → `checkbox_single`
+   - `reward_structure` → `table`
+   - Remove `visibility_eligibility`, add `eligibility` and `visibility` as `checkbox_multi`
+   - Add `expected_outcomes` as `line_items`
+3. **Align IP model codes** in `useCurationMasterData` static options to match DB trigger codes (`IP-EA`, etc.) or keep aliases but ensure normalizer handles both (it already does via `IP_ALIAS_MAP`)
+4. **Align maturity codes** — the hook should use uppercase values (`BLUEPRINT`, `POC`, `PROTOTYPE`, `PILOT`) to match normalizer expectations
+5. **Add `expected_outcomes`** section to the CurationReviewPage sections array
 
-### Phase 5A — Correct master-data wiring in Curation UI
+### Files to modify
+- `src/pages/cogniblend/CurationReviewPage.tsx` — pass `masterDataOptions`, add `expected_outcomes` section
+- `supabase/functions/review-challenge-sections/promptTemplate.ts` — align `SECTION_FORMAT_MAP`
+- `src/hooks/cogniblend/useCurationMasterData.ts` — align maturity values to uppercase
 
-1. **Fix data model bindings in `CurationReviewPage`**
-   - Extend challenge fetch/type to include:
-     - `solver_eligibility_types`
-     - `solver_visibility_types`
-   - Rebind section storage:
-     - `eligibility` section -> `solver_eligibility_types`
-     - `visibility` section -> `solver_visibility_types`
-   - Keep legacy `eligibility` field untouched for original-brief targeting context.
-
-2. **Upgrade `useCurationMasterData`**
-   - Pull `md_solver_eligibility` live (code/label/description/order/is_active).
-   - Build shared solver-tier options from DB for both eligibility & visibility section controls.
-   - Keep fallback options only if DB query fails.
-   - Split “challenge visibility” options (`public`, `registered_users`, etc.) into a separate option list so it does not collide with solver-tier visibility.
-
-3. **Normalize code/label handling**
-   - Render selected solver tiers as labels from master map.
-   - Save as canonical array objects `{ code, label }` (same shape used elsewhere in app), not plain strings.
-
-### Phase 5B — Make AI refine master-data-aware and native-format
-
-1. **`AIReviewInline` format expansion**
-   - Replace hardcoded `STRUCTURED_SECTIONS` with format-aware logic (based on section key + expected format).
-   - Add parsers for:
-     - `checkbox_multi` -> array of option codes
-     - `checkbox_single` / `select` / `radio` -> one option code
-   - Keep item-level accept/reject behavior for multi-select suggestions.
-
-2. **`AIReviewResultPanel` native rendering**
-   - For checkbox sections, show suggested selected options as selectable checklist chips/cards (not paragraph text).
-   - For single-select/radio/select, show one suggested choice with label/description.
-
-3. **Accept/save canonicalization (`CurationReviewPage.handleAcceptRefinement`)**
-   - Add section-format-based save transformer:
-     - eligibility/visibility -> save to `solver_*_types` as `{ code, label }[]`
-     - ip_model/maturity_level -> normalize to valid DB code before save
-     - complexity -> accept AI-selected level only if valid code
-   - Reject invalid AI output with explicit toast (no silent corruption).
-
-### Phase 5C — Constrain AI to allowed master options
-
-1. **Refinement edge function update (`refine-challenge-section`)**
-   - Add strict per-section output contracts for master-data sections:
-     - eligibility/visibility: JSON array of allowed codes only
-     - ip_model/maturity/complexity/challenge_visibility/effort_level: single allowed code
-   - Inject allowed options into prompt context so AI can only pick from populated master-data values.
-   - Keep existing endpoint contract; only strengthen prompt + parsing behavior.
-
-2. **Review prompt sync (`review-challenge-sections/promptTemplate.ts` + frontend copy)**
-   - Align format map with actual curation section formats (including separate `eligibility` and `visibility`).
-   - Remove stale mismatches that cause prose outputs for non-prose sections.
-
-3. **Compatibility for stale config key**
-   - Add non-breaking alias handling for `visibility_eligibility` so reviews don’t fail while transitioning to `visibility`.
-   - Preserve existing admin-config-driven behavior.
-
-## Files to update
-
-- `src/hooks/cogniblend/useCurationMasterData.ts`
-- `src/pages/cogniblend/CurationReviewPage.tsx`
-- `src/components/cogniblend/shared/AIReviewInline.tsx`
-- `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
-- `src/lib/aiReviewPromptTemplate.ts`
-- `supabase/functions/refine-challenge-section/index.ts`
-- `supabase/functions/review-challenge-sections/promptTemplate.ts`
-- `supabase/functions/review-challenge-sections/index.ts`
-
-## Validation checklist (must pass before replication)
-
-1. Eligibility and Visibility sections show **separate** solver-tier master options from DB (`registered`, `signed_in`, `certified_*`, `open_community`, etc.).
-2. Existing saved `solver_eligibility_types` and `solver_visibility_types` render correctly as selected chips/checkboxes.
-3. “Refine with AI” for eligibility/visibility returns only allowed codes and displays native checkbox selections.
-4. Accepting AI suggestions updates control state immediately and persists after reload.
-5. IP Model, Maturity, Complexity AI suggestions resolve to valid codes only (no prose saved).
-6. No overwrite of legacy `eligibility` targeting JSON used in original-brief context.
-7. Full “Review with AI” and per-section re-review work for both `eligibility` and `visibility` without section-key errors.
