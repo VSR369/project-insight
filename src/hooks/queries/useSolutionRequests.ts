@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import { validateRoleAssignment } from "@/hooks/cogniblend/useValidateRoleAssignment";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 
 /* ─── Types ────────────────────────────────────────────── */
