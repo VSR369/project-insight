@@ -71,6 +71,24 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   domain_tags: 'tag_input',
   legal_docs: 'table',
   escrow_funding: 'structured_fields',
+  // Extended Brief subsections
+  context_and_background: 'rich_text',
+  root_causes: 'line_items',
+  affected_stakeholders: 'table',
+  current_deficiencies: 'line_items',
+  extended_brief_expected_outcomes: 'line_items',
+  preferred_approach: 'rich_text',
+  approaches_not_of_interest: 'line_items',
+};
+
+/** Extended Brief subsection-specific format instructions */
+const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
+  root_causes: 'Output: JSON array of short phrase strings only. No sentences. No explanations. Each item is a cause label, not a description. Max 8 items.',
+  affected_stakeholders: 'Output: JSON array of row objects with keys stakeholder_name, role, impact_description (max 100 chars), adoption_challenge (max 100 chars). Always populate adoption_challenge — this is the most valuable field.',
+  current_deficiencies: 'Output: JSON array of current-state observation phrases. Max 10 items. Each item must be a factual observation about current state, not a wish or solution hint.',
+  extended_brief_expected_outcomes: 'Output: JSON array of strings. Each string is one discrete expected outcome. Never remove outcomes that were streamed from spec.',
+  preferred_approach: 'If content exists, do NOT rewrite it. Produce review comments only. Set structured_output to the existing content unchanged. Always include: "This content represents the seeker\'s stated preferences and has been preserved exactly as written."',
+  approaches_not_of_interest: 'Always set requires_human_input: true. Never produce items for this section. Output: { "requires_human_input": true, "comment": "This section requires explicit human input about excluded approaches." }',
 };
 
 export function buildConfiguredBatchPrompt(
