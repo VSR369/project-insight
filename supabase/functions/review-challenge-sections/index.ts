@@ -207,7 +207,7 @@ serve(async (req) => {
       fetchPromises.push(
         adminClient
           .from("challenge_legal_docs")
-          .select("document_type, tier, status, lc_status, lc_review_notes, content_summary, rationale, document_name")
+          .select("document_type, tier, status, lc_status, lc_review_notes, document_name")
           .eq("challenge_id", challenge_id)
       );
     }
