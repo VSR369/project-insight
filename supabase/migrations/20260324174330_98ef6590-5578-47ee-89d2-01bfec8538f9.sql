@@ -1,0 +1,1 @@
+ALTER TABLE public.challenges ADD COLUMN IF NOT EXISTS solver_expertise_requirements JSONB DEFAULT NULL;

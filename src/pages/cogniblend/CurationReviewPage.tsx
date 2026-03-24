@@ -91,6 +91,7 @@ import {
   LegalDocsSectionRenderer,
 } from "@/components/cogniblend/curation/renderers";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
+import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP } from "@/lib/cogniblend/curationSectionFormats";
@@ -144,6 +145,8 @@ interface ChallengeData {
   // Phase 5A: solver-tier fields for eligibility/visibility
   solver_eligibility_types: Json | null;
   solver_visibility_types: Json | null;
+  // Phase: solver expertise requirements
+  solver_expertise_requirements: Json | null;
 }
 
 interface LegalDocSummary {
@@ -610,6 +613,18 @@ const SECTIONS: SectionDef[] = [
       return <p className="text-sm text-foreground capitalize">{ch.visibility}</p>;
     },
   },
+  {
+    key: "solver_expertise",
+    label: "Solver Expertise Requirements",
+    attribution: "by Curator / AI",
+    dbField: "solver_expertise_requirements",
+    isFilled: (ch) => {
+      const data = parseJson<any>(ch.solver_expertise_requirements);
+      if (!data) return false;
+      return (data.proficiency_areas?.length ?? 0) + (data.sub_domains?.length ?? 0) + (data.specialities?.length ?? 0) > 0;
+    },
+    render: () => null, // Rendered via SolverExpertiseSection component
+  },
   // ── Phase 1 additions: Challenge Settings (Org Policy) ──
   {
     key: "hook",
@@ -716,7 +731,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "eligibility", "visibility", "submission_deadline", "challenge_visibility", "effort_level"],
+    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "submission_deadline", "challenge_visibility", "effort_level"],
   },
 ];
 
@@ -793,6 +808,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "challenge_visibility": return ch.challenge_visibility;
     case "effort_level": return ch.effort_level;
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
+    case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "expected_outcomes": {
       const eb = parseJson<any>(ch.extended_brief);
       return eb?.expected_outcomes ? JSON.stringify(eb.expected_outcomes) : null;
@@ -934,7 +950,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1238,6 +1254,22 @@ export default function CurationReviewPage() {
   const handleAcceptRefinement = useCallback(async (sectionKey: string, newContent: string) => {
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
+
+    // ── Solver expertise: parse JSON and save directly ──
+    if (sectionKey === "solver_expertise") {
+      try {
+        const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        const jsonMatch = cleaned.match(/(\{[\s\S]*\})/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
+          return;
+        }
+      } catch { /* fall through */ }
+      toast.error("AI returned invalid expertise data. Please try again.");
+      return;
+    }
 
     // ── Master-data multi-select sections: save to solver_*_types as {code, label}[] ──
     if (sectionKey === "eligibility") {
@@ -2056,7 +2088,24 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Extended brief (nested subsection panels) ──
+                      // ── Solver expertise requirements ──
+                      case "solver_expertise": {
+                        const targeting = parseJson<any>(challenge.eligibility);
+                        const industrySegId = targeting?.industry_segment_id ?? null;
+                        return (
+                          <SolverExpertiseSection
+                            data={challenge.solver_expertise_requirements}
+                            industrySegmentId={industrySegId}
+                            readOnly={isReadOnly}
+                            onSave={(expertiseData) => {
+                              setSavingSection(true);
+                              saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+                            }}
+                            saving={savingSection}
+                          />
+                        );
+                      }
+
                       case "extended_brief":
                         return (
                           <ExtendedBriefDisplay

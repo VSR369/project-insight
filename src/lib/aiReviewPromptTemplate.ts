@@ -120,9 +120,10 @@ export function buildConfiguredBatchPrompt(
     evaluation_criteria: 'table', reward_structure: 'table',
     phase_schedule: 'schedule_table', complexity: 'checkbox_single', ip_model: 'checkbox_single',
     maturity_level: 'checkbox_single', eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
-    hook: 'rich_text', extended_brief: 'custom', submission_deadline: 'date',
+    hook: 'rich_text', submission_deadline: 'date',
     challenge_visibility: 'select', effort_level: 'radio', domain_tags: 'tag_input',
     legal_docs: 'table', escrow_funding: 'structured_fields',
+    solver_expertise: 'custom',
     // Extended Brief subsections
     context_and_background: 'rich_text', root_causes: 'line_items',
     affected_stakeholders: 'table', current_deficiencies: 'line_items',

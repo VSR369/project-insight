@@ -35,13 +35,21 @@ const CURATION_SECTIONS = [
   { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
   { key: "escrow_funding", desc: "Escrow funded (if required)" },
   { key: "maturity_level", desc: "Set and consistent with challenge depth" },
-  { key: "visibility_eligibility", desc: "Visibility and eligibility properly configured" },
   { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "extended_brief", desc: "Comprehensive background context and supporting information" },
   { key: "submission_deadline", desc: "Realistic submission deadline with adequate solver time" },
   { key: "challenge_visibility", desc: "Appropriate visibility setting for the challenge type" },
   { key: "effort_level", desc: "Effort level consistent with scope and complexity" },
   { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
+  { key: "visibility", desc: "Solver visibility types properly configured" },
+  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
+  // Extended Brief subsections (replaces single 'extended_brief' entry)
+  { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
+  { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
+  { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
+  { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
+  { key: "extended_brief_expected_outcomes", desc: "Expected outcomes aligned with deliverables — never remove streamed items" },
+  { key: "preferred_approach", desc: "Seeker's strategic preferences — never rewrite human content" },
+  { key: "approaches_not_of_interest", desc: "Human-only section — approaches to exclude" },
 ];
 
 const INTAKE_SECTIONS = [
@@ -202,7 +210,7 @@ serve(async (req) => {
       ? "title, reward_structure, phase_schedule, ai_section_reviews"
       : resolvedContext === "evaluation"
       ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, submission_deadline, effort_level, domain_tags";
+      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, submission_deadline, effort_level, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
 
     const fetchPromises: Promise<any>[] = [
       adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
@@ -261,6 +269,21 @@ serve(async (req) => {
         beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
         solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
         expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
+      };
+    }
+
+    // For curation context: extract extended_brief subsections as individual data fields
+    if (resolvedContext === "curation" && challengeData.extended_brief) {
+      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+      challengeData = {
+        ...challengeData,
+        context_and_background: (eb as any).context_background ?? null,
+        root_causes: (eb as any).root_causes ?? null,
+        affected_stakeholders: (eb as any).affected_stakeholders ?? null,
+        current_deficiencies: (eb as any).current_deficiencies ?? null,
+        extended_brief_expected_outcomes: (eb as any).expected_outcomes ?? null,
+        preferred_approach: (eb as any).preferred_approach ?? null,
+        approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
       };
     }
 
