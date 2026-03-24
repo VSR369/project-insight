@@ -36,7 +36,7 @@ import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScre
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
+import { resolveGovernanceMode, resolveChallengeGovernance, isQuickMode, isEnterpriseGrade, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
 import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
