@@ -1,32 +1,28 @@
 
 
-# Plan: Fix Curator AI Review — Full Section Coverage
+# Plan: Enable "Refine with AI" for Empty Sections
 
-## Status: ✅ COMPLETED
+## Problem
 
-## What Was Done
+The "Refine with AI" button is disabled for Deliverables and other sections because the `currentContent` prop is `null` (the field has no data). The disable condition on line 269 of `AIReviewInline.tsx` is `disabled={isRefining || !currentContent}`.
 
-### 1. CurationReviewPage — Added explicit `role_context: 'curation'`
-- Line 1025: `body: { challenge_id: challengeId, role_context: 'curation' }`
+This is counterproductive: the AI review says "Needs Revision — add deliverables" but the user cannot use the AI to generate them because the button is disabled precisely because there is nothing there yet.
 
-### 2. Edge Function — Extended CURATION_SECTIONS fallback
-Added 6 new sections to the hardcoded fallback array:
-- `hook`, `extended_brief`, `submission_deadline`, `challenge_visibility`, `effort_level`, `domain_tags`
+## Fix
 
-### 3. Edge Function — Extended challenge data fetch
-Added missing fields to curation query: `submission_deadline`, `effort_level`, `domain_tags`, `challenge_visibility`, `eligibility_model`
+**File: `src/components/cogniblend/shared/AIReviewInline.tsx`**
 
-### 4. Database — Inserted 6 new `ai_review_section_config` rows
-All 6 new curation sections inserted with full review_instructions, dos, donts, required_elements, and examples.
+1. **Remove the `!currentContent` disable condition** — change `disabled={isRefining || !currentContent}` to `disabled={isRefining}`.
 
-### 5. Edge Function — Redeployed
-Function redeployed with all changes.
+2. **Handle empty content in the refine handler** — update `handleRefineWithAI` to send a fallback value (e.g., `"[empty — no content yet]"`) when `currentContent` is null/empty. This tells the AI model the section is blank and it should generate initial content based on the review comments.
 
-## Current State
-- **20 curation sections** in DB config (was 14)
-- **20 sections** in CURATION_SECTIONS fallback (was 14)
-- CurationReviewPage explicitly passes `role_context: 'curation'`
-- All sections will now receive AI review feedback
+3. **Update button label** — when `currentContent` is empty, show "Draft with AI" instead of "Refine with AI" to clarify the action.
 
-## No Key Mismatch Issue
-The DB already had both `eligibility` and `visibility_eligibility` as separate rows — no rename needed.
+No other files need changes. The edge function (`refine-challenge-section`) already handles both generation and refinement — it uses the curator instructions (review comments) to produce content regardless of whether `current_content` is empty or populated.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/components/cogniblend/shared/AIReviewInline.tsx` | Remove `!currentContent` disable guard; send fallback for empty sections; label "Draft with AI" vs "Refine with AI" |
+
