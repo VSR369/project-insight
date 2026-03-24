@@ -135,7 +135,7 @@ export function AIReviewInline({
   }, [challengeId, sectionKey, roleContext, onSingleSectionReview]);
 
   const handleRefineWithAI = useCallback(async () => {
-    if (!challengeId || !currentContent) return;
+    if (!challengeId) return;
 
     const instructions = comments.join("\n\n");
     if (!instructions.trim()) {
