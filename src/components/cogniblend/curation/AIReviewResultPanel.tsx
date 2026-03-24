@@ -171,9 +171,17 @@ export function AIReviewResultPanel({
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
 
-  // For table sections (eval_criteria), try parsing as row objects
+  // For table sections (eval_criteria, reward_structure), try parsing as row objects
   const tableRows = useMemo(() => {
-    if (sectionKey === "evaluation_criteria" && result.suggested_version) {
+    if ((sectionKey === "evaluation_criteria" || sectionKey === "reward_structure") && result.suggested_version) {
+      return parseTableRows(result.suggested_version);
+    }
+    return null;
+  }, [sectionKey, result.suggested_version]);
+
+  // For schedule_table sections, try parsing as schedule rows
+  const scheduleRows = useMemo(() => {
+    if (isScheduleFormat(sectionKey) && result.suggested_version) {
       return parseTableRows(result.suggested_version);
     }
     return null;
