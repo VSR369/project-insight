@@ -78,6 +78,14 @@ interface AIReviewInlineProps {
   roleContext?: RoleContext;
   /** Master data options for this section (if applicable) */
   masterDataOptions?: MasterDataOption[];
+  /** When true, hides Refine/Accept/Discard and shows Send to LC/FC instead */
+  isLockedSection?: boolean;
+  /** Callback when curator clicks "Send to LC" or "Send to FC" — receives edited comments text */
+  onSendToCoordinator?: (editedComments: string) => void;
+  /** Which coordinator role to display: "LC" or "FC" */
+  coordinatorRole?: "LC" | "FC";
+  /** Whether comments have been sent before (changes button to "Send Follow-up") */
+  hasSentBefore?: boolean;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
