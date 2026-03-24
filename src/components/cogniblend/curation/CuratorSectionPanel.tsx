@@ -31,8 +31,12 @@ import {
   XCircle,
   AlertTriangle,
   Eye,
+  ShieldCheck,
+  MessageSquare,
+  Clock,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
+import { SendForModificationModal } from "./SendForModificationModal";
 
 // ---------------------------------------------------------------------------
 // Types
