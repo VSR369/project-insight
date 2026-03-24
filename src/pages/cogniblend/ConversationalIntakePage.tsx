@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
