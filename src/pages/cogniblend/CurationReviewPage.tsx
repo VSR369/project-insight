@@ -1788,11 +1788,7 @@ export default function CurationReviewPage() {
                           <>
                             <SelectSectionRenderer
                               value={challenge.challenge_visibility}
-                              options={[
-                                { value: "public", label: "Public" },
-                                { value: "private", label: "Private" },
-                                { value: "invite_only", label: "Invite Only" },
-                              ]}
+                              options={masterData.visibilityOptions}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
