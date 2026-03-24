@@ -1687,9 +1687,6 @@ export default function CurationReviewPage() {
                       // ── Rich text sections ──
                       case "problem_statement":
                       case "scope":
-                      case "submission_guidelines":
-                      case "ip_model":
-                      case "visibility_eligibility":
                       case "hook":
                         return (
                           <>
