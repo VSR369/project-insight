@@ -1162,6 +1162,7 @@ export type Database = {
           engagement_model_id: string | null
           evaluation_criteria: Json | null
           extended_brief: Json | null
+          governance_mode_override: string | null
           governance_profile: string | null
           hook: string | null
           id: string
@@ -1226,6 +1227,7 @@ export type Database = {
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
           extended_brief?: Json | null
+          governance_mode_override?: string | null
           governance_profile?: string | null
           hook?: string | null
           id?: string
@@ -1290,6 +1292,7 @@ export type Database = {
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
           extended_brief?: Json | null
+          governance_mode_override?: string | null
           governance_profile?: string | null
           hook?: string | null
           id?: string
@@ -12408,6 +12411,10 @@ export type Database = {
       reset_enrollment_for_expertise_upgrade: {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: Json
+      }
+      resolve_challenge_governance: {
+        Args: { p_challenge_id: string }
+        Returns: string
       }
       roles_equivalent: {
         Args: { p_actual: string; p_required: string }
