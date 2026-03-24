@@ -2,12 +2,14 @@
  * review-challenge-sections — Role-aware per-section AI review.
  * Returns granular pass/warning/needs_revision per section with comments.
  * Supports single-section mode via optional `section_key` parameter.
- * Supports role contexts: 'intake' (AM/RQ), 'spec' (CR/CA), 'curation' (CU, default).
+ * Supports role contexts: 'intake', 'spec', 'curation', 'legal', 'finance', 'evaluation'.
+ * Loads config from ai_review_section_config DB table; falls back to hardcoded defaults.
  * Persists results to challenges.ai_section_reviews.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildConfiguredBatchPrompt, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +19,7 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-/* ── Section definitions per role context ──────────────── */
+/* ── Hardcoded fallback section definitions ──────────────── */
 
 const CURATION_SECTIONS = [
   { key: "problem_statement", desc: "Clarity, specificity, context, why it matters, what has been tried" },
@@ -55,18 +57,21 @@ const SPEC_SECTIONS = [
   { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
 ];
 
-type RoleContext = "intake" | "spec" | "curation";
+type RoleContext = "intake" | "spec" | "curation" | "legal" | "finance" | "evaluation";
 
-function getSectionsForContext(roleContext: RoleContext) {
+const VALID_CONTEXTS: RoleContext[] = ["intake", "spec", "curation", "legal", "finance", "evaluation"];
+
+function getFallbackSections(roleContext: RoleContext) {
   switch (roleContext) {
     case "intake": return INTAKE_SECTIONS;
     case "spec": return SPEC_SECTIONS;
     case "curation": return CURATION_SECTIONS;
-    default: return CURATION_SECTIONS;
+    // New contexts have no hardcoded fallback — return empty
+    default: return [];
   }
 }
 
-function buildSystemPrompt(sections: typeof CURATION_SECTIONS, roleContext: RoleContext): string {
+function buildFallbackSystemPrompt(sections: { key: string; desc: string }[], roleContext: RoleContext): string {
   const sectionList = sections.map((s, i) => `${i + 1}. ${s.key} - ${s.desc}`).join("\n");
 
   const roleGuidance = roleContext === "intake"
@@ -132,13 +137,48 @@ serve(async (req) => {
       );
     }
 
-    const resolvedContext: RoleContext = (["intake", "spec", "curation"].includes(role_context) ? role_context : "curation") as RoleContext;
-    const allSections = getSectionsForContext(resolvedContext);
+    const resolvedContext: RoleContext = (VALID_CONTEXTS.includes(role_context) ? role_context : "curation") as RoleContext;
 
-    // Determine which sections to review
-    const sectionsToReview = section_key
-      ? allSections.filter((s) => s.key === section_key)
-      : allSections;
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // ── Load config from DB ──────────────────────────────────
+    const [configResult, globalConfigResult] = await Promise.all([
+      adminClient
+        .from("ai_review_section_config")
+        .select("*")
+        .eq("role_context", resolvedContext)
+        .eq("is_active", true),
+      adminClient
+        .from("ai_review_global_config")
+        .select("*")
+        .eq("id", 1)
+        .single(),
+    ]);
+
+    const dbConfigs: SectionConfig[] = (configResult.data ?? []) as SectionConfig[];
+    const globalConfig = globalConfigResult.data;
+    const modelToUse = globalConfig?.default_model || "google/gemini-3-flash-preview";
+    const useDbConfig = dbConfigs.length > 0;
+
+    // Build section list — from DB config or fallback
+    let sectionsToReview: { key: string; desc: string }[];
+    let dbConfigMap: Map<string, SectionConfig> | null = null;
+
+    if (useDbConfig) {
+      dbConfigMap = new Map(dbConfigs.map(c => [c.section_key, c]));
+      const allKeys = dbConfigs.map(c => ({ key: c.section_key, desc: c.section_description || c.section_label }));
+      sectionsToReview = section_key
+        ? allKeys.filter(s => s.key === section_key)
+        : allKeys;
+    } else {
+      const fallback = getFallbackSections(resolvedContext);
+      sectionsToReview = section_key
+        ? fallback.filter(s => s.key === section_key)
+        : fallback;
+    }
 
     if (section_key && sectionsToReview.length === 0) {
       return new Response(
@@ -147,43 +187,54 @@ serve(async (req) => {
       );
     }
 
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // Select fields based on role context
+    // ── Fetch challenge data based on context ─────────────────
     const challengeFields = resolvedContext === "intake"
       ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
+      : resolvedContext === "legal"
+      ? "title, ip_model, maturity_level, eligibility, ai_section_reviews"
+      : resolvedContext === "finance"
+      ? "title, reward_structure, phase_schedule, ai_section_reviews"
+      : resolvedContext === "evaluation"
+      ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
       : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief";
 
     const fetchPromises: Promise<any>[] = [
-      adminClient
-        .from("challenges")
-        .select(challengeFields)
-        .eq("id", challenge_id)
-        .single(),
+      adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
     ];
 
-    // Only fetch legal/escrow for curation context
-    if (resolvedContext === "curation") {
+    // Context-specific data fetching
+    if (resolvedContext === "curation" || resolvedContext === "legal") {
       fetchPromises.push(
         adminClient
           .from("challenge_legal_docs")
-          .select("document_type, tier, status, lc_status, document_name")
-          .eq("challenge_id", challenge_id),
+          .select("document_type, tier, status, lc_status, lc_review_notes, content_summary, rationale, document_name")
+          .eq("challenge_id", challenge_id)
+      );
+    }
+    if (resolvedContext === "curation" || resolvedContext === "finance") {
+      fetchPromises.push(
         adminClient
           .from("escrow_records")
-          .select("escrow_status, deposit_amount, currency")
+          .select("escrow_status, deposit_amount, currency, remaining_amount, rejection_fee_percentage, fc_notes, bank_name")
           .eq("challenge_id", challenge_id)
-          .maybeSingle(),
+          .maybeSingle()
+      );
+    }
+    if (resolvedContext === "evaluation") {
+      fetchPromises.push(
+        adminClient
+          .from("evaluation_records")
+          .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
+          .eq("challenge_id", challenge_id),
+        adminClient
+          .from("solutions")
+          .select("id", { count: "exact", head: true })
+          .eq("challenge_id", challenge_id)
       );
     }
 
     const results = await Promise.all(fetchPromises);
     const challengeResult = results[0];
-    const legalResult = resolvedContext === "curation" ? results[1] : null;
-    const escrowResult = resolvedContext === "curation" ? results[2] : null;
 
     if (challengeResult.error || !challengeResult.data) {
       return new Response(
@@ -194,7 +245,7 @@ serve(async (req) => {
 
     let challengeData = challengeResult.data;
 
-    // For intake/spec context, extract extended_brief fields into the review payload
+    // Extract extended_brief fields for intake/spec
     if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
       const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
       challengeData = {
@@ -205,11 +256,51 @@ serve(async (req) => {
       };
     }
 
-    const contextLabel = resolvedContext === "intake" ? "intake brief" : resolvedContext === "spec" ? "specification" : "challenge";
-    const userPrompt = section_key
-      ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${legalResult ? `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}` : ""}${escrowResult ? `\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}` : ""}`
-      : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${legalResult ? `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data ?? [], null, 2)}` : ""}${escrowResult ? `\n\nESCROW: ${JSON.stringify(escrowResult.data ?? null, null, 2)}` : ""}`;
+    // Build context-specific data sections for user prompt
+    let additionalData = "";
+    let resultIdx = 1;
 
+    if (resolvedContext === "curation") {
+      const legalResult = results[resultIdx++];
+      const escrowResult = results[resultIdx++];
+      if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
+      if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
+    } else if (resolvedContext === "legal") {
+      const legalResult = results[resultIdx++];
+      if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
+    } else if (resolvedContext === "finance") {
+      const escrowResult = results[resultIdx++];
+      if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
+    } else if (resolvedContext === "evaluation") {
+      const evalResult = results[resultIdx++];
+      const solnResult = results[resultIdx++];
+      if (evalResult?.data) additionalData += `\n\nEVALUATION RECORDS: ${JSON.stringify(evalResult.data, null, 2)}`;
+      if (solnResult) additionalData += `\n\nSOLUTION COUNT: ${solnResult.count ?? 0}`;
+    }
+
+    const contextLabel = resolvedContext === "intake" ? "intake brief"
+      : resolvedContext === "spec" ? "specification"
+      : resolvedContext === "legal" ? "legal documentation"
+      : resolvedContext === "finance" ? "financial configuration"
+      : resolvedContext === "evaluation" ? "evaluation setup"
+      : "challenge";
+
+    const userPrompt = section_key
+      ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`
+      : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
+
+    // ── Build system prompt ──────────────────────────────────
+    let systemPrompt: string;
+    if (useDbConfig && dbConfigMap) {
+      const activeConfigs = sectionsToReview
+        .map(s => dbConfigMap!.get(s.key))
+        .filter((c): c is SectionConfig => !!c);
+      systemPrompt = buildConfiguredBatchPrompt(activeConfigs, resolvedContext);
+    } else {
+      systemPrompt = buildFallbackSystemPrompt(sectionsToReview, resolvedContext);
+    }
+
+    // ── Call AI Gateway ──────────────────────────────────────
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -217,9 +308,9 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: modelToUse,
         messages: [
-          { role: "system", content: buildSystemPrompt(sectionsToReview, resolvedContext) },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         tools: [
