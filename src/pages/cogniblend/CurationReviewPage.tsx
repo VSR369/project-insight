@@ -74,6 +74,19 @@ import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
+import {
+  RichTextSectionRenderer,
+  LineItemsSectionRenderer,
+  TableSectionRenderer,
+  ScheduleTableSectionRenderer,
+  CheckboxSingleSectionRenderer,
+  DateSectionRenderer,
+  SelectSectionRenderer,
+  RadioSectionRenderer,
+  TagInputSectionRenderer,
+  StructuredFieldsSectionRenderer,
+  LegalDocsSectionRenderer,
+} from "@/components/cogniblend/curation/renderers";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
