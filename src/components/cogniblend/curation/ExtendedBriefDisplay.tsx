@@ -75,6 +75,7 @@ interface ExtendedBriefDisplayProps {
   onSingleSectionReview: (sectionKey: string, freshReview: SectionReview) => void;
   onMarkAddressed: (sectionKey: string) => void;
   challengeContext?: { title?: string; maturity_level?: string | null; domain_tags?: string[] };
+  expandVersion?: number;
 }
 
 // ---------------------------------------------------------------------------
