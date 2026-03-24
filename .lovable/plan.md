@@ -1,56 +1,81 @@
 
+# Final Matrix: Pricing Tier × Engagement Model × Governance × Role Fusion
 
-# Plan: Per-Challenge Governance Override + Resolver Function
+## Status: COMPLETE (Reference Document)
 
-## What This Fixes
+All items below are implemented and live. This serves as the authoritative reference.
 
-Currently, the challenge wizard writes the governance mode directly to `challenges.governance_profile`. There is no formal 3-layer resolution (challenge override → org default → tier ceiling) enforced at the database level. The two "Not yet" items from the matrix need to be implemented.
+---
 
-## Changes
+## 1. Configuration Scope
 
-### 1. SQL Migration (single file)
+| Setting | Org-Level | Challenge-Level | Notes |
+|---------|-----------|-----------------|-------|
+| Pricing Tier | ✅ Fixed | ✗ No | Set via subscription |
+| Engagement Model (MP/AGG) | ✅ Default | ✅ Override at Step 0 | Locked once ACTIVE (phase 7+) |
+| Governance Mode (Q/S/C) | ✅ Default | ✅ Override at Step 0 | Clamped to tier ceiling |
+| Role Fusion Rules | ✗ Not directly set | ✅ Derived from governance mode | Auto-resolved |
 
-**A. Add `governance_mode_override` column to `challenges`**
-- Nullable TEXT column, CHECK constraint: `IN ('QUICK', 'STRUCTURED', 'CONTROLLED')`
-- When NULL, challenge inherits org default
+## 2. Tier → Governance Ceiling
 
-**B. Create `resolve_challenge_governance(p_challenge_id UUID)` function**
-- SECURITY DEFINER function that implements 3-layer resolution:
-  1. Read `challenges.governance_mode_override` — if not null, use it
-  2. Else read `seeker_organizations.governance_profile` via `challenges.organization_id`
-  3. Clamp result against tier ceiling (lookup org's tier → allowed modes)
-  4. Return the effective governance mode as TEXT
-- This becomes the single source of truth for "what governance applies to this challenge"
+| Tier | Allowed Modes | Default |
+|------|---------------|---------|
+| Basic | QUICK only | QUICK |
+| Standard | QUICK, STRUCTURED | STRUCTURED |
+| Premium | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
+| Enterprise | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
 
-**C. Update `validate_role_assignment()` to call `resolve_challenge_governance()`**
-- Instead of reading `challenges.governance_profile` directly, call the resolver
-- This ensures role fusion rules respect per-challenge overrides
+Implemented in `TIER_GOVERNANCE_MODES` and `getDefaultGovernanceMode()` in `src/lib/governanceMode.ts`.
 
-**D. Update `auto_assign_roles_on_creation()` similarly**
-- Use resolver to determine if QUICK mode (all roles auto-assigned)
+## 3. Engagement Model — Independent of Governance
 
-### 2. Frontend — Wire override to wizard
+| Feature | MP | AGG |
+|---------|-----|-----|
+| Intake role | AM | RQ |
+| Spec role | CA (Architect) | CR (Creator) |
 
-**`StepModeSelection.tsx`**: The governance mode selector already writes to the form. Update the challenge save logic in `ChallengeWizardPage.tsx` to write the selected mode to `governance_mode_override` instead of (or in addition to) `governance_profile`.
+Engagement model does NOT affect role fusion. It only determines role names.
 
-**`governanceMode.ts`**: Add a `resolveChallengeGovernance()` client-side helper that mirrors the SQL logic for optimistic UI (read override first, fall back to org profile, clamp to tier).
+## 4. Governance Mode → Role Fusion
 
-### 3. Update plan.md
+### QUICK — Zero conflict rules, solo operator
+All 9 roles auto-assigned to creator. Any combination allowed.
 
-Mark both items as Done.
+### STRUCTURED — 5 SOFT_WARN rules
+- CR+CU, CR+ID, CU+ID, CR+ER, ID+ER → warnings only
 
-## What Does NOT Change
+### CONTROLLED — 3 HARD_BLOCK + 6 SOFT_WARN
+- CR+CU, CR+ID, CU+ID → HARD_BLOCK (system prevents)
+- AM+CR, AM+CU, RQ+CR, RQ+CU, CR+ER, ID+ER → SOFT_WARN
 
-- `StepModeSelection.tsx` UI — already renders Q/S/C cards with tier clamping
-- `useCogniPermissions`, `CogniRoleContext`, `RoleSwitcher` — unchanged
-- `can_perform()` phase checks — orthogonal to governance resolution
-- Existing `governance_profile` column on challenges — kept for backward compat; the override column takes precedence when set
+## 5. Combined: Tier × Governance → Min Users
 
-## File Count
+| Tier | Mode | Fusion | Min Users |
+|------|------|--------|-----------|
+| Basic | QUICK | All merged | 1 |
+| Standard | QUICK | All merged | 1 |
+| Standard | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
+| Premium/Enterprise | QUICK | All merged | 1 |
+| Premium/Enterprise | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
+| Premium/Enterprise | CONTROLLED | Block 3 core, warn 6 | Min 3 (CR, CU, ID separate) |
 
-| Type | Count |
-|------|-------|
-| SQL migration | 1 file |
-| Frontend update | 2 files (ChallengeWizardPage.tsx, governanceMode.ts) |
-| Plan update | 1 file |
+## 6. Implementation Status
 
+| Layer | Status |
+|-------|--------|
+| Tier → governance ceiling | ✅ Done |
+| Governance mode selector (Step 0) | ✅ Done |
+| Engagement model selector (Step 0) | ✅ Done |
+| `validate_role_assignment()` | ✅ Done |
+| `auto_assign_roles_on_creation()` | ✅ Done |
+| Conflict rules in DB (14 rows) | ✅ Done |
+| `resolveGovernanceMode()` | ✅ Done |
+| Frontend `isQuick` rename (18 files) | ✅ Done |
+| `isStructuredOrAbove` + deprecated alias | ✅ Done |
+
+### Completed (was Future Enhancement)
+- ✅ Per-challenge `governance_mode_override` column added to `challenges`
+- ✅ `resolve_challenge_governance(p_challenge_id)` SQL function (3-layer: override → org default → tier ceiling)
+- ✅ `validate_role_assignment()` and `auto_assign_roles_on_creation()` now call resolver
+- ✅ Client-side `resolveChallengeGovernance()` in `governanceMode.ts`
+- ✅ `ChallengeWizardPage.tsx` writes `governance_mode_override` on save

@@ -36,7 +36,7 @@ import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScre
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
+import { resolveGovernanceMode, resolveChallengeGovernance, isQuickMode, isEnterpriseGrade, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
 import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
@@ -110,14 +110,15 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  // Resolve governance fallback from org or existing challenge
+  // Resolve governance: challenge override → org default → tier ceiling
+  const challengeOverride = isEditMode ? challengeData?.governance_mode_override ?? null : null;
   const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
   const tierCode = (currentOrg as any)?.tierCode ?? null;
   const fallbackMode: GovernanceMode = isEditMode
-    ? resolveGovernanceMode(rawGovernanceProfile)
+    ? resolveChallengeGovernance(challengeOverride, rawGovernanceProfile, tierCode)
     : getDefaultGovernanceMode(tierCode, rawGovernanceProfile);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
 
@@ -422,6 +423,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       complexity_score: complexityScore,
       complexity_level: complexityLevel,
       targeting_filters: values.targeting_filters || {},
+      governance_mode_override: values.governance_mode || null,
     };
   };
 
