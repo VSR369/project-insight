@@ -198,66 +198,6 @@ serve(async (req) => {
       );
     }
 
-    // ── Solver expertise: fetch taxonomy and inject as allowed options ──
-    if (section_key === "solver_expertise") {
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-
-      // Get the challenge's industry segment
-      const { data: challengeRow } = await adminClient
-        .from("challenges")
-        .select("eligibility")
-        .eq("id", challenge_id)
-        .single();
-
-      let taxonomyContext = "";
-      const targeting = challengeRow?.eligibility;
-      let industryId: string | null = null;
-      if (targeting) {
-        try {
-          const parsed = typeof targeting === "string" ? JSON.parse(targeting) : targeting;
-          industryId = parsed?.industry_segment_id ?? null;
-        } catch {}
-      }
-
-      if (industryId) {
-        // Fetch proficiency areas for this industry
-        const { data: areas } = await adminClient
-          .from("proficiency_areas")
-          .select("id, name, expertise_level_id")
-          .eq("industry_segment_id", industryId)
-          .eq("is_active", true)
-          .order("display_order");
-
-        if (areas && areas.length > 0) {
-          const areaIds = areas.map(a => a.id);
-          const { data: subDomains } = await adminClient
-            .from("sub_domains")
-            .select("id, name, proficiency_area_id")
-            .in("proficiency_area_id", areaIds)
-            .eq("is_active", true)
-            .order("display_order");
-
-          const sdIds = (subDomains ?? []).map(s => s.id);
-          const { data: specialities } = await adminClient
-            .from("specialities")
-            .select("id, name, sub_domain_id")
-            .in("sub_domain_id", sdIds.length > 0 ? sdIds : ["__none__"])
-            .eq("is_active", true)
-            .order("display_order");
-
-          taxonomyContext = `\n\nAVAILABLE TAXONOMY (only use IDs and names from this list):\n`;
-          taxonomyContext += `PROFICIENCY AREAS:\n${(areas ?? []).map(a => `  - id:"${a.id}" name:"${a.name}"`).join("\n")}\n`;
-          taxonomyContext += `SUB-DOMAINS:\n${(subDomains ?? []).map(s => `  - id:"${s.id}" name:"${s.name}" (area: ${s.proficiency_area_id})`).join("\n")}\n`;
-          taxonomyContext += `SPECIALITIES:\n${(specialities ?? []).map(s => `  - id:"${s.id}" name:"${s.name}" (sub_domain: ${s.sub_domain_id})`).join("\n")}\n`;
-        }
-      }
-
-      userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with keys: "proficiency_areas", "sub_domains", "specialities". Each is an array of objects with "id" and "name" keys. Only use IDs from the taxonomy below. Pick the most relevant areas based on the challenge scope, deliverables, and evaluation criteria.${taxonomyContext}\n\nExample: {"proficiency_areas":[{"id":"uuid","name":"Area Name"}],"sub_domains":[{"id":"uuid","name":"SD Name"}],"specialities":[{"id":"uuid","name":"Spec Name"}]}`;
-    }
-
     let userPrompt = `SECTION: ${section_key}
 
 CURRENT CONTENT:

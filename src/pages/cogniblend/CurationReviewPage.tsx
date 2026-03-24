@@ -2093,17 +2093,24 @@ export default function CurationReviewPage() {
                       // ── Phase schedule (schedule table) ──
                       case "phase_schedule":
                         return (
-                          <ScheduleTableSectionRenderer
-                            data={parseJson<any>(challenge.phase_schedule)}
-                            readOnly={isReadOnly}
-                            editing={isEditing}
-                            onSave={(rows) => {
-                              setSavingSection(true);
-                              saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
-                            }}
-                            onCancel={() => setEditingSection(null)}
-                            saving={savingSection}
-                          />
+                          <>
+                            <ScheduleTableSectionRenderer
+                              data={parseJson<any>(challenge.phase_schedule)}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(rows) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
+                              }}
+                              onCancel={() => setEditingSection(null)}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
                         );
 
                       // ── Legal docs (read-only table) ──

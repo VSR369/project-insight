@@ -402,15 +402,32 @@ export function AIReviewInline({
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
     } else if (isStructured && structuredItems && structuredItems.length > 0) {
-      // Structured line items / tables
-      const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
-      if (accepted.length === 0) {
-        toast.error("Select at least one item to accept.");
-        return;
+      const fmt = getSectionFormatType(sectionKey);
+      
+      if (fmt === 'table' || fmt === 'schedule_table') {
+        // Preserve full row objects for table/schedule sections
+        const rawArray = parseRawStructuredArray(refinedContent);
+        if (rawArray) {
+          const accepted = rawArray.filter((_, i) => selectedItems.has(i));
+          if (accepted.length === 0) {
+            toast.error("Select at least one item to accept.");
+            return;
+          }
+          // Pass the raw JSON array directly — handleAcceptRefinement will parse it
+          onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+        } else {
+          toast.error("AI did not return valid structured data. Please try again.");
+          return;
+        }
+      } else {
+        // line_items: pass as string items
+        const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
+        if (accepted.length === 0) {
+          toast.error("Select at least one item to accept.");
+          return;
+        }
+        onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
-      const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
-      const jsonPayload = JSON.stringify({ [wrapperKey]: accepted });
-      onAcceptRefinement(sectionKey, jsonPayload);
     } else {
       onAcceptRefinement(sectionKey, refinedContent);
     }
