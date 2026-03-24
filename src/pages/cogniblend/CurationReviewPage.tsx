@@ -1727,6 +1727,137 @@ export default function CurationReviewPage() {
                           </>
                         );
 
+                      // ── Submission guidelines (line items) ──
+                      case "submission_guidelines": {
+                        const raw = parseJson<any>(challenge.description);
+                        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
+                        const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+                        // If no structured items, treat existing text as single item
+                        const finalItems = lineItems.length > 0 ? lineItems : (challenge.description?.trim() ? [challenge.description] : []);
+                        return (
+                          <>
+                            <LineItemsSectionRenderer
+                              items={finalItems}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(items) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "description", value: { items } });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // ── Expected outcomes (line items) ──
+                      case "expected_outcomes": {
+                        const eb = parseJson<any>(challenge.extended_brief);
+                        const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+                        const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+                        return (
+                          <>
+                            <LineItemsSectionRenderer
+                              items={outcomeItems}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(items) => {
+                                setSavingSection(true);
+                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
+                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items } });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // ── IP Model (checkbox single from master data) ──
+                      case "ip_model":
+                        return (
+                          <>
+                            <CheckboxSingleSectionRenderer
+                              value={challenge.ip_model}
+                              options={masterData.ipModelOptions}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveOrgPolicyField("ip_model", val)}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+
+                      // ── Eligibility (checkbox multi from master data) ──
+                      case "eligibility": {
+                        const eligParsed = parseJson<string[]>(challenge.eligibility);
+                        const eligValues = Array.isArray(eligParsed) ? eligParsed : [];
+                        return (
+                          <>
+                            <CheckboxMultiSectionRenderer
+                              selectedValues={eligValues}
+                              options={masterData.eligibilityOptions}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(values) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "eligibility", value: JSON.stringify(values) });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // ── Visibility (checkbox multi from master data) ──
+                      case "visibility": {
+                        const visParsed = parseJson<string[]>(challenge.visibility);
+                        const visValues = Array.isArray(visParsed) ? visParsed : [];
+                        return (
+                          <>
+                            <CheckboxMultiSectionRenderer
+                              selectedValues={visValues}
+                              options={masterData.visibilityOptions}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(values) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "visibility", value: JSON.stringify(values) });
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
                       // ── Evaluation criteria (table) ──
                       case "evaluation_criteria":
                         return (
