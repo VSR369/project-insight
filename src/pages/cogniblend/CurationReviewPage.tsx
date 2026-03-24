@@ -280,9 +280,6 @@ const SECTIONS: SectionDef[] = [
       ? (
         <div className="space-y-1">
           <Badge variant="secondary" className="capitalize">{getMaturityLabel(ch.maturity_level)}</Badge>
-          {MATURITY_DESCRIPTIONS[ch.maturity_level] && (
-            <p className="text-xs text-muted-foreground">{MATURITY_DESCRIPTIONS[ch.maturity_level]}</p>
-          )}
         </div>
       )
       : <p className="text-sm text-muted-foreground">Not set.</p>,
