@@ -565,19 +565,46 @@ const SECTIONS: SectionDef[] = [
     },
   },
   {
-    key: "visibility_eligibility",
-    label: "Visibility & Eligibility",
+    key: "eligibility",
+    label: "Eligibility",
     attribution: "by Curator",
     dbField: "eligibility",
-    isFilled: (ch) => !!ch.visibility || !!ch.eligibility,
+    isFilled: (ch) => !!ch.eligibility,
     render: (ch) => {
-      if (!ch.visibility && !ch.eligibility) return <p className="text-sm text-muted-foreground italic">Not yet configured</p>;
-      return (
-        <div className="space-y-2">
-          {ch.visibility && <div><p className="text-xs text-muted-foreground">Visibility</p><p className="text-sm text-foreground capitalize">{ch.visibility}</p></div>}
-          {ch.eligibility && <div><p className="text-xs text-muted-foreground">Eligibility</p><p className="text-sm text-foreground">{ch.eligibility}</p></div>}
-        </div>
-      );
+      if (!ch.eligibility) return <p className="text-sm text-muted-foreground italic">Not configured</p>;
+      // Try to parse as array of selected values
+      const parsed = parseJson<string[]>(ch.eligibility);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (
+          <div className="flex flex-wrap gap-2">
+            {parsed.map((v: string) => (
+              <Badge key={v} variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
+            ))}
+          </div>
+        );
+      }
+      return <p className="text-sm text-foreground">{ch.eligibility}</p>;
+    },
+  },
+  {
+    key: "visibility",
+    label: "Visibility",
+    attribution: "by Curator",
+    dbField: "visibility",
+    isFilled: (ch) => !!ch.visibility,
+    render: (ch) => {
+      if (!ch.visibility) return <p className="text-sm text-muted-foreground italic">Not configured</p>;
+      const parsed = parseJson<string[]>(ch.visibility);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (
+          <div className="flex flex-wrap gap-2">
+            {parsed.map((v: string) => (
+              <Badge key={v} variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
+            ))}
+          </div>
+        );
+      }
+      return <p className="text-sm text-foreground capitalize">{ch.visibility}</p>;
     },
   },
   // ── Phase 1 additions: Challenge Settings (Org Policy) ──
