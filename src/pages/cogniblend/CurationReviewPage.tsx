@@ -2297,6 +2297,12 @@ export default function CurationReviewPage() {
                     }
                   })();
 
+                  // Determine coordinator props for locked sections
+                  const coordinatorRole = section.key === "legal_docs" ? "LC" as const : section.key === "escrow_funding" ? "FC" as const : undefined;
+                  const hasSentBefore = getSectionActions(section.key).some(
+                    a => a.action_type === "modification_request"
+                  );
+
                   // Build AI review slot
                   const aiReviewContent = (
                     <CurationAIReviewInline
@@ -2310,6 +2316,20 @@ export default function CurationReviewPage() {
                       onMarkAddressed={handleMarkAddressed}
                       defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
                       masterDataOptions={sectionMasterDataOptions}
+                      isLockedSection={isLocked}
+                      coordinatorRole={coordinatorRole}
+                      hasSentBefore={hasSentBefore}
+                      onSendToCoordinator={isLocked ? (editedComments: string) => {
+                        // Store original AI comments for audit
+                        const originalAiComments = aiReview?.comments?.join("\n\n") ?? "";
+                        setLockedSendState({
+                          open: true,
+                          sectionKey: section.key,
+                          sectionLabel: section.label,
+                          initialComment: editedComments,
+                          aiOriginalComments: originalAiComments,
+                        });
+                      } : undefined}
                     />
                   );
 
@@ -2331,6 +2351,7 @@ export default function CurationReviewPage() {
                       isApproved={isApproved}
                       onToggleApproval={() => toggleSectionApproval(section.key)}
                       onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
+                      onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
                       challengeId={challengeId!}
                       inlineFlags={inlineFlags}
                       defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
