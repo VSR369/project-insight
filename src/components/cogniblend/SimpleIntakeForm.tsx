@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
