@@ -394,9 +394,8 @@ export default function ChallengeCreatePage() {
   const switchToAI = useCallback(() => setView('ai'), [setView]);
   const backToLanding = useCallback(() => setView('landing'), [setView]);
 
-  // Role-based auto-routing
-  const isAMorRQ = ['AM', 'RQ'].includes(activeRole);
-  const isCreatorRole = ['CR', 'CA'].includes(activeRole);
+  // Role-based auto-routing (via centralized permission hook)
+  const { isBusinessOwner: isAMorRQ, isSpecRole: isCreatorRole } = useCogniPermissions();
 
   // ═══════ Loading ═══════
   if (orgLoading || modelLoading) {

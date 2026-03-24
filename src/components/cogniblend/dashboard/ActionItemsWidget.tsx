@@ -52,7 +52,7 @@ export function ActionItemsWidget() {
 
   const pendingActions = filteredChallengeItems.filter(
     (c) => c.master_status === 'DRAFT' || c.master_status === 'RETURNED'
-  ).length + ((!activeRole || ['AM', 'RQ'].includes(activeRole))
+  ).length + (isBusinessOwner
     ? allSRRows.filter((r) => r.master_status === 'DRAFT').length
     : 0);
 

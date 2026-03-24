@@ -175,8 +175,8 @@ export function MyActionItemsSection() {
       }
     }
 
-    // Draft SRs (only for AM/RQ)
-    const showSRs = !activeRole || ['AM', 'RQ'].includes(activeRole);
+    // Draft SRs (only for AM/RQ — driven by permission hook)
+    const showSRs = isBusinessOwner;
     if (showSRs) {
       for (const sr of allSRRows) {
         if (sr.master_status === 'DRAFT' && !items.some((i) => i.id === sr.id)) {
