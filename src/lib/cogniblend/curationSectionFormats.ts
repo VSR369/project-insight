@@ -254,6 +254,28 @@ export const AI_REVIEW_DISABLED_SECTIONS = new Set(
     .map(([key]) => key)
 );
 
+/** Ordered keys for Extended Brief subsections */
+export const EXTENDED_BRIEF_SUBSECTION_KEYS = [
+  'context_and_background',
+  'root_causes',
+  'affected_stakeholders',
+  'current_deficiencies',
+  'extended_brief_expected_outcomes',
+  'preferred_approach',
+  'approaches_not_of_interest',
+] as const;
+
+/** Map subsection key → JSONB field inside extended_brief */
+export const EXTENDED_BRIEF_FIELD_MAP: Record<string, string> = {
+  context_and_background: 'context_background',
+  root_causes: 'root_causes',
+  affected_stakeholders: 'affected_stakeholders',
+  current_deficiencies: 'current_deficiencies',
+  extended_brief_expected_outcomes: 'expected_outcomes',
+  preferred_approach: 'preferred_approach',
+  approaches_not_of_interest: 'approaches_not_of_interest',
+};
+
 /** Get format config for a section, with safe fallback */
 export function getSectionFormat(sectionKey: string): SectionFormatConfig | null {
   return SECTION_FORMAT_CONFIG[sectionKey] ?? null;

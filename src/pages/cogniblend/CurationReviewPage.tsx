@@ -752,6 +752,15 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
 
 // Get current content for any section (used by AI refinement)
 function getSectionContent(ch: ChallengeData, sectionKey: string): string | null {
+  // Check if this is an extended brief subsection
+  const ebField = EXTENDED_BRIEF_FIELD_MAP[sectionKey];
+  if (ebField) {
+    const eb = parseJson<any>(ch.extended_brief);
+    const val = eb?.[ebField];
+    if (val == null) return null;
+    return typeof val === "string" ? val : JSON.stringify(val);
+  }
+
   switch (sectionKey) {
     case "problem_statement": return ch.problem_statement;
     case "scope": return ch.scope;

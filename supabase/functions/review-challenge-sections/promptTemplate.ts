@@ -108,9 +108,10 @@ export function buildConfiguredBatchPrompt(
   configs.forEach((config, i) => {
     const fmt = SECTION_FORMAT_MAP[config.section_key] || 'rich_text';
     const fmtInstr = FORMAT_INSTRUCTIONS[fmt] || '';
+    const ebInstr = EXTENDED_BRIEF_FORMAT_INSTRUCTIONS[config.section_key] || '';
 
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
-    parts.push(`Format: ${fmt}. ${fmtInstr}`);
+    parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
     if (config.section_description) parts.push(`Description: ${config.section_description}`);
     if (config.review_instructions) parts.push(`Instructions: ${config.review_instructions}`);
     if (config.dos) parts.push(`Do: ${config.dos}`);
