@@ -73,5 +73,9 @@ All 9 roles auto-assigned to creator. Any combination allowed.
 | Frontend `isQuick` rename (18 files) | ✅ Done |
 | `isStructuredOrAbove` + deprecated alias | ✅ Done |
 
-### Future Enhancement
-- Per-challenge `governance_mode_override` column + `resolve_challenge_governance()` SQL function
+### Completed (was Future Enhancement)
+- ✅ Per-challenge `governance_mode_override` column added to `challenges`
+- ✅ `resolve_challenge_governance(p_challenge_id)` SQL function (3-layer: override → org default → tier ceiling)
+- ✅ `validate_role_assignment()` and `auto_assign_roles_on_creation()` now call resolver
+- ✅ Client-side `resolveChallengeGovernance()` in `governanceMode.ts`
+- ✅ `ChallengeWizardPage.tsx` writes `governance_mode_override` on save
