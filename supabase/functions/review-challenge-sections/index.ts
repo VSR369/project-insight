@@ -36,6 +36,12 @@ const CURATION_SECTIONS = [
   { key: "escrow_funding", desc: "Escrow funded (if required)" },
   { key: "maturity_level", desc: "Set and consistent with challenge depth" },
   { key: "visibility_eligibility", desc: "Visibility and eligibility properly configured" },
+  { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
+  { key: "extended_brief", desc: "Comprehensive background context and supporting information" },
+  { key: "submission_deadline", desc: "Realistic submission deadline with adequate solver time" },
+  { key: "challenge_visibility", desc: "Appropriate visibility setting for the challenge type" },
+  { key: "effort_level", desc: "Effort level consistent with scope and complexity" },
+  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
 ];
 
 const INTAKE_SECTIONS = [
