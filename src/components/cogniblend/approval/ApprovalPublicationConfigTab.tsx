@@ -3,7 +3,7 @@
  *
  * Only fully interactive after ID clicks "Approve".
  * Features:
- *   1. Visibility dropdown (governance-aware: LIGHTWEIGHT shows 2, ENTERPRISE shows 4)
+ *   1. Visibility dropdown (governance-aware: QUICK shows 2, STRUCTURED shows 4)
  *   2. Eligibility dropdown (governance-aware, validated against visibility)
  *   3. Complexity finalization sliders (same params as M-12 Step 4)
  *
@@ -99,7 +99,7 @@ const VISIBILITY_OPTIONS_ENTERPRISE: TierOption[] = [
   { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
 ];
 
-const VISIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
+const VISIBILITY_OPTIONS_QUICK: TierOption[] = [
   { value: "invite_only", label: "Invite Only", description: "Specific invitees can view this challenge", rank: 1 },
   { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
 ];
@@ -119,7 +119,7 @@ const ELIGIBILITY_OPTIONS_ENTERPRISE: TierOption[] = [
   { value: "hybrid", label: "Hybrid", description: "Certified experts + open community", rank: 8 },
 ];
 
-const ELIGIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
+const ELIGIBILITY_OPTIONS_QUICK: TierOption[] = [
   { value: "certified_expert", label: "Certified Expert", description: "Top-tier certified experts only", rank: 1 },
   { value: "registered", label: "Registered", description: "Registered platform members", rank: 5 },
   { value: "open_community", label: "Open Community", description: "Open to the broader community", rank: 7 },
@@ -209,8 +209,8 @@ export default function ApprovalPublicationConfigTab({
   // ══════════════════════════════════════
   const isEnterprise = challenge.governance_profile?.toUpperCase() === "ENTERPRISE";
 
-  const visibilityOptions = isEnterprise ? VISIBILITY_OPTIONS_ENTERPRISE : VISIBILITY_OPTIONS_LIGHTWEIGHT;
-  const eligibilityOptions = isEnterprise ? ELIGIBILITY_OPTIONS_ENTERPRISE : ELIGIBILITY_OPTIONS_LIGHTWEIGHT;
+  const visibilityOptions = isEnterprise ? VISIBILITY_OPTIONS_ENTERPRISE : VISIBILITY_OPTIONS_QUICK;
+  const eligibilityOptions = isEnterprise ? ELIGIBILITY_OPTIONS_ENTERPRISE : ELIGIBILITY_OPTIONS_QUICK;
 
 
 

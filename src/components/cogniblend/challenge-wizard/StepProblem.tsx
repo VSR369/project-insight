@@ -63,9 +63,9 @@ import type { ChallengeFormValues } from './challengeFormSchema';
 
 const TITLE_MAX = 200;
 const PROBLEM_MIN_ENTERPRISE = 500;
-const PROBLEM_MIN_LIGHTWEIGHT = 200;
+const PROBLEM_MIN_QUICK = 200;
 const SCOPE_MIN_ENTERPRISE = 200;
-const SCOPE_MIN_LIGHTWEIGHT = 100;
+const SCOPE_MIN_QUICK = 100;
 
 const DOMAIN_TAGS = [
   'AI/ML', 'Biotech', 'Clean Energy', 'Materials Science',
@@ -113,8 +113,8 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
 
   const titleValue = watch('title') ?? '';
   const titleLen = titleValue.length;
-  const problemMin = isQuick ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
-  const scopeMin = isQuick ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
+  const problemMin = isQuick ? PROBLEM_MIN_QUICK : PROBLEM_MIN_ENTERPRISE;
+  const scopeMin = isQuick ? SCOPE_MIN_QUICK : SCOPE_MIN_ENTERPRISE;
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
   const problemStatement = watch('problem_statement') ?? '';
