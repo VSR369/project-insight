@@ -118,10 +118,12 @@ export function AssignRoleSheet({
     setSelectedSubDomain("");
   }, [selectedIndustry]);
 
-  // Reset role selection when member changes
+  // Reset role selection and conflict when member changes
   useEffect(() => {
     setExistingMemberRoleCode("");
-  }, [selectedMemberEmail]);
+    resetConflict();
+    setConflictAcknowledged(false);
+  }, [selectedMemberEmail, resetConflict]);
 
   // ══════════════════════════════════════
   // SECTION 4b: Session recovery
