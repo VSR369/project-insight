@@ -15,7 +15,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
 import { useComplexityParams } from "@/hooks/queries/useComplexityParams";
-import { MATURITY_LABELS, MATURITY_DESCRIPTIONS, getMaturityLabel } from "@/lib/maturityLabels";
+import { getMaturityLabel } from "@/lib/maturityLabels";
+import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
+import { contentRequiresHumanInput } from "@/lib/cogniblend/creatorDataTransformer";
 import { Badge } from "@/components/ui/badge";
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
@@ -278,9 +280,6 @@ const SECTIONS: SectionDef[] = [
       ? (
         <div className="space-y-1">
           <Badge variant="secondary" className="capitalize">{getMaturityLabel(ch.maturity_level)}</Badge>
-          {MATURITY_DESCRIPTIONS[ch.maturity_level] && (
-            <p className="text-xs text-muted-foreground">{MATURITY_DESCRIPTIONS[ch.maturity_level]}</p>
-          )}
         </div>
       )
       : <p className="text-sm text-muted-foreground">Not set.</p>,
@@ -887,6 +886,9 @@ export default function CurationReviewPage() {
     enabled: !!challengeId,
     ...CACHE_STANDARD,
   });
+
+  // Master data for select/checkbox/radio renderers
+  const masterData = useCurationMasterData();
 
   // Section-level curator actions (approvals + modification requests)
   const { data: sectionActions = [] } = useQuery({
@@ -1697,18 +1699,14 @@ export default function CurationReviewPage() {
                           <>
                             <CheckboxSingleSectionRenderer
                               value={challenge.maturity_level}
-                              options={Object.entries(MATURITY_LABELS).map(([key, label]) => ({
-                                value: key,
-                                label: label as string,
-                                description: MATURITY_DESCRIPTIONS[key],
-                              }))}
+                              options={masterData.maturityOptions}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={(val) => handleSaveMaturityLevel(val)}
                               onCancel={cancelEdit}
                               saving={savingSection}
                               getLabel={getMaturityLabel}
-                              getDescription={(val) => MATURITY_DESCRIPTIONS[val]}
+                              getDescription={(val) => masterData.maturityOptions.find(o => o.value === val)?.description}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
@@ -1787,11 +1785,7 @@ export default function CurationReviewPage() {
                           <>
                             <SelectSectionRenderer
                               value={challenge.challenge_visibility}
-                              options={[
-                                { value: "public", label: "Public" },
-                                { value: "private", label: "Private" },
-                                { value: "invite_only", label: "Invite Only" },
-                              ]}
+                              options={masterData.visibilityOptions}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
@@ -1812,12 +1806,7 @@ export default function CurationReviewPage() {
                           <>
                             <RadioSectionRenderer
                               value={challenge.effort_level}
-                              options={[
-                                { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-                                { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-                                { value: "high", label: "High", description: "160–500 hours estimated effort" },
-                                { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-                              ]}
+                              options={masterData.effortOptions}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
