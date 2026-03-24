@@ -283,8 +283,8 @@ export function AIReviewResultPanel({
                   <TableSectionRenderer
                     sectionKey={sectionKey}
                     rows={tableRows.map((r) => ({
-                      criterion_name: String(r.name ?? r.criterion_name ?? ""),
-                      weight_percentage: Number(r.weight ?? r.weight_percentage ?? 0),
+                      name: String(r.name ?? r.criterion_name ?? ""),
+                      weight: Number(r.weight ?? r.weight_percentage ?? 0),
                       scoring_type: String(r.scoring_type ?? "score"),
                       evaluator_role: String(r.evaluator_role ?? ""),
                       description: String(r.description ?? ""),
