@@ -898,7 +898,7 @@ export default function CurationReviewPage() {
         .eq("challenge_id", challengeId!)
         .order("created_at", { ascending: false });
       if (error) return [];
-      return (data ?? []) as Array<{
+      return (data ?? []) as unknown as Array<{
         id: string;
         section_key: string;
         action_type: string;
