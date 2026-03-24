@@ -158,6 +158,57 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['phase_schedule'],
   },
+  // ── Extended Brief subsections ──
+  context_and_background: {
+    format: 'rich_text',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.problem_statement', 'intake.scope', 'intake.beneficiaries_mapping'],
+  },
+  root_causes: {
+    format: 'line_items',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.problem_statement', 'context_and_background'],
+  },
+  affected_stakeholders: {
+    format: 'table',
+    columns: ['stakeholder_name', 'role', 'impact_description', 'adoption_challenge'],
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.beneficiaries_mapping', 'context_and_background'],
+  },
+  current_deficiencies: {
+    format: 'line_items',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.problem_statement', 'root_causes'],
+  },
+  extended_brief_expected_outcomes: {
+    format: 'line_items',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['spec.expected_outcomes', 'deliverables'],
+  },
+  preferred_approach: {
+    format: 'rich_text',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['spec.description', 'context_and_background', 'current_deficiencies'],
+  },
+  approaches_not_of_interest: {
+    format: 'line_items',
+    aiCanDraft: false,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: [],
+  },
   // ── Extra sections (not in original 16-section spec but exist in app) ──
   hook: {
     format: 'rich_text',
@@ -202,6 +253,28 @@ export const AI_REVIEW_DISABLED_SECTIONS = new Set(
     .filter(([, cfg]) => !cfg.aiReviewEnabled)
     .map(([key]) => key)
 );
+
+/** Ordered keys for Extended Brief subsections */
+export const EXTENDED_BRIEF_SUBSECTION_KEYS = [
+  'context_and_background',
+  'root_causes',
+  'affected_stakeholders',
+  'current_deficiencies',
+  'extended_brief_expected_outcomes',
+  'preferred_approach',
+  'approaches_not_of_interest',
+] as const;
+
+/** Map subsection key → JSONB field inside extended_brief */
+export const EXTENDED_BRIEF_FIELD_MAP: Record<string, string> = {
+  context_and_background: 'context_background',
+  root_causes: 'root_causes',
+  affected_stakeholders: 'affected_stakeholders',
+  current_deficiencies: 'current_deficiencies',
+  extended_brief_expected_outcomes: 'expected_outcomes',
+  preferred_approach: 'preferred_approach',
+  approaches_not_of_interest: 'approaches_not_of_interest',
+};
 
 /** Get format config for a section, with safe fallback */
 export function getSectionFormat(sectionKey: string): SectionFormatConfig | null {

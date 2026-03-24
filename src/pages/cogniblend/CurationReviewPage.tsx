@@ -93,7 +93,7 @@ import {
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
-import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
+import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP } from "@/lib/cogniblend/curationSectionFormats";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
@@ -752,6 +752,15 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
 
 // Get current content for any section (used by AI refinement)
 function getSectionContent(ch: ChallengeData, sectionKey: string): string | null {
+  // Check if this is an extended brief subsection
+  const ebField = EXTENDED_BRIEF_FIELD_MAP[sectionKey];
+  if (ebField) {
+    const eb = parseJson<any>(ch.extended_brief);
+    const val = eb?.[ebField];
+    if (val == null) return null;
+    return typeof val === "string" ? val : JSON.stringify(val);
+  }
+
   switch (sectionKey) {
     case "problem_statement": return ch.problem_statement;
     case "scope": return ch.scope;
@@ -1334,6 +1343,41 @@ export default function CurationReviewPage() {
       return updated;
     });
   }, [saveSectionMutation]);
+
+  /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
+  const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
+    const jsonbField = EXTENDED_BRIEF_FIELD_MAP[subsectionKey];
+    if (!jsonbField) {
+      // Not an extended brief subsection — delegate to main handler
+      handleAcceptRefinement(subsectionKey, newContent);
+      return;
+    }
+
+    const currentBrief = parseJson<Record<string, unknown>>(challenge?.extended_brief ?? null) ?? {};
+    let valueToSave: unknown = newContent;
+
+    // Parse JSON for structured fields (line_items, table)
+    const config = SECTION_FORMAT_CONFIG[subsectionKey];
+    if (config && (config.format === 'line_items' || config.format === 'table')) {
+      const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+      if (jsonMatch) {
+        try {
+          valueToSave = JSON.parse(jsonMatch[1]);
+        } catch {
+          toast.error(`AI returned invalid JSON for ${subsectionKey}. Please try again.`);
+          return;
+        }
+      }
+    } else if (config?.format === 'rich_text' && typeof newContent === 'string') {
+      const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
+      valueToSave = normalizeAiContentForEditor(newContent);
+    }
+
+    const updated = { ...currentBrief, [jsonbField]: valueToSave };
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "extended_brief", value: updated });
+  }, [challenge?.extended_brief, saveSectionMutation, handleAcceptRefinement]);
 
   /** Persist "addressed" flag when a refinement is accepted */
   const handleMarkAddressed = useCallback((sectionKey: string) => {
@@ -2012,13 +2056,20 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Extended brief (custom component) ──
+                      // ── Extended brief (nested subsection panels) ──
                       case "extended_brief":
                         return (
                           <ExtendedBriefDisplay
                             data={challenge.extended_brief}
                             onSave={handleSaveExtendedBrief}
                             saving={savingSection}
+                            readOnly={isReadOnly}
+                            challengeId={challengeId!}
+                            aiSectionReviews={aiReviews}
+                            onAcceptRefinement={handleAcceptExtendedBriefRefinement}
+                            onSingleSectionReview={handleSingleSectionReview}
+                            onMarkAddressed={handleMarkAddressed}
+                            challengeContext={challengeCtx}
                           />
                         );
 

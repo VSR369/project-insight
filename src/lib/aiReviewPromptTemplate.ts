@@ -123,6 +123,11 @@ export function buildConfiguredBatchPrompt(
     hook: 'rich_text', extended_brief: 'custom', submission_deadline: 'date',
     challenge_visibility: 'select', effort_level: 'radio', domain_tags: 'tag_input',
     legal_docs: 'table', escrow_funding: 'structured_fields',
+    // Extended Brief subsections
+    context_and_background: 'rich_text', root_causes: 'line_items',
+    affected_stakeholders: 'table', current_deficiencies: 'line_items',
+    extended_brief_expected_outcomes: 'line_items', preferred_approach: 'rich_text',
+    approaches_not_of_interest: 'line_items',
   };
 
   const parts: string[] = [];
