@@ -578,7 +578,7 @@ export function AssignRoleSheet({
                     <label className="text-sm font-medium text-foreground">
                       Assign new role to {selectedMember.name ?? selectedMember.email} *
                     </label>
-                    <Select value={existingMemberRoleCode} onValueChange={setExistingMemberRoleCode}>
+                    <Select value={existingMemberRoleCode} onValueChange={handleExistingMemberRoleChange}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Choose a role" />
                       </SelectTrigger>
