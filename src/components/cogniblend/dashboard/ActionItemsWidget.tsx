@@ -27,6 +27,7 @@ export function ActionItemsWidget() {
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '');
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
+  const { isBusinessOwner } = useCogniPermissions();
 
   const isLoading = reqLoading || chLoading || isRolesLoading;
 
