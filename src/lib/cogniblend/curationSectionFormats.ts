@@ -158,6 +158,57 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['phase_schedule'],
   },
+  // ── Extended Brief subsections ──
+  context_and_background: {
+    format: 'rich_text',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.problem_statement', 'intake.scope', 'intake.beneficiaries_mapping'],
+  },
+  root_causes: {
+    format: 'line_items',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.problem_statement', 'context_and_background'],
+  },
+  affected_stakeholders: {
+    format: 'table',
+    columns: ['stakeholder_name', 'role', 'impact_description', 'adoption_challenge'],
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.beneficiaries_mapping', 'context_and_background'],
+  },
+  current_deficiencies: {
+    format: 'line_items',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['intake.problem_statement', 'root_causes'],
+  },
+  extended_brief_expected_outcomes: {
+    format: 'line_items',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['spec.expected_outcomes', 'deliverables'],
+  },
+  preferred_approach: {
+    format: 'rich_text',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['spec.description', 'context_and_background', 'current_deficiencies'],
+  },
+  approaches_not_of_interest: {
+    format: 'line_items',
+    aiCanDraft: false,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: [],
+  },
   // ── Extra sections (not in original 16-section spec but exist in app) ──
   hook: {
     format: 'rich_text',
