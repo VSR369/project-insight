@@ -1,82 +1,85 @@
 
 
-# Two Changes: Solver Expertise Section + Extended Brief AI Review Fix
+# Three Fixes: AI Review Coverage, Master Data in Prompts, Phase Schedule Format
 
-## Problem 1: Missing "Solver Expertise Requirements" Section
+## Issues Found
 
-Currently, there is no way for the curator to specify what proficiency areas, sub-domains, and specialities solvers should possess. The challenge already has an industry segment (via `targeting_filters`), but there's no mechanism to map required expertise from the 5-level taxonomy (Industry Segment → Expertise Level → Proficiency Area → Sub-domain → Speciality).
+### 1. AI Review Skips Some Sections
+The edge function sends all ~27 section keys to the AI in one batch. The AI model sometimes skips sections when the batch is too large (it returns reviews for some but not all). The backfill logic (line 408-419) marks skipped sections as "pass" with empty comments — so they get a green status with no actual feedback. This is misleading.
 
-## Problem 2: Extended Brief Subsections Get No Individual AI Reviews
+**Root cause**: Too many sections in a single LLM call. The AI model truncates output.
 
-When "Review Sections by AI" is clicked, the edge function sends `extended_brief` as one section key. The AI returns a single review for the whole Extended Brief — but the subsections (`context_and_background`, `root_causes`, etc.) never get individual reviews. The `CURATION_SECTIONS` array in the edge function has `extended_brief` as one entry, not the 7 subsections.
+### 2. Master Data Not Injected Into Review Prompts
+When the AI reviews master-data sections (eligibility, visibility, ip_model, maturity_level, complexity), it has no knowledge of what the valid options are. The prompt says "checkbox_single" or "checkbox_multi" but doesn't list the allowed values. So the AI gives generic prose feedback instead of recommending specific master-data codes.
 
----
+**Root cause**: `buildConfiguredBatchPrompt` in `promptTemplate.ts` doesn't receive or inject master-data options into the prompt text.
 
-## Fix 1: Solver Expertise Requirements Section
+### 3. Phase Schedule Format Is Wrong
+- The `ScheduleTableSectionRenderer` only shows 3 columns: Phase, Name, Duration (days)
+- The spec requires: Deliverable/Phase Name, Duration, Start Date, End Date
+- The prompt template tells AI to output `phase_name, start_date, end_date, milestone, dependencies` but the renderer ignores start_date/end_date
+- The data model also doesn't consistently use these fields
 
-### Database
-- Add `solver_expertise_requirements` JSONB column to `challenges` table via migration
-- Structure: `{ expertise_levels: [{id, name}], proficiency_areas: [{id, name}], sub_domains: [{id, name}], specialities: [{id, name}] }`
-- When empty/null = "ALL applicable" (no restriction)
+## Implementation Plan
 
-### New Component: `SolverExpertiseSection.tsx`
-- Located at `src/components/cogniblend/curation/SolverExpertiseSection.tsx`
-- Shows the challenge's industry segment (read-only, from `targeting_filters`)
-- For each expertise level (from `expertise_levels` table):
-  - Shows proficiency areas, sub-domains, specialities as a collapsible tree
-  - Checkboxes to select/deselect at each level
-  - When nothing is selected: shows "All applicable" badge
-- Uses existing `useProficiencyTaxonomy` hook to fetch the tree
-- Edit mode: multi-select tree with checkboxes
-- View mode: shows selected items as chips/badges grouped by level
+### Fix 1: Batch-Split AI Review for Full Coverage
 
-### Section Config
-- Add `solver_expertise` to `SECTION_FORMAT_CONFIG` as format `custom`, `aiCanDraft: true`, `aiReviewEnabled: true`, `curatorCanEdit: true`
-- `aiUsesContext: ['scope', 'deliverables', 'evaluation_criteria', 'eligibility', 'domain_tags']`
+**File: `supabase/functions/review-challenge-sections/index.ts`**
 
-### AI Integration
-- When AI reviews this section, it reads all challenge content and suggests which proficiency areas / sub-domains / specialities are most relevant
-- AI output: JSON object with arrays of IDs + names from master data
-- Edge function fetches the taxonomy tree for the challenge's industry segment and injects allowed options into the prompt
-- Accept flow: validates IDs against master data before saving
+Split the sections into batches of max 12 per LLM call (configurable). For each batch:
+- Build a separate system prompt with only those sections
+- Call the AI gateway
+- Collect results
+- Merge all batch results together before persisting
 
-### CurationReviewPage Integration
-- Add `solver_expertise` to the SECTIONS array in `publication` group (after `eligibility`)
-- Add to challenge query select
-- Add renderer/editor switch case
-- Add to `getSectionContent`, `handleAcceptRefinement`, `masterDataOptions` resolution
+This ensures no section is skipped due to output truncation. Remove the misleading backfill-as-"pass" logic — if a section truly gets no response after batching, flag it as `"warning"` with comment "Review could not be completed."
 
----
+### Fix 2: Inject Master Data Options Into Review Prompt
 
-## Fix 2: Extended Brief Subsection-Level AI Reviews
+**File: `supabase/functions/review-challenge-sections/index.ts`**
 
-### Root Cause
-The `CURATION_SECTIONS` array in the edge function has `extended_brief` as a single entry. When the AI reviews it, it returns one review with key `extended_brief`. The 7 subsection keys (`context_and_background`, `root_causes`, etc.) are never sent to the AI as separate section keys.
+After fetching challenge data, also fetch master data for sections that need it:
+- `md_solver_eligibility` → for eligibility
+- `md_challenge_complexity` → for complexity  
+- IP model options, maturity levels (from constants or DB)
 
-### Fix in Edge Function (`review-challenge-sections/index.ts`)
-- Replace the single `extended_brief` entry in `CURATION_SECTIONS` with the 7 individual subsection keys:
-  - `context_and_background`, `root_causes`, `affected_stakeholders`, `current_deficiencies`, `extended_brief_expected_outcomes`, `preferred_approach`, `approaches_not_of_interest`
-- Each with its own description matching the format-specific instructions
-- When building the user prompt data, extract each subsection's value from `extended_brief` JSONB and include as separate data fields
-- Keep `extended_brief` in the data payload so AI has full context
+**File: `supabase/functions/review-challenge-sections/promptTemplate.ts`**
 
-### Fix in Frontend (CurationReviewPage)
-- When batch AI review returns, the 7 subsection reviews will now have individual `section_key` values matching `EXTENDED_BRIEF_SUBSECTION_KEYS`
-- `ExtendedBriefDisplay` already maps `aiSectionReviews` by subsection key — so this will "just work" once the edge function returns per-subsection reviews
-- Remove the parent-level `extended_brief` from `CURATION_SECTIONS` since it's no longer reviewed as one block
+Add an optional `allowedOptions` parameter to the batch prompt builder. For each section that has master-data backing, append to the prompt:
+```
+Allowed values for eligibility: ["registered", "signed_in", "certified_solver", "open_community"]
+You MUST only suggest values from this list.
+```
 
----
+This applies to: eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility, effort_level.
 
-## Files to Create/Modify
+### Fix 3: Phase Schedule — Correct Columns and Renderer
 
-| File | Action |
-|------|--------|
-| SQL migration | Add `solver_expertise_requirements JSONB` column to `challenges` |
-| `src/components/cogniblend/curation/SolverExpertiseSection.tsx` | New — tree-based expertise selector |
-| `src/lib/cogniblend/curationSectionFormats.ts` | Add `solver_expertise` entry |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Add section def, renderer, handlers |
-| `supabase/functions/review-challenge-sections/index.ts` | Replace `extended_brief` with 7 subsection keys, extract subsection data |
-| `supabase/functions/refine-challenge-section/index.ts` | Add `solver_expertise` handling with taxonomy injection |
-| `src/lib/aiReviewPromptTemplate.ts` | Add `solver_expertise` format mapping |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Add subsection keys + `solver_expertise` to format map |
+**File: `src/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer.tsx`**
+
+Rewrite table to show 4 columns: Phase/Deliverable, Duration (days), Start Date, End Date. Support reading both old format (`phase`, `name`, `duration_days`) and new format (`phase_name`, `start_date`, `end_date`, `duration_days`). Add editing support (add/remove rows, inline edit).
+
+**File: `src/lib/cogniblend/curationSectionFormats.ts`**
+
+Already has correct columns: `['phase_name', 'start_date', 'end_date', 'duration_days', 'milestone', 'dependencies']`. No change needed.
+
+**File: `supabase/functions/review-challenge-sections/promptTemplate.ts`**
+
+Update `schedule_table` format instruction to:
+```
+Output: a JSON array of phase objects with keys: phase_name (string), duration_days (number), start_date (ISO date string or null), end_date (ISO date string or null). AI should propose realistic dates based on challenge scope and complexity.
+```
+
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+
+Update the `phase_schedule` render case and the `handleAcceptRefinement` to handle the updated schedule format with start/end dates.
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/review-challenge-sections/index.ts` | Batch-split logic, master data fetching, inject options into prompt |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Accept `masterDataOptions` param, inject into per-section prompt, update schedule_table instruction |
+| `src/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer.tsx` | Rewrite with 4 columns + edit support |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Phase schedule edit handler |
 
