@@ -903,6 +903,42 @@ export default function CurationReviewPage() {
     }
   }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
 
+  // Auto-repair corrupted JSONB fields (HTML/JSON chimeras from previous bug)
+  useEffect(() => {
+    if (!challenge || !challengeId) return;
+    const JSON_REPAIR_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'] as const;
+    const repairs: Record<string, any> = {};
+
+    for (const field of JSON_REPAIR_FIELDS) {
+      const val = (challenge as any)[field];
+      if (typeof val === 'string' && (val.includes('<hr>') || val.includes('<p>'))) {
+        // Corrupted: try to extract all JSON segments and merge items
+        const segments = val.split(/<hr>/);
+        const allItems: any[] = [];
+        for (const seg of segments) {
+          const cleaned = seg.replace(/<[^>]+>/g, '').trim();
+          const match = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[1]);
+              const items = Array.isArray(parsed) ? parsed : parsed?.items ?? parsed?.criteria ?? [];
+              allItems.push(...items);
+            } catch { /* skip unparseable */ }
+          }
+        }
+        if (allItems.length > 0) {
+          const wrapperKey = field === 'evaluation_criteria' ? 'criteria' : 'items';
+          repairs[field] = { [wrapperKey]: allItems };
+        }
+      }
+    }
+
+    if (Object.keys(repairs).length > 0) {
+      supabase.from('challenges').update(repairs).eq('id', challengeId)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['curation-challenge', challengeId] }));
+    }
+  }, [challenge?.id]); // Only run once per challenge load
+
   // ══════════════════════════════════════
   // SECTION 3: Mutations
   // ══════════════════════════════════════
