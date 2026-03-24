@@ -12,7 +12,7 @@ import { Pencil, Eye, Lock } from 'lucide-react';
 import { ConversationalIntakeContent } from '@/pages/cogniblend/ConversationalIntakePage';
 import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
