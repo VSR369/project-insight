@@ -261,7 +261,9 @@ export function AIReviewInline({
                       </div>
                     ) : (
                       <div className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors" onClick={() => handleEditComment(i)}>
-                        <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
+                        <div className="text-xs text-muted-foreground leading-relaxed flex-1">
+                          <AiContentRenderer content={comment} compact className="text-xs" />
+                        </div>
                         <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
                       </div>
                     )}
