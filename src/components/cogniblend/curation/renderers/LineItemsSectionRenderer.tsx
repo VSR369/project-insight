@@ -12,6 +12,7 @@ interface LineItemsSectionRendererProps {
   onSave: (items: string[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  itemLabel?: string;
 }
 
 export function LineItemsSectionRenderer({
@@ -21,6 +22,7 @@ export function LineItemsSectionRenderer({
   onSave,
   onCancel,
   saving,
+  itemLabel,
 }: LineItemsSectionRendererProps) {
   if (editing && !readOnly) {
     return (
@@ -29,6 +31,7 @@ export function LineItemsSectionRenderer({
         onSave={onSave}
         onCancel={onCancel}
         saving={saving}
+        itemLabel={itemLabel}
       />
     );
   }

@@ -88,7 +88,7 @@ export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, i
         </div>
       ))}
       <Button variant="outline" size="sm" onClick={add}>
-        <Plus className="h-3.5 w-3.5 mr-1" />Add Deliverable
+        <Plus className="h-3.5 w-3.5 mr-1" />Add {itemLabel}
       </Button>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
