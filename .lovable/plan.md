@@ -116,9 +116,26 @@ Implemented in `TIER_GOVERNANCE_MODES` and `getDefaultGovernanceMode()` in `src/
 | QUICK auto-assign all roles | ✅ | `auto_assign_roles_on_creation()` SQL function |
 | Engagement model per-challenge | ✅ | `challenges.operating_model` + lock trigger |
 | Governance mode selector (Step 0) | ✅ | `StepModeSelection.tsx` |
-| Engagement model selector (Step 0) | ✅ | Per-challenge, locked at ACTIVE |
 | `resolveGovernanceMode()` | ✅ | Legacy LIGHTWEIGHT/ENTERPRISE mapped |
 | `isStructuredOrAbove` + alias | ✅ | `isEnterpriseGrade` deprecated alias |
 | ChallengeWizardPage override write | ✅ | Writes `governance_mode_override` on save |
 | Governance badge rendering | ✅ | `GOVERNANCE_MODE_CONFIG` in `governanceMode.ts` |
 | Permission guarding | ✅ | `PermissionGuard` + `tier_permissions` table |
+
+---
+
+## 7. AI Review Section Library — COMPLETE
+
+Admin-configurable AI review rules per role context, with DB-driven prompts and configurable model.
+
+| Layer | Status | Location |
+|---|---|---|
+| `ai_review_section_config` table | ✅ | Composite PK (role_context, section_key), 36 seeded rows |
+| `ai_review_global_config` table | ✅ | Singleton — default_model + batch_split_threshold |
+| Edge function DB config loading | ✅ | `review-challenge-sections/index.ts` — loads config, falls back to hardcoded |
+| Configurable AI model | ✅ | Reads `default_model` from `ai_review_global_config` |
+| New role contexts (legal/finance/evaluation) | ✅ | Edge function fetches context-specific data |
+| Shared prompt template | ✅ | `src/lib/aiReviewPromptTemplate.ts` + `supabase/functions/.../promptTemplate.ts` |
+| Admin config page | ✅ | `/admin/seeker-config/ai-review-config` with PermissionGuard |
+| Preview Prompt modal | ✅ | Local string assembly, no API call |
+| Route + sidebar | ✅ | `App.tsx` + `AdminSidebar.tsx` |
