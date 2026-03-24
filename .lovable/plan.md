@@ -1,62 +1,126 @@
 
 
-# Phase-Based Edit Locking + Change Notifications for CA/CR
+# Final Plan: `useCogniPermissions` Hook + Multi-Role Navigation Fix
 
-## The Problem
+## What Changes
 
-Currently, the Challenge Architect (CA/CR) can click "Edit" and modify challenge content **at any phase** -- even after the challenge has moved to Phase 3 (Curation) or beyond. The Curator has no way to know content was changed behind their back. This breaks governance integrity.
+7 files total (1 new, 6 modified). Zero DB changes.
 
-## Solution: Two Layers of Protection
+---
 
-### Layer 1: Phase-Based Edit Lock (AMRequestViewPage)
+### File 1 (NEW): `src/hooks/cogniblend/useCogniPermissions.ts`
 
-**File: `src/pages/cogniblend/AMRequestViewPage.tsx`**
+Centralized permission resolver. Exports both the hook and the return type.
 
-Fetch the challenge's `current_phase` using the existing `useChallengeDetail` hook. Based on the active role and current phase, control whether the Edit button is shown:
+```typescript
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 
-- **CA/CR**: Edit allowed only in Phase 1 and Phase 2 (their ownership phases). Phase 3+ = view-only with a tooltip explaining "This challenge is now with the Curator."
-- **AM/RQ**: Edit allowed only in Phase 1 (intake). Phase 2+ = view-only.
+export function useCogniPermissions() {
+  const { activeRole, availableRoles } = useCogniRoleContext();
+  // Focused mode: single role. Merged mode: all roles.
+  const effectiveRoles = activeRole ? [activeRole] : availableRoles;
+  const has = (codes: string[]) => codes.some(c => effectiveRoles.includes(c));
 
-When editing is locked, the Edit button is replaced with a disabled state + info badge showing who currently owns the challenge (e.g., "With Curator" or "With Legal").
+  return {
+    canCreateChallenge:   has(['CA', 'CR']),
+    canSubmitRequest:     has(['AM', 'RQ']),
+    canEditSpec:          has(['CA', 'CR']),
+    canCurate:            has(['CU']),
+    canApprove:           has(['ID']),
+    canReviewEvaluation:  has(['ER']),
+    canReviewLegal:       has(['LC']),
+    canManageEscrow:      has(['FC']),
+    isSpecRole:           has(['CA', 'CR']),
+    isBusinessOwner:      has(['AM', 'RQ']),
+    hasConflictingIntent: has(['AM', 'RQ']) && has(['CA', 'CR']),
+  };
+}
 
-### Layer 2: Change Notification to Downstream Roles (Safety Net)
-
-**File: `src/pages/cogniblend/ConversationalIntakePage.tsx`** (in `handleUpdateChallenge`)
-
-If the challenge is in Phase 3+ and the user somehow edits (e.g., via a race condition or future admin override), insert a `cogni_notifications` record to alert the Curator:
-
-- `notification_type: 'CONTENT_MODIFIED'`
-- `message: "Challenge spec was updated by [role] after handoff to curation"`
-- Target: all users with `CU` role for that challenge (queried from `user_challenge_roles`)
-
-### Implementation Details
-
-**AMRequestViewPage changes:**
-```
-1. Import useChallengeDetail
-2. Fetch challenge data using the challengeId
-3. Derive editAllowed:
-   - CA/CR: current_phase <= 2
-   - AM/RQ: current_phase <= 1
-4. Show phase ownership badge when locked
-5. Pass mode='view' unconditionally when !editAllowed
+export type CogniPermissions = ReturnType<typeof useCogniPermissions>;
 ```
 
-**ConversationalIntakePage changes (handleUpdateChallenge):**
-```
-After successful save, if current_phase >= 3:
-  1. Query user_challenge_roles for CU role holders on this challenge
-  2. Insert cogni_notifications for each CU user
-```
+---
 
-**Phase ownership labels:**
-| Phase | Owner Label |
-|-------|------------|
-| 1 | Intake |
-| 2 | Spec Review (CR/CA) |
-| 3 | Curation (CU) |
-| 4 | Approval (ID) |
-| 5+ | Active / Published |
+### File 2: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
 
-**Files modified**: 2 (`AMRequestViewPage.tsx`, `ConversationalIntakePage.tsx`)
+- Remove `requiredRoles` from `NavItem` interface -- replace with `isVisible: (perms: CogniPermissions) => boolean`
+- Import and call `useCogniPermissions()`, pass result to each item's `isVisible`
+- Remove `allRoleCodes` derivation and old `isVisible` function
+- Keep `ROLE_NAV_RELEVANCE` dimming logic unchanged (opacity, not visibility)
+
+Nav item visibility mapping:
+
+| Item | `isVisible` |
+|---|---|
+| New Challenge | `p => p.canCreateChallenge \|\| p.canSubmitRequest` |
+| My Challenges | `p => p.canEditSpec` |
+| Curation Queue | `p => p.canCurate` |
+| Approval Queue | `p => p.canApprove` |
+| Legal Workspace | `p => p.canReviewLegal` |
+| Legal Review | `p => p.canReviewLegal` |
+| Review Queue | `p => p.canReviewEvaluation` |
+| Evaluation Panel | `p => p.canReviewEvaluation \|\| p.canApprove` |
+| Selection & IP | `p => p.canApprove` |
+| Escrow Management | `p => p.canManageEscrow` |
+| Payment Processing | `p => p.canManageEscrow` |
+| Browse/Solutions/Portfolio | `() => true` |
+
+---
+
+### File 3: `src/pages/cogniblend/CogniDashboardPage.tsx`
+
+Replace:
+- `activeRole === 'AM' || activeRole === 'RQ' || !activeRole` with `isBusinessOwner` from hook
+- `activeRole === 'CA' || activeRole === 'CR'` with `isSpecRole` from hook
+
+Bug fix: CA-only user no longer incorrectly sees business owner sections (the old `!activeRole` fallback is removed).
+
+---
+
+### File 4: `src/components/cogniblend/dashboard/MyRequestsTracker.tsx`
+
+Replace:
+- `activeRole === 'CA' || activeRole === 'CR'` with `isSpecRole`
+- `activeRole === 'AM' || activeRole === 'RQ' || !activeRole` with `isBusinessOwner`
+
+---
+
+### File 5: `src/pages/cogniblend/AMRequestViewPage.tsx`
+
+Replace:
+- `activeRole === 'AM' || activeRole === 'RQ'` with `isBusinessOwner`
+- `activeRole === 'CA' || activeRole === 'CR'` with `isSpecRole`
+
+---
+
+### File 6: `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
+
+Replace:
+- `activeRole === 'CA' || activeRole === 'CR'` with `isSpecRole`
+
+---
+
+### File 7: `src/pages/cogniblend/ChallengeWizardPage.tsx`
+
+Replace:
+- `activeRole === 'CU'` with `canCurate`
+
+---
+
+## What Does NOT Change
+
+- `CogniRoleContext` and `RoleSwitcher` -- unchanged
+- `can_perform()` SQL function -- unchanged
+- Phase-based edit locking logic -- unchanged
+- `ROLE_NAV_RELEVANCE` dimming -- stays as opacity control
+- No DB changes
+
+## Bug Fixes Included
+
+| Bug | Fix |
+|---|---|
+| `!activeRole` fallback showing business owner content to non-AM/RQ users | `isBusinessOwner` requires actual AM/RQ roles |
+| "New Challenge" compound permission can't fit single string key | `isVisible` is a function |
+| Dual source of truth (`requiredRoles` array + hook) | `requiredRoles` removed entirely |
+| `CogniPermissions` type not exported | Added `export type` |
 
