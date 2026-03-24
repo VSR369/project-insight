@@ -1,28 +1,66 @@
 
+Yes — I understand the requirement.  
+You want structured sections (starting with Deliverables) to stay structured end-to-end, not collapse into free text, and to support item-level accept/reject (plus accept/reject all) from AI review/refinement.
 
-# Plan: Enable "Refine with AI" for Empty Sections
+## What is broken now
+1. **Refinement is saved as raw string** in `CurationReviewPage.handleAcceptRefinement`, so structured fields can be stored as paragraph text.
+2. **`AIReviewInline` has only one “Accept & Save” path**, no item-level acceptance for structured outputs.
+3. **`refine-challenge-section` does not enforce structured JSON output** for deliverables, so the model can return prose.
+4. **Review comments can be bundled** (multiple issues in one comment string), reducing usability for per-item handling.
+5. Some text fields (e.g. `hook`) still render as plain text instead of rich content rendering.
 
-## Problem
+## Implementation plan (Deliverables-first, reusable pattern)
 
-The "Refine with AI" button is disabled for Deliverables and other sections because the `currentContent` prop is `null` (the field has no data). The disable condition on line 269 of `AIReviewInline.tsx` is `disabled={isRefining || !currentContent}`.
+### 1) Add structured refinement mode (Deliverables first)
+- In `src/components/cogniblend/shared/AIReviewInline.tsx`:
+  - Detect structured sections via a local section-mode map (start with `deliverables`).
+  - Parse refined output into **discrete deliverable items** (JSON first, then safe fallback parsing).
+  - Show an interactive list with:
+    - item checkbox (accept/reject per item),
+    - “Accept selected”, “Accept all”, “Reject selected”.
+  - Keep existing text-section behavior unchanged.
 
-This is counterproductive: the AI review says "Needs Revision — add deliverables" but the user cannot use the AI to generate them because the button is disabled precisely because there is nothing there yet.
+### 2) Add comment-level selection for refinement instructions
+- In `AIReviewInline`, add per-comment include/exclude toggles + “Select all / Clear all”.
+- `Refine with AI` will use only selected comments.
+- This gives immediate per-comment accept/reject control and reduces wasted AI calls/credits.
 
-## Fix
+### 3) Enforce structured return for deliverables in edge refinement
+- In `supabase/functions/refine-challenge-section/index.ts`:
+  - For `section_key === 'deliverables'`, use tool/function schema output (strict JSON) instead of free text.
+  - Required shape: one item per deliverable (array), no paragraph blob.
+  - Return normalized JSON string payload to frontend.
 
-**File: `src/components/cogniblend/shared/AIReviewInline.tsx`**
+### 4) Canonicalize on save (no distortion)
+- In `src/pages/cogniblend/CurationReviewPage.tsx` `handleAcceptRefinement`:
+  - For `deliverables`, always normalize to `{ items: string[] }` before DB update.
+  - If payload invalid, block save with clear error toast (no silent corruption).
+  - For text sections, normalize through `normalizeAiContentForEditor` before persistence.
+  - Update `hook` render to use `AiContentRenderer` for rich formatting consistency.
 
-1. **Remove the `!currentContent` disable condition** — change `disabled={isRefining || !currentContent}` to `disabled={isRefining}`.
+### 5) Improve review comment atomicity for structured sections
+- In `supabase/functions/review-challenge-sections/promptTemplate.ts` and `.../index.ts`:
+  - Strengthen prompt rule: each actionable issue must be a separate comment element.
+  - Add light post-processing fallback to split bundled numbered comments for `deliverables`.
 
-2. **Handle empty content in the refine handler** — update `handleRefineWithAI` to send a fallback value (e.g., `"[empty — no content yet]"`) when `currentContent` is null/empty. This tells the AI model the section is blank and it should generate initial content based on the review comments.
+## Files to update
+1. `src/components/cogniblend/shared/AIReviewInline.tsx`
+2. `src/pages/cogniblend/CurationReviewPage.tsx`
+3. `supabase/functions/refine-challenge-section/index.ts`
+4. `supabase/functions/review-challenge-sections/promptTemplate.ts`
+5. `supabase/functions/review-challenge-sections/index.ts`
 
-3. **Update button label** — when `currentContent` is empty, show "Draft with AI" instead of "Refine with AI" to clarify the action.
+## Validation checklist (to protect credits)
+1. Run AI review on Deliverables → comments appear as separate actionable items.
+2. Refine Deliverables → proposed output appears as separate line items (not paragraph).
+3. Accept one item only → DB stores only selected item(s) in structured JSON.
+4. Accept all → DB stores full structured list.
+5. Reload page → Deliverables still render as separate editable/deletable items.
+6. Text section refine (e.g., Hook) → rich formatting preserved, not distorted/plain dump.
 
-No other files need changes. The edge function (`refine-challenge-section`) already handles both generation and refinement — it uses the curator instructions (review comments) to produce content regardless of whether `current_content` is empty or populated.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/components/cogniblend/shared/AIReviewInline.tsx` | Remove `!currentContent` disable guard; send fallback for empty sections; label "Draft with AI" vs "Refine with AI" |
-
+## Replication path after Deliverables is stable
+- Reuse the same structured-mode pipeline for:
+  - `evaluation_criteria`
+  - `phase_schedule`
+  - other itemized sections
+without redesigning architecture again.
