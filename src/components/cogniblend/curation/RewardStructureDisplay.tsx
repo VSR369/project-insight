@@ -228,7 +228,7 @@ export default function RewardStructureDisplay({
     try {
       const { data, error } = await supabase.functions.invoke('ai-field-assist', {
         body: {
-          field_key: 'payment_milestones',
+          field_name: 'payment_milestones',
           context: { problem_statement: problemStatement ?? '', challenge_id: challengeId },
         },
       });
@@ -260,7 +260,7 @@ export default function RewardStructureDisplay({
     try {
       const { data, error } = await supabase.functions.invoke('ai-field-assist', {
         body: {
-          field_key: 'tiered_perks',
+          field_name: 'tiered_perks',
           context: { problem_statement: problemStatement ?? '', challenge_id: challengeId },
         },
       });
