@@ -1864,33 +1864,31 @@ export default function CurationReviewPage() {
         {/* LEFT — Main Content (3/4) */}
         <div className="lg:col-span-3">
           <Card className={cn("border-2", activeGroupDef.colorBorder)}>
-            {activeGroupDef.id !== "extended_brief" && (
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs text-muted-foreground"
-                      onClick={() => handleExpandCollapseAll(true)}
-                    >
-                      <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
-                      Expand All
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs text-muted-foreground"
-                      onClick={() => handleExpandCollapseAll(false)}
-                    >
-                      <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
-                      Collapse All
-                    </Button>
-                  </div>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => handleExpandCollapseAll(true)}
+                  >
+                    <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+                    Expand All
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => handleExpandCollapseAll(false)}
+                  >
+                    <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
+                    Collapse All
+                  </Button>
                 </div>
-              </CardHeader>
-            )}
+              </div>
+            </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
                 {activeGroupDef.sectionKeys.map((sectionKey) => {
