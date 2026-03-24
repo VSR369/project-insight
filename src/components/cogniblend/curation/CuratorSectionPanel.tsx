@@ -77,6 +77,8 @@ export interface CuratorSectionPanelProps {
   defaultExpanded?: boolean;
   /** Existing section action records for this section */
   sectionActions?: SectionActionRecord[];
+  /** Whether AI used supervisor-configured or default prompt */
+  promptSource?: "supervisor" | "default" | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +174,7 @@ export function CuratorSectionPanel({
   aiReviewSlot,
   defaultExpanded,
   sectionActions,
+  promptSource,
 }: CuratorSectionPanelProps) {
   const [showModificationModal, setShowModificationModal] = useState(false);
   // ── Expand/collapse state with localStorage persistence ──
@@ -272,6 +275,18 @@ export function CuratorSectionPanel({
             <span className="text-[10px] text-muted-foreground font-normal shrink-0">
               ({attribution})
             </span>
+          )}
+
+          {/* Prompt source indicator */}
+          {promptSource === "supervisor" && (
+            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
+              ✅ Supervisor
+            </Badge>
+          )}
+          {promptSource === "default" && (
+            <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
+              ⚠️ Default AI
+            </Badge>
           )}
 
           {/* Lock icon for restricted sections */}
