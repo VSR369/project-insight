@@ -20,6 +20,8 @@ import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp } from "luc
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
+import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer";
+import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { cn } from "@/lib/utils";
 
 /* ── Types ──────────────────────────────────────────────── */
