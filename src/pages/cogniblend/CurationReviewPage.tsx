@@ -1822,10 +1822,12 @@ export default function CurationReviewPage() {
                           </>
                         );
 
-                      // ── Eligibility (checkbox multi from master data) ──
+                      // ── Eligibility (checkbox multi from solver tiers) ──
                       case "eligibility": {
-                        const eligParsed = parseJson<string[]>(challenge.eligibility);
-                        const eligValues = Array.isArray(eligParsed) ? eligParsed : [];
+                        const solverElig = parseJson<any>(challenge.solver_eligibility_types);
+                        const eligValues = Array.isArray(solverElig)
+                          ? solverElig.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
+                          : [];
                         return (
                           <>
                             <CheckboxMultiSectionRenderer
@@ -1835,7 +1837,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(values) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "eligibility", value: JSON.stringify(values) });
+                                saveSectionMutation.mutate({ field: "solver_eligibility_types", value: values.map(v => ({ code: v, label: masterData.eligibilityOptions.find(o => o.value === v)?.label ?? v })) });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
@@ -1849,10 +1851,12 @@ export default function CurationReviewPage() {
                         );
                       }
 
-                      // ── Visibility (checkbox multi from master data) ──
+                      // ── Visibility (checkbox multi from solver tiers) ──
                       case "visibility": {
-                        const visParsed = parseJson<string[]>(challenge.visibility);
-                        const visValues = Array.isArray(visParsed) ? visParsed : [];
+                        const solverVis = parseJson<any>(challenge.solver_visibility_types);
+                        const visValues = Array.isArray(solverVis)
+                          ? solverVis.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
+                          : [];
                         return (
                           <>
                             <CheckboxMultiSectionRenderer
@@ -1862,7 +1866,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(values) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "visibility", value: JSON.stringify(values) });
+                                saveSectionMutation.mutate({ field: "solver_visibility_types", value: values.map(v => ({ code: v, label: masterData.visibilityOptions.find(o => o.value === v)?.label ?? v })) });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
