@@ -207,7 +207,7 @@ serve(async (req) => {
       fetchPromises.push(
         adminClient
           .from("challenge_legal_docs")
-          .select("document_type, tier, status, lc_status, lc_review_notes, content_summary, rationale, document_name")
+          .select("document_type, tier, status, lc_status, lc_review_notes, document_name")
           .eq("challenge_id", challenge_id)
       );
     }
@@ -225,7 +225,9 @@ serve(async (req) => {
         adminClient
           .from("evaluation_records")
           .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
-          .eq("challenge_id", challenge_id),
+          .eq("challenge_id", challenge_id)
+          .order("created_at", { ascending: false })
+          .limit(10),
         adminClient
           .from("solutions")
           .select("id", { count: "exact", head: true })
