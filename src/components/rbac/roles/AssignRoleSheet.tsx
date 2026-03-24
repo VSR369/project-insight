@@ -24,6 +24,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle, Zap } from "lucide-react";
 import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
+import { useValidateRoleAssignment } from "@/hooks/cogniblend/useValidateRoleAssignment";
+import { ConflictWarningBanner } from "@/components/rbac/roles/ConflictWarningBanner";
 import { deduplicateMembers } from "@/lib/roleUtils";
 import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import type { Json } from "@/integrations/supabase/types";
