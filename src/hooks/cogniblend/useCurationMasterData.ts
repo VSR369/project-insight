@@ -91,10 +91,10 @@ export function useCurationMasterData(): CurationMasterData {
     ...CACHE_STABLE,
   });
 
-  // Build maturity options from constants
+  // Build maturity options from constants — use UPPERCASE values to match DB normalizer
   const maturityOptions = useMemo<MasterDataOption[]>(() =>
     Object.entries(MATURITY_LABELS).map(([key, label]) => ({
-      value: key,
+      value: key.toUpperCase(),
       label: label as string,
       description: MATURITY_DESCRIPTIONS[key],
     })),
