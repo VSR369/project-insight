@@ -2409,6 +2409,7 @@ export default function CurationReviewPage() {
                       aiReviewSlot={aiReviewContent}
                       sectionActions={getSectionActions(section.key)}
                       promptSource={aiReview?.prompt_source ?? null}
+                      expandVersion={expandVersion}
                     >
                       {sectionContent}
                     </CuratorSectionPanel>
