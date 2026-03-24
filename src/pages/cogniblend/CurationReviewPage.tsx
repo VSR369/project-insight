@@ -98,16 +98,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
-const DEFAULT_DOMAIN_TAGS = [
-  'AI/ML', 'Biotech', 'Clean Energy', 'Materials Science',
-  'Digital Health', 'Manufacturing', 'Software', 'Sustainability',
-  'Cybersecurity', 'FinTech', 'IoT', 'Robotics',
-  'Data Analytics', 'Supply Chain', 'Telecommunications',
-];
+
 
 
 
