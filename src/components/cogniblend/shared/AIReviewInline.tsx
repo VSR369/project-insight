@@ -151,7 +151,7 @@ export function AIReviewInline({
         body: {
           challenge_id: challengeId,
           section_key: sectionKey,
-          current_content: currentContent,
+          current_content: currentContent || "[empty — no content yet]",
           curator_instructions: instructions,
           role_context: roleContext,
           context: {
