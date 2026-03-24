@@ -1711,6 +1711,7 @@ export type Database = {
         Row: {
           action_type: string
           addressed_to: string | null
+          ai_original_comments: string | null
           challenge_id: string
           comment_html: string | null
           created_at: string
@@ -1727,6 +1728,7 @@ export type Database = {
         Insert: {
           action_type: string
           addressed_to?: string | null
+          ai_original_comments?: string | null
           challenge_id: string
           comment_html?: string | null
           created_at?: string
@@ -1743,6 +1745,7 @@ export type Database = {
         Update: {
           action_type?: string
           addressed_to?: string | null
+          ai_original_comments?: string | null
           challenge_id?: string
           comment_html?: string | null
           created_at?: string
