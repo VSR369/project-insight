@@ -941,8 +941,25 @@ export default function CurationReviewPage() {
   const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
+  const [expandVersion, setExpandVersion] = useState(0);
 
-  // AI quality assessment state
+  // Expand / collapse all sections in the active group
+  const handleExpandCollapseAll = useCallback((expand: boolean) => {
+    const groupDef = GROUPS.find((g) => g.id === activeGroup);
+    if (!groupDef || !challengeId) return;
+    const state = loadExpandState(challengeId);
+    for (const key of groupDef.sectionKeys) {
+      state[key] = expand;
+    }
+    // For extended_brief, also handle subsection keys
+    if (groupDef.id === "extended_brief") {
+      for (const subKey of EXTENDED_BRIEF_SUBSECTION_KEYS) {
+        state[subKey] = expand;
+      }
+    }
+    saveExpandState(challengeId, state);
+    setExpandVersion((v) => v + 1);
+  }, [activeGroup, challengeId]);
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
