@@ -182,15 +182,20 @@ export function AIReviewInline({
   }, [challengeId, sectionKey, currentContent, comments, challengeContext, roleContext]);
 
   const handleAccept = useCallback(() => {
-    if (refinedContent) {
-      onAcceptRefinement(sectionKey, refinedContent);
-      setRefinedContent(null);
-      setEditedComments([]);
-      setIsAddressed(true);
-      setIsOpen(false);
-      onMarkAddressed?.(sectionKey);
+    if (!refinedContent) return;
+    let merged = refinedContent;
+
+    if (currentContent && currentContent !== "[empty — no content yet]" && currentContent.trim()) {
+      merged = `${currentContent}<hr><p><em>— AI suggestion —</em></p>${refinedContent}`;
     }
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
+
+    onAcceptRefinement(sectionKey, merged);
+    setRefinedContent(null);
+    setEditedComments([]);
+    setIsAddressed(true);
+    setIsOpen(false);
+    onMarkAddressed?.(sectionKey);
+  }, [refinedContent, currentContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
