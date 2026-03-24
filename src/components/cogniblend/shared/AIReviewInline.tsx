@@ -42,6 +42,11 @@ function isStructuredSection(sectionKey: string): boolean {
   return ['line_items', 'table', 'schedule_table'].includes(fmt.format);
 }
 
+/** Determine the format type of a section */
+function getSectionFormatType(sectionKey: string): string | null {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format ?? null;
+}
+
 /** Determine if a section is a master-data selection (codes, not prose) */
 function isMasterDataSection(sectionKey: string): boolean {
   const fmt = SECTION_FORMAT_CONFIG[sectionKey];
@@ -82,8 +87,8 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
 };
 
 /**
- * Parse AI refinement output into an array of structured items.
- * Handles: JSON array, JSON object with items/criteria key, markdown lists, numbered lists.
+ * Parse AI refinement output into structured data.
+ * Format-aware: preserves row objects for table/schedule_table, returns strings for line_items.
  */
 function parseStructuredItems(content: string, sectionKey: string): string[] | null {
   const trimmed = content.trim();
@@ -92,14 +97,29 @@ function parseStructuredItems(content: string, sectionKey: string): string[] | n
   try {
     const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
+      // For line_items: flatten to strings
+      const fmt = getSectionFormatType(sectionKey);
+      if (fmt === 'line_items') {
+        return parsed.map((item: any) =>
+          typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
+        );
+      }
+      // For table/schedule_table: store as JSON strings to preserve row structure
       return parsed.map((item: any) =>
-        typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
+        typeof item === "string" ? item : JSON.stringify(item)
       );
     }
     const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
     if (parsed && typeof parsed === "object" && Array.isArray(parsed[wrapperKey])) {
-      return parsed[wrapperKey].map((item: any) =>
-        typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
+      const items = parsed[wrapperKey];
+      const fmt = getSectionFormatType(sectionKey);
+      if (fmt === 'line_items') {
+        return items.map((item: any) =>
+          typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
+        );
+      }
+      return items.map((item: any) =>
+        typeof item === "string" ? item : JSON.stringify(item)
       );
     }
   } catch {
@@ -112,6 +132,22 @@ function parseStructuredItems(content: string, sectionKey: string): string[] | n
     .filter(l => l.length > 0);
 
   if (listItems.length >= 2) return listItems;
+  return null;
+}
+
+/**
+ * Get the raw parsed JSON array from refined content (for table/schedule sections).
+ * Returns null if not parseable.
+ */
+function parseRawStructuredArray(content: string): any[] | null {
+  const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed?.criteria && Array.isArray(parsed.criteria)) return parsed.criteria;
+    if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
+    if (parsed?.rows && Array.isArray(parsed.rows)) return parsed.rows;
+  } catch { /* not JSON */ }
   return null;
 }
 
@@ -366,15 +402,32 @@ export function AIReviewInline({
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
     } else if (isStructured && structuredItems && structuredItems.length > 0) {
-      // Structured line items / tables
-      const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
-      if (accepted.length === 0) {
-        toast.error("Select at least one item to accept.");
-        return;
+      const fmt = getSectionFormatType(sectionKey);
+      
+      if (fmt === 'table' || fmt === 'schedule_table') {
+        // Preserve full row objects for table/schedule sections
+        const rawArray = parseRawStructuredArray(refinedContent);
+        if (rawArray) {
+          const accepted = rawArray.filter((_, i) => selectedItems.has(i));
+          if (accepted.length === 0) {
+            toast.error("Select at least one item to accept.");
+            return;
+          }
+          // Pass the raw JSON array directly — handleAcceptRefinement will parse it
+          onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+        } else {
+          toast.error("AI did not return valid structured data. Please try again.");
+          return;
+        }
+      } else {
+        // line_items: pass as string items
+        const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
+        if (accepted.length === 0) {
+          toast.error("Select at least one item to accept.");
+          return;
+        }
+        onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
-      const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
-      const jsonPayload = JSON.stringify({ [wrapperKey]: accepted });
-      onAcceptRefinement(sectionKey, jsonPayload);
     } else {
       onAcceptRefinement(sectionKey, refinedContent);
     }

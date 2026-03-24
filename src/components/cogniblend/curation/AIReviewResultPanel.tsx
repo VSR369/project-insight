@@ -20,6 +20,8 @@ import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp } from "luc
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
+import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer";
+import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { cn } from "@/lib/utils";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -135,10 +137,16 @@ function parseTableRows(content: string): Record<string, unknown>[] | null {
     }
     if (parsed?.criteria && Array.isArray(parsed.criteria)) return parsed.criteria;
     if (parsed?.rows && Array.isArray(parsed.rows)) return parsed.rows;
+    if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
   } catch {
     // not JSON
   }
   return null;
+}
+
+/** Determine if a section is a schedule_table format */
+function isScheduleFormat(sectionKey: string): boolean {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'schedule_table';
 }
 
 /* ── Component ─────────────────────────────────────────── */
@@ -163,9 +171,17 @@ export function AIReviewResultPanel({
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
 
-  // For table sections (eval_criteria), try parsing as row objects
+  // For table sections (eval_criteria, reward_structure), try parsing as row objects
   const tableRows = useMemo(() => {
-    if (sectionKey === "evaluation_criteria" && result.suggested_version) {
+    if ((sectionKey === "evaluation_criteria" || sectionKey === "reward_structure") && result.suggested_version) {
+      return parseTableRows(result.suggested_version);
+    }
+    return null;
+  }, [sectionKey, result.suggested_version]);
+
+  // For schedule_table sections, try parsing as schedule rows
+  const scheduleRows = useMemo(() => {
+    if (isScheduleFormat(sectionKey) && result.suggested_version) {
       return parseTableRows(result.suggested_version);
     }
     return null;
@@ -187,7 +203,8 @@ export function AIReviewResultPanel({
     result.suggested_version ||
     (isStructured && structuredItems && structuredItems.length > 0) ||
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
-    tableRows
+    tableRows ||
+    scheduleRows
   );
 
   return (
@@ -350,6 +367,15 @@ export function AIReviewResultPanel({
                       <span className="flex-1 leading-relaxed">{item}</span>
                     </label>
                   ))}
+                </div>
+              ) : scheduleRows ? (
+                /* Schedule-format suggested version (phase_schedule) */
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
+                  <ScheduleTableSectionRenderer
+                    data={scheduleRows}
+                    readOnly
+                    editing={false}
+                  />
                 </div>
               ) : tableRows ? (
                 /* Table-format suggested version (eval criteria, reward) */
