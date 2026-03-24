@@ -112,3 +112,24 @@ export function getDefaultGovernanceMode(
   // Fallback: pick the highest available mode (last in the array)
   return available[available.length - 1] ?? 'QUICK';
 }
+
+/**
+ * Client-side 3-layer governance resolution (mirrors SQL `resolve_challenge_governance`).
+ *
+ * Resolution order:
+ *   1. Challenge override (`governance_mode_override`) — if set, use it
+ *   2. Org default (`governance_profile`) — fallback
+ *   3. Clamp against tier ceiling
+ */
+export function resolveChallengeGovernance(
+  challengeOverride: string | null | undefined,
+  orgGovernanceProfile: string | null | undefined,
+  tierCode: string | null | undefined,
+): GovernanceMode {
+  const raw = challengeOverride ?? orgGovernanceProfile;
+  const effective = resolveGovernanceMode(raw);
+  const available = getAvailableGovernanceModes(tierCode);
+  if (available.includes(effective)) return effective;
+  // Clamp to highest allowed
+  return available[available.length - 1] ?? 'QUICK';
+}

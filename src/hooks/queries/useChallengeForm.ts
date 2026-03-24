@@ -34,6 +34,7 @@ export interface ChallengeDetail {
   eligibility: string | null;
   submission_deadline: string | null;
   governance_profile: string | null;
+  governance_mode_override: string | null;
   operating_model: string | null;
   current_phase: number | null;
   master_status: string | null;
