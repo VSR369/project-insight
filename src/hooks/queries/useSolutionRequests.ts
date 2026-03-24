@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import { validateRoleAssignment } from "@/hooks/cogniblend/useValidateRoleAssignment";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 
 /* ─── Types ────────────────────────────────────────────── */
@@ -250,11 +251,43 @@ export function useAssignMember() {
       challengeId,
       poolMemberId,
       roleCode,
+      userId,
     }: {
       challengeId: string;
       poolMemberId: string;
       roleCode: string;
+      userId?: string;
     }) => {
+      // Pre-insert role fusion validation
+      if (userId) {
+        const conflict = await validateRoleAssignment({
+          userId,
+          challengeId,
+          newRole: roleCode,
+        });
+        if (!conflict.allowed) {
+          throw new Error(conflict.message ?? "Role assignment blocked by governance conflict rules.");
+        }
+        if (conflict.conflictType === "SOFT_WARN") {
+          // Log the override
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            await supabase.from("audit_trail").insert({
+              user_id: currentUser.id,
+              challenge_id: challengeId,
+              action: "ROLE_CONFLICT_OVERRIDE",
+              method: "MANUAL",
+              details: {
+                role_code: roleCode,
+                pool_member_id: poolMemberId,
+                assigned_user_id: userId,
+                conflict_message: conflict.message,
+              },
+            });
+          }
+        }
+      }
+
       const newAssignment = await withCreatedBy({
         challenge_id: challengeId,
         pool_member_id: poolMemberId,

@@ -24,6 +24,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle, Zap } from "lucide-react";
 import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
+import { useValidateRoleAssignment } from "@/hooks/cogniblend/useValidateRoleAssignment";
+import { ConflictWarningBanner } from "@/components/rbac/roles/ConflictWarningBanner";
 import { deduplicateMembers } from "@/lib/roleUtils";
 import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import type { Json } from "@/integrations/supabase/types";
@@ -67,11 +69,13 @@ export function AssignRoleSheet({
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
   const [existingMemberRoleCode, setExistingMemberRoleCode] = useState<string>("");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [conflictAcknowledged, setConflictAcknowledged] = useState(false);
 
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
   const { orgName } = useOrgContext();
+  const { result: conflictResult, isValidating: isConflictChecking, validate: checkConflict, reset: resetConflict } = useValidateRoleAssignment();
   const createAssignment = useCreateRoleAssignment();
   const directEnroll = useDirectEnrollRole();
   const { data: existingAssignments } = useRoleAssignments(orgId);
@@ -114,10 +118,12 @@ export function AssignRoleSheet({
     setSelectedSubDomain("");
   }, [selectedIndustry]);
 
-  // Reset role selection when member changes
+  // Reset role selection and conflict when member changes
   useEffect(() => {
     setExistingMemberRoleCode("");
-  }, [selectedMemberEmail]);
+    resetConflict();
+    setConflictAcknowledged(false);
+  }, [selectedMemberEmail, resetConflict]);
 
   // ══════════════════════════════════════
   // SECTION 4b: Session recovery
@@ -181,6 +187,17 @@ export function AssignRoleSheet({
   const handleRoleChange = (code: string) => {
     setManualRoleCode(code);
     form.setValue("role_code", code);
+    resetConflict();
+    setConflictAcknowledged(false);
+  };
+
+  const handleExistingMemberRoleChange = (code: string) => {
+    setExistingMemberRoleCode(code);
+    setConflictAcknowledged(false);
+    // Note: conflict check requires a challenge context (user_challenge_roles).
+    // At org-level, we can't run the RPC without a specific challenge_id.
+    // The actual enforcement happens at challenge-level assignment time.
+    resetConflict();
   };
 
   const isMutating = createAssignment.isPending || directEnroll.isPending;
@@ -561,7 +578,7 @@ export function AssignRoleSheet({
                     <label className="text-sm font-medium text-foreground">
                       Assign new role to {selectedMember.name ?? selectedMember.email} *
                     </label>
-                    <Select value={existingMemberRoleCode} onValueChange={setExistingMemberRoleCode}>
+                    <Select value={existingMemberRoleCode} onValueChange={handleExistingMemberRoleChange}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Choose a role" />
                       </SelectTrigger>

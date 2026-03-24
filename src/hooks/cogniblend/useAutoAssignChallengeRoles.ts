@@ -13,6 +13,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { withCreatedBy } from '@/lib/auditFields';
+import { validateRoleAssignment } from '@/hooks/cogniblend/useValidateRoleAssignment';
 
 interface AssignmentInput {
   challengeId: string;
@@ -136,7 +137,42 @@ export async function autoAssignChallengeRole(
 
   if (scored.length === 0) return null;
 
-  const winner = scored[0];
+  // 3b. Validate candidates against role fusion rules — skip HARD_BLOCK, log SOFT_WARN
+  let winner = null;
+  for (const candidate of scored) {
+    const conflict = await validateRoleAssignment({
+      userId: candidate.user_id,
+      challengeId: input.challengeId,
+      newRole: input.roleCode,
+    });
+
+    if (conflict.conflictType === 'HARD_BLOCK') {
+      // Skip this candidate — role fusion conflict
+      continue;
+    }
+
+    if (conflict.conflictType === 'SOFT_WARN') {
+      // Allow but log the override
+      await supabase.from('audit_trail').insert({
+        user_id: input.assignedBy,
+        challenge_id: input.challengeId,
+        action: 'ROLE_CONFLICT_OVERRIDE',
+        method: 'SYSTEM',
+        details: {
+          role_code: input.roleCode,
+          candidate_user: candidate.user_id,
+          candidate_pool_member: candidate.id,
+          conflict_message: conflict.message,
+          auto_assigned: true,
+        },
+      });
+    }
+
+    winner = candidate;
+    break;
+  }
+
+  if (!winner) return null;
 
   // 4. Insert into challenge_role_assignments
   const assignmentData = await withCreatedBy({

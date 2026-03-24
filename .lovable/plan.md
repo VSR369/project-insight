@@ -1,81 +1,88 @@
 
+# Final Matrix: Pricing Tier × Engagement Model × Governance × Role Fusion
 
-# Plan: Integrate Role Fusion Enforcement into Assignment Flows
+## Status: COMPLETE (Reference Document)
 
-## Problem
+All items below are implemented and live. This serves as the authoritative reference.
 
-The `validate_role_assignment()` SQL function and the 14 `role_conflict_rules` rows exist in the database, but **no frontend code calls them**. All three assignment paths insert directly without checking for conflicts:
+---
 
-1. **AssignRoleSheet** (org-level role assignment by Seeking Org Admin / Platform Admin) — inserts into `role_assignments` with no conflict check
-2. **useAutoAssignChallengeRoles** (challenge-level auto-assignment) — inserts into `challenge_role_assignments` + `user_challenge_roles` with no conflict check
-3. **useSolutionRequests** (manual challenge role assignment) — same pattern
+## 1. Configuration Scope
 
-The governance mode and role fusion rules are fully configured but completely unenforced at the UI layer.
+| Setting | Org-Level | Challenge-Level | Notes |
+|---------|-----------|-----------------|-------|
+| Pricing Tier | ✅ Fixed | ✗ No | Set via subscription |
+| Engagement Model (MP/AGG) | ✅ Default | ✅ Override at Step 0 | Locked once ACTIVE (phase 7+) |
+| Governance Mode (Q/S/C) | ✅ Default | ✅ Override at Step 0 | Clamped to tier ceiling |
+| Role Fusion Rules | ✗ Not directly set | ✅ Derived from governance mode | Auto-resolved |
 
-## What Needs to Happen
+## 2. Tier → Governance Ceiling
 
-### 1. Create a `useValidateRoleAssignment` hook
+| Tier | Allowed Modes | Default |
+|------|---------------|---------|
+| Basic | QUICK only | QUICK |
+| Standard | QUICK, STRUCTURED | STRUCTURED |
+| Premium | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
+| Enterprise | QUICK, STRUCTURED, CONTROLLED | STRUCTURED |
 
-A reusable hook/utility that calls the existing `validate_role_assignment` RPC:
+Implemented in `TIER_GOVERNANCE_MODES` and `getDefaultGovernanceMode()` in `src/lib/governanceMode.ts`.
 
-```typescript
-const result = await supabase.rpc('validate_role_assignment', {
-  p_challenge_id: challengeId,
-  p_governance_profile: governanceMode, // resolved via resolveChallengeGovernance()
-  p_new_role: roleCode,
-  p_user_id: userId,
-});
-// Returns: { allowed: boolean, enforcement: 'HARD_BLOCK'|'SOFT_WARN'|null, conflicts: [...] }
-```
+## 3. Engagement Model — Independent of Governance
 
-The hook returns conflict details so the UI can:
-- **HARD_BLOCK**: Disable the assign button, show error banner
-- **SOFT_WARN**: Show amber warning with override confirmation dialog
+| Feature | MP | AGG |
+|---------|-----|-----|
+| Intake role | AM | RQ |
+| Spec role | CA (Architect) | CR (Creator) |
 
-### 2. Integrate into AssignRoleSheet (org-level roles)
+Engagement model does NOT affect role fusion. It only determines role names.
 
-This is where Seeking Org Admins and Platform Admins assign roles. When a user selects a role for an existing team member:
-- Call `validate_role_assignment` with the user's existing challenge roles
-- Show conflict warnings/blocks inline before the submit button
-- For SOFT_WARN: show an "I understand the conflict" checkbox
-- For HARD_BLOCK: disable submit with explanation
+## 4. Governance Mode → Role Fusion
 
-Note: Org-level assignments (`role_assignments` table) are separate from challenge-level assignments (`user_challenge_roles`). The conflict check applies when the same user holds conflicting challenge roles. At org-level, we should show a **preview warning** — "This user currently holds CR on 3 challenges; assigning CU would conflict under STRUCTURED/CONTROLLED governance."
+### QUICK — Zero conflict rules, solo operator
+All 9 roles auto-assigned to creator. Any combination allowed.
 
-### 3. Integrate into useAutoAssignChallengeRoles (auto-assignment)
+### STRUCTURED — 5 SOFT_WARN rules
+- CR+CU, CR+ID, CU+ID, CR+ER, ID+ER → warnings only
 
-Before inserting, call `validate_role_assignment`. If HARD_BLOCK is returned, skip that candidate and try the next best-scored one. SOFT_WARN candidates are allowed but the conflict is logged in `audit_trail`.
+### CONTROLLED — 3 HARD_BLOCK + 6 SOFT_WARN
+- CR+CU, CR+ID, CU+ID → HARD_BLOCK (system prevents)
+- AM+CR, AM+CU, RQ+CR, RQ+CU, CR+ER, ID+ER → SOFT_WARN
 
-### 4. Integrate into challenge role manual assignment (useSolutionRequests)
+## 5. Combined: Tier × Governance → Min Users
 
-Same pattern as auto-assign: validate before insert, surface warnings in UI.
+| Tier | Mode | Fusion | Min Users |
+|------|------|--------|-----------|
+| Basic | QUICK | All merged | 1 |
+| Standard | QUICK | All merged | 1 |
+| Standard | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
+| Premium/Enterprise | QUICK | All merged | 1 |
+| Premium/Enterprise | STRUCTURED | Warn on 5 | 1 (ideal 2-3) |
+| Premium/Enterprise | CONTROLLED | Block 3 core, warn 6 | Min 3 (CR, CU, ID separate) |
 
-### 5. Create a ConflictWarningBanner component
+## 6. Implementation Status
 
-Reusable component that renders:
-- Red banner with lock icon for HARD_BLOCK: "This role combination is blocked under CONTROLLED governance. CR and CU must be held by different users."
-- Amber banner with warning icon for SOFT_WARN: "Warning: Assigning CR to this user who already holds CU is not recommended under STRUCTURED governance."
+| Layer | Status |
+|-------|--------|
+| Tier → governance ceiling | ✅ Done |
+| Governance mode selector (Step 0) | ✅ Done |
+| Engagement model selector (Step 0) | ✅ Done |
+| `validate_role_assignment()` | ✅ Done |
+| `auto_assign_roles_on_creation()` | ✅ Done |
+| Conflict rules in DB (14 rows) | ✅ Done |
+| `resolveGovernanceMode()` | ✅ Done |
+| Frontend `isQuick` rename (18 files) | ✅ Done |
+| `isStructuredOrAbove` + deprecated alias | ✅ Done |
 
-## Files to Create/Modify
+### Completed (was Future Enhancement)
+- ✅ Per-challenge `governance_mode_override` column added to `challenges`
+- ✅ `resolve_challenge_governance(p_challenge_id)` SQL function (3-layer: override → org default → tier ceiling)
+- ✅ `validate_role_assignment()` and `auto_assign_roles_on_creation()` now call resolver
+- ✅ Client-side `resolveChallengeGovernance()` in `governanceMode.ts`
+- ✅ `ChallengeWizardPage.tsx` writes `governance_mode_override` on save
 
-| File | Change |
-|------|--------|
-| `src/hooks/cogniblend/useValidateRoleAssignment.ts` | New hook calling `validate_role_assignment` RPC |
-| `src/components/rbac/roles/ConflictWarningBanner.tsx` | New UI component for HARD_BLOCK / SOFT_WARN display |
-| `src/components/rbac/roles/AssignRoleSheet.tsx` | Add conflict check on role selection, show banner, gate submit |
-| `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` | Add pre-insert validation, skip HARD_BLOCK candidates |
-| `src/hooks/queries/useSolutionRequests.ts` | Add validation to manual assignment mutation |
-
-## What Does NOT Change
-
-- The SQL `validate_role_assignment()` function — already correct
-- The `role_conflict_rules` table — already seeded with 14 rows
-- `resolve_challenge_governance()` — already deployed
-- `governanceMode.ts` — already has client-side resolver
-
-## Technical Details
-
-- The `validate_role_assignment` RPC accepts `p_governance_profile` as a string. The frontend must resolve the effective governance mode first using `resolveChallengeGovernance()` before calling the RPC.
-- For org-level assignments (no challenge context), the conflict check should use the org's default governance mode as a preview. The actual enforcement happens at challenge-level assignment time.
-- SOFT_WARN overrides should be logged to `audit_trail` with action `ROLE_CONFLICT_OVERRIDE` and the admin's user ID.
-
+### Role Fusion Enforcement — Frontend Integration (Completed)
+- ✅ `useValidateRoleAssignment` hook — calls `validate_role_assignment` RPC
+- ✅ `ConflictWarningBanner` component — HARD_BLOCK (red) / SOFT_WARN (amber + override checkbox)
+- ✅ `AssignRoleSheet` — conflict check integrated with reset on role/member change
+- ✅ `useAutoAssignChallengeRoles` — pre-insert validation, skips HARD_BLOCK candidates, logs SOFT_WARN overrides
+- ✅ `useAssignMember` (useSolutionRequests) — pre-insert validation, blocks on HARD_BLOCK, logs SOFT_WARN overrides to audit_trail
