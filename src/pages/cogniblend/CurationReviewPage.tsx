@@ -1012,8 +1012,6 @@ export default function CurationReviewPage() {
       const updated = [...current, trimmed];
       saveSectionMutation.mutate({ field: "domain_tags", value: updated });
     }
-    setDomainTagInput("");
-    setShowTagDropdown(false);
   }, [challenge, saveSectionMutation]);
 
   const handleRemoveDomainTag = useCallback((tag: string) => {
