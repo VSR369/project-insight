@@ -242,11 +242,14 @@ const SECTIONS: SectionDef[] = [
       const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       if (!d || d.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
       return (
-        <ol className="list-decimal list-inside space-y-1">
+        <div className="space-y-2">
           {d.map((item: any, i: number) => (
-            <li key={i} className="text-sm text-foreground">{typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}</li>
+            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
+              <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
+              {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
+            </div>
           ))}
-        </ol>
+        </div>
       );
     },
   },
