@@ -56,9 +56,10 @@ interface DeliverablesEditorProps {
   onSave: (items: string[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  itemLabel?: string;
 }
 
-export function DeliverablesEditor({ items: initial, onSave, onCancel, saving }: DeliverablesEditorProps) {
+export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, itemLabel = "Item" }: DeliverablesEditorProps) {
   const [items, setItems] = useState<string[]>(initial.length ? initial : [""]);
 
   const update = (i: number, v: string) => {
@@ -76,7 +77,7 @@ export function DeliverablesEditor({ items: initial, onSave, onCancel, saving }:
           <Input
             value={item}
             onChange={(e) => update(i, e.target.value)}
-            placeholder={`Deliverable ${i + 1}`}
+            placeholder={`${itemLabel} ${i + 1}`}
             className="flex-1"
           />
           {items.length > 1 && (
@@ -87,7 +88,7 @@ export function DeliverablesEditor({ items: initial, onSave, onCancel, saving }:
         </div>
       ))}
       <Button variant="outline" size="sm" onClick={add}>
-        <Plus className="h-3.5 w-3.5 mr-1" />Add Deliverable
+        <Plus className="h-3.5 w-3.5 mr-1" />Add {itemLabel}
       </Button>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>

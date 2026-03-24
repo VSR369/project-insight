@@ -373,6 +373,7 @@ export default function ExtendedBriefDisplay({
                     onSave={(newItems) => handleSubsectionSave(subsectionKey, newItems)}
                     onCancel={cancelEdit}
                     saving={saving}
+                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : subsectionKey === "current_deficiencies" ? "Deficiency" : "Outcome"}
                   />
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>
@@ -400,6 +401,7 @@ export default function ExtendedBriefDisplay({
                     onSave={(newItems) => handleSubsectionSave(subsectionKey, newItems)}
                     onCancel={cancelEdit}
                     saving={saving}
+                    itemLabel="Approach"
                   />
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>

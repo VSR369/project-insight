@@ -1876,6 +1876,7 @@ export default function CurationReviewPage() {
                               onSave={handleSaveDeliverables}
                               onCancel={cancelEdit}
                               saving={savingSection}
+                              itemLabel="Deliverable"
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
@@ -1904,6 +1905,7 @@ export default function CurationReviewPage() {
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
+                              itemLabel="Guideline"
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
@@ -1932,6 +1934,7 @@ export default function CurationReviewPage() {
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
+                              itemLabel="Outcome"
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
