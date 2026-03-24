@@ -1,28 +1,37 @@
 
 
-# Plan: Enable "Refine with AI" for Empty Sections
+# Assessment: AI Review Display & Content Merging
 
-## Problem
+## Status: Already Implemented
 
-The "Refine with AI" button is disabled for Deliverables and other sections because the `currentContent` prop is `null` (the field has no data). The disable condition on line 269 of `AIReviewInline.tsx` is `disabled={isRefining || !currentContent}`.
+All five problems described in the prompt have already been addressed in prior iterations:
 
-This is counterproductive: the AI review says "Needs Revision — add deliverables" but the user cannot use the AI to generate them because the button is disabled precisely because there is nothing there yet.
+### Problem 1 — AI review output rendering
+**Already done.** `AIReviewInline.tsx` line 265 renders comments via `AiContentRenderer` (supports markdown, HTML, JSON). Line 286 renders refined content the same way. No `<pre>` or `white-space: pre-wrap` is used.
 
-## Fix
+### Problem 2 — Accepting AI content preserves formatting
+**Already done.** All three `handleAcceptRefinement` callbacks (CurationReviewPage, ConversationalIntakePage, SimpleIntakeForm) run `normalizeAiContentForEditor()` on text fields before DB save, converting markdown to sanitized HTML. Structured fields (deliverables, eval criteria) are JSON-parsed. The `TextSectionEditor` initializes with `normalizeAiContentForEditor(value)`, so RichTextEditor always receives valid HTML.
 
-**File: `src/components/cogniblend/shared/AIReviewInline.tsx`**
+### Problem 3 — Append instead of replace
+**Already done.** `AIReviewInline.tsx` lines 188-190: if `currentContent` exists and is not the empty placeholder, the refined content is appended below an `<hr>` separator with an "AI suggestion" label. Human content is never overwritten.
 
-1. **Remove the `!currentContent` disable condition** — change `disabled={isRefining || !currentContent}` to `disabled={isRefining}`.
+### Problem 4 — Item-level edit and delete for structured sections
+**Already done.** `CurationSectionEditor.tsx` provides:
+- `DeliverablesEditor`: per-item Input fields with add/delete buttons
+- `EvalCriteriaEditor`: per-criterion table with name, weight, description, and add/delete
+- These are used in CurationReviewPage for all structured JSON sections
 
-2. **Handle empty content in the refine handler** — update `handleRefineWithAI` to send a fallback value (e.g., `"[empty — no content yet]"`) when `currentContent` is null/empty. This tells the AI model the section is blank and it should generate initial content based on the review comments.
+### Problem 5 — Rich-text comment rendering
+**Already done.** Line 265 of `AIReviewInline.tsx`: `<AiContentRenderer content={comment} compact className="text-xs" />`. Bold, lists, and other formatting in comments are rendered correctly.
 
-3. **Update button label** — when `currentContent` is empty, show "Draft with AI" instead of "Refine with AI" to clarify the action.
+## Conclusion
 
-No other files need changes. The edge function (`refine-challenge-section`) already handles both generation and refinement — it uses the curator instructions (review comments) to produce content regardless of whether `current_content` is empty or populated.
+No code changes are needed. The entire prompt describes work that has already been completed across the last several iterations. The system correctly:
+- Renders AI output with rich formatting
+- Normalizes content to HTML before saving
+- Appends AI content below human content with a separator
+- Provides structured editors for list-based sections
+- Renders review comments with full formatting support
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/components/cogniblend/shared/AIReviewInline.tsx` | Remove `!currentContent` disable guard; send fallback for empty sections; label "Draft with AI" vs "Refine with AI" |
+Human content can be entered first (AI appends), or AI can draft first (human edits/appends). The RichTextEditor is used throughout for all text sections, and humans can always edit the full content.
 
