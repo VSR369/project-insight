@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
