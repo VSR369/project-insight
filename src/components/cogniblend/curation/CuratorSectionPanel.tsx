@@ -174,6 +174,7 @@ export function CuratorSectionPanel({
   aiReviewSlot,
   defaultExpanded,
   sectionActions,
+  promptSource,
 }: CuratorSectionPanelProps) {
   const [showModificationModal, setShowModificationModal] = useState(false);
   // ── Expand/collapse state with localStorage persistence ──
