@@ -2520,6 +2520,17 @@ export default function CurationReviewPage() {
           <ModificationPointsTracker challengeId={challengeId!} mode={isReadOnly ? "readonly" : "curator"} />
         </div>
       </div>
+
+      {/* Send to LC/FC Modal for locked sections */}
+      <SendForModificationModal
+        open={lockedSendState.open}
+        onOpenChange={(open) => setLockedSendState(prev => ({ ...prev, open }))}
+        challengeId={challengeId!}
+        sectionKey={lockedSendState.sectionKey}
+        sectionLabel={lockedSendState.sectionLabel}
+        initialComment={lockedSendState.initialComment}
+        aiOriginalComments={lockedSendState.aiOriginalComments}
+      />
     </div>
   );
 }
