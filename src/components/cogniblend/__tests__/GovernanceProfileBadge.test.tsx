@@ -30,14 +30,14 @@ describe('TW1-05 — GovernanceProfileBadge', () => {
     expect(screen.getByText('CONTROLLED')).toBeInTheDocument();
   });
 
-  it('defaults to QUICK when profile is null', () => {
+  it('defaults to STRUCTURED when profile is null', () => {
     render(<GovernanceProfileBadge profile={null} />);
-    expect(screen.getByText('QUICK')).toBeInTheDocument();
+    expect(screen.getByText('STRUCTURED')).toBeInTheDocument();
   });
 
-  it('defaults to QUICK when profile is undefined', () => {
+  it('defaults to STRUCTURED when profile is undefined', () => {
     render(<GovernanceProfileBadge profile={undefined} />);
-    expect(screen.getByText('QUICK')).toBeInTheDocument();
+    expect(screen.getByText('STRUCTURED')).toBeInTheDocument();
   });
 
   it('applies prominent (non-compact) sizing by default', () => {

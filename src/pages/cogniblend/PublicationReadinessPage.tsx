@@ -1,6 +1,6 @@
 /**
  * Publication Readiness Page — /cogni/challenges/:id/publish
- * Displays GATE-11 (Enterprise) or GATE-11-L (Lightweight) pre-publication checklist.
+ * Displays GATE-11 (Structured/Controlled) or GATE-11-L (Quick) pre-publication checklist.
  */
 
 import { useState } from 'react';
@@ -66,7 +66,7 @@ export default function PublicationReadinessPage() {
     );
   }
 
-  const isQuick = data.governanceProfile === 'LIGHTWEIGHT';
+  const isQuick = isQuickMode(resolveGovernanceMode(data.governanceProfile));
 
   // Publish disabled logic
   const escrowBlocking = !isQuick && escrowQuery.data?.escrow?.escrow_status !== 'FUNDED';
