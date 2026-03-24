@@ -5,6 +5,9 @@
  * Supports role contexts: 'intake', 'spec', 'curation', 'legal', 'finance', 'evaluation'.
  * Loads config from ai_review_section_config DB table; falls back to hardcoded defaults.
  * Persists results to challenges.ai_section_reviews.
+ *
+ * Batching: splits sections into batches of MAX_BATCH_SIZE to prevent LLM output truncation.
+ * Master data: injects allowed option codes into prompt for master-data-backed sections.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -18,6 +21,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const MAX_BATCH_SIZE = 12;
 
 /* ── Hardcoded fallback section definitions ──────────────── */
 
@@ -42,7 +46,7 @@ const CURATION_SECTIONS = [
   { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
   { key: "visibility", desc: "Solver visibility types properly configured" },
   { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
-  // Extended Brief subsections (replaces single 'extended_brief' entry)
+  // Extended Brief subsections
   { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
   { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
   { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
@@ -80,7 +84,6 @@ function getFallbackSections(roleContext: RoleContext) {
     case "intake": return INTAKE_SECTIONS;
     case "spec": return SPEC_SECTIONS;
     case "curation": return CURATION_SECTIONS;
-    // New contexts have no hardcoded fallback — return empty
     default: return [];
   }
 }
@@ -119,6 +122,169 @@ Sections to review:
 ${sectionList}
 
 Every comment MUST be phrased as an actionable improvement instruction.`;
+}
+
+/* ── Master data definitions for prompt injection ──────── */
+
+/** Sections that need master data options injected into the prompt */
+const MASTER_DATA_SECTION_TABLES: Record<string, string> = {
+  eligibility: "md_solver_eligibility",
+  complexity: "md_challenge_complexity",
+};
+
+/** Static master data for sections that don't have DB tables */
+const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
+  visibility: [
+    { code: "anonymous", label: "Anonymous" },
+    { code: "named", label: "Named" },
+    { code: "verified", label: "Verified" },
+  ],
+  ip_model: [
+    { code: "IP-EA", label: "Full IP Transfer (Exclusive Assignment)" },
+    { code: "IP-NEL", label: "Non-Exclusive License" },
+    { code: "IP-EL", label: "Exclusive License" },
+    { code: "IP-JO", label: "Joint Ownership" },
+    { code: "IP-SR", label: "Solver Retains IP" },
+  ],
+  maturity_level: [
+    { code: "BLUEPRINT", label: "Blueprint / Concept" },
+    { code: "POC", label: "Proof of Concept" },
+    { code: "PROTOTYPE", label: "Prototype" },
+    { code: "PILOT", label: "Pilot" },
+    { code: "PRODUCTION", label: "Production-Ready" },
+  ],
+  challenge_visibility: [
+    { code: "public", label: "Public" },
+    { code: "private", label: "Private" },
+    { code: "invite_only", label: "Invite Only" },
+  ],
+  effort_level: [
+    { code: "LOW", label: "Low" },
+    { code: "MEDIUM", label: "Medium" },
+    { code: "HIGH", label: "High" },
+    { code: "VERY_HIGH", label: "Very High" },
+  ],
+};
+
+/**
+ * Fetch dynamic master data from DB for sections that need it.
+ */
+async function fetchMasterDataOptions(
+  adminClient: any,
+): Promise<Record<string, { code: string; label: string }[]>> {
+  const result: Record<string, { code: string; label: string }[]> = { ...STATIC_MASTER_DATA };
+
+  // Fetch solver eligibility tiers
+  const { data: eligibilityData } = await adminClient
+    .from("md_solver_eligibility")
+    .select("code, name")
+    .eq("is_active", true)
+    .order("display_order");
+  if (eligibilityData?.length) {
+    result.eligibility = eligibilityData.map((r: any) => ({ code: r.code, label: r.name }));
+  }
+
+  // Fetch complexity levels
+  const { data: complexityData } = await adminClient
+    .from("md_challenge_complexity")
+    .select("code, name")
+    .eq("is_active", true)
+    .order("display_order");
+  if (complexityData?.length) {
+    result.complexity = complexityData.map((r: any) => ({ code: r.code, label: r.name }));
+  }
+
+  return result;
+}
+
+/**
+ * Call AI gateway for a batch of sections.
+ */
+async function callAIBatch(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  sectionKeys: string[],
+): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string }[]> {
+  const response = await fetch(AI_GATEWAY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "review_sections",
+            description: "Return per-section review results.",
+            parameters: {
+              type: "object",
+              properties: {
+                sections: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      section_key: { type: "string" },
+                      status: { type: "string", enum: ["pass", "warning", "needs_revision"] },
+                      comments: { type: "array", items: { type: "string" } },
+                    },
+                    required: ["section_key", "status", "comments"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["sections"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "review_sections" } },
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("RATE_LIMIT");
+    if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
+    const errText = await response.text();
+    console.error("AI gateway error:", response.status, errText);
+    throw new Error(`AI gateway error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
+
+  const parsed = JSON.parse(toolCall.function.arguments);
+  const now = new Date().toISOString();
+  const sections = (parsed.sections ?? []).map((s: any) => ({
+    ...s,
+    reviewed_at: now,
+  }));
+
+  // Backfill skipped sections as "warning" (not misleading "pass")
+  const returnedKeys = new Set(sections.map((s: any) => s.section_key));
+  for (const key of sectionKeys) {
+    if (!returnedKeys.has(key)) {
+      sections.push({
+        section_key: key,
+        status: "warning",
+        comments: ["Review could not be completed for this section. Please re-review individually."],
+        reviewed_at: now,
+      });
+    }
+  }
+
+  return sections;
 }
 
 serve(async (req) => {
@@ -316,105 +482,81 @@ serve(async (req) => {
       : resolvedContext === "evaluation" ? "evaluation setup"
       : "challenge";
 
-    const userPrompt = section_key
-      ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`
-      : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
-
-    // ── Build system prompt ──────────────────────────────────
-    let systemPrompt: string;
-    if (useDbConfig && dbConfigMap) {
-      const activeConfigs = sectionsToReview
-        .map(s => dbConfigMap!.get(s.key))
-        .filter((c): c is SectionConfig => !!c);
-      systemPrompt = buildConfiguredBatchPrompt(activeConfigs, resolvedContext);
-    } else {
-      systemPrompt = buildFallbackSystemPrompt(sectionsToReview, resolvedContext);
+    // ── Fetch master data for prompt injection ────────────────
+    let masterDataOptions: Record<string, { code: string; label: string }[]> = {};
+    if (resolvedContext === "curation") {
+      masterDataOptions = await fetchMasterDataOptions(adminClient);
     }
 
-    // ── Call AI Gateway ──────────────────────────────────────
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelToUse,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "review_sections",
-              description: "Return per-section review results.",
-              parameters: {
-                type: "object",
-                properties: {
-                  sections: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        section_key: { type: "string" },
-                        status: { type: "string", enum: ["pass", "warning", "needs_revision"] },
-                        comments: { type: "array", items: { type: "string" } },
-                      },
-                      required: ["section_key", "status", "comments"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["sections"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "review_sections" } },
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
+    // ── Batch-split sections for AI calls ─────────────────────
+    const batches: { key: string; desc: string }[][] = [];
+    for (let i = 0; i < sectionsToReview.length; i += MAX_BATCH_SIZE) {
+      batches.push(sectionsToReview.slice(i, i + MAX_BATCH_SIZE));
     }
 
-    const result = await response.json();
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
+    const allNewSections: any[] = [];
 
-    const parsed = JSON.parse(toolCall.function.arguments);
-    const newSections = (parsed.sections ?? []).map((s: any) => ({
-      ...s,
-      reviewed_at: new Date().toISOString(),
-    }));
+    for (const batch of batches) {
+      const userPrompt = section_key
+        ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`
+        : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
 
-    // Backfill any sections the AI skipped with a default "pass"
-    const returnedKeys = new Set(newSections.map((s: any) => s.section_key));
-    for (const sec of sectionsToReview) {
-      if (!returnedKeys.has(sec.key)) {
-        newSections.push({
-          section_key: sec.key,
-          status: "pass",
-          comments: [],
-          reviewed_at: new Date().toISOString(),
-        });
+      let systemPrompt: string;
+      if (useDbConfig && dbConfigMap) {
+        const activeConfigs = batch
+          .map(s => dbConfigMap!.get(s.key))
+          .filter((c): c is SectionConfig => !!c);
+        systemPrompt = buildConfiguredBatchPrompt(activeConfigs, resolvedContext, masterDataOptions);
+      } else {
+        systemPrompt = buildFallbackSystemPrompt(batch, resolvedContext);
+        // Append master data constraints for fallback mode too
+        if (Object.keys(masterDataOptions).length > 0) {
+          const mdLines: string[] = ["\n\n## Master Data Constraints"];
+          for (const key of batch.map(b => b.key)) {
+            const opts = masterDataOptions[key];
+            if (opts?.length) {
+              mdLines.push(`For "${key}": allowed values are [${opts.map(o => `"${o.code}" (${o.label})`).join(", ")}]. You MUST only suggest values from this list.`);
+            }
+          }
+          if (mdLines.length > 1) {
+            systemPrompt += mdLines.join("\n");
+          }
+        }
+      }
+
+      try {
+        const batchResults = await callAIBatch(
+          LOVABLE_API_KEY,
+          modelToUse,
+          systemPrompt,
+          userPrompt,
+          batch.map(s => s.key),
+        );
+        allNewSections.push(...batchResults);
+      } catch (err: any) {
+        if (err.message === "RATE_LIMIT") {
+          return new Response(
+            JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (err.message === "PAYMENT_REQUIRED") {
+          return new Response(
+            JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // If a batch fails, mark all its sections as warning
+        const now = new Date().toISOString();
+        for (const sec of batch) {
+          allNewSections.push({
+            section_key: sec.key,
+            status: "warning",
+            comments: ["Review could not be completed. Please re-review individually."],
+            reviewed_at: now,
+          });
+        }
+        console.error("Batch AI call failed:", err);
       }
     }
 
@@ -423,10 +565,10 @@ serve(async (req) => {
       ? challengeResult.data.ai_section_reviews
       : [];
 
-    const newKeys = new Set(newSections.map((s: any) => s.section_key));
+    const newKeys = new Set(allNewSections.map((s: any) => s.section_key));
     const merged = [
       ...existingReviews.filter((r: any) => !newKeys.has(r.section_key)),
-      ...newSections,
+      ...allNewSections,
     ];
 
     const { error: updateError } = await adminClient
@@ -439,7 +581,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: { sections: newSections, all_reviews: merged } }),
+      JSON.stringify({ success: true, data: { sections: allNewSections, all_reviews: merged } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

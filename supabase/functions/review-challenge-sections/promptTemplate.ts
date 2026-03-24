@@ -37,9 +37,9 @@ const FORMAT_INSTRUCTIONS: Record<string, string> = {
   rich_text: 'Output: formatted markdown with headings and bullet lists. No tables. No JSON.',
   line_items: 'Output: a JSON array of strings. Each string is one discrete item. Max 20 items. No prose.',
   table: 'Output: a JSON array of row objects. Use exact column keys from the section definition.',
-  schedule_table: 'Output: a JSON array of phase objects with keys: phase_name, start_date, end_date, milestone (bool), dependencies.',
-  checkbox_multi: 'Output: a JSON array of selected option IDs from the provided list only.',
-  checkbox_single: 'Output: a JSON object: { "selected_id": "...", "rationale": "one sentence" }.',
+  schedule_table: 'Output: a JSON array of phase objects with keys: phase_name (string), duration_days (number), start_date (ISO date YYYY-MM-DD or null), end_date (ISO date YYYY-MM-DD or null). Propose realistic dates based on challenge scope and complexity.',
+  checkbox_multi: 'Output: a JSON array of selected option codes from the allowed values list ONLY. Do NOT invent new codes.',
+  checkbox_single: 'Output: a JSON object: { "selected_id": "...", "rationale": "one sentence" }. The selected_id MUST be from the allowed values list.',
   date: 'Output: a single ISO date string YYYY-MM-DD or null.',
   structured_fields: 'Output: { "status": "complete"|"incomplete", "missing_fields": [...], "comments": "..." }.',
   select: 'Output: a single string value from the allowed options.',
@@ -94,6 +94,7 @@ const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
 export function buildConfiguredBatchPrompt(
   configs: SectionConfig[],
   roleContext: string,
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): string {
   const contextLabel = ROLE_CONTEXT_LABELS[roleContext] || 'challenge section';
 
@@ -112,6 +113,14 @@ export function buildConfiguredBatchPrompt(
 
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
+
+    // Inject master data allowed values
+    const opts = masterDataOptions?.[config.section_key];
+    if (opts?.length) {
+      parts.push(`Allowed values: [${opts.map(o => `"${o.code}" (${o.label})`).join(', ')}]`);
+      parts.push(`You MUST only suggest values from this allowed list. Do not invent new codes.`);
+    }
+
     if (config.section_description) parts.push(`Description: ${config.section_description}`);
     if (config.review_instructions) parts.push(`Instructions: ${config.review_instructions}`);
     if (config.dos) parts.push(`Do: ${config.dos}`);
@@ -128,5 +137,6 @@ export function buildConfiguredBatchPrompt(
   parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
   parts.push('CRITICAL: Each distinct issue or suggestion MUST be a separate comment in the array. Do NOT combine multiple issues into one comment. For structured sections (deliverables, evaluation_criteria), provide one comment per issue — e.g., one comment about a missing deliverable, another about a vague deliverable.');
   parts.push('Your suggested content for each section MUST match the prescribed format — never write prose paragraphs for line_items, table, or checkbox sections.');
+  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility, effort_level), your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }
