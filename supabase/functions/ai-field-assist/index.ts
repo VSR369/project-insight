@@ -14,6 +14,8 @@ const FIELD_PROMPTS: Record<string, string> = {
   deliverables: `Suggest 4-6 specific deliverables that solvers should provide for this innovation challenge. Each should be actionable and measurable.`,
   expected_outcomes: `Draft expected outcomes for this innovation challenge. What specific results should the solution achieve? Include measurable success criteria.`,
   description: `Write a concise challenge description (2-3 paragraphs) that summarizes the challenge for potential solvers.`,
+  payment_milestones: `Suggest 3-5 payment milestones for this innovation challenge. Return a JSON object: {"payment_milestones":[{"name":"Milestone Name","pct":25,"trigger":"Condition to release payment"}]}. Percentages must sum to 100.`,
+  tiered_perks: `Suggest tiered perks for a 3-tier reward structure (platinum, gold, silver). Return a JSON object: {"tiered_perks":{"platinum":["perk1","perk2"],"gold":["perk1","perk2"],"silver":["perk1","perk2"]}}. Make perks relevant to the challenge domain.`,
 };
 
 serve(async (req) => {
