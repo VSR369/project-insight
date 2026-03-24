@@ -42,7 +42,19 @@ import { SendForModificationModal } from "./SendForModificationModal";
 // Types
 // ---------------------------------------------------------------------------
 
-export type SectionStatus = "not_reviewed" | "pass" | "warning" | "needs_revision" | "view_only";
+export type SectionStatus = "not_reviewed" | "pass" | "warning" | "needs_revision" | "view_only" | "pending_modification" | "curator_approved";
+
+export interface SectionActionRecord {
+  id: string;
+  action_type: string;
+  status: string;
+  addressed_to: string | null;
+  priority: string | null;
+  comment_html: string | null;
+  created_at: string;
+  responded_at: string | null;
+  response_html: string | null;
+}
 
 export interface CuratorSectionPanelProps {
   sectionKey: string;
@@ -54,6 +66,7 @@ export interface CuratorSectionPanelProps {
   isReadOnly: boolean;
   isApproved: boolean;
   onToggleApproval: () => void;
+  onApproveSection?: () => void;
   challengeId: string;
   inlineFlags?: string[];
   /** Content rendered inside the panel body */
@@ -62,6 +75,8 @@ export interface CuratorSectionPanelProps {
   aiReviewSlot?: React.ReactNode;
   /** Default open override (e.g. for sections with warnings) */
   defaultExpanded?: boolean;
+  /** Existing section action records for this section */
+  sectionActions?: SectionActionRecord[];
 }
 
 // ---------------------------------------------------------------------------
