@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { ROLE_DISPLAY } from '@/types/cogniRoles';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -103,7 +104,7 @@ export function MyActionItemsSection() {
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
 
-  const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
+  const { isSpecRole } = useCogniPermissions();
 
   // Fetch unread notifications for CA/CR roles
   const { data: unreadNotifications = [], isLoading: notifLoading } = useQuery({

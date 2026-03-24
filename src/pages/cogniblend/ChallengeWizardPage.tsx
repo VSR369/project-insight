@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { supabase } from '@/integrations/supabase/client';
 import { Clock, Save, PauseCircle, XCircle, ChevronDown, ChevronRight, FileText } from 'lucide-react';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -98,8 +98,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const navigate = useNavigate();
   const { id: challengeId } = useParams<{ id: string }>();
   const isEditMode = !!challengeId;
-  const { activeRole } = useCogniRoleContext();
-  const isCuratorView = activeRole === 'CU';
+  const { canCurate } = useCogniPermissions();
+  const isCuratorView = canCurate;
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();

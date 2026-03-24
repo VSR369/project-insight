@@ -13,6 +13,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { ROLE_NAV_RELEVANCE, SOLVER_PATHS } from '@/types/cogniRoles';
+import { useCogniPermissions, type CogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -22,7 +23,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  requiredRoles: string[];
+  isVisible: (perms: CogniPermissions) => boolean;
   badgeKey?: 'activeChallenges' | 'curationQueue' | 'approvalQueue';
 }
 
@@ -42,30 +43,30 @@ const SECTIONS: NavSection[] = [
   {
     title: 'CHALLENGES',
     items: [
-      { label: 'New Challenge', path: '/cogni/challenges/create', icon: FilePlus, requiredRoles: ['CR', 'CA', 'AM', 'RQ'] },
-      { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, requiredRoles: ['CR', 'CA'], badgeKey: 'activeChallenges' },
-      { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, requiredRoles: ['CU'], badgeKey: 'curationQueue' },
-      { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, requiredRoles: ['ID'], badgeKey: 'approvalQueue' },
-      { label: 'Legal Workspace', path: '/cogni/lc-queue', icon: FileText, requiredRoles: ['LC'] },
-      { label: 'Legal Review', path: '/cogni/legal-review', icon: FileCheck, requiredRoles: ['LC'] },
+      { label: 'New Challenge', path: '/cogni/challenges/create', icon: FilePlus, isVisible: (p) => p.canCreateChallenge || p.canSubmitRequest },
+      { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, isVisible: (p) => p.canEditSpec, badgeKey: 'activeChallenges' },
+      { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, isVisible: (p) => p.canCurate, badgeKey: 'curationQueue' },
+      { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, isVisible: (p) => p.canApprove, badgeKey: 'approvalQueue' },
+      { label: 'Legal Workspace', path: '/cogni/lc-queue', icon: FileText, isVisible: (p) => p.canReviewLegal },
+      { label: 'Legal Review', path: '/cogni/legal-review', icon: FileCheck, isVisible: (p) => p.canReviewLegal },
     ],
   },
   {
     title: 'SOLUTIONS',
     items: [
-      { label: 'Review Queue', path: '/cogni/review', icon: Eye, requiredRoles: ['ER'] },
-      { label: 'Evaluation Panel', path: '/cogni/evaluation', icon: BarChart2, requiredRoles: ['ER', 'ID'] },
-      { label: 'Selection & IP', path: '/cogni/selection', icon: Award, requiredRoles: ['ID'] },
-      { label: 'Escrow Management', path: '/cogni/escrow', icon: Lock, requiredRoles: ['FC'] },
-      { label: 'Payment Processing', path: '/cogni/payments', icon: CreditCard, requiredRoles: ['FC'] },
+      { label: 'Review Queue', path: '/cogni/review', icon: Eye, isVisible: (p) => p.canReviewEvaluation },
+      { label: 'Evaluation Panel', path: '/cogni/evaluation', icon: BarChart2, isVisible: (p) => p.canReviewEvaluation || p.canApprove },
+      { label: 'Selection & IP', path: '/cogni/selection', icon: Award, isVisible: (p) => p.canApprove },
+      { label: 'Escrow Management', path: '/cogni/escrow', icon: Lock, isVisible: (p) => p.canManageEscrow },
+      { label: 'Payment Processing', path: '/cogni/payments', icon: CreditCard, isVisible: (p) => p.canManageEscrow },
     ],
   },
   {
     title: 'SOLVER',
     items: [
-      { label: 'Browse Challenges', path: '/cogni/browse', icon: Search, requiredRoles: [] },
-      { label: 'My Solutions', path: '/cogni/my-solutions', icon: Lightbulb, requiredRoles: [] },
-      { label: 'My Portfolio', path: '/cogni/portfolio', icon: User, requiredRoles: [] },
+      { label: 'Browse Challenges', path: '/cogni/browse', icon: Search, isVisible: () => true },
+      { label: 'My Solutions', path: '/cogni/my-solutions', icon: Lightbulb, isVisible: () => true },
+      { label: 'My Portfolio', path: '/cogni/portfolio', icon: User, isVisible: () => true },
     ],
   },
 ];
@@ -117,9 +118,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     availableRoles,
     roleChallengeCount,
   } = useCogniRoleContext();
-
-   // Derive allRoleCodes from availableRoles for visibility check
-  const allRoleCodes = new Set(availableRoles);
+  const permissions = useCogniPermissions();
 
   // Check if user holds only seeking-org roles (no solver role)
   const isSeekingOrgOnly = availableRoles.length > 0 && availableRoles.every((r) => SEEKING_ORG_ROLES.has(r));
@@ -131,10 +130,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     approvalQueue: roleChallengeCount['ID'] ?? 0,
   };
 
-  const isVisible = (requiredRoles: string[]): boolean => {
-    if (requiredRoles.length === 0) return true;
-    return requiredRoles.some((r) => allRoleCodes.has(r));
-  };
+  const checkVisible = (item: NavItem): boolean => item.isVisible(permissions);
 
   /** Check if a nav path is relevant to the active workspace role */
   const isRelevant = (path: string): boolean => {
@@ -159,7 +155,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     <nav className="px-3 py-3 space-y-5">
       {SECTIONS.map((section) => {
         if (!isSectionVisible(section.title)) return null;
-        const visibleItems = section.items.filter((item) => isVisible(item.requiredRoles));
+        const visibleItems = section.items.filter(checkVisible);
         if (visibleItems.length === 0) return null;
 
         return (

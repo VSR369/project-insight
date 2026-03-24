@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useMyRequests, type RequestRow } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { useAuth } from '@/hooks/useAuth';
 
 /* ── Phase → current owner role ──────────────────────── */
@@ -85,10 +85,9 @@ function getViewRoute(
 
 export function MyRequestsTracker() {
   const { user } = useAuth();
-  const { activeRole } = useCogniRoleContext();
+  const { isSpecRole, isBusinessOwner } = useCogniPermissions();
 
-  const isSpecRole = activeRole === 'CA' || activeRole === 'CR';
-  const isAmRqRole = activeRole === 'AM' || activeRole === 'RQ' || !activeRole;
+  const isAmRqRole = isBusinessOwner;
 
   // AM/RQ: show requests created by this user
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
