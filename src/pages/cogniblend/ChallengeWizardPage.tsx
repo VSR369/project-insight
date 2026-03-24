@@ -110,14 +110,15 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  // Resolve governance fallback from org or existing challenge
+  // Resolve governance: challenge override → org default → tier ceiling
+  const challengeOverride = isEditMode ? challengeData?.governance_mode_override ?? null : null;
   const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
   const tierCode = (currentOrg as any)?.tierCode ?? null;
   const fallbackMode: GovernanceMode = isEditMode
-    ? resolveGovernanceMode(rawGovernanceProfile)
+    ? resolveChallengeGovernance(challengeOverride, rawGovernanceProfile, tierCode)
     : getDefaultGovernanceMode(tierCode, rawGovernanceProfile);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
 
