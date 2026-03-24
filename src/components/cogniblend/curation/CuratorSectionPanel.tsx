@@ -206,7 +206,26 @@ export function CuratorSectionPanel({
     }
   }, [defaultExpanded]); // intentionally limited deps
 
-  const effectiveStatus: SectionStatus = isLocked ? "view_only" : status;
+  const effectiveStatus: SectionStatus = (() => {
+    if (isLocked) {
+      // Check if there's a pending modification request
+      const pendingMod = sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"));
+      if (pendingMod) return "pending_modification";
+      // Check if curator approved this locked section
+      const approved = sectionActions?.find(a => a.action_type === "approval" && a.status === "approved");
+      if (approved) return "curator_approved";
+      return "view_only";
+    }
+    return status;
+  })();
+
+  // Most recent pending modification
+  const pendingModification = sectionActions?.find(
+    a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending")
+  );
+  const isCuratorApproved = sectionActions?.some(
+    a => a.action_type === "approval" && a.status === "approved"
+  ) ?? false;
 
   return (
     <>
