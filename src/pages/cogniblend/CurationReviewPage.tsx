@@ -1473,6 +1473,31 @@ export default function CurationReviewPage() {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
     GROUPS.forEach((g) => {
+      // Special handling for Extended Brief: count 7 subsections instead of 1 parent key
+      if (g.id === "extended_brief") {
+        const eb = challenge.extended_brief;
+        const parsed = typeof eb === "string" ? (() => { try { return JSON.parse(eb); } catch { return null; } })() : eb;
+        const subsectionFields = EXTENDED_BRIEF_SUBSECTION_KEYS.map(
+          (k) => EXTENDED_BRIEF_FIELD_MAP[k] ?? k
+        );
+        let done = 0;
+        if (parsed && typeof parsed === "object") {
+          subsectionFields.forEach((field) => {
+            const val = (parsed as Record<string, unknown>)[field];
+            if (val != null && val !== "" && !(Array.isArray(val) && val.length === 0)) {
+              done++;
+            }
+          });
+        }
+        const total = EXTENDED_BRIEF_SUBSECTION_KEYS.length; // 7
+        const hasAIFlag = aiQuality?.gaps?.some((gap) => {
+          const mapped = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
+          return EXTENDED_BRIEF_SUBSECTION_KEYS.includes(mapped as any) || mapped === "extended_brief";
+        }) ?? false;
+        result[g.id] = { done, total, hasAIFlag };
+        return;
+      }
+
       const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
       const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
       const hasAIFlag = aiQuality?.gaps?.some((gap) => {
