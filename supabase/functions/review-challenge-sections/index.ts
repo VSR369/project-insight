@@ -225,7 +225,9 @@ serve(async (req) => {
         adminClient
           .from("evaluation_records")
           .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
-          .eq("challenge_id", challenge_id),
+          .eq("challenge_id", challenge_id)
+          .order("created_at", { ascending: false })
+          .limit(10),
         adminClient
           .from("solutions")
           .select("id", { count: "exact", head: true })
