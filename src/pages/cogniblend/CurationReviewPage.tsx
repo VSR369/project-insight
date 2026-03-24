@@ -91,6 +91,7 @@ import {
   LegalDocsSectionRenderer,
 } from "@/components/cogniblend/curation/renderers";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
+import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
