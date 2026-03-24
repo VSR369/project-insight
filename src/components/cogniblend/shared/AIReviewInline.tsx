@@ -135,7 +135,7 @@ export function AIReviewInline({
   }, [challengeId, sectionKey, roleContext, onSingleSectionReview]);
 
   const handleRefineWithAI = useCallback(async () => {
-    if (!challengeId || !currentContent) return;
+    if (!challengeId) return;
 
     const instructions = comments.join("\n\n");
     if (!instructions.trim()) {
@@ -151,7 +151,7 @@ export function AIReviewInline({
         body: {
           challenge_id: challengeId,
           section_key: sectionKey,
-          current_content: currentContent,
+          current_content: currentContent || "[empty — no content yet]",
           curator_instructions: instructions,
           role_context: roleContext,
           context: {
@@ -266,9 +266,9 @@ export function AIReviewInline({
             )}
 
             {!refinedContent && !isPassWithNoComments && (
-              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleRefineWithAI} disabled={isRefining || !currentContent}>
+              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleRefineWithAI} disabled={isRefining}>
                 {isRefining ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-                {isRefining ? "Refining…" : "Refine with AI"}
+                {isRefining ? "Refining…" : currentContent ? "Refine with AI" : "Draft with AI"}
               </Button>
             )}
 
