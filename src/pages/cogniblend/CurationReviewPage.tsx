@@ -1025,6 +1025,26 @@ export default function CurationReviewPage() {
       });
   }, [complexityParams, challengeId, user?.id, queryClient]);
 
+  /** Approve a locked section (Legal/Escrow) */
+  const handleApproveLockedSection = useCallback(async (sectionKey: string) => {
+    if (!user?.id || !challengeId) return;
+    const { error } = await supabase
+      .from("curator_section_actions" as any)
+      .insert({
+        challenge_id: challengeId,
+        section_key: sectionKey,
+        action_type: "approval",
+        status: "approved",
+        created_by: user.id,
+      });
+    if (error) {
+      toast.error(`Failed to approve: ${error.message}`);
+    } else {
+      toast.success("Section approved");
+      queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
+    }
+  }, [user?.id, challengeId, queryClient]);
+
   /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
     if (!challenge) return;
