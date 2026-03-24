@@ -727,7 +727,7 @@ export default function SolutionSubmitPage() {
             </CardContent>
           </Card>
 
-          {/* File Attachments — LIGHTWEIGHT: "Solution Files (optional)"; ENTERPRISE: standard */}
+          {/* File Attachments — QUICK: "Solution Files (optional)"; STRUCTURED/CONTROLLED: standard */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
