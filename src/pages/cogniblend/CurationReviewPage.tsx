@@ -2061,6 +2061,13 @@ export default function CurationReviewPage() {
                           <ScheduleTableSectionRenderer
                             data={parseJson<any>(challenge.phase_schedule)}
                             readOnly={isReadOnly}
+                            editing={isEditing}
+                            onSave={(rows) => {
+                              setSavingSection(true);
+                              saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
+                            }}
+                            onCancel={() => setEditingSection(null)}
+                            saving={savingSection}
                           />
                         );
 
