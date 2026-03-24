@@ -69,11 +69,13 @@ export function AssignRoleSheet({
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
   const [existingMemberRoleCode, setExistingMemberRoleCode] = useState<string>("");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [conflictAcknowledged, setConflictAcknowledged] = useState(false);
 
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
   const { orgName } = useOrgContext();
+  const { result: conflictResult, isValidating: isConflictChecking, validate: checkConflict, reset: resetConflict } = useValidateRoleAssignment();
   const createAssignment = useCreateRoleAssignment();
   const directEnroll = useDirectEnrollRole();
   const { data: existingAssignments } = useRoleAssignments(orgId);
