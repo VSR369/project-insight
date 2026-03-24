@@ -203,7 +203,8 @@ export function AIReviewResultPanel({
     result.suggested_version ||
     (isStructured && structuredItems && structuredItems.length > 0) ||
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
-    tableRows
+    tableRows ||
+    scheduleRows
   );
 
   return (
