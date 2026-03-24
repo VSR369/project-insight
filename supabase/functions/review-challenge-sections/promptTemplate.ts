@@ -62,5 +62,6 @@ export function buildConfiguredBatchPrompt(
   });
 
   parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
+  parts.push('CRITICAL: Each distinct issue or suggestion MUST be a separate comment in the array. Do NOT combine multiple issues into one comment. For structured sections (deliverables, evaluation_criteria), provide one comment per issue — e.g., one comment about a missing deliverable, another about a vague deliverable.');
   return parts.join('\n');
 }

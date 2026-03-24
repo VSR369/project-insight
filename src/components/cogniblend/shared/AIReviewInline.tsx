@@ -2,8 +2,8 @@
  * AIReviewInline — Role-agnostic per-section AI review panel.
  * Extracted from CurationAIReviewInline for reuse across AM/RQ, CR/CA, and CU roles.
  *
- * Flow: AI reviews → user edits comments → "Refine with AI" →
- *       AI rewrites section → Accept / Discard
+ * Flow: AI reviews → user selects comments → "Refine with AI" →
+ *       AI rewrites section → Accept / Discard (item-level for structured sections)
  *
  * States:
  *   Never reviewed  →  "Pending" badge, collapsed
@@ -11,10 +11,11 @@
  *   Addressed       →  "Addressed" badge, collapsed, "Re-review" button
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
@@ -31,6 +32,9 @@ export interface SectionReview {
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
+
+/** Sections that return structured JSON arrays from AI refinement */
+const STRUCTURED_SECTIONS = new Set(["deliverables", "evaluation_criteria"]);
 
 interface AIReviewInlineProps {
   sectionKey: string;
@@ -56,6 +60,46 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   needs_revision: { label: "Needs Revision", className: "bg-red-100 text-red-800 border-red-300" },
 };
 
+/**
+ * Parse AI refinement output into an array of structured items.
+ * Handles: JSON array, JSON object with items/criteria key, markdown lists, numbered lists.
+ */
+function parseStructuredItems(content: string, sectionKey: string): string[] | null {
+  const trimmed = content.trim();
+
+  // Strip markdown code fences
+  const cleaned = trimmed.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+
+  // Try JSON parse
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item: any) =>
+        typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
+      );
+    }
+    // Object with wrapper key
+    const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed[wrapperKey])) {
+      return parsed[wrapperKey].map((item: any) =>
+        typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
+      );
+    }
+  } catch {
+    // Not JSON — try line-based parsing
+  }
+
+  // Try numbered/bulleted list parsing
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
+  const listItems = lines
+    .map(l => l.replace(/^(?:\d+[\.\)]\s*|[-*•]\s*)/, '').trim())
+    .filter(l => l.length > 0);
+
+  if (listItems.length >= 2) return listItems;
+
+  return null;
+}
+
 export function AIReviewInline({
   sectionKey,
   review,
@@ -70,17 +114,43 @@ export function AIReviewInline({
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
   const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
 
+  // Structured items state (for deliverables, eval criteria)
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+
+  const isStructured = STRUCTURED_SECTIONS.has(sectionKey);
+
   useEffect(() => {
     if (defaultOpen && !isAddressed) setIsOpen(true);
   }, [defaultOpen, isAddressed]);
 
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
+
+  // Initialize all comments as selected when comments change
+  useEffect(() => {
+    if (comments.length > 0 && selectedComments.size === 0) {
+      setSelectedComments(new Set(comments.map((_, i) => i)));
+    }
+  }, [comments.length]);
+
+  // Parse structured items from refined content
+  const structuredItems = useMemo(() => {
+    if (!isStructured || !refinedContent) return null;
+    return parseStructuredItems(refinedContent, sectionKey);
+  }, [isStructured, refinedContent, sectionKey]);
+
+  // Select all structured items by default when they appear
+  useEffect(() => {
+    if (structuredItems && structuredItems.length > 0) {
+      setSelectedItems(new Set(structuredItems.map((_, i) => i)));
+    }
+  }, [structuredItems]);
 
   const handleEditComment = useCallback((index: number) => {
     if (editedComments.length === 0 && review?.comments) {
@@ -99,6 +169,30 @@ export function AIReviewInline({
 
   const handleSaveComment = useCallback(() => {
     setEditingIndex(null);
+  }, []);
+
+  const handleToggleComment = useCallback((index: number) => {
+    setSelectedComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllComments = useCallback(() => {
+    setSelectedComments(new Set(comments.map((_, i) => i)));
+  }, [comments]);
+
+  const handleClearAllComments = useCallback(() => {
+    setSelectedComments(new Set());
+  }, []);
+
+  const handleToggleItem = useCallback((index: number) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
   }, []);
 
   const handleReReview = useCallback(async () => {
@@ -120,6 +214,7 @@ export function AIReviewInline({
         if (freshReview) {
           setIsAddressed(false);
           setEditedComments([]);
+          setSelectedComments(new Set(freshReview.comments.map((_, i) => i)));
           onSingleSectionReview?.(sectionKey, freshReview);
           const hasIssues = freshReview.comments.length > 0 && freshReview.status !== "pass";
           toast.success(hasIssues ? "Re-review complete — see updated comments." : "Section looks good — no issues found.");
@@ -137,9 +232,13 @@ export function AIReviewInline({
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;
 
-    const instructions = comments.join("\n\n");
-    if (!instructions.trim()) {
-      toast.error("No review comments to use as refinement instructions.");
+    // Use only selected comments
+    const selectedInstructions = comments
+      .filter((_, i) => selectedComments.has(i))
+      .join("\n\n");
+
+    if (!selectedInstructions.trim()) {
+      toast.error("Select at least one review comment to use as refinement instructions.");
       return;
     }
 
@@ -152,7 +251,7 @@ export function AIReviewInline({
           challenge_id: challengeId,
           section_key: sectionKey,
           current_content: currentContent || "[empty — no content yet]",
-          curator_instructions: instructions,
+          curator_instructions: selectedInstructions,
           role_context: roleContext,
           context: {
             title: challengeContext.title,
@@ -179,21 +278,36 @@ export function AIReviewInline({
     } finally {
       setIsRefining(false);
     }
-  }, [challengeId, sectionKey, currentContent, comments, challengeContext, roleContext]);
+  }, [challengeId, sectionKey, currentContent, comments, selectedComments, challengeContext, roleContext]);
 
   const handleAccept = useCallback(() => {
-    if (refinedContent) {
+    if (!refinedContent) return;
+
+    // For structured sections with parsed items, build JSON from selected items only
+    if (isStructured && structuredItems && structuredItems.length > 0) {
+      const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
+      if (accepted.length === 0) {
+        toast.error("Select at least one item to accept.");
+        return;
+      }
+      const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
+      const jsonPayload = JSON.stringify({ [wrapperKey]: accepted });
+      onAcceptRefinement(sectionKey, jsonPayload);
+    } else {
       onAcceptRefinement(sectionKey, refinedContent);
-      setRefinedContent(null);
-      setEditedComments([]);
-      setIsAddressed(true);
-      setIsOpen(false);
-      onMarkAddressed?.(sectionKey);
     }
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed]);
+
+    setRefinedContent(null);
+    setEditedComments([]);
+    setSelectedItems(new Set());
+    setIsAddressed(true);
+    setIsOpen(false);
+    onMarkAddressed?.(sectionKey);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
+    setSelectedItems(new Set());
   }, []);
 
   const isPending = !review;
@@ -204,6 +318,8 @@ export function AIReviewInline({
     : isAddressed
       ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
       : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
+
+  const allCommentsSelected = selectedComments.size === comments.length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
@@ -237,6 +353,19 @@ export function AIReviewInline({
               </p>
             ) : (
               <div className="space-y-2">
+                {/* Select all / Clear all toggle for comments */}
+                {comments.length > 1 && !refinedContent && (
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <button
+                      type="button"
+                      className="underline hover:text-foreground transition-colors"
+                      onClick={allCommentsSelected ? handleClearAllComments : handleSelectAllComments}
+                    >
+                      {allCommentsSelected ? "Clear all" : "Select all"}
+                    </button>
+                    <span>({selectedComments.size}/{comments.length} selected)</span>
+                  </div>
+                )}
                 {comments.map((comment, i) => (
                   <div key={i} className="group">
                     {editingIndex === i ? (
@@ -255,9 +384,24 @@ export function AIReviewInline({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-1.5 cursor-pointer hover:bg-muted/50 rounded p-1 -mx-1 transition-colors" onClick={() => handleEditComment(i)}>
-                        <span className="text-xs text-muted-foreground leading-relaxed flex-1">• {comment}</span>
-                        <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
+                      <div className="flex items-start gap-1.5 hover:bg-muted/50 rounded p-1 -mx-1 transition-colors">
+                        {!refinedContent && (
+                          <Checkbox
+                            checked={selectedComments.has(i)}
+                            onCheckedChange={() => handleToggleComment(i)}
+                            className="mt-0.5 h-3.5 w-3.5"
+                          />
+                        )}
+                        <span
+                          className={cn(
+                            "text-xs leading-relaxed flex-1 cursor-pointer",
+                            selectedComments.has(i) ? "text-foreground" : "text-muted-foreground line-through"
+                          )}
+                          onClick={() => handleEditComment(i)}
+                        >
+                          {comment}
+                        </span>
+                        <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity cursor-pointer" onClick={() => handleEditComment(i)} />
                       </div>
                     )}
                   </div>
@@ -266,7 +410,13 @@ export function AIReviewInline({
             )}
 
             {!refinedContent && !isPassWithNoComments && (
-              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleRefineWithAI} disabled={isRefining}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs h-7"
+                onClick={handleRefineWithAI}
+                disabled={isRefining || selectedComments.size === 0}
+              >
                 {isRefining ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
                 {isRefining ? "Refining…" : currentContent ? "Refine with AI" : "Draft with AI"}
               </Button>
@@ -275,15 +425,65 @@ export function AIReviewInline({
             {refinedContent && (
               <div className="space-y-2">
                 <p className="text-[10px] font-medium text-primary uppercase tracking-wide">Proposed Refinement</p>
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
-                  <AiContentRenderer content={refinedContent} compact />
-                </div>
+
+                {/* Structured item-level rendering for deliverables / eval criteria */}
+                {isStructured && structuredItems && structuredItems.length > 0 ? (
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-60 overflow-y-auto space-y-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] text-muted-foreground">
+                        {selectedItems.size}/{structuredItems.length} items selected
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                          onClick={() => setSelectedItems(new Set(structuredItems.map((_, i) => i)))}
+                        >
+                          Select all
+                        </button>
+                        <button
+                          type="button"
+                          className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                          onClick={() => setSelectedItems(new Set())}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    {structuredItems.map((item, i) => (
+                      <label
+                        key={i}
+                        className={cn(
+                          "flex items-start gap-2 rounded p-1.5 cursor-pointer transition-colors text-sm",
+                          selectedItems.has(i) ? "bg-primary/10" : "opacity-50"
+                        )}
+                      >
+                        <Checkbox
+                          checked={selectedItems.has(i)}
+                          onCheckedChange={() => handleToggleItem(i)}
+                          className="mt-0.5 h-3.5 w-3.5"
+                        />
+                        <span className="flex-1 leading-relaxed">{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  /* Text-based rendering for non-structured sections */
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
+                    <AiContentRenderer content={refinedContent} compact />
+                  </div>
+                )}
+
                 <div className="flex gap-2 justify-end">
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDiscard}>
                     <X className="h-3.5 w-3.5 mr-1" />Discard
                   </Button>
                   <Button size="sm" className="h-7 text-xs" onClick={handleAccept}>
-                    <Check className="h-3.5 w-3.5 mr-1" />Accept & Save
+                    <Check className="h-3.5 w-3.5 mr-1" />
+                    {isStructured && structuredItems
+                      ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? 's' : ''}`
+                      : "Accept & Save"
+                    }
                   </Button>
                 </div>
               </div>

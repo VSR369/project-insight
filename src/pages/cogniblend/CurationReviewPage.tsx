@@ -530,7 +530,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "AI / Creator",
     dbField: "hook",
     isFilled: (ch) => !!(ch as any).hook?.trim(),
-    render: (ch) => <p className="text-sm text-foreground">{(ch as any).hook || "—"}</p>,
+    render: (ch) => <AiContentRenderer content={(ch as any).hook} compact fallback="—" />,
   },
   {
     key: "extended_brief",
