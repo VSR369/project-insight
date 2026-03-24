@@ -1551,11 +1551,6 @@ export default function CurationReviewPage() {
                   const currentTags = section.key === "domain_tags"
                     ? (() => { const t = parseJson<string[]>(challenge.domain_tags); return Array.isArray(t) ? t : []; })()
                     : [];
-                  const filteredTags = section.key === "domain_tags" && domainTagInput
-                    ? DEFAULT_DOMAIN_TAGS.filter(
-                        (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !currentTags.includes(tag),
-                      )
-                    : [];
 
                   // Build section content using format-native renderers
                   const sectionContent = (() => {
