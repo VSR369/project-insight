@@ -16,6 +16,7 @@ import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { ROLE_DISPLAY, ROLE_PRIMARY_ACTION } from '@/types/cogniRoles';
 
 export function ActionItemsWidget() {
@@ -26,6 +27,7 @@ export function ActionItemsWidget() {
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '');
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
+  const { isBusinessOwner } = useCogniPermissions();
 
   const isLoading = reqLoading || chLoading || isRolesLoading;
 
@@ -50,7 +52,7 @@ export function ActionItemsWidget() {
 
   const pendingActions = filteredChallengeItems.filter(
     (c) => c.master_status === 'DRAFT' || c.master_status === 'RETURNED'
-  ).length + ((!activeRole || ['AM', 'RQ'].includes(activeRole))
+  ).length + (isBusinessOwner
     ? allSRRows.filter((r) => r.master_status === 'DRAFT').length
     : 0);
 

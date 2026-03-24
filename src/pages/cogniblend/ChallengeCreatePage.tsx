@@ -31,7 +31,7 @@ import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { cn } from '@/lib/utils';
 import {
   resolveGovernanceMode,
@@ -321,7 +321,6 @@ export default function ChallengeCreatePage() {
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
-  const { activeRole } = useCogniRoleContext();
 
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
@@ -395,9 +394,8 @@ export default function ChallengeCreatePage() {
   const switchToAI = useCallback(() => setView('ai'), [setView]);
   const backToLanding = useCallback(() => setView('landing'), [setView]);
 
-  // Role-based auto-routing
-  const isAMorRQ = ['AM', 'RQ'].includes(activeRole);
-  const isCreatorRole = ['CR', 'CA'].includes(activeRole);
+  // Role-based auto-routing (via centralized permission hook)
+  const { isBusinessOwner: isAMorRQ, isSpecRole: isCreatorRole } = useCogniPermissions();
 
   // ═══════ Loading ═══════
   if (orgLoading || modelLoading) {

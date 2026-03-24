@@ -104,7 +104,7 @@ export function MyActionItemsSection() {
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
 
-  const { isSpecRole } = useCogniPermissions();
+  const { isSpecRole, isBusinessOwner } = useCogniPermissions();
 
   // Fetch unread notifications for CA/CR roles
   const { data: unreadNotifications = [], isLoading: notifLoading } = useQuery({
@@ -175,8 +175,8 @@ export function MyActionItemsSection() {
       }
     }
 
-    // Draft SRs (only for AM/RQ)
-    const showSRs = !activeRole || ['AM', 'RQ'].includes(activeRole);
+    // Draft SRs (only for AM/RQ — driven by permission hook)
+    const showSRs = isBusinessOwner;
     if (showSRs) {
       for (const sr of allSRRows) {
         if (sr.master_status === 'DRAFT' && !items.some((i) => i.id === sr.id)) {
