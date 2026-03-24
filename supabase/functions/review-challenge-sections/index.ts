@@ -272,6 +272,21 @@ serve(async (req) => {
       };
     }
 
+    // For curation context: extract extended_brief subsections as individual data fields
+    if (resolvedContext === "curation" && challengeData.extended_brief) {
+      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+      challengeData = {
+        ...challengeData,
+        context_and_background: (eb as any).context_background ?? null,
+        root_causes: (eb as any).root_causes ?? null,
+        affected_stakeholders: (eb as any).affected_stakeholders ?? null,
+        current_deficiencies: (eb as any).current_deficiencies ?? null,
+        extended_brief_expected_outcomes: (eb as any).expected_outcomes ?? null,
+        preferred_approach: (eb as any).preferred_approach ?? null,
+        approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
+      };
+    }
+
     // Build context-specific data sections for user prompt
     let additionalData = "";
     let resultIdx = 1;
