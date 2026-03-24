@@ -2012,13 +2012,20 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Extended brief (custom component) ──
+                      // ── Extended brief (nested subsection panels) ──
                       case "extended_brief":
                         return (
                           <ExtendedBriefDisplay
                             data={challenge.extended_brief}
                             onSave={handleSaveExtendedBrief}
                             saving={savingSection}
+                            readOnly={isReadOnly}
+                            challengeId={challengeId!}
+                            aiSectionReviews={aiReviews}
+                            onAcceptRefinement={handleAcceptExtendedBriefRefinement}
+                            onSingleSectionReview={handleSingleSectionReview}
+                            onMarkAddressed={handleMarkAddressed}
+                            challengeContext={challengeCtx}
                           />
                         );
 
