@@ -13,6 +13,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { withCreatedBy } from '@/lib/auditFields';
+import { validateRoleAssignment } from '@/hooks/cogniblend/useValidateRoleAssignment';
 
 interface AssignmentInput {
   challengeId: string;
