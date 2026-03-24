@@ -14,7 +14,7 @@ import { MyRequestsTracker } from '@/components/cogniblend/dashboard/MyRequestsT
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
 import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { Zap } from 'lucide-react';
 import type { RequestRow } from '@/hooks/queries/useMyRequests';
 
