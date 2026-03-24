@@ -1,0 +1,1 @@
+ALTER TABLE public.curator_section_actions ADD COLUMN IF NOT EXISTS ai_original_comments TEXT;

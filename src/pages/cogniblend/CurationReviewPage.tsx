@@ -91,6 +91,7 @@ import {
   LegalDocsSectionRenderer,
 } from "@/components/cogniblend/curation/renderers";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
+import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
@@ -945,6 +946,15 @@ export default function CurationReviewPage() {
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
+  // Locked section Send to LC/FC modal state
+  const [lockedSendState, setLockedSendState] = useState<{
+    open: boolean;
+    sectionKey: string;
+    sectionLabel: string;
+    initialComment: string;
+    aiOriginalComments: string;
+  }>({ open: false, sectionKey: "", sectionLabel: "", initialComment: "", aiOriginalComments: "" });
+
 
   // Domain tags editing state (now managed inside TagInputSectionRenderer)
 
@@ -1161,9 +1171,16 @@ export default function CurationReviewPage() {
       });
   }, [complexityParams, challengeId, user?.id, queryClient]);
 
-  /** Approve a locked section (Legal/Escrow) */
+  /** Approve a locked section (Legal/Escrow) — with audit metadata */
   const handleApproveLockedSection = useCallback(async (sectionKey: string) => {
     if (!user?.id || !challengeId) return;
+
+    // Gather audit metadata
+    const aiReviewWasRun = aiReviews.some(r => r.section_key === sectionKey);
+    const commentsSentToCoordinator = sectionActions.some(
+      a => a.section_key === sectionKey && a.action_type === "modification_request"
+    );
+
     const { error } = await supabase
       .from("curator_section_actions" as any)
       .insert({
@@ -1172,14 +1189,39 @@ export default function CurationReviewPage() {
         action_type: "approval",
         status: "approved",
         created_by: user.id,
+        comment_html: JSON.stringify({
+          ai_review_was_run: aiReviewWasRun,
+          comments_sent_to_coordinator: commentsSentToCoordinator,
+        }),
       });
     if (error) {
       toast.error(`Failed to approve: ${error.message}`);
     } else {
-      toast.success("Section approved");
+      toast.success("Section accepted");
       queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
     }
-  }, [user?.id, challengeId, queryClient]);
+  }, [user?.id, challengeId, queryClient, aiReviews, sectionActions]);
+
+  /** Undo acceptance of a locked section */
+  const handleUndoApproval = useCallback(async (sectionKey: string) => {
+    if (!challengeId) return;
+    // Find the approval record and delete it
+    const approvalRecord = sectionActions.find(
+      a => a.section_key === sectionKey && a.action_type === "approval" && a.status === "approved"
+    );
+    if (!approvalRecord) return;
+
+    const { error } = await supabase
+      .from("curator_section_actions" as any)
+      .delete()
+      .eq("id", approvalRecord.id);
+    if (error) {
+      toast.error(`Failed to undo: ${error.message}`);
+    } else {
+      toast.success("Acceptance undone");
+      queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
+    }
+  }, [challengeId, queryClient, sectionActions]);
 
   /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
@@ -2265,6 +2307,12 @@ export default function CurationReviewPage() {
                     }
                   })();
 
+                  // Determine coordinator props for locked sections
+                  const coordinatorRole = section.key === "legal_docs" ? "LC" as const : section.key === "escrow_funding" ? "FC" as const : undefined;
+                  const hasSentBefore = getSectionActions(section.key).some(
+                    a => a.action_type === "modification_request"
+                  );
+
                   // Build AI review slot
                   const aiReviewContent = (
                     <CurationAIReviewInline
@@ -2278,6 +2326,20 @@ export default function CurationReviewPage() {
                       onMarkAddressed={handleMarkAddressed}
                       defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
                       masterDataOptions={sectionMasterDataOptions}
+                      isLockedSection={isLocked}
+                      coordinatorRole={coordinatorRole}
+                      hasSentBefore={hasSentBefore}
+                      onSendToCoordinator={isLocked ? (editedComments: string) => {
+                        // Store original AI comments for audit
+                        const originalAiComments = aiReview?.comments?.join("\n\n") ?? "";
+                        setLockedSendState({
+                          open: true,
+                          sectionKey: section.key,
+                          sectionLabel: section.label,
+                          initialComment: editedComments,
+                          aiOriginalComments: originalAiComments,
+                        });
+                      } : undefined}
                     />
                   );
 
@@ -2299,6 +2361,7 @@ export default function CurationReviewPage() {
                       isApproved={isApproved}
                       onToggleApproval={() => toggleSectionApproval(section.key)}
                       onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
+                      onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
                       challengeId={challengeId!}
                       inlineFlags={inlineFlags}
                       defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
@@ -2457,6 +2520,17 @@ export default function CurationReviewPage() {
           <ModificationPointsTracker challengeId={challengeId!} mode={isReadOnly ? "readonly" : "curator"} />
         </div>
       </div>
+
+      {/* Send to LC/FC Modal for locked sections */}
+      <SendForModificationModal
+        open={lockedSendState.open}
+        onOpenChange={(open) => setLockedSendState(prev => ({ ...prev, open }))}
+        challengeId={challengeId!}
+        sectionKey={lockedSendState.sectionKey}
+        sectionLabel={lockedSendState.sectionLabel}
+        initialComment={lockedSendState.initialComment}
+        aiOriginalComments={lockedSendState.aiOriginalComments}
+      />
     </div>
   );
 }

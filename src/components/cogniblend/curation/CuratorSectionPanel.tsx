@@ -4,9 +4,9 @@
  * Features:
  * - Inline expand/collapse with chevron toggle
  * - Fullscreen modal overlay (⤢ button)
- * - Status badge (gray/amber/red/green/blue)
- * - AI Review button slot (hidden for locked sections)
- * - Approve / Send for Modification buttons for locked sections
+ * - Status badge (gray/amber/red/green/blue/teal)
+ * - Accept Section button in HEADER for locked sections
+ * - Confirmation dialog for Accept + Undo after acceptance
  * - localStorage persistence of expand state per challenge ID
  * - Auto-expand for sections with warnings/blocks
  */
@@ -21,7 +21,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   ChevronDown,
   ChevronRight,
@@ -32,17 +43,28 @@ import {
   AlertTriangle,
   Eye,
   ShieldCheck,
-  MessageSquare,
   Clock,
+  Undo2,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
-import { SendForModificationModal } from "./SendForModificationModal";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type SectionStatus = "not_reviewed" | "pass" | "warning" | "needs_revision" | "view_only" | "pending_modification" | "curator_approved";
+export type SectionStatus =
+  | "not_reviewed"
+  | "pass"
+  | "warning"
+  | "needs_revision"
+  | "view_only"
+  | "ai_reviewed"
+  | "pending_response"
+  | "response_received"
+  | "accepted"
+  // Legacy (kept for backward compat)
+  | "pending_modification"
+  | "curator_approved";
 
 export interface SectionActionRecord {
   id: string;
@@ -67,6 +89,7 @@ export interface CuratorSectionPanelProps {
   isApproved: boolean;
   onToggleApproval: () => void;
   onApproveSection?: () => void;
+  onUndoApproval?: () => void;
   challengeId: string;
   inlineFlags?: string[];
   /** Content rendered inside the panel body */
@@ -136,16 +159,30 @@ function StatusBadge({ status }: { status: SectionStatus }) {
           <Eye className="h-3 w-3 mr-1" />View Only
         </Badge>
       );
+    case "ai_reviewed":
+      return (
+        <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px] hover:bg-blue-100">
+          AI Reviewed
+        </Badge>
+      );
+    case "pending_response":
     case "pending_modification":
       return (
         <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-[10px] hover:bg-orange-100">
-          <Clock className="h-3 w-3 mr-1" />Pending Modification
+          <Clock className="h-3 w-3 mr-1" />Pending Response
         </Badge>
       );
+    case "response_received":
+      return (
+        <Badge className="bg-teal-100 text-teal-800 border-teal-300 text-[10px] hover:bg-teal-100">
+          Response Received
+        </Badge>
+      );
+    case "accepted":
     case "curator_approved":
       return (
         <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] hover:bg-emerald-100">
-          <ShieldCheck className="h-3 w-3 mr-1" />Curator Approved
+          <ShieldCheck className="h-3 w-3 mr-1" />Accepted
         </Badge>
       );
     default:
@@ -168,6 +205,7 @@ export function CuratorSectionPanel({
   isApproved,
   onToggleApproval,
   onApproveSection,
+  onUndoApproval,
   challengeId,
   inlineFlags,
   children,
@@ -176,12 +214,12 @@ export function CuratorSectionPanel({
   sectionActions,
   promptSource,
 }: CuratorSectionPanelProps) {
-  const [showModificationModal, setShowModificationModal] = useState(false);
+  const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
+
   // ── Expand/collapse state with localStorage persistence ──
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = loadExpandState(challengeId);
     if (saved[sectionKey] !== undefined) return saved[sectionKey];
-    // Auto-expand if warnings/blocks or defaultExpanded
     if (defaultExpanded) return true;
     return false;
   });
@@ -209,26 +247,44 @@ export function CuratorSectionPanel({
     }
   }, [defaultExpanded]); // intentionally limited deps
 
+  // Derive effective status from action records
   const effectiveStatus: SectionStatus = (() => {
     if (isLocked) {
-      // Check if there's a pending modification request
-      const pendingMod = sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"));
-      if (pendingMod) return "pending_modification";
-      // Check if curator approved this locked section
       const approved = sectionActions?.find(a => a.action_type === "approval" && a.status === "approved");
-      if (approved) return "curator_approved";
+      if (approved) return "accepted";
+      const responded = sectionActions?.find(a => a.action_type === "modification_request" && a.status === "responded");
+      if (responded) return "response_received";
+      const pendingMod = sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"));
+      if (pendingMod) return "pending_response";
+      // Check if AI review was run for this section (status comes from parent)
+      if (status === "pass" || status === "warning" || status === "needs_revision") return "ai_reviewed";
       return "view_only";
     }
     return status;
   })();
 
-  // Most recent pending modification
+  const isCuratorAccepted = sectionActions?.some(
+    a => a.action_type === "approval" && a.status === "approved"
+  ) ?? false;
+
   const pendingModification = sectionActions?.find(
     a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending")
   );
-  const isCuratorApproved = sectionActions?.some(
-    a => a.action_type === "approval" && a.status === "approved"
-  ) ?? false;
+
+  const handleAcceptClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowAcceptConfirm(true);
+  }, []);
+
+  const handleConfirmAccept = useCallback(() => {
+    setShowAcceptConfirm(false);
+    onApproveSection?.();
+  }, [onApproveSection]);
+
+  const handleUndoClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUndoApproval?.();
+  }, [onUndoApproval]);
 
   return (
     <>
@@ -321,6 +377,37 @@ export function CuratorSectionPanel({
               <Maximize2 className="h-3.5 w-3.5" />
             </Button>
           </div>
+
+          {/* Accept Section button in HEADER — locked sections only */}
+          {isLocked && !isReadOnly && (
+            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+              {isCuratorAccepted ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground font-medium">Accepted</span>
+                  {onUndoApproval && (
+                    <button
+                      type="button"
+                      className="text-[10px] text-muted-foreground underline hover:text-foreground transition-colors"
+                      onClick={handleUndoClick}
+                    >
+                      <Undo2 className="h-3 w-3 inline mr-0.5" />Undo
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[10px] px-2"
+                  onClick={handleAcceptClick}
+                  type="button"
+                >
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                  Accept Section
+                </Button>
+              )}
+            </div>
+          )}
         </button>
 
         {/* ── Panel Body (collapsible) ── */}
@@ -328,54 +415,15 @@ export function CuratorSectionPanel({
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
             {children}
 
-            {/* Locked section action buttons (Legal Docs / Escrow) */}
-            {isLocked && !isReadOnly && (
-              <div className="mt-4 space-y-3">
-                {/* Pending modification banner */}
-                {pendingModification && (
-                  <div className="flex items-start gap-2 rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-3 py-2">
-                    <Clock className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-orange-800 dark:text-orange-300">Modification Request Sent</p>
-                      <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
-                        Priority: <span className="capitalize">{pendingModification.priority}</span> — Sent {new Date(pendingModification.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Curator approved banner */}
-                {isCuratorApproved && !pendingModification && (
-                  <div className="flex items-center gap-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <p className="text-sm text-emerald-800 dark:text-emerald-300">This section has been approved by the curator.</p>
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                  {!isCuratorApproved && !pendingModification && onApproveSection && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={onApproveSection}
-                    >
-                      <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-                      Approve Section
-                    </Button>
-                  )}
-                  {!pendingModification && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => setShowModificationModal(true)}
-                    >
-                      <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                      Send for Modification
-                    </Button>
-                  )}
+            {/* Pending modification banner — informational only */}
+            {isLocked && pendingModification && (
+              <div className="mt-3 flex items-start gap-2 rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-3 py-2">
+                <Clock className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-orange-800 dark:text-orange-300">Comments Sent to Coordinator</p>
+                  <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
+                    Priority: <span className="capitalize">{pendingModification.priority}</span> — Sent {new Date(pendingModification.created_at).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
             )}
@@ -418,7 +466,7 @@ export function CuratorSectionPanel({
             <div className="flex items-center gap-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-2 shrink-0">
               <Eye className="h-4 w-4 text-blue-600 shrink-0" />
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                This section is view-only — use the buttons below to approve or request modifications.
+                This section is view-only. Use the Accept Section button in the panel header to approve.
               </p>
             </div>
           )}
@@ -430,14 +478,21 @@ export function CuratorSectionPanel({
         </DialogContent>
       </Dialog>
 
-      {/* ── Send for Modification Modal ── */}
-      <SendForModificationModal
-        open={showModificationModal}
-        onOpenChange={setShowModificationModal}
-        challengeId={challengeId}
-        sectionKey={sectionKey}
-        sectionLabel={label}
-      />
+      {/* ── Accept Section Confirmation Dialog ── */}
+      <AlertDialog open={showAcceptConfirm} onOpenChange={setShowAcceptConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Accept this section?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirming that <span className="font-medium text-foreground">{label}</span> has been reviewed and is approved for challenge publication.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAccept}>Confirm Accept</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

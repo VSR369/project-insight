@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw, Send } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
@@ -78,6 +78,14 @@ interface AIReviewInlineProps {
   roleContext?: RoleContext;
   /** Master data options for this section (if applicable) */
   masterDataOptions?: MasterDataOption[];
+  /** When true, hides Refine/Accept/Discard and shows Send to LC/FC instead */
+  isLockedSection?: boolean;
+  /** Callback when curator clicks "Send to LC" or "Send to FC" — receives edited comments text */
+  onSendToCoordinator?: (editedComments: string) => void;
+  /** Which coordinator role to display: "LC" or "FC" */
+  coordinatorRole?: "LC" | "FC";
+  /** Whether comments have been sent before (changes button to "Send Follow-up") */
+  hasSentBefore?: boolean;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -194,6 +202,10 @@ export function AIReviewInline({
   defaultOpen = false,
   roleContext = "curation",
   masterDataOptions,
+  isLockedSection = false,
+  onSendToCoordinator,
+  coordinatorRole,
+  hasSentBefore = false,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -543,7 +555,29 @@ export function AIReviewInline({
               </div>
             )}
 
-            {!refinedContent && !isPassWithNoComments && (
+            {/* Locked sections: Send to LC/FC button instead of Refine */}
+            {isLockedSection && !isPassWithNoComments && onSendToCoordinator && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs h-7"
+                onClick={() => {
+                  const selectedText = comments
+                    .filter((_, i) => selectedComments.has(i))
+                    .join("\n\n");
+                  onSendToCoordinator(selectedText || comments.join("\n\n"));
+                }}
+                disabled={selectedComments.size === 0}
+              >
+                <Send className="h-3.5 w-3.5 mr-1" />
+                {hasSentBefore
+                  ? `Send Follow-up to ${coordinatorRole ?? "Coordinator"}`
+                  : `Send to ${coordinatorRole ?? "Coordinator"}`}
+              </Button>
+            )}
+
+            {/* Non-locked sections: Refine with AI button */}
+            {!isLockedSection && !refinedContent && !isPassWithNoComments && (
               <Button
                 size="sm"
                 variant="outline"
@@ -556,7 +590,8 @@ export function AIReviewInline({
               </Button>
             )}
 
-            {refinedContent && (
+            {/* Non-locked sections: Result panel with Accept/Discard */}
+            {!isLockedSection && refinedContent && (
               <AIReviewResultPanel
                 sectionKey={sectionKey}
                 result={{

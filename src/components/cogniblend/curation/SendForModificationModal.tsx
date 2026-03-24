@@ -5,9 +5,12 @@
  * Auto-addresses based on section key:
  *  - legal_docs → Legal Coordinator (LC)
  *  - escrow_funding → Finance Controller (FC)
+ *
+ * Supports pre-filled comments from AI review (initialComment) and stores
+ * original AI comments separately for audit (aiOriginalComments).
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,6 +53,10 @@ interface SendForModificationModalProps {
   challengeId: string;
   sectionKey: string;
   sectionLabel: string;
+  /** Pre-filled comment text (e.g. from edited AI review comments) */
+  initialComment?: string;
+  /** Original unedited AI comments for audit trail */
+  aiOriginalComments?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,14 +69,23 @@ export function SendForModificationModal({
   challengeId,
   sectionKey,
   sectionLabel,
+  initialComment,
+  aiOriginalComments,
 }: SendForModificationModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const addressee = SECTION_ADDRESSEE[sectionKey] ?? { role: "Unknown", label: "Unknown" };
 
-  const [comment, setComment] = useState("");
+  const [comment, setComment] = useState(initialComment ?? "");
   const [priority, setPriority] = useState<string>("normal");
+
+  // Sync initialComment when modal opens with new pre-filled content
+  useEffect(() => {
+    if (open && initialComment) {
+      setComment(initialComment);
+    }
+  }, [open, initialComment]);
 
   const sendMutation = useMutation({
     mutationFn: async () => {
@@ -86,6 +102,7 @@ export function SendForModificationModal({
           status: "sent",
           addressed_to: addressee.role,
           comment_html: comment.trim(),
+          ai_original_comments: aiOriginalComments?.trim() || null,
           priority,
           created_by: user.id,
         });
@@ -106,7 +123,7 @@ export function SendForModificationModal({
       }
     },
     onSuccess: () => {
-      toast.success(`Modification request sent to ${addressee.label}`);
+      toast.success(`Comments sent to ${addressee.label}`);
       queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
       setComment("");
       setPriority("normal");
@@ -129,9 +146,11 @@ export function SendForModificationModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="text-base">Send for Modification</DialogTitle>
+          <DialogTitle className="text-base">
+            Send to {addressee.label}
+          </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Request changes to <span className="font-medium text-foreground">{sectionLabel}</span>
+            Send review comments for <span className="font-medium text-foreground">{sectionLabel}</span>
           </p>
         </DialogHeader>
 
@@ -172,9 +191,16 @@ export function SendForModificationModal({
             </Select>
           </div>
 
-          {/* Comment (rich text — using textarea for now, can upgrade to Tiptap) */}
+          {/* Comment — editable, pre-filled with AI comments if provided */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Comments / Instructions</label>
+            <label className="text-sm font-medium text-foreground">
+              Comments / Instructions
+              {initialComment && (
+                <span className="text-xs text-muted-foreground font-normal ml-2">
+                  (Pre-filled from AI review — edit before sending)
+                </span>
+              )}
+            </label>
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -202,7 +228,7 @@ export function SendForModificationModal({
             ) : (
               <Send className="h-4 w-4 mr-1.5" />
             )}
-            Send Request
+            Send
           </Button>
         </DialogFooter>
       </DialogContent>
