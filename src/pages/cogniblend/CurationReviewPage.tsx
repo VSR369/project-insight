@@ -1778,9 +1778,11 @@ export default function CurationReviewPage() {
         {/* LEFT — Main Content (3/4) */}
         <div className="lg:col-span-3">
           <Card className={cn("border-2", activeGroupDef.colorBorder)}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
-            </CardHeader>
+            {activeGroupDef.id !== "extended_brief" && (
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
+              </CardHeader>
+            )}
             <CardContent className="pt-0">
               <div className="space-y-3">
                 {activeGroupDef.sectionKeys.map((sectionKey) => {
