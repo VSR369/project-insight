@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -670,6 +671,10 @@ export function ConversationalIntakeContent({
 
   const handleAcceptRefinement = async (sectionKey: string, newContent: string) => {
     if (!editChallengeId) return;
+
+    // Normalize markdown to HTML so RichTextEditor preserves formatting
+    const normalizedContent = normalizeAiContentForEditor(newContent);
+
     // Map section keys to form fields
     const formFieldMap: Record<string, string> = {
       problem_statement: 'problem_statement',
@@ -679,7 +684,7 @@ export function ConversationalIntakeContent({
     };
     const formField = formFieldMap[sectionKey];
     if (formField) {
-      form.setValue(formField as any, newContent, { shouldValidate: true });
+      form.setValue(formField as any, normalizedContent, { shouldValidate: true });
     }
     // Mark addressed in local state
     const updated = { ...aiReviews };
@@ -696,7 +701,7 @@ export function ConversationalIntakeContent({
       saveStep.mutate({
         challengeId: editChallengeId,
         fields: {
-          extended_brief: { ...extBrief, [briefKey]: newContent },
+          extended_brief: { ...extBrief, [briefKey]: normalizedContent },
           ai_section_reviews: reviewsArray,
         },
       });
@@ -709,7 +714,7 @@ export function ConversationalIntakeContent({
       if (dbCol) {
         saveStep.mutate({
           challengeId: editChallengeId,
-          fields: { [dbCol]: newContent, ai_section_reviews: reviewsArray },
+          fields: { [dbCol]: normalizedContent, ai_section_reviews: reviewsArray },
         });
       }
     }

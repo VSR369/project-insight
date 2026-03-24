@@ -28,6 +28,7 @@ import { Progress } from "@/components/ui/progress";
 import { ComplexityAssessmentModule } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { normalizeAiContentForEditor } from "@/lib/aiContentFormatter";
 import {
   Select,
   SelectContent,
@@ -530,7 +531,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "AI / Creator",
     dbField: "hook",
     isFilled: (ch) => !!(ch as any).hook?.trim(),
-    render: (ch) => <p className="text-sm text-foreground">{(ch as any).hook || "—"}</p>,
+    render: (ch) => <AiContentRenderer content={(ch as any).hook} compact fallback="—" />,
   },
   {
     key: "extended_brief",
@@ -1109,6 +1110,21 @@ export default function CurationReviewPage() {
           return;
         }
       }
+    }
+
+    // Normalize structured JSON fields (strip code fences, parse JSON)
+    const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure'];
+    const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'description', 'hook',
+      'eligibility', 'submission_guidelines', 'extended_brief'];
+
+    if (JSON_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
+      const cleaned = valueToSave.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+      if (jsonMatch) {
+        try { valueToSave = JSON.parse(jsonMatch[1]); } catch { /* save as-is string */ }
+      }
+    } else if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
+      valueToSave = normalizeAiContentForEditor(valueToSave);
     }
 
     setSavingSection(true);
