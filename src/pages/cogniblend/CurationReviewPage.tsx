@@ -1075,7 +1075,7 @@ export default function CurationReviewPage() {
     }
   }, [challengeId]);
 
-  const handleAcceptRefinement = useCallback((sectionKey: string, newContent: string) => {
+  const handleAcceptRefinement = useCallback(async (sectionKey: string, newContent: string) => {
     // Map section key to db field
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
