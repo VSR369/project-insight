@@ -102,7 +102,12 @@ export interface CuratorSectionPanelProps {
   sectionActions?: SectionActionRecord[];
   /** Whether AI used supervisor-configured or default prompt */
   promptSource?: "supervisor" | "default" | null;
+  /** Increment to force re-read expand state from localStorage (for expand/collapse all) */
+  expandVersion?: number;
 }
+
+// Export localStorage helpers so parent can bulk-update expand state
+export { loadExpandState, saveExpandState };
 
 // ---------------------------------------------------------------------------
 // localStorage helpers
@@ -213,6 +218,7 @@ export function CuratorSectionPanel({
   defaultExpanded,
   sectionActions,
   promptSource,
+  expandVersion,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
@@ -246,6 +252,15 @@ export function CuratorSectionPanel({
       saveExpandState(challengeId, state);
     }
   }, [defaultExpanded]); // intentionally limited deps
+
+  // Re-sync from localStorage when parent triggers expand/collapse all
+  useEffect(() => {
+    if (expandVersion === undefined) return;
+    const saved = loadExpandState(challengeId);
+    if (saved[sectionKey] !== undefined) {
+      setIsExpanded(saved[sectionKey]);
+    }
+  }, [expandVersion, challengeId, sectionKey]);
 
   // Derive effective status from action records
   const effectiveStatus: SectionStatus = (() => {

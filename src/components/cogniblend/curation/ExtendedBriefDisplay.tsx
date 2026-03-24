@@ -75,6 +75,7 @@ interface ExtendedBriefDisplayProps {
   onSingleSectionReview: (sectionKey: string, freshReview: SectionReview) => void;
   onMarkAddressed: (sectionKey: string) => void;
   challengeContext?: { title?: string; maturity_level?: string | null; domain_tags?: string[] };
+  expandVersion?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +252,7 @@ export default function ExtendedBriefDisplay({
   onSingleSectionReview,
   onMarkAddressed,
   challengeContext,
+  expandVersion,
 }: ExtendedBriefDisplayProps) {
   const brief = parseExtendedBrief(data);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -472,6 +474,7 @@ export default function ExtendedBriefDisplay({
             challengeId={challengeId}
             defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === "warning" || aiReview.status === "needs_revision"))}
             aiReviewSlot={aiReviewContent}
+            expandVersion={expandVersion}
           >
             {sectionContent}
           </CuratorSectionPanel>

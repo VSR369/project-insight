@@ -68,6 +68,8 @@ import {
   Save,
   X,
   Tag,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
@@ -94,7 +96,7 @@ import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBrief
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
-import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
+import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
@@ -941,8 +943,25 @@ export default function CurationReviewPage() {
   const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
+  const [expandVersion, setExpandVersion] = useState(0);
 
-  // AI quality assessment state
+  // Expand / collapse all sections in the active group
+  const handleExpandCollapseAll = useCallback((expand: boolean) => {
+    const groupDef = GROUPS.find((g) => g.id === activeGroup);
+    if (!groupDef || !challengeId) return;
+    const state = loadExpandState(challengeId);
+    for (const key of groupDef.sectionKeys) {
+      state[key] = expand;
+    }
+    // For extended_brief, also handle subsection keys
+    if (groupDef.id === "extended_brief") {
+      for (const subKey of EXTENDED_BRIEF_SUBSECTION_KEYS) {
+        state[subKey] = expand;
+      }
+    }
+    saveExpandState(challengeId, state);
+    setExpandVersion((v) => v + 1);
+  }, [activeGroup, challengeId]);
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
 
@@ -1845,11 +1864,31 @@ export default function CurationReviewPage() {
         {/* LEFT — Main Content (3/4) */}
         <div className="lg:col-span-3">
           <Card className={cn("border-2", activeGroupDef.colorBorder)}>
-            {activeGroupDef.id !== "extended_brief" && (
-              <CardHeader className="pb-3">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{activeGroupDef.label}</CardTitle>
-              </CardHeader>
-            )}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => handleExpandCollapseAll(true)}
+                  >
+                    <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+                    Expand All
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => handleExpandCollapseAll(false)}
+                  >
+                    <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
+                    Collapse All
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
                 {activeGroupDef.sectionKeys.map((sectionKey) => {
@@ -2213,6 +2252,7 @@ export default function CurationReviewPage() {
                             onSingleSectionReview={handleSingleSectionReview}
                             onMarkAddressed={handleMarkAddressed}
                             challengeContext={challengeCtx}
+                            expandVersion={expandVersion}
                           />
                         );
 
@@ -2368,6 +2408,7 @@ export default function CurationReviewPage() {
                       aiReviewSlot={aiReviewContent}
                       sectionActions={getSectionActions(section.key)}
                       promptSource={aiReview?.prompt_source ?? null}
+                      expandVersion={expandVersion}
                     >
                       {sectionContent}
                     </CuratorSectionPanel>
