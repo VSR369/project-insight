@@ -921,7 +921,7 @@ export default function AISpecReviewPage() {
       return updated;
     });
     toast.success('Refinement accepted and saved.');
-  }, [persistAiReviewsToDB]);
+  }, [persistAiReviewsToDB, sectionValues]);
 
   const handleSpecSingleReview = useCallback((sectionKey: string, review: SectionReview) => {
     setAiReviews((prev) => {
