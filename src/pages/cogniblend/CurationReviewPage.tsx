@@ -1771,6 +1771,7 @@ export default function CurationReviewPage() {
         <BulkActionBar
           warningCount={aiReviewCounts.warning}
           passCount={aiReviewCounts.pass}
+          inferredCount={aiReviewCounts.inferred}
           onAcceptAllPassing={handleAcceptAllPassing}
           onReviewWarnings={handleReviewWarnings}
         />
