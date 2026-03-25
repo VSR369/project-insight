@@ -987,7 +987,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements")
+        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1629,7 +1629,21 @@ export default function CurationReviewPage() {
   const isEscrowAccepted = sectionActions.some(
     a => a.section_key === 'escrow_funding' && a.action_type === 'approval' && a.status === 'approved'
   );
-  const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted;
+  // Governance-aware submission gating
+  const governanceMode = resolveGovernanceMode(challenge.governance_profile);
+  const needsLegalAcceptance = !!(challenge as any).lc_review_required || legalDetails.length > 0;
+  const needsEscrowAcceptance = isControlledMode(governanceMode);
+  const legalEscrowBlocked =
+    (needsLegalAcceptance && !isLegalAccepted) ||
+    (needsEscrowAcceptance && !isEscrowAccepted);
+
+  // Build specific blocking reason for UI
+  const blockingReasons: string[] = [];
+  if (needsLegalAcceptance && !isLegalAccepted) blockingReasons.push('Legal Documents');
+  if (needsEscrowAcceptance && !isEscrowAccepted) blockingReasons.push('Escrow & Funding');
+  const blockingReason = blockingReasons.length > 0
+    ? `${blockingReasons.join(' and ')} must be accepted before submitting`
+    : undefined;
 
   const phaseDescription = challenge.current_phase === 1
     ? 'Spec Creation (Phase 1)'
@@ -2438,23 +2452,21 @@ export default function CurationReviewPage() {
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Quality
                 </CardTitle>
-                {!isReadOnly && (
-                  <Button
-                    size="sm"
-                    variant={aiQuality ? "ghost" : "outline"}
-                    onClick={handleAIQualityAnalysis}
-                    disabled={aiQualityLoading}
-                    className="text-xs h-7 px-2"
-                  >
-                    {aiQualityLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : aiQuality ? (
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    ) : (
-                      "Analyze"
-                    )}
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant={aiQuality ? "ghost" : "outline"}
+                  onClick={handleAIQualityAnalysis}
+                  disabled={aiQualityLoading}
+                  className="text-xs h-7 px-2"
+                >
+                  {aiQualityLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : aiQuality ? (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  ) : (
+                    "Analyze"
+                  )}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -2482,18 +2494,16 @@ export default function CurationReviewPage() {
           </Card>
 
           {/* Per-section AI Review button */}
-          {!isReadOnly && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAIReview}
-              disabled={aiReviewLoading}
-              className="w-full"
-            >
-              {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-              Review Sections by AI
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAIReview}
+            disabled={aiReviewLoading}
+            className="w-full"
+          >
+            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+            Review Sections by AI
+          </Button>
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
@@ -2565,6 +2575,7 @@ export default function CurationReviewPage() {
             operatingModel={challenge.operating_model}
             readOnly={isReadOnly}
             legalEscrowBlocked={legalEscrowBlocked}
+            blockingReason={blockingReason}
           />
 
           {/* Modification Points Tracker */}

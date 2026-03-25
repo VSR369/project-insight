@@ -39,6 +39,7 @@ interface CurationActionsProps {
   operatingModel?: string | null;
   readOnly?: boolean;
   legalEscrowBlocked?: boolean;
+  blockingReason?: string;
 }
 
 export default function CurationActions({
@@ -51,6 +52,7 @@ export default function CurationActions({
   operatingModel,
   readOnly = false,
   legalEscrowBlocked = false,
+  blockingReason,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -332,7 +334,7 @@ export default function CurationActions({
     <>
       {readOnly && (
         <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-          <p className="text-xs text-muted-foreground font-medium">View-only mode — this challenge is not yet in the curation phase.</p>
+          <p className="text-xs text-muted-foreground font-medium">Preview mode — editing and submission disabled. AI review is available.</p>
         </div>
       )}
 
@@ -340,7 +342,7 @@ export default function CurationActions({
       {!readOnly && legalEscrowBlocked && (
         <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-900/20 text-center">
           <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-            Legal Documents and Escrow & Funding must both be accepted before submitting.
+            {blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.'}
           </p>
         </div>
       )}
@@ -383,7 +385,7 @@ export default function CurationActions({
             className="w-full"
             onClick={handleSubmitClick}
             disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired || legalEscrowBlocked}
-            title={legalEscrowBlocked ? "Legal Documents and Escrow & Funding must both be accepted before submitting" : undefined}
+            title={legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
           >
             {(completePhase.isPending || amApprovalMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
