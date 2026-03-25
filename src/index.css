@@ -297,7 +297,7 @@ All colors MUST be HSL.
 
 .editor-content p {
   margin: 0 0 14px 0 !important;
-  min-height: 1.85em;
+  min-height: 1.75em;
 }
 
 /* Tighter display for read-only rendered content */
