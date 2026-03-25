@@ -37,6 +37,14 @@ export interface SectionReview {
 
 export type RoleContext = "intake" | "spec" | "curation";
 
+/** Sections that should render as structured deliverable cards */
+const DELIVERABLE_LIKE_SECTIONS = new Set(['deliverables', 'expected_outcomes']);
+
+function getDeliverableBadgePrefix(sectionKey: string): string {
+  if (sectionKey === 'expected_outcomes') return 'O';
+  return 'D';
+}
+
 /** Determine if a section returns structured JSON arrays from AI refinement */
 function isStructuredSection(sectionKey: string): boolean {
   const fmt = SECTION_FORMAT_CONFIG[sectionKey];
