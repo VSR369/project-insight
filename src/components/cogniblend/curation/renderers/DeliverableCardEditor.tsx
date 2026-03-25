@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Save, X, GripVertical } from "lucide-react";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
+import { getBadgeColorClass } from "./DeliverableCardRenderer";
 
 interface DeliverableCardEditorProps {
   items: DeliverableItem[];
