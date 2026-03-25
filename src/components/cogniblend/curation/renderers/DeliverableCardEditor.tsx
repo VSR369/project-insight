@@ -81,7 +81,7 @@ export function DeliverableCardEditor({
               <GripVertical className="h-4 w-4 text-muted-foreground/40" />
               <Badge
                 variant="outline"
-                className="font-semibold text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800"
+                className={`font-semibold text-[11px] px-2.5 py-0.5 rounded-full ${getBadgeColorClass(badgePrefix)}`}
               >
                 {draft.id}
               </Badge>

@@ -2154,13 +2154,13 @@ export default function CurationReviewPage() {
                           </>
                         );
 
-                      // ── Submission guidelines (line items) ──
+                      // ── Submission guidelines (structured cards) ──
                       case "submission_guidelines": {
                         const raw = parseJson<any>(challenge.description);
                         const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
                         const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
-                        // If no structured items, treat existing text as single item
                         const finalItems = lineItems.length > 0 ? lineItems : (challenge.description?.trim() ? [challenge.description] : []);
+                        const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
                         return (
                           <>
                             <LineItemsSectionRenderer
@@ -2174,6 +2174,13 @@ export default function CurationReviewPage() {
                               onCancel={cancelEdit}
                               saving={savingSection}
                               itemLabel="Guideline"
+                              structuredItems={structuredGuidelines}
+                              onSaveStructured={(items) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "description", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+                              }}
+                              badgePrefix="S"
+                              hideAcceptanceCriteria
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>

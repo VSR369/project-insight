@@ -9,6 +9,12 @@ import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 
 export type { DeliverableItem as DeliverableObject };
 
+/** Returns badge color classes based on section prefix */
+export function getBadgeColorClass(prefix: string): string {
+  if (prefix === "S") return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800";
+  return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800";
+}
+
 interface DeliverableCardRendererProps {
   items: DeliverableItem[];
   badgePrefix?: string;
@@ -23,6 +29,8 @@ export function DeliverableCardRenderer({
   if (!items || items.length === 0) {
     return <p className="text-sm text-muted-foreground">No deliverables defined.</p>;
   }
+
+  const badgeColor = getBadgeColorClass(badgePrefix);
 
   return (
     <div className="flex flex-col gap-2">
@@ -40,7 +48,7 @@ export function DeliverableCardRenderer({
             <div className="flex items-center gap-2.5 bg-muted/50 border-b border-border px-4 py-2.5">
               <Badge
                 variant="outline"
-                className="shrink-0 font-semibold text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800"
+                className={`shrink-0 font-semibold text-[11px] px-2.5 py-0.5 rounded-full ${badgeColor}`}
               >
                 {badgeId}
               </Badge>
