@@ -27,6 +27,9 @@ import { convertAITextToHTML } from "@/utils/convertAITextToHTML";
 import { cn } from "@/lib/utils";
 import { detectAndParseLineItems } from "@/utils/detectAndParseLineItems";
 import { TableLineItemRenderer } from "@/components/cogniblend/curation/renderers/TableLineItemRenderer";
+import { DeliverableCardRenderer } from "@/components/cogniblend/curation/renderers/DeliverableCardRenderer";
+import { DeliverableCardEditor } from "@/components/cogniblend/curation/renderers/DeliverableCardEditor";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -73,6 +76,12 @@ interface AIReviewResultPanelProps {
   masterDataOptions?: MasterDataOption[];
   /** Callback when suggested version content is edited by user */
   onSuggestedVersionChange?: (editedContent: any) => void;
+  /** Parsed deliverable objects for card rendering (deliverables/expected_outcomes) */
+  deliverableItems?: DeliverableItem[];
+  /** Callback when deliverable items are edited */
+  onDeliverableItemsChange?: (items: DeliverableItem[]) => void;
+  /** Badge prefix for deliverable cards ("D" or "O") */
+  badgePrefix?: string;
   /** Confidence score from triage (0.0-1.0) */
   confidence?: number;
   /** Callback to confirm a pass section */
@@ -370,6 +379,9 @@ export function AIReviewResultPanel({
   suggestedCodes,
   masterDataOptions,
   onSuggestedVersionChange,
+  deliverableItems,
+  onDeliverableItemsChange,
+  badgePrefix = "D",
   confidence,
   onConfirmPass,
   onFlagForReview,
@@ -412,8 +424,11 @@ export function AIReviewResultPanel({
     }));
   }, [isMasterData, suggestedCodes, masterDataOptions]);
 
+  const hasDeliverableCards = deliverableItems && deliverableItems.length > 0;
+
   const hasSuggestedVersion = !!(
     result.suggested_version ||
+    hasDeliverableCards ||
     (isStructured && structuredItems && structuredItems.length > 0) ||
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows ||
@@ -757,6 +772,13 @@ export function AIReviewResultPanel({
                   </div>
                 </label>
               ))}
+            </div>
+          ) : hasDeliverableCards ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
+              <DeliverableCardRenderer
+                items={deliverableItems!}
+                badgePrefix={badgePrefix}
+              />
             </div>
           ) : isStructured && structuredItems && structuredItems.length > 0 ? (
             (() => {

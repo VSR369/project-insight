@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Loader2, RefreshCw, Send } from "lucide-react";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
+import { parseDeliverables, type DeliverableItem } from "@/utils/parseDeliverableItem";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,14 @@ export interface SectionReview {
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
+
+/** Sections that should render as structured deliverable cards */
+const DELIVERABLE_LIKE_SECTIONS = new Set(['deliverables', 'expected_outcomes']);
+
+function getDeliverableBadgePrefix(sectionKey: string): string {
+  if (sectionKey === 'expected_outcomes') return 'O';
+  return 'D';
+}
 
 /** Determine if a section returns structured JSON arrays from AI refinement */
 function isStructuredSection(sectionKey: string): boolean {
@@ -222,8 +231,12 @@ export function AIReviewInline({
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [editedSuggestedContent, setEditedSuggestedContent] = useState<any>(null);
 
+  // Structured deliverable items state (for deliverables/expected_outcomes card rendering)
+  const [editedDeliverableItems, setEditedDeliverableItems] = useState<DeliverableItem[] | null>(null);
+
   const isStructured = isStructuredSection(sectionKey);
   const isMasterData = isMasterDataSection(sectionKey);
+  const isDeliverableLike = DELIVERABLE_LIKE_SECTIONS.has(sectionKey);
 
   useEffect(() => {
     if (defaultOpen && !isAddressed) setIsOpen(true);
@@ -269,6 +282,7 @@ export function AIReviewInline({
       autoRefineTriggered.current = false;
       setRefinedContent(null);
       setEditedSuggestedContent(null);
+      setEditedDeliverableItems(null);
       setSelectedItems(new Set());
     }
     prevReviewSignature.current = sig;
@@ -279,6 +293,21 @@ export function AIReviewInline({
     if (!isStructured || !refinedContent) return null;
     return parseStructuredItems(refinedContent, sectionKey);
   }, [isStructured, refinedContent, sectionKey]);
+
+  // Parse deliverable objects from refined content (for deliverables/expected_outcomes)
+  const parsedDeliverableObjects = useMemo(() => {
+    if (!isDeliverableLike || !refinedContent) return null;
+    const cleaned = refinedContent.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      const arr = Array.isArray(parsed) ? parsed : (parsed?.items ?? parsed?.deliverables ?? null);
+      if (Array.isArray(arr) && arr.length > 0) {
+        const prefix = getDeliverableBadgePrefix(sectionKey);
+        return parseDeliverables(arr, prefix);
+      }
+    } catch { /* not JSON — fall through */ }
+    return null;
+  }, [isDeliverableLike, refinedContent, sectionKey]);
 
   // Parse master-data codes from refined content
   const suggestedCodes = useMemo(() => {
@@ -434,8 +463,17 @@ export function AIReviewInline({
     // If user edited the suggestion, use the edited version
     const hasEdits = editedSuggestedContent != null;
 
+    // Deliverable-like sections: serialize as structured objects
+    if (isDeliverableLike && (editedDeliverableItems || parsedDeliverableObjects)) {
+      const items = editedDeliverableItems ?? parsedDeliverableObjects;
+      if (!items || items.length === 0) {
+        toast.error("No deliverable items to accept.");
+        return;
+      }
+      onAcceptRefinement(sectionKey, JSON.stringify({ items }));
+    }
     // Master-data sections: validate codes against options and pass as JSON array
-    if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
+    else if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
       const accepted = suggestedCodes.filter((_, i) => selectedItems.has(i));
       if (accepted.length === 0) {
         toast.error("Select at least one option to accept.");
@@ -508,15 +546,17 @@ export function AIReviewInline({
     setEditedComments([]);
     setSelectedItems(new Set());
     setEditedSuggestedContent(null);
+    setEditedDeliverableItems(null);
     setIsAddressed(true);
     setIsOpen(false);
     onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
     setSelectedItems(new Set());
     setEditedSuggestedContent(null);
+    setEditedDeliverableItems(null);
   }, []);
 
   const isPending = !review;
@@ -611,6 +651,9 @@ export function AIReviewInline({
                     suggestedCodes={suggestedCodes}
                     masterDataOptions={masterDataOptions}
                     onSuggestedVersionChange={setEditedSuggestedContent}
+                    deliverableItems={parsedDeliverableObjects ?? undefined}
+                    onDeliverableItemsChange={setEditedDeliverableItems}
+                    badgePrefix={getDeliverableBadgePrefix(sectionKey)}
                     confidence={review?.confidence}
                     onConfirmPass={review?.status === "pass" && review?.phase === "triage" ? () => onMarkAddressed?.(sectionKey) : undefined}
                     onFlagForReview={review?.status === "pass" && review?.phase === "triage" ? () => onSingleSectionReview?.(sectionKey, { ...review, status: "warning", triage_status: "warning" }) : undefined}
