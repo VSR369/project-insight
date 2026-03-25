@@ -286,9 +286,9 @@ All colors MUST be HSL.
 /* ── Editor Content Styles (Tiptap + AiContentRenderer) ── */
 
 .editor-content {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  line-height: 1.85;
+  line-height: 1.75;
   color: hsl(var(--foreground));
   padding: 36px 52px 56px;
   min-height: 400px;
@@ -297,7 +297,7 @@ All colors MUST be HSL.
 
 .editor-content p {
   margin: 0 0 14px 0 !important;
-  min-height: 1.85em;
+  min-height: 1.75em;
 }
 
 /* Tighter display for read-only rendered content */
@@ -326,7 +326,7 @@ All colors MUST be HSL.
 .editor-content h1 {
   font-size: 26px;
   font-weight: 700;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: hsl(var(--foreground));
   margin: 28px 0 10px;
   border-bottom: 2px solid hsl(var(--border));
@@ -337,7 +337,7 @@ All colors MUST be HSL.
 .editor-content h2 {
   font-size: 19px;
   font-weight: 700;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: hsl(222 47% 25%);
   margin: 24px 0 8px;
   line-height: 1.35;
@@ -346,7 +346,7 @@ All colors MUST be HSL.
 .editor-content h3 {
   font-size: 15px;
   font-weight: 600;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: hsl(var(--foreground));
   margin: 18px 0 6px;
   line-height: 1.4;
@@ -355,7 +355,7 @@ All colors MUST be HSL.
 .editor-content h4 {
   font-size: 14px;
   font-weight: 600;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: hsl(var(--muted-foreground));
   margin: 14px 0 4px;
   text-transform: uppercase;

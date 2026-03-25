@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Check, X, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2, Sparkles, Square, CheckSquare } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2, Sparkles, Square, CheckSquare, CheckCircle2 } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { ExpandableAIComment } from "@/components/curator/ExpandableAIComment";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
@@ -516,40 +516,39 @@ export function AIReviewResultPanel({
   // ── Pass confirmation shortcut ──
   if (result.status === "pass" && onConfirmPass && onFlagForReview) {
     return (
-      <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800/40 p-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            AI Review
-          </span>
-          <span className={cn("inline-flex items-center gap-1", statusBadge.className)}>
-            <StatusIcon className="h-3 w-3" />
+      <div className="rounded-lg border-l-4 border-l-emerald-400 border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800/40 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          <span className="text-sm font-semibold text-emerald-800">Section Verified</span>
+          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-[11px] px-2 py-0.5">
+            <StatusIcon className="h-3 w-3 mr-1" />
             {statusBadge.label}
-          </span>
+          </Badge>
           {typeof confidence === "number" && (
-            <span className="text-[10px] text-muted-foreground ml-1">
-              ({Math.round(confidence * 100)}% confident)
+            <span className="text-[11px] text-emerald-600 ml-1 font-medium">
+              {Math.round(confidence * 100)}% confidence
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mb-3">
           AI found no issues with this section.
         </p>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={onConfirmPass}
           >
-            <Check className="h-4 w-4 mr-1" />
+            <Check className="h-4 w-4 mr-1.5" />
             Looks good, confirm
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="border-amber-400 text-amber-700 hover:bg-amber-50"
+            className="h-10 border-amber-400 text-amber-700 hover:bg-amber-50"
             onClick={onFlagForReview}
           >
-            <AlertTriangle className="h-4 w-4 mr-1" />
+            <AlertTriangle className="h-4 w-4 mr-1.5" />
             Flag for review
           </Button>
         </div>
@@ -570,8 +569,8 @@ export function AIReviewResultPanel({
             {statusBadge.label}
           </span>
           {typeof confidence === "number" && (
-            <span className="text-[10px] text-muted-foreground ml-1">
-              ({Math.round(confidence * 100)}% confident)
+            <span className="text-[11px] text-muted-foreground ml-1 font-medium">
+              {Math.round(confidence * 100)}% confidence
             </span>
           )}
         </div>
@@ -585,7 +584,7 @@ export function AIReviewResultPanel({
         {parsedComments.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Comments ({parsedComments.length})
               </p>
               <div className="flex items-center gap-2">
@@ -621,7 +620,7 @@ export function AIReviewResultPanel({
                 <label
                   key={i}
                   className={cn(
-                    "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                    "flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors shadow-xs",
                     isSelected
                       ? "bg-primary/5 border-primary/40"
                       : "bg-card border-border hover:border-primary/30"
@@ -646,7 +645,7 @@ export function AIReviewResultPanel({
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2 mb-0.5">
                       <Badge
-                        className={cn("text-[9px] px-1.5 py-0 shrink-0", sev.badgeClass)}
+                        className={cn("text-[11px] px-2 py-0.5 shrink-0", sev.badgeClass)}
                       >
                         <SevIcon className="h-2.5 w-2.5 mr-0.5" />
                         {sev.label}
@@ -689,29 +688,35 @@ export function AIReviewResultPanel({
 
       {/* ── AI Suggested Version — always visible, no collapse ── */}
       {hasSuggestedVersion && (
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
-            ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
-          </p>
+        <div className="space-y-3 border-l-4 border-l-indigo-400 rounded-r-lg">
+          <div className="flex items-center gap-2 px-4 pt-3">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-semibold text-foreground">
+              AI Suggested {isMasterData ? "Selection" : "Version"}
+            </span>
+            <Badge className="bg-indigo-50 text-indigo-600 border-indigo-200 text-[11px] px-2 py-0.5">
+              Editable
+            </Badge>
+          </div>
 
           {/* ── Master-data codes as selectable chips ── */}
           {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm space-y-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground">
                   {selectedItems.size}/{resolvedCodes.length} selected
                 </span>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                    className="text-[11px] underline text-muted-foreground hover:text-foreground"
                     onClick={onSelectAllItems}
                   >
                     Select all
                   </button>
                   <button
                     type="button"
-                    className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                    className="text-[11px] underline text-muted-foreground hover:text-foreground"
                     onClick={onClearItems}
                   >
                     Clear
@@ -724,8 +729,8 @@ export function AIReviewResultPanel({
                   className={cn(
                     "flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer transition-colors",
                     selectedItems.has(i)
-                      ? "bg-primary/10 border-primary/40"
-                      : "bg-background/50 border-border opacity-60",
+                      ? "bg-indigo-100/50 border-indigo-300"
+                      : "bg-card border-border opacity-60",
                     !item.isValid && "border-destructive/40 bg-destructive/5"
                   )}
                 >
@@ -737,11 +742,11 @@ export function AIReviewResultPanel({
                   <div className="flex-1 space-y-0.5">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground">{item.label}</span>
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground font-mono">
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground font-mono">
                         {item.code}
                       </Badge>
                       {!item.isValid && (
-                        <Badge variant="destructive" className="text-[9px] px-1 py-0">Invalid</Badge>
+                        <Badge variant="destructive" className="text-[10px] px-1 py-0">Invalid</Badge>
                       )}
                     </div>
                     {item.description && (
@@ -752,23 +757,19 @@ export function AIReviewResultPanel({
               ))}
             </div>
           ) : isStructured && structuredItems && structuredItems.length > 0 ? (
-            /* Structured line items — always editable */
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-72 overflow-y-auto space-y-1">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto space-y-1">
               <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
             </div>
           ) : scheduleRows ? (
-            /* Schedule-format — always editable */
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-72 overflow-y-auto">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
               <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
             </div>
           ) : tableRows ? (
-            /* Table-format — always editable */
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-72 overflow-y-auto">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
               <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
             </div>
           ) : result.suggested_version ? (
-            /* Rich text — Tiptap editor */
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm text-sm leading-relaxed min-h-[160px]">
               <EditableRichText
                 value={editedRichText ?? result.suggested_version}
                 onChange={handleRichTextChange}
@@ -781,10 +782,11 @@ export function AIReviewResultPanel({
       {/* ── Skeleton loader while refining ── */}
       {isRefining && !hasSuggestedVersion && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
-            ✨ AI Suggested Version
-          </p>
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-semibold text-foreground">AI Suggested Version</span>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2.5">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Sparkles className="h-3.5 w-3.5 animate-pulse" />
               <span>Generating AI suggestion…</span>
@@ -798,13 +800,13 @@ export function AIReviewResultPanel({
         </div>
       )}
 
-      {/* ── Accept suggestion / Edit & Accept / Keep original actions ── */}
+      {/* ── Accept / Keep original actions — sticky footer ── */}
       {(hasSuggestedVersion || isRefining) && (
-        <div className="flex gap-2 justify-end pt-1 border-t border-border">
+        <div className="sticky bottom-0 bg-card flex gap-3 justify-end pt-3 pb-1 border-t border-border -mx-4 px-4">
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs border-gray-300 text-foreground hover:bg-muted rounded-lg"
+            className="h-10 text-sm border-border text-foreground hover:bg-muted rounded-lg px-5"
             onClick={onDiscard}
             disabled={isRefining}
           >
@@ -812,11 +814,11 @@ export function AIReviewResultPanel({
           </Button>
           <Button
             size="sm"
-            className="h-8 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5"
             onClick={onAccept}
             disabled={isRefining}
           >
-            <Check className="h-3.5 w-3.5 mr-1" />
+            <Check className="h-4 w-4 mr-1.5" />
             {isMasterData && resolvedCodes
               ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
               : isStructured && structuredItems

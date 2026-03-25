@@ -48,6 +48,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
+import { SectionEmptyState } from "@/components/cogniblend/curation/SectionEmptyState";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -140,54 +141,55 @@ function saveExpandState(challengeId: string, state: Record<string, boolean>) {
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ status }: { status: SectionStatus }) {
+  const badgeBase = "text-[11px] px-2 py-0.5";
   switch (status) {
     case "pass":
       return (
-        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] hover:bg-emerald-100">
+        <Badge className={cn(badgeBase, "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100")}>
           <CheckCircle2 className="h-3 w-3 mr-1" />Reviewed ✓
         </Badge>
       );
     case "warning":
       return (
-        <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] hover:bg-amber-100">
-          Warning
+        <Badge className={cn(badgeBase, "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100")}>
+          <AlertTriangle className="h-3 w-3 mr-1" />Warning
         </Badge>
       );
     case "needs_revision":
       return (
-        <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px] hover:bg-red-100">
+        <Badge className={cn(badgeBase, "bg-red-100 text-red-800 border-red-300 hover:bg-red-100")}>
           Needs Revision
         </Badge>
       );
     case "view_only":
       return (
-        <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px] hover:bg-blue-100">
+        <Badge className={cn(badgeBase, "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100")}>
           <Eye className="h-3 w-3 mr-1" />View Only
         </Badge>
       );
     case "ai_reviewed":
       return (
-        <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px] hover:bg-blue-100">
+        <Badge className={cn(badgeBase, "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100")}>
           AI Reviewed
         </Badge>
       );
     case "pending_response":
     case "pending_modification":
       return (
-        <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-[10px] hover:bg-orange-100">
+        <Badge className={cn(badgeBase, "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-100")}>
           <Clock className="h-3 w-3 mr-1" />Pending Response
         </Badge>
       );
     case "response_received":
       return (
-        <Badge className="bg-teal-100 text-teal-800 border-teal-300 text-[10px] hover:bg-teal-100">
+        <Badge className={cn(badgeBase, "bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-100")}>
           Response Received
         </Badge>
       );
     case "accepted":
     case "curator_approved":
       return (
-        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] hover:bg-emerald-100">
+        <Badge className={cn(badgeBase, "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100")}>
           <ShieldCheck className="h-3 w-3 mr-1" />Accepted
         </Badge>
       );
@@ -309,141 +311,162 @@ export function CuratorSectionPanel({
   // Detect if content is empty for placeholder display
   const isContentEmpty = !filled;
 
-  return (
-    <>
-      <div className="rounded-xl shadow-sm border border-gray-100 bg-white mb-4 overflow-hidden">
-        {/* ── Panel Header (always visible) ── */}
-        <button
-          type="button"
-          onClick={toggleExpand}
-          className={cn(
-            "w-full flex items-center gap-2 px-4 py-3 text-left transition-colors",
-            "hover:bg-muted/40",
-            isExpanded && "bg-muted/20",
-          )}
-        >
-          {/* Chevron */}
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          )}
+    // Status-based accent color
+    const accentClass = (() => {
+      switch (effectiveStatus) {
+        case "pass":
+        case "accepted":
+        case "curator_approved":
+          return "border-l-emerald-400";
+        case "warning":
+          return "border-l-amber-400";
+        case "needs_revision":
+          return "border-l-red-400";
+        case "view_only":
+        case "ai_reviewed":
+          return "border-l-blue-400";
+        default:
+          return "border-l-transparent";
+      }
+    })();
 
-          {/* Approval checkbox */}
-          <div onClick={(e) => e.stopPropagation()}>
-            <Checkbox
-              checked={isApproved}
-              onCheckedChange={onToggleApproval}
-              className="shrink-0"
-              disabled={isReadOnly}
-            />
-          </div>
-
-          {/* Filled indicator */}
-          {filled ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-          ) : (
-            <XCircle className="h-4 w-4 text-destructive shrink-0" />
-          )}
-
-          {/* Label */}
-          <span className="text-sm font-medium truncate flex-1">{label}</span>
-
-          {/* Attribution */}
-          {attribution && (
-            <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px] px-1.5 py-0 hover:bg-gray-100 shrink-0">
-              {attribution}
-            </Badge>
-          )}
-
-          {/* Prompt source indicator */}
-          {promptSource === "supervisor" && (
-            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
-              ✅ Supervisor
-            </Badge>
-          )}
-          {promptSource === "default" && (
-            <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
-              ⚠️ Default AI
-            </Badge>
-          )}
-
-          {/* Lock icon for restricted sections */}
-          {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-
-          {/* Inline AI flag preview */}
-          {inlineFlags && inlineFlags.length > 0 && (
-            <span className="text-[10px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
-              <AlertTriangle className="h-3 w-3 inline mr-0.5" />
-              {inlineFlags[0]}
-            </span>
-          )}
-
-          {/* Status badge */}
-          <StatusBadge status={effectiveStatus} />
-
-          {/* Fullscreen expand button */}
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFullscreen(true);
-            }}
-            className="shrink-0"
+    return (
+      <>
+        <div className={cn(
+          "rounded-xl shadow-sm hover:shadow-md transition-shadow border border-border/60 bg-card mb-4 overflow-hidden border-l-4",
+          accentClass
+        )}>
+          {/* ── Panel Header ── */}
+          <button
+            type="button"
+            onClick={toggleExpand}
+            className={cn(
+              "w-full flex flex-col gap-0 px-4 py-3 text-left transition-colors",
+              "hover:bg-muted/40",
+              isExpanded && "bg-muted/20",
+            )}
           >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              tabIndex={-1}
-              type="button"
-            >
-              <Maximize2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* Accept Section button in HEADER — locked sections only (always visible regardless of isReadOnly) */}
-          {isLocked && (
-            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-              {isCuratorAccepted ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-muted-foreground font-medium">Accepted</span>
-                  {onUndoApproval && (
-                    <button
-                      type="button"
-                      className="text-[10px] text-muted-foreground underline hover:text-foreground transition-colors"
-                      onClick={handleUndoClick}
-                    >
-                      <Undo2 className="h-3 w-3 inline mr-0.5" />Undo
-                    </button>
-                  )}
-                </div>
+            {/* Row 1: Primary — chevron, checkbox, fill icon, label, status, actions */}
+            <div className="flex items-center gap-2 w-full">
+              {/* Chevron */}
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
               ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              )}
+
+              {/* Approval checkbox */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isApproved}
+                  onCheckedChange={onToggleApproval}
+                  className="shrink-0"
+                  disabled={isReadOnly}
+                />
+              </div>
+
+              {/* Filled indicator */}
+              {filled ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              ) : (
+                <XCircle className="h-4 w-4 text-destructive shrink-0" />
+              )}
+
+              {/* Label */}
+              <span className="text-sm font-medium truncate flex-1">{label}</span>
+
+              {/* Status badge */}
+              <StatusBadge status={effectiveStatus} />
+
+              {/* Fullscreen expand button */}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFullscreen(true);
+                }}
+                className="shrink-0"
+              >
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[10px] px-2"
-                  onClick={handleAcceptClick}
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  tabIndex={-1}
                   type="button"
                 >
-                  <ShieldCheck className="h-3 w-3 mr-1" />
-                  Accept Section
+                  <Maximize2 className="h-3.5 w-3.5" />
                 </Button>
+              </div>
+
+              {/* Accept Section button — locked sections only */}
+              {isLocked && (
+                <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                  {isCuratorAccepted ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-muted-foreground font-medium">Accepted</span>
+                      {onUndoApproval && (
+                        <button
+                          type="button"
+                          className="text-[11px] text-muted-foreground underline hover:text-foreground transition-colors"
+                          onClick={handleUndoClick}
+                        >
+                          <Undo2 className="h-3 w-3 inline mr-0.5" />Undo
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] px-2"
+                      onClick={handleAcceptClick}
+                      type="button"
+                    >
+                      <ShieldCheck className="h-3 w-3 mr-1" />
+                      Accept Section
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </button>
+
+            {/* Row 2: Secondary metadata — attribution, prompt source, inline flags */}
+            {(attribution || promptSource || (inlineFlags && inlineFlags.length > 0) || isLocked) && (
+              <div className="flex items-center gap-2 ml-[4.5rem] mt-1">
+                {attribution && (
+                  <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted shrink-0">
+                    {attribution}
+                  </Badge>
+                )}
+
+                {promptSource === "supervisor" && (
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
+                    ✅ Supervisor
+                  </Badge>
+                )}
+                {promptSource === "default" && (
+                  <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
+                    ⚠️ Default AI
+                  </Badge>
+                )}
+
+                {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+
+                {inlineFlags && inlineFlags.length > 0 && (
+                  <span className="text-[11px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
+                    <AlertTriangle className="h-3 w-3 inline mr-0.5" />
+                    {inlineFlags[0]}
+                  </span>
+                )}
+              </div>
+            )}
+          </button>
 
         {/* ── Panel Body (collapsible) ── */}
         {isExpanded && (
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
             {/* Empty state placeholder */}
             {isContentEmpty ? (
-              <div className="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 py-10 flex flex-col items-center justify-center gap-2">
-                <p className="text-sm text-gray-400 text-center">
-                  Click to add content or Generate with AI{" "}
-                  <Sparkles className="h-4 w-4 inline text-amber-400" />
-                </p>
-              </div>
+              <SectionEmptyState sectionKey={sectionKey} label={label} />
             ) : (
               children
             )}
@@ -463,10 +486,11 @@ export function CuratorSectionPanel({
 
             {/* Visual divider between content and AI review */}
             {aiReviewSlot && filled && (
-              <div className="relative my-4">
-                <div className="border-t border-dashed border-gray-300" />
-                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400">
-                  vs AI Suggestion
+              <div className="relative my-5">
+                <div className="border-t border-border" />
+                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  AI Analysis
                 </span>
               </div>
             )}
@@ -496,7 +520,7 @@ export function CuratorSectionPanel({
             <DialogTitle className="flex items-center gap-2">
               {label}
               {attribution && (
-                <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px] px-1.5 py-0 hover:bg-gray-100">
+                <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted">
                   {attribution}
                 </Badge>
               )}
@@ -517,11 +541,8 @@ export function CuratorSectionPanel({
           <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
             <div className="min-h-[500px]">
               {isContentEmpty ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 h-full min-h-[300px] flex flex-col items-center justify-center gap-2">
-                  <p className="text-sm text-gray-400 text-center">
-                    Click to add content or Generate with AI{" "}
-                    <Sparkles className="h-4 w-4 inline text-amber-400" />
-                  </p>
+                <div className="h-full min-h-[300px] flex items-center justify-center">
+                  <SectionEmptyState sectionKey={sectionKey} label={label} />
                 </div>
               ) : (
                 children
@@ -530,10 +551,11 @@ export function CuratorSectionPanel({
 
             {/* Visual divider */}
             {aiReviewSlot && filled && (
-              <div className="relative my-4">
-                <div className="border-t border-dashed border-gray-300" />
-                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400">
-                  vs AI Suggestion
+              <div className="relative my-5">
+                <div className="border-t border-border" />
+                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  AI Analysis
                 </span>
               </div>
             )}
