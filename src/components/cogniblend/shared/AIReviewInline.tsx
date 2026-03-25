@@ -30,6 +30,8 @@ export interface SectionReview {
   triage_status?: "pass" | "warning" | "inferred";
   /** Which phase generated this review */
   phase?: "triage" | "deep";
+  /** Confidence score from Phase 1 triage (0.0-1.0) */
+  confidence?: number;
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
@@ -582,6 +584,9 @@ export function AIReviewInline({
                     suggestedCodes={suggestedCodes}
                     masterDataOptions={masterDataOptions}
                     onSuggestedVersionChange={setEditedSuggestedContent}
+                    confidence={review?.confidence}
+                    onConfirmPass={review?.status === "pass" && review?.phase === "triage" ? () => onMarkAddressed?.(sectionKey) : undefined}
+                    onFlagForReview={review?.status === "pass" && review?.phase === "triage" ? () => onSingleSectionReview?.(sectionKey, { ...review, status: "warning", triage_status: "warning" }) : undefined}
                   />
                 )}
               </>

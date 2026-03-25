@@ -71,6 +71,12 @@ interface AIReviewResultPanelProps {
   masterDataOptions?: MasterDataOption[];
   /** Callback when suggested version content is edited by user */
   onSuggestedVersionChange?: (editedContent: any) => void;
+  /** Confidence score from triage (0.0-1.0) */
+  confidence?: number;
+  /** Callback to confirm a pass section */
+  onConfirmPass?: () => void;
+  /** Callback to flag a pass section for deeper review */
+  onFlagForReview?: () => void;
 }
 
 /* ── Severity helpers ──────────────────────────────────── */
@@ -356,6 +362,9 @@ export function AIReviewResultPanel({
   suggestedCodes,
   masterDataOptions,
   onSuggestedVersionChange,
+  confidence,
+  onConfirmPass,
+  onFlagForReview,
 }: AIReviewResultPanelProps) {
 
   // Local edit state for each format type — always active (no toggle needed)
@@ -498,6 +507,50 @@ export function AIReviewResultPanel({
 
   const StatusIcon = statusBadge.icon;
 
+  // ── Pass confirmation shortcut ──
+  if (result.status === "pass" && onConfirmPass && onFlagForReview) {
+    return (
+      <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800/40 p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            AI Review
+          </span>
+          <span className={cn("inline-flex items-center gap-1", statusBadge.className)}>
+            <StatusIcon className="h-3 w-3" />
+            {statusBadge.label}
+          </span>
+          {typeof confidence === "number" && (
+            <span className="text-[10px] text-muted-foreground ml-1">
+              ({Math.round(confidence * 100)}% confident)
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          AI found no issues with this section.
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={onConfirmPass}
+          >
+            <Check className="h-4 w-4 mr-1" />
+            Looks good, confirm
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-amber-400 text-amber-700 hover:bg-amber-50"
+            onClick={onFlagForReview}
+          >
+            <AlertTriangle className="h-4 w-4 mr-1" />
+            Flag for review
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
       {/* ── AI Review block — always visible ── */}
@@ -510,6 +563,11 @@ export function AIReviewResultPanel({
             <StatusIcon className="h-3 w-3" />
             {statusBadge.label}
           </span>
+          {typeof confidence === "number" && (
+            <span className="text-[10px] text-muted-foreground ml-1">
+              ({Math.round(confidence * 100)}% confident)
+            </span>
+          )}
         </div>
 
         {/* ── Summary ── */}

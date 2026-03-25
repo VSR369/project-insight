@@ -1,11 +1,14 @@
 /**
  * triage-challenge-sections — Phase 1 lightweight AI triage.
  *
- * Single LLM call with section titles + content only (no detailed instructions).
- * Returns JSON array: { id, status: "pass"|"warning"|"inferred", issues: [] }
+ * Batched parallel architecture: splits sections into batches of 4,
+ * fires all batches via Promise.all for focused LLM attention per batch.
+ * Returns JSON array: { id, status, confidence, issues[] }
  *
- * Token budget: ~1,200 input, ~200 output. Runs once per "Review with AI" click.
- * Pass sections need no further calls. Warning/Inferred sections queue for Phase 2.
+ * Confidence scoring: LLM returns 0.0-1.0 confidence per section.
+ * Auto-downgrade: any section with confidence < 0.75 is forced to "warning".
+ *
+ * Supports optional `section_keys` parameter for targeted batch calls.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -19,6 +22,8 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+const BATCH_SIZE = 4;
+
 const TRIAGE_SYSTEM_PROMPT = `You are a curator review assistant.
 
 Analyze each section and return ONLY a JSON array. No explanations.
@@ -27,6 +32,7 @@ For each section return:
 {
   "id": "section_id",
   "status": "pass" | "warning" | "inferred",
+  "confidence": 0.0-1.0,
   "issues": ["short issue description"]
 }
 
@@ -35,9 +41,11 @@ Rules:
 - "warning" = content exists but has specific problems (list them)
 - "inferred" = section is empty or has only placeholder text
 - issues array max 3 items, each under 15 words
+- confidence: 0.9-1.0 = very certain, 0.7-0.89 = reasonably certain, below 0.7 = uncertain
+- If confidence < 0.75, set status to "warning" even if content seems acceptable — err on the side of caution
 - Return JSON only. No markdown. No preamble.`;
 
-/** Section keys for curation context — matches CURATION_SECTIONS in review-challenge-sections */
+/** Section keys for curation context */
 const CURATION_SECTION_KEYS = [
   "problem_statement", "scope", "deliverables", "evaluation_criteria",
   "reward_structure", "phase_schedule", "submission_guidelines",
@@ -68,9 +76,17 @@ function getSectionKeys(roleContext: RoleContext): string[] {
   }
 }
 
+/** Split array into chunks of given size */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
 /**
  * Build a compact section summary for the triage prompt.
- * Only includes section title + truncated content — no instructions/schema.
  */
 function buildTriageUserPrompt(
   sectionKeys: string[],
@@ -80,7 +96,6 @@ function buildTriageUserPrompt(
 
   for (const key of sectionKeys) {
     let content = extractSectionContent(key, challengeData);
-    // Truncate long content to save tokens
     if (content && content.length > 500) {
       content = content.substring(0, 497) + "...";
     }
@@ -94,7 +109,6 @@ function buildTriageUserPrompt(
  * Extract section content from challenge data by key.
  */
 function extractSectionContent(key: string, data: Record<string, any>): string | null {
-  // Extended brief subsections
   const ebMap: Record<string, string> = {
     context_and_background: "context_background",
     root_causes: "root_causes",
@@ -112,7 +126,6 @@ function extractSectionContent(key: string, data: Record<string, any>): string |
     return typeof val === "string" ? val : JSON.stringify(val);
   }
 
-  // Direct fields
   const val = data[key];
   if (val == null) return null;
   if (typeof val === "string") return val.trim() || null;
@@ -122,7 +135,102 @@ function extractSectionContent(key: string, data: Record<string, any>): string |
 interface TriageResult {
   id: string;
   status: "pass" | "warning" | "inferred";
+  confidence: number;
   issues: string[];
+}
+
+/**
+ * Execute a single batch triage call against the AI gateway.
+ */
+async function triageBatch(
+  batchKeys: string[],
+  challengeData: Record<string, any>,
+  modelToUse: string,
+  apiKey: string,
+): Promise<TriageResult[]> {
+  const userPrompt = buildTriageUserPrompt(batchKeys, challengeData);
+
+  const response = await fetch(AI_GATEWAY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: modelToUse,
+      messages: [
+        { role: "system", content: TRIAGE_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "triage_sections",
+            description: "Return triage results for the sections in this batch.",
+            parameters: {
+              type: "object",
+              properties: {
+                sections: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string", description: "section_key" },
+                      status: { type: "string", enum: ["pass", "warning", "inferred"] },
+                      confidence: { type: "number", description: "0.0-1.0 certainty of status assessment" },
+                      issues: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Short issue descriptions, max 3 items",
+                      },
+                    },
+                    required: ["id", "status", "confidence", "issues"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["sections"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "triage_sections" } },
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("RATE_LIMIT");
+    if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
+    const errText = await response.text();
+    console.error("AI gateway error:", response.status, errText);
+    throw new Error(`AI gateway error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
+
+  const parsed = JSON.parse(toolCall.function.arguments);
+  const sections: TriageResult[] = (parsed.sections ?? []).map((s: any) => ({
+    id: s.id,
+    status: s.status,
+    confidence: typeof s.confidence === "number" ? s.confidence : 0.5,
+    issues: Array.isArray(s.issues) ? s.issues : [],
+  }));
+
+  // Auto-downgrade: low confidence pass → warning
+  for (const section of sections) {
+    if (section.status === "pass" && section.confidence < 0.75) {
+      section.status = "warning";
+      if (!section.issues.some(i => i.toLowerCase().includes("confidence"))) {
+        section.issues.push("Low confidence — flagged for manual review.");
+      }
+    }
+  }
+
+  return sections;
 }
 
 serve(async (req) => {
@@ -148,7 +256,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, role_context } = await req.json();
+    const { challenge_id, role_context, section_keys } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
@@ -157,7 +265,11 @@ serve(async (req) => {
     }
 
     const resolvedContext: RoleContext = (["intake", "spec", "curation"].includes(role_context) ? role_context : "curation") as RoleContext;
-    const sectionKeys = getSectionKeys(resolvedContext);
+    
+    // Use provided section_keys or default to full set for the role
+    const allKeys = Array.isArray(section_keys) && section_keys.length > 0
+      ? section_keys as string[]
+      : getSectionKeys(resolvedContext);
 
     // Fetch challenge data with service role
     const adminClient = createClient(
@@ -187,92 +299,39 @@ serve(async (req) => {
       );
     }
 
-    // Build compact prompt
-    const userPrompt = buildTriageUserPrompt(sectionKeys, challengeData);
+    // ── Batched parallel triage ──────────────────────────────────
+    const batches = chunk(allKeys, BATCH_SIZE);
+    
+    const batchResults = await Promise.all(
+      batches.map(batch => 
+        triageBatch(batch, challengeData, modelToUse, LOVABLE_API_KEY)
+          .catch(err => {
+            // Handle specific error types
+            if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
+            // For other errors, return fallback inferred results for this batch
+            console.error(`Batch triage failed for [${batch.join(", ")}]:`, err);
+            return batch.map(key => ({
+              id: key,
+              status: "inferred" as const,
+              confidence: 0,
+              issues: ["Section was not evaluated — please review manually."],
+            }));
+          })
+      )
+    );
 
-    // Single LLM call with structured output
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelToUse,
-        messages: [
-          { role: "system", content: TRIAGE_SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "triage_sections",
-              description: "Return triage results for all sections.",
-              parameters: {
-                type: "object",
-                properties: {
-                  sections: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string", description: "section_key" },
-                        status: { type: "string", enum: ["pass", "warning", "inferred"] },
-                        issues: {
-                          type: "array",
-                          items: { type: "string" },
-                          description: "Short issue descriptions, max 3 items",
-                        },
-                      },
-                      required: ["id", "status", "issues"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["sections"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "triage_sections" } },
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
-
-    const parsed = JSON.parse(toolCall.function.arguments);
-    const triageResults: TriageResult[] = parsed.sections ?? [];
+    // Flatten all batch results
+    const triageResults: TriageResult[] = batchResults.flat();
     const now = new Date().toISOString();
 
     // Backfill any missing sections
     const returnedIds = new Set(triageResults.map(r => r.id));
-    for (const key of sectionKeys) {
+    for (const key of allKeys) {
       if (!returnedIds.has(key)) {
         triageResults.push({
           id: key,
           status: "inferred",
+          confidence: 0,
           issues: ["Section was not evaluated — please review manually."],
         });
       }
@@ -282,20 +341,23 @@ serve(async (req) => {
     const sectionReviews = triageResults.map(t => ({
       section_key: t.id,
       status: t.status === "inferred" ? "needs_revision" as const : t.status,
-      triage_status: t.status, // preserve original triage status
+      triage_status: t.status,
+      confidence: t.confidence,
       comments: t.issues,
       reviewed_at: now,
       phase: "triage" as const,
     }));
 
-    // Persist triage results to DB
-    const { error: updateError } = await adminClient
-      .from("challenges")
-      .update({ ai_section_reviews: sectionReviews })
-      .eq("id", challenge_id);
+    // Persist triage results to DB (only if we triaged the full set)
+    if (!section_keys) {
+      const { error: updateError } = await adminClient
+        .from("challenges")
+        .update({ ai_section_reviews: sectionReviews })
+        .eq("id", challenge_id);
 
-    if (updateError) {
-      console.error("Failed to persist triage results:", updateError);
+      if (updateError) {
+        console.error("Failed to persist triage results:", updateError);
+      }
     }
 
     // Classify for frontend routing
@@ -321,6 +383,22 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    // Handle rate limit and payment errors with proper status codes
+    if (error instanceof Error) {
+      if (error.message === "RATE_LIMIT") {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (error.message === "PAYMENT_REQUIRED") {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     console.error("triage-challenge-sections error:", error);
     return new Response(
       JSON.stringify({
