@@ -516,17 +516,6 @@ export function AIReviewResultPanel({
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
                   AI Suggested {isMasterData ? "Selection" : "Version"}
                 </p>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn("h-6 text-[10px] px-2 gap-1", isEditing && "text-primary")}
-                    onClick={handleToggleEdit}
-                  >
-                    <Pencil className="h-3 w-3" />
-                    {isEditing ? "Done Editing" : "Edit"}
-                  </Button>
-                )}
               </div>
 
               {/* ── Master-data codes as selectable chips ── */}
