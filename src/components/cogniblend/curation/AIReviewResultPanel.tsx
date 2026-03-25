@@ -35,7 +35,7 @@ export interface ReviewComment {
 }
 
 export interface AIReviewResult {
-  status: "pass" | "warning" | "needs_revision";
+  status: "pass" | "warning" | "needs_revision" | "inferred";
   comments: string[];
   summary?: string;
   suggested_version?: string;
@@ -97,6 +97,7 @@ const STATUS_BADGE = {
   pass: { label: "Pass", icon: ThumbsUp, className: "bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full px-3 py-1 text-xs font-medium" },
   warning: { label: "Warning", icon: AlertTriangle, className: "bg-amber-100 text-amber-700 border border-amber-300 rounded-full px-3 py-1 text-xs font-medium" },
   needs_revision: { label: "Needs Revision", icon: ShieldAlert, className: "bg-red-100 text-red-700 border border-red-300 rounded-full px-3 py-1 text-xs font-medium" },
+  inferred: { label: "AI Inferred", icon: Sparkles, className: "bg-violet-100 text-violet-700 border border-violet-300 rounded-full px-3 py-1 text-xs font-medium" },
 };
 
 function inferSeverity(comment: string): ReviewComment["severity"] {

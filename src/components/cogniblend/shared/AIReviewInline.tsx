@@ -26,6 +26,10 @@ export interface SectionReview {
   reviewed_at?: string;
   addressed?: boolean;
   prompt_source?: "supervisor" | "default";
+  /** Original triage status from Phase 1 (preserved through Phase 2 deep review) */
+  triage_status?: "pass" | "warning" | "inferred";
+  /** Which phase generated this review */
+  phase?: "triage" | "deep";
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
@@ -87,6 +91,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   pass: { label: "Pass", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
   warning: { label: "Warning", className: "bg-amber-100 text-amber-800 border-amber-300" },
   needs_revision: { label: "Needs Revision", className: "bg-red-100 text-red-800 border-red-300" },
+  inferred: { label: "AI Inferred", className: "bg-violet-100 text-violet-800 border-violet-300" },
 };
 
 /**
@@ -491,13 +496,16 @@ export function AIReviewInline({
   }, []);
 
   const isPending = !review;
+  const isInferred = review?.triage_status === "inferred";
   const isPassWithNoComments = review?.status === "pass" && (!review.comments || review.comments.length === 0);
 
   const style = isPending
     ? { label: "Pending", className: "bg-muted text-muted-foreground border-border" }
     : isAddressed
       ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
-      : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
+      : isInferred
+        ? STATUS_STYLES.inferred
+        : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
 
   const allCommentsSelected = selectedComments.size === comments.length;
 

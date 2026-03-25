@@ -1,14 +1,16 @@
 /**
  * BulkActionBar — Sticky bar shown after AI review completes.
  * Provides bulk "Accept all passing sections" and "Review warnings" actions.
+ * Supports 3 statuses from 2-phase pipeline: pass, warning, inferred.
  */
 
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 
 interface BulkActionBarProps {
   warningCount: number;
   passCount: number;
+  inferredCount?: number;
   onAcceptAllPassing: () => void;
   onReviewWarnings: () => void;
 }
@@ -16,22 +18,30 @@ interface BulkActionBarProps {
 export function BulkActionBar({
   warningCount,
   passCount,
+  inferredCount = 0,
   onAcceptAllPassing,
   onReviewWarnings,
 }: BulkActionBarProps) {
+  const attentionCount = warningCount + inferredCount;
   return (
     <div className="sticky top-0 z-30 bg-white border-b border-gray-200 py-3 px-6 -mx-4 lg:-mx-6 flex items-center justify-between flex-wrap gap-3">
       <p className="text-sm text-foreground">
         Review complete —{" "}
-        {warningCount > 0 && (
-          <span className="font-medium text-amber-700">
-            {warningCount} section{warningCount !== 1 ? "s" : ""} need{warningCount === 1 ? "s" : ""} attention
-          </span>
-        )}
-        {warningCount > 0 && passCount > 0 && ", "}
         {passCount > 0 && (
           <span className="font-medium text-emerald-700">
-            {passCount} section{passCount !== 1 ? "s" : ""} passed
+            {passCount} passed
+          </span>
+        )}
+        {passCount > 0 && warningCount > 0 && ", "}
+        {warningCount > 0 && (
+          <span className="font-medium text-amber-700">
+            {warningCount} warning{warningCount !== 1 ? "s" : ""}
+          </span>
+        )}
+        {(passCount > 0 || warningCount > 0) && inferredCount > 0 && ", "}
+        {inferredCount > 0 && (
+          <span className="font-medium text-violet-700">
+            {inferredCount} AI inferred
           </span>
         )}
       </p>
@@ -47,7 +57,7 @@ export function BulkActionBar({
             Accept all passing sections
           </Button>
         )}
-        {warningCount > 0 && (
+        {attentionCount > 0 && (
           <Button
             variant="outline"
             size="sm"
@@ -55,7 +65,7 @@ export function BulkActionBar({
             onClick={onReviewWarnings}
           >
             <AlertTriangle className="h-4 w-4 mr-1.5" />
-            Review warnings
+            Review {attentionCount} section{attentionCount !== 1 ? "s" : ""}
           </Button>
         )}
       </div>
