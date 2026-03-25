@@ -281,23 +281,9 @@ const SECTIONS: SectionDef[] = [
       return !!ch.description?.trim();
     },
     render: (ch) => {
-      // Try parsing as structured line items first
-      const raw = parseJson<any>(ch.description);
-      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
-      if (items && items.length > 0) {
-        return (
-          <div className="space-y-2">
-            {items.map((item: any, i: number) => (
-              <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
-                <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
-                {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
-              </div>
-            ))}
-          </div>
-        );
-      }
-      // Fallback to rich text display
-      return <AiContentRenderer content={ch.description} compact fallback="—" />;
+      const items = getSubmissionGuidelineObjects(ch);
+      if (items.length === 0) return <AiContentRenderer content={ch.description} compact fallback="—" />;
+      return <DeliverableCardRenderer items={items} badgePrefix="S" hideAcceptanceCriteria />;
     },
   },
   {
