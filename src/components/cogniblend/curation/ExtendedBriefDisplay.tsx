@@ -314,7 +314,8 @@ export default function ExtendedBriefDisplay({
         // Compute panel status from AI review
         let panelStatus: SectionStatus = "not_reviewed";
         if (aiReview) {
-          if (aiReview.status === "pass") panelStatus = "pass";
+          if (aiReview.addressed) panelStatus = "pass";
+          else if (aiReview.status === "pass") panelStatus = "pass";
           else if (aiReview.status === "warning") panelStatus = "warning";
           else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
         }

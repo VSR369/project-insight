@@ -2098,7 +2098,7 @@ export default function CurationReviewPage() {
                   let panelStatus: SectionStatus = "not_reviewed";
                   if (isLocked) panelStatus = "view_only";
                   else if (aiReview) {
-                    if (aiReview.addressed) panelStatus = "accepted";
+                    if (aiReview.addressed) panelStatus = "pass";
                     else if (aiReview.status === "pass") panelStatus = "pass";
                     else if (aiReview.status === "warning") panelStatus = "warning";
                     else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
