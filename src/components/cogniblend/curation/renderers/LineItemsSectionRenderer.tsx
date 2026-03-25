@@ -20,6 +20,7 @@ interface LineItemsSectionRendererProps {
   structuredItems?: DeliverableItem[];
   onSaveStructured?: (items: DeliverableItem[]) => void;
   badgePrefix?: string;
+  hideAcceptanceCriteria?: boolean;
 }
 
 export function LineItemsSectionRenderer({

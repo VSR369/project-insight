@@ -12,6 +12,7 @@ export type { DeliverableItem as DeliverableObject };
 interface DeliverableCardRendererProps {
   items: DeliverableItem[];
   badgePrefix?: string;
+  hideAcceptanceCriteria?: boolean;
 }
 
 export function DeliverableCardRenderer({

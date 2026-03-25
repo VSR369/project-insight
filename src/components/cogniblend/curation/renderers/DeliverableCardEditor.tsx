@@ -18,6 +18,7 @@ interface DeliverableCardEditorProps {
   onCancel: () => void;
   saving?: boolean;
   badgePrefix?: string;
+  hideAcceptanceCriteria?: boolean;
 }
 
 export function DeliverableCardEditor({
