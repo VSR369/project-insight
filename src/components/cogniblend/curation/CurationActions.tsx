@@ -165,7 +165,6 @@ export default function CurationActions({
     },
   });
 
-  const isLegalPending = phaseStatus === 'LEGAL_VERIFICATION_PENDING';
   const isAmDeclined = phaseStatus === 'AM_DECLINED';
   const isFinalCycle = amendmentCount >= 3;
   const maxCycles = 3;
