@@ -342,6 +342,7 @@ function EditableScheduleRows({
 export function AIReviewResultPanel({
   sectionKey,
   result,
+  isRefining = false,
   structuredItems,
   selectedItems,
   onToggleItem,
@@ -355,8 +356,6 @@ export function AIReviewResultPanel({
   masterDataOptions,
   onSuggestedVersionChange,
 }: AIReviewResultPanelProps) {
-  const [detailsOpen, setDetailsOpen] = useState(true);
-  const [suggestedVersionOpen, setSuggestedVersionOpen] = useState(true);
 
   // Local edit state for each format type — always active (no toggle needed)
   const [editedRichText, setEditedRichText] = useState<string | null>(null);
