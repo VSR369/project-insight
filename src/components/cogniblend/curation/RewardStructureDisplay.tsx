@@ -9,7 +9,7 @@
  *   reviewed              → Read view + reviewed footer
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,6 +66,7 @@ export default function RewardStructureDisplay({
   // ── Local UI state ──
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
 
   // ── Challenge context for AI ──
   const challengeContext = useMemo(() => ({
@@ -99,6 +100,27 @@ export default function RewardStructureDisplay({
     }
   }, [isValid, errors, getSerializedData, challengeId, queryClient, markSaved]);
 
+  // ── Auto-save effect for AI-generated data ──
+  useEffect(() => {
+    if (!pendingSave || !rewardData.type) return;
+    setPendingSave(false);
+    const doSave = async () => {
+      try {
+        const serialized = serializeRewardData(rewardData);
+        const { error } = await supabase
+          .from('challenges')
+          .update({ reward_structure: serialized as unknown as Json })
+          .eq('id', challengeId);
+        if (error) throw new Error(error.message);
+        queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+        markSaved();
+      } catch (err: any) {
+        toast.error(`Auto-save failed: ${err.message}`);
+      }
+    };
+    doSave();
+  }, [pendingSave, rewardData, challengeId, queryClient, markSaved]);
+
   // ── AI handlers ──
   const handleAIBreakup = useCallback(
     async (amount: number, currency: string) => {
@@ -106,7 +128,14 @@ export default function RewardStructureDisplay({
       try {
         const result = await requestAITierBreakup(amount, currency, challengeContext);
         if (result) {
-          toast.success('AI suggested tier breakup applied.');
+          setMonetary({
+            currency,
+            totalPool: amount,
+            tiers: result,
+            payment_mode: rewardData.monetary?.payment_mode,
+          });
+          setPendingSave(true);
+          toast.success('AI tier breakup applied and saved.');
         } else {
           toast.info('AI could not generate breakup. Using default split.');
         }
@@ -115,15 +144,20 @@ export default function RewardStructureDisplay({
         setAiLoading(false);
       }
     },
-    [challengeContext],
+    [challengeContext, rewardData.monetary?.payment_mode, setMonetary],
   );
 
   const handleAINonMonetary = useCallback(async () => {
     setAiLoading(true);
     try {
       const result = await requestAINonMonetarySuggestions(challengeContext);
-      if (result) {
-        toast.success('AI suggested rewards applied.');
+      if (result && result.length > 0) {
+        const currentItems = rewardData.nonMonetary?.items ?? [];
+        setNonMonetary({
+          items: [...currentItems, ...result.map((s) => ({ ...s, isAISuggested: true }))],
+        });
+        setPendingSave(true);
+        toast.success('AI reward suggestions applied and saved.');
       } else {
         toast.info('AI could not generate suggestions.');
       }
@@ -131,7 +165,7 @@ export default function RewardStructureDisplay({
     } finally {
       setAiLoading(false);
     }
-  }, [challengeContext]);
+  }, [challengeContext, rewardData.nonMonetary?.items, setNonMonetary]);
 
   // ── Has existing data check for toggle ──
   const hasExistingData =
