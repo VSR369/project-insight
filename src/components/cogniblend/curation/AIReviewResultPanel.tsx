@@ -27,6 +27,9 @@ import { convertAITextToHTML } from "@/utils/convertAITextToHTML";
 import { cn } from "@/lib/utils";
 import { detectAndParseLineItems } from "@/utils/detectAndParseLineItems";
 import { TableLineItemRenderer } from "@/components/cogniblend/curation/renderers/TableLineItemRenderer";
+import { DeliverableCardRenderer } from "@/components/cogniblend/curation/renderers/DeliverableCardRenderer";
+import { DeliverableCardEditor } from "@/components/cogniblend/curation/renderers/DeliverableCardEditor";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 
 /* ── Types ──────────────────────────────────────────────── */
 

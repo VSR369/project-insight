@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Loader2, RefreshCw, Send } from "lucide-react";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
+import { parseDeliverables, type DeliverableItem } from "@/utils/parseDeliverableItem";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
