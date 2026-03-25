@@ -1127,6 +1127,25 @@ export default function CurationReviewPage() {
     },
   });
 
+  // ── One-time migration: repair corrupted section content ──
+  const contentMigrationRanRef = useRef(false);
+  useEffect(() => {
+    if (!challenge || contentMigrationRanRef.current) return;
+    contentMigrationRanRef.current = true;
+
+    const targets = [
+      { dbField: 'problem_statement', content: challenge.problem_statement as string | null },
+      { dbField: 'scope', content: challenge.scope as string | null },
+      { dbField: 'hook', content: challenge.hook as string | null },
+      { dbField: 'description', content: challenge.description as string | null },
+    ];
+
+    const corrupted = findCorruptedFields(targets);
+    corrupted.forEach(({ dbField, fixed }) => {
+      saveSectionMutation.mutate({ field: dbField, value: fixed });
+    });
+  }, [challenge, saveSectionMutation]);
+
   // ══════════════════════════════════════
   // SECTION 4: Handlers
   // ══════════════════════════════════════
