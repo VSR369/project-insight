@@ -52,6 +52,7 @@ export default function CurationActions({
   operatingModel,
   readOnly = false,
   legalEscrowBlocked = false,
+  blockingReason,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
