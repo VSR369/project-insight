@@ -1353,6 +1353,7 @@ export default function CurationReviewPage() {
             // Individual section failure — triage result stays
           } finally {
             setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
+          }
         }
       } else {
         // All sections passed — no Phase 2 needed
