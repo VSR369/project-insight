@@ -16,3 +16,4 @@ export { LegalDocsSectionRenderer } from './LegalDocsSectionRenderer';
 export { TableLineItemRenderer } from './TableLineItemRenderer';
 export { DeliverableCardRenderer } from './DeliverableCardRenderer';
 export { DeliverableCardEditor } from './DeliverableCardEditor';
+export { EvaluationCriteriaSection } from './EvaluationCriteriaSection';

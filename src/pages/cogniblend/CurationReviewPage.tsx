@@ -2312,19 +2312,18 @@ export default function CurationReviewPage() {
                           </>
                         );
                       }
-                      // ── Evaluation criteria (table) ──
+                      // ── Evaluation criteria (rich editor) ──
                       case "evaluation_criteria":
                         return (
                           <>
-                            <TableSectionRenderer
-                              sectionKey={section.key}
-                              rows={getEvalCriteria(challenge)}
+                            <EvaluationCriteriaSection
+                              criteria={getEvalCriteria(challenge)}
                               readOnly={isReadOnly}
                               editing={isEditing}
                               onSave={handleSaveEvalCriteria}
                               onCancel={cancelEdit}
                               saving={savingSection}
-                              showWeightTotal
+                              aiStatus={panelStatus}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
