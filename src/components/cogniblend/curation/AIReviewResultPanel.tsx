@@ -362,6 +362,9 @@ export function AIReviewResultPanel({
   suggestedCodes,
   masterDataOptions,
   onSuggestedVersionChange,
+  confidence,
+  onConfirmPass,
+  onFlagForReview,
 }: AIReviewResultPanelProps) {
 
   // Local edit state for each format type — always active (no toggle needed)
