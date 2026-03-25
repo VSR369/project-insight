@@ -766,8 +766,8 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
   const raw = parseJson<any>(ch.evaluation_criteria);
   const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : [];
   return ec.map((c: any) => ({
-    name: c.criterion_name ?? c.name ?? "",
-    weight: c.weight_percentage ?? c.weight ?? 0,
+    name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
+    weight: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
   }));
 }
 
