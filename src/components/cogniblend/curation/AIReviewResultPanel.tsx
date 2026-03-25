@@ -21,7 +21,7 @@ import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/rende
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
 import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
-import { convertAITextToHTML } from "@/lib/convertAITextToHTML";
+import { convertAITextToHTML } from "@/utils/convertAITextToHTML";
 import { cn } from "@/lib/utils";
 
 /* ── Types ──────────────────────────────────────────────── */
