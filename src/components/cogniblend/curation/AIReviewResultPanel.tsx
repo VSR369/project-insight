@@ -17,10 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2 } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
 import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
+import { convertAITextToHTML } from "@/lib/convertAITextToHTML";
 import { cn } from "@/lib/utils";
 
 /* ── Types ──────────────────────────────────────────────── */
