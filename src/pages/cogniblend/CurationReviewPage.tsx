@@ -310,19 +310,9 @@ const SECTIONS: SectionDef[] = [
       return Array.isArray(outcomes) && outcomes.length > 0;
     },
     render: (ch) => {
-      const eb = parseJson<any>(ch.extended_brief);
-      const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
-      if (outcomes.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
-      return (
-        <div className="space-y-2">
-          {outcomes.map((item: any, i: number) => (
-            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
-              <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
-              {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
-            </div>
-          ))}
-        </div>
-      );
+      const items = getExpectedOutcomeObjects(ch);
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
+      return <DeliverableCardRenderer items={items} badgePrefix="O" />;
     },
   },
   {
