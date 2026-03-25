@@ -50,6 +50,8 @@ interface MasterDataOption {
 interface AIReviewResultPanelProps {
   sectionKey: string;
   result: AIReviewResult;
+  /** Whether AI refinement is currently in progress */
+  isRefining?: boolean;
   /** Parsed structured items from AI suggestion (for line_items / table sections) */
   structuredItems: string[] | null;
   /** Selected items for structured accept */
