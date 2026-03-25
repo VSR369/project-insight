@@ -92,7 +92,10 @@ import {
   TagInputSectionRenderer,
   StructuredFieldsSectionRenderer,
   LegalDocsSectionRenderer,
+  DeliverableCardRenderer,
 } from "@/components/cogniblend/curation/renderers";
+import { parseDeliverables } from "@/utils/parseDeliverableItem";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
