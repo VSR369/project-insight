@@ -1300,6 +1300,7 @@ export default function CurationReviewPage() {
 
       // ── Phase 2: Deep suggestion (sequential, only non-pass) ──
       if (routing.phase2_queue.length > 0) {
+        setPhase2Progress({ total: routing.phase2_queue.length, completed: 0 });
         // Phase 2 runs in background — each section calls refine-challenge-section
         // The AIReviewInline auto-refine will handle this via its existing useEffect
         // We just need to trigger the detailed review for warning/inferred sections
