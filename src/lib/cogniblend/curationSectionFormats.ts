@@ -188,13 +188,6 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['intake.problem_statement', 'root_causes'],
   },
-  extended_brief_expected_outcomes: {
-    format: 'line_items',
-    aiCanDraft: true,
-    aiReviewEnabled: true,
-    curatorCanEdit: true,
-    aiUsesContext: ['spec.expected_outcomes', 'deliverables'],
-  },
   preferred_approach: {
     format: 'rich_text',
     aiCanDraft: true,
