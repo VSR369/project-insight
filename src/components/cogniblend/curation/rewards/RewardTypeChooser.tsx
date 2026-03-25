@@ -47,7 +47,7 @@ export default function RewardTypeChooser({ onSelect }: RewardTypeChooserProps) 
           onClick={() => onSelect('non_monetary')}
           className={cn(
             'border-2 border-border rounded-2xl p-6 text-left',
-            'hover:border-purple-300 hover:bg-purple-50/30',
+            'hover:border-accent hover:bg-accent/30',
             'cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-ring',
           )}
         >
