@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, X, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2, Sparkles, Square, CheckSquare } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { ExpandableAIComment } from "@/components/curator/ExpandableAIComment";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
@@ -506,9 +507,7 @@ export function AIReviewResultPanel({
         <CollapsibleContent className="mt-3 space-y-4">
           {/* ── Summary ── */}
           {result.summary && (
-            <div className="text-sm text-muted-foreground">
-              <AiContentRenderer content={result.summary} compact />
-            </div>
+            <ExpandableAIComment content={result.summary} />
           )}
 
           {/* ── Comments as styled checklist ── */}
