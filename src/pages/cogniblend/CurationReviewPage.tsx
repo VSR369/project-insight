@@ -1177,9 +1177,9 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "deliverables", value: { items } });
   }, [saveSectionMutation]);
 
-  const handleSaveStructuredDeliverables = useCallback((items: { name: string; description?: string; acceptance_criteria?: string }[]) => {
+  const handleSaveStructuredDeliverables = useCallback((items: DeliverableItem[]) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "deliverables", value: { items } });
+    saveSectionMutation.mutate({ field: "deliverables", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
   }, [saveSectionMutation]);
 
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
