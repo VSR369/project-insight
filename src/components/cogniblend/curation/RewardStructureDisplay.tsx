@@ -66,6 +66,7 @@ export default function RewardStructureDisplay({
   // ── Local UI state ──
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
 
   // ── Challenge context for AI ──
   const challengeContext = useMemo(() => ({
