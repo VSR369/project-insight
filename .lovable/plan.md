@@ -1,76 +1,43 @@
 
 
-# Fix: Sections with Warnings/Issues Incorrectly Getting "Pass" Status
+# Fix: Redeploy Triage Edge Function + Frontend Safety Net
 
-## Problem
+## Root Cause
 
-The AI triage can return `status: "pass"` but still include `issues` (warning comments). Two bugs allow this:
-
-1. **Triage edge function** (line 222-230): Only downgrades passes with low confidence (`< 0.75`), but does NOT downgrade passes that have issues/comments attached. A section with 2 actionable issues can still be marked "pass".
-
-2. **CurationReviewPage** (line 1351): Auto-refinement check is `deepReview.status !== 'pass'` — so even if a deep review returns "pass" with comments, no AI suggested solution is generated.
+The code fix (pass-with-issues → warning downgrade) was added to `supabase/functions/triage-challenge-sections/index.ts` at lines 230-233 but was **never redeployed** to Supabase. The live edge function still runs the old code that allows "pass" status with issues, so `problem_statement` stays in `routing.pass` and never enters `phase2_queue` for deep review and refinement.
 
 ## Fix
 
-### 1. Triage edge function — Auto-downgrade pass-with-issues
+### 1. Redeploy the triage edge function
 
-**File**: `supabase/functions/triage-challenge-sections/index.ts` (lines 222-230)
+The code is already correct (lines 230-233). It just needs to be deployed to Supabase so the live function picks up the change.
 
-After the existing confidence downgrade, add a second rule: if status is "pass" but `issues.length > 0`, downgrade to "warning".
+### 2. Add a frontend safety net in `CurationReviewPage.tsx`
+
+After receiving triage results (line 1315-1316), add a client-side correction that moves any "pass" sections with comments into the `phase2_queue`. This ensures even if the edge function somehow returns pass-with-issues, the frontend still routes them correctly:
 
 ```ts
-// Existing: Auto-downgrade low confidence pass → warning
-for (const section of sections) {
-  if (section.status === "pass" && section.confidence < 0.75) {
-    section.status = "warning";
-    if (!section.issues.some(i => i.toLowerCase().includes("confidence"))) {
-      section.issues.push("Low confidence — flagged for manual review.");
+// After line 1316:
+// Safety net: any "pass" section with comments should be in phase2_queue
+const correctedRouting = { ...routing };
+triageReviews.forEach(r => {
+  if (r.status === 'pass' && r.comments && r.comments.length > 0) {
+    r.status = 'warning';
+    correctedRouting.pass = correctedRouting.pass.filter(k => k !== r.section_key);
+    if (!correctedRouting.phase2_queue.includes(r.section_key)) {
+      correctedRouting.warning.push(r.section_key);
+      correctedRouting.phase2_queue.push(r.section_key);
     }
   }
-  // NEW: Auto-downgrade pass-with-issues → warning
-  if (section.status === "pass" && section.issues.length > 0) {
-    section.status = "warning";
-  }
-}
+});
 ```
 
-This ensures any section the AI flagged with issues gets routed to Phase 2 for deep review and refinement.
+Then use `correctedRouting` instead of `routing` for subsequent Phase 2 logic.
 
-### 2. CurationReviewPage — Trigger refinement for any section with comments
+## Files
 
-**File**: `src/pages/cogniblend/CurationReviewPage.tsx` (line 1351)
-
-Change the condition from `deepReview.status !== 'pass'` to just check for comments:
-
-```ts
-// BEFORE:
-if (deepReview.comments && deepReview.comments.length > 0 && deepReview.status !== 'pass') {
-
-// AFTER:
-if (deepReview.comments && deepReview.comments.length > 0) {
-```
-
-This is a safety net — if a deep review somehow returns "pass" with actionable comments, refinement still runs.
-
-### 3. Also fix the single-section re-review path
-
-**File**: `src/components/cogniblend/shared/AIReviewInline.tsx` (line 358)
-
-Same pattern — the re-review toast says "looks good" for pass-with-comments:
-
-```ts
-// BEFORE:
-const hasIssues = freshReview.comments.length > 0 && freshReview.status !== "pass";
-
-// AFTER:
-const hasIssues = freshReview.comments.length > 0;
-```
-
-## Files Modified
-
-| File | Change |
+| File | Action |
 |------|--------|
-| `supabase/functions/triage-challenge-sections/index.ts` | Add pass-with-issues → warning downgrade (line 230) |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove `!== 'pass'` guard on auto-refinement (line 1351) |
-| `src/components/cogniblend/shared/AIReviewInline.tsx` | Fix hasIssues check (line 358) |
+| `supabase/functions/triage-challenge-sections/index.ts` | Redeploy (code already correct) |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add client-side safety net after line 1316 |
 
