@@ -2676,10 +2676,6 @@ export default function CurationReviewPage() {
               </CardContent>
             </Card>
           )}
-                </p>
-              </CardContent>
-            </Card>
-          )}
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
