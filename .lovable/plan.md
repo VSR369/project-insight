@@ -1,67 +1,104 @@
 
 
-# Phase 2 System Prompt: Focused Section Refinement
+# Batched Parallel Triage with Confidence Scoring & Pass Confirmation
 
 ## Problem
-The current `refine-challenge-section` edge function uses a verbose, generic system prompt (~90 lines) that doesn't leverage Phase 1 triage results. It treats every call as if it needs full context about the curator's role, when Phase 1 has already identified the specific issues.
 
-## Changes
+The current Phase 1 triage sends all 28 sections in a single LLM call. This causes attention dilution — sections later in the prompt get superficial review, creating a high false-pass risk. Additionally, pass sections are silently accepted with no human checkpoint.
 
-### 1. Edge Function: `supabase/functions/refine-challenge-section/index.ts`
+## Architecture Changes
 
-**Replace `getSystemPrompt()` (lines 35-91)** with a minimal, format-aware system prompt:
+### 1. Edge Function: `triage-challenge-sections/index.ts`
+
+**Batch size of 4.** Instead of one call with all 28 sections, the function splits them into batches of 4 and fires all batches in parallel via `Promise.all`. Each batch gets its own focused LLM call with the same system prompt.
+
+**Confidence score.** Add `confidence: 0.0-1.0` to the triage response schema. Update the system prompt:
 
 ```text
-You are fixing a specific curator section.
-Section type: {section_type}
-Known issues: {issues_from_phase1}
-Current content: {section_content}
-
-Return ONLY the corrected content in the same format as the input.
-- If line items: return a JSON array of strings
-- If rich text: return clean HTML
-- If table: return JSON rows
-No explanation. No preamble. Corrected content only.
+For each section also return a confidence score 0.0–1.0.
+If confidence < 0.75, set status to "warning" even if content seems acceptable.
 ```
 
-**Refactor the request body** (line 169) to accept a new optional `issues` field from the frontend — these are the Phase 1 triage issues array.
+**Auto-downgrade logic.** After receiving results, any section with `confidence < 0.75` and `status: "pass"` gets overridden to `"warning"`.
 
-**Rebuild `userPrompt` construction** (lines 201-260):
-- Use `issues` (from Phase 1) as the `Known issues` block instead of `curator_instructions` when issues are provided
-- Keep `curator_instructions` as fallback for manual refinement calls
-- Determine `section_type` from an internal `SECTION_TYPE_MAP` (reuse existing `SECTION_FORMAT_MAP` pattern: `line_items`, `rich_text`, `table`, `schedule_table`, `checkbox_single`, `checkbox_multi`, etc.)
-- Keep all existing format-specific instructions (EB formats, master data constraints, solver expertise taxonomy) — these append after the base prompt
+**Schema change** — add `confidence` field to the tool-calling parameters:
+```json
+{ "confidence": { "type": "number", "description": "0.0-1.0 certainty" } }
+```
 
-**Keep backward compatibility**: If `curator_instructions` is provided but `issues` is not, fall back to the existing verbose prompt style. This ensures manual "Edit & Accept" refinements still work.
+**Response stays identical** — results from all batches are flattened into the same `triageResults` array. The frontend sees no structural change.
 
-### 2. Frontend: `src/components/cogniblend/shared/AIReviewInline.tsx`
+### 2. Frontend: `CurationReviewPage.tsx` — Progressive Rendering
 
-**Update `handleRefineWithAI`** (~line 384) to pass the Phase 1 `issues` array from the review's `comments` field into the edge function body:
+**Utility function:**
+```typescript
+function chunk<T>(arr: T[], size: number): T[][] { ... }
+```
+
+**Replace single `supabase.functions.invoke("triage-challenge-sections", ...)` with parallel batched calls.** The edge function accepts a new optional `section_keys` parameter. If provided, it only triages those sections (not the full set).
 
 ```typescript
-body: {
-  challenge_id: challengeId,
-  section_key: sectionKey,
-  current_content: currentContent || "[empty]",
-  issues: comments,  // Phase 1 triage issues
-  curator_instructions: selectedInstructions, // kept as fallback
-  role_context: roleContext,
-  context: { ... },
-}
+const batches = chunk(allSectionKeys, 4); // 7 batches
+const results = await Promise.all(
+  batches.map(batch =>
+    supabase.functions.invoke("triage-challenge-sections", {
+      body: { challenge_id, role_context: "curation", section_keys: batch }
+    })
+  )
+);
 ```
 
-### 3. Frontend: `src/pages/cogniblend/CurationReviewPage.tsx`
+**Progressive UI updates:** As each Promise resolves, its 4 section results merge into `aiReviews` state immediately — the user sees sections light up in groups of 4 rather than waiting for all 28.
 
-**Update Phase 2 loop** (~lines 1300-1327): After the deep review call returns for each section, pass the review's `comments` array as `issues` when triggering auto-refinement. Currently Phase 2 only calls `review-challenge-sections` — it should also trigger the refine call with the issues from the deep review result.
+### 3. Pass Section Soft Confirmation UI
 
-## Summary of token savings
+For sections with `status: "pass"`, instead of silently marking them done, show a lightweight confirmation row inside the section card:
 
-- Phase 1: ~1,200 input tokens (triage, no suggestions)
-- Phase 2 (new): ~200-500 input tokens per section (section content + issues only, no role preamble)
-- vs. old: ~2,000-4,000 input tokens per section with full verbose prompt
+```text
+┌──────────────────────────────────────────┐
+│ ✓ Scope                      Pass  [↗]  │
+│                                          │
+│ AI found no issues with this section.    │
+│                                          │
+│ [Looks good, confirm]  [Flag for review] │
+└──────────────────────────────────────────┘
+```
 
-## Files modified
-- `supabase/functions/refine-challenge-section/index.ts` — new minimal system prompt, accept `issues` field
-- `src/components/cogniblend/shared/AIReviewInline.tsx` — pass issues to edge function
-- `src/pages/cogniblend/CurationReviewPage.tsx` — wire Phase 1 issues into Phase 2 refinement calls
+- **"Looks good, confirm"** — marks the section as addressed (same as current accept behavior)
+- **"Flag for review"** — overrides the pass status to warning and queues the section for Phase 2 deep review + refinement
+
+This is implemented in `AIReviewResultPanel.tsx` with a new render path when `status === "pass"` and `phase === "triage"`.
+
+### 4. BulkActionBar Update
+
+"Accept all passing sections" now triggers the soft confirm on all pass sections (same effect, just batched). The bar text updates to reflect confidence:
+
+```text
+Review complete — 18 passed, 6 warnings, 3 AI inferred
+```
+
+No structural change to BulkActionBar — it already supports these counts.
+
+### 5. SectionReview Type Update
+
+Add `confidence` to the `SectionReview` interface:
+```typescript
+confidence?: number; // 0.0-1.0 from Phase 1 triage
+```
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `supabase/functions/triage-challenge-sections/index.ts` | Batch-of-4 parallel calls, confidence field in schema + prompt, `section_keys` parameter |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | `chunk()` utility, parallel batch invocations, progressive state merging |
+| `src/components/cogniblend/shared/AIReviewInline.tsx` | `confidence` field on `SectionReview` type |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Pass confirmation UI: "Looks good, confirm" / "Flag for review" |
+
+## Cost & Performance
+
+- 7 parallel calls of ~4 sections each = same wall-clock time as 1 call
+- ~5,600 total input tokens vs ~5,600 for single call (similar cost)
+- Each batch gets full LLM attention — eliminates attention dilution
+- Confidence scoring catches borderline cases automatically
 
