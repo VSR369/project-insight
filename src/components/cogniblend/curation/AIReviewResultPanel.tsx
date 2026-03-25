@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, X, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2, Sparkles, Square, CheckSquare } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
