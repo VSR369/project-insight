@@ -293,6 +293,21 @@ export function AIReviewInline({
     return parseStructuredItems(refinedContent, sectionKey);
   }, [isStructured, refinedContent, sectionKey]);
 
+  // Parse deliverable objects from refined content (for deliverables/expected_outcomes)
+  const parsedDeliverableObjects = useMemo(() => {
+    if (!isDeliverableLike || !refinedContent) return null;
+    const cleaned = refinedContent.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      const arr = Array.isArray(parsed) ? parsed : (parsed?.items ?? parsed?.deliverables ?? null);
+      if (Array.isArray(arr) && arr.length > 0) {
+        const prefix = getDeliverableBadgePrefix(sectionKey);
+        return parseDeliverables(arr, prefix);
+      }
+    } catch { /* not JSON — fall through */ }
+    return null;
+  }, [isDeliverableLike, refinedContent, sectionKey]);
+
   // Parse master-data codes from refined content
   const suggestedCodes = useMemo(() => {
     if (!isMasterData || !refinedContent) return null;
