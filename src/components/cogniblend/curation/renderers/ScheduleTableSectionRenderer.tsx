@@ -82,6 +82,14 @@ export function ScheduleTableSectionRenderer({
   const rows = normalizeScheduleData(data);
   const [editRows, setEditRows] = useState<PhaseRow[]>(() => rows.length > 0 ? rows : [{ phase_name: "", duration_days: null, start_date: null, end_date: null }]);
 
+  // Re-sync editRows when entering edit mode so latest data (e.g. after AI accept) is shown
+  useEffect(() => {
+    if (editing) {
+      const fresh = normalizeScheduleData(data);
+      setEditRows(fresh.length > 0 ? fresh : [{ phase_name: "", duration_days: null, start_date: null, end_date: null }]);
+    }
+  }, [editing, data]);
+
   const handleRowChange = useCallback((index: number, field: keyof PhaseRow, value: string) => {
     setEditRows(prev => prev.map((r, i) => {
       if (i !== index) return r;
