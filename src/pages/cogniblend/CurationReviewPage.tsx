@@ -1619,8 +1619,9 @@ export default function CurationReviewPage() {
     return <div className="p-6 text-center text-muted-foreground">Challenge not found.</div>;
   }
 
-  const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
-  const isReadOnly = (challenge.current_phase ?? 0) < 3;
+  // Curator workspace is always editable — section-level locking via LOCKED_SECTIONS handles legal/escrow
+  // Phase-based read-only is NOT applied; submission gating is the only governance control
+  const isReadOnly = false;
 
   // Derive whether legal/escrow sections are accepted (for submission gating only)
   const isLegalAccepted = sectionActions.some(

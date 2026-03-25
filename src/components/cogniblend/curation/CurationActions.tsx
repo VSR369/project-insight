@@ -383,7 +383,7 @@ export default function CurationActions({
           <Button
             className="w-full"
             onClick={handleSubmitClick}
-            disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired || legalEscrowBlocked}
+            disabled={completePhase.isPending || amApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked}
             title={legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
           >
             {(completePhase.isPending || amApprovalMutation.isPending) ? (
