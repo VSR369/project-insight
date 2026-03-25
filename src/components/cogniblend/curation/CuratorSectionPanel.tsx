@@ -48,6 +48,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
+import { SectionEmptyState } from "@/components/cogniblend/curation/SectionEmptyState";
 
 // ---------------------------------------------------------------------------
 // Types
