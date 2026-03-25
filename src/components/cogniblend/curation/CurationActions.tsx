@@ -266,8 +266,8 @@ export default function CurationActions({
   });
 
   const handleSubmitClick = () => {
-    if (isLegalPending) {
-      toast.error('Legal documents must be attached before curation can begin.');
+    if (legalEscrowBlocked) {
+      toast.error(blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.');
       return;
     }
     if (hasOutstandingRequired) {
