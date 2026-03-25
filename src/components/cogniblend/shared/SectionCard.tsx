@@ -107,30 +107,28 @@ function ActionBar({ onAccept, onDecline, onEdit, onRegenerate }: ActionBarProps
     <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
       {onAccept && (
         <Button
-          variant="outline"
           size="sm"
-          className="text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30"
+          className="text-white bg-emerald-600 hover:bg-emerald-700"
           onClick={onAccept}
         >
           <Check className="h-4 w-4" />
-          Accept
+          Accept suggestion
+        </Button>
+      )}
+      {onEdit && (
+        <Button variant="outline" size="sm" className="border-blue-400 text-blue-600 hover:bg-blue-50" onClick={onEdit}>
+          <Pencil className="h-4 w-4" />
+          Edit & Accept
         </Button>
       )}
       {onDecline && (
         <Button
           variant="outline"
           size="sm"
-          className="text-destructive border-destructive/30 hover:bg-destructive/10"
+          className="border-gray-300 text-foreground hover:bg-muted"
           onClick={onDecline}
         >
-          <X className="h-4 w-4" />
-          Decline
-        </Button>
-      )}
-      {onEdit && (
-        <Button variant="ghost" size="sm" onClick={onEdit}>
-          <Pencil className="h-4 w-4" />
-          Edit
+          Keep original
         </Button>
       )}
       {onRegenerate && (

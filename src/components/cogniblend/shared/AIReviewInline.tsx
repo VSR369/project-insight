@@ -6,8 +6,8 @@
  * select, radio). AI suggestions for these sections are parsed as code arrays/strings
  * and rendered natively — never as prose.
  *
- * Flow: AI reviews → user selects comments → "Refine with AI" →
- *       AI rewrites section → Accept / Discard (item-level for structured sections)
+ * Flow: AI reviews → auto-refine → unified panel with review + suggestion →
+ *       Accept suggestion / Keep original
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
