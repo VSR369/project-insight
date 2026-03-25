@@ -1500,7 +1500,7 @@ export default function CurationReviewPage() {
     }
 
     // ── Text fields: normalize markdown → sanitized HTML ──
-    const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'description', 'hook'];
+    const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
     if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
       const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
       valueToSave = normalizeAiContentForEditor(valueToSave);

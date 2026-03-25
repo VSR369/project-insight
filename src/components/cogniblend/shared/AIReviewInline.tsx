@@ -484,7 +484,12 @@ export function AIReviewInline({
           toast.error("Select at least one item to accept.");
           return;
         }
-        onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+        const itemFmt = getSectionFormatType(sectionKey);
+        if (itemFmt === 'line_items') {
+          onAcceptRefinement(sectionKey, JSON.stringify({ items: accepted }));
+        } else {
+          onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+        }
       }
     } else {
       onAcceptRefinement(sectionKey, refinedContent);
