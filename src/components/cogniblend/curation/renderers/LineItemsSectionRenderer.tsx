@@ -20,6 +20,7 @@ interface LineItemsSectionRendererProps {
   structuredItems?: DeliverableItem[];
   onSaveStructured?: (items: DeliverableItem[]) => void;
   badgePrefix?: string;
+  hideAcceptanceCriteria?: boolean;
 }
 
 export function LineItemsSectionRenderer({
@@ -33,6 +34,7 @@ export function LineItemsSectionRenderer({
   structuredItems,
   onSaveStructured,
   badgePrefix,
+  hideAcceptanceCriteria,
 }: LineItemsSectionRendererProps) {
   const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
 
@@ -46,6 +48,7 @@ export function LineItemsSectionRenderer({
           onCancel={onCancel}
           saving={saving}
           badgePrefix={badgePrefix}
+          hideAcceptanceCriteria={hideAcceptanceCriteria}
         />
       );
     }
@@ -62,7 +65,7 @@ export function LineItemsSectionRenderer({
 
   // View mode — structured cards
   if (useStructured) {
-    return <DeliverableCardRenderer items={structuredItems} badgePrefix={badgePrefix} />;
+    return <DeliverableCardRenderer items={structuredItems} badgePrefix={badgePrefix} hideAcceptanceCriteria={hideAcceptanceCriteria} />;
   }
 
   // View mode — plain text fallback
