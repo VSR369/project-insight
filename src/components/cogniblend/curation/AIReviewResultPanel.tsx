@@ -4,8 +4,7 @@
  * Renders:
  *  - Summary badge + status
  *  - Comments with severity badges (STRENGTH / WARNING / REQUIRED) and blockquote applies_to
- *  - AI Suggested Version using the section's native renderer in readOnly mode
- *  - Edit toggle to modify suggestions before accepting
+ *  - AI Suggested Version — always editable inline (no toggle needed)
  *  - Accept / Reject actions
  */
 
