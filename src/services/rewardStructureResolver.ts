@@ -151,6 +151,22 @@ export function migrateRawReward(raw: any): {
       }
     }
 
+    // Handle serialized items array (from serializeRewardData)
+    if (Array.isArray(raw.items)) {
+      for (const item of raw.items) {
+        if (item && typeof item === 'object' && item.title) {
+          items.push({
+            id: item.id ?? crypto.randomUUID(),
+            type: item.type ?? 'other',
+            title: item.title,
+            description: item.description ?? '',
+            isAISuggested: !!item.isAISuggested,
+            isFromSource: !!item.isFromSource,
+          });
+        }
+      }
+    }
+
     return {
       type: 'non_monetary',
       nonMonetary: { items },
