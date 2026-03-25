@@ -76,7 +76,6 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   root_causes: 'line_items',
   affected_stakeholders: 'table',
   current_deficiencies: 'line_items',
-  extended_brief_expected_outcomes: 'line_items',
   preferred_approach: 'rich_text',
   approaches_not_of_interest: 'line_items',
 };
