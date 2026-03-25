@@ -176,10 +176,13 @@ export function convertAITextToHTML(rawText: string): string {
     flushOl();
 
     // Rule 8: parenthetical numbered pattern "(1) text, (2) text"
-    const parentheticalItems = tryParseParentheticalOl(trimmed);
-    if (parentheticalItems) {
+    const parentheticalResult = tryParseParentheticalOl(trimmed);
+    if (parentheticalResult) {
+      if (parentheticalResult.intro) {
+        blocks.push(`<p>${processInlineFormatting(parentheticalResult.intro)}:</p>`);
+      }
       blocks.push(
-        `<ol>${parentheticalItems.map((t) => `<li>${processInlineFormatting(t)}</li>`).join("")}</ol>`
+        `<ol>${parentheticalResult.items.map((t) => `<li>${processInlineFormatting(t)}</li>`).join("")}</ol>`
       );
       continue;
     }
