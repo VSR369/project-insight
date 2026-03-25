@@ -354,6 +354,7 @@ export function AIReviewResultPanel({
   onSuggestedVersionChange,
 }: AIReviewResultPanelProps) {
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [suggestedVersionOpen, setSuggestedVersionOpen] = useState(true);
 
   // Local edit state for each format type — always active (no toggle needed)
   const [editedRichText, setEditedRichText] = useState<string | null>(null);
