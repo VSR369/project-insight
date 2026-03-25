@@ -2564,6 +2564,7 @@ export default function CurationReviewPage() {
             totalCount={15}
             operatingModel={challenge.operating_model}
             readOnly={isReadOnly}
+            legalEscrowBlocked={legalEscrowBlocked}
           />
 
           {/* Modification Points Tracker */}
