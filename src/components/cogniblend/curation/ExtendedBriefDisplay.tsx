@@ -87,7 +87,6 @@ const SUBSECTION_META: Record<string, { label: string; attribution?: string }> =
   root_causes: { label: "Root Causes", attribution: "AI Inferred" },
   affected_stakeholders: { label: "Affected Stakeholders", attribution: "AI Inferred" },
   current_deficiencies: { label: "Current Deficiencies", attribution: "AI Inferred" },
-  extended_brief_expected_outcomes: { label: "Expected Outcomes", attribution: "from Spec" },
   preferred_approach: { label: "Preferred Approach", attribution: "Human Input" },
   approaches_not_of_interest: { label: "Approaches NOT of Interest", attribution: "Human Input" },
 };
