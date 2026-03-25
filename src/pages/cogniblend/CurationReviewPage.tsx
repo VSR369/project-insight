@@ -2198,8 +2198,8 @@ export default function CurationReviewPage() {
 
                       // ── Expected outcomes (line items) ──
                       case "expected_outcomes": {
-                        const eb = parseJson<any>(challenge.extended_brief);
-                        const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+                        const eo = parseJson<any>(challenge.expected_outcomes);
+                        const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
                         const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
                         const structuredOutcomes = getExpectedOutcomeObjects(challenge);
                         return (
@@ -2210,8 +2210,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(items) => {
                                 setSavingSection(true);
-                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
-                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items } });
+                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items } });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
@@ -2219,8 +2218,7 @@ export default function CurationReviewPage() {
                               structuredItems={structuredOutcomes}
                               onSaveStructured={(items) => {
                                 setSavingSection(true);
-                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
-                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
+                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
                               }}
                               badgePrefix="O"
                             />
