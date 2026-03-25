@@ -443,6 +443,8 @@ export function AIReviewInline({
       const fmt = SECTION_FORMAT_CONFIG[sectionKey];
       if (fmt && ['checkbox_single', 'select', 'radio'].includes(fmt.format)) {
         onAcceptRefinement(sectionKey, accepted[0]);
+      } else if (fmt && fmt.format === 'line_items') {
+        onAcceptRefinement(sectionKey, JSON.stringify({ items: accepted }));
       } else {
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
@@ -451,7 +453,12 @@ export function AIReviewInline({
       if (typeof editedSuggestedContent === "string") {
         onAcceptRefinement(sectionKey, editedSuggestedContent);
       } else if (Array.isArray(editedSuggestedContent)) {
-        onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+        const editFmt = getSectionFormatType(sectionKey);
+        if (editFmt === 'line_items') {
+          onAcceptRefinement(sectionKey, JSON.stringify({ items: editedSuggestedContent }));
+        } else {
+          onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+        }
       } else {
         onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
       }
@@ -477,7 +484,12 @@ export function AIReviewInline({
           toast.error("Select at least one item to accept.");
           return;
         }
-        onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+        const itemFmt = getSectionFormatType(sectionKey);
+        if (itemFmt === 'line_items') {
+          onAcceptRefinement(sectionKey, JSON.stringify({ items: accepted }));
+        } else {
+          onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+        }
       }
     } else {
       onAcceptRefinement(sectionKey, refinedContent);
