@@ -35,7 +35,7 @@ export interface ReviewComment {
 }
 
 export interface AIReviewResult {
-  status: "pass" | "warning" | "needs_revision";
+  status: "pass" | "warning" | "needs_revision" | "inferred";
   comments: string[];
   summary?: string;
   suggested_version?: string;
