@@ -144,7 +144,7 @@ function StatusBadge({ status }: { status: SectionStatus }) {
     case "pass":
       return (
         <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] hover:bg-emerald-100">
-          Pass
+          <CheckCircle2 className="h-3 w-3 mr-1" />Reviewed ✓
         </Badge>
       );
     case "warning":
