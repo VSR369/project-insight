@@ -496,9 +496,9 @@ export function CuratorSectionPanel({
             <DialogTitle className="flex items-center gap-2">
               {label}
               {attribution && (
-                <span className="text-sm text-muted-foreground font-normal">
-                  ({attribution})
-                </span>
+                <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px] px-1.5 py-0 hover:bg-gray-100">
+                  {attribution}
+                </Badge>
               )}
               <StatusBadge status={effectiveStatus} />
             </DialogTitle>
@@ -515,7 +515,29 @@ export function CuratorSectionPanel({
           )}
 
           <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
-            {children}
+            <div className="min-h-[500px]">
+              {isContentEmpty ? (
+                <div className="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 h-full min-h-[300px] flex flex-col items-center justify-center gap-2">
+                  <p className="text-sm text-gray-400 text-center">
+                    Click to add content or Generate with AI{" "}
+                    <Sparkles className="h-4 w-4 inline text-amber-400" />
+                  </p>
+                </div>
+              ) : (
+                children
+              )}
+            </div>
+
+            {/* Visual divider */}
+            {aiReviewSlot && filled && (
+              <div className="relative my-4">
+                <div className="border-t border-dashed border-gray-300" />
+                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400">
+                  vs AI Suggestion
+                </span>
+              </div>
+            )}
+
             {aiReviewSlot}
           </div>
         </DialogContent>
