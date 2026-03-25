@@ -260,7 +260,6 @@ export const EXTENDED_BRIEF_SUBSECTION_KEYS = [
   'root_causes',
   'affected_stakeholders',
   'current_deficiencies',
-  'extended_brief_expected_outcomes',
   'preferred_approach',
   'approaches_not_of_interest',
 ] as const;
