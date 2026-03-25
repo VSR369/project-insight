@@ -29,7 +29,7 @@ export function DeliverableCardRenderer({
       {items.map((item, i) => {
         const hasDescription = item.description && item.description.trim().length > 0;
         const hasCriteria = item.acceptance_criteria && item.acceptance_criteria.trim().length > 0;
-        const badgeId = item.id || `${badgePrefix}${i + 1}`;
+        const badgeId = `${badgePrefix}${i + 1}`;
 
         return (
           <div
