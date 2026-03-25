@@ -532,10 +532,16 @@ export function AIReviewInline({
         ) : (
           <>
             {isPassWithNoComments ? (
-              <p className="text-xs text-emerald-700 py-1 flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5" />
-                This section looks good — no issues found.
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-emerald-700 py-1 flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5" />
+                  This section looks good — no issues found.
+                </p>
+                <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleReReview} disabled={isReReviewing}>
+                  {isReReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                  {isReReviewing ? "Re-reviewing…" : "Re-review this section"}
+                </Button>
+              </div>
             ) : (
               <>
                 {/* Locked sections: Send to LC/FC button */}

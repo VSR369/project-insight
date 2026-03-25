@@ -943,6 +943,7 @@ export default function CurationReviewPage() {
   const [aiReviews, setAiReviews] = useState<SectionReview[]>([]);
   const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [phase2Progress, setPhase2Progress] = useState({ total: 0, completed: 0 });
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);

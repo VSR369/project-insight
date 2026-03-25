@@ -206,6 +206,12 @@ function EditableLineItems({
         <div key={i} className="flex items-start gap-1.5">
           <span className="text-xs text-muted-foreground w-5 text-right shrink-0 pt-2">{i + 1}.</span>
           <Textarea
+            ref={(el) => {
+              if (el) {
+                el.style.height = "auto";
+                el.style.height = el.scrollHeight + "px";
+              }
+            }}
             value={item}
             onChange={(e) => handleItemChange(i, e.target.value)}
             className="text-sm min-h-[2rem] flex-1 resize-none whitespace-pre-wrap py-1.5"
