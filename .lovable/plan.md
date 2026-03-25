@@ -1,71 +1,173 @@
 
 
-# Redesign Reward Structure — Phased Implementation Plan
+# Fix: Reward Data Not Persisting After AI Generation
 
-## Current State
-The existing `RewardStructureDisplay.tsx` (748 lines) is a monolithic component with inline editing for monetary tiers, payment milestones, and non-monetary tiered perks. It has no concept of upstream data sources, no mutual exclusivity enforcement, no source attribution, and no type-chooser wizard. The challenge's `operating_model` field (`'MP'` / `'AGG'`) is already available in the curation page query.
+## Problem
+When the user generates monetary tiers (AI Breakup) or non-monetary suggestions (Generate with AI), the data only lives in React state. The user must manually click "Save Reward Structure" — but this isn't obvious, and navigating away loses everything.
 
-No `rewardStructureResolver` service exists yet. No upstream reward data from AM/CA/CR roles is currently resolved — the component just reads `challenge.reward_structure` directly.
+## Root Cause
+`MonetaryRewardEditor` and `NonMonetaryRewardEditor` call `onUpdate` (which updates hook state), but no auto-save happens. The Save button is at the bottom of the editing section and easy to miss.
 
----
+## Fix: Auto-save after AI generation + explicit save after manual edits
 
-## Phased Approach
+### 1. `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
 
-### Phase 1: Foundation — Service Layer + State Hook
-**Files created:**
-- `src/services/rewardStructureResolver.ts` — Pure functions: `resolveRewardSource()` reads the challenge's `reward_structure` JSONB and `operating_model` to determine source role (AM/CA/CR/CURATOR), `isAutoPopulated`, and `isEditable`. Role display name mapping. Since upstream role data is embedded in the same `reward_structure` JSONB (not separate tables), the resolver checks for a `source_role` field within the JSON, falling back to model-based inference.
-- `src/hooks/useRewardStructureState.ts` — State machine hook managing `RewardSectionState` (`empty_no_source`, `populated_from_source`, `curator_editing`, `saved`, `reviewed`). Handles transitions, mutual exclusivity assertion (`monetary` XOR `non_monetary`), and the `validateRewardStructure()` function with all monetary/non-monetary validation rules.
-- `src/lib/rewardValidation.ts` — Pure validation utilities: tier ordering enforcement, total pool matching, non-monetary item validation, auto-balance algorithm.
+Add auto-save logic that triggers after AI-generated data is accepted:
 
-### Phase 2: Type Chooser Wizard + Reward Type Toggle
-**Files created:**
-- `src/components/cogniblend/curation/rewards/RewardTypeChooser.tsx` — Full guided setup with two large cards (Monetary / Non-Monetary). Shown when `state === 'empty_no_source'` and `type === null`. On selection, transitions to `curator_editing`.
-- `src/components/cogniblend/curation/rewards/RewardTypeToggle.tsx` — Two-option toggle (not tabs). Switching with existing data shows confirmation dialog. Enforces mutual exclusivity.
+**`handleAIBreakup`** — after tiers are returned and applied via `setMonetary`, immediately call `handleSave()`:
 
-### Phase 3: Monetary Reward Editor
-**Files created:**
-- `src/components/cogniblend/curation/rewards/MonetaryRewardEditor.tsx` — Contains:
-  - Lump sum input mode (currency selector + amount + AI Breakup button)
-  - Prize tier cards (Platinum/Gold/Silver/Honorable Mention) with the specified visual design
-  - Live total validator with color-coded states (green/amber/red)
-  - Tier ordering enforcement with inline errors
-  - Auto-balance functionality
-- `src/components/cogniblend/curation/rewards/PrizeTierCard.tsx` — Individual tier card component (icon, label, amount input, winner count input)
+```typescript
+const handleAIBreakup = useCallback(async (amount: number, currency: string) => {
+  setAiLoading(true);
+  try {
+    const result = await requestAITierBreakup(amount, currency, challengeContext);
+    if (result) {
+      // Update state with AI result
+      setMonetary({
+        currency,
+        totalPool: amount,
+        tiers: result,
+        payment_mode: rewardData.monetary?.payment_mode,
+      });
+      // Auto-save after a tick so state is committed
+      setTimeout(() => handleSaveInternal(), 0);
+      toast.success('AI tier breakup saved.');
+    }
+    return result;
+  } finally {
+    setAiLoading(false);
+  }
+}, [...]);
+```
 
-### Phase 4: Non-Monetary Reward Editor
-**Files created:**
-- `src/components/cogniblend/curation/rewards/NonMonetaryRewardEditor.tsx` — Contains:
-  - Type-categorized item cards with badge colors per type
-  - Inline editing (title + description textarea)
-  - AI suggestion panel ("Generate with AI" button)
-  - Add item flow (type selector pills → inline form)
-  - Drag-sortable items via `@dnd-kit/sortable`
-- `src/components/cogniblend/curation/rewards/NonMonetaryItemCard.tsx` — Individual card with type badge, hover delete, AI/source attribution dots
+**`handleAINonMonetary`** — same pattern: after suggestions are returned and added to items, auto-save:
 
-### Phase 5: Source Attribution + AI Integration
-**Changes:**
-- `src/components/cogniblend/curation/rewards/SourceBanner.tsx` — Blue info banner showing "Populated from [Role] · [Date]" with Edit button. Reset option when curator modifies auto-populated data. "Modified" pills on changed fields.
-- `src/services/aiRewardBreakup.ts` — AI breakup service calling edge function with structured prompts for both monetary tier breakdown and non-monetary suggestions. Handles response parsing and validation.
-- Update `ai-field-assist` edge function to support `reward_tier_breakup` and `non_monetary_suggestions` field names with the specified system/user prompts.
+```typescript
+const handleAINonMonetary = useCallback(async () => {
+  setAiLoading(true);
+  try {
+    const result = await requestAINonMonetarySuggestions(challengeContext);
+    if (result && result.length > 0) {
+      const currentItems = rewardData.nonMonetary?.items ?? [];
+      setNonMonetary({ items: [...currentItems, ...result] });
+      setTimeout(() => handleSaveInternal(), 0);
+      toast.success('AI reward suggestions saved.');
+    }
+    return result;
+  } finally {
+    setAiLoading(false);
+  }
+}, [...]);
+```
 
-### Phase 6: Compose + Integrate
-**Files modified:**
-- `src/components/cogniblend/curation/RewardStructureDisplay.tsx` — **Complete rewrite** as a thin orchestrator that:
-  1. Calls `resolveRewardSource()` to determine state
-  2. Uses `useRewardStructureState()` hook for state machine
-  3. Renders `RewardTypeChooser` (empty state), `SourceBanner` (populated), `RewardTypeToggle` (editing), `MonetaryRewardEditor` or `NonMonetaryRewardEditor` based on type, validation summary bar, and save/cancel footer
-  4. Handles reviewed state footer with re-review button
-- `src/pages/cogniblend/CurationReviewPage.tsx` — Pass `aiStatus`/`panelStatus` to `RewardStructureDisplay` (minor prop addition)
+The problem with `setTimeout` is the state won't be updated yet. Better approach:
 
----
+### 2. Add a `pendingSave` flag + `useEffect` for deferred auto-save
 
-## Technical Notes
+```typescript
+const [pendingSave, setPendingSave] = useState(false);
 
-- **No database changes needed** — all data stays in `reward_structure` JSONB column. Source role metadata is stored within the JSON itself (e.g., `{ source_role: 'AM', source_date: '...', type: 'monetary', ... }`).
-- **Backward compatible** — existing reward data (platinum/gold/silver flat numbers, payment_milestones, tiered_perks) is parsed and migrated in-memory to the new interface format.
-- **Mutual exclusivity** — enforced at three levels: UI toggle prevents simultaneous display, state hook asserts before save, validation function blocks save if both populated.
-- **Auto-balance algorithm** — scales each tier proportionally: `newAmount = Math.round(tierAmount / currentTotal * targetTotal / roundUnit) * roundUnit`, distributes rounding remainder to platinum.
+// After AI data is applied to state, set pendingSave
+// In the AI handlers: setPendingSave(true) after setMonetary/setNonMonetary
 
-## Recommended Sequence
-Implement phases 1 → 2 → 3 → 4 → 5 → 6 sequentially. Each phase is independently testable. Phases 3 and 4 can be parallelized since they are independent editor components.
+useEffect(() => {
+  if (pendingSave && rewardData.type) {
+    setPendingSave(false);
+    // Save directly using current rewardData
+    const doSave = async () => {
+      try {
+        const serialized = serializeRewardData(rewardData);
+        const { error } = await supabase
+          .from('challenges')
+          .update({ reward_structure: serialized as unknown as Json })
+          .eq('id', challengeId);
+        if (error) throw new Error(error.message);
+        queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+        markSaved();
+      } catch (err: any) {
+        toast.error(`Auto-save failed: ${err.message}`);
+      }
+    };
+    doSave();
+  }
+}, [pendingSave, rewardData]);
+```
+
+### 3. Move AI result handling into the orchestrator
+
+Currently `handleAIBreakup` returns tiers to `MonetaryRewardEditor` which calls `updateField` internally. This is a two-hop update. Instead, handle the AI result directly in the orchestrator:
+
+In `handleAIBreakup`:
+```typescript
+const result = await requestAITierBreakup(amount, currency, challengeContext);
+if (result) {
+  setMonetary({
+    currency,
+    totalPool: amount,
+    tiers: result,
+  });
+  setPendingSave(true);
+}
+return result;
+```
+
+In `handleAINonMonetary`:
+```typescript
+const result = await requestAINonMonetarySuggestions(challengeContext);
+if (result?.length) {
+  setNonMonetary({
+    items: [...(rewardData.nonMonetary?.items ?? []), ...result],
+  });
+  setPendingSave(true);
+}
+return result;
+```
+
+### 4. Also auto-save on type selection from the wizard
+
+When user picks Monetary or Non-Monetary in `RewardTypeChooser`, save the type immediately so it persists:
+
+```typescript
+const handleTypeSelect = useCallback((type: RewardType) => {
+  setRewardType(type);
+  // Don't auto-save yet — no data to save, just the type
+  // But save once they add content (handled by pendingSave above)
+}, [setRewardType]);
+```
+
+### 5. `serializeRewardData` fix for non-monetary
+
+Currently `serializeRewardData` stores non-monetary as `{ type: 'non_monetary', items: [...] }`. On reload, `migrateRawReward` checks for `explicitType === 'non_monetary'` but then only looks for `tiered_perks` and `non_monetary_perks` — it never reads `raw.items`. So non-monetary data is **lost on reload**.
+
+Fix in `src/services/rewardStructureResolver.ts`, `migrateRawReward`:
+```typescript
+// After tiered_perks and non_monetary_perks handling, add:
+if (Array.isArray(raw.items)) {
+  for (const item of raw.items) {
+    if (item && typeof item === 'object' && item.title) {
+      items.push({
+        id: item.id ?? crypto.randomUUID(),
+        type: item.type ?? 'other',
+        title: item.title,
+        description: item.description ?? '',
+        isAISuggested: item.isAISuggested ?? false,
+        isFromSource: item.isFromSource ?? false,
+      });
+    }
+  }
+}
+```
+
+## Summary of changes
+
+| File | Change |
+|------|--------|
+| `RewardStructureDisplay.tsx` | Add `pendingSave` state + `useEffect` for auto-save after AI generation; move AI result handling into orchestrator |
+| `rewardStructureResolver.ts` | Fix `migrateRawReward` to read `raw.items` for non-monetary data on reload |
+
+## Result
+- AI-generated monetary tiers → auto-saved to DB immediately
+- AI-generated non-monetary items → auto-saved to DB immediately
+- Manual edits still require explicit Save click (intentional — prevents partial saves)
+- On page reload, both monetary and non-monetary data restore correctly from DB
 
