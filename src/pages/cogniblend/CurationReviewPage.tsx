@@ -1535,6 +1535,23 @@ export default function CurationReviewPage() {
       }
     }
 
+    // ── Evaluation criteria: normalize AI field names to canonical format ──
+    if (dbField === 'evaluation_criteria' && valueToSave && typeof valueToSave === 'object') {
+      const rawArr = Array.isArray(valueToSave)
+        ? valueToSave
+        : Array.isArray(valueToSave?.criteria)
+          ? valueToSave.criteria : null;
+      if (rawArr) {
+        valueToSave = {
+          criteria: rawArr.map((c: any) => ({
+            criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
+            weight_percentage: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
+            description: c.description ?? c.details ?? "",
+          }))
+        };
+      }
+    }
+
     // ── Text fields: normalize markdown → sanitized HTML ──
     const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
     if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {

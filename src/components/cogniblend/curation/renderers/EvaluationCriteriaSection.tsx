@@ -3,7 +3,7 @@
  * with color-coded weight distribution bar, mini bars, live totals.
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Plus, Trash2, Check, X, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
