@@ -944,6 +944,8 @@ export default function CurationReviewPage() {
   const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [phase2Progress, setPhase2Progress] = useState({ total: 0, completed: 0 });
+  const [phase2Status, setPhase2Status] = useState<'idle' | 'running' | 'completed'>('idle');
+  const [triageTotalCount, setTriageTotalCount] = useState(0);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
@@ -1273,6 +1275,8 @@ export default function CurationReviewPage() {
   const handleAIReview = useCallback(async () => {
     if (!challengeId || !challenge) return;
     setAiReviewLoading(true);
+    setPhase2Status('idle');
+    setTriageTotalCount(0);
     try {
       // ── Phase 1: Triage ──────────────────────────────────────
       const { data: triageData, error: triageError } = await supabase.functions.invoke("triage-challenge-sections", {
@@ -1296,13 +1300,14 @@ export default function CurationReviewPage() {
 
       const passCount = routing.pass.length;
       const phase2Count = routing.phase2_queue.length;
+      const totalTriaged = triageReviews.length;
+      setTriageTotalCount(totalTriaged);
       toast.success(`Phase 1 triage: ${passCount} pass, ${phase2Count} need${phase2Count !== 1 ? '' : 's'} deeper review`);
 
       // ── Phase 2: Deep suggestion (sequential, only non-pass) ──
       if (routing.phase2_queue.length > 0) {
+        setPhase2Status('running');
         setPhase2Progress({ total: routing.phase2_queue.length, completed: 0 });
-        // Phase 2 runs in background — each section calls refine-challenge-section
-        // The AIReviewInline auto-refine will handle this via its existing useEffect
         // We just need to trigger the detailed review for warning/inferred sections
         for (const sectionKey of routing.phase2_queue) {
           try {
@@ -1350,12 +1355,17 @@ export default function CurationReviewPage() {
             setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
           }
         }
+      } else {
+        // All sections passed — no Phase 2 needed
+        setPhase2Progress({ total: 0, completed: 0 });
       }
     } catch (e: any) {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
     } finally {
       setAiReviewLoading(false);
-      setPhase2Progress({ total: 0, completed: 0 });
+      // Mark as completed — progress bar persists at 100%
+      setPhase2Status('completed');
+      setPhase2Progress((prev) => prev.total > 0 ? { ...prev, completed: prev.total } : prev);
     }
   }, [challengeId, challenge]);
 
@@ -2634,8 +2644,8 @@ export default function CurationReviewPage() {
             Review Sections by AI
           </Button>
 
-          {/* Phase 2 Progress Bar */}
-          {phase2Progress.total > 0 && (
+          {/* Phase 2 Progress Bar — persists at 100% after completion */}
+          {phase2Status === 'running' && phase2Progress.total > 0 && (
             <Card className="border-border">
               <CardContent className="pt-3 pb-3 space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Phase 2: Deep review</p>
@@ -2648,6 +2658,29 @@ export default function CurationReviewPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Completion Banner — shows after AI review finishes */}
+          {phase2Status === 'completed' && triageTotalCount > 0 && (() => {
+            const counts = { pass: 0, warning: 0, needs_revision: 0 };
+            aiReviews.forEach((r) => { counts[r.status as keyof typeof counts] = (counts[r.status as keyof typeof counts] || 0) + 1; });
+            return (
+              <Card className="border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30">
+                <CardContent className="pt-3 pb-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">AI Review Complete</p>
+                  <Progress value={100} className="h-2" />
+                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    All {triageTotalCount} sections reviewed
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
+                    <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
