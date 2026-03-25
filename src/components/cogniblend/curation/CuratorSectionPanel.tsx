@@ -465,11 +465,7 @@ export function CuratorSectionPanel({
         {isExpanded && (
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
             {/* Empty state placeholder */}
-            {isContentEmpty ? (
-              <SectionEmptyState sectionKey={sectionKey} label={label} />
-            ) : (
-              children
-            )}
+            {children}
 
             {/* Pending modification banner — informational only */}
             {isLocked && pendingModification && (
@@ -485,7 +481,7 @@ export function CuratorSectionPanel({
             )}
 
             {/* Visual divider between content and AI review */}
-            {aiReviewSlot && filled && (
+            {aiReviewSlot && (
               <div className="relative my-5">
                 <div className="border-t border-border" />
                 <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
@@ -540,17 +536,11 @@ export function CuratorSectionPanel({
 
           <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
             <div className="min-h-[500px]">
-              {isContentEmpty ? (
-                <div className="h-full min-h-[300px] flex items-center justify-center">
-                  <SectionEmptyState sectionKey={sectionKey} label={label} />
-                </div>
-              ) : (
-                children
-              )}
+              {children}
             </div>
 
             {/* Visual divider */}
-            {aiReviewSlot && filled && (
+            {aiReviewSlot && (
               <div className="relative my-5">
                 <div className="border-t border-border" />
                 <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
