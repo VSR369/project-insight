@@ -2452,23 +2452,21 @@ export default function CurationReviewPage() {
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Quality
                 </CardTitle>
-                {!isReadOnly && (
-                  <Button
-                    size="sm"
-                    variant={aiQuality ? "ghost" : "outline"}
-                    onClick={handleAIQualityAnalysis}
-                    disabled={aiQualityLoading}
-                    className="text-xs h-7 px-2"
-                  >
-                    {aiQualityLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : aiQuality ? (
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    ) : (
-                      "Analyze"
-                    )}
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant={aiQuality ? "ghost" : "outline"}
+                  onClick={handleAIQualityAnalysis}
+                  disabled={aiQualityLoading}
+                  className="text-xs h-7 px-2"
+                >
+                  {aiQualityLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : aiQuality ? (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  ) : (
+                    "Analyze"
+                  )}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
