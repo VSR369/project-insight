@@ -366,7 +366,7 @@ Rewrite the section content following the instructions. Return ONLY the refined 
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: getSystemPrompt(resolvedRoleContext) },
+          { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined) },
           { role: "user", content: userPrompt },
         ],
       }),
