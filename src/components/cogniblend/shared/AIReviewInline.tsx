@@ -14,8 +14,6 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2, RefreshCw, Send } from "lucide-react";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
-import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
-import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
