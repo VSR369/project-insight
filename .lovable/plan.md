@@ -1,64 +1,76 @@
 
 
-# Redesign Evaluation Criteria Section — Rich Editor with Weight Distribution
+# Fix: Evaluation Criteria Not Displaying After AI Acceptance
 
-## Overview
-Create a new `EvaluationCriteriaSection.tsx` component that replaces the current plain table editor with a visually rich, interactive editor featuring a color-coded weight distribution bar, per-row mini bars, live totals with validation states, and an auto-balance feature.
+## Root Causes
 
-## New file
+**1. AI output not normalized before saving** — When AI suggestions are accepted for `evaluation_criteria`, the raw AI JSON is saved directly to the DB (line 1527). The AI may use field names like `criterion`, `title`, or `scoring_method` that don't match the canonical `criterion_name`/`name` fields. Result: `getEvalCriteria` returns items with empty names and 0 weights.
 
-### `src/components/cogniblend/curation/renderers/EvaluationCriteriaSection.tsx`
-A self-contained component handling both **view mode** and **edit mode** for evaluation criteria.
+**2. `rows` state never re-syncs** — `EvaluationCriteriaSection` uses `useState` which only initializes once. After data is saved and refetched, the edit mode still shows stale data from initial mount, while view mode uses the (potentially unparseable) `criteria` prop directly.
 
-**Props**: `criteria`, `readOnly`, `editing`, `onSave`, `onCancel`, `saving`, `aiStatus` (for reviewed footer)
+**3. Narrow field name matching** — `getEvalCriteria` only checks `criterion_name ?? name` and `weight_percentage ?? weight`. Any variation (e.g., `criterion`, `title`, `percentage`) is lost.
 
-**Constants**:
+## Fixes
+
+### 1. `src/pages/cogniblend/CurationReviewPage.tsx` — Normalize AI output on acceptance
+
+In `handleAcceptRefinement` (after JSON parsing, ~line 1536), add special normalization for `evaluation_criteria`:
+
+```typescript
+if (dbField === 'evaluation_criteria' && valueToSave) {
+  // Normalize AI output into canonical format
+  const rawArr = Array.isArray(valueToSave) 
+    ? valueToSave 
+    : Array.isArray(valueToSave?.criteria) 
+      ? valueToSave.criteria : null;
+  if (rawArr) {
+    valueToSave = {
+      criteria: rawArr.map((c: any) => ({
+        criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
+        weight_percentage: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
+        description: c.description ?? c.details ?? "",
+      }))
+    };
+  }
+}
 ```
-CRITERION_COLORS = ['#378ADD', '#1D9E75', '#7F77DD', '#EF9F27', '#D85A30', '#D4537E']
+
+### 2. `src/pages/cogniblend/CurationReviewPage.tsx` — Broaden `getEvalCriteria` field matching
+
+```typescript
+function getEvalCriteria(ch: ChallengeData) {
+  const raw = parseJson<any>(ch.evaluation_criteria);
+  const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : [];
+  return ec.map((c: any) => ({
+    name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
+    weight: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
+  }));
+}
 ```
 
-**Sections (top to bottom)**:
+### 3. `src/components/cogniblend/curation/renderers/EvaluationCriteriaSection.tsx` — Sync `rows` state
 
-1. **Weight Distribution Bar** — 6px stacked horizontal bar at top, each segment colored by criterion index, width = weight%. Legend below with colored dots, truncated names (16 chars), and weight%.
+Add a `useEffect` to re-sync `rows` when `criteria` prop changes (e.g., after save + refetch):
 
-2. **Column Headers** — "CRITERION" (flex-1), "WEIGHT" (w-[88px]), "DISTRIBUTION" (w-[60px]), delete spacer (w-8). Uppercase 10px labels on gray-50 background.
+```typescript
+useEffect(() => {
+  if (!editing) return; // Only sync when entering edit mode
+  setRows(criteria.length ? criteria.map(c => ({ ...c })) : [{ name: "", weight: 0 }]);
+}, [criteria]);
+```
 
-3. **Criterion Rows** — Each row is a rounded card with:
-   - Row number (w-7, gray)
-   - Criterion name input (flex-1, borderless)
-   - Weight input (w-[44px], centered) + "%" label
-   - Mini progress bar (w-[52px], colored to match distribution bar)
-   - Delete button (appears on hover, fades in)
+Actually, better approach — sync whenever `criteria` changes regardless of mode, since `rows` is only used in edit mode anyway:
 
-4. **Totals Row** — Live reactive display:
-   - Left: "{n} criteria" count
-   - Right: Total with color-coded status (green=100%, amber<100%, red>100%)
-   - Auto-balance link when total ≠ 100 (distributes remaining proportionally)
+```typescript
+useEffect(() => {
+  setRows(criteria.length ? criteria.map(c => ({ ...c })) : [{ name: "", weight: 0 }]);
+}, [criteria]);
+```
 
-5. **Add Criterion Row** — Dashed border button with "Add criterion" + right-side hint "Weights must total 100%"
+## Files changed
 
-6. **Footer** — Cancel/Save buttons. Save disabled when total ≠ 100 with tooltip.
-
-7. **Reviewed State Footer** — When `aiStatus` is 'reviewed' or 'addressed': green bar with checkmark, "Section reviewed and addressed" text, and "Re-review this section" button.
-
-**View mode** (not editing): Renders same distribution bar + column headers + read-only rows (no inputs, no delete, no add/footer).
-
-## Modified files
-
-### `src/pages/cogniblend/CurationReviewPage.tsx`
-- **Lines 2315-2335**: Replace the `evaluation_criteria` case to use `EvaluationCriteriaSection` instead of `TableSectionRenderer` + separate Edit button
-- Pass `aiStatus` from the computed `panelStatus` and `onReReview` callback
-- The new component handles its own edit/view toggle internally, so remove the external Edit button
-
-### `src/components/cogniblend/curation/CurationSectionEditor.tsx`
-- No changes needed — the existing `EvalCriteriaEditor` stays for backward compatibility (used by `TableSectionRenderer` which other sections may reference)
-
-## Technical details
-
-- **Auto-balance algorithm**: If total ≠ 100, scale each weight proportionally: `newWeight = Math.round(weight / total * 100)`. Distribute rounding remainder to the largest criterion.
-- **Animation**: CSS transitions on bar segment widths (`transition: width 0.3s ease`) and mini-bar fills (`transition: width 0.25s ease`)
-- **Color cycling**: Index-based from `CRITERION_COLORS` array, wraps with modulo for >6 criteria
-- **Save validation**: Button disabled + tooltip when `total !== 100`
-- **Delete**: Hidden by default, shown on row hover via Tailwind `group-hover:opacity-100`
-- Uses existing `handleSaveEvalCriteria` callback — no data model changes
+| File | Change |
+|------|--------|
+| `CurationReviewPage.tsx` | Normalize AI eval criteria before saving; broaden `getEvalCriteria` field matching |
+| `EvaluationCriteriaSection.tsx` | Add `useEffect` to sync `rows` state from `criteria` prop |
 
