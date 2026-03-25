@@ -138,6 +138,11 @@ export function EvaluationCriteriaSection({
     criteria.length ? criteria.map(c => ({ ...c })) : [{ name: "", weight: 0 }]
   );
 
+  // Re-sync rows when criteria prop changes (e.g. after AI acceptance + refetch)
+  useEffect(() => {
+    setRows(criteria.length ? criteria.map(c => ({ ...c })) : [{ name: "", weight: 0 }]);
+  }, [criteria]);
+
   const total = useMemo(() => rows.reduce((s, r) => s + (r.weight || 0), 0), [rows]);
   const isValid = total === 100;
 
