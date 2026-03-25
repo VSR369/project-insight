@@ -26,6 +26,10 @@ export interface SectionReview {
   reviewed_at?: string;
   addressed?: boolean;
   prompt_source?: "supervisor" | "default";
+  /** Original triage status from Phase 1 (preserved through Phase 2 deep review) */
+  triage_status?: "pass" | "warning" | "inferred";
+  /** Which phase generated this review */
+  phase?: "triage" | "deep";
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
