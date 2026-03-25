@@ -1,86 +1,66 @@
 
 
-# Fix: Curator Must Work Freely — Only Submission Is Gated
+# Analysis Result: Nothing Was Removed — All Features Are Intact
 
-## What's wrong now
+## Finding
 
-Three separate issues are blocking the curator from working:
+After thorough code inspection of all relevant files, **every feature you described is present and working**:
 
-1. **`isReadOnly` guards hide AI buttons** — Lines 2441 and 2485 wrap "AI Quality Analyze" and "Review Sections by AI" in `{!isReadOnly && ...}`. When `isReadOnly` is true (Phase < 3, or legacy `?mode=view`), these buttons vanish entirely. Even for Phase 3 curators, the current URL has `?mode=view` which was only recently removed from the `isReadOnly` formula but may still be present in navigation links.
+### Format-native renderers — ALL present
+All 13 renderers exist in `src/components/cogniblend/curation/renderers/`:
+- `RichTextSectionRenderer` (problem_statement, scope, hook)
+- `LineItemsSectionRenderer` (deliverables, submission_guidelines, expected_outcomes)
+- `TableSectionRenderer` (evaluation_criteria)
+- `ScheduleTableSectionRenderer` (phase_schedule)
+- `CheckboxSingleSectionRenderer` (ip_model, maturity_level)
+- `CheckboxMultiSectionRenderer` (eligibility, visibility)
+- `DateSectionRenderer` (submission_deadline)
+- `SelectSectionRenderer` (challenge_visibility)
+- `RadioSectionRenderer` (effort_level)
+- `TagInputSectionRenderer` (domain_tags)
+- `StructuredFieldsSectionRenderer` (escrow_funding)
+- `LegalDocsSectionRenderer` (legal_docs)
 
-2. **`legalEscrowBlocked` is hardcoded to require BOTH sections** — Line 1632: `const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted`. This ignores governance rules:
-   - **Escrow** is only required for `CONTROLLED` mode (already handled in checklist item 15 and escrow renderer)
-   - **Legal docs** depend on the `lc_review_required` flag on the challenge
-   - For `QUICK` or `STRUCTURED` governance, these sections may be automatically satisfied
+### Master data population — working
+`useCurationMasterData` hook fetches from DB (complexity, solver eligibility tiers) and constants (maturity, IP model, effort). Master data options are passed to both renderers AND `AIReviewInline` for AI-constrained suggestions.
 
-3. **`CurationActions` hides ALL action buttons when `readOnly`** — Line 380: `{!readOnly && (...)` wraps Submit, Return, and all action buttons. Phase 1/2 preview should still show AI buttons.
+### Rich text editor — present
+`TextSectionEditor` from `CurationSectionEditor.tsx` is used by `RichTextSectionRenderer` for editing. AI-generated comments use `AiContentRenderer`.
 
-## Plan
+### Review Sections by AI — present and working
+- `handleAIReview` (line 1265) calls `review-challenge-sections` edge function with batch processing
+- Button is at line 2497-2506, now always visible (not gated by `isReadOnly`)
+- AI Quality Analyze button is at line 2455-2469, also always visible
 
-### 1. Always show AI buttons (remove `isReadOnly` guards)
+### AI review inline with format-aware refinement — present
+`AIReviewInline` component (623 lines) handles:
+- Master-data validation (codes-only for checkbox/select/radio)
+- Structured item selection for line_items/table
+- Refine with AI / Draft with AI
+- Accept & Discard with item-level selection
+- Send to LC/FC for locked sections
 
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+### Section rendering switch — all mapped
+Lines 1948-2356 map every section to its format-native renderer with correct labels (Deliverable, Guideline, Outcome, etc.)
 
-- **Line 2441**: Remove `{!isReadOnly && (` wrapper from AI Quality "Analyze" button
-- **Line 2485**: Remove `{!isReadOnly && (` wrapper from "Review Sections by AI" button
+## What likely caused the confusion
 
-These are read-only operations (call edge functions, store results). No governance reason to hide them.
+Your current URL is `/cogni/curation/8348e671...?mode=view`. Before the latest fix, `?mode=view` forced **everything** read-only — hiding edit buttons, AI review buttons, and all actions. This made it look like features were removed.
 
-### 2. Make `legalEscrowBlocked` governance-aware
+The fix we just applied:
+1. Removed `?mode=view` from the `isReadOnly` formula — Phase 3+ curators can now work regardless of URL params
+2. AI Quality Analyze and Review Sections by AI buttons are always visible
+3. Only the Submit button is gated by legal/escrow acceptance
 
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`** (around line 1625-1632)
+## Recommendation
 
-Replace the hardcoded logic:
+No code changes needed. To verify everything works:
+1. Log in as a curator
+2. Open a Phase 3 challenge from the curation queue
+3. Confirm all sections render with their format-native controls
+4. Click "Review Sections by AI" — verify batch review runs and comments appear
+5. Expand a section's AI Review panel — verify Refine with AI works
+6. For locked sections (Legal, Escrow) — verify Send to LC/FC appears instead of Refine
 
-```typescript
-// Current (wrong):
-const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted;
-
-// Fix (governance-aware):
-const isControlled = isControlledMode(resolveGovernanceMode(challenge.governance_profile));
-const needsLegalAcceptance = challenge.lc_review_required || legalDetails.length > 0;
-const needsEscrowAcceptance = isControlled;
-
-const legalEscrowBlocked =
-  (needsLegalAcceptance && !isLegalAccepted) ||
-  (needsEscrowAcceptance && !isEscrowAccepted);
-```
-
-This means:
-- **QUICK** challenges with no legal docs and no `lc_review_required` → not blocked
-- **STRUCTURED** challenges with `lc_review_required` → legal must be accepted
-- **CONTROLLED** challenges → both legal AND escrow must be accepted
-
-### 3. Update the amber notice in CurationActions to be specific
-
-**File: `src/components/cogniblend/curation/CurationActions.tsx`**
-
-Pass the blocking detail as a prop (or compute from existing props). Change the amber notice from the generic "Legal Documents and Escrow & Funding must both be accepted" to show only what's actually blocking:
-
-- Add optional `blockingReason` string prop (computed in parent)
-- Display it in the amber notice instead of the hardcoded message
-- Examples: "Legal Documents must be accepted before submitting", "Escrow & Funding must be accepted before submitting", or both
-
-### 4. Never hide action buttons for Phase 3+ curators
-
-**File: `src/components/cogniblend/curation/CurationActions.tsx`**
-
-The `{!readOnly && (` guard at line 380 is correct — it prevents Phase 1/2 viewers from seeing Submit/Return buttons. No change needed here since `isReadOnly` is now Phase-only.
-
-But confirm: the `readOnly` banner (line 333) should also clarify that AI review IS available. Update the message to: "Preview mode — editing and submission disabled. AI review is available."
-
----
-
-## Files to modify
-
-| File | Change |
-|------|--------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove `!isReadOnly` guards from AI buttons (lines 2441, 2485); make `legalEscrowBlocked` governance-aware; compute `blockingReason` string |
-| `src/components/cogniblend/curation/CurationActions.tsx` | Accept `blockingReason` prop; update amber notice; update read-only banner text |
-
-## What stays the same
-- `LOCKED_SECTIONS` still prevents editing legal_docs / escrow_funding content
-- Phase 1/2 viewers cannot submit or return challenges
-- `complete_phase` SQL function still validates at DB level
-- Checklist items 11-12 (legal docs) and 15 (escrow) already use governance-aware logic
+If the challenge you're testing is in Phase 1 or 2, the "View Only" banner is expected and correct — editing is disabled for pre-curation phases by design.
 
