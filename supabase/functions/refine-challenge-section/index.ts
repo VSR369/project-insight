@@ -43,7 +43,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   challenge_visibility: 'select', effort_level: 'radio',
   domain_tags: 'tag_input', solver_expertise: 'custom',
   context_and_background: 'rich_text', root_causes: 'line_items',
-  current_deficiencies: 'line_items', extended_brief_expected_outcomes: 'line_items',
+  current_deficiencies: 'line_items',
   preferred_approach: 'rich_text', approaches_not_of_interest: 'line_items',
 };
 
@@ -263,7 +263,6 @@ Rewrite the section content following the instructions. Return ONLY the refined 
       root_causes: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of short phrase strings. Each item is a cause label, not a description. Max 8 items. Example: ["Timestamp mismatch between WMS and SAP", "No automated detection of reconciliation errors"]`,
       affected_stakeholders: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of row objects with keys: "stakeholder_name", "role", "impact_description" (max 100 chars), "adoption_challenge" (max 100 chars). Always populate adoption_challenge. Example: [{"stakeholder_name":"Warehouse Team","role":"End User","impact_description":"Manual reconciliation","adoption_challenge":"Resistance to new workflows"}]`,
       current_deficiencies: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of current-state observation phrases. Max 10 items. Each item must state a factual observation, not a wish. Example: ["Manual reconciliation produces 47 discrepancies weekly"]`,
-      extended_brief_expected_outcomes: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per expected outcome. Never remove existing outcomes. Example: ["Outcome 1", "Outcome 2"]`,
       context_and_background: `\n\nReturn formatted rich text (HTML or markdown matching input format). Ensure an external solver with no prior knowledge can understand the operational setting.`,
       preferred_approach: `\n\nIMPORTANT: If content already exists, do NOT rewrite it. Return the existing content unchanged. This represents the seeker's stated preferences.`,
     };

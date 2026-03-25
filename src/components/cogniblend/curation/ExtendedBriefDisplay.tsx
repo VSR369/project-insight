@@ -87,7 +87,6 @@ const SUBSECTION_META: Record<string, { label: string; attribution?: string }> =
   root_causes: { label: "Root Causes", attribution: "AI Inferred" },
   affected_stakeholders: { label: "Affected Stakeholders", attribution: "AI Inferred" },
   current_deficiencies: { label: "Current Deficiencies", attribution: "AI Inferred" },
-  extended_brief_expected_outcomes: { label: "Expected Outcomes", attribution: "from Spec" },
   preferred_approach: { label: "Preferred Approach", attribution: "Human Input" },
   approaches_not_of_interest: { label: "Approaches NOT of Interest", attribution: "Human Input" },
 };
@@ -363,8 +362,7 @@ export default function ExtendedBriefDisplay({
 
             // ── Line items sections ──
             case "root_causes":
-            case "current_deficiencies":
-            case "extended_brief_expected_outcomes": {
+            case "current_deficiencies": {
               const items = ensureStringArray(rawVal);
               return (
                 <>
@@ -375,7 +373,7 @@ export default function ExtendedBriefDisplay({
                     onSave={(newItems) => handleSubsectionSave(subsectionKey, newItems)}
                     onCancel={cancelEdit}
                     saving={saving}
-                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : subsectionKey === "current_deficiencies" ? "Deficiency" : "Outcome"}
+                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : "Deficiency"}
                   />
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>

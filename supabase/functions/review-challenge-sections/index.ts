@@ -51,7 +51,6 @@ const CURATION_SECTIONS = [
   { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
   { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
   { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
-  { key: "extended_brief_expected_outcomes", desc: "Expected outcomes aligned with deliverables — never remove streamed items" },
   { key: "preferred_approach", desc: "Seeker's strategic preferences — never rewrite human content" },
   { key: "approaches_not_of_interest", desc: "Human-only section — approaches to exclude" },
 ];
@@ -447,7 +446,6 @@ serve(async (req) => {
         root_causes: (eb as any).root_causes ?? null,
         affected_stakeholders: (eb as any).affected_stakeholders ?? null,
         current_deficiencies: (eb as any).current_deficiencies ?? null,
-        extended_brief_expected_outcomes: (eb as any).expected_outcomes ?? null,
         preferred_approach: (eb as any).preferred_approach ?? null,
         approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
       };

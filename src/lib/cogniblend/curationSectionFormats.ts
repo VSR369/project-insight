@@ -188,13 +188,6 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['intake.problem_statement', 'root_causes'],
   },
-  extended_brief_expected_outcomes: {
-    format: 'line_items',
-    aiCanDraft: true,
-    aiReviewEnabled: true,
-    curatorCanEdit: true,
-    aiUsesContext: ['spec.expected_outcomes', 'deliverables'],
-  },
   preferred_approach: {
     format: 'rich_text',
     aiCanDraft: true,
@@ -267,7 +260,6 @@ export const EXTENDED_BRIEF_SUBSECTION_KEYS = [
   'root_causes',
   'affected_stakeholders',
   'current_deficiencies',
-  'extended_brief_expected_outcomes',
   'preferred_approach',
   'approaches_not_of_interest',
 ] as const;
@@ -278,7 +270,6 @@ export const EXTENDED_BRIEF_FIELD_MAP: Record<string, string> = {
   root_causes: 'root_causes',
   affected_stakeholders: 'affected_stakeholders',
   current_deficiencies: 'current_deficiencies',
-  extended_brief_expected_outcomes: 'expected_outcomes',
   preferred_approach: 'preferred_approach',
   approaches_not_of_interest: 'approaches_not_of_interest',
 };
