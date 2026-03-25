@@ -218,6 +218,7 @@ export function AIReviewInline({
 
   // Structured items state (for deliverables, eval criteria, line_items)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [editedSuggestedContent, setEditedSuggestedContent] = useState<any>(null);
 
   const isStructured = isStructuredSection(sectionKey);
   const isMasterData = isMasterDataSection(sectionKey);
