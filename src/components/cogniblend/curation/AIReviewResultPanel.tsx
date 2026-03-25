@@ -507,9 +507,7 @@ export function AIReviewResultPanel({
         <CollapsibleContent className="mt-3 space-y-4">
           {/* ── Summary ── */}
           {result.summary && (
-            <div className="text-sm text-muted-foreground">
-              <AiContentRenderer content={result.summary} compact />
-            </div>
+            <ExpandableAIComment content={result.summary} />
           )}
 
           {/* ── Comments as styled checklist ── */}
