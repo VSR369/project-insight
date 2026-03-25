@@ -27,6 +27,7 @@ export function DeliverableCardEditor({
   onCancel,
   saving,
   badgePrefix = "D",
+  hideAcceptanceCriteria = false,
 }: DeliverableCardEditorProps) {
   const [drafts, setDrafts] = useState<DeliverableItem[]>(
     items.length > 0
