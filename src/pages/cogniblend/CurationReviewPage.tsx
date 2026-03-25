@@ -303,11 +303,11 @@ const SECTIONS: SectionDef[] = [
     key: "expected_outcomes",
     label: "Expected Outcomes",
     attribution: "by CA",
-    dbField: "extended_brief",
+    dbField: "expected_outcomes",
     isFilled: (ch) => {
-      const eb = parseJson<any>(ch.extended_brief);
-      const outcomes = eb?.expected_outcomes;
-      return Array.isArray(outcomes) && outcomes.length > 0;
+      const eo = parseJson<any>(ch.expected_outcomes);
+      const items = Array.isArray(eo) ? eo : (eo?.items ?? []);
+      return Array.isArray(items) && items.length > 0;
     },
     render: (ch) => {
       const items = getExpectedOutcomeObjects(ch);
