@@ -11,6 +11,7 @@ interface BulkActionBarProps {
   warningCount: number;
   passCount: number;
   inferredCount?: number;
+  totalCount?: number;
   onAcceptAllPassing: () => void;
   onReviewWarnings: () => void;
 }
@@ -19,14 +20,18 @@ export function BulkActionBar({
   warningCount,
   passCount,
   inferredCount = 0,
+  totalCount,
   onAcceptAllPassing,
   onReviewWarnings,
 }: BulkActionBarProps) {
   const attentionCount = warningCount + inferredCount;
+  const displayTotal = totalCount ?? (passCount + warningCount + inferredCount);
   return (
     <div className="sticky top-0 z-30 bg-white border-b border-gray-200 py-3 px-6 -mx-4 lg:-mx-6 flex items-center justify-between flex-wrap gap-3">
       <p className="text-sm text-foreground">
         Review complete —{" "}
+        <span className="font-semibold">{displayTotal} section{displayTotal !== 1 ? "s" : ""} reviewed</span>
+        {(passCount > 0 || warningCount > 0 || inferredCount > 0) && ": "}
         {passCount > 0 && (
           <span className="font-medium text-emerald-700">
             {passCount} passed
