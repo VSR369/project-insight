@@ -1315,6 +1315,20 @@ export default function CurationReviewPage() {
       const triageReviews = triageData.data.all_reviews as SectionReview[];
       const routing = triageData.data.routing as { pass: string[]; warning: string[]; inferred: string[]; phase2_queue: string[] };
 
+      // Safety net: any "pass" section with comments must be routed to phase2_queue
+      triageReviews.forEach(r => {
+        if (r.status === 'pass' && r.comments && r.comments.length > 0) {
+          r.status = 'warning';
+          routing.pass = routing.pass.filter(k => k !== r.section_key);
+          if (!routing.warning.includes(r.section_key)) {
+            routing.warning.push(r.section_key);
+          }
+          if (!routing.phase2_queue.includes(r.section_key)) {
+            routing.phase2_queue.push(r.section_key);
+          }
+        }
+      });
+
       // Set triage results immediately — pass sections show instantly
       setAiReviews(triageReviews);
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: triageReviews });
