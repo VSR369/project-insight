@@ -1354,10 +1354,11 @@ export default function CurationReviewPage() {
             if (reviewData?.success && reviewData.data?.sections) {
               const deepReview = (reviewData.data.sections as SectionReview[])[0];
               if (deepReview) {
+                const normalizedDeep = normalizeSectionReview(deepReview);
                 // Merge the deep review into triage results — UI updates section-by-section
                 setAiReviews((prev) => {
                   const filtered = prev.filter((r) => r.section_key !== sectionKey);
-                  const merged = [...filtered, { ...deepReview, addressed: false }];
+                  const merged = [...filtered, { ...normalizedDeep, addressed: false }];
                   saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
                   return merged;
                 });
