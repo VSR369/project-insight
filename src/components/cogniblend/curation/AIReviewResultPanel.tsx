@@ -516,40 +516,39 @@ export function AIReviewResultPanel({
   // ── Pass confirmation shortcut ──
   if (result.status === "pass" && onConfirmPass && onFlagForReview) {
     return (
-      <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800/40 p-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            AI Review
-          </span>
-          <span className={cn("inline-flex items-center gap-1", statusBadge.className)}>
-            <StatusIcon className="h-3 w-3" />
+      <div className="rounded-lg border-l-4 border-l-emerald-400 border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800/40 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          <span className="text-sm font-semibold text-emerald-800">Section Verified</span>
+          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-[11px] px-2 py-0.5">
+            <StatusIcon className="h-3 w-3 mr-1" />
             {statusBadge.label}
-          </span>
+          </Badge>
           {typeof confidence === "number" && (
-            <span className="text-[10px] text-muted-foreground ml-1">
-              ({Math.round(confidence * 100)}% confident)
+            <span className="text-[11px] text-emerald-600 ml-1 font-medium">
+              {Math.round(confidence * 100)}% confidence
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mb-3">
           AI found no issues with this section.
         </p>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={onConfirmPass}
           >
-            <Check className="h-4 w-4 mr-1" />
+            <Check className="h-4 w-4 mr-1.5" />
             Looks good, confirm
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="border-amber-400 text-amber-700 hover:bg-amber-50"
+            className="h-10 border-amber-400 text-amber-700 hover:bg-amber-50"
             onClick={onFlagForReview}
           >
-            <AlertTriangle className="h-4 w-4 mr-1" />
+            <AlertTriangle className="h-4 w-4 mr-1.5" />
             Flag for review
           </Button>
         </div>
