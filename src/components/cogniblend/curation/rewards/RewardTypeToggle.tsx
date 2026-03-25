@@ -82,15 +82,15 @@ export default function RewardTypeToggle({
       <AlertDialog open={!!pendingType} onOpenChange={(open) => !open && setPendingType(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Switch reward type?</AlertDialogTitle>
+            <AlertDialogTitle>Change reward type?</AlertDialogTitle>
             <AlertDialogDescription>
-              Switching to {targetLabel} will clear existing reward data. Continue?
+              You currently have <span className="font-semibold text-foreground">{currentLabel}</span> reward data configured. Switching to <span className="font-semibold text-foreground">{targetLabel}</span> will permanently delete all {currentLabel} data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSwitch}>
-              Yes, switch
+            <AlertDialogAction onClick={confirmSwitch} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Yes, switch to {targetLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -226,7 +226,7 @@ export default function RewardStructureDisplay({
           <RewardTypeToggle
             currentType={rewardData.type}
             hasExistingData={!!hasExistingData}
-            onSwitch={setRewardType}
+            onSwitch={handleTypeSwitch}
           />
 
           {/* Source banner during editing if auto-populated */}
