@@ -1,59 +1,81 @@
 
 
-# Defensive Sanitization for Corrupted Section Content
+# One-Time Migration for Corrupted Section Content
 
-## Problem
+## Overview
 
-Already-corrupted data in the database (e.g., `<p>["item1","item2"]</p>` or raw JSON arrays) renders as literal text in the Tiptap editor and display views. We need a defensive sanitizer that repairs this on read.
+Add a utility to detect and repair corrupted content (JSON arrays/objects stored as literal text or wrapped in `<p>` tags), and run it once when the Curation Review Page loads challenge data.
 
 ## Changes
 
 ### 1. Create `src/utils/sanitizeSectionContent.ts`
 
-A pure function that detects and repairs corrupted content patterns:
+Two exported functions:
 
-- **Case 1**: `<p>["item1","item2"]</p>` → `<ol><li>item1</li><li>item2</li></ol>`
-- **Case 2**: Raw JSON array string `["item1","item2"]` → same `<ol>` conversion
-- **Case 3**: `<p>{"key":"val"}</p>` — JSON object in p tag → pass through (let table renderer handle)
-- **Default**: Return unchanged
+- **`isCorruptedContent(content: string): boolean`** — returns true if content matches:
+  - `<p>["..."]</p>` (JSON array in p tag)
+  - `<p>{...}</p>` (JSON object in p tag)
+  - Raw JSON array string (starts with `[`, ends with `]`)
 
-### 2. Apply in `CurationSectionEditor.tsx` (line 31)
+- **`sanitizeSectionContent(content: string): string`** — repairs corrupted content:
+  - JSON arrays (raw or in `<p>`) → parse items, return `<ol><li>...</li></ol>`
+  - JSON objects in `<p>` → pass through unchanged (for table renderer)
+  - Valid HTML → pass through
 
-In `TextSectionEditor`, wrap the value before normalizing:
+### 2. Create `src/utils/migrateCorruptedContent.ts`
 
-```tsx
-const [draft, setDraft] = useState(() => normalizeAiContentForEditor(sanitizeSectionContent(value)));
+```ts
+import { isCorruptedContent, sanitizeSectionContent } from './sanitizeSectionContent';
+
+interface MigrationTarget {
+  dbField: string;
+  content: string | null;
+}
+
+export function findCorruptedFields(fields: MigrationTarget[]): { dbField: string; fixed: string }[] {
+  return fields
+    .filter(f => f.content && isCorruptedContent(f.content))
+    .map(f => ({ dbField: f.dbField, fixed: sanitizeSectionContent(f.content!) }));
+}
 ```
 
-And in the `useEffect` (line 34):
-```tsx
-setDraft(normalizeAiContentForEditor(sanitizeSectionContent(value)));
+### 3. Wire into `CurationReviewPage.tsx`
+
+Add a `useEffect` after the challenge query succeeds that:
+
+1. Builds a list of text-content fields (`problem_statement`, `scope`, `hook`, `description`) from the loaded `challenge` data
+2. Calls `findCorruptedFields()` to detect corruption
+3. For each corrupted field, calls `saveSectionMutation.mutate()` to silently repair
+4. Uses a `useRef(false)` guard to ensure it runs only once per page load
+
+```ts
+const migrationRanRef = useRef(false);
+
+useEffect(() => {
+  if (!challenge || migrationRanRef.current) return;
+  migrationRanRef.current = true;
+
+  const targets = [
+    { dbField: 'problem_statement', content: challenge.problem_statement },
+    { dbField: 'scope', content: challenge.scope },
+    { dbField: 'hook', content: challenge.hook },
+    { dbField: 'description', content: challenge.description },
+  ];
+
+  const corrupted = findCorruptedFields(targets);
+  corrupted.forEach(({ dbField, fixed }) => {
+    saveSectionMutation.mutate({ field: dbField, value: fixed });
+  });
+}, [challenge]);
 ```
 
-### 3. Apply in `RichTextEditor.tsx` (lines 201, 219-222)
-
-Sanitize the `value` prop before it reaches Tiptap's `content` and the sync `useEffect`:
-
-```tsx
-import { sanitizeSectionContent } from '@/utils/sanitizeSectionContent';
-
-content: sanitizeSectionContent(value) || '',
-// ...
-const next = sanitizeSectionContent(value) || '';
-```
-
-### 4. Apply in `AIReviewResultPanel.tsx` `EditableRichText` (line 177)
-
-```tsx
-const htmlValue = useMemo(() => convertAITextToHTML(sanitizeSectionContent(value)), [value]);
-```
+No user-facing UI — repairs happen silently on load.
 
 ## Files
 
-| File | Change |
+| File | Action |
 |------|--------|
-| `src/utils/sanitizeSectionContent.ts` | Create — sanitization utility |
-| `src/components/cogniblend/curation/CurationSectionEditor.tsx` | Lines 31, 34 — wrap value with sanitizer |
-| `src/components/ui/RichTextEditor.tsx` | Lines 201, 219 — sanitize before Tiptap |
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Line 177 — sanitize in EditableRichText |
+| `src/utils/sanitizeSectionContent.ts` | Create |
+| `src/utils/migrateCorruptedContent.ts` | Create |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add useEffect + useRef (~5 lines near line 1100) |
 
