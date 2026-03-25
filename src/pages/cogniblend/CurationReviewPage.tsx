@@ -361,6 +361,8 @@ const SECTIONS: SectionDef[] = [
         currencyCode={ch.currency_code ?? undefined}
         challengeId={ch.id}
         problemStatement={ch.problem_statement}
+        operatingModel={ch.operating_model}
+        challengeTitle={ch.title}
       />
     ),
   },
