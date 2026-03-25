@@ -355,7 +355,7 @@ All colors MUST be HSL.
 .editor-content h4 {
   font-size: 14px;
   font-weight: 600;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: hsl(var(--muted-foreground));
   margin: 14px 0 4px;
   text-transform: uppercase;
