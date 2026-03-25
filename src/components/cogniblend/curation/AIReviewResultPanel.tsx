@@ -76,6 +76,12 @@ interface AIReviewResultPanelProps {
   masterDataOptions?: MasterDataOption[];
   /** Callback when suggested version content is edited by user */
   onSuggestedVersionChange?: (editedContent: any) => void;
+  /** Parsed deliverable objects for card rendering (deliverables/expected_outcomes) */
+  deliverableItems?: DeliverableItem[];
+  /** Callback when deliverable items are edited */
+  onDeliverableItemsChange?: (items: DeliverableItem[]) => void;
+  /** Badge prefix for deliverable cards ("D" or "O") */
+  badgePrefix?: string;
   /** Confidence score from triage (0.0-1.0) */
   confidence?: number;
   /** Callback to confirm a pass section */
