@@ -235,6 +235,34 @@ export function AIReviewInline({
     }
   }, [comments.length]);
 
+  // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
+  const autoRefineTriggered = React.useRef(false);
+  useEffect(() => {
+    if (
+      !autoRefineTriggered.current &&
+      !isLockedSection &&
+      review &&
+      !review.addressed &&
+      (review.status === "warning" || review.status === "needs_revision") &&
+      review.comments && review.comments.length > 0 &&
+      !refinedContent &&
+      !isRefining &&
+      selectedComments.size > 0
+    ) {
+      autoRefineTriggered.current = true;
+      // Small delay to allow UI to settle
+      const timer = setTimeout(() => {
+        handleRefineWithAI();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size]);
+
+  // Reset auto-refine flag when review changes (e.g. re-review)
+  useEffect(() => {
+    autoRefineTriggered.current = false;
+  }, [review?.reviewed_at]);
+
   // Parse structured items from refined content
   const structuredItems = useMemo(() => {
     if (!isStructured || !refinedContent) return null;
