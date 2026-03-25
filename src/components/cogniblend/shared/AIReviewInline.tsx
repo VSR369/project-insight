@@ -30,6 +30,8 @@ export interface SectionReview {
   triage_status?: "pass" | "warning" | "inferred";
   /** Which phase generated this review */
   phase?: "triage" | "deep";
+  /** Confidence score from Phase 1 triage (0.0-1.0) */
+  confidence?: number;
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
