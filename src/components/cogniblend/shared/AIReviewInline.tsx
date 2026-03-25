@@ -584,6 +584,9 @@ export function AIReviewInline({
                     suggestedCodes={suggestedCodes}
                     masterDataOptions={masterDataOptions}
                     onSuggestedVersionChange={setEditedSuggestedContent}
+                    confidence={review?.confidence}
+                    onConfirmPass={review?.status === "pass" && review?.phase === "triage" ? () => onMarkAddressed?.(sectionKey) : undefined}
+                    onFlagForReview={review?.status === "pass" && review?.phase === "triage" ? () => onSingleSectionReview?.(sectionKey, { ...review, status: "warning", triage_status: "warning" }) : undefined}
                   />
                 )}
               </>
