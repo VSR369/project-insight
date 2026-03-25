@@ -332,7 +332,16 @@ export default function CurationActions({
     <>
       {readOnly && (
         <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-          <p className="text-xs text-muted-foreground font-medium">View-only mode — actions disabled until Legal & Finance review is complete.</p>
+          <p className="text-xs text-muted-foreground font-medium">View-only mode — this challenge is not yet in the curation phase.</p>
+        </div>
+      )}
+
+      {/* Legal/Escrow blocking notice (non-read-only curators only) */}
+      {!readOnly && legalEscrowBlocked && (
+        <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-900/20 text-center">
+          <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+            Legal Documents and Escrow & Funding must both be accepted before submitting.
+          </p>
         </div>
       )}
 
@@ -367,13 +376,14 @@ export default function CurationActions({
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Action Buttons — always visible for Phase 3+ curators */}
       {!readOnly && (
         <div className="space-y-2">
           <Button
             className="w-full"
             onClick={handleSubmitClick}
-            disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired}
+            disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired || legalEscrowBlocked}
+            title={legalEscrowBlocked ? "Legal Documents and Escrow & Funding must both be accepted before submitting" : undefined}
           >
             {(completePhase.isPending || amApprovalMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
