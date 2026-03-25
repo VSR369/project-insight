@@ -754,6 +754,13 @@ function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(outcomes, 'O');
 }
 
+/** Returns submission guideline objects from description column */
+function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
+  const raw = parseJson<any>(ch.description);
+  const items = Array.isArray(raw) ? raw : (raw?.items ?? []);
+  return parseDeliverables(items, 'S');
+}
+
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
   const raw = parseJson<any>(ch.evaluation_criteria);
   const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : [];
