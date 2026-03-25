@@ -773,6 +773,17 @@ export function AIReviewResultPanel({
                 </label>
               ))}
             </div>
+          ) : hasDeliverableCards ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
+              <DeliverableCardEditor
+                items={deliverableItems!}
+                onSave={(updated) => {
+                  onDeliverableItemsChange?.(updated);
+                }}
+                onCancel={() => {/* no-op in suggestion context */}}
+                badgePrefix={badgePrefix}
+              />
+            </div>
           ) : isStructured && structuredItems && structuredItems.length > 0 ? (
             (() => {
               const detection = detectAndParseLineItems(editedLineItems ?? [...structuredItems]);
