@@ -71,6 +71,12 @@ interface AIReviewResultPanelProps {
   masterDataOptions?: MasterDataOption[];
   /** Callback when suggested version content is edited by user */
   onSuggestedVersionChange?: (editedContent: any) => void;
+  /** Confidence score from triage (0.0-1.0) */
+  confidence?: number;
+  /** Callback to confirm a pass section */
+  onConfirmPass?: () => void;
+  /** Callback to flag a pass section for deeper review */
+  onFlagForReview?: () => void;
 }
 
 /* ── Severity helpers ──────────────────────────────────── */
