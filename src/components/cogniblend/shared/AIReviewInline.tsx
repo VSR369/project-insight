@@ -282,6 +282,7 @@ export function AIReviewInline({
       autoRefineTriggered.current = false;
       setRefinedContent(null);
       setEditedSuggestedContent(null);
+      setEditedDeliverableItems(null);
       setSelectedItems(new Set());
     }
     prevReviewSignature.current = sig;
