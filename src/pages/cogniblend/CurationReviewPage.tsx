@@ -2171,6 +2171,8 @@ export default function CurationReviewPage() {
                               onCancel={cancelEdit}
                               saving={savingSection}
                               itemLabel="Deliverable"
+                              structuredItems={getDeliverableObjects(challenge)}
+                              onSaveStructured={handleSaveStructuredDeliverables}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
