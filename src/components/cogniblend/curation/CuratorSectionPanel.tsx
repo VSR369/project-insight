@@ -536,13 +536,7 @@ export function CuratorSectionPanel({
 
           <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
             <div className="min-h-[500px]">
-              {isContentEmpty ? (
-                <div className="h-full min-h-[300px] flex items-center justify-center">
-                  <SectionEmptyState sectionKey={sectionKey} label={label} />
-                </div>
-              ) : (
-                children
-              )}
+              {children}
             </div>
 
             {/* Visual divider */}
