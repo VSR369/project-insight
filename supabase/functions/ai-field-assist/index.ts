@@ -16,6 +16,12 @@ const FIELD_PROMPTS: Record<string, string> = {
   description: `Write a concise challenge description (2-3 paragraphs) that summarizes the challenge for potential solvers.`,
   payment_milestones: `Suggest 3-5 payment milestones for this innovation challenge. Return a JSON object: {"payment_milestones":[{"name":"Milestone Name","pct":25,"trigger":"Condition to release payment"}]}. Percentages must sum to 100.`,
   tiered_perks: `Suggest tiered perks for a 3-tier reward structure (platinum, gold, silver). Return a JSON object: {"tiered_perks":{"platinum":["perk1","perk2"],"gold":["perk1","perk2"],"silver":["perk1","perk2"]}}. Make perks relevant to the challenge domain.`,
+  reward_tier_breakup: `Break down the total prize pool into prize tiers. Return ONLY a valid JSON object with this exact structure:
+{"platinum":{"amount":number,"count":number,"label":"string"},"gold":{"amount":number,"count":number,"label":"string"},"silver":{"amount":number,"count":number,"label":"string"},"honorable_mention":{"amount":0,"count":number,"label":"string"}}
+Rules: platinum.amount > gold.amount > silver.amount > 0. The sum of (amount × count) for platinum+gold+silver must equal the total pool exactly. Use round numbers. honorable_mention.amount must be 0. Return JSON only.`,
+  non_monetary_suggestions: `Suggest 3-5 non-monetary rewards for challenge winners. Return ONLY a JSON array:
+[{"type":"recognition"|"opportunity"|"resource"|"publication"|"access"|"other","title":"short reward name (max 8 words)","description":"one sentence description (max 20 words)"}]
+Return JSON array only.`,
 };
 
 serve(async (req) => {
