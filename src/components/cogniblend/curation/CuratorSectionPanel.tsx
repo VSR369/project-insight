@@ -524,7 +524,7 @@ export function CuratorSectionPanel({
             <DialogTitle className="flex items-center gap-2">
               {label}
               {attribution && (
-                <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px] px-1.5 py-0 hover:bg-gray-100">
+                <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted">
                   {attribution}
                 </Badge>
               )}
