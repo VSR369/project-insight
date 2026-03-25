@@ -1,81 +1,76 @@
 
 
-# One-Time Migration for Corrupted Section Content
+# Fix: Sections with Warnings/Issues Incorrectly Getting "Pass" Status
 
-## Overview
+## Problem
 
-Add a utility to detect and repair corrupted content (JSON arrays/objects stored as literal text or wrapped in `<p>` tags), and run it once when the Curation Review Page loads challenge data.
+The AI triage can return `status: "pass"` but still include `issues` (warning comments). Two bugs allow this:
 
-## Changes
+1. **Triage edge function** (line 222-230): Only downgrades passes with low confidence (`< 0.75`), but does NOT downgrade passes that have issues/comments attached. A section with 2 actionable issues can still be marked "pass".
 
-### 1. Create `src/utils/sanitizeSectionContent.ts`
+2. **CurationReviewPage** (line 1351): Auto-refinement check is `deepReview.status !== 'pass'` — so even if a deep review returns "pass" with comments, no AI suggested solution is generated.
 
-Two exported functions:
+## Fix
 
-- **`isCorruptedContent(content: string): boolean`** — returns true if content matches:
-  - `<p>["..."]</p>` (JSON array in p tag)
-  - `<p>{...}</p>` (JSON object in p tag)
-  - Raw JSON array string (starts with `[`, ends with `]`)
+### 1. Triage edge function — Auto-downgrade pass-with-issues
 
-- **`sanitizeSectionContent(content: string): string`** — repairs corrupted content:
-  - JSON arrays (raw or in `<p>`) → parse items, return `<ol><li>...</li></ol>`
-  - JSON objects in `<p>` → pass through unchanged (for table renderer)
-  - Valid HTML → pass through
+**File**: `supabase/functions/triage-challenge-sections/index.ts` (lines 222-230)
 
-### 2. Create `src/utils/migrateCorruptedContent.ts`
+After the existing confidence downgrade, add a second rule: if status is "pass" but `issues.length > 0`, downgrade to "warning".
 
 ```ts
-import { isCorruptedContent, sanitizeSectionContent } from './sanitizeSectionContent';
-
-interface MigrationTarget {
-  dbField: string;
-  content: string | null;
-}
-
-export function findCorruptedFields(fields: MigrationTarget[]): { dbField: string; fixed: string }[] {
-  return fields
-    .filter(f => f.content && isCorruptedContent(f.content))
-    .map(f => ({ dbField: f.dbField, fixed: sanitizeSectionContent(f.content!) }));
+// Existing: Auto-downgrade low confidence pass → warning
+for (const section of sections) {
+  if (section.status === "pass" && section.confidence < 0.75) {
+    section.status = "warning";
+    if (!section.issues.some(i => i.toLowerCase().includes("confidence"))) {
+      section.issues.push("Low confidence — flagged for manual review.");
+    }
+  }
+  // NEW: Auto-downgrade pass-with-issues → warning
+  if (section.status === "pass" && section.issues.length > 0) {
+    section.status = "warning";
+  }
 }
 ```
 
-### 3. Wire into `CurationReviewPage.tsx`
+This ensures any section the AI flagged with issues gets routed to Phase 2 for deep review and refinement.
 
-Add a `useEffect` after the challenge query succeeds that:
+### 2. CurationReviewPage — Trigger refinement for any section with comments
 
-1. Builds a list of text-content fields (`problem_statement`, `scope`, `hook`, `description`) from the loaded `challenge` data
-2. Calls `findCorruptedFields()` to detect corruption
-3. For each corrupted field, calls `saveSectionMutation.mutate()` to silently repair
-4. Uses a `useRef(false)` guard to ensure it runs only once per page load
+**File**: `src/pages/cogniblend/CurationReviewPage.tsx` (line 1351)
+
+Change the condition from `deepReview.status !== 'pass'` to just check for comments:
 
 ```ts
-const migrationRanRef = useRef(false);
+// BEFORE:
+if (deepReview.comments && deepReview.comments.length > 0 && deepReview.status !== 'pass') {
 
-useEffect(() => {
-  if (!challenge || migrationRanRef.current) return;
-  migrationRanRef.current = true;
-
-  const targets = [
-    { dbField: 'problem_statement', content: challenge.problem_statement },
-    { dbField: 'scope', content: challenge.scope },
-    { dbField: 'hook', content: challenge.hook },
-    { dbField: 'description', content: challenge.description },
-  ];
-
-  const corrupted = findCorruptedFields(targets);
-  corrupted.forEach(({ dbField, fixed }) => {
-    saveSectionMutation.mutate({ field: dbField, value: fixed });
-  });
-}, [challenge]);
+// AFTER:
+if (deepReview.comments && deepReview.comments.length > 0) {
 ```
 
-No user-facing UI — repairs happen silently on load.
+This is a safety net — if a deep review somehow returns "pass" with actionable comments, refinement still runs.
 
-## Files
+### 3. Also fix the single-section re-review path
 
-| File | Action |
+**File**: `src/components/cogniblend/shared/AIReviewInline.tsx` (line 358)
+
+Same pattern — the re-review toast says "looks good" for pass-with-comments:
+
+```ts
+// BEFORE:
+const hasIssues = freshReview.comments.length > 0 && freshReview.status !== "pass";
+
+// AFTER:
+const hasIssues = freshReview.comments.length > 0;
+```
+
+## Files Modified
+
+| File | Change |
 |------|--------|
-| `src/utils/sanitizeSectionContent.ts` | Create |
-| `src/utils/migrateCorruptedContent.ts` | Create |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Add useEffect + useRef (~5 lines near line 1100) |
+| `supabase/functions/triage-challenge-sections/index.ts` | Add pass-with-issues → warning downgrade (line 230) |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove `!== 'pass'` guard on auto-refinement (line 1351) |
+| `src/components/cogniblend/shared/AIReviewInline.tsx` | Fix hasIssues check (line 358) |
 
