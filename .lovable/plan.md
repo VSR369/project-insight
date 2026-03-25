@@ -1,66 +1,71 @@
 
+Goal
+Make Curator workspace fully operational for editing + AI review in all curation queue states, while blocking only phase submission when Legal/FC acceptance is required by governance rules.
 
-# Analysis Result: Nothing Was Removed — All Features Are Intact
+Critical analysis (current break)
+1) `CurationReviewPage.tsx` still sets `isReadOnly = (challenge.current_phase ?? 0) < 3`, which disables all section editors (except locked-section AI comments) for Phase 1/2 items.
+2) `CurationQueuePage.tsx` still routes Phase 1/2 with `?mode=view`, reinforcing preview behavior.
+3) `CurationActions.tsx` has an extra hard gate `isLegalPending` that blocks submit independently of governance-aware `legalEscrowBlocked`, causing over-blocking.
+4) Your format-native system (table/line/radio/checkbox/master-data/rich text) and AI batch review are still present; the issue is access gating, not renderer removal.
 
-## Finding
+Implementation plan
 
-After thorough code inspection of all relevant files, **every feature you described is present and working**:
+1) Remove phase-based read-only from curator editing
+- File: `src/pages/cogniblend/CurationReviewPage.tsx`
+- Replace phase-derived `isReadOnly` with curator-edit mode for this screen (always editable for unlocked sections).
+- Keep section-level locking strictly via `LOCKED_SECTIONS` (legal_docs, escrow_funding).
+- Update all `canEdit` and renderer `readOnly` props to depend on lock status (not phase status).
+- Keep AI buttons always visible (already done) and keep existing AI chunked review flow unchanged.
 
-### Format-native renderers — ALL present
-All 13 renderers exist in `src/components/cogniblend/curation/renderers/`:
-- `RichTextSectionRenderer` (problem_statement, scope, hook)
-- `LineItemsSectionRenderer` (deliverables, submission_guidelines, expected_outcomes)
-- `TableSectionRenderer` (evaluation_criteria)
-- `ScheduleTableSectionRenderer` (phase_schedule)
-- `CheckboxSingleSectionRenderer` (ip_model, maturity_level)
-- `CheckboxMultiSectionRenderer` (eligibility, visibility)
-- `DateSectionRenderer` (submission_deadline)
-- `SelectSectionRenderer` (challenge_visibility)
-- `RadioSectionRenderer` (effort_level)
-- `TagInputSectionRenderer` (domain_tags)
-- `StructuredFieldsSectionRenderer` (escrow_funding)
-- `LegalDocsSectionRenderer` (legal_docs)
+2) Keep submission gating only (not workspace gating)
+- File: `src/pages/cogniblend/CurationReviewPage.tsx`
+- Retain governance-aware calculation:
+  - Legal required only when `lc_review_required` or legal docs exist.
+  - Escrow required only for `CONTROLLED`.
+- Continue passing `legalEscrowBlocked` + specific `blockingReason` to actions.
+- Remove “view-only” page framing (title/badge/banner) that currently implies disabled workspace.
 
-### Master data population — working
-`useCurationMasterData` hook fetches from DB (complexity, solver eligibility tiers) and constants (maturity, IP model, effort). Master data options are passed to both renderers AND `AIReviewInline` for AI-constrained suggestions.
+3) Remove non-governance hard block in submit action
+- File: `src/components/cogniblend/curation/CurationActions.tsx`
+- Remove `isLegalPending` from:
+  - `handleSubmitClick()` early-return block
+  - Submit button `disabled` expression
+- Submission should be blocked by:
+  - `legalEscrowBlocked`
+  - checklist incompletion
+  - outstanding required modification points
+  - pending mutation states
+- Keep amber message specific to `blockingReason`.
 
-### Rich text editor — present
-`TextSectionEditor` from `CurationSectionEditor.tsx` is used by `RichTextSectionRenderer` for editing. AI-generated comments use `AiContentRenderer`.
+4) Stop forcing preview navigation from queue
+- File: `src/pages/cogniblend/CurationQueuePage.tsx`
+- Remove `?mode=view` injection in `handleRowClick`.
+- Keep Incoming tab semantics, but do not imply immutable preview mode through routing.
+- Optional text tweak: incoming tooltip should say “upstream inputs pending; curator can continue refinement, submission remains gated.”
 
-### Review Sections by AI — present and working
-- `handleAIReview` (line 1265) calls `review-challenge-sections` edge function with batch processing
-- Button is at line 2497-2506, now always visible (not gated by `isReadOnly`)
-- AI Quality Analyze button is at line 2455-2469, also always visible
+5) Preserve all UX/format work explicitly (no regressions)
+- No changes to:
+  - `curationSectionFormats.ts` format map
+  - format-native renderers (table/line/radio/checkbox/select/date/tag/rich text/schedule)
+  - master-data constrained selection behavior
+  - `review-challenge-sections` batch/chunk AI review flow
+  - AI inline refine/incorporate mechanics
 
-### AI review inline with format-aware refinement — present
-`AIReviewInline` component (623 lines) handles:
-- Master-data validation (codes-only for checkbox/select/radio)
-- Structured item selection for line_items/table
-- Refine with AI / Draft with AI
-- Accept & Discard with item-level selection
-- Send to LC/FC for locked sections
+Validation checklist (end-to-end)
+1) Open Phase 1/2/3 challenge as Curator from queue:
+- All unlocked sections can edit/save.
+- Legal/Escrow remain content-locked.
+2) “Review Sections by AI” works across all sections and writes results.
+3) “AI Quality Analyze” runs successfully.
+4) For QUICK/STRUCTURED without legal requirement:
+- Submit not blocked by Legal/Escrow.
+5) For CONTROLLED or legal-required cases:
+- Submit disabled with precise blocking reason.
+6) After Legal/Escrow acceptance where required:
+- Submit enabled and phase transition works.
+7) Confirm no regressions in Phase Schedule table edit flow and rich-text integration.
 
-### Section rendering switch — all mapped
-Lines 1948-2356 map every section to its format-native renderer with correct labels (Deliverable, Guideline, Outcome, etc.)
-
-## What likely caused the confusion
-
-Your current URL is `/cogni/curation/8348e671...?mode=view`. Before the latest fix, `?mode=view` forced **everything** read-only — hiding edit buttons, AI review buttons, and all actions. This made it look like features were removed.
-
-The fix we just applied:
-1. Removed `?mode=view` from the `isReadOnly` formula — Phase 3+ curators can now work regardless of URL params
-2. AI Quality Analyze and Review Sections by AI buttons are always visible
-3. Only the Submit button is gated by legal/escrow acceptance
-
-## Recommendation
-
-No code changes needed. To verify everything works:
-1. Log in as a curator
-2. Open a Phase 3 challenge from the curation queue
-3. Confirm all sections render with their format-native controls
-4. Click "Review Sections by AI" — verify batch review runs and comments appear
-5. Expand a section's AI Review panel — verify Refine with AI works
-6. For locked sections (Legal, Escrow) — verify Send to LC/FC appears instead of Refine
-
-If the challenge you're testing is in Phase 1 or 2, the "View Only" banner is expected and correct — editing is disabled for pre-curation phases by design.
-
+Files to modify
+- `src/pages/cogniblend/CurationReviewPage.tsx`
+- `src/components/cogniblend/curation/CurationActions.tsx`
+- `src/pages/cogniblend/CurationQueuePage.tsx`
