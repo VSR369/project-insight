@@ -1,29 +1,27 @@
 
 
-# Simplify Expected Outcomes — Remove Acceptance Criteria
+# Fix Expected Outcomes Badge Status + AI Format Issues
 
-## What changes
+## Changes
 
-Expected Outcomes will use a lighter card format with only **Name** and **Description** — no acceptance criteria field. This requires adding a `hideAcceptanceCriteria` mode flag to the existing card components rather than creating separate components.
+### 1. `src/pages/cogniblend/CurationReviewPage.tsx` (line 2107)
+Add `addressed` check before status mapping:
 
-## Files
+```typescript
+else if (aiReview) {
+  if (aiReview.addressed) panelStatus = "accepted";
+  else if (aiReview.status === "pass") panelStatus = "pass";
+  else if (aiReview.status === "warning") panelStatus = "warning";
+  else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
+}
+```
 
-### 1. `DeliverableCardRenderer.tsx`
-- Add `hideAcceptanceCriteria?: boolean` prop
-- When true, skip the acceptance criteria block entirely (both the green filled block and the dashed "No acceptance criteria defined" placeholder)
+### 2. `src/components/cogniblend/curation/renderers/DeliverableCardRenderer.tsx` (line 32)
+Always use `badgePrefix` for consistent labeling:
 
-### 2. `DeliverableCardEditor.tsx`
-- Add `hideAcceptanceCriteria?: boolean` prop
-- When true, hide the Acceptance Criteria textarea field in the editor form
-- Ensure saved items still include `acceptance_criteria: ""` for type safety
+```typescript
+const badgeId = `${badgePrefix}${i + 1}`;
+```
 
-### 3. `LineItemsSectionRenderer.tsx`
-- Add `hideAcceptanceCriteria?: boolean` prop, pass through to both `DeliverableCardRenderer` and `DeliverableCardEditor`
-
-### 4. `CurationReviewPage.tsx` (line ~2208)
-- Pass `hideAcceptanceCriteria={true}` on the `LineItemsSectionRenderer` for the `expected_outcomes` case
-- Update the `onSaveStructured` mapper to only persist `{ name, description }` (drop `acceptance_criteria`)
-
-### 5. `AIReviewResultPanel.tsx`
-- Pass `hideAcceptanceCriteria` through to `DeliverableCardRenderer` when rendering AI suggested outcomes (based on `badgePrefix === "O"` or a new prop)
+Two single-line fixes. No new files or dependencies.
 
