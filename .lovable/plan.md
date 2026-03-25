@@ -1,60 +1,82 @@
 
 
-# Auto-Detect & Render Tabular AI Line Items
+# Fix: Line Items Accept Pipeline Corrupting Data
 
-## Problem
+## Root Cause
 
-When AI returns structured JSON objects as line items (e.g., `{"criterion":"Model Accuracy","weight":30,"scoring_method":"AUC > 0.90 = 30pts","evaluator_role":"Lead Data Scientist"}`), the `EditableLineItems` component renders them as raw JSON strings in textareas. They should render as a professional table matching the reference screenshot.
+When accepting AI suggestions for `line_items` format sections (e.g., `submission_guidelines`), the accept handler in `AIReviewInline.tsx` (line 480) calls:
 
-## Changes
-
-### 1. New utility: `src/utils/detectAndParseLineItems.ts`
-
-- `detectAndParseLineItems(items: string[])` — tries `JSON.parse` on each item; if all parse to objects, returns `{ type: 'table', schema: string[], rows: Record<string, string>[] }`, otherwise `{ type: 'plain', ... }`
-- `parseScoringMethod(raw: string)` — splits `"X = 20 pts, Y = 10 pts"` into `[{ condition, points }]` for multi-line rendering
-
-### 2. New component: `src/components/cogniblend/curation/renderers/TableLineItemRenderer.tsx`
-
-A styled editable table matching the reference screenshot:
-
-| Element | Style |
-|---------|-------|
-| Container | `bg-white border border-gray-100 rounded-xl overflow-hidden` |
-| thead | `bg-gray-50`, columns uppercase 11px semibold |
-| "criterion" column | `font-medium text-gray-900` |
-| "weight" column | Color-coded pill badge (≥25 green, 15-24 purple, <15 gray) + "pts" suffix |
-| "scoring_method" column | Parsed via `parseScoringMethod()`, each segment on its own line: **condition** = points |
-| "evaluator_role" column | Gray pill badge with subtle border |
-| Delete column | Trash icon, visible on row hover only |
-| Footer | Total weight sum (green if 100, amber if not) + "+ Add criterion" row |
-
-Props: `rows`, `schema`, `onChange`, `onAddRow`, `onRemoveRow` — fully editable inline (inputs for criterion/weight/evaluator_role, textarea for scoring_method).
-
-### 3. Wire into `AIReviewResultPanel.tsx`
-
-In the structured items branch (line ~759-762), before rendering `EditableLineItems`:
-
+```tsx
+onAcceptRefinement(sectionKey, JSON.stringify(accepted))
+// produces: '["item1","item2","item3"]'
 ```
-const detection = detectAndParseLineItems(structuredItems);
-if (detection.type === 'table') {
-  render <TableLineItemRenderer rows={detection.rows} schema={detection.schema} onChange={...} />
+
+This raw JSON string then flows to `handleAcceptRefinement` in `CurationReviewPage.tsx` where:
+- `dbField` = `"description"` (for submission_guidelines)
+- `"description"` is NOT in `JSON_FIELDS` array → no JSON parsing
+- `"description"` IS in `HTML_TEXT_FIELDS` → `normalizeAiContentForEditor('["item1","item2"]')` → produces `<p>["item1","item2"]</p>`
+
+Result: the screenshot shows `<p>["A detailed technical proposal...","Source code..."]</p>` as literal text.
+
+## Fix (2 files)
+
+### File 1: `src/components/cogniblend/shared/AIReviewInline.tsx` (lines 474-480)
+
+In the `handleAccept` callback, add format-aware serialization for `line_items` sections. Before the generic `JSON.stringify(accepted)` at line 480, check if the format is `line_items` and wrap as `{ items: accepted }` — matching the manual edit save format used at `CurationReviewPage.tsx:2139`.
+
+```tsx
+// Line 474-480: Replace the else branch
 } else {
-  render existing <EditableLineItems ... />
+  const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
+  if (accepted.length === 0) {
+    toast.error("Select at least one item to accept.");
+    return;
+  }
+  // Format-aware serialization
+  const fmt = getSectionFormatType(sectionKey);
+  if (fmt === 'line_items') {
+    onAcceptRefinement(sectionKey, JSON.stringify({ items: accepted }));
+  } else {
+    onAcceptRefinement(sectionKey, JSON.stringify(accepted));
+  }
 }
 ```
 
-The `onChange` callback serializes edited rows back to `string[]` (each row as `JSON.stringify(rowObj)`) so the existing `onSuggestedVersionChange` and accept flow works unchanged.
+### File 2: `src/pages/cogniblend/CurationReviewPage.tsx` (line 1485)
 
-### 4. No edge function changes needed
+Add `"description"` to `JSON_FIELDS` so the accept handler parses it as JSON instead of treating it as HTML text:
 
-The `parseTableRows` function already handles JSON array parsing. The `SECTION_FORMAT_CONFIG` already marks `evaluation_criteria` as `table` format. The issue is purely in the rendering path — structured items arrive as `string[]` where each string is a JSON object, and `EditableLineItems` doesn't detect this.
+```tsx
+const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description'];
+```
 
-## Files
+And remove `"description"` from `HTML_TEXT_FIELDS` (line 1503) since it's now a structured JSON field:
 
-| File | Action |
+```tsx
+const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
+```
+
+This ensures `{ items: [...] }` is parsed as JSON and saved as a proper JSONB object, which the `LineItemsSectionRenderer` already knows how to read.
+
+### Also fix: edited content path (line 453-454)
+
+The same bug exists when the user manually edits line items in the suggestion panel and then accepts. Line 453-454:
+
+```tsx
+} else if (Array.isArray(editedSuggestedContent)) {
+  const fmt = getSectionFormatType(sectionKey);
+  if (fmt === 'line_items') {
+    onAcceptRefinement(sectionKey, JSON.stringify({ items: editedSuggestedContent }));
+  } else {
+    onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+  }
+}
+```
+
+## Files Modified
+
+| File | Change |
 |------|--------|
-| `src/utils/detectAndParseLineItems.ts` | Create — JSON detection + scoring method parser |
-| `src/components/cogniblend/curation/renderers/TableLineItemRenderer.tsx` | Create — Professional editable table renderer |
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Edit lines 759-762 — add detection branch |
-| `src/components/cogniblend/curation/renderers/index.ts` | Edit — add barrel export |
+| `AIReviewInline.tsx` | Wrap line_items as `{ items: [...] }` in 3 accept paths (lines 447, 454, 480) |
+| `CurationReviewPage.tsx` | Add `description` to `JSON_FIELDS`, remove from `HTML_TEXT_FIELDS` |
 
