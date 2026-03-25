@@ -122,16 +122,18 @@ export function DeliverableCardEditor({
             </div>
 
             {/* Acceptance Criteria */}
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Acceptance Criteria</Label>
-              <Textarea
-                value={draft.acceptance_criteria}
-                onChange={(e) => updateField(i, "acceptance_criteria", e.target.value)}
-                placeholder="Criteria that must be met for this deliverable to be accepted..."
-                className="text-sm min-h-[60px]"
-                rows={2}
-              />
-            </div>
+            {!hideAcceptanceCriteria && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Acceptance Criteria</Label>
+                <Textarea
+                  value={draft.acceptance_criteria}
+                  onChange={(e) => updateField(i, "acceptance_criteria", e.target.value)}
+                  placeholder="Criteria that must be met for this deliverable to be accepted..."
+                  className="text-sm min-h-[60px]"
+                  rows={2}
+                />
+              </div>
+            )}
           </div>
         </div>
       ))}

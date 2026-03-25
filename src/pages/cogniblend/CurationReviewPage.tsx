@@ -2219,9 +2219,10 @@ export default function CurationReviewPage() {
                               structuredItems={structuredOutcomes}
                               onSaveStructured={(items) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
+                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description }) => ({ name, description })) } });
                               }}
                               badgePrefix="O"
+                              hideAcceptanceCriteria
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>

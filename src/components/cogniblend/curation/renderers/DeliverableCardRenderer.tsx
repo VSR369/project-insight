@@ -59,28 +59,30 @@ export function DeliverableCardRenderer({
             )}
 
             {/* Acceptance Criteria */}
-            {hasCriteria ? (
-              <div className="mx-4 mb-3 mt-1">
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
-                      Acceptance Criteria
-                    </span>
+            {!hideAcceptanceCriteria && (
+              hasCriteria ? (
+                <div className="mx-4 mb-3 mt-1">
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                        Acceptance Criteria
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-emerald-900 dark:text-emerald-300 leading-relaxed">
+                      {item.acceptance_criteria}
+                    </p>
                   </div>
-                  <p className="text-[12px] text-emerald-900 dark:text-emerald-300 leading-relaxed">
-                    {item.acceptance_criteria}
-                  </p>
                 </div>
-              </div>
-            ) : (
-              <div className="mx-4 mb-3 mt-1">
-                <div className="rounded-lg border border-dashed border-border px-3 py-2.5">
-                  <p className="text-[11px] text-muted-foreground/50 italic">
-                    No acceptance criteria defined
-                  </p>
+              ) : (
+                <div className="mx-4 mb-3 mt-1">
+                  <div className="rounded-lg border border-dashed border-border px-3 py-2.5">
+                    <p className="text-[11px] text-muted-foreground/50 italic">
+                      No acceptance criteria defined
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
         );

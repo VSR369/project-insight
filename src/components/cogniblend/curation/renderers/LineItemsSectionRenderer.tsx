@@ -65,7 +65,7 @@ export function LineItemsSectionRenderer({
 
   // View mode — structured cards
   if (useStructured) {
-    return <DeliverableCardRenderer items={structuredItems} badgePrefix={badgePrefix} />;
+    return <DeliverableCardRenderer items={structuredItems} badgePrefix={badgePrefix} hideAcceptanceCriteria={hideAcceptanceCriteria} />;
   }
 
   // View mode — plain text fallback
