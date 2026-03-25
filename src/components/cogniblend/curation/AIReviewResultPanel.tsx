@@ -455,6 +455,38 @@ export function AIReviewResultPanel({
     onSuggestedVersionChange?.(rows);
   }, [onSuggestedVersionChange]);
 
+  // Track which comments are expanded for "Read more"
+  const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
+  const toggleCommentExpand = useCallback((index: number) => {
+    setExpandedComments(prev => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  }, []);
+
+  // Comment selection state
+  const [selectedComments, setSelectedComments] = useState<Set<number>>(() =>
+    new Set(parsedComments.map((_, i) => i))
+  );
+  const toggleComment = useCallback((index: number) => {
+    setSelectedComments(prev => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  }, []);
+  const allCommentsSelected = selectedComments.size === parsedComments.length;
+  const toggleAllComments = useCallback(() => {
+    if (allCommentsSelected) {
+      setSelectedComments(new Set());
+    } else {
+      setSelectedComments(new Set(parsedComments.map((_, i) => i)));
+    }
+  }, [allCommentsSelected, parsedComments]);
+
+  const StatusIcon = statusBadge.icon;
+
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
       <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -462,9 +494,10 @@ export function AIReviewResultPanel({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             AI Review Result
           </span>
-          <Badge className={cn("text-[10px] px-1.5 py-0", statusBadge.className)}>
+          <span className={cn("inline-flex items-center gap-1", statusBadge.className)}>
+            <StatusIcon className="h-3 w-3" />
             {statusBadge.label}
-          </Badge>
+          </span>
           <ChevronDown
             className={cn("h-3.5 w-3.5 ml-auto text-muted-foreground transition-transform", detailsOpen && "rotate-180")}
           />
@@ -478,36 +511,117 @@ export function AIReviewResultPanel({
             </div>
           )}
 
-          {/* ── Comments with severity badges ── */}
+          {/* ── Comments as styled checklist ── */}
           {parsedComments.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Comments ({parsedComments.length})
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Comments ({parsedComments.length})
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs rounded-full px-2 py-0.5">
+                    {selectedComments.size}/{parsedComments.length} selected
+                  </span>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={toggleAllComments}
+                  >
+                    {allCommentsSelected ? (
+                      <>
+                        <Square className="h-3.5 w-3.5" />
+                        Clear all
+                      </>
+                    ) : (
+                      <>
+                        <CheckSquare className="h-3.5 w-3.5" />
+                        Select all
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
               {parsedComments.map((comment, i) => {
                 const sev = comment.severity ? SEVERITY_CONFIG[comment.severity] : SEVERITY_CONFIG.warning;
                 const SevIcon = sev.icon;
+                const isSelected = selectedComments.has(i);
+                const isExpanded = expandedComments.has(i);
+                const isLong = comment.text.length > 160;
                 return (
-                  <div key={i} className="rounded-md border bg-muted/30 p-2.5 space-y-1.5">
-                    <div className="flex items-start gap-2">
-                      <Badge
-                        className={cn("text-[9px] px-1.5 py-0 shrink-0 mt-0.5", sev.badgeClass)}
-                      >
-                        <SevIcon className="h-2.5 w-2.5 mr-0.5" />
-                        {sev.label}
-                      </Badge>
-                      <span className="text-xs leading-relaxed text-foreground flex-1">
+                  <label
+                    key={i}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                      isSelected
+                        ? "bg-blue-50 border-blue-400"
+                        : "bg-white border-gray-200 hover:border-blue-300"
+                    )}
+                  >
+                    {/* Custom checkbox */}
+                    <button
+                      type="button"
+                      className={cn(
+                        "mt-0.5 w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors",
+                        isSelected
+                          ? "bg-blue-600 border-blue-600"
+                          : "border-gray-300 bg-white"
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleComment(i);
+                      }}
+                    >
+                      {isSelected && <Check className="h-3 w-3 text-white" />}
+                    </button>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Badge
+                          className={cn("text-[9px] px-1.5 py-0 shrink-0", sev.badgeClass)}
+                        >
+                          <SevIcon className="h-2.5 w-2.5 mr-0.5" />
+                          {sev.label}
+                        </Badge>
+                      </div>
+                      <span className={cn(
+                        "text-sm text-gray-800 leading-relaxed block",
+                        !isExpanded && isLong && "line-clamp-2"
+                      )}>
                         {comment.text}
                       </span>
+                      {isLong && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-0.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleCommentExpand(i);
+                          }}
+                        >
+                          {isExpanded ? (
+                            <>Read less <ChevronUp className="h-3 w-3" /></>
+                          ) : (
+                            <>Read more <ChevronDown className="h-3 w-3" /></>
+                          )}
+                        </button>
+                      )}
+                      {comment.applies_to && (
+                        <blockquote className="border-l-2 border-primary/40 pl-2.5 text-[11px] text-muted-foreground italic">
+                          {comment.applies_to}
+                        </blockquote>
+                      )}
                     </div>
-                    {comment.applies_to && (
-                      <blockquote className="ml-6 border-l-2 border-primary/40 pl-2.5 text-[11px] text-muted-foreground italic">
-                        {comment.applies_to}
-                      </blockquote>
-                    )}
-                  </div>
+                  </label>
                 );
               })}
+              {/* Refine with AI button */}
+              <button
+                type="button"
+                className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg py-2.5 text-sm font-medium flex items-center justify-center gap-1.5 hover:opacity-90 hover:scale-[1.01] transition-all"
+                onClick={onAccept}
+              >
+                <Sparkles className="h-4 w-4" />
+                Refine with AI
+              </button>
             </div>
           )}
 
