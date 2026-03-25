@@ -462,8 +462,17 @@ export function AIReviewInline({
     // If user edited the suggestion, use the edited version
     const hasEdits = editedSuggestedContent != null;
 
+    // Deliverable-like sections: serialize as structured objects
+    if (isDeliverableLike && (editedDeliverableItems || parsedDeliverableObjects)) {
+      const items = editedDeliverableItems ?? parsedDeliverableObjects;
+      if (!items || items.length === 0) {
+        toast.error("No deliverable items to accept.");
+        return;
+      }
+      onAcceptRefinement(sectionKey, JSON.stringify({ items }));
+    }
     // Master-data sections: validate codes against options and pass as JSON array
-    if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
+    else if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
       const accepted = suggestedCodes.filter((_, i) => selectedItems.has(i));
       if (accepted.length === 0) {
         toast.error("Select at least one option to accept.");
@@ -536,10 +545,11 @@ export function AIReviewInline({
     setEditedComments([]);
     setSelectedItems(new Set());
     setEditedSuggestedContent(null);
+    setEditedDeliverableItems(null);
     setIsAddressed(true);
     setIsOpen(false);
     onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
