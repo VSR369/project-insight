@@ -14,3 +14,5 @@ export { TagInputSectionRenderer } from './TagInputSectionRenderer';
 export { StructuredFieldsSectionRenderer } from './StructuredFieldsSectionRenderer';
 export { LegalDocsSectionRenderer } from './LegalDocsSectionRenderer';
 export { TableLineItemRenderer } from './TableLineItemRenderer';
+export { DeliverableCardRenderer } from './DeliverableCardRenderer';
+export { DeliverableCardEditor } from './DeliverableCardEditor';

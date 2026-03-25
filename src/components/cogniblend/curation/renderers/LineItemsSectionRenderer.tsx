@@ -4,6 +4,8 @@
  */
 
 import { DeliverablesEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
+import { DeliverableCardRenderer, type DeliverableObject } from "./DeliverableCardRenderer";
+import { DeliverableCardEditor } from "./DeliverableCardEditor";
 
 interface LineItemsSectionRendererProps {
   items: string[];
@@ -13,6 +15,9 @@ interface LineItemsSectionRendererProps {
   onCancel: () => void;
   saving?: boolean;
   itemLabel?: string;
+  /** When provided, renders structured deliverable cards instead of flat text */
+  structuredItems?: DeliverableObject[];
+  onSaveStructured?: (items: DeliverableObject[]) => void;
 }
 
 export function LineItemsSectionRenderer({
@@ -23,8 +28,23 @@ export function LineItemsSectionRenderer({
   onCancel,
   saving,
   itemLabel,
+  structuredItems,
+  onSaveStructured,
 }: LineItemsSectionRendererProps) {
+  const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
+
+  // Edit mode
   if (editing && !readOnly) {
+    if (useStructured) {
+      return (
+        <DeliverableCardEditor
+          items={structuredItems}
+          onSave={onSaveStructured}
+          onCancel={onCancel}
+          saving={saving}
+        />
+      );
+    }
     return (
       <DeliverablesEditor
         items={items}
@@ -36,6 +56,12 @@ export function LineItemsSectionRenderer({
     );
   }
 
+  // View mode — structured cards
+  if (useStructured) {
+    return <DeliverableCardRenderer items={structuredItems} />;
+  }
+
+  // View mode — plain text fallback
   if (!items || items.length === 0) {
     return <p className="text-sm text-muted-foreground">None defined.</p>;
   }
