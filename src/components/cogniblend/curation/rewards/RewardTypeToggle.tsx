@@ -48,6 +48,7 @@ export default function RewardTypeToggle({
   };
 
   const targetLabel = pendingType === 'monetary' ? 'Monetary' : 'Non-Monetary';
+  const currentLabel = currentType === 'monetary' ? 'Monetary' : 'Non-Monetary';
 
   return (
     <>
