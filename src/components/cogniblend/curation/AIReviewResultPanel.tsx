@@ -620,7 +620,7 @@ export function AIReviewResultPanel({
                 <label
                   key={i}
                   className={cn(
-                    "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                    "flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors shadow-xs",
                     isSelected
                       ? "bg-primary/5 border-primary/40"
                       : "bg-card border-border hover:border-primary/30"
