@@ -516,14 +516,14 @@ export function AIReviewResultPanel({
           {hasSuggestedVersion && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  AI Suggested {isMasterData ? "Selection" : "Version"}
+                <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
+                  ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
                 </p>
               </div>
 
               {/* ── Master-data codes as selectable chips ── */}
               {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] text-muted-foreground">
                       {selectedItems.size}/{resolvedCodes.length} selected
@@ -580,22 +580,22 @@ export function AIReviewResultPanel({
                 </div>
               ) : isStructured && structuredItems && structuredItems.length > 0 ? (
                 /* Structured line items — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto space-y-1">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto space-y-1">
                   <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
                 </div>
               ) : scheduleRows ? (
                 /* Schedule-format — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
                   <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
                 </div>
               ) : tableRows ? (
                 /* Table-format — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
                   <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
                 </div>
               ) : result.suggested_version ? (
-                /* Rich text — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-72 overflow-y-auto">
+                /* Rich text — Tiptap editor */
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-relaxed">
                   <EditableRichText
                     value={editedRichText ?? result.suggested_version}
                     onChange={handleRichTextChange}
