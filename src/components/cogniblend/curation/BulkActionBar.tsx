@@ -11,6 +11,7 @@ interface BulkActionBarProps {
   warningCount: number;
   passCount: number;
   inferredCount?: number;
+  totalCount?: number;
   onAcceptAllPassing: () => void;
   onReviewWarnings: () => void;
 }

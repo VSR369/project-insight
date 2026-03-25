@@ -1809,6 +1809,7 @@ export default function CurationReviewPage() {
           warningCount={aiReviewCounts.warning}
           passCount={aiReviewCounts.pass}
           inferredCount={aiReviewCounts.inferred}
+          totalCount={aiReviewCounts.pass + aiReviewCounts.warning + aiReviewCounts.inferred}
           onAcceptAllPassing={handleAcceptAllPassing}
           onReviewWarnings={handleReviewWarnings}
         />
