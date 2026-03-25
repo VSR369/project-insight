@@ -1,68 +1,86 @@
 
 
-# Fix: Curator Must Be Able to Work While Legal & Finance Are Pending
+# Fix: Curator Must Work Freely — Only Submission Is Gated
 
-## Problem
+## What's wrong now
 
-The `isReadOnly` flag on line 1623 of `CurationReviewPage.tsx` is:
+Three separate issues are blocking the curator from working:
+
+1. **`isReadOnly` guards hide AI buttons** — Lines 2441 and 2485 wrap "AI Quality Analyze" and "Review Sections by AI" in `{!isReadOnly && ...}`. When `isReadOnly` is true (Phase < 3, or legacy `?mode=view`), these buttons vanish entirely. Even for Phase 3 curators, the current URL has `?mode=view` which was only recently removed from the `isReadOnly` formula but may still be present in navigation links.
+
+2. **`legalEscrowBlocked` is hardcoded to require BOTH sections** — Line 1632: `const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted`. This ignores governance rules:
+   - **Escrow** is only required for `CONTROLLED` mode (already handled in checklist item 15 and escrow renderer)
+   - **Legal docs** depend on the `lc_review_required` flag on the challenge
+   - For `QUICK` or `STRUCTURED` governance, these sections may be automatically satisfied
+
+3. **`CurationActions` hides ALL action buttons when `readOnly`** — Line 380: `{!readOnly && (...)` wraps Submit, Return, and all action buttons. Phase 1/2 preview should still show AI buttons.
+
+## Plan
+
+### 1. Always show AI buttons (remove `isReadOnly` guards)
+
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+
+- **Line 2441**: Remove `{!isReadOnly && (` wrapper from AI Quality "Analyze" button
+- **Line 2485**: Remove `{!isReadOnly && (` wrapper from "Review Sections by AI" button
+
+These are read-only operations (call edge functions, store results). No governance reason to hide them.
+
+### 2. Make `legalEscrowBlocked` governance-aware
+
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`** (around line 1625-1632)
+
+Replace the hardcoded logic:
 
 ```typescript
-const isReadOnly = (challenge.current_phase ?? 0) < 3 || searchParams.get('mode') === 'view';
+// Current (wrong):
+const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted;
+
+// Fix (governance-aware):
+const isControlled = isControlledMode(resolveGovernanceMode(challenge.governance_profile));
+const needsLegalAcceptance = challenge.lc_review_required || legalDetails.length > 0;
+const needsEscrowAcceptance = isControlled;
+
+const legalEscrowBlocked =
+  (needsLegalAcceptance && !isLegalAccepted) ||
+  (needsEscrowAcceptance && !isEscrowAccepted);
 ```
 
-When a curator opens a Phase 3 challenge from the queue, if `?mode=view` is in the URL, **everything** becomes read-only — no editing, no AI review, no actions. Additionally, the `CurationActions` component shows "View-only mode — actions disabled until Legal & Finance review is complete" when `readOnly` is true.
+This means:
+- **QUICK** challenges with no legal docs and no `lc_review_required` → not blocked
+- **STRUCTURED** challenges with `lc_review_required` → legal must be accepted
+- **CONTROLLED** challenges → both legal AND escrow must be accepted
 
-**The correct behavior per governance rules:**
-- Curator CAN edit all sections except `legal_docs` and `escrow_funding` (already handled by `LOCKED_SECTIONS`)
-- Curator CAN run AI review on all sections
-- Curator CANNOT submit to Innovation Director until both locked sections are accepted
-- The submission gate (not the edit capability) is what should be blocked by legal/escrow status
+### 3. Update the amber notice in CurationActions to be specific
 
-## Root Cause
+**File: `src/components/cogniblend/curation/CurationActions.tsx`**
 
-Two issues:
-1. **`?mode=view` in URL forces blanket read-only** — even for Phase 3 curators who should be actively working
-2. **`CurationActions` conflates "legal pending" with "read-only"** — it should disable only the Submit button, not show a blanket "actions disabled" message
+Pass the blocking detail as a prop (or compute from existing props). Change the amber notice from the generic "Legal Documents and Escrow & Funding must both be accepted" to show only what's actually blocking:
 
-## Changes
+- Add optional `blockingReason` string prop (computed in parent)
+- Display it in the amber notice instead of the hardcoded message
+- Examples: "Legal Documents must be accepted before submitting", "Escrow & Funding must be accepted before submitting", or both
 
-### 1. `src/pages/cogniblend/CurationReviewPage.tsx` (line 1623)
+### 4. Never hide action buttons for Phase 3+ curators
 
-Separate true view-only (Phase 1/2 preview) from curator working mode:
+**File: `src/components/cogniblend/curation/CurationActions.tsx`**
 
-```typescript
-// True read-only: only when viewing a challenge NOT in curation phase
-const isReadOnly = (challenge.current_phase ?? 0) < 3;
-// mode=view should NOT override Phase 3 curator access
-```
+The `{!readOnly && (` guard at line 380 is correct — it prevents Phase 1/2 viewers from seeing Submit/Return buttons. No change needed here since `isReadOnly` is now Phase-only.
 
-Remove `searchParams.get('mode') === 'view'` from `isReadOnly`. If the challenge is Phase 3+, the curator must be able to work regardless of URL params.
+But confirm: the `readOnly` banner (line 333) should also clarify that AI review IS available. Update the message to: "Preview mode — editing and submission disabled. AI review is available."
 
-Also update the queue navigation in `CurationQueuePage.tsx` — Phase 3 challenges should never get `?mode=view` appended (currently they don't, but confirm no other entry points add it).
-
-### 2. `src/components/cogniblend/curation/CurationActions.tsx`
-
-Replace the blanket "View-only mode" message with targeted submission blocking:
-
-- Remove the `readOnly` banner that says "actions disabled until Legal & Finance review is complete"
-- Instead, keep Submit to Innovation Director button always visible but **disabled** when `legal_docs` or `escrow_funding` are not accepted
-- Show a specific tooltip/message on the disabled Submit button: "Legal Documents and Escrow & Funding must both be accepted before submitting"
-- Return for Modification, Hold/Resume, and AI Quality analysis should work normally regardless of legal/escrow status
-
-### 3. `src/pages/cogniblend/CurationReviewPage.tsx` — CurationActions props
-
-Pass `readOnly={isReadOnly}` (which now only triggers for Phase < 3). Add a new prop like `legalEscrowBlocked` (derived from `approvedSections`) so the Submit button knows to block independently of read-only mode.
+---
 
 ## Files to modify
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove `mode=view` from `isReadOnly` formula; pass `legalEscrowBlocked` prop to CurationActions |
-| `src/components/cogniblend/curation/CurationActions.tsx` | Replace blanket read-only banner with targeted Submit-only block when legal/escrow not accepted; accept new `legalEscrowBlocked` prop |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove `!isReadOnly` guards from AI buttons (lines 2441, 2485); make `legalEscrowBlocked` governance-aware; compute `blockingReason` string |
+| `src/components/cogniblend/curation/CurationActions.tsx` | Accept `blockingReason` prop; update amber notice; update read-only banner text |
 
 ## What stays the same
-- `LOCKED_SECTIONS` still prevents editing legal_docs and escrow_funding content
-- Phase 1/2 challenges remain truly read-only
-- Checklist validation still gates submission
-- `complete_phase` SQL function still hard-blocks if sections not accepted
+- `LOCKED_SECTIONS` still prevents editing legal_docs / escrow_funding content
+- Phase 1/2 viewers cannot submit or return challenges
+- `complete_phase` SQL function still validates at DB level
+- Checklist items 11-12 (legal docs) and 15 (escrow) already use governance-aware logic
 
