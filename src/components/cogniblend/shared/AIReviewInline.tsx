@@ -496,13 +496,16 @@ export function AIReviewInline({
   }, []);
 
   const isPending = !review;
+  const isInferred = review?.triage_status === "inferred";
   const isPassWithNoComments = review?.status === "pass" && (!review.comments || review.comments.length === 0);
 
   const style = isPending
     ? { label: "Pending", className: "bg-muted text-muted-foreground border-border" }
     : isAddressed
       ? { label: "Addressed", className: "bg-blue-100 text-blue-800 border-blue-300" }
-      : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
+      : isInferred
+        ? STATUS_STYLES.inferred
+        : (STATUS_STYLES[review.status] ?? STATUS_STYLES.pass);
 
   const allCommentsSelected = selectedComments.size === comments.length;
 
