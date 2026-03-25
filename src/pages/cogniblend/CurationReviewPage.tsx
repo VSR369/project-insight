@@ -1346,6 +1346,8 @@ export default function CurationReviewPage() {
             }
           } catch {
             // Individual section failure — triage result stays
+          } finally {
+            setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
           }
         }
       }
