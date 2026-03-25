@@ -623,6 +623,7 @@ export function AIReviewInline({
                 isMasterData={isMasterData}
                 suggestedCodes={suggestedCodes}
                 masterDataOptions={masterDataOptions}
+                onSuggestedVersionChange={setEditedSuggestedContent}
               />
             )}
           </>
