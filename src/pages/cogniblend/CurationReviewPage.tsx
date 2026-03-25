@@ -361,6 +361,8 @@ const SECTIONS: SectionDef[] = [
         currencyCode={ch.currency_code ?? undefined}
         challengeId={ch.id}
         problemStatement={ch.problem_statement}
+        operatingModel={ch.operating_model}
+        challengeTitle={ch.title}
       />
     ),
   },
@@ -2359,6 +2361,8 @@ export default function CurationReviewPage() {
                             currencyCode={challenge.currency_code ?? undefined}
                             challengeId={challenge.id}
                             problemStatement={challenge.problem_statement}
+                            operatingModel={challenge.operating_model}
+                            challengeTitle={challenge.title}
                           />
                         );
 
