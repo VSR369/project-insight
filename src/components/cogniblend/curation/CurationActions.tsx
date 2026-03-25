@@ -38,6 +38,7 @@ interface CurationActionsProps {
   totalCount: number;
   operatingModel?: string | null;
   readOnly?: boolean;
+  legalEscrowBlocked?: boolean;
 }
 
 export default function CurationActions({
@@ -49,6 +50,7 @@ export default function CurationActions({
   totalCount,
   operatingModel,
   readOnly = false,
+  legalEscrowBlocked = false,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
