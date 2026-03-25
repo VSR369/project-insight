@@ -96,6 +96,7 @@ import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBrief
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
+import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
 import type { Json } from "@/integrations/supabase/types";
@@ -944,6 +945,7 @@ export default function CurationReviewPage() {
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
+  const [highlightWarnings, setHighlightWarnings] = useState(false);
 
   // Expand / collapse all sections in the active group
   const handleExpandCollapseAll = useCallback((expand: boolean) => {
@@ -1501,6 +1503,44 @@ export default function CurationReviewPage() {
     setActiveGroup(groupId);
   }, []);
 
+  // Bulk action bar computed values
+  const aiReviewCounts = useMemo(() => {
+    if (!aiReviews.length) return { pass: 0, warning: 0, needsRevision: 0, hasReviews: false };
+    let pass = 0, warning = 0, needsRevision = 0;
+    aiReviews.forEach((r) => {
+      if (r.status === "pass") pass++;
+      else if (r.status === "warning") warning++;
+      else if (r.status === "needs_revision") needsRevision++;
+    });
+    return { pass, warning: warning + needsRevision, needsRevision, hasReviews: true };
+  }, [aiReviews]);
+
+  const handleAcceptAllPassing = useCallback(() => {
+    const passingSections = aiReviews.filter((r) => r.status === "pass" && !r.addressed);
+    if (passingSections.length === 0) return;
+
+    passingSections.forEach((r) => {
+      handleMarkAddressed(r.section_key);
+    });
+    toast.success(`${passingSections.length} section${passingSections.length !== 1 ? "s" : ""} updated automatically`);
+  }, [aiReviews, handleMarkAddressed]);
+
+  const handleReviewWarnings = useCallback(() => {
+    setHighlightWarnings(true);
+    // Find first warning/needs_revision section
+    const firstWarning = aiReviews.find(
+      (r) => (r.status === "warning" || r.status === "needs_revision") && !r.addressed
+    );
+    if (firstWarning) {
+      const el = document.querySelector(`[data-section-key="${firstWarning.section_key}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    // Auto-clear highlight after 10 seconds
+    setTimeout(() => setHighlightWarnings(false), 10000);
+  }, [aiReviews]);
+
   // ══════════════════════════════════════
   // SECTION 5: Computed
   // ══════════════════════════════════════
@@ -1686,6 +1726,16 @@ export default function CurationReviewPage() {
           />
         )}
       </div>
+
+      {/* Sticky bulk action bar after AI review */}
+      {aiReviewCounts.hasReviews && (
+        <BulkActionBar
+          warningCount={aiReviewCounts.warning}
+          passCount={aiReviewCounts.pass}
+          onAcceptAllPassing={handleAcceptAllPassing}
+          onReviewWarnings={handleReviewWarnings}
+        />
+      )}
 
       {/* Read-only banner for Phase 1/2 */}
       {isReadOnly && phaseDescription && (
@@ -2414,30 +2464,39 @@ export default function CurationReviewPage() {
                     return <React.Fragment key={section.key}>{sectionContent}</React.Fragment>;
                   }
 
+                  const isWarningHighlighted = highlightWarnings && aiReview && (aiReview.status === "warning" || aiReview.status === "needs_revision") && !aiReview.addressed;
+
                   return (
-                    <CuratorSectionPanel
+                    <div
                       key={section.key}
-                      sectionKey={section.key}
-                      label={section.label}
-                      attribution={section.attribution}
-                      filled={filled}
-                      status={panelStatus}
-                      isLocked={isLocked}
-                      isReadOnly={isReadOnly}
-                      isApproved={isApproved}
-                      onToggleApproval={() => toggleSectionApproval(section.key)}
-                      onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
-                      onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
-                      challengeId={challengeId!}
-                      inlineFlags={inlineFlags}
-                      defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
-                      aiReviewSlot={aiReviewContent}
-                      sectionActions={getSectionActions(section.key)}
-                      promptSource={aiReview?.prompt_source ?? null}
-                      expandVersion={expandVersion}
+                      data-section-key={section.key}
+                      className={cn(
+                        isWarningHighlighted && "ring-2 ring-amber-400 ring-offset-2 rounded-xl animate-pulse"
+                      )}
                     >
-                      {sectionContent}
-                    </CuratorSectionPanel>
+                      <CuratorSectionPanel
+                        sectionKey={section.key}
+                        label={section.label}
+                        attribution={section.attribution}
+                        filled={filled}
+                        status={panelStatus}
+                        isLocked={isLocked}
+                        isReadOnly={isReadOnly}
+                        isApproved={isApproved}
+                        onToggleApproval={() => toggleSectionApproval(section.key)}
+                        onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
+                        onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
+                        challengeId={challengeId!}
+                        inlineFlags={inlineFlags}
+                        defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
+                        aiReviewSlot={aiReviewContent}
+                        sectionActions={getSectionActions(section.key)}
+                        promptSource={aiReview?.prompt_source ?? null}
+                        expandVersion={expandVersion}
+                      >
+                        {sectionContent}
+                      </CuratorSectionPanel>
+                    </div>
                   );
                 })}
               </div>
