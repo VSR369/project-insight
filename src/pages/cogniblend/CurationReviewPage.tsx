@@ -1300,13 +1300,14 @@ export default function CurationReviewPage() {
 
       const passCount = routing.pass.length;
       const phase2Count = routing.phase2_queue.length;
+      const totalTriaged = triageReviews.length;
+      setTriageTotalCount(totalTriaged);
       toast.success(`Phase 1 triage: ${passCount} pass, ${phase2Count} need${phase2Count !== 1 ? '' : 's'} deeper review`);
 
       // ── Phase 2: Deep suggestion (sequential, only non-pass) ──
       if (routing.phase2_queue.length > 0) {
+        setPhase2Status('running');
         setPhase2Progress({ total: routing.phase2_queue.length, completed: 0 });
-        // Phase 2 runs in background — each section calls refine-challenge-section
-        // The AIReviewInline auto-refine will handle this via its existing useEffect
         // We just need to trigger the detailed review for warning/inferred sections
         for (const sectionKey of routing.phase2_queue) {
           try {
