@@ -944,6 +944,8 @@ export default function CurationReviewPage() {
   const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [phase2Progress, setPhase2Progress] = useState({ total: 0, completed: 0 });
+  const [phase2Status, setPhase2Status] = useState<'idle' | 'running' | 'completed'>('idle');
+  const [triageTotalCount, setTriageTotalCount] = useState(0);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
