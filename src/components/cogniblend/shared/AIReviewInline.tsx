@@ -453,7 +453,12 @@ export function AIReviewInline({
       if (typeof editedSuggestedContent === "string") {
         onAcceptRefinement(sectionKey, editedSuggestedContent);
       } else if (Array.isArray(editedSuggestedContent)) {
-        onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+        const editFmt = getSectionFormatType(sectionKey);
+        if (editFmt === 'line_items') {
+          onAcceptRefinement(sectionKey, JSON.stringify({ items: editedSuggestedContent }));
+        } else {
+          onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+        }
       } else {
         onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
       }
