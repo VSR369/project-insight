@@ -2361,6 +2361,8 @@ export default function CurationReviewPage() {
                             currencyCode={challenge.currency_code ?? undefined}
                             challengeId={challenge.id}
                             problemStatement={challenge.problem_statement}
+                            operatingModel={challenge.operating_model}
+                            challengeTitle={challenge.title}
                           />
                         );
 
