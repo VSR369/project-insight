@@ -151,6 +151,7 @@ interface ChallengeData {
   hook: string | null;
   max_solutions: number | null;
   extended_brief: Json | null;
+  expected_outcomes: Json | null;
   // Phase 5A: solver-tier fields for eligibility/visibility
   solver_eligibility_types: Json | null;
   solver_visibility_types: Json | null;
