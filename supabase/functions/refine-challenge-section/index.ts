@@ -227,7 +227,24 @@ serve(async (req) => {
       );
     }
 
-    let userPrompt = `SECTION: ${section_key}
+    let userPrompt: string;
+
+    if (hasPhase1Issues) {
+      // Phase 2 minimal prompt — focused on issues
+      const sectionFormat = SECTION_FORMAT_MAP[section_key] || 'rich_text';
+      userPrompt = `Section: ${section_key}
+Section type: ${sectionFormat}
+
+Known issues:
+${issues.map((issue: string, i: number) => `${i + 1}. ${issue}`).join("\n")}
+
+Current content:
+${typeof current_content === "string" ? current_content : JSON.stringify(current_content, null, 2)}
+
+${contextParts.length > 0 ? `Challenge context:\n${contextParts.join("\n")}\n\n` : ""}Fix the known issues and return ONLY the corrected content.`;
+    } else {
+      // Legacy manual refinement prompt
+      userPrompt = `SECTION: ${section_key}
 
 CURRENT CONTENT:
 ${typeof current_content === "string" ? current_content : JSON.stringify(current_content, null, 2)}
@@ -239,6 +256,7 @@ ${instructionLabel} INSTRUCTIONS (follow these precisely):
 ${curator_instructions}
 
 Rewrite the section content following the instructions. Return ONLY the refined content, nothing else.`;
+    }
 
     // ── Extended Brief subsection-specific format instructions ──
     const EB_FORMAT_INSTRUCTIONS: Record<string, string> = {
