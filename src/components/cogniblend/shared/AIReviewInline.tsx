@@ -11,12 +11,9 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw, Send } from "lucide-react";
+import { Check, Loader2, RefreshCw, Send } from "lucide-react";
+import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
