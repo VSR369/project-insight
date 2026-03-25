@@ -47,14 +47,14 @@ Rules:
 
 /** Section keys for curation context */
 const CURATION_SECTION_KEYS = [
-  "problem_statement", "scope", "deliverables", "evaluation_criteria",
-  "reward_structure", "phase_schedule", "submission_guidelines",
-  "eligibility", "complexity", "ip_model", "legal_docs", "escrow_funding",
-  "maturity_level", "hook", "submission_deadline", "challenge_visibility",
-  "effort_level", "domain_tags", "visibility", "solver_expertise",
+  "problem_statement", "scope", "deliverables", "expected_outcomes",
+  "evaluation_criteria", "reward_structure", "phase_schedule",
+  "submission_guidelines", "eligibility", "complexity", "ip_model",
+  "legal_docs", "escrow_funding", "maturity_level", "hook",
+  "submission_deadline", "challenge_visibility", "effort_level",
+  "domain_tags", "visibility", "solver_expertise",
   "context_and_background", "root_causes", "affected_stakeholders",
-  "current_deficiencies", "extended_brief_expected_outcomes",
-  "preferred_approach", "approaches_not_of_interest",
+  "current_deficiencies", "preferred_approach", "approaches_not_of_interest",
 ];
 
 const INTAKE_SECTION_KEYS = [

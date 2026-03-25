@@ -270,7 +270,6 @@ export const EXTENDED_BRIEF_FIELD_MAP: Record<string, string> = {
   root_causes: 'root_causes',
   affected_stakeholders: 'affected_stakeholders',
   current_deficiencies: 'current_deficiencies',
-  extended_brief_expected_outcomes: 'expected_outcomes',
   preferred_approach: 'preferred_approach',
   approaches_not_of_interest: 'approaches_not_of_interest',
 };
