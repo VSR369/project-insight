@@ -1542,14 +1542,16 @@ export default function CurationReviewPage() {
 
   // Bulk action bar computed values
   const aiReviewCounts = useMemo(() => {
-    if (!aiReviews.length) return { pass: 0, warning: 0, needsRevision: 0, hasReviews: false };
-    let pass = 0, warning = 0, needsRevision = 0;
+    if (!aiReviews.length) return { pass: 0, warning: 0, inferred: 0, needsRevision: 0, hasReviews: false };
+    let pass = 0, warning = 0, needsRevision = 0, inferred = 0;
     aiReviews.forEach((r) => {
-      if (r.status === "pass") pass++;
+      const triageStatus = (r as any).triage_status;
+      if (triageStatus === "inferred") inferred++;
+      else if (r.status === "pass") pass++;
       else if (r.status === "warning") warning++;
       else if (r.status === "needs_revision") needsRevision++;
     });
-    return { pass, warning: warning + needsRevision, needsRevision, hasReviews: true };
+    return { pass, warning: warning + needsRevision, inferred, needsRevision, hasReviews: true };
   }, [aiReviews]);
 
   const handleAcceptAllPassing = useCallback(() => {
