@@ -39,7 +39,6 @@ export interface ExtendedBrief {
   root_causes: string;
   affected_stakeholders: string[];
   current_deficiencies: string;
-  expected_outcomes: string[];
   preferred_approach: string;
   approaches_not_of_interest: string;
   scoring_rubrics: ScoringRubric[];

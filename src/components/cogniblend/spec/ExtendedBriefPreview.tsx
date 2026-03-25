@@ -28,7 +28,7 @@ interface ExtendedBriefData {
   root_causes?: string;
   affected_stakeholders?: string[];
   current_deficiencies?: string;
-  expected_outcomes?: string[];
+  // expected_outcomes removed — now a standalone column
   preferred_approach?: string;
   approaches_not_of_interest?: string;
   scoring_rubrics?: Array<{
@@ -51,7 +51,7 @@ const PREVIEW_ITEMS: Array<{
   { key: "root_causes", label: "Root Causes", icon: AlertTriangle, type: "text" },
   { key: "affected_stakeholders", label: "Affected Stakeholders", icon: Users, type: "array" },
   { key: "current_deficiencies", label: "Current Deficiencies", icon: XCircle, type: "text" },
-  { key: "expected_outcomes", label: "Expected Outcomes", icon: Target, type: "array" },
+  // expected_outcomes removed from preview — standalone section now
   { key: "preferred_approach", label: "Preferred Approach", icon: Lightbulb, type: "text" },
   { key: "approaches_not_of_interest", label: "Approaches NOT of Interest", icon: XCircle, type: "text" },
 ];

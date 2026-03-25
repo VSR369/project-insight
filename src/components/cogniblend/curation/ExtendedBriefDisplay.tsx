@@ -52,7 +52,7 @@ interface ExtendedBriefData {
   root_causes?: string[];
   affected_stakeholders?: StakeholderRow[];
   current_deficiencies?: string[];
-  expected_outcomes?: string[];
+  // expected_outcomes removed — now a standalone column
   preferred_approach?: string;
   approaches_not_of_interest?: string[];
   // Legacy fields preserved

@@ -151,6 +151,7 @@ interface ChallengeData {
   hook: string | null;
   max_solutions: number | null;
   extended_brief: Json | null;
+  expected_outcomes: Json | null;
   // Phase 5A: solver-tier fields for eligibility/visibility
   solver_eligibility_types: Json | null;
   solver_visibility_types: Json | null;
@@ -303,11 +304,11 @@ const SECTIONS: SectionDef[] = [
     key: "expected_outcomes",
     label: "Expected Outcomes",
     attribution: "by CA",
-    dbField: "extended_brief",
+    dbField: "expected_outcomes",
     isFilled: (ch) => {
-      const eb = parseJson<any>(ch.extended_brief);
-      const outcomes = eb?.expected_outcomes;
-      return Array.isArray(outcomes) && outcomes.length > 0;
+      const eo = parseJson<any>(ch.expected_outcomes);
+      const items = Array.isArray(eo) ? eo : (eo?.items ?? []);
+      return Array.isArray(items) && items.length > 0;
     },
     render: (ch) => {
       const items = getExpectedOutcomeObjects(ch);
@@ -760,10 +761,10 @@ function getDeliverableObjects(ch: ChallengeData, prefix: string = 'D'): Deliver
   return parseDeliverables(d, prefix);
 }
 
-/** Returns expected outcome objects from extended_brief */
+/** Returns expected outcome objects from dedicated expected_outcomes column */
 function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
-  const eb = parseJson<any>(ch.extended_brief);
-  const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+  const eo = parseJson<any>(ch.expected_outcomes);
+  const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
   return parseDeliverables(outcomes, 'O');
 }
 
@@ -821,8 +822,10 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "expected_outcomes": {
-      const eb = parseJson<any>(ch.extended_brief);
-      return eb?.expected_outcomes ? JSON.stringify(eb.expected_outcomes) : null;
+      const eo = parseJson<any>(ch.expected_outcomes);
+      if (!eo) return null;
+      const items = Array.isArray(eo) ? eo : (eo?.items ?? []);
+      return items.length > 0 ? JSON.stringify(items) : null;
     }
     default: return null;
   }
@@ -991,7 +994,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1521,7 +1524,7 @@ export default function CurationReviewPage() {
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
-    const JSON_FIELDS = ['deliverables', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description'];
+    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
@@ -2196,8 +2199,8 @@ export default function CurationReviewPage() {
 
                       // ── Expected outcomes (line items) ──
                       case "expected_outcomes": {
-                        const eb = parseJson<any>(challenge.extended_brief);
-                        const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+                        const eo = parseJson<any>(challenge.expected_outcomes);
+                        const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
                         const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
                         const structuredOutcomes = getExpectedOutcomeObjects(challenge);
                         return (
@@ -2208,8 +2211,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(items) => {
                                 setSavingSection(true);
-                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
-                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items } });
+                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items } });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
@@ -2217,8 +2219,7 @@ export default function CurationReviewPage() {
                               structuredItems={structuredOutcomes}
                               onSaveStructured={(items) => {
                                 setSavingSection(true);
-                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
-                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
+                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
                               }}
                               badgePrefix="O"
                             />
