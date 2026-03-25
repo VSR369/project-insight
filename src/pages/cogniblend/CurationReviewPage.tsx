@@ -770,6 +770,22 @@ function getDeliverableItems(ch: ChallengeData): string[] {
   return d.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
 }
 
+/** Returns full structured deliverable objects, preserving description & acceptance_criteria */
+function getDeliverableObjects(ch: ChallengeData): { name: string; description?: string; acceptance_criteria?: string }[] {
+  const raw = parseJson<any>(ch.deliverables);
+  const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
+  return d.map((item: any) => {
+    if (typeof item === "string") {
+      return { name: item, description: "", acceptance_criteria: "" };
+    }
+    return {
+      name: item?.name ?? "",
+      description: item?.description ?? "",
+      acceptance_criteria: item?.acceptance_criteria ?? "",
+    };
+  });
+}
+
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
   const raw = parseJson<any>(ch.evaluation_criteria);
   const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : [];
@@ -1156,6 +1172,11 @@ export default function CurationReviewPage() {
   }, [saveSectionMutation]);
 
   const handleSaveDeliverables = useCallback((items: string[]) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "deliverables", value: { items } });
+  }, [saveSectionMutation]);
+
+  const handleSaveStructuredDeliverables = useCallback((items: { name: string; description?: string; acceptance_criteria?: string }[]) => {
     setSavingSection(true);
     saveSectionMutation.mutate({ field: "deliverables", value: { items } });
   }, [saveSectionMutation]);
@@ -2150,6 +2171,8 @@ export default function CurationReviewPage() {
                               onCancel={cancelEdit}
                               saving={savingSection}
                               itemLabel="Deliverable"
+                              structuredItems={getDeliverableObjects(challenge)}
+                              onSaveStructured={handleSaveStructuredDeliverables}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
