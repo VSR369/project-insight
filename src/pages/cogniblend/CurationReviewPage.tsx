@@ -1176,6 +1176,11 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "deliverables", value: { items } });
   }, [saveSectionMutation]);
 
+  const handleSaveStructuredDeliverables = useCallback((items: { name: string; description?: string; acceptance_criteria?: string }[]) => {
+    setSavingSection(true);
+    saveSectionMutation.mutate({ field: "deliverables", value: { items } });
+  }, [saveSectionMutation]);
+
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
     setSavingSection(true);
     const normalized = criteria.map((c) => ({
