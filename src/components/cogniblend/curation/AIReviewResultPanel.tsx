@@ -25,6 +25,8 @@ import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/r
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { convertAITextToHTML } from "@/utils/convertAITextToHTML";
 import { cn } from "@/lib/utils";
+import { detectAndParseLineItems } from "@/utils/detectAndParseLineItems";
+import { TableLineItemRenderer } from "@/components/cogniblend/curation/renderers/TableLineItemRenderer";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -757,9 +759,28 @@ export function AIReviewResultPanel({
               ))}
             </div>
           ) : isStructured && structuredItems && structuredItems.length > 0 ? (
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto space-y-1">
-              <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
-            </div>
+            (() => {
+              const detection = detectAndParseLineItems(editedLineItems ?? [...structuredItems]);
+              if (detection.type === 'table') {
+                return (
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-96 overflow-y-auto">
+                    <TableLineItemRenderer
+                      rows={detection.rows}
+                      schema={detection.schema}
+                      onChange={(updatedRows) => {
+                        const serialized = updatedRows.map((r) => JSON.stringify(r));
+                        handleLineItemsChange(serialized);
+                      }}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto space-y-1">
+                  <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
+                </div>
+              );
+            })()
           ) : scheduleRows ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
               <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
