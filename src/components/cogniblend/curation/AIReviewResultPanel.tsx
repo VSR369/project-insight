@@ -4,19 +4,18 @@
  * Renders:
  *  - Summary badge + status
  *  - Comments with severity badges (STRENGTH / WARNING / REQUIRED) and blockquote applies_to
- *  - AI Suggested Version using the section's native renderer in readOnly mode
- *  - Edit toggle to modify suggestions before accepting
+ *  - AI Suggested Version — always editable inline (no toggle needed)
  *  - Accept / Reject actions
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2 } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
@@ -344,9 +343,8 @@ export function AIReviewResultPanel({
   onSuggestedVersionChange,
 }: AIReviewResultPanelProps) {
   const [detailsOpen, setDetailsOpen] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
 
-  // Local edit state for each format type
+  // Local edit state for each format type — always active (no toggle needed)
   const [editedRichText, setEditedRichText] = useState<string | null>(null);
   const [editedLineItems, setEditedLineItems] = useState<string[] | null>(null);
   const [editedTableRows, setEditedTableRows] = useState<Record<string, unknown>[] | null>(null);
@@ -391,7 +389,7 @@ export function AIReviewResultPanel({
     scheduleRows
   );
 
-  // Determine which format this suggestion is in (for edit mode)
+  // Determine which format this suggestion is in
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
     if (isStructured && structuredItems && structuredItems.length > 0) {
@@ -404,36 +402,55 @@ export function AIReviewResultPanel({
     return null;
   }, [isMasterData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
 
-  // Toggle edit mode and initialize edit state from current values
-  const handleToggleEdit = useCallback(() => {
-    if (!isEditing) {
-      // Entering edit mode — seed local edit state
-      if (suggestedFormat === "rich_text" && result.suggested_version) {
-        setEditedRichText(result.suggested_version);
-      } else if (suggestedFormat === "line_items" && structuredItems) {
-        setEditedLineItems([...structuredItems]);
-      } else if (suggestedFormat === "table" && tableRows) {
-        setEditedTableRows(tableRows.map(r => ({ ...r })));
-      } else if (suggestedFormat === "schedule_table" && scheduleRows) {
-        setEditedScheduleRows(scheduleRows.map(r => ({ ...r })));
-      }
-    } else {
-      // Leaving edit mode — emit changes
-      if (suggestedFormat === "rich_text" && editedRichText != null) {
-        onSuggestedVersionChange?.(editedRichText);
-      } else if (suggestedFormat === "line_items" && editedLineItems) {
-        onSuggestedVersionChange?.(editedLineItems.filter(i => i.trim()));
-      } else if (suggestedFormat === "table" && editedTableRows) {
-        onSuggestedVersionChange?.(editedTableRows);
-      } else if (suggestedFormat === "schedule_table" && editedScheduleRows) {
-        onSuggestedVersionChange?.(editedScheduleRows);
-      }
+  // Auto-seed edit state when data arrives or changes
+  useEffect(() => {
+    if (suggestedFormat === "rich_text" && result.suggested_version) {
+      setEditedRichText(result.suggested_version);
+      onSuggestedVersionChange?.(result.suggested_version);
     }
-    setIsEditing(!isEditing);
-  }, [isEditing, suggestedFormat, result.suggested_version, structuredItems, tableRows, scheduleRows, editedRichText, editedLineItems, editedTableRows, editedScheduleRows, onSuggestedVersionChange]);
+  }, [suggestedFormat, result.suggested_version]);
 
-  // Whether edit toggle should be shown (not for master data — already interactive)
-  const canEdit = suggestedFormat && suggestedFormat !== "master_data";
+  useEffect(() => {
+    if (suggestedFormat === "line_items" && structuredItems && structuredItems.length > 0) {
+      setEditedLineItems([...structuredItems]);
+      onSuggestedVersionChange?.([...structuredItems]);
+    }
+  }, [suggestedFormat, structuredItems]);
+
+  useEffect(() => {
+    if (suggestedFormat === "table" && tableRows) {
+      setEditedTableRows(tableRows.map(r => ({ ...r })));
+      onSuggestedVersionChange?.(tableRows);
+    }
+  }, [suggestedFormat, tableRows]);
+
+  useEffect(() => {
+    if (suggestedFormat === "schedule_table" && scheduleRows) {
+      setEditedScheduleRows(scheduleRows.map(r => ({ ...r })));
+      onSuggestedVersionChange?.(scheduleRows);
+    }
+  }, [suggestedFormat, scheduleRows]);
+
+  // Change handlers that emit to parent
+  const handleRichTextChange = useCallback((val: string) => {
+    setEditedRichText(val);
+    onSuggestedVersionChange?.(val);
+  }, [onSuggestedVersionChange]);
+
+  const handleLineItemsChange = useCallback((items: string[]) => {
+    setEditedLineItems(items);
+    onSuggestedVersionChange?.(items.filter(i => i.trim()));
+  }, [onSuggestedVersionChange]);
+
+  const handleTableRowsChange = useCallback((rows: Record<string, unknown>[]) => {
+    setEditedTableRows(rows);
+    onSuggestedVersionChange?.(rows);
+  }, [onSuggestedVersionChange]);
+
+  const handleScheduleRowsChange = useCallback((rows: Record<string, unknown>[]) => {
+    setEditedScheduleRows(rows);
+    onSuggestedVersionChange?.(rows);
+  }, [onSuggestedVersionChange]);
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
@@ -498,17 +515,6 @@ export function AIReviewResultPanel({
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
                   AI Suggested {isMasterData ? "Selection" : "Version"}
                 </p>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn("h-6 text-[10px] px-2 gap-1", isEditing && "text-primary")}
-                    onClick={handleToggleEdit}
-                  >
-                    <Pencil className="h-3 w-3" />
-                    {isEditing ? "Done Editing" : "Edit"}
-                  </Button>
-                )}
               </div>
 
               {/* ── Master-data codes as selectable chips ── */}
@@ -569,96 +575,27 @@ export function AIReviewResultPanel({
                   ))}
                 </div>
               ) : isStructured && structuredItems && structuredItems.length > 0 ? (
-                /* Structured line items (deliverables etc.) */
+                /* Structured line items — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto space-y-1">
-                  {isEditing && editedLineItems ? (
-                    <EditableLineItems items={editedLineItems} onChange={setEditedLineItems} />
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] text-muted-foreground">
-                          {selectedItems.size}/{structuredItems.length} items selected
-                        </span>
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                            onClick={onSelectAllItems}
-                          >
-                            Select all
-                          </button>
-                          <button
-                            type="button"
-                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                            onClick={onClearItems}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      </div>
-                      {structuredItems.map((item, i) => (
-                        <label
-                          key={i}
-                          className={cn(
-                            "flex items-start gap-2 rounded p-1.5 cursor-pointer transition-colors text-sm",
-                            selectedItems.has(i) ? "bg-primary/10" : "opacity-50"
-                          )}
-                        >
-                          <Checkbox
-                            checked={selectedItems.has(i)}
-                            onCheckedChange={() => onToggleItem(i)}
-                            className="mt-0.5 h-3.5 w-3.5"
-                          />
-                          <span className="flex-1 leading-relaxed">{item}</span>
-                        </label>
-                      ))}
-                    </>
-                  )}
+                  <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
                 </div>
               ) : scheduleRows ? (
-                /* Schedule-format suggested version (phase_schedule) */
+                /* Schedule-format — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
-                  {isEditing && editedScheduleRows ? (
-                    <EditableScheduleRows rows={editedScheduleRows} onChange={setEditedScheduleRows} />
-                  ) : (
-                    <ScheduleTableSectionRenderer
-                      data={scheduleRows}
-                      readOnly
-                      editing={false}
-                    />
-                  )}
+                  <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
                 </div>
               ) : tableRows ? (
-                /* Table-format suggested version (eval criteria, reward) */
+                /* Table-format — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
-                  {isEditing && editedTableRows ? (
-                    <EditableTableRows rows={editedTableRows} onChange={setEditedTableRows} />
-                  ) : (
-                    <TableSectionRenderer
-                      sectionKey={sectionKey}
-                      rows={tableRows.map((r) => ({
-                        name: String(r.name ?? r.criterion_name ?? r.parameter ?? ""),
-                        weight: Number(r.weight ?? r.weight_percentage ?? r.weight_percent ?? 0),
-                        scoring_type: String(r.scoring_type ?? "score"),
-                        evaluator_role: String(r.evaluator_role ?? ""),
-                        description: String(r.description ?? ""),
-                      }))}
-                      readOnly
-                      editing={false}
-                      onSave={() => {}}
-                      onCancel={() => {}}
-                      showWeightTotal
-                    />
-                  )}
+                  <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
                 </div>
               ) : result.suggested_version ? (
-                /* Rich text / markdown fallback */
+                /* Rich text — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-72 overflow-y-auto">
-                  {isEditing && editedRichText != null ? (
-                    <EditableRichText value={editedRichText} onChange={setEditedRichText} />
-                  ) : (
-                    <AiContentRenderer content={result.suggested_version} compact />
-                  )}
+                  <EditableRichText
+                    value={editedRichText ?? result.suggested_version}
+                    onChange={handleRichTextChange}
+                  />
                 </div>
               ) : null}
             </div>
