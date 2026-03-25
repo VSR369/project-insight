@@ -584,7 +584,7 @@ export function AIReviewResultPanel({
         {parsedComments.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Comments ({parsedComments.length})
               </p>
               <div className="flex items-center gap-2">
