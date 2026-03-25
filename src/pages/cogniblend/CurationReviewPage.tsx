@@ -1360,7 +1360,11 @@ export default function CurationReviewPage() {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
     } finally {
       setAiReviewLoading(false);
-      setPhase2Progress({ total: 0, completed: 0 });
+      // Persist progress at 100% completed state — don't reset
+      setPhase2Status('completed');
+      if (phase2Progress.total > 0) {
+        setPhase2Progress((prev) => ({ ...prev, completed: prev.total }));
+      }
     }
   }, [challengeId, challenge]);
 
