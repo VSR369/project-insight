@@ -231,8 +231,12 @@ export function AIReviewInline({
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [editedSuggestedContent, setEditedSuggestedContent] = useState<any>(null);
 
+  // Structured deliverable items state (for deliverables/expected_outcomes card rendering)
+  const [editedDeliverableItems, setEditedDeliverableItems] = useState<DeliverableItem[] | null>(null);
+
   const isStructured = isStructuredSection(sectionKey);
   const isMasterData = isMasterDataSection(sectionKey);
+  const isDeliverableLike = DELIVERABLE_LIKE_SECTIONS.has(sectionKey);
 
   useEffect(() => {
     if (defaultOpen && !isAddressed) setIsOpen(true);
