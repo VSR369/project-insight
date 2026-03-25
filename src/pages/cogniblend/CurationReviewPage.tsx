@@ -1629,7 +1629,21 @@ export default function CurationReviewPage() {
   const isEscrowAccepted = sectionActions.some(
     a => a.section_key === 'escrow_funding' && a.action_type === 'approval' && a.status === 'approved'
   );
-  const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted;
+  // Governance-aware submission gating
+  const governanceMode = resolveGovernanceMode(challenge.governance_profile);
+  const needsLegalAcceptance = !!(challenge as any).lc_review_required || legalDetails.length > 0;
+  const needsEscrowAcceptance = isControlledMode(governanceMode);
+  const legalEscrowBlocked =
+    (needsLegalAcceptance && !isLegalAccepted) ||
+    (needsEscrowAcceptance && !isEscrowAccepted);
+
+  // Build specific blocking reason for UI
+  const blockingReasons: string[] = [];
+  if (needsLegalAcceptance && !isLegalAccepted) blockingReasons.push('Legal Documents');
+  if (needsEscrowAcceptance && !isEscrowAccepted) blockingReasons.push('Escrow & Funding');
+  const blockingReason = blockingReasons.length > 0
+    ? `${blockingReasons.join(' and ')} must be accepted before submitting`
+    : undefined;
 
   const phaseDescription = challenge.current_phase === 1
     ? 'Spec Creation (Phase 1)'
