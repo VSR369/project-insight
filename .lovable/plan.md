@@ -1,43 +1,61 @@
 
+Issue location and why (root cause)
 
-# Fix: Redeploy Triage Edge Function + Frontend Safety Net
+1) Reusable component path (yes, it is shared):
+- `CurationReviewPage.tsx` renders `CurationAIReviewInline` for every section (problem statement, scope, deliverables, etc.).
+- `CurationAIReviewInline` is a re-export of shared `AIReviewInline.tsx`.
+- `AIReviewInline.tsx` renders the common `AIReviewResultPanel.tsx`.
+So this confusion is coming from shared logic, not only one section.
 
-## Root Cause
+2) Why you see “Pass” + warning comments + (sometimes) Accept suggestion:
+- `review-challenge-sections` prompt currently allows/encourages comments even when status is `pass` (in `index.ts` + `promptTemplate.ts`).
+- Deep review results are merged directly in `CurationReviewPage.tsx` without pass-with-comments normalization, so `status: pass` with comments can remain.
+- In `AIReviewInline.tsx`, local `refinedContent` is not reset when a new review arrives. So an old suggestion can remain visible after status changes, creating “Pass but accept suggestion” confusion.
 
-The code fix (pass-with-issues → warning downgrade) was added to `supabase/functions/triage-challenge-sections/index.ts` at lines 230-233 but was **never redeployed** to Supabase. The live edge function still runs the old code that allows "pass" status with issues, so `problem_statement` stays in `routing.pass` and never enters `phase2_queue` for deep review and refinement.
+Implementation plan (fix for all sections)
 
-## Fix
+1) Enforce consistent review contract in deep-review edge function
+- File: `supabase/functions/review-challenge-sections/index.ts`
+- Add post-processing normalization for every returned section:
+  - If `status === "pass"` and `comments.length > 0` => downgrade to `warning`.
+- Update fallback prompt text to explicitly require:
+  - `pass` => `comments: []`
+  - `warning/needs_revision` => actionable comments.
+- Apply same wording alignment in `promptTemplate.ts`.
 
-### 1. Redeploy the triage edge function
+2) Add frontend normalization safety net (shared, all sections)
+- Create utility: `src/lib/cogniblend/normalizeSectionReview.ts`
+  - `normalizeSectionReview(review)`:
+    - pass + comments => warning
+    - ensure comments array exists
+  - `normalizeSectionReviews(reviews)` for arrays.
+- Use it in `CurationReviewPage.tsx` at all entry points:
+  - when loading stored `ai_section_reviews`
+  - after triage response
+  - when merging deep review result
+  - in `handleSingleSectionReview` (re-review path)
 
-The code is already correct (lines 230-233). It just needs to be deployed to Supabase so the live function picks up the change.
+3) Reset stale suggested content when review object changes
+- File: `src/components/cogniblend/shared/AIReviewInline.tsx`
+- Add effect to clear stale local suggestion state on new review payload:
+  - reset `refinedContent`, `editedSuggestedContent`, `selectedItems` when review signature changes (`reviewed_at/status/comments`).
+- This removes old “Accept suggestion” UI when the latest review no longer has a fresh refinement.
 
-### 2. Add a frontend safety net in `CurationReviewPage.tsx`
+4) Keep refinement trigger aligned to normalized status
+- In `AIReviewInline.tsx`, keep auto-refine tied to actionable statuses after normalization (`warning` / `needs_revision` with comments).
+- In `CurationReviewPage.tsx`, retain existing Phase-2 trigger for comments as defensive fallback.
 
-After receiving triage results (line 1315-1316), add a client-side correction that moves any "pass" sections with comments into the `phase2_queue`. This ensures even if the edge function somehow returns pass-with-issues, the frontend still routes them correctly:
+Technical details (exact files)
 
-```ts
-// After line 1316:
-// Safety net: any "pass" section with comments should be in phase2_queue
-const correctedRouting = { ...routing };
-triageReviews.forEach(r => {
-  if (r.status === 'pass' && r.comments && r.comments.length > 0) {
-    r.status = 'warning';
-    correctedRouting.pass = correctedRouting.pass.filter(k => k !== r.section_key);
-    if (!correctedRouting.phase2_queue.includes(r.section_key)) {
-      correctedRouting.warning.push(r.section_key);
-      correctedRouting.phase2_queue.push(r.section_key);
-    }
-  }
-});
-```
+- `supabase/functions/review-challenge-sections/index.ts`
+- `supabase/functions/review-challenge-sections/promptTemplate.ts`
+- `src/lib/cogniblend/normalizeSectionReview.ts` (new)
+- `src/pages/cogniblend/CurationReviewPage.tsx`
+- `src/components/cogniblend/shared/AIReviewInline.tsx`
 
-Then use `correctedRouting` instead of `routing` for subsequent Phase 2 logic.
+Expected result after fix
 
-## Files
-
-| File | Action |
-|------|--------|
-| `supabase/functions/triage-challenge-sections/index.ts` | Redeploy (code already correct) |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Add client-side safety net after line 1316 |
-
+- If there are actionable comments, section status will be `Warning`/`Needs Revision` (never `Pass`).
+- `Pass` sections won’t show warning-like review blocks.
+- “Accept AI suggested version” will only appear for current, valid refinement output (no stale carryover).
+- Behavior is fixed once in shared flow and applies to all sections.
