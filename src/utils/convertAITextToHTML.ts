@@ -64,25 +64,39 @@ function processInlineFormatting(text: string): string {
 /* ── Parenthetical numbered pattern detection ───────────── */
 
 /**
- * Detect "(1) text, (2) text, (3) text" pattern in a single line
- * and split into individual ordered list items.
+ * Detect "(1) text, (2) text, (3) text" pattern in a single line.
+ * Returns intro text (before "(1)") and individual list items.
  */
-function tryParseParentheticalOl(line: string): string[] | null {
+function tryParseParentheticalOl(line: string): { intro: string | null; items: string[] } | null {
   const pattern = /\((\d+)\)\s+/g;
   const matches = [...line.matchAll(pattern)];
   if (matches.length < 2) return null;
+
+  // Extract intro text before "(1)"
+  const firstIndex = matches[0].index!;
+  let intro: string | null = line.slice(0, firstIndex).trim();
+  // Strip trailing colon from intro
+  if (intro) {
+    intro = intro.replace(/:\s*$/, "").trim() || null;
+  } else {
+    intro = null;
+  }
 
   const items: string[] = [];
   for (let i = 0; i < matches.length; i++) {
     const start = matches[i].index! + matches[i][0].length;
     const end = i + 1 < matches.length ? matches[i + 1].index! : line.length;
     let item = line.slice(start, end).trim();
-    // Strip trailing comma or semicolon separators
-    item = item.replace(/[,;]\s*$/, "").trim();
-    if (item) items.push(item);
+    // Strip trailing comma, semicolon, or period separators
+    item = item.replace(/[,;.]\s*$/, "").trim();
+    // Capitalize first letter
+    if (item) {
+      item = item.charAt(0).toUpperCase() + item.slice(1);
+      items.push(item);
+    }
   }
 
-  return items.length >= 2 ? items : null;
+  return items.length >= 2 ? { intro, items } : null;
 }
 
 /* ── Main: Text → HTML ──────────────────────────────────── */
@@ -162,10 +176,13 @@ export function convertAITextToHTML(rawText: string): string {
     flushOl();
 
     // Rule 8: parenthetical numbered pattern "(1) text, (2) text"
-    const parentheticalItems = tryParseParentheticalOl(trimmed);
-    if (parentheticalItems) {
+    const parentheticalResult = tryParseParentheticalOl(trimmed);
+    if (parentheticalResult) {
+      if (parentheticalResult.intro) {
+        blocks.push(`<p>${processInlineFormatting(parentheticalResult.intro)}:</p>`);
+      }
       blocks.push(
-        `<ol>${parentheticalItems.map((t) => `<li>${processInlineFormatting(t)}</li>`).join("")}</ol>`
+        `<ol>${parentheticalResult.items.map((t) => `<li>${processInlineFormatting(t)}</li>`).join("")}</ol>`
       );
       continue;
     }
