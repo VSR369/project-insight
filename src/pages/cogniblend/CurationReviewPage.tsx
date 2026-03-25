@@ -2494,18 +2494,16 @@ export default function CurationReviewPage() {
           </Card>
 
           {/* Per-section AI Review button */}
-          {!isReadOnly && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAIReview}
-              disabled={aiReviewLoading}
-              className="w-full"
-            >
-              {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-              Review Sections by AI
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAIReview}
+            disabled={aiReviewLoading}
+            className="w-full"
+          >
+            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+            Review Sections by AI
+          </Button>
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
