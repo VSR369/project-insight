@@ -18,6 +18,7 @@ import { useComplexityParams } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
 import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
 import { contentRequiresHumanInput } from "@/lib/cogniblend/creatorDataTransformer";
+import { findCorruptedFields } from "@/utils/migrateCorruptedContent";
 import { Badge } from "@/components/ui/badge";
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
@@ -1090,6 +1091,7 @@ export default function CurationReviewPage() {
   }, [sectionActions]);
 
 
+
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       const stored = Array.isArray(challenge.ai_section_reviews)
@@ -1124,6 +1126,25 @@ export default function CurationReviewPage() {
       setSavingSection(false);
     },
   });
+
+  // ── One-time migration: repair corrupted section content ──
+  const contentMigrationRanRef = useRef(false);
+  useEffect(() => {
+    if (!challenge || contentMigrationRanRef.current) return;
+    contentMigrationRanRef.current = true;
+
+    const targets = [
+      { dbField: 'problem_statement', content: challenge.problem_statement as string | null },
+      { dbField: 'scope', content: challenge.scope as string | null },
+      { dbField: 'hook', content: challenge.hook as string | null },
+      { dbField: 'description', content: challenge.description as string | null },
+    ];
+
+    const corrupted = findCorruptedFields(targets);
+    corrupted.forEach(({ dbField, fixed }) => {
+      saveSectionMutation.mutate({ field: dbField, value: fixed });
+    });
+  }, [challenge, saveSectionMutation]);
 
   // ══════════════════════════════════════
   // SECTION 4: Handlers
