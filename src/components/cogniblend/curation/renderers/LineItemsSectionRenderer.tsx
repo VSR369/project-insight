@@ -48,6 +48,7 @@ export function LineItemsSectionRenderer({
           onCancel={onCancel}
           saving={saving}
           badgePrefix={badgePrefix}
+          hideAcceptanceCriteria={hideAcceptanceCriteria}
         />
       );
     }
