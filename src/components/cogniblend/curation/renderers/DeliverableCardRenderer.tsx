@@ -18,6 +18,7 @@ interface DeliverableCardRendererProps {
 export function DeliverableCardRenderer({
   items,
   badgePrefix = "D",
+  hideAcceptanceCriteria = false,
 }: DeliverableCardRendererProps) {
   if (!items || items.length === 0) {
     return <p className="text-sm text-muted-foreground">No deliverables defined.</p>;
