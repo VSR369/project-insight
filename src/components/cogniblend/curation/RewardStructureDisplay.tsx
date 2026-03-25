@@ -169,8 +169,17 @@ export default function RewardStructureDisplay({
 
   // ── Has existing data check for toggle ──
   const hasExistingData =
-    (rewardData.monetary && rewardData.monetary.tiers.length > 0) ||
+    (rewardData.monetary && (rewardData.monetary.tiers.length > 0 || (rewardData.monetary.totalPool ?? 0) > 0)) ||
     (rewardData.nonMonetary && rewardData.nonMonetary.items.length > 0);
+
+  // ── Type switch handler with auto-save ──
+  const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
+    const hadData = !!hasExistingData;
+    setRewardType(type);
+    if (hadData) {
+      setPendingSave(true);
+    }
+  }, [setRewardType, hasExistingData]);
 
   // ══════════════════════════════════════
   // RENDER
