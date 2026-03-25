@@ -10,7 +10,7 @@
  *       AI rewrites section → Accept / Discard (item-level for structured sections)
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -234,6 +234,34 @@ export function AIReviewInline({
       setSelectedComments(new Set(comments.map((_, i) => i)));
     }
   }, [comments.length]);
+
+  // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
+  const autoRefineTriggered = React.useRef(false);
+  useEffect(() => {
+    if (
+      !autoRefineTriggered.current &&
+      !isLockedSection &&
+      review &&
+      !review.addressed &&
+      (review.status === "warning" || review.status === "needs_revision") &&
+      review.comments && review.comments.length > 0 &&
+      !refinedContent &&
+      !isRefining &&
+      selectedComments.size > 0
+    ) {
+      autoRefineTriggered.current = true;
+      // Small delay to allow UI to settle
+      const timer = setTimeout(() => {
+        handleRefineWithAI();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size]);
+
+  // Reset auto-refine flag when review changes (e.g. re-review)
+  useEffect(() => {
+    autoRefineTriggered.current = false;
+  }, [review?.reviewed_at]);
 
   // Parse structured items from refined content
   const structuredItems = useMemo(() => {
@@ -586,18 +614,19 @@ export function AIReviewInline({
               </Button>
             )}
 
-            {/* Non-locked sections: Refine with AI button */}
-            {!isLockedSection && !refinedContent && !isPassWithNoComments && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full text-xs h-7"
-                onClick={handleRefineWithAI}
-                disabled={isRefining || selectedComments.size === 0}
-              >
-                {isRefining ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-                {isRefining ? "Refining…" : currentContent ? "Refine with AI" : "Draft with AI"}
-              </Button>
+            {/* Non-locked sections: Skeleton loading while auto-refining */}
+            {!isLockedSection && isRefining && !refinedContent && !isPassWithNoComments && (
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Generating AI suggestion…</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
             )}
 
             {/* Non-locked sections: Result panel with Accept/Discard */}

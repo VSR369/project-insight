@@ -620,15 +620,6 @@ export function AIReviewResultPanel({
                   </label>
                 );
               })}
-              {/* Refine with AI button */}
-              <button
-                type="button"
-                className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg py-2.5 text-sm font-medium flex items-center justify-center gap-1.5 hover:opacity-90 hover:scale-[1.01] transition-all"
-                onClick={onAccept}
-              >
-                <Sparkles className="h-4 w-4" />
-                Refine with AI
-              </button>
             </div>
           )}
 
