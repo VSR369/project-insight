@@ -11,13 +11,8 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw, Send } from "lucide-react";
-import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { Check, Loader2, RefreshCw, Send } from "lucide-react";
 import { AIReviewResultPanel } from "@/components/cogniblend/curation/AIReviewResultPanel";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { supabase } from "@/integrations/supabase/client";
@@ -507,14 +502,8 @@ export function AIReviewInline({
   const allCommentsSelected = selectedComments.size === comments.length;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
-      <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full px-3 py-2">
-        <Bot className="h-3.5 w-3.5" />
-        <span className="font-medium">AI Review</span>
-        <Badge className={cn("text-[10px] px-1.5 py-0", style.className)}>{style.label}</Badge>
-        <ChevronDown className={cn("h-3 w-3 ml-auto transition-transform", isOpen && "rotate-180")} />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3 space-y-3">
+    <div className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
+      <div className="px-3 py-3 space-y-3">
         {isPending ? (
           <p className="text-xs text-muted-foreground italic py-2">
             Run <span className="font-medium text-foreground">"Review with AI"</span> to generate review comments for this section.
@@ -537,127 +526,60 @@ export function AIReviewInline({
                 This section looks good — no issues found.
               </p>
             ) : (
-              <div className="space-y-2">
-                {comments.length > 1 && !refinedContent && (
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <button
-                      type="button"
-                      className="underline hover:text-foreground transition-colors"
-                      onClick={allCommentsSelected ? handleClearAllComments : handleSelectAllComments}
-                    >
-                      {allCommentsSelected ? "Clear all" : "Select all"}
-                    </button>
-                    <span>({selectedComments.size}/{comments.length} selected)</span>
-                  </div>
+              <>
+                {/* Locked sections: Send to LC/FC button */}
+                {isLockedSection && !isPassWithNoComments && onSendToCoordinator && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs h-7"
+                    onClick={() => {
+                      const selectedText = comments
+                        .filter((_, i) => selectedComments.has(i))
+                        .join("\n\n");
+                      onSendToCoordinator(selectedText || comments.join("\n\n"));
+                    }}
+                    disabled={selectedComments.size === 0}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-1" />
+                    {hasSentBefore
+                      ? `Send Follow-up to ${coordinatorRole ?? "Coordinator"}`
+                      : `Send to ${coordinatorRole ?? "Coordinator"}`}
+                  </Button>
                 )}
-                {comments.map((comment, i) => (
-                  <div key={i} className="group">
-                    {editingIndex === i ? (
-                      <div className="space-y-1.5">
-                        <Textarea
-                          value={editedComments[i] ?? comment}
-                          onChange={(e) => handleCommentChange(i, e.target.value)}
-                          className="text-xs min-h-[60px] bg-background"
-                          placeholder="Edit this review comment to refine the AI instruction..."
-                        />
-                        <div className="flex gap-1.5 justify-end">
-                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditingIndex(null)}>Cancel</Button>
-                          <Button size="sm" className="h-6 text-[10px] px-2" onClick={handleSaveComment}>
-                            <Check className="h-3 w-3 mr-0.5" />Done
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-1.5 hover:bg-muted/50 rounded p-1 -mx-1 transition-colors">
-                        {!refinedContent && (
-                          <Checkbox
-                            checked={selectedComments.has(i)}
-                            onCheckedChange={() => handleToggleComment(i)}
-                            className="mt-0.5 h-3.5 w-3.5"
-                          />
-                        )}
-                        <span
-                          className={cn(
-                            "text-xs leading-relaxed flex-1 cursor-pointer",
-                            selectedComments.has(i) ? "text-foreground" : "text-muted-foreground line-through"
-                          )}
-                          onClick={() => handleEditComment(i)}
-                        >
-                          {comment}
-                        </span>
-                        <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity cursor-pointer" onClick={() => handleEditComment(i)} />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {/* Locked sections: Send to LC/FC button instead of Refine */}
-            {isLockedSection && !isPassWithNoComments && onSendToCoordinator && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full text-xs h-7"
-                onClick={() => {
-                  const selectedText = comments
-                    .filter((_, i) => selectedComments.has(i))
-                    .join("\n\n");
-                  onSendToCoordinator(selectedText || comments.join("\n\n"));
-                }}
-                disabled={selectedComments.size === 0}
-              >
-                <Send className="h-3.5 w-3.5 mr-1" />
-                {hasSentBefore
-                  ? `Send Follow-up to ${coordinatorRole ?? "Coordinator"}`
-                  : `Send to ${coordinatorRole ?? "Coordinator"}`}
-              </Button>
-            )}
-
-            {/* Non-locked sections: Skeleton loading while auto-refining */}
-            {!isLockedSection && isRefining && !refinedContent && !isPassWithNoComments && (
-              <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2.5">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Generating AI suggestion…</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
-                  <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
-                </div>
-              </div>
-            )}
-
-            {/* Non-locked sections: Result panel with Accept/Discard */}
-            {!isLockedSection && refinedContent && (
-              <AIReviewResultPanel
-                sectionKey={sectionKey}
-                result={{
-                  status: review?.status ?? "warning",
-                  comments: comments,
-                  suggested_version: refinedContent,
-                }}
-                structuredItems={structuredItems}
-                selectedItems={selectedItems}
-                onToggleItem={handleToggleItem}
-                onSelectAllItems={() => {
-                  const items = suggestedCodes ?? structuredItems;
-                  if (items) setSelectedItems(new Set(items.map((_, i) => i)));
-                }}
-                onClearItems={() => setSelectedItems(new Set())}
-                onAccept={handleAccept}
-                onDiscard={handleDiscard}
-                isStructured={isStructured}
-                isMasterData={isMasterData}
-                suggestedCodes={suggestedCodes}
-                masterDataOptions={masterDataOptions}
-                onSuggestedVersionChange={setEditedSuggestedContent}
-              />
+                {/* Non-locked sections: Unified panel with review + suggested version */}
+                {!isLockedSection && (
+                  <AIReviewResultPanel
+                    sectionKey={sectionKey}
+                    result={{
+                      status: review?.status ?? "warning",
+                      comments: comments,
+                      suggested_version: refinedContent ?? undefined,
+                    }}
+                    isRefining={isRefining}
+                    structuredItems={structuredItems}
+                    selectedItems={selectedItems}
+                    onToggleItem={handleToggleItem}
+                    onSelectAllItems={() => {
+                      const items = suggestedCodes ?? structuredItems;
+                      if (items) setSelectedItems(new Set(items.map((_, i) => i)));
+                    }}
+                    onClearItems={() => setSelectedItems(new Set())}
+                    onAccept={handleAccept}
+                    onDiscard={handleDiscard}
+                    isStructured={isStructured}
+                    isMasterData={isMasterData}
+                    suggestedCodes={suggestedCodes}
+                    masterDataOptions={masterDataOptions}
+                    onSuggestedVersionChange={setEditedSuggestedContent}
+                  />
+                )}
+              </>
             )}
           </>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </div>
   );
 }

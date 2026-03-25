@@ -50,6 +50,8 @@ interface MasterDataOption {
 interface AIReviewResultPanelProps {
   sectionKey: string;
   result: AIReviewResult;
+  /** Whether AI refinement is currently in progress */
+  isRefining?: boolean;
   /** Parsed structured items from AI suggestion (for line_items / table sections) */
   structuredItems: string[] | null;
   /** Selected items for structured accept */
@@ -340,6 +342,7 @@ function EditableScheduleRows({
 export function AIReviewResultPanel({
   sectionKey,
   result,
+  isRefining = false,
   structuredItems,
   selectedItems,
   onToggleItem,
@@ -353,8 +356,6 @@ export function AIReviewResultPanel({
   masterDataOptions,
   onSuggestedVersionChange,
 }: AIReviewResultPanelProps) {
-  const [detailsOpen, setDetailsOpen] = useState(true);
-  const [suggestedVersionOpen, setSuggestedVersionOpen] = useState(true);
 
   // Local edit state for each format type — always active (no toggle needed)
   const [editedRichText, setEditedRichText] = useState<string | null>(null);
@@ -498,265 +499,269 @@ export function AIReviewResultPanel({
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
-      <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+      {/* ── AI Review block — always visible ── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            AI Review Result
+            AI Review
           </span>
           <span className={cn("inline-flex items-center gap-1", statusBadge.className)}>
             <StatusIcon className="h-3 w-3" />
             {statusBadge.label}
           </span>
-          <ChevronDown
-            className={cn("h-3.5 w-3.5 ml-auto text-muted-foreground transition-transform", detailsOpen && "rotate-180")}
-          />
-        </CollapsibleTrigger>
+        </div>
 
-        <CollapsibleContent className="mt-3 space-y-4">
-          {/* ── Summary ── */}
-          {result.summary && (
-            <ExpandableAIComment content={result.summary} />
-          )}
+        {/* ── Summary ── */}
+        {result.summary && (
+          <ExpandableAIComment content={result.summary} />
+        )}
 
-          {/* ── Comments as styled checklist ── */}
-          {parsedComments.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Comments ({parsedComments.length})
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs rounded-full px-2 py-0.5">
-                    {selectedComments.size}/{parsedComments.length} selected
-                  </span>
+        {/* ── Comments as styled checklist ── */}
+        {parsedComments.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Comments ({parsedComments.length})
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center bg-muted text-muted-foreground text-xs rounded-full px-2 py-0.5">
+                  {selectedComments.size}/{parsedComments.length} selected
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={toggleAllComments}
+                >
+                  {allCommentsSelected ? (
+                    <>
+                      <Square className="h-3.5 w-3.5" />
+                      Clear all
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare className="h-3.5 w-3.5" />
+                      Select all
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            {parsedComments.map((comment, i) => {
+              const sev = comment.severity ? SEVERITY_CONFIG[comment.severity] : SEVERITY_CONFIG.warning;
+              const SevIcon = sev.icon;
+              const isSelected = selectedComments.has(i);
+              const isExpanded = expandedComments.has(i);
+              const isLong = comment.text.length > 160;
+              return (
+                <label
+                  key={i}
+                  className={cn(
+                    "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                    isSelected
+                      ? "bg-primary/5 border-primary/40"
+                      : "bg-card border-border hover:border-primary/30"
+                  )}
+                >
+                  {/* Custom checkbox */}
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={toggleAllComments}
-                  >
-                    {allCommentsSelected ? (
-                      <>
-                        <Square className="h-3.5 w-3.5" />
-                        Clear all
-                      </>
-                    ) : (
-                      <>
-                        <CheckSquare className="h-3.5 w-3.5" />
-                        Select all
-                      </>
+                    className={cn(
+                      "mt-0.5 w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors",
+                      isSelected
+                        ? "bg-primary border-primary"
+                        : "border-muted-foreground/30 bg-background"
                     )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleComment(i);
+                    }}
+                  >
+                    {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                  </button>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <Badge
+                        className={cn("text-[9px] px-1.5 py-0 shrink-0", sev.badgeClass)}
+                      >
+                        <SevIcon className="h-2.5 w-2.5 mr-0.5" />
+                        {sev.label}
+                      </Badge>
+                    </div>
+                    <span className={cn(
+                      "text-sm text-foreground leading-relaxed block",
+                      !isExpanded && isLong && "line-clamp-2"
+                    )}>
+                      {comment.text}
+                    </span>
+                    {isLong && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 font-medium"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleCommentExpand(i);
+                        }}
+                      >
+                        {isExpanded ? (
+                          <>Read less <ChevronUp className="h-3 w-3" /></>
+                        ) : (
+                          <>Read more <ChevronDown className="h-3 w-3" /></>
+                        )}
+                      </button>
+                    )}
+                    {comment.applies_to && (
+                      <blockquote className="border-l-2 border-primary/40 pl-2.5 text-[11px] text-muted-foreground italic">
+                        {comment.applies_to}
+                      </blockquote>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── AI Suggested Version — always visible, no collapse ── */}
+      {hasSuggestedVersion && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
+            ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
+          </p>
+
+          {/* ── Master-data codes as selectable chips ── */}
+          {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-muted-foreground">
+                  {selectedItems.size}/{resolvedCodes.length} selected
+                </span>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                    onClick={onSelectAllItems}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                    onClick={onClearItems}
+                  >
+                    Clear
                   </button>
                 </div>
               </div>
-              {parsedComments.map((comment, i) => {
-                const sev = comment.severity ? SEVERITY_CONFIG[comment.severity] : SEVERITY_CONFIG.warning;
-                const SevIcon = sev.icon;
-                const isSelected = selectedComments.has(i);
-                const isExpanded = expandedComments.has(i);
-                const isLong = comment.text.length > 160;
-                return (
-                  <label
-                    key={i}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
-                      isSelected
-                        ? "bg-blue-50 border-blue-400"
-                        : "bg-white border-gray-200 hover:border-blue-300"
+              {resolvedCodes.map((item, i) => (
+                <label
+                  key={item.code}
+                  className={cn(
+                    "flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer transition-colors",
+                    selectedItems.has(i)
+                      ? "bg-primary/10 border-primary/40"
+                      : "bg-background/50 border-border opacity-60",
+                    !item.isValid && "border-destructive/40 bg-destructive/5"
+                  )}
+                >
+                  <Checkbox
+                    checked={selectedItems.has(i)}
+                    onCheckedChange={() => onToggleItem(i)}
+                    className="mt-0.5 h-3.5 w-3.5"
+                  />
+                  <div className="flex-1 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{item.label}</span>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground font-mono">
+                        {item.code}
+                      </Badge>
+                      {!item.isValid && (
+                        <Badge variant="destructive" className="text-[9px] px-1 py-0">Invalid</Badge>
+                      )}
+                    </div>
+                    {item.description && (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{item.description}</p>
                     )}
-                  >
-                    {/* Custom checkbox */}
-                    <button
-                      type="button"
-                      className={cn(
-                        "mt-0.5 w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors",
-                        isSelected
-                          ? "bg-blue-600 border-blue-600"
-                          : "border-gray-300 bg-white"
-                      )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleComment(i);
-                      }}
-                    >
-                      {isSelected && <Check className="h-3 w-3 text-white" />}
-                    </button>
-                    <div className="flex-1 space-y-1.5">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <Badge
-                          className={cn("text-[9px] px-1.5 py-0 shrink-0", sev.badgeClass)}
-                        >
-                          <SevIcon className="h-2.5 w-2.5 mr-0.5" />
-                          {sev.label}
-                        </Badge>
-                      </div>
-                      <span className={cn(
-                        "text-sm text-gray-800 leading-relaxed block",
-                        !isExpanded && isLong && "line-clamp-2"
-                      )}>
-                        {comment.text}
-                      </span>
-                      {isLong && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-0.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            toggleCommentExpand(i);
-                          }}
-                        >
-                          {isExpanded ? (
-                            <>Read less <ChevronUp className="h-3 w-3" /></>
-                          ) : (
-                            <>Read more <ChevronDown className="h-3 w-3" /></>
-                          )}
-                        </button>
-                      )}
-                      {comment.applies_to && (
-                        <blockquote className="border-l-2 border-primary/40 pl-2.5 text-[11px] text-muted-foreground italic">
-                          {comment.applies_to}
-                        </blockquote>
-                      )}
-                    </div>
-                  </label>
-                );
-              })}
+                  </div>
+                </label>
+              ))}
             </div>
-          )}
+          ) : isStructured && structuredItems && structuredItems.length > 0 ? (
+            /* Structured line items — always editable */
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-72 overflow-y-auto space-y-1">
+              <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
+            </div>
+          ) : scheduleRows ? (
+            /* Schedule-format — always editable */
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-72 overflow-y-auto">
+              <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
+            </div>
+          ) : tableRows ? (
+            /* Table-format — always editable */
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-72 overflow-y-auto">
+              <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
+            </div>
+          ) : result.suggested_version ? (
+            /* Rich text — Tiptap editor */
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed">
+              <EditableRichText
+                value={editedRichText ?? result.suggested_version}
+                onChange={handleRichTextChange}
+              />
+            </div>
+          ) : null}
+        </div>
+      )}
 
-          {/* ── AI Suggested Version (format-native, collapsible) ── */}
-          {hasSuggestedVersion && (
-            <Collapsible open={suggestedVersionOpen} onOpenChange={setSuggestedVersionOpen}>
-              <div className="space-y-2">
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center justify-between w-full text-left group"
-                  >
-                    <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
-                      ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
-                    </p>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 text-blue-500 transition-transform duration-200",
-                        suggestedVersionOpen && "rotate-180"
-                      )}
-                    />
-                  </button>
-                </CollapsibleTrigger>
-
-                <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-                  {/* ── Master-data codes as selectable chips ── */}
-                  {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-muted-foreground">
-                          {selectedItems.size}/{resolvedCodes.length} selected
-                        </span>
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                            onClick={onSelectAllItems}
-                          >
-                            Select all
-                          </button>
-                          <button
-                            type="button"
-                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                            onClick={onClearItems}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      </div>
-                      {resolvedCodes.map((item, i) => (
-                        <label
-                          key={item.code}
-                          className={cn(
-                            "flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer transition-colors",
-                            selectedItems.has(i)
-                              ? "bg-primary/10 border-primary/40"
-                              : "bg-background/50 border-border opacity-60",
-                            !item.isValid && "border-destructive/40 bg-destructive/5"
-                          )}
-                        >
-                          <Checkbox
-                            checked={selectedItems.has(i)}
-                            onCheckedChange={() => onToggleItem(i)}
-                            className="mt-0.5 h-3.5 w-3.5"
-                          />
-                          <div className="flex-1 space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground">{item.label}</span>
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground font-mono">
-                                {item.code}
-                              </Badge>
-                              {!item.isValid && (
-                                <Badge variant="destructive" className="text-[9px] px-1 py-0">Invalid</Badge>
-                              )}
-                            </div>
-                            {item.description && (
-                              <p className="text-[11px] text-muted-foreground leading-relaxed">{item.description}</p>
-                            )}
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  ) : isStructured && structuredItems && structuredItems.length > 0 ? (
-                    /* Structured line items — always editable */
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto space-y-1">
-                      <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
-                    </div>
-                  ) : scheduleRows ? (
-                    /* Schedule-format — always editable */
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
-                      <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
-                    </div>
-                  ) : tableRows ? (
-                    /* Table-format — always editable */
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
-                      <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
-                    </div>
-                  ) : result.suggested_version ? (
-                    /* Rich text — Tiptap editor */
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-relaxed">
-                      <EditableRichText
-                        value={editedRichText ?? result.suggested_version}
-                        onChange={handleRichTextChange}
-                      />
-                    </div>
-                  ) : null}
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          )}
-
-          {/* ── Accept / Reject actions ── */}
-          <div className="flex gap-2 justify-end pt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg"
-              onClick={onDiscard}
-            >
-              <X className="h-3.5 w-3.5 mr-1" />
-              Discard
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg"
-              onClick={onAccept}
-            >
-              <Check className="h-3.5 w-3.5 mr-1" />
-              {isMasterData && resolvedCodes
-                ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
-                : isStructured && structuredItems
-                  ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
-                  : "Accept & Replace"}
-            </Button>
+      {/* ── Skeleton loader while refining ── */}
+      {isRefining && !hasSuggestedVersion && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
+            ✨ AI Suggested Version
+          </p>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+              <span>Generating AI suggestion…</span>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-full rounded bg-muted animate-pulse" />
+              <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
+            </div>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+      )}
+
+      {/* ── Accept / Edit & Accept / Decline actions ── */}
+      {(hasSuggestedVersion || isRefining) && (
+        <div className="flex gap-2 justify-end pt-1 border-t border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10 rounded-lg"
+            onClick={onDiscard}
+            disabled={isRefining}
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            Decline
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs rounded-lg"
+            onClick={onAccept}
+            disabled={isRefining}
+          >
+            <Check className="h-3.5 w-3.5 mr-1" />
+            {isMasterData && resolvedCodes
+              ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
+              : isStructured && structuredItems
+                ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
+                : "Accept"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
