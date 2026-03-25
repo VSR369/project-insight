@@ -260,10 +260,19 @@ export function AIReviewInline({
     }
   }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size]);
 
-  // Reset auto-refine flag when review changes (e.g. re-review)
+  // Reset auto-refine flag AND stale suggestion state when review changes (e.g. re-review or new deep review)
+  const prevReviewSignature = React.useRef<string | null>(null);
   useEffect(() => {
-    autoRefineTriggered.current = false;
-  }, [review?.reviewed_at]);
+    const sig = `${review?.reviewed_at}|${review?.status}|${(review?.comments ?? []).length}`;
+    if (prevReviewSignature.current !== null && prevReviewSignature.current !== sig) {
+      // Review changed — clear stale refinement/suggestion state
+      autoRefineTriggered.current = false;
+      setRefinedContent(null);
+      setEditedSuggestedContent(null);
+      setSelectedItems(new Set());
+    }
+    prevReviewSignature.current = sig;
+  }, [review?.reviewed_at, review?.status, review?.comments]);
 
   // Parse structured items from refined content
   const structuredItems = useMemo(() => {

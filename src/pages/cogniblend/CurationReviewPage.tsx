@@ -1549,9 +1549,10 @@ export default function CurationReviewPage() {
 
   /** Handle a single-section re-review result from the inline panel */
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
+    const normalized = normalizeSectionReview(freshReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const updated = [...filtered, { ...freshReview, addressed: false }];
+      const updated = [...filtered, { ...normalized, addressed: false }];
       // Persist updated reviews to DB
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
       return updated;
