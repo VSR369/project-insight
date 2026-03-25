@@ -1,69 +1,60 @@
 
 
-# Fix Deliverables: Add String Parser + Align Card Design
+# Render AI Suggested Version for Deliverables as Structured Cards
 
 ## Problem
 
-The `DeliverableCardRenderer` and `DeliverableCardEditor` components already exist, but deliverables stored as flat strings (e.g. `"D1: Functional ML Model: A fully trained machine learning model... Acceptance criteria: Inference latency under 200ms..."`) are never parsed into structured fields. The `getDeliverableObjects` function just maps them to `{ name: entireString, description: "", acceptance_criteria: "" }`, so the cards show a wall of text in the title with empty description/criteria.
-
-Additionally, the card design needs to match the reference spec (rounded-xl containers, bg-gray-50 header band, blue-50 pill badge, green-50 acceptance criteria block with dashed placeholder when empty).
+When AI generates a suggested version for the Deliverables section, the refinement output (structured JSON with name/description/acceptance_criteria) gets flattened to plain name strings in `parseStructuredItems()` (line 113 of `AIReviewInline.tsx`). The `AIReviewResultPanel` then renders these as `EditableLineItems` — simple numbered text inputs. The user wants the AI suggested version to use the same card design (D1/D2 badges, descriptions, acceptance criteria blocks) as the original section.
 
 ## Plan
 
-### 1. Create `parseDeliverableItem.ts` utility
+### 1. Preserve full deliverable objects in `AIReviewInline.tsx`
 
-**New file**: `src/utils/parseDeliverableItem.ts`
+In `parseStructuredItems()` (line 103), the `line_items` branch currently flattens objects to `item?.name`. For `deliverables` and `expected_outcomes` section keys, preserve the full JSON object as a stringified row instead of flattening.
 
-- `parseDeliverableItem(raw: string)` — regex parser for `"D{N}: Title: Description. Acceptance criteria: Criteria"` pattern
-- `parseDeliverableFromJSON(raw: string)` — handles pre-structured JSON objects (string or object)
-- `parseDeliverables(items: any[])` — orchestrator: tries JSON parse first, then regex, then fallback to `{ name: raw }`
+Better approach: add a new parsed state for deliverable objects alongside `structuredItems`. Create a `parsedDeliverableObjects` memo that parses the raw `refinedContent` using `parseDeliverables()` from the existing utility — only when `sectionKey` is `deliverables` or `expected_outcomes`.
 
-Handles all data shapes: structured DB objects, flat strings with `D1:` prefix, and plain strings without any pattern.
+Pass this as a new prop `deliverableItems` to `AIReviewResultPanel`.
 
-### 2. Update `getDeliverableObjects` in CurationReviewPage
+### 2. Add deliverable card rendering in `AIReviewResultPanel.tsx`
 
-Replace the current mapping logic to use `parseDeliverables()` so flat strings are decomposed into structured fields before reaching the card renderer.
+In the suggested version rendering branch (lines 761-783), add a check: if `deliverableItems` is provided and non-empty, render `DeliverableCardRenderer` (read-only preview) and `DeliverableCardEditor` (for editing) instead of `EditableLineItems`.
 
-### 3. Align card design to reference spec
+Add new local state `editedDeliverableItems` and wire change handler to `onSuggestedVersionChange`.
 
-Update `DeliverableCardRenderer.tsx` and `DeliverableCardEditor.tsx`:
-- Outer: `border border-gray-100 rounded-xl overflow-hidden`
-- Header band: `bg-gray-50 border-b border-gray-100 px-4 py-2.5` with ID badge (blue-50/blue-700 rounded-full) + title
-- Description: `text-[12px] text-gray-500 leading-relaxed`
-- Acceptance criteria: `bg-green-50 border border-green-100 rounded-lg` with CheckCircle icon + uppercase label
-- Empty criteria: dashed placeholder `"No acceptance criteria defined"`
-- Footer: item count summary
+### 3. Wire acceptance to pass full objects
 
-### 4. Apply same card renderer to Expected Outcomes
+In `AIReviewInline.tsx` `handleAccept()`, when deliverable objects are present, serialize them as `JSON.stringify({ items: deliverableObjects })` and pass to `onAcceptRefinement` — matching the format expected by `handleSaveStructuredDeliverables` in `CurationReviewPage.tsx`.
 
-The `expected_outcomes` case block (line 2216) also renders flat numbered lists. Wire it through the same `parseDeliverables` + `DeliverableCardRenderer` pattern (badges show `O1`, `O2` instead of `D1`, `D2`). Add a `badgePrefix` prop to the renderer.
+### 4. Add badge prefix awareness
 
-### 5. Update section config `render` functions
+Pass `badgePrefix` ("D" for deliverables, "O" for expected_outcomes) through the component chain so cards show correct badge IDs.
 
-The `render` callbacks in SECTIONS config (lines 262-276 for deliverables, 319-333 for expected_outcomes) also render flat numbered lists. Update them to use `DeliverableCardRenderer` with parsed items so the collapsed/summary view also shows cards.
+## Files
+
+| File | Change |
+|------|--------|
+| `src/components/cogniblend/shared/AIReviewInline.tsx` | Add `parsedDeliverableObjects` memo, pass to panel, handle in accept flow |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Add `deliverableItems` prop, render card components in suggested version slot, add edit state |
 
 ## Technical details
 
-### Files
-
-| File | Action |
-|------|--------|
-| `src/utils/parseDeliverableItem.ts` | Create — parser utility |
-| `src/components/cogniblend/curation/renderers/DeliverableCardRenderer.tsx` | Update — align design, add `badgePrefix` prop, add empty-criteria placeholder, add footer count |
-| `src/components/cogniblend/curation/renderers/DeliverableCardEditor.tsx` | Update — align design to match renderer |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Update — use `parseDeliverables` in `getDeliverableObjects`, wire expected_outcomes through card renderer, update SECTIONS config `render` functions |
-
-### Parser logic (core)
-
-```text
-Input:  "D1: Functional ML Model: A fully trained machine learning model that... Acceptance criteria: Inference latency under 200ms..."
-
-Step 1: Extract ID → "D1"
-Step 2: Split on "Acceptance criteria:" → before / after
-Step 3: Split before on first ":" → title / description
-
-Output: { id: "D1", name: "Functional ML Model", description: "A fully trained...", acceptance_criteria: "Inference latency..." }
+**New prop on `AIReviewResultPanel`:**
+```typescript
+deliverableItems?: DeliverableItem[];
+onDeliverableItemsChange?: (items: DeliverableItem[]) => void;
+badgePrefix?: string;
 ```
 
-Falls back gracefully: no `D1:` prefix → entire string becomes name. No `Acceptance criteria:` → description only. Already a JSON object → use directly.
+**Rendering logic in suggested version slot:**
+```text
+if deliverableItems → DeliverableCardEditor (editable cards)
+else if line_items → EditableLineItems (existing flat text)
+```
+
+**Accept flow:**
+```text
+if editedDeliverableItems exists → JSON.stringify({ items: editedDeliverableItems })
+else if structuredItems (line_items) → existing logic
+```
 
