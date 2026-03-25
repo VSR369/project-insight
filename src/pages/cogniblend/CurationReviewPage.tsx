@@ -943,6 +943,7 @@ export default function CurationReviewPage() {
   const [aiReviews, setAiReviews] = useState<SectionReview[]>([]);
   const [aiReviewsLoaded, setAiReviewsLoaded] = useState(false);
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [phase2Progress, setPhase2Progress] = useState({ total: 0, completed: 0 });
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
@@ -1299,6 +1300,7 @@ export default function CurationReviewPage() {
 
       // ── Phase 2: Deep suggestion (sequential, only non-pass) ──
       if (routing.phase2_queue.length > 0) {
+        setPhase2Progress({ total: routing.phase2_queue.length, completed: 0 });
         // Phase 2 runs in background — each section calls refine-challenge-section
         // The AIReviewInline auto-refine will handle this via its existing useEffect
         // We just need to trigger the detailed review for warning/inferred sections
@@ -1344,6 +1346,8 @@ export default function CurationReviewPage() {
             }
           } catch {
             // Individual section failure — triage result stays
+          } finally {
+            setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
           }
         }
       }
@@ -1351,6 +1355,7 @@ export default function CurationReviewPage() {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
     } finally {
       setAiReviewLoading(false);
+      setPhase2Progress({ total: 0, completed: 0 });
     }
   }, [challengeId, challenge]);
 
@@ -2628,6 +2633,21 @@ export default function CurationReviewPage() {
             {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
             Review Sections by AI
           </Button>
+
+          {/* Phase 2 Progress Bar */}
+          {phase2Progress.total > 0 && (
+            <Card className="border-border">
+              <CardContent className="pt-3 pb-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Phase 2: Deep review</p>
+                <Progress value={(phase2Progress.completed / phase2Progress.total) * 100} className="h-2" />
+                <p className="text-[10px] text-muted-foreground">
+                  {phase2Progress.completed}/{phase2Progress.total} sections analyzed
+                  {" · "}
+                  {Math.round((phase2Progress.completed / phase2Progress.total) * 100)}%
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
