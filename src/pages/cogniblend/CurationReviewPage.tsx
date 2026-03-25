@@ -1096,7 +1096,7 @@ export default function CurationReviewPage() {
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       const stored = Array.isArray(challenge.ai_section_reviews)
-        ? (challenge.ai_section_reviews as unknown as SectionReview[])
+        ? normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[])
         : [];
       if (stored.length > 0) {
         setAiReviews(stored);
