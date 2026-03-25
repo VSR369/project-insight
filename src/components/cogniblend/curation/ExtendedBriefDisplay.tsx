@@ -362,8 +362,7 @@ export default function ExtendedBriefDisplay({
 
             // ── Line items sections ──
             case "root_causes":
-            case "current_deficiencies":
-            case "extended_brief_expected_outcomes": {
+            case "current_deficiencies": {
               const items = ensureStringArray(rawVal);
               return (
                 <>
@@ -374,7 +373,7 @@ export default function ExtendedBriefDisplay({
                     onSave={(newItems) => handleSubsectionSave(subsectionKey, newItems)}
                     onCancel={cancelEdit}
                     saving={saving}
-                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : subsectionKey === "current_deficiencies" ? "Deficiency" : "Outcome"}
+                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : "Deficiency"}
                   />
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>

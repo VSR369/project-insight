@@ -446,7 +446,6 @@ serve(async (req) => {
         root_causes: (eb as any).root_causes ?? null,
         affected_stakeholders: (eb as any).affected_stakeholders ?? null,
         current_deficiencies: (eb as any).current_deficiencies ?? null,
-        extended_brief_expected_outcomes: (eb as any).expected_outcomes ?? null,
         preferred_approach: (eb as any).preferred_approach ?? null,
         approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
       };
