@@ -64,7 +64,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   agg_quick_bypass: {
     orgName: "AGG Quick Bypass Org",
     operatingModel: "AGG",
-    governanceProfile: "LIGHTWEIGHT",
+    governanceProfile: "QUICK",
     subscriptionTier: "basic",
     phase1Bypass: true,
     isEnterprise: false,
