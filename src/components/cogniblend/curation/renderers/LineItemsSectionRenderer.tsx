@@ -4,8 +4,9 @@
  */
 
 import { DeliverablesEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
-import { DeliverableCardRenderer, type DeliverableObject } from "./DeliverableCardRenderer";
+import { DeliverableCardRenderer } from "./DeliverableCardRenderer";
 import { DeliverableCardEditor } from "./DeliverableCardEditor";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 
 interface LineItemsSectionRendererProps {
   items: string[];
@@ -16,8 +17,9 @@ interface LineItemsSectionRendererProps {
   saving?: boolean;
   itemLabel?: string;
   /** When provided, renders structured deliverable cards instead of flat text */
-  structuredItems?: DeliverableObject[];
-  onSaveStructured?: (items: DeliverableObject[]) => void;
+  structuredItems?: DeliverableItem[];
+  onSaveStructured?: (items: DeliverableItem[]) => void;
+  badgePrefix?: string;
 }
 
 export function LineItemsSectionRenderer({
@@ -30,6 +32,7 @@ export function LineItemsSectionRenderer({
   itemLabel,
   structuredItems,
   onSaveStructured,
+  badgePrefix,
 }: LineItemsSectionRendererProps) {
   const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
 
@@ -42,6 +45,7 @@ export function LineItemsSectionRenderer({
           onSave={onSaveStructured}
           onCancel={onCancel}
           saving={saving}
+          badgePrefix={badgePrefix}
         />
       );
     }
@@ -58,7 +62,7 @@ export function LineItemsSectionRenderer({
 
   // View mode — structured cards
   if (useStructured) {
-    return <DeliverableCardRenderer items={structuredItems} />;
+    return <DeliverableCardRenderer items={structuredItems} badgePrefix={badgePrefix} />;
   }
 
   // View mode — plain text fallback

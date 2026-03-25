@@ -10,36 +10,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Save, X, GripVertical } from "lucide-react";
-import type { DeliverableObject } from "./DeliverableCardRenderer";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 
 interface DeliverableCardEditorProps {
-  items: DeliverableObject[];
-  onSave: (items: DeliverableObject[]) => void;
+  items: DeliverableItem[];
+  onSave: (items: DeliverableItem[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  badgePrefix?: string;
 }
-
-const BADGE_COLORS = [
-  "bg-primary/10 text-primary border-primary/20",
-  "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-400",
-  "bg-violet-500/10 text-violet-700 border-violet-500/20 dark:text-violet-400",
-  "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400",
-  "bg-rose-500/10 text-rose-700 border-rose-500/20 dark:text-rose-400",
-  "bg-teal-500/10 text-teal-700 border-teal-500/20 dark:text-teal-400",
-];
 
 export function DeliverableCardEditor({
   items,
   onSave,
   onCancel,
   saving,
+  badgePrefix = "D",
 }: DeliverableCardEditorProps) {
-  const [drafts, setDrafts] = useState<DeliverableObject[]>(
-    items.length > 0 ? items.map((d) => ({ ...d })) : [{ name: "", description: "", acceptance_criteria: "" }]
+  const [drafts, setDrafts] = useState<DeliverableItem[]>(
+    items.length > 0
+      ? items.map((d, i) => ({ ...d, id: d.id || `${badgePrefix}${i + 1}` }))
+      : [{ id: `${badgePrefix}1`, name: "", description: "", acceptance_criteria: "" }]
   );
 
   const updateField = useCallback(
-    (index: number, field: keyof DeliverableObject, value: string) => {
+    (index: number, field: keyof DeliverableItem, value: string) => {
       setDrafts((prev) =>
         prev.map((d, i) => (i === index ? { ...d, [field]: value } : d))
       );
@@ -48,12 +43,19 @@ export function DeliverableCardEditor({
   );
 
   const addItem = useCallback(() => {
-    setDrafts((prev) => [...prev, { name: "", description: "", acceptance_criteria: "" }]);
-  }, []);
+    setDrafts((prev) => [
+      ...prev,
+      { id: `${badgePrefix}${prev.length + 1}`, name: "", description: "", acceptance_criteria: "" },
+    ]);
+  }, [badgePrefix]);
 
   const removeItem = useCallback((index: number) => {
-    setDrafts((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+    setDrafts((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      // Re-index IDs
+      return updated.map((d, i) => ({ ...d, id: `${badgePrefix}${i + 1}` }));
+    });
+  }, [badgePrefix]);
 
   const handleSave = () => {
     const cleaned = drafts.filter((d) => d.name.trim().length > 0);
@@ -64,37 +66,36 @@ export function DeliverableCardEditor({
   const hasValidItems = drafts.some((d) => d.name.trim().length > 0);
 
   return (
-    <div className="space-y-4">
-      {drafts.map((draft, i) => {
-        const colorClass = BADGE_COLORS[i % BADGE_COLORS.length];
-        return (
-          <div
-            key={i}
-            className="rounded-lg border border-border bg-card p-4 space-y-3"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <GripVertical className="h-4 w-4 text-muted-foreground/50" />
-                <Badge
-                  variant="outline"
-                  className={`font-bold text-xs px-2 py-0.5 ${colorClass}`}
-                >
-                  D{i + 1}
-                </Badge>
-              </div>
-              {drafts.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => removeItem(i)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
+    <div className="space-y-3">
+      {drafts.map((draft, i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-border overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between bg-muted/50 border-b border-border px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <GripVertical className="h-4 w-4 text-muted-foreground/40" />
+              <Badge
+                variant="outline"
+                className="font-semibold text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800"
+              >
+                {draft.id}
+              </Badge>
             </div>
+            {drafts.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground/40 hover:text-destructive"
+                onClick={() => removeItem(i)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
 
+          <div className="p-4 space-y-3">
             {/* Name */}
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Name *</Label>
@@ -110,7 +111,7 @@ export function DeliverableCardEditor({
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea
-                value={draft.description ?? ""}
+                value={draft.description}
                 onChange={(e) => updateField(i, "description", e.target.value)}
                 placeholder="Detailed description of this deliverable..."
                 className="text-sm min-h-[60px]"
@@ -122,7 +123,7 @@ export function DeliverableCardEditor({
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Acceptance Criteria</Label>
               <Textarea
-                value={draft.acceptance_criteria ?? ""}
+                value={draft.acceptance_criteria}
                 onChange={(e) => updateField(i, "acceptance_criteria", e.target.value)}
                 placeholder="Criteria that must be met for this deliverable to be accepted..."
                 className="text-sm min-h-[60px]"
@@ -130,8 +131,8 @@ export function DeliverableCardEditor({
               />
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
 
       {/* Add + Save/Cancel */}
       <div className="flex items-center justify-between pt-1">

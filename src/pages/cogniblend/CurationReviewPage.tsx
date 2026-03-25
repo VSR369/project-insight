@@ -92,7 +92,10 @@ import {
   TagInputSectionRenderer,
   StructuredFieldsSectionRenderer,
   LegalDocsSectionRenderer,
+  DeliverableCardRenderer,
 } from "@/components/cogniblend/curation/renderers";
+import { parseDeliverables } from "@/utils/parseDeliverableItem";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
@@ -260,19 +263,9 @@ const SECTIONS: SectionDef[] = [
       return !!d && d.length > 0;
     },
     render: (ch) => {
-      const raw = parseJson<any>(ch.deliverables);
-      const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
-      if (!d || d.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
-      return (
-        <div className="space-y-2">
-          {d.map((item: any, i: number) => (
-            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
-              <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
-              {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
-            </div>
-          ))}
-        </div>
-      );
+      const items = getDeliverableObjects(ch);
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
+      return <DeliverableCardRenderer items={items} badgePrefix="D" />;
     },
   },
   {
@@ -317,19 +310,9 @@ const SECTIONS: SectionDef[] = [
       return Array.isArray(outcomes) && outcomes.length > 0;
     },
     render: (ch) => {
-      const eb = parseJson<any>(ch.extended_brief);
-      const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
-      if (outcomes.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
-      return (
-        <div className="space-y-2">
-          {outcomes.map((item: any, i: number) => (
-            <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
-              <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
-              {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
-            </div>
-          ))}
-        </div>
-      );
+      const items = getExpectedOutcomeObjects(ch);
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">None defined.</p>;
+      return <DeliverableCardRenderer items={items} badgePrefix="O" />;
     },
   },
   {
@@ -770,20 +753,18 @@ function getDeliverableItems(ch: ChallengeData): string[] {
   return d.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
 }
 
-/** Returns full structured deliverable objects, preserving description & acceptance_criteria */
-function getDeliverableObjects(ch: ChallengeData): { name: string; description?: string; acceptance_criteria?: string }[] {
+/** Returns full structured deliverable objects, using parser to decompose flat strings */
+function getDeliverableObjects(ch: ChallengeData, prefix: string = 'D'): DeliverableItem[] {
   const raw = parseJson<any>(ch.deliverables);
   const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
-  return d.map((item: any) => {
-    if (typeof item === "string") {
-      return { name: item, description: "", acceptance_criteria: "" };
-    }
-    return {
-      name: item?.name ?? "",
-      description: item?.description ?? "",
-      acceptance_criteria: item?.acceptance_criteria ?? "",
-    };
-  });
+  return parseDeliverables(d, prefix);
+}
+
+/** Returns expected outcome objects from extended_brief */
+function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
+  const eb = parseJson<any>(ch.extended_brief);
+  const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+  return parseDeliverables(outcomes, 'O');
 }
 
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
@@ -1176,9 +1157,9 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "deliverables", value: { items } });
   }, [saveSectionMutation]);
 
-  const handleSaveStructuredDeliverables = useCallback((items: { name: string; description?: string; acceptance_criteria?: string }[]) => {
+  const handleSaveStructuredDeliverables = useCallback((items: DeliverableItem[]) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "deliverables", value: { items } });
+    saveSectionMutation.mutate({ field: "deliverables", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
   }, [saveSectionMutation]);
 
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
@@ -2173,6 +2154,7 @@ export default function CurationReviewPage() {
                               itemLabel="Deliverable"
                               structuredItems={getDeliverableObjects(challenge)}
                               onSaveStructured={handleSaveStructuredDeliverables}
+                              badgePrefix="D"
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
@@ -2217,6 +2199,7 @@ export default function CurationReviewPage() {
                         const eb = parseJson<any>(challenge.extended_brief);
                         const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
                         const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+                        const structuredOutcomes = getExpectedOutcomeObjects(challenge);
                         return (
                           <>
                             <LineItemsSectionRenderer
@@ -2231,6 +2214,13 @@ export default function CurationReviewPage() {
                               onCancel={cancelEdit}
                               saving={savingSection}
                               itemLabel="Outcome"
+                              structuredItems={structuredOutcomes}
+                              onSaveStructured={(items) => {
+                                setSavingSection(true);
+                                const currentBrief = parseJson<any>(challenge.extended_brief) ?? {};
+                                saveSectionMutation.mutate({ field: "extended_brief", value: { ...currentBrief, expected_outcomes: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
+                              }}
+                              badgePrefix="O"
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
