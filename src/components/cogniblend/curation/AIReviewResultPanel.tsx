@@ -344,9 +344,8 @@ export function AIReviewResultPanel({
   onSuggestedVersionChange,
 }: AIReviewResultPanelProps) {
   const [detailsOpen, setDetailsOpen] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
 
-  // Local edit state for each format type
+  // Local edit state for each format type — always active (no toggle needed)
   const [editedRichText, setEditedRichText] = useState<string | null>(null);
   const [editedLineItems, setEditedLineItems] = useState<string[] | null>(null);
   const [editedTableRows, setEditedTableRows] = useState<Record<string, unknown>[] | null>(null);
@@ -391,7 +390,7 @@ export function AIReviewResultPanel({
     scheduleRows
   );
 
-  // Determine which format this suggestion is in (for edit mode)
+  // Determine which format this suggestion is in
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
     if (isStructured && structuredItems && structuredItems.length > 0) {
@@ -404,36 +403,55 @@ export function AIReviewResultPanel({
     return null;
   }, [isMasterData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
 
-  // Toggle edit mode and initialize edit state from current values
-  const handleToggleEdit = useCallback(() => {
-    if (!isEditing) {
-      // Entering edit mode — seed local edit state
-      if (suggestedFormat === "rich_text" && result.suggested_version) {
-        setEditedRichText(result.suggested_version);
-      } else if (suggestedFormat === "line_items" && structuredItems) {
-        setEditedLineItems([...structuredItems]);
-      } else if (suggestedFormat === "table" && tableRows) {
-        setEditedTableRows(tableRows.map(r => ({ ...r })));
-      } else if (suggestedFormat === "schedule_table" && scheduleRows) {
-        setEditedScheduleRows(scheduleRows.map(r => ({ ...r })));
-      }
-    } else {
-      // Leaving edit mode — emit changes
-      if (suggestedFormat === "rich_text" && editedRichText != null) {
-        onSuggestedVersionChange?.(editedRichText);
-      } else if (suggestedFormat === "line_items" && editedLineItems) {
-        onSuggestedVersionChange?.(editedLineItems.filter(i => i.trim()));
-      } else if (suggestedFormat === "table" && editedTableRows) {
-        onSuggestedVersionChange?.(editedTableRows);
-      } else if (suggestedFormat === "schedule_table" && editedScheduleRows) {
-        onSuggestedVersionChange?.(editedScheduleRows);
-      }
+  // Auto-seed edit state when data arrives or changes
+  useEffect(() => {
+    if (suggestedFormat === "rich_text" && result.suggested_version) {
+      setEditedRichText(result.suggested_version);
+      onSuggestedVersionChange?.(result.suggested_version);
     }
-    setIsEditing(!isEditing);
-  }, [isEditing, suggestedFormat, result.suggested_version, structuredItems, tableRows, scheduleRows, editedRichText, editedLineItems, editedTableRows, editedScheduleRows, onSuggestedVersionChange]);
+  }, [suggestedFormat, result.suggested_version]);
 
-  // Whether edit toggle should be shown (not for master data — already interactive)
-  const canEdit = suggestedFormat && suggestedFormat !== "master_data";
+  useEffect(() => {
+    if (suggestedFormat === "line_items" && structuredItems && structuredItems.length > 0) {
+      setEditedLineItems([...structuredItems]);
+      onSuggestedVersionChange?.([...structuredItems]);
+    }
+  }, [suggestedFormat, structuredItems]);
+
+  useEffect(() => {
+    if (suggestedFormat === "table" && tableRows) {
+      setEditedTableRows(tableRows.map(r => ({ ...r })));
+      onSuggestedVersionChange?.(tableRows);
+    }
+  }, [suggestedFormat, tableRows]);
+
+  useEffect(() => {
+    if (suggestedFormat === "schedule_table" && scheduleRows) {
+      setEditedScheduleRows(scheduleRows.map(r => ({ ...r })));
+      onSuggestedVersionChange?.(scheduleRows);
+    }
+  }, [suggestedFormat, scheduleRows]);
+
+  // Change handlers that emit to parent
+  const handleRichTextChange = useCallback((val: string) => {
+    setEditedRichText(val);
+    onSuggestedVersionChange?.(val);
+  }, [onSuggestedVersionChange]);
+
+  const handleLineItemsChange = useCallback((items: string[]) => {
+    setEditedLineItems(items);
+    onSuggestedVersionChange?.(items.filter(i => i.trim()));
+  }, [onSuggestedVersionChange]);
+
+  const handleTableRowsChange = useCallback((rows: Record<string, unknown>[]) => {
+    setEditedTableRows(rows);
+    onSuggestedVersionChange?.(rows);
+  }, [onSuggestedVersionChange]);
+
+  const handleScheduleRowsChange = useCallback((rows: Record<string, unknown>[]) => {
+    setEditedScheduleRows(rows);
+    onSuggestedVersionChange?.(rows);
+  }, [onSuggestedVersionChange]);
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
