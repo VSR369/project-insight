@@ -154,7 +154,7 @@ function isScheduleFormat(sectionKey: string): boolean {
 
 /* ── Inline edit sub-components ────────────────────────── */
 
-/** Editable rich text (textarea for markdown/prose) */
+/** Editable rich text using Tiptap RichTextEditor */
 function EditableRichText({
   value,
   onChange,
@@ -162,12 +162,14 @@ function EditableRichText({
   value: string;
   onChange: (val: string) => void;
 }) {
+  const htmlValue = useMemo(() => convertAITextToHTML(value), [value]);
+
   return (
-    <Textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="text-sm min-h-[120px] bg-background font-mono"
+    <RichTextEditor
+      value={htmlValue}
+      onChange={onChange}
       placeholder="Edit the AI suggestion..."
+      className="min-h-[120px]"
     />
   );
 }
