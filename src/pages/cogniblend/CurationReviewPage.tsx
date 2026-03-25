@@ -760,10 +760,10 @@ function getDeliverableObjects(ch: ChallengeData, prefix: string = 'D'): Deliver
   return parseDeliverables(d, prefix);
 }
 
-/** Returns expected outcome objects from extended_brief */
+/** Returns expected outcome objects from dedicated expected_outcomes column */
 function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
-  const eb = parseJson<any>(ch.extended_brief);
-  const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+  const eo = parseJson<any>(ch.expected_outcomes);
+  const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
   return parseDeliverables(outcomes, 'O');
 }
 
