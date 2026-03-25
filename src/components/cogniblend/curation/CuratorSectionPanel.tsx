@@ -466,12 +466,7 @@ export function CuratorSectionPanel({
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
             {/* Empty state placeholder */}
             {isContentEmpty ? (
-              <div className="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 py-10 flex flex-col items-center justify-center gap-2">
-                <p className="text-sm text-gray-400 text-center">
-                  Click to add content or Generate with AI{" "}
-                  <Sparkles className="h-4 w-4 inline text-amber-400" />
-                </p>
-              </div>
+              <SectionEmptyState sectionKey={sectionKey} label={label} />
             ) : (
               children
             )}
