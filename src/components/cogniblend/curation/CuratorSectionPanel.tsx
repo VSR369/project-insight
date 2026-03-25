@@ -490,10 +490,11 @@ export function CuratorSectionPanel({
 
             {/* Visual divider between content and AI review */}
             {aiReviewSlot && filled && (
-              <div className="relative my-4">
-                <div className="border-t border-dashed border-gray-300" />
-                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400">
-                  vs AI Suggestion
+              <div className="relative my-5">
+                <div className="border-t border-border" />
+                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  AI Analysis
                 </span>
               </div>
             )}
