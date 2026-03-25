@@ -1,34 +1,74 @@
 
 
-# Make AI Suggested Version Editable by Default (No Edit Button)
+# Reusable SectionCard Component
 
-## What changes
+## What it does
 
-Remove the explicit "Edit" toggle button from the AI Suggested Version panel. Instead, the suggested content should render in editable mode immediately — textarea for rich text, inline inputs for line items/tables/schedules. The user edits directly and clicks "Accept & Save" when ready.
+A generic, reusable card component for displaying content sections with consistent styling, collapsible body, status badges, action buttons, and a full-screen modal expand option. Replaces the inline `EditableSectionCard` / `ReadOnlySectionCard` pattern found in `AISpecReviewPage.tsx` and can be adopted across curation, spec, and publication pages.
 
-## Changes
+## Component API
 
-### File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+```typescript
+interface SectionCardProps {
+  icon: React.ReactNode;           // Lucide icon element
+  title: string;
+  status: "draft" | "ai_generated" | "accepted" | "editing";
+  defaultExpanded?: boolean;       // default true
+  children: React.ReactNode;       // collapsible body content
+  onAccept?: () => void;
+  onDecline?: () => void;
+  onEdit?: () => void;
+  onRegenerate?: () => void;
+  hideActions?: boolean;           // hide footer action bar
+  className?: string;
+}
+```
 
-1. **Remove `isEditing` state** — replace with always-on editing
-2. **Auto-seed edit state on mount/data change** — use `useEffect` to initialize `editedRichText`, `editedLineItems`, `editedTableRows`, `editedScheduleRows` from incoming data whenever `result.suggested_version` or `structuredItems` change
-3. **Remove the Edit/Done Editing button** (lines 500-510) and the `canEdit` / `handleToggleEdit` logic
-4. **Always render editable components** — replace all `{isEditing && editedX ? <EditableX /> : <ReadOnlyX />}` ternaries with just the editable version (for non-master-data formats)
-5. **Emit changes on every keystroke** — call `onSuggestedVersionChange` from the `setEdited*` callbacks (debounced or on blur) so the parent always has the latest content
-6. **Master data sections unchanged** — already interactive via checkboxes
+## Visual structure
 
-### File: `src/components/cogniblend/shared/AIReviewInline.tsx`
+```text
+┌─────────────────────────────────────────────────┐
+│  [icon] Title          [StatusBadge]    [↗ btn] │  ← header row
+│  ▼ chevron                                      │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  {children} — collapsible with animation        │
+│                                                 │
+├─────────────────────────────────────────────────┤
+│  [Accept] [Decline] [Edit] [AI Regenerate]      │  ← footer
+└─────────────────────────────────────────────────┘
+```
 
-No structural changes needed — it already tracks `editedSuggestedContent` state and uses it in `handleAccept`. The `onSuggestedVersionChange` callback is already wired.
-
-## Summary of UX change
-
-Before: View AI suggestion → Click Edit → Modify → Click Done Editing → Accept & Save
-After: View AI suggestion (already editable) → Modify if needed → Accept & Save
-
-## Files to modify
+## Files to create / modify
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Remove edit toggle, auto-initialize edit state, always render editable components, emit changes continuously |
+| `src/components/cogniblend/shared/SectionCard.tsx` | **New** — reusable component |
+
+## Implementation details
+
+### 1. `SectionCard.tsx`
+
+- **Card wrapper**: `rounded-xl border border-gray-100 bg-white shadow-sm p-6`; when `status === "accepted"`, add `border-primary/30 bg-primary/5`
+- **Header**: flex row with icon, title (`font-semibold text-gray-800`), status badge (color-coded: Draft=gray, AI Generated=amber with Sparkles icon, Accepted=green with Check), and top-right expand button (`Maximize2` icon)
+- **Collapsible body**: Use Radix `Collapsible` with `CollapsibleContent` + CSS `animate-accordion-down/up` for smooth open/close. Chevron rotates 180° when open. `gap-4` spacing inside
+- **Footer action bar**: Conditionally rendered row with four buttons:
+  - **Accept**: `variant="outline"` with `Check` icon, green tint
+  - **Decline**: `variant="outline"` with `X` icon, red/destructive tint
+  - **Edit**: `variant="ghost"` with `Pencil` icon
+  - **AI Regenerate**: `variant="ghost"` with `RefreshCw` + `Sparkles` icon
+  - Each button only renders if its callback prop is provided
+- **Full-screen modal**: Local `isFullScreen` state. When toggled, render a `Dialog` with `max-w-4xl` containing the same `{children}` + action bar. Uses existing `Dialog` component
+- **Padding**: `p-6` on card, `gap-4` between header/body/footer via `space-y-4`
+
+### 2. Status badge mapping
+
+| Status | Badge color | Label | Icon |
+|--------|------------|-------|------|
+| `draft` | `bg-gray-100 text-gray-600` | Draft | — |
+| `ai_generated` | `bg-amber-100 text-amber-700` | AI Generated | Sparkles |
+| `accepted` | `bg-green-100 text-green-800` | Accepted | Check |
+| `editing` | `bg-blue-100 text-blue-700` | Editing | Pencil |
+
+No changes to existing pages in this step — the component is created as a standalone reusable building block ready for adoption.
 
