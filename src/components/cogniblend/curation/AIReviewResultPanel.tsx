@@ -576,96 +576,27 @@ export function AIReviewResultPanel({
                   ))}
                 </div>
               ) : isStructured && structuredItems && structuredItems.length > 0 ? (
-                /* Structured line items (deliverables etc.) */
+                /* Structured line items — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto space-y-1">
-                  {isEditing && editedLineItems ? (
-                    <EditableLineItems items={editedLineItems} onChange={setEditedLineItems} />
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] text-muted-foreground">
-                          {selectedItems.size}/{structuredItems.length} items selected
-                        </span>
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                            onClick={onSelectAllItems}
-                          >
-                            Select all
-                          </button>
-                          <button
-                            type="button"
-                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                            onClick={onClearItems}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      </div>
-                      {structuredItems.map((item, i) => (
-                        <label
-                          key={i}
-                          className={cn(
-                            "flex items-start gap-2 rounded p-1.5 cursor-pointer transition-colors text-sm",
-                            selectedItems.has(i) ? "bg-primary/10" : "opacity-50"
-                          )}
-                        >
-                          <Checkbox
-                            checked={selectedItems.has(i)}
-                            onCheckedChange={() => onToggleItem(i)}
-                            className="mt-0.5 h-3.5 w-3.5"
-                          />
-                          <span className="flex-1 leading-relaxed">{item}</span>
-                        </label>
-                      ))}
-                    </>
-                  )}
+                  <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
                 </div>
               ) : scheduleRows ? (
-                /* Schedule-format suggested version (phase_schedule) */
+                /* Schedule-format — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
-                  {isEditing && editedScheduleRows ? (
-                    <EditableScheduleRows rows={editedScheduleRows} onChange={setEditedScheduleRows} />
-                  ) : (
-                    <ScheduleTableSectionRenderer
-                      data={scheduleRows}
-                      readOnly
-                      editing={false}
-                    />
-                  )}
+                  <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
                 </div>
               ) : tableRows ? (
-                /* Table-format suggested version (eval criteria, reward) */
+                /* Table-format — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
-                  {isEditing && editedTableRows ? (
-                    <EditableTableRows rows={editedTableRows} onChange={setEditedTableRows} />
-                  ) : (
-                    <TableSectionRenderer
-                      sectionKey={sectionKey}
-                      rows={tableRows.map((r) => ({
-                        name: String(r.name ?? r.criterion_name ?? r.parameter ?? ""),
-                        weight: Number(r.weight ?? r.weight_percentage ?? r.weight_percent ?? 0),
-                        scoring_type: String(r.scoring_type ?? "score"),
-                        evaluator_role: String(r.evaluator_role ?? ""),
-                        description: String(r.description ?? ""),
-                      }))}
-                      readOnly
-                      editing={false}
-                      onSave={() => {}}
-                      onCancel={() => {}}
-                      showWeightTotal
-                    />
-                  )}
+                  <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
                 </div>
               ) : result.suggested_version ? (
-                /* Rich text / markdown fallback */
+                /* Rich text — always editable */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-72 overflow-y-auto">
-                  {isEditing && editedRichText != null ? (
-                    <EditableRichText value={editedRichText} onChange={setEditedRichText} />
-                  ) : (
-                    <AiContentRenderer content={result.suggested_version} compact />
-                  )}
+                  <EditableRichText
+                    value={editedRichText ?? result.suggested_version}
+                    onChange={handleRichTextChange}
+                  />
                 </div>
               ) : null}
             </div>
