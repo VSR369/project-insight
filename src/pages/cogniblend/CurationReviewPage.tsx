@@ -1318,6 +1318,28 @@ export default function CurationReviewPage() {
                   saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
                   return merged;
                 });
+
+                // Auto-trigger Phase 2 refinement with issues from deep review
+                if (deepReview.comments && deepReview.comments.length > 0 && deepReview.status !== 'pass') {
+                  try {
+                    await supabase.functions.invoke("refine-challenge-section", {
+                      body: {
+                        challenge_id: challengeId,
+                        section_key: sectionKey,
+                        current_content: (challenge as any)?.[sectionKey] || "[empty]",
+                        issues: deepReview.comments,
+                        role_context: 'curation',
+                        context: {
+                          title: challenge?.title,
+                          maturity_level: challenge?.maturity_level,
+                          domain_tags: challenge?.domain_tags,
+                        },
+                      },
+                    });
+                  } catch {
+                    // Refinement failure non-blocking — review still visible
+                  }
+                }
               }
             }
           } catch {
