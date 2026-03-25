@@ -18,6 +18,7 @@ import { useComplexityParams } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
 import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
 import { contentRequiresHumanInput } from "@/lib/cogniblend/creatorDataTransformer";
+import { findCorruptedFields } from "@/utils/migrateCorruptedContent";
 import { Badge } from "@/components/ui/badge";
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
