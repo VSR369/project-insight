@@ -2154,6 +2154,7 @@ export default function CurationReviewPage() {
                               itemLabel="Deliverable"
                               structuredItems={getDeliverableObjects(challenge)}
                               onSaveStructured={handleSaveStructuredDeliverables}
+                              badgePrefix="D"
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
