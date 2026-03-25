@@ -22,7 +22,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   mp_quick: {
     orgName: "MP Quick Test Org",
     operatingModel: "MP",
-    governanceProfile: "LIGHTWEIGHT",
+    governanceProfile: "QUICK",
     subscriptionTier: "basic",
     phase1Bypass: false,
     isEnterprise: false,
@@ -33,7 +33,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   mp_enterprise_3: {
     orgName: "MP Enterprise Test Org",
     operatingModel: "MP",
-    governanceProfile: "ENTERPRISE",
+    governanceProfile: "CONTROLLED",
     subscriptionTier: "enterprise",
     phase1Bypass: false,
     isEnterprise: true,
@@ -46,7 +46,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   agg_enterprise_8: {
     orgName: "AGG Enterprise Test Org",
     operatingModel: "AGG",
-    governanceProfile: "ENTERPRISE",
+    governanceProfile: "CONTROLLED",
     subscriptionTier: "enterprise",
     phase1Bypass: false,
     isEnterprise: true,
@@ -64,7 +64,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   agg_quick_bypass: {
     orgName: "AGG Quick Bypass Org",
     operatingModel: "AGG",
-    governanceProfile: "LIGHTWEIGHT",
+    governanceProfile: "QUICK",
     subscriptionTier: "basic",
     phase1Bypass: true,
     isEnterprise: false,
@@ -75,7 +75,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   new_horizon_demo: {
     orgName: "New Horizon Company",
     operatingModel: "AGG",
-    governanceProfile: "ENTERPRISE",
+    governanceProfile: "CONTROLLED",
     subscriptionTier: "premium",
     phase1Bypass: false,
     isEnterprise: true,
