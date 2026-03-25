@@ -192,14 +192,17 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, current_content, curator_instructions, context, role_context } = await req.json();
+    const { challenge_id, section_key, current_content, curator_instructions, issues, context, role_context } = await req.json();
 
-    if (!challenge_id || !section_key || !curator_instructions) {
+    // Accept either curator_instructions (manual) or issues (Phase 2 auto)
+    if (!challenge_id || !section_key || (!curator_instructions && (!issues || issues.length === 0))) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id, section_key, and curator_instructions are required" } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id, section_key, and either curator_instructions or issues are required" } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const hasPhase1Issues = Array.isArray(issues) && issues.length > 0;
 
     const resolvedRoleContext = ["intake", "spec", "curation"].includes(role_context) ? role_context : "curation";
 
