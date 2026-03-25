@@ -555,6 +555,7 @@ export function AIReviewInline({
     setRefinedContent(null);
     setSelectedItems(new Set());
     setEditedSuggestedContent(null);
+    setEditedDeliverableItems(null);
   }, []);
 
   const isPending = !review;
