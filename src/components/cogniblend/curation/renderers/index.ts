@@ -13,3 +13,4 @@ export { RadioSectionRenderer } from './RadioSectionRenderer';
 export { TagInputSectionRenderer } from './TagInputSectionRenderer';
 export { StructuredFieldsSectionRenderer } from './StructuredFieldsSectionRenderer';
 export { LegalDocsSectionRenderer } from './LegalDocsSectionRenderer';
+export { TableLineItemRenderer } from './TableLineItemRenderer';
