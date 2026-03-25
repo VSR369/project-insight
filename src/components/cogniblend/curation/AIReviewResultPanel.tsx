@@ -775,12 +775,8 @@ export function AIReviewResultPanel({
             </div>
           ) : hasDeliverableCards ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
-              <DeliverableCardEditor
+              <DeliverableCardRenderer
                 items={deliverableItems!}
-                onSave={(updated) => {
-                  onDeliverableItemsChange?.(updated);
-                }}
-                onCancel={() => {/* no-op in suggestion context */}}
                 badgePrefix={badgePrefix}
               />
             </div>
