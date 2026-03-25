@@ -93,6 +93,7 @@ import {
   StructuredFieldsSectionRenderer,
   LegalDocsSectionRenderer,
   DeliverableCardRenderer,
+  EvaluationCriteriaSection,
 } from "@/components/cogniblend/curation/renderers";
 import { parseDeliverables } from "@/utils/parseDeliverableItem";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
