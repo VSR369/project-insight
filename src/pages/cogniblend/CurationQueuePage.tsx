@@ -3,7 +3,7 @@
  *
  * Shows ALL active challenges (phases 1-3) within the curator's organization.
  * Access restricted to users holding at least one active CU role.
- * Phase 1/2 challenges open in read-only mode; Phase 3 is fully editable.
+ * All challenges open in full edit mode; submission gated by governance rules.
  * Includes assignment indicators (Assigned to Me / Other / Unassigned).
  */
 
