@@ -32,7 +32,41 @@ const SINGLE_CODE_SECTIONS = new Set([
   "effort_level",
 ]);
 
-function getSystemPrompt(roleContext: string): string {
+/** Map section keys to their format type for prompt building */
+const SECTION_FORMAT_MAP: Record<string, string> = {
+  problem_statement: 'rich_text', scope: 'rich_text', hook: 'rich_text',
+  deliverables: 'line_items', expected_outcomes: 'line_items', submission_guidelines: 'line_items',
+  evaluation_criteria: 'table', reward_structure: 'table', affected_stakeholders: 'table',
+  phase_schedule: 'schedule_table',
+  complexity: 'checkbox_single', ip_model: 'checkbox_single', maturity_level: 'checkbox_single',
+  eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
+  challenge_visibility: 'select', effort_level: 'radio',
+  domain_tags: 'tag_input', solver_expertise: 'custom',
+  context_and_background: 'rich_text', root_causes: 'line_items',
+  current_deficiencies: 'line_items', extended_brief_expected_outcomes: 'line_items',
+  preferred_approach: 'rich_text', approaches_not_of_interest: 'line_items',
+};
+
+/**
+ * Build system prompt. When Phase 1 `issues` are provided, use a minimal
+ * focused prompt. Otherwise fall back to the verbose role-aware prompt
+ * for manual refinement calls.
+ */
+function getSystemPrompt(roleContext: string, issues?: string[]): string {
+  // ── Phase 2 minimal prompt (issues supplied from triage) ──
+  if (issues && issues.length > 0) {
+    return `You are fixing a specific curator section.
+
+Return ONLY the corrected content in the same format as the input.
+- If line items: return a JSON array of strings
+- If rich text: return clean HTML
+- If table: return JSON array of row objects
+- If schedule table: return JSON array of phase objects
+- If checkbox/select: return the code value(s) from allowed options only
+No explanation. No preamble. Corrected content only.`;
+  }
+
+  // ── Legacy verbose prompts for manual refinement ──
   if (roleContext === "intake") {
     return `You are an expert business brief writer helping Account Managers and Challenge Requestors improve their intake submissions.
 
@@ -79,15 +113,7 @@ Rules:
 - For structured fields (deliverables, evaluation_criteria, reward_structure, phase_schedule), return valid JSON matching the input structure.
 - Do NOT add markdown formatting unless the input already uses it.
 - Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
-- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, effort_level, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.
-
-When providing feedback on reward structures, evaluation criteria, scoring, or any structured data, return a JSON object using these schemas:
-
-For monetary/prize data:
-{"type":"monetary","description":"...","milestones":[{"name":"...","percentage":0}],"reward_distribution":{"platinum":"$X","gold":"$Y","silver":"$Z"},"tiered_perks":{"platinum":["..."],"gold":["..."],"silver":["..."]}}
-
-For evaluation/scoring:
-{"type":"evaluation","overall_score":82,"max_score":100,"grade":"A","feedback":"...","criteria":[{"name":"...","score":18,"max":20,"comment":"..."}],"recommendation":"..."}`;
+- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, effort_level, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.`;
 }
 
 /**
