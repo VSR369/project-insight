@@ -34,6 +34,7 @@ export function LineItemsSectionRenderer({
   structuredItems,
   onSaveStructured,
   badgePrefix,
+  hideAcceptanceCriteria,
 }: LineItemsSectionRendererProps) {
   const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
 
