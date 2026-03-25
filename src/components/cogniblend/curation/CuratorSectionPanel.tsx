@@ -397,8 +397,8 @@ export function CuratorSectionPanel({
             </Button>
           </div>
 
-          {/* Accept Section button in HEADER — locked sections only */}
-          {isLocked && !isReadOnly && (
+          {/* Accept Section button in HEADER — locked sections only (always visible regardless of isReadOnly) */}
+          {isLocked && (
             <div onClick={(e) => e.stopPropagation()} className="shrink-0">
               {isCuratorAccepted ? (
                 <div className="flex items-center gap-1.5">
