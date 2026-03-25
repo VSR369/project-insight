@@ -81,8 +81,8 @@ export function buildConfiguredSectionPrompt(config: SectionConfig): string {
 
   parts.push('');
   parts.push('For this section provide:');
-  parts.push('- status: "pass" (ready), "warning" (functional but improvable), or "needs_revision" (has issues that must be fixed)');
-  parts.push('- comments: 1-3 specific, actionable improvement instructions. For "pass" status, provide 0-1 optional enhancement suggestions.');
+  parts.push('- status: "pass" (ready — NO issues, comments MUST be an empty array), "warning" (functional but improvable — MUST have 1-3 comments), or "needs_revision" (has issues that must be fixed — MUST have 1-3 comments)');
+  parts.push('- comments: actionable improvement instructions. CRITICAL: For "pass" status, comments MUST be an empty array [].');
   parts.push('');
   parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
 
