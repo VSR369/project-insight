@@ -1,124 +1,57 @@
 
 
-# Curator UX Visual Polish — Final Aligned Plan
+# Fix: Regressions from UX Polish Changes
 
-## What's Already Done (No Work Needed)
+## Root Causes Identified
 
-Claude's review identified 7 "gaps" — 6 of 7 are already implemented in the codebase:
-- 2-phase batched triage pipeline (`triage-challenge-sections` edge function)
-- Tiptap editor in AI suggestions (`EditableRichText` → `RichTextEditor`)
-- `ExpandableAIComment` component (72px collapse, gradient fade, 320px scroll)
-- `BulkActionBar` (Accept all passing / Review warnings)
-- `LineItemsSectionRenderer` (numbered card blocks)
-- `convertAITextToHTML` with `(1) text` parenthetical pattern detection
+### Root Cause 1 — `SectionEmptyState` replaces children entirely (CRITICAL)
 
-## Actual Changes Needed
+In `CuratorSectionPanel.tsx` lines 468-472, the new code:
+```tsx
+{isContentEmpty ? (
+  <SectionEmptyState sectionKey={sectionKey} label={label} />
+) : (
+  children
+)}
+```
 
-### Phase 1 — Typography & Font (highest impact, zero risk)
+This was introduced in the UX polish. Before, `children` were **always** rendered. Now, when `filled` is false, `children` (which contain BOTH the content renderers AND the Edit button) are completely replaced by the empty state placeholder.
 
-**File: `index.html`**
-- Add Google Fonts import for Inter (400, 500, 600, 700)
+**Impact:** Edit buttons disappear for any section where `isFilled` returns false. Content that exists but doesn't pass the `isFilled` check is hidden.
 
-**File: `src/index.css`**
-- Replace `.editor-content { font-family: Georgia, 'Times New Roman', serif }` with `'Inter', system-ui, sans-serif`
-- Change `line-height: 1.85` → `1.75`
-- Apply Inter universally — **no serif anywhere**, including fullscreen modal (per Claude's Conflict 3 override)
+### Root Cause 2 — AI divider gated on `filled` hides visual context
 
-### Phase 2 — Section Panel Accent Bars & Badge Sizes
+Line 488: `{aiReviewSlot && filled && (` — the divider only renders when filled. The `aiReviewSlot` itself renders unconditionally (line 499), but the visual separation is lost for unfilled sections, making AI suggestions appear disconnected.
 
-**File: `src/components/cogniblend/curation/CuratorSectionPanel.tsx`**
+### Root Cause 3 — `ScheduleTableSectionRenderer` doesn't re-sync edit state
 
-Add 4px left border accent by status:
-- `not_reviewed`: transparent
-- `pass` / `accepted`: emerald-400
-- `warning`: amber-400
-- `needs_revision`: red-400
-- `view_only`: blue-400
+The `editRows` state is initialized once via `useState(() => rows)`. When the user clicks Edit, if `data` changed since initial mount (e.g., after accepting an AI suggestion), the edit form shows stale/empty data because `useState` initializer only runs once.
 
-Update badge font sizes from `text-[10px]` / `text-[9px]` → `text-[11px]` with proper padding.
+## Fixes
 
-Add `shadow-sm hover:shadow-md transition-shadow` to the panel container.
+### Fix 1 — Always render children, show empty state only as fallback
+**File:** `CuratorSectionPanel.tsx` (lines 466-472)
 
-### Phase 3 — Two-Row Header Layout
+Change from conditional replacement to always rendering children. Show `SectionEmptyState` only when the section has no content AND is not being edited (individual renderers already handle their own empty states like "None defined."). Remove the `isContentEmpty` gating entirely — children always render.
 
-**File: `src/components/cogniblend/curation/CuratorSectionPanel.tsx`**
+Also in the fullscreen modal (lines 543-549), apply the same fix.
 
-Split the single-row header into two visual rows:
-- **Row 1 (primary):** Chevron + Checkbox + Fill icon + Label + Status badge + Expand/Accept buttons
-- **Row 2 (secondary, smaller/muted):** Attribution badge + Prompt source badge + Inline flags
+### Fix 2 — Show AI divider regardless of filled state
+**File:** `CuratorSectionPanel.tsx` (line 488)
 
-This reduces cognitive overload — primary info stands out, metadata recedes.
+Change `{aiReviewSlot && filled && (` to `{aiReviewSlot && (` — the divider should show whenever there's AI review content, regardless of whether the section is filled.
 
-### Phase 4 — AI Review Block Elevation
+Same fix in fullscreen modal (line 553).
 
-**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
+### Fix 3 — Re-sync editRows when entering edit mode
+**File:** `ScheduleTableSectionRenderer.tsx`
 
-- Replace the dashed "vs AI Suggestion" divider with a clean horizontal rule + centered pill badge ("AI Analysis" with Bot icon)
-- Increase comment card padding from `p-3` → `p-4`, add `shadow-xs` border
-- Make severity badges 11px with consistent icons
-- **Flat solid fills only** — no gradients (per Claude's Conflict 1 override)
-- **No pulse animations** on Accept button (per Claude's Conflict 2 override)
-
-### Phase 5 — Elevated AI Suggestion Box
-
-**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
-
-- Replace `border-primary/20 bg-primary/5` with solid `bg-indigo-50 border-indigo-200 shadow-sm`
-- Add proper header bar: Sparkles icon + "AI Suggested Version" semibold + "Editable" badge
-- 4px indigo left accent line
-- Increase min-height for rich text suggestions
-
-### Phase 6 — Action Button Redesign
-
-**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
-
-- Make "Accept suggestion" button `h-10` with solid `bg-emerald-600 hover:bg-emerald-700`
-- Make "Keep original" a proper outlined button with more visual presence
-- Sticky footer positioning within the panel when suggestion is present
-
-### Phase 7 — Format-Aware Empty States
-
-**New file: `src/components/cogniblend/curation/SectionEmptyState.tsx`**
-
-Per-format contextual placeholders:
-- Rich text: "Write or generate a problem statement..."
-- Line items: "Add deliverables or let AI generate them"
-- Table: mini table skeleton + "Add evaluation criteria"
-- Date: calendar icon + "Set submission deadline"
-- Select: radio illustration + "Choose an option"
-
-**File: `src/components/cogniblend/curation/CuratorSectionPanel.tsx`**
-- Replace generic "Click to add content or Generate with AI" with `SectionEmptyState`
-
-### Phase 8 — Pass Section Clean Confirmed State
-
-**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
-
-- Replace plain "no issues found" with a clean card: solid emerald-50 background, CheckCircle icon, "Section Verified" text, confidence percentage
-- **No stamp graphic** (per Claude's Conflict 4 override) — just green left accent bar + "Verified" badge + collapse
-
-### Phase 9 — Master Data Source Tags (Gap 6)
-
-**File: `src/components/cogniblend/curation/CuratorSectionPanel.tsx`**
-
-- When a section is populated from master data, show a small "Source: Master Data" tag
-- Add "Reset to Master" option in section actions
-- Visual indicator (subtle icon) on master-filled fields
+Add a `useEffect` that resets `editRows` from the latest `data` prop when `editing` changes to `true`. This ensures the edit form always shows current data.
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `index.html` | Add Inter font import from Google Fonts |
-| `src/index.css` | Georgia → Inter, line-height 1.85 → 1.75, universal sans-serif |
-| `CuratorSectionPanel.tsx` | 4px accent bars, two-row header, badge sizes 11px, shadow, empty state swap, master data tags |
-| `AIReviewResultPanel.tsx` | Comment card elevation, suggestion box redesign, action buttons h-10, divider redesign, pass celebration state |
-| New: `SectionEmptyState.tsx` | Format-aware contextual empty states |
-
-## Design Principles Applied
-
-- **Flat solid fills** — no gradients anywhere (professional SaaS aesthetic)
-- **Inter font universal** — no serif fallbacks, not even in modals
-- **No micro-animations** — status communicated via color accents only
-- **No playful elements** — enterprise-appropriate verified states
+| File | Change |
+|------|--------|
+| `CuratorSectionPanel.tsx` | Remove `isContentEmpty` conditional — always render children; fix AI divider gating |
+| `ScheduleTableSectionRenderer.tsx` | Add useEffect to re-sync editRows when entering edit mode |
 
