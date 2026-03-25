@@ -1620,7 +1620,16 @@ export default function CurationReviewPage() {
   }
 
   const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
-  const isReadOnly = (challenge.current_phase ?? 0) < 3 || searchParams.get('mode') === 'view';
+  const isReadOnly = (challenge.current_phase ?? 0) < 3;
+
+  // Derive whether legal/escrow sections are accepted (for submission gating only)
+  const isLegalAccepted = sectionActions.some(
+    a => a.section_key === 'legal_docs' && a.action_type === 'approval' && a.status === 'approved'
+  );
+  const isEscrowAccepted = sectionActions.some(
+    a => a.section_key === 'escrow_funding' && a.action_type === 'approval' && a.status === 'approved'
+  );
+  const legalEscrowBlocked = !isLegalAccepted || !isEscrowAccepted;
 
   const phaseDescription = challenge.current_phase === 1
     ? 'Spec Creation (Phase 1)'
