@@ -4,8 +4,9 @@
  */
 
 import { DeliverablesEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
-import { DeliverableCardRenderer, type DeliverableObject } from "./DeliverableCardRenderer";
+import { DeliverableCardRenderer } from "./DeliverableCardRenderer";
 import { DeliverableCardEditor } from "./DeliverableCardEditor";
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 
 interface LineItemsSectionRendererProps {
   items: string[];
@@ -16,8 +17,9 @@ interface LineItemsSectionRendererProps {
   saving?: boolean;
   itemLabel?: string;
   /** When provided, renders structured deliverable cards instead of flat text */
-  structuredItems?: DeliverableObject[];
-  onSaveStructured?: (items: DeliverableObject[]) => void;
+  structuredItems?: DeliverableItem[];
+  onSaveStructured?: (items: DeliverableItem[]) => void;
+  badgePrefix?: string;
 }
 
 export function LineItemsSectionRenderer({
