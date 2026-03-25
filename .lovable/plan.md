@@ -1,57 +1,60 @@
 
 
-# Fix: Regressions from UX Polish Changes
+# Auto-Detect & Render Tabular AI Line Items
 
-## Root Causes Identified
+## Problem
 
-### Root Cause 1 — `SectionEmptyState` replaces children entirely (CRITICAL)
+When AI returns structured JSON objects as line items (e.g., `{"criterion":"Model Accuracy","weight":30,"scoring_method":"AUC > 0.90 = 30pts","evaluator_role":"Lead Data Scientist"}`), the `EditableLineItems` component renders them as raw JSON strings in textareas. They should render as a professional table matching the reference screenshot.
 
-In `CuratorSectionPanel.tsx` lines 468-472, the new code:
-```tsx
-{isContentEmpty ? (
-  <SectionEmptyState sectionKey={sectionKey} label={label} />
-) : (
-  children
-)}
+## Changes
+
+### 1. New utility: `src/utils/detectAndParseLineItems.ts`
+
+- `detectAndParseLineItems(items: string[])` — tries `JSON.parse` on each item; if all parse to objects, returns `{ type: 'table', schema: string[], rows: Record<string, string>[] }`, otherwise `{ type: 'plain', ... }`
+- `parseScoringMethod(raw: string)` — splits `"X = 20 pts, Y = 10 pts"` into `[{ condition, points }]` for multi-line rendering
+
+### 2. New component: `src/components/cogniblend/curation/renderers/TableLineItemRenderer.tsx`
+
+A styled editable table matching the reference screenshot:
+
+| Element | Style |
+|---------|-------|
+| Container | `bg-white border border-gray-100 rounded-xl overflow-hidden` |
+| thead | `bg-gray-50`, columns uppercase 11px semibold |
+| "criterion" column | `font-medium text-gray-900` |
+| "weight" column | Color-coded pill badge (≥25 green, 15-24 purple, <15 gray) + "pts" suffix |
+| "scoring_method" column | Parsed via `parseScoringMethod()`, each segment on its own line: **condition** = points |
+| "evaluator_role" column | Gray pill badge with subtle border |
+| Delete column | Trash icon, visible on row hover only |
+| Footer | Total weight sum (green if 100, amber if not) + "+ Add criterion" row |
+
+Props: `rows`, `schema`, `onChange`, `onAddRow`, `onRemoveRow` — fully editable inline (inputs for criterion/weight/evaluator_role, textarea for scoring_method).
+
+### 3. Wire into `AIReviewResultPanel.tsx`
+
+In the structured items branch (line ~759-762), before rendering `EditableLineItems`:
+
+```
+const detection = detectAndParseLineItems(structuredItems);
+if (detection.type === 'table') {
+  render <TableLineItemRenderer rows={detection.rows} schema={detection.schema} onChange={...} />
+} else {
+  render existing <EditableLineItems ... />
+}
 ```
 
-This was introduced in the UX polish. Before, `children` were **always** rendered. Now, when `filled` is false, `children` (which contain BOTH the content renderers AND the Edit button) are completely replaced by the empty state placeholder.
+The `onChange` callback serializes edited rows back to `string[]` (each row as `JSON.stringify(rowObj)`) so the existing `onSuggestedVersionChange` and accept flow works unchanged.
 
-**Impact:** Edit buttons disappear for any section where `isFilled` returns false. Content that exists but doesn't pass the `isFilled` check is hidden.
+### 4. No edge function changes needed
 
-### Root Cause 2 — AI divider gated on `filled` hides visual context
+The `parseTableRows` function already handles JSON array parsing. The `SECTION_FORMAT_CONFIG` already marks `evaluation_criteria` as `table` format. The issue is purely in the rendering path — structured items arrive as `string[]` where each string is a JSON object, and `EditableLineItems` doesn't detect this.
 
-Line 488: `{aiReviewSlot && filled && (` — the divider only renders when filled. The `aiReviewSlot` itself renders unconditionally (line 499), but the visual separation is lost for unfilled sections, making AI suggestions appear disconnected.
+## Files
 
-### Root Cause 3 — `ScheduleTableSectionRenderer` doesn't re-sync edit state
-
-The `editRows` state is initialized once via `useState(() => rows)`. When the user clicks Edit, if `data` changed since initial mount (e.g., after accepting an AI suggestion), the edit form shows stale/empty data because `useState` initializer only runs once.
-
-## Fixes
-
-### Fix 1 — Always render children, show empty state only as fallback
-**File:** `CuratorSectionPanel.tsx` (lines 466-472)
-
-Change from conditional replacement to always rendering children. Show `SectionEmptyState` only when the section has no content AND is not being edited (individual renderers already handle their own empty states like "None defined."). Remove the `isContentEmpty` gating entirely — children always render.
-
-Also in the fullscreen modal (lines 543-549), apply the same fix.
-
-### Fix 2 — Show AI divider regardless of filled state
-**File:** `CuratorSectionPanel.tsx` (line 488)
-
-Change `{aiReviewSlot && filled && (` to `{aiReviewSlot && (` — the divider should show whenever there's AI review content, regardless of whether the section is filled.
-
-Same fix in fullscreen modal (line 553).
-
-### Fix 3 — Re-sync editRows when entering edit mode
-**File:** `ScheduleTableSectionRenderer.tsx`
-
-Add a `useEffect` that resets `editRows` from the latest `data` prop when `editing` changes to `true`. This ensures the edit form always shows current data.
-
-## Files Modified
-
-| File | Change |
+| File | Action |
 |------|--------|
-| `CuratorSectionPanel.tsx` | Remove `isContentEmpty` conditional — always render children; fix AI divider gating |
-| `ScheduleTableSectionRenderer.tsx` | Add useEffect to re-sync editRows when entering edit mode |
+| `src/utils/detectAndParseLineItems.ts` | Create — JSON detection + scoring method parser |
+| `src/components/cogniblend/curation/renderers/TableLineItemRenderer.tsx` | Create — Professional editable table renderer |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Edit lines 759-762 — add detection branch |
+| `src/components/cogniblend/curation/renderers/index.ts` | Edit — add barrel export |
 
