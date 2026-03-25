@@ -165,7 +165,6 @@ export default function CurationActions({
     },
   });
 
-  const isLegalPending = phaseStatus === 'LEGAL_VERIFICATION_PENDING';
   const isAmDeclined = phaseStatus === 'AM_DECLINED';
   const isFinalCycle = amendmentCount >= 3;
   const maxCycles = 3;
@@ -267,8 +266,8 @@ export default function CurationActions({
   });
 
   const handleSubmitClick = () => {
-    if (isLegalPending) {
-      toast.error('Legal documents must be attached before curation can begin.');
+    if (legalEscrowBlocked) {
+      toast.error(blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.');
       return;
     }
     if (hasOutstandingRequired) {
@@ -384,7 +383,7 @@ export default function CurationActions({
           <Button
             className="w-full"
             onClick={handleSubmitClick}
-            disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired || legalEscrowBlocked}
+            disabled={completePhase.isPending || amApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked}
             title={legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
           >
             {(completePhase.isPending || amApprovalMutation.isPending) ? (
