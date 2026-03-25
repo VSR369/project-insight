@@ -1,47 +1,61 @@
 
+Goal: remove the confusing AI-review states by making completion explicit, status logic consistent, and suggestion generation deterministic.
 
-# Ensure Full Section Coverage & Remove EB Expected Outcomes
+1) Keep Phase 2 progress at 100% after completion
+- File: `src/pages/cogniblend/CurationReviewPage.tsx`
+- Replace the current `{total, completed}` reset behavior with a run-state model:
+  - `idle` (no run yet), `running`, `completed`.
+- During review:
+  - start with `running` + known total
+  - increment completed per section
+  - on finish, set `completed = total` and state = `completed` (do not clear to 0).
+- UI:
+  - keep showing the card after completion with `100%` and “Completed”.
+  - clear only when a new AI review run starts.
 
-## Current State
+2) Remove “PASS + warning comments” contradiction
+- Files:
+  - `supabase/functions/review-challenge-sections/index.ts`
+  - `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+- Backend normalization after LLM response:
+  - if `status = pass` but comments are mandatory/actionable (e.g., must/add/include/missing/required), auto-convert to `warning`.
+- Frontend rendering:
+  - for true pass comments, display them as “Optional suggestions” (not warning/required badges).
+  - keep warning/needs_revision as actionable.
+- Result: if user sees Warning, it is truly something to address; Pass is non-blocking.
 
-**Frontend groups** show 28 sections total:
-- Content (7): problem_statement, scope, deliverables, expected_outcomes, submission_guidelines, maturity_level, hook
-- Evaluation (3): evaluation_criteria, reward_structure, complexity
-- Legal & Finance (4): ip_model, legal_docs, escrow_funding, domain_tags
-- Publication (7): phase_schedule, eligibility, visibility, solver_expertise, submission_deadline, challenge_visibility, effort_level
-- Extended Brief (7): context_and_background, root_causes, affected_stakeholders, current_deficiencies, extended_brief_expected_outcomes, preferred_approach, approaches_not_of_interest
+3) Make AI Suggested Version consistent for all warning sections
+- Files:
+  - `src/components/cogniblend/shared/AIReviewInline.tsx`
+  - `src/pages/cogniblend/CurationReviewPage.tsx`
+- Root issue: suggestions currently depend on inline component lifecycle/visibility, so some sections never get a suggestion immediately.
+- Fix:
+  - store refinement output per section at page level when Phase 2 runs (not only local component state).
+  - extend review model with fields like:
+    - `suggested_version?: string`
+    - `refinement_state?: "pending" | "done" | "failed"`
+  - pass this into `AIReviewInline` so every warning section shows either:
+    - suggestion content, or
+    - a deterministic pending/failed state with retry.
+- This removes “some warnings have suggestion / some don’t” inconsistency.
 
-**Edge function** (`CURATION_SECTION_KEYS`) has 27 — missing `expected_outcomes`.
+4) UX copy cleanup to reduce confusion
+- Files:
+  - `src/components/cogniblend/shared/AIReviewInline.tsx`
+  - `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+- Update labels:
+  - “Comments” → “Required fixes” for warning/needs_revision.
+  - “Comments” → “Optional suggestions” for pass.
+- Keep existing pass confirmation flow intact (Looks good / Flag for review).
 
-## Changes
+Technical details
+- No schema migration needed (stored in existing JSON review payload).
+- `SectionReview` type should be updated in shared type definition to include refinement fields.
+- Preserve existing triage confidence behavior; this plan only fixes state semantics and visibility consistency.
 
-### 1. Remove `extended_brief_expected_outcomes` everywhere
-
-This section duplicates `expected_outcomes` (already in Content group). Remove it from:
-
-- **`supabase/functions/triage-challenge-sections/index.ts`** — remove from `CURATION_SECTION_KEYS`
-- **`src/lib/cogniblend/curationSectionFormats.ts`** — remove from `SECTION_FORMAT_CONFIG`, `EXTENDED_BRIEF_SUBSECTION_KEYS` (7 → 6), and `EXTENDED_BRIEF_FIELD_MAP`
-- **`supabase/functions/review-challenge-sections/promptTemplate.ts`** — remove from `SECTION_FORMAT_MAP` and `EXTENDED_BRIEF_FORMAT_INSTRUCTIONS`
-- **`src/lib/aiReviewPromptTemplate.ts`** — remove from its copy of these maps
-
-### 2. Add `expected_outcomes` to edge function triage
-
-Add `"expected_outcomes"` to `CURATION_SECTION_KEYS` in `triage-challenge-sections/index.ts`. This brings the total to 27 sections (matching 27 in the frontend after EB removal).
-
-### 3. No collapsible AI Suggested Version
-
-Dropped per user request — the AI Suggested Version panel stays as-is (always visible).
-
-## Final Section Count
-
-After changes: 7 + 3 + 4 + 7 + 6 = **27 sections**, all covered by the triage edge function.
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `supabase/functions/triage-challenge-sections/index.ts` | Add `expected_outcomes`, remove `extended_brief_expected_outcomes` |
-| `src/lib/cogniblend/curationSectionFormats.ts` | Remove `extended_brief_expected_outcomes` from config, subsection keys, field map |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Remove from format maps |
-| `src/lib/aiReviewPromptTemplate.ts` | Remove from format maps |
-
+Validation checklist
+- Run “Review Sections by AI”.
+- Confirm progress card reaches and stays at `100% Completed`.
+- Confirm no section displays Pass while showing warning/required comments.
+- Confirm every warning/needs_revision section shows either a suggestion, a loader, or explicit failed+retry state (never blank).
+- Confirm counts in right-rail summary match visible section statuses.
