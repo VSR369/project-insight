@@ -13,14 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2 } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
 import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/renderers/ScheduleTableSectionRenderer";
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
+import { convertAITextToHTML } from "@/lib/convertAITextToHTML";
 import { cn } from "@/lib/utils";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -152,7 +153,7 @@ function isScheduleFormat(sectionKey: string): boolean {
 
 /* ── Inline edit sub-components ────────────────────────── */
 
-/** Editable rich text (textarea for markdown/prose) */
+/** Editable rich text using Tiptap RichTextEditor */
 function EditableRichText({
   value,
   onChange,
@@ -160,12 +161,14 @@ function EditableRichText({
   value: string;
   onChange: (val: string) => void;
 }) {
+  const htmlValue = useMemo(() => convertAITextToHTML(value), [value]);
+
   return (
-    <Textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="text-sm min-h-[120px] bg-background font-mono"
+    <RichTextEditor
+      value={htmlValue}
+      onChange={onChange}
       placeholder="Edit the AI suggestion..."
+      className="min-h-[120px]"
     />
   );
 }
@@ -512,14 +515,14 @@ export function AIReviewResultPanel({
           {hasSuggestedVersion && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  AI Suggested {isMasterData ? "Selection" : "Version"}
+                <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
+                  ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
                 </p>
               </div>
 
               {/* ── Master-data codes as selectable chips ── */}
               {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] text-muted-foreground">
                       {selectedItems.size}/{resolvedCodes.length} selected
@@ -576,22 +579,22 @@ export function AIReviewResultPanel({
                 </div>
               ) : isStructured && structuredItems && structuredItems.length > 0 ? (
                 /* Structured line items — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto space-y-1">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto space-y-1">
                   <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
                 </div>
               ) : scheduleRows ? (
                 /* Schedule-format — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
                   <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
                 </div>
               ) : tableRows ? (
                 /* Table-format — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
                   <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
                 </div>
               ) : result.suggested_version ? (
-                /* Rich text — always editable */
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-72 overflow-y-auto">
+                /* Rich text — Tiptap editor */
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-relaxed">
                   <EditableRichText
                     value={editedRichText ?? result.suggested_version}
                     onChange={handleRichTextChange}
@@ -603,17 +606,26 @@ export function AIReviewResultPanel({
 
           {/* ── Accept / Reject actions ── */}
           <div className="flex gap-2 justify-end pt-1">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onDiscard}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg"
+              onClick={onDiscard}
+            >
               <X className="h-3.5 w-3.5 mr-1" />
               Discard
             </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={onAccept}>
+            <Button
+              size="sm"
+              className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg"
+              onClick={onAccept}
+            >
               <Check className="h-3.5 w-3.5 mr-1" />
               {isMasterData && resolvedCodes
                 ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
                 : isStructured && structuredItems
                   ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
-                  : "Accept & Save"}
+                  : "Accept & Replace"}
             </Button>
           </div>
         </CollapsibleContent>
