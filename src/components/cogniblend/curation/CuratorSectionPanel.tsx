@@ -465,11 +465,7 @@ export function CuratorSectionPanel({
         {isExpanded && (
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
             {/* Empty state placeholder */}
-            {isContentEmpty ? (
-              <SectionEmptyState sectionKey={sectionKey} label={label} />
-            ) : (
-              children
-            )}
+            {children}
 
             {/* Pending modification banner — informational only */}
             {isLocked && pendingModification && (
