@@ -5,24 +5,19 @@
  * This prevents confusing UI states where "Pass" is shown alongside warnings.
  */
 
-export interface NormalizableReview {
-  section_key: string;
-  status: string;
-  comments: string[];
-  [key: string]: unknown;
-}
+type ReviewStatus = "pass" | "warning" | "needs_revision";
 
 /**
  * Normalize a single section review.
  * - pass + comments → warning
  * - ensures comments is always an array
  */
-export function normalizeSectionReview<T extends NormalizableReview>(review: T): T {
+export function normalizeSectionReview<T extends { status: ReviewStatus | string; comments: string[] }>(review: T): T {
   const comments = Array.isArray(review.comments) ? review.comments : [];
   const hasActionableComments = comments.length > 0;
 
   if (review.status === 'pass' && hasActionableComments) {
-    return { ...review, status: 'warning', comments };
+    return { ...review, status: 'warning' as T['status'], comments };
   }
 
   return { ...review, comments };
@@ -31,6 +26,6 @@ export function normalizeSectionReview<T extends NormalizableReview>(review: T):
 /**
  * Normalize an array of section reviews.
  */
-export function normalizeSectionReviews<T extends NormalizableReview>(reviews: T[]): T[] {
+export function normalizeSectionReviews<T extends { status: ReviewStatus | string; comments: string[] }>(reviews: T[]): T[] {
   return reviews.map(normalizeSectionReview);
 }
