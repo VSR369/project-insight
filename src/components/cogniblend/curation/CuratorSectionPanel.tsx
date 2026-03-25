@@ -306,9 +306,12 @@ export function CuratorSectionPanel({
     onUndoApproval?.();
   }, [onUndoApproval]);
 
+  // Detect if content is empty for placeholder display
+  const isContentEmpty = !filled;
+
   return (
     <>
-      <div className="border border-border rounded-lg overflow-hidden">
+      <div className="rounded-xl shadow-sm border border-gray-100 bg-white mb-4 overflow-hidden">
         {/* ── Panel Header (always visible) ── */}
         <button
           type="button"
@@ -348,9 +351,9 @@ export function CuratorSectionPanel({
 
           {/* Attribution */}
           {attribution && (
-            <span className="text-[10px] text-muted-foreground font-normal shrink-0">
-              ({attribution})
-            </span>
+            <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px] px-1.5 py-0 hover:bg-gray-100 shrink-0">
+              {attribution}
+            </Badge>
           )}
 
           {/* Prompt source indicator */}
@@ -433,7 +436,17 @@ export function CuratorSectionPanel({
         {/* ── Panel Body (collapsible) ── */}
         {isExpanded && (
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
-            {children}
+            {/* Empty state placeholder */}
+            {isContentEmpty ? (
+              <div className="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 py-10 flex flex-col items-center justify-center gap-2">
+                <p className="text-sm text-gray-400 text-center">
+                  Click to add content or Generate with AI{" "}
+                  <Sparkles className="h-4 w-4 inline text-amber-400" />
+                </p>
+              </div>
+            ) : (
+              children
+            )}
 
             {/* Pending modification banner — informational only */}
             {isLocked && pendingModification && (
@@ -445,6 +458,16 @@ export function CuratorSectionPanel({
                     Priority: <span className="capitalize">{pendingModification.priority}</span> — Sent {new Date(pendingModification.created_at).toLocaleDateString()}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Visual divider between content and AI review */}
+            {aiReviewSlot && filled && (
+              <div className="relative my-4">
+                <div className="border-t border-dashed border-gray-300" />
+                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400">
+                  vs AI Suggestion
+                </span>
               </div>
             )}
 
