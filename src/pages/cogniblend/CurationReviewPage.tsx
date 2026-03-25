@@ -97,6 +97,7 @@ import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBrief
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
+import { normalizeSectionReview, normalizeSectionReviews } from "@/lib/cogniblend/normalizeSectionReview";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
@@ -1095,7 +1096,7 @@ export default function CurationReviewPage() {
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       const stored = Array.isArray(challenge.ai_section_reviews)
-        ? (challenge.ai_section_reviews as unknown as SectionReview[])
+        ? normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[])
         : [];
       if (stored.length > 0) {
         setAiReviews(stored);
@@ -1353,10 +1354,11 @@ export default function CurationReviewPage() {
             if (reviewData?.success && reviewData.data?.sections) {
               const deepReview = (reviewData.data.sections as SectionReview[])[0];
               if (deepReview) {
+                const normalizedDeep = normalizeSectionReview(deepReview);
                 // Merge the deep review into triage results — UI updates section-by-section
                 setAiReviews((prev) => {
                   const filtered = prev.filter((r) => r.section_key !== sectionKey);
-                  const merged = [...filtered, { ...deepReview, addressed: false }];
+                  const merged = [...filtered, { ...normalizedDeep, addressed: false }];
                   saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
                   return merged;
                 });
@@ -1547,9 +1549,10 @@ export default function CurationReviewPage() {
 
   /** Handle a single-section re-review result from the inline panel */
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
+    const normalized = normalizeSectionReview(freshReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const updated = [...filtered, { ...freshReview, addressed: false }];
+      const updated = [...filtered, { ...normalized, addressed: false }];
       // Persist updated reviews to DB
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
       return updated;

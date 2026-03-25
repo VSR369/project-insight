@@ -265,10 +265,17 @@ async function callAIBatch(
 
   const parsed = JSON.parse(toolCall.function.arguments);
   const now = new Date().toISOString();
-  const sections = (parsed.sections ?? []).map((s: any) => ({
-    ...s,
-    reviewed_at: now,
-  }));
+  const sections = (parsed.sections ?? []).map((s: any) => {
+    // Normalize: pass with comments → warning (prevent confusing UI)
+    const hasComments = Array.isArray(s.comments) && s.comments.length > 0;
+    const normalizedStatus = (s.status === 'pass' && hasComments) ? 'warning' : s.status;
+    return {
+      ...s,
+      status: normalizedStatus,
+      comments: Array.isArray(s.comments) ? s.comments : [],
+      reviewed_at: now,
+    };
+  });
 
   // Backfill skipped sections as "warning" (not misleading "pass")
   const returnedKeys = new Set(sections.map((s: any) => s.section_key));
