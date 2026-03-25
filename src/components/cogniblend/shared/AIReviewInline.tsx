@@ -464,6 +464,7 @@ export function AIReviewInline({
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
     setSelectedItems(new Set());
+    setEditedSuggestedContent(null);
   }, []);
 
   const isPending = !review;
