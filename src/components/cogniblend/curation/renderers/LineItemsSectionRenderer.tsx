@@ -32,6 +32,7 @@ export function LineItemsSectionRenderer({
   itemLabel,
   structuredItems,
   onSaveStructured,
+  badgePrefix,
 }: LineItemsSectionRendererProps) {
   const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
 
