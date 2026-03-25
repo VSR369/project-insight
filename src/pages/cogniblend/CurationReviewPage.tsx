@@ -1702,15 +1702,17 @@ export default function CurationReviewPage() {
         </div>
       )}
 
-      {/* LEGAL_VERIFICATION_PENDING banner */}
-      {isLegalPending && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50/60 p-4">
-          <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+      {/* Governance-aware blocking banner (replaces old LEGAL_VERIFICATION_PENDING) */}
+      {legalEscrowBlocked && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50/60 dark:bg-amber-900/20 dark:border-amber-700/40 p-4">
+          <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">Legal documents must be attached before curation can begin.</p>
-            <Button variant="link" className="h-auto p-0 text-sm text-primary" onClick={() => navigate(`/cogni/challenges/${challengeId}/legal`)}>
-              Navigate to Legal Documents →
-            </Button>
+            <p className="text-sm font-medium text-foreground">
+              {blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              You can continue editing and reviewing all sections. Submission to the next phase is blocked until the above is resolved.
+            </p>
           </div>
         </div>
       )}
