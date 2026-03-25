@@ -194,15 +194,21 @@ function EditableLineItems({
   return (
     <div className="space-y-1.5">
       {items.map((item, i) => (
-        <div key={i} className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
-          <Input
+        <div key={i} className="flex items-start gap-1.5">
+          <span className="text-xs text-muted-foreground w-5 text-right shrink-0 pt-2">{i + 1}.</span>
+          <Textarea
             value={item}
             onChange={(e) => handleItemChange(i, e.target.value)}
-            className="text-sm h-8 flex-1"
+            className="text-sm min-h-[2rem] flex-1 resize-none whitespace-pre-wrap py-1.5"
             placeholder="Item text..."
+            rows={1}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = "auto";
+              target.style.height = target.scrollHeight + "px";
+            }}
           />
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleRemove(i)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive mt-0.5" onClick={() => handleRemove(i)}>
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
