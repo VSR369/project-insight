@@ -778,7 +778,7 @@ export function AIReviewResultPanel({
               <DeliverableCardRenderer
                 items={deliverableItems!}
                 badgePrefix={badgePrefix}
-                hideAcceptanceCriteria={badgePrefix === "O"}
+                hideAcceptanceCriteria={badgePrefix === "O" || badgePrefix === "S"}
               />
             </div>
           ) : isStructured && structuredItems && structuredItems.length > 0 ? (

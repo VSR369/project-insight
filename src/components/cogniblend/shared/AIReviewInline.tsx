@@ -38,10 +38,11 @@ export interface SectionReview {
 export type RoleContext = "intake" | "spec" | "curation";
 
 /** Sections that should render as structured deliverable cards */
-const DELIVERABLE_LIKE_SECTIONS = new Set(['deliverables', 'expected_outcomes']);
+const DELIVERABLE_LIKE_SECTIONS = new Set(['deliverables', 'expected_outcomes', 'submission_guidelines']);
 
 function getDeliverableBadgePrefix(sectionKey: string): string {
   if (sectionKey === 'expected_outcomes') return 'O';
+  if (sectionKey === 'submission_guidelines') return 'S';
   return 'D';
 }
 

@@ -281,23 +281,9 @@ const SECTIONS: SectionDef[] = [
       return !!ch.description?.trim();
     },
     render: (ch) => {
-      // Try parsing as structured line items first
-      const raw = parseJson<any>(ch.description);
-      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
-      if (items && items.length > 0) {
-        return (
-          <div className="space-y-2">
-            {items.map((item: any, i: number) => (
-              <div key={i} className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-foreground">
-                <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
-                {typeof item === "string" ? item : item?.name ?? JSON.stringify(item)}
-              </div>
-            ))}
-          </div>
-        );
-      }
-      // Fallback to rich text display
-      return <AiContentRenderer content={ch.description} compact fallback="—" />;
+      const items = getSubmissionGuidelineObjects(ch);
+      if (items.length === 0) return <AiContentRenderer content={ch.description} compact fallback="—" />;
+      return <DeliverableCardRenderer items={items} badgePrefix="S" hideAcceptanceCriteria />;
     },
   },
   {
@@ -766,6 +752,13 @@ function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
   const eo = parseJson<any>(ch.expected_outcomes);
   const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
   return parseDeliverables(outcomes, 'O');
+}
+
+/** Returns submission guideline objects from description column */
+function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
+  const raw = parseJson<any>(ch.description);
+  const items = Array.isArray(raw) ? raw : (raw?.items ?? []);
+  return parseDeliverables(items, 'S');
 }
 
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
@@ -2168,13 +2161,13 @@ export default function CurationReviewPage() {
                           </>
                         );
 
-                      // ── Submission guidelines (line items) ──
+                      // ── Submission guidelines (structured cards) ──
                       case "submission_guidelines": {
                         const raw = parseJson<any>(challenge.description);
                         const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
                         const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
-                        // If no structured items, treat existing text as single item
                         const finalItems = lineItems.length > 0 ? lineItems : (challenge.description?.trim() ? [challenge.description] : []);
+                        const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
                         return (
                           <>
                             <LineItemsSectionRenderer
@@ -2188,6 +2181,13 @@ export default function CurationReviewPage() {
                               onCancel={cancelEdit}
                               saving={savingSection}
                               itemLabel="Guideline"
+                              structuredItems={structuredGuidelines}
+                              onSaveStructured={(items) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "description", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+                              }}
+                              badgePrefix="S"
+                              hideAcceptanceCriteria
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
