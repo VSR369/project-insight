@@ -1275,6 +1275,8 @@ export default function CurationReviewPage() {
   const handleAIReview = useCallback(async () => {
     if (!challengeId || !challenge) return;
     setAiReviewLoading(true);
+    setPhase2Status('idle');
+    setTriageTotalCount(0);
     try {
       // ── Phase 1: Triage ──────────────────────────────────────
       const { data: triageData, error: triageError } = await supabase.functions.invoke("triage-challenge-sections", {
