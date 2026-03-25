@@ -2645,38 +2645,42 @@ export default function CurationReviewPage() {
           </Button>
 
           {/* Phase 2 Progress Bar — persists at 100% after completion */}
-          {(phase2Status === 'running' || phase2Status === 'completed') && phase2Progress.total > 0 && (
-            <Card className={cn("border-border", phase2Status === 'completed' && "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30")}>
+          {phase2Status === 'running' && phase2Progress.total > 0 && (
+            <Card className="border-border">
               <CardContent className="pt-3 pb-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {phase2Status === 'completed' ? 'AI Review Complete' : 'Phase 2: Deep review'}
-                </p>
+                <p className="text-xs font-medium text-muted-foreground">Phase 2: Deep review</p>
                 <Progress value={(phase2Progress.completed / phase2Progress.total) * 100} className="h-2" />
                 <p className="text-[10px] text-muted-foreground">
                   {phase2Progress.completed}/{phase2Progress.total} sections analyzed
                   {" · "}
                   {Math.round((phase2Progress.completed / phase2Progress.total) * 100)}%
                 </p>
-                {phase2Status === 'completed' && triageTotalCount > 0 && (() => {
-                  const counts = { pass: 0, warning: 0, needs_revision: 0 };
-                  aiReviews.forEach((r) => { counts[r.status as keyof typeof counts] = (counts[r.status as keyof typeof counts] || 0) + 1; });
-                  return (
-                    <div className="space-y-1.5 pt-1 border-t border-border">
-                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        All {triageTotalCount} sections reviewed
-                      </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
-                        <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
-                        <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
-                      </div>
-                    </div>
-                  );
-                })()}
               </CardContent>
             </Card>
           )}
+
+          {/* Completion Banner — shows after AI review finishes */}
+          {phase2Status === 'completed' && triageTotalCount > 0 && (() => {
+            const counts = { pass: 0, warning: 0, needs_revision: 0 };
+            aiReviews.forEach((r) => { counts[r.status as keyof typeof counts] = (counts[r.status as keyof typeof counts] || 0) + 1; });
+            return (
+              <Card className="border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30">
+                <CardContent className="pt-3 pb-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">AI Review Complete</p>
+                  <Progress value={100} className="h-2" />
+                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    All {triageTotalCount} sections reviewed
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
+                    <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* AI Review Summary */}
           {aiReviews.length > 0 && (() => {
