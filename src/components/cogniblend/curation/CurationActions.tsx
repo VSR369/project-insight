@@ -39,6 +39,7 @@ interface CurationActionsProps {
   operatingModel?: string | null;
   readOnly?: boolean;
   legalEscrowBlocked?: boolean;
+  blockingReason?: string;
 }
 
 export default function CurationActions({
