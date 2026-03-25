@@ -424,8 +424,11 @@ export function AIReviewResultPanel({
     }));
   }, [isMasterData, suggestedCodes, masterDataOptions]);
 
+  const hasDeliverableCards = deliverableItems && deliverableItems.length > 0;
+
   const hasSuggestedVersion = !!(
     result.suggested_version ||
+    hasDeliverableCards ||
     (isStructured && structuredItems && structuredItems.length > 0) ||
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows ||
