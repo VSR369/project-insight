@@ -10,7 +10,7 @@
  *       AI rewrites section → Accept / Discard (item-level for structured sections)
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
