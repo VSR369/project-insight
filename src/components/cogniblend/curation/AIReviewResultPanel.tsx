@@ -90,9 +90,9 @@ const SEVERITY_CONFIG = {
 };
 
 const STATUS_BADGE = {
-  pass: { label: "Pass", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  warning: { label: "Warning", className: "bg-amber-100 text-amber-800 border-amber-300" },
-  needs_revision: { label: "Needs Revision", className: "bg-red-100 text-red-800 border-red-300" },
+  pass: { label: "Pass", icon: ThumbsUp, className: "bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full px-3 py-1 text-xs font-medium" },
+  warning: { label: "Warning", icon: AlertTriangle, className: "bg-amber-100 text-amber-700 border border-amber-300 rounded-full px-3 py-1 text-xs font-medium" },
+  needs_revision: { label: "Needs Revision", icon: ShieldAlert, className: "bg-red-100 text-red-700 border border-red-300 rounded-full px-3 py-1 text-xs font-medium" },
 };
 
 function inferSeverity(comment: string): ReviewComment["severity"] {
