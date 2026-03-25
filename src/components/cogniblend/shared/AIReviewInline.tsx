@@ -443,6 +443,8 @@ export function AIReviewInline({
       const fmt = SECTION_FORMAT_CONFIG[sectionKey];
       if (fmt && ['checkbox_single', 'select', 'radio'].includes(fmt.format)) {
         onAcceptRefinement(sectionKey, accepted[0]);
+      } else if (fmt && fmt.format === 'line_items') {
+        onAcceptRefinement(sectionKey, JSON.stringify({ items: accepted }));
       } else {
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
