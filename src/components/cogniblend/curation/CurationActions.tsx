@@ -385,7 +385,7 @@ export default function CurationActions({
             className="w-full"
             onClick={handleSubmitClick}
             disabled={completePhase.isPending || amApprovalMutation.isPending || isLegalPending || hasOutstandingRequired || legalEscrowBlocked}
-            title={legalEscrowBlocked ? "Legal Documents and Escrow & Funding must both be accepted before submitting" : undefined}
+            title={legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
           >
             {(completePhase.isPending || amApprovalMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
