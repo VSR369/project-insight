@@ -773,20 +773,18 @@ function getDeliverableItems(ch: ChallengeData): string[] {
   return d.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
 }
 
-/** Returns full structured deliverable objects, preserving description & acceptance_criteria */
-function getDeliverableObjects(ch: ChallengeData): { name: string; description?: string; acceptance_criteria?: string }[] {
+/** Returns full structured deliverable objects, using parser to decompose flat strings */
+function getDeliverableObjects(ch: ChallengeData, prefix: string = 'D'): DeliverableItem[] {
   const raw = parseJson<any>(ch.deliverables);
   const d = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
-  return d.map((item: any) => {
-    if (typeof item === "string") {
-      return { name: item, description: "", acceptance_criteria: "" };
-    }
-    return {
-      name: item?.name ?? "",
-      description: item?.description ?? "",
-      acceptance_criteria: item?.acceptance_criteria ?? "",
-    };
-  });
+  return parseDeliverables(d, prefix);
+}
+
+/** Returns expected outcome objects from extended_brief */
+function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
+  const eb = parseJson<any>(ch.extended_brief);
+  const outcomes = Array.isArray(eb?.expected_outcomes) ? eb.expected_outcomes : [];
+  return parseDeliverables(outcomes, 'O');
 }
 
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
