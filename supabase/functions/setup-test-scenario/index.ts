@@ -22,7 +22,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
   mp_quick: {
     orgName: "MP Quick Test Org",
     operatingModel: "MP",
-    governanceProfile: "LIGHTWEIGHT",
+    governanceProfile: "QUICK",
     subscriptionTier: "basic",
     phase1Bypass: false,
     isEnterprise: false,
