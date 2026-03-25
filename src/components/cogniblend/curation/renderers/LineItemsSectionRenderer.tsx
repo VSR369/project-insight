@@ -45,6 +45,7 @@ export function LineItemsSectionRenderer({
           onSave={onSaveStructured}
           onCancel={onCancel}
           saving={saving}
+          badgePrefix={badgePrefix}
         />
       );
     }
