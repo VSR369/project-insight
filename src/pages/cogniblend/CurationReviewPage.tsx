@@ -821,8 +821,10 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "expected_outcomes": {
-      const eb = parseJson<any>(ch.extended_brief);
-      return eb?.expected_outcomes ? JSON.stringify(eb.expected_outcomes) : null;
+      const eo = parseJson<any>(ch.expected_outcomes);
+      if (!eo) return null;
+      const items = Array.isArray(eo) ? eo : (eo?.items ?? []);
+      return items.length > 0 ? JSON.stringify(items) : null;
     }
     default: return null;
   }
