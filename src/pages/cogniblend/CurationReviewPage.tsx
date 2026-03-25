@@ -766,8 +766,8 @@ function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] 
   const raw = parseJson<any>(ch.evaluation_criteria);
   const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : [];
   return ec.map((c: any) => ({
-    name: c.criterion_name ?? c.name ?? "",
-    weight: c.weight_percentage ?? c.weight ?? 0,
+    name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
+    weight: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
   }));
 }
 
@@ -1532,6 +1532,23 @@ export default function CurationReviewPage() {
       } else {
         toast.error(`AI did not return structured JSON for ${dbField}. Please try again.`);
         return;
+      }
+    }
+
+    // ── Evaluation criteria: normalize AI field names to canonical format ──
+    if (dbField === 'evaluation_criteria' && valueToSave && typeof valueToSave === 'object') {
+      const rawArr = Array.isArray(valueToSave)
+        ? valueToSave
+        : Array.isArray(valueToSave?.criteria)
+          ? valueToSave.criteria : null;
+      if (rawArr) {
+        valueToSave = {
+          criteria: rawArr.map((c: any) => ({
+            criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
+            weight_percentage: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
+            description: c.description ?? c.details ?? "",
+          }))
+        };
       }
     }
 

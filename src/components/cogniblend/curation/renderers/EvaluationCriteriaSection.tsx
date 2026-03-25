@@ -3,7 +3,7 @@
  * with color-coded weight distribution bar, mini bars, live totals.
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Plus, Trash2, Check, X, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,6 +137,11 @@ export function EvaluationCriteriaSection({
   const [rows, setRows] = useState<CriterionRow[]>(() =>
     criteria.length ? criteria.map(c => ({ ...c })) : [{ name: "", weight: 0 }]
   );
+
+  // Re-sync rows when criteria prop changes (e.g. after AI acceptance + refetch)
+  useEffect(() => {
+    setRows(criteria.length ? criteria.map(c => ({ ...c })) : [{ name: "", weight: 0 }]);
+  }, [criteria]);
 
   const total = useMemo(() => rows.reduce((s, r) => s + (r.weight || 0), 0), [rows]);
   const isValid = total === 100;
