@@ -1503,6 +1503,44 @@ export default function CurationReviewPage() {
     setActiveGroup(groupId);
   }, []);
 
+  // Bulk action bar computed values
+  const aiReviewCounts = useMemo(() => {
+    if (!aiReviews.length) return { pass: 0, warning: 0, needsRevision: 0, hasReviews: false };
+    let pass = 0, warning = 0, needsRevision = 0;
+    aiReviews.forEach((r) => {
+      if (r.status === "pass") pass++;
+      else if (r.status === "warning") warning++;
+      else if (r.status === "needs_revision") needsRevision++;
+    });
+    return { pass, warning: warning + needsRevision, needsRevision, hasReviews: true };
+  }, [aiReviews]);
+
+  const handleAcceptAllPassing = useCallback(() => {
+    const passingSections = aiReviews.filter((r) => r.status === "pass" && !r.addressed);
+    if (passingSections.length === 0) return;
+
+    passingSections.forEach((r) => {
+      handleMarkAddressed(r.section_key);
+    });
+    toast.success(`${passingSections.length} section${passingSections.length !== 1 ? "s" : ""} updated automatically`);
+  }, [aiReviews, handleMarkAddressed]);
+
+  const handleReviewWarnings = useCallback(() => {
+    setHighlightWarnings(true);
+    // Find first warning/needs_revision section
+    const firstWarning = aiReviews.find(
+      (r) => (r.status === "warning" || r.status === "needs_revision") && !r.addressed
+    );
+    if (firstWarning) {
+      const el = document.querySelector(`[data-section-key="${firstWarning.section_key}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    // Auto-clear highlight after 10 seconds
+    setTimeout(() => setHighlightWarnings(false), 10000);
+  }, [aiReviews]);
+
   // ══════════════════════════════════════
   // SECTION 5: Computed
   // ══════════════════════════════════════
