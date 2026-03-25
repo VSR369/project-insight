@@ -540,7 +540,7 @@ export function CuratorSectionPanel({
             </div>
 
             {/* Visual divider */}
-            {aiReviewSlot && filled && (
+            {aiReviewSlot && (
               <div className="relative my-5">
                 <div className="border-t border-border" />
                 <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
