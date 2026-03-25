@@ -1727,6 +1727,16 @@ export default function CurationReviewPage() {
         )}
       </div>
 
+      {/* Sticky bulk action bar after AI review */}
+      {aiReviewCounts.hasReviews && (
+        <BulkActionBar
+          warningCount={aiReviewCounts.warning}
+          passCount={aiReviewCounts.pass}
+          onAcceptAllPassing={handleAcceptAllPassing}
+          onReviewWarnings={handleReviewWarnings}
+        />
+      )}
+
       {/* Read-only banner for Phase 1/2 */}
       {isReadOnly && phaseDescription && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-400/40 bg-blue-50/60 dark:bg-blue-900/20 dark:border-blue-700/40 p-4">
