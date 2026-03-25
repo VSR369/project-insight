@@ -945,6 +945,7 @@ export default function CurationReviewPage() {
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
+  const [highlightWarnings, setHighlightWarnings] = useState(false);
 
   // Expand / collapse all sections in the active group
   const handleExpandCollapseAll = useCallback((expand: boolean) => {
