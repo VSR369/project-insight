@@ -4,7 +4,7 @@
  * Phase/Deliverable, Duration (days), Start Date, End Date.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
