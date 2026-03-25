@@ -218,6 +218,7 @@ export function AIReviewInline({
 
   // Structured items state (for deliverables, eval criteria, line_items)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [editedSuggestedContent, setEditedSuggestedContent] = useState<any>(null);
 
   const isStructured = isStructuredSection(sectionKey);
   const isMasterData = isMasterDataSection(sectionKey);
@@ -390,6 +391,9 @@ export function AIReviewInline({
   const handleAccept = useCallback(() => {
     if (!refinedContent) return;
 
+    // If user edited the suggestion, use the edited version
+    const hasEdits = editedSuggestedContent != null;
+
     // Master-data sections: validate codes against options and pass as JSON array
     if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
       const accepted = suggestedCodes.filter((_, i) => selectedItems.has(i));
@@ -397,7 +401,6 @@ export function AIReviewInline({
         toast.error("Select at least one option to accept.");
         return;
       }
-      // Validate against master data options if available
       if (masterDataOptions && masterDataOptions.length > 0) {
         const validCodes = new Set(masterDataOptions.map(o => o.value));
         const invalid = accepted.filter(c => !validCodes.has(c));
@@ -406,18 +409,25 @@ export function AIReviewInline({
           return;
         }
       }
-      // For single-select, pass just the code string; for multi, pass JSON array
       const fmt = SECTION_FORMAT_CONFIG[sectionKey];
       if (fmt && ['checkbox_single', 'select', 'radio'].includes(fmt.format)) {
         onAcceptRefinement(sectionKey, accepted[0]);
       } else {
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
+    } else if (hasEdits) {
+      // User manually edited the suggestion — use edited content
+      if (typeof editedSuggestedContent === "string") {
+        onAcceptRefinement(sectionKey, editedSuggestedContent);
+      } else if (Array.isArray(editedSuggestedContent)) {
+        onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+      } else {
+        onAcceptRefinement(sectionKey, JSON.stringify(editedSuggestedContent));
+      }
     } else if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = getSectionFormatType(sectionKey);
       
       if (fmt === 'table' || fmt === 'schedule_table') {
-        // Preserve full row objects for table/schedule sections
         const rawArray = parseRawStructuredArray(refinedContent);
         if (rawArray) {
           const accepted = rawArray.filter((_, i) => selectedItems.has(i));
@@ -425,14 +435,12 @@ export function AIReviewInline({
             toast.error("Select at least one item to accept.");
             return;
           }
-          // Pass the raw JSON array directly — handleAcceptRefinement will parse it
           onAcceptRefinement(sectionKey, JSON.stringify(accepted));
         } else {
           toast.error("AI did not return valid structured data. Please try again.");
           return;
         }
       } else {
-        // line_items: pass as string items
         const accepted = structuredItems.filter((_, i) => selectedItems.has(i));
         if (accepted.length === 0) {
           toast.error("Select at least one item to accept.");
@@ -447,14 +455,16 @@ export function AIReviewInline({
     setRefinedContent(null);
     setEditedComments([]);
     setSelectedItems(new Set());
+    setEditedSuggestedContent(null);
     setIsAddressed(true);
     setIsOpen(false);
     onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
     setSelectedItems(new Set());
+    setEditedSuggestedContent(null);
   }, []);
 
   const isPending = !review;
@@ -613,6 +623,7 @@ export function AIReviewInline({
                 isMasterData={isMasterData}
                 suggestedCodes={suggestedCodes}
                 masterDataOptions={masterDataOptions}
+                onSuggestedVersionChange={setEditedSuggestedContent}
               />
             )}
           </>

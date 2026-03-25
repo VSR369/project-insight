@@ -5,18 +5,18 @@
  *  - Summary badge + status
  *  - Comments with severity badges (STRENGTH / WARNING / REQUIRED) and blockquote applies_to
  *  - AI Suggested Version using the section's native renderer in readOnly mode
+ *  - Edit toggle to modify suggestions before accepting
  *  - Accept / Reject actions
- *
- * Phase 5B: Now supports master-data sections — renders suggested codes as
- * selectable chips instead of prose text.
  */
 
 import { useState, useMemo, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp } from "lucide-react";
+import { Check, X, ChevronDown, AlertTriangle, ShieldAlert, ThumbsUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { LineItemsSectionRenderer } from "@/components/cogniblend/curation/renderers/LineItemsSectionRenderer";
 import { TableSectionRenderer } from "@/components/cogniblend/curation/renderers/TableSectionRenderer";
@@ -65,6 +65,8 @@ interface AIReviewResultPanelProps {
   suggestedCodes?: string[] | null;
   /** Master data options for resolving labels */
   masterDataOptions?: MasterDataOption[];
+  /** Callback when suggested version content is edited by user */
+  onSuggestedVersionChange?: (editedContent: any) => void;
 }
 
 /* ── Severity helpers ──────────────────────────────────── */
@@ -149,6 +151,180 @@ function isScheduleFormat(sectionKey: string): boolean {
   return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'schedule_table';
 }
 
+/* ── Inline edit sub-components ────────────────────────── */
+
+/** Editable rich text (textarea for markdown/prose) */
+function EditableRichText({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  return (
+    <Textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="text-sm min-h-[120px] bg-background font-mono"
+      placeholder="Edit the AI suggestion..."
+    />
+  );
+}
+
+/** Editable line items */
+function EditableLineItems({
+  items,
+  onChange,
+}: {
+  items: string[];
+  onChange: (items: string[]) => void;
+}) {
+  const handleItemChange = (index: number, value: string) => {
+    const updated = [...items];
+    updated[index] = value;
+    onChange(updated);
+  };
+  const handleAdd = () => onChange([...items, ""]);
+  const handleRemove = (index: number) => onChange(items.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
+          <Input
+            value={item}
+            onChange={(e) => handleItemChange(i, e.target.value)}
+            className="text-sm h-8 flex-1"
+            placeholder="Item text..."
+          />
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleRemove(i)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdd}>
+        <Plus className="h-3 w-3 mr-1" />Add Item
+      </Button>
+    </div>
+  );
+}
+
+/** Editable table rows (eval criteria) */
+function EditableTableRows({
+  rows,
+  onChange,
+}: {
+  rows: Record<string, unknown>[];
+  onChange: (rows: Record<string, unknown>[]) => void;
+}) {
+  const handleChange = (index: number, field: string, value: string) => {
+    const updated = [...rows];
+    updated[index] = { ...updated[index], [field]: field === "weight" ? Number(value) || 0 : value };
+    onChange(updated);
+  };
+  const handleAdd = () => onChange([...rows, { name: "", weight: 0, description: "" }]);
+  const handleRemove = (index: number) => onChange(rows.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5">
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-start gap-1.5 rounded border border-border/50 p-2 bg-background/50">
+          <div className="flex-1 space-y-1">
+            <Input
+              value={String(row.name ?? row.criterion_name ?? "")}
+              onChange={(e) => handleChange(i, "name", e.target.value)}
+              className="text-sm h-7"
+              placeholder="Criterion name..."
+            />
+            <div className="flex gap-1.5">
+              <Input
+                type="number"
+                value={String(row.weight ?? row.weight_percentage ?? 0)}
+                onChange={(e) => handleChange(i, "weight", e.target.value)}
+                className="text-sm h-7 w-20"
+                placeholder="Weight %"
+              />
+              <Input
+                value={String(row.description ?? "")}
+                onChange={(e) => handleChange(i, "description", e.target.value)}
+                className="text-sm h-7 flex-1"
+                placeholder="Description..."
+              />
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive mt-0.5" onClick={() => handleRemove(i)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdd}>
+        <Plus className="h-3 w-3 mr-1" />Add Row
+      </Button>
+    </div>
+  );
+}
+
+/** Editable schedule rows */
+function EditableScheduleRows({
+  rows,
+  onChange,
+}: {
+  rows: Record<string, unknown>[];
+  onChange: (rows: Record<string, unknown>[]) => void;
+}) {
+  const handleChange = (index: number, field: string, value: string) => {
+    const updated = [...rows];
+    updated[index] = {
+      ...updated[index],
+      [field]: field === "duration_days" ? (value ? parseInt(value, 10) || null : null) : (value || null),
+    };
+    onChange(updated);
+  };
+  const handleAdd = () => onChange([...rows, { phase_name: "", duration_days: null, start_date: null, end_date: null }]);
+  const handleRemove = (index: number) => onChange(rows.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5">
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-center gap-1.5 rounded border border-border/50 p-2 bg-background/50">
+          <Input
+            value={String(row.phase_name ?? row.label ?? row.name ?? "")}
+            onChange={(e) => handleChange(i, "phase_name", e.target.value)}
+            className="text-sm h-7 flex-1"
+            placeholder="Phase name..."
+          />
+          <Input
+            type="number"
+            value={String(row.duration_days ?? "")}
+            onChange={(e) => handleChange(i, "duration_days", e.target.value)}
+            className="text-sm h-7 w-20"
+            placeholder="Days"
+          />
+          <Input
+            type="date"
+            value={String(row.start_date ?? "")}
+            onChange={(e) => handleChange(i, "start_date", e.target.value)}
+            className="text-sm h-7 w-32"
+          />
+          <Input
+            type="date"
+            value={String(row.end_date ?? "")}
+            onChange={(e) => handleChange(i, "end_date", e.target.value)}
+            className="text-sm h-7 w-32"
+          />
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleRemove(i)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdd}>
+        <Plus className="h-3 w-3 mr-1" />Add Phase
+      </Button>
+    </div>
+  );
+}
+
 /* ── Component ─────────────────────────────────────────── */
 
 export function AIReviewResultPanel({
@@ -165,8 +341,16 @@ export function AIReviewResultPanel({
   isMasterData = false,
   suggestedCodes,
   masterDataOptions,
+  onSuggestedVersionChange,
 }: AIReviewResultPanelProps) {
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Local edit state for each format type
+  const [editedRichText, setEditedRichText] = useState<string | null>(null);
+  const [editedLineItems, setEditedLineItems] = useState<string[] | null>(null);
+  const [editedTableRows, setEditedTableRows] = useState<Record<string, unknown>[] | null>(null);
+  const [editedScheduleRows, setEditedScheduleRows] = useState<Record<string, unknown>[] | null>(null);
 
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
@@ -206,6 +390,50 @@ export function AIReviewResultPanel({
     tableRows ||
     scheduleRows
   );
+
+  // Determine which format this suggestion is in (for edit mode)
+  const suggestedFormat = useMemo(() => {
+    if (isMasterData) return "master_data";
+    if (isStructured && structuredItems && structuredItems.length > 0) {
+      const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
+      if (fmt === "line_items") return "line_items";
+    }
+    if (scheduleRows) return "schedule_table";
+    if (tableRows) return "table";
+    if (result.suggested_version) return "rich_text";
+    return null;
+  }, [isMasterData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
+
+  // Toggle edit mode and initialize edit state from current values
+  const handleToggleEdit = useCallback(() => {
+    if (!isEditing) {
+      // Entering edit mode — seed local edit state
+      if (suggestedFormat === "rich_text" && result.suggested_version) {
+        setEditedRichText(result.suggested_version);
+      } else if (suggestedFormat === "line_items" && structuredItems) {
+        setEditedLineItems([...structuredItems]);
+      } else if (suggestedFormat === "table" && tableRows) {
+        setEditedTableRows(tableRows.map(r => ({ ...r })));
+      } else if (suggestedFormat === "schedule_table" && scheduleRows) {
+        setEditedScheduleRows(scheduleRows.map(r => ({ ...r })));
+      }
+    } else {
+      // Leaving edit mode — emit changes
+      if (suggestedFormat === "rich_text" && editedRichText != null) {
+        onSuggestedVersionChange?.(editedRichText);
+      } else if (suggestedFormat === "line_items" && editedLineItems) {
+        onSuggestedVersionChange?.(editedLineItems.filter(i => i.trim()));
+      } else if (suggestedFormat === "table" && editedTableRows) {
+        onSuggestedVersionChange?.(editedTableRows);
+      } else if (suggestedFormat === "schedule_table" && editedScheduleRows) {
+        onSuggestedVersionChange?.(editedScheduleRows);
+      }
+    }
+    setIsEditing(!isEditing);
+  }, [isEditing, suggestedFormat, result.suggested_version, structuredItems, tableRows, scheduleRows, editedRichText, editedLineItems, editedTableRows, editedScheduleRows, onSuggestedVersionChange]);
+
+  // Whether edit toggle should be shown (not for master data — already interactive)
+  const canEdit = suggestedFormat && suggestedFormat !== "master_data";
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
@@ -266,9 +494,22 @@ export function AIReviewResultPanel({
           {/* ── AI Suggested Version (format-native) ── */}
           {hasSuggestedVersion && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                AI Suggested {isMasterData ? "Selection" : "Version"}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  AI Suggested {isMasterData ? "Selection" : "Version"}
+                </p>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn("h-6 text-[10px] px-2 gap-1", isEditing && "text-primary")}
+                    onClick={handleToggleEdit}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {isEditing ? "Done Editing" : "Edit"}
+                  </Button>
+                )}
+              </div>
 
               {/* ── Master-data codes as selectable chips ── */}
               {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
@@ -330,76 +571,94 @@ export function AIReviewResultPanel({
               ) : isStructured && structuredItems && structuredItems.length > 0 ? (
                 /* Structured line items (deliverables etc.) */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto space-y-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-muted-foreground">
-                      {selectedItems.size}/{structuredItems.length} items selected
-                    </span>
-                    <div className="flex gap-1.5">
-                      <button
-                        type="button"
-                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                        onClick={onSelectAllItems}
-                      >
-                        Select all
-                      </button>
-                      <button
-                        type="button"
-                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                        onClick={onClearItems}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                  {structuredItems.map((item, i) => (
-                    <label
-                      key={i}
-                      className={cn(
-                        "flex items-start gap-2 rounded p-1.5 cursor-pointer transition-colors text-sm",
-                        selectedItems.has(i) ? "bg-primary/10" : "opacity-50"
-                      )}
-                    >
-                      <Checkbox
-                        checked={selectedItems.has(i)}
-                        onCheckedChange={() => onToggleItem(i)}
-                        className="mt-0.5 h-3.5 w-3.5"
-                      />
-                      <span className="flex-1 leading-relaxed">{item}</span>
-                    </label>
-                  ))}
+                  {isEditing && editedLineItems ? (
+                    <EditableLineItems items={editedLineItems} onChange={setEditedLineItems} />
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] text-muted-foreground">
+                          {selectedItems.size}/{structuredItems.length} items selected
+                        </span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                            onClick={onSelectAllItems}
+                          >
+                            Select all
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                            onClick={onClearItems}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      {structuredItems.map((item, i) => (
+                        <label
+                          key={i}
+                          className={cn(
+                            "flex items-start gap-2 rounded p-1.5 cursor-pointer transition-colors text-sm",
+                            selectedItems.has(i) ? "bg-primary/10" : "opacity-50"
+                          )}
+                        >
+                          <Checkbox
+                            checked={selectedItems.has(i)}
+                            onCheckedChange={() => onToggleItem(i)}
+                            className="mt-0.5 h-3.5 w-3.5"
+                          />
+                          <span className="flex-1 leading-relaxed">{item}</span>
+                        </label>
+                      ))}
+                    </>
+                  )}
                 </div>
               ) : scheduleRows ? (
                 /* Schedule-format suggested version (phase_schedule) */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
-                  <ScheduleTableSectionRenderer
-                    data={scheduleRows}
-                    readOnly
-                    editing={false}
-                  />
+                  {isEditing && editedScheduleRows ? (
+                    <EditableScheduleRows rows={editedScheduleRows} onChange={setEditedScheduleRows} />
+                  ) : (
+                    <ScheduleTableSectionRenderer
+                      data={scheduleRows}
+                      readOnly
+                      editing={false}
+                    />
+                  )}
                 </div>
               ) : tableRows ? (
                 /* Table-format suggested version (eval criteria, reward) */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 max-h-72 overflow-y-auto">
-                  <TableSectionRenderer
-                    sectionKey={sectionKey}
-                    rows={tableRows.map((r) => ({
-                      name: String(r.name ?? r.criterion_name ?? r.parameter ?? ""),
-                      weight: Number(r.weight ?? r.weight_percentage ?? r.weight_percent ?? 0),
-                      scoring_type: String(r.scoring_type ?? "score"),
-                      evaluator_role: String(r.evaluator_role ?? ""),
-                      description: String(r.description ?? ""),
-                    }))}
-                    readOnly
-                    editing={false}
-                    onSave={() => {}}
-                    onCancel={() => {}}
-                    showWeightTotal
-                  />
+                  {isEditing && editedTableRows ? (
+                    <EditableTableRows rows={editedTableRows} onChange={setEditedTableRows} />
+                  ) : (
+                    <TableSectionRenderer
+                      sectionKey={sectionKey}
+                      rows={tableRows.map((r) => ({
+                        name: String(r.name ?? r.criterion_name ?? r.parameter ?? ""),
+                        weight: Number(r.weight ?? r.weight_percentage ?? r.weight_percent ?? 0),
+                        scoring_type: String(r.scoring_type ?? "score"),
+                        evaluator_role: String(r.evaluator_role ?? ""),
+                        description: String(r.description ?? ""),
+                      }))}
+                      readOnly
+                      editing={false}
+                      onSave={() => {}}
+                      onCancel={() => {}}
+                      showWeightTotal
+                    />
+                  )}
                 </div>
               ) : result.suggested_version ? (
                 /* Rich text / markdown fallback */
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-72 overflow-y-auto">
-                  <AiContentRenderer content={result.suggested_version} compact />
+                  {isEditing && editedRichText != null ? (
+                    <EditableRichText value={editedRichText} onChange={setEditedRichText} />
+                  ) : (
+                    <AiContentRenderer content={result.suggested_version} compact />
+                  )}
                 </div>
               ) : null}
             </div>
