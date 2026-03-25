@@ -227,6 +227,10 @@ async function triageBatch(
         section.issues.push("Low confidence — flagged for manual review.");
       }
     }
+    // Auto-downgrade: pass with issues → warning
+    if (section.status === "pass" && section.issues.length > 0) {
+      section.status = "warning";
+    }
   }
 
   return sections;

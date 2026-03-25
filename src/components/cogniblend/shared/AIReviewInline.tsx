@@ -355,7 +355,7 @@ export function AIReviewInline({
           setEditedComments([]);
           setSelectedComments(new Set(freshReview.comments.map((_, i) => i)));
           onSingleSectionReview?.(sectionKey, freshReview);
-          const hasIssues = freshReview.comments.length > 0 && freshReview.status !== "pass";
+          const hasIssues = freshReview.comments.length > 0;
           toast.success(hasIssues ? "Re-review complete — see updated comments." : "Section looks good — no issues found.");
         }
       } else {

@@ -1348,7 +1348,7 @@ export default function CurationReviewPage() {
                 });
 
                 // Auto-trigger Phase 2 refinement with issues from deep review
-                if (deepReview.comments && deepReview.comments.length > 0 && deepReview.status !== 'pass') {
+                if (deepReview.comments && deepReview.comments.length > 0) {
                   try {
                     await supabase.functions.invoke("refine-challenge-section", {
                       body: {
