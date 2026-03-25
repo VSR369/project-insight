@@ -25,6 +25,8 @@ import { ScheduleTableSectionRenderer } from "@/components/cogniblend/curation/r
 import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { convertAITextToHTML } from "@/utils/convertAITextToHTML";
 import { cn } from "@/lib/utils";
+import { detectAndParseLineItems } from "@/utils/detectAndParseLineItems";
+import { TableLineItemRenderer } from "@/components/cogniblend/curation/renderers/TableLineItemRenderer";
 
 /* ── Types ──────────────────────────────────────────────── */
 
