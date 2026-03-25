@@ -45,6 +45,7 @@ import {
   ShieldCheck,
   Clock,
   Undo2,
+  Sparkles,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
 
