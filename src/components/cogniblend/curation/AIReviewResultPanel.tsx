@@ -607,17 +607,26 @@ export function AIReviewResultPanel({
 
           {/* ── Accept / Reject actions ── */}
           <div className="flex gap-2 justify-end pt-1">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onDiscard}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg"
+              onClick={onDiscard}
+            >
               <X className="h-3.5 w-3.5 mr-1" />
               Discard
             </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={onAccept}>
+            <Button
+              size="sm"
+              className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg"
+              onClick={onAccept}
+            >
               <Check className="h-3.5 w-3.5 mr-1" />
               {isMasterData && resolvedCodes
                 ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
                 : isStructured && structuredItems
                   ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
-                  : "Accept & Save"}
+                  : "Accept & Replace"}
             </Button>
           </div>
         </CollapsibleContent>
