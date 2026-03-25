@@ -632,97 +632,112 @@ export function AIReviewResultPanel({
             </div>
           )}
 
-          {/* ── AI Suggested Version (format-native) ── */}
+          {/* ── AI Suggested Version (format-native, collapsible) ── */}
           {hasSuggestedVersion && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
-                  ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
-                </p>
-              </div>
-
-              {/* ── Master-data codes as selectable chips ── */}
-              {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] text-muted-foreground">
-                      {selectedItems.size}/{resolvedCodes.length} selected
-                    </span>
-                    <div className="flex gap-1.5">
-                      <button
-                        type="button"
-                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                        onClick={onSelectAllItems}
-                      >
-                        Select all
-                      </button>
-                      <button
-                        type="button"
-                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                        onClick={onClearItems}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                  {resolvedCodes.map((item, i) => (
-                    <label
-                      key={item.code}
+            <Collapsible open={suggestedVersionOpen} onOpenChange={setSuggestedVersionOpen}>
+              <div className="space-y-2">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center justify-between w-full text-left group"
+                  >
+                    <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
+                      ✨ AI Suggested {isMasterData ? "Selection" : "Version"}
+                    </p>
+                    <ChevronDown
                       className={cn(
-                        "flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer transition-colors",
-                        selectedItems.has(i)
-                          ? "bg-primary/10 border-primary/40"
-                          : "bg-background/50 border-border opacity-60",
-                        !item.isValid && "border-destructive/40 bg-destructive/5"
+                        "h-4 w-4 text-blue-500 transition-transform duration-200",
+                        suggestedVersionOpen && "rotate-180"
                       )}
-                    >
-                      <Checkbox
-                        checked={selectedItems.has(i)}
-                        onCheckedChange={() => onToggleItem(i)}
-                        className="mt-0.5 h-3.5 w-3.5"
-                      />
-                      <div className="flex-1 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{item.label}</span>
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground font-mono">
-                            {item.code}
-                          </Badge>
-                          {!item.isValid && (
-                            <Badge variant="destructive" className="text-[9px] px-1 py-0">Invalid</Badge>
-                          )}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                  {/* ── Master-data codes as selectable chips ── */}
+                  {isMasterData && resolvedCodes && resolvedCodes.length > 0 ? (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-muted-foreground">
+                          {selectedItems.size}/{resolvedCodes.length} selected
+                        </span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                            onClick={onSelectAllItems}
+                          >
+                            Select all
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                            onClick={onClearItems}
+                          >
+                            Clear
+                          </button>
                         </div>
-                        {item.description && (
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">{item.description}</p>
-                        )}
                       </div>
-                    </label>
-                  ))}
-                </div>
-              ) : isStructured && structuredItems && structuredItems.length > 0 ? (
-                /* Structured line items — always editable */
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto space-y-1">
-                  <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
-                </div>
-              ) : scheduleRows ? (
-                /* Schedule-format — always editable */
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
-                  <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
-                </div>
-              ) : tableRows ? (
-                /* Table-format — always editable */
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
-                  <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
-                </div>
-              ) : result.suggested_version ? (
-                /* Rich text — Tiptap editor */
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-relaxed">
-                  <EditableRichText
-                    value={editedRichText ?? result.suggested_version}
-                    onChange={handleRichTextChange}
-                  />
-                </div>
-              ) : null}
-            </div>
+                      {resolvedCodes.map((item, i) => (
+                        <label
+                          key={item.code}
+                          className={cn(
+                            "flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer transition-colors",
+                            selectedItems.has(i)
+                              ? "bg-primary/10 border-primary/40"
+                              : "bg-background/50 border-border opacity-60",
+                            !item.isValid && "border-destructive/40 bg-destructive/5"
+                          )}
+                        >
+                          <Checkbox
+                            checked={selectedItems.has(i)}
+                            onCheckedChange={() => onToggleItem(i)}
+                            className="mt-0.5 h-3.5 w-3.5"
+                          />
+                          <div className="flex-1 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">{item.label}</span>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground font-mono">
+                                {item.code}
+                              </Badge>
+                              {!item.isValid && (
+                                <Badge variant="destructive" className="text-[9px] px-1 py-0">Invalid</Badge>
+                              )}
+                            </div>
+                            {item.description && (
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">{item.description}</p>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  ) : isStructured && structuredItems && structuredItems.length > 0 ? (
+                    /* Structured line items — always editable */
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto space-y-1">
+                      <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={handleLineItemsChange} />
+                    </div>
+                  ) : scheduleRows ? (
+                    /* Schedule-format — always editable */
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
+                      <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
+                    </div>
+                  ) : tableRows ? (
+                    /* Table-format — always editable */
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 max-h-72 overflow-y-auto">
+                      <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
+                    </div>
+                  ) : result.suggested_version ? (
+                    /* Rich text — Tiptap editor */
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-relaxed">
+                      <EditableRichText
+                        value={editedRichText ?? result.suggested_version}
+                        onChange={handleRichTextChange}
+                      />
+                    </div>
+                  ) : null}
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
           )}
 
           {/* ── Accept / Reject actions ── */}
