@@ -1264,36 +1264,73 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "domain_tags", value: updated });
   }, [challenge, saveSectionMutation]);
 
+  /**
+   * 2-Phase Smart Pipeline:
+   * Phase 1: Lightweight triage — single LLM call, returns pass/warning/inferred per section.
+   * Phase 2: Deep suggestion — sequential calls only for warning/inferred sections.
+   */
   const handleAIReview = useCallback(async () => {
-    if (!challengeId) return;
+    if (!challengeId || !challenge) return;
     setAiReviewLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
+      // ── Phase 1: Triage ──────────────────────────────────────
+      const { data: triageData, error: triageError } = await supabase.functions.invoke("triage-challenge-sections", {
         body: { challenge_id: challengeId, role_context: 'curation' },
       });
-      if (error) {
-        let msg = error.message;
-        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+      if (triageError) {
+        let msg = triageError.message;
+        try { const body = await (triageError as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
         throw new Error(msg);
       }
-      if (data?.success && data.data?.all_reviews) {
-        const allReviews = data.data.all_reviews as SectionReview[];
-        setAiReviews(allReviews);
-        // Persist batch reviews to DB so they survive navigation
-        saveSectionMutation.mutate({ field: "ai_section_reviews", value: allReviews });
-        const sections = data.data.sections as SectionReview[];
-        const counts = { pass: 0, warning: 0, needs_revision: 0 };
-        sections.forEach((s: SectionReview) => { counts[s.status] = (counts[s.status] || 0) + 1; });
-        toast.success(`AI review complete — ${counts.pass} pass, ${counts.warning} warnings, ${counts.needs_revision} needs revision`);
-      } else {
-        throw new Error(data?.error?.message ?? "Unexpected response from AI review");
+      if (!triageData?.success) {
+        throw new Error(triageData?.error?.message ?? "Triage failed");
+      }
+
+      const triageReviews = triageData.data.all_reviews as SectionReview[];
+      const routing = triageData.data.routing as { pass: string[]; warning: string[]; inferred: string[]; phase2_queue: string[] };
+
+      // Set triage results immediately — pass sections show instantly
+      setAiReviews(triageReviews);
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: triageReviews });
+
+      const passCount = routing.pass.length;
+      const phase2Count = routing.phase2_queue.length;
+      toast.success(`Phase 1 triage: ${passCount} pass, ${phase2Count} need${phase2Count !== 1 ? '' : 's'} deeper review`);
+
+      // ── Phase 2: Deep suggestion (sequential, only non-pass) ──
+      if (routing.phase2_queue.length > 0) {
+        // Phase 2 runs in background — each section calls refine-challenge-section
+        // The AIReviewInline auto-refine will handle this via its existing useEffect
+        // We just need to trigger the detailed review for warning/inferred sections
+        for (const sectionKey of routing.phase2_queue) {
+          try {
+            const { data: reviewData, error: reviewError } = await supabase.functions.invoke("review-challenge-sections", {
+              body: { challenge_id: challengeId, section_key: sectionKey, role_context: 'curation' },
+            });
+            if (reviewError) continue;
+            if (reviewData?.success && reviewData.data?.sections) {
+              const deepReview = (reviewData.data.sections as SectionReview[])[0];
+              if (deepReview) {
+                // Merge the deep review into triage results — UI updates section-by-section
+                setAiReviews((prev) => {
+                  const filtered = prev.filter((r) => r.section_key !== sectionKey);
+                  const merged = [...filtered, { ...deepReview, addressed: false }];
+                  saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
+                  return merged;
+                });
+              }
+            }
+          } catch {
+            // Individual section failure — triage result stays
+          }
+        }
       }
     } catch (e: any) {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
     } finally {
       setAiReviewLoading(false);
     }
-  }, [challengeId]);
+  }, [challengeId, challenge]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
