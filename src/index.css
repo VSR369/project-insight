@@ -286,9 +286,9 @@ All colors MUST be HSL.
 /* ── Editor Content Styles (Tiptap + AiContentRenderer) ── */
 
 .editor-content {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  line-height: 1.85;
+  line-height: 1.75;
   color: hsl(var(--foreground));
   padding: 36px 52px 56px;
   min-height: 400px;
