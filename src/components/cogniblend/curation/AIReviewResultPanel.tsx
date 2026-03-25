@@ -733,23 +733,21 @@ export function AIReviewResultPanel({
         </div>
       )}
 
-      {/* ── Accept / Edit & Accept / Decline actions ── */}
+      {/* ── Accept suggestion / Edit & Accept / Keep original actions ── */}
       {(hasSuggestedVersion || isRefining) && (
         <div className="flex gap-2 justify-end pt-1 border-t border-border">
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10 rounded-lg"
+            className="h-8 text-xs border-gray-300 text-foreground hover:bg-muted rounded-lg"
             onClick={onDiscard}
             disabled={isRefining}
           >
-            <X className="h-3.5 w-3.5 mr-1" />
-            Decline
+            Keep original
           </Button>
           <Button
             size="sm"
-            variant="outline"
-            className="h-8 text-xs rounded-lg"
+            className="h-8 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={onAccept}
             disabled={isRefining}
           >
@@ -758,7 +756,7 @@ export function AIReviewResultPanel({
               ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
               : isStructured && structuredItems
                 ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
-                : "Accept"}
+                : "Accept suggestion"}
           </Button>
         </div>
       )}
