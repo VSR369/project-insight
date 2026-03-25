@@ -2464,30 +2464,39 @@ export default function CurationReviewPage() {
                     return <React.Fragment key={section.key}>{sectionContent}</React.Fragment>;
                   }
 
+                  const isWarningHighlighted = highlightWarnings && aiReview && (aiReview.status === "warning" || aiReview.status === "needs_revision") && !aiReview.addressed;
+
                   return (
-                    <CuratorSectionPanel
+                    <div
                       key={section.key}
-                      sectionKey={section.key}
-                      label={section.label}
-                      attribution={section.attribution}
-                      filled={filled}
-                      status={panelStatus}
-                      isLocked={isLocked}
-                      isReadOnly={isReadOnly}
-                      isApproved={isApproved}
-                      onToggleApproval={() => toggleSectionApproval(section.key)}
-                      onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
-                      onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
-                      challengeId={challengeId!}
-                      inlineFlags={inlineFlags}
-                      defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
-                      aiReviewSlot={aiReviewContent}
-                      sectionActions={getSectionActions(section.key)}
-                      promptSource={aiReview?.prompt_source ?? null}
-                      expandVersion={expandVersion}
+                      data-section-key={section.key}
+                      className={cn(
+                        isWarningHighlighted && "ring-2 ring-amber-400 ring-offset-2 rounded-xl animate-pulse"
+                      )}
                     >
-                      {sectionContent}
-                    </CuratorSectionPanel>
+                      <CuratorSectionPanel
+                        sectionKey={section.key}
+                        label={section.label}
+                        attribution={section.attribution}
+                        filled={filled}
+                        status={panelStatus}
+                        isLocked={isLocked}
+                        isReadOnly={isReadOnly}
+                        isApproved={isApproved}
+                        onToggleApproval={() => toggleSectionApproval(section.key)}
+                        onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
+                        onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
+                        challengeId={challengeId!}
+                        inlineFlags={inlineFlags}
+                        defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
+                        aiReviewSlot={aiReviewContent}
+                        sectionActions={getSectionActions(section.key)}
+                        promptSource={aiReview?.prompt_source ?? null}
+                        expandVersion={expandVersion}
+                      >
+                        {sectionContent}
+                      </CuratorSectionPanel>
+                    </div>
                   );
                 })}
               </div>
