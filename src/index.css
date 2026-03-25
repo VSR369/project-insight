@@ -326,7 +326,7 @@ All colors MUST be HSL.
 .editor-content h1 {
   font-size: 26px;
   font-weight: 700;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: hsl(var(--foreground));
   margin: 28px 0 10px;
   border-bottom: 2px solid hsl(var(--border));
