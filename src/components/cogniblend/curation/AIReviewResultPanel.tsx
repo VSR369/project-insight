@@ -569,8 +569,8 @@ export function AIReviewResultPanel({
             {statusBadge.label}
           </span>
           {typeof confidence === "number" && (
-            <span className="text-[10px] text-muted-foreground ml-1">
-              ({Math.round(confidence * 100)}% confident)
+            <span className="text-[11px] text-muted-foreground ml-1 font-medium">
+              {Math.round(confidence * 100)}% confidence
             </span>
           )}
         </div>
