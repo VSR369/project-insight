@@ -1353,8 +1353,10 @@ export default function CurationReviewPage() {
             // Individual section failure — triage result stays
           } finally {
             setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
-          }
         }
+      } else {
+        // All sections passed — no Phase 2 needed
+        setPhase2Progress({ total: 0, completed: 0 });
       }
     } catch (e: any) {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
