@@ -95,7 +95,8 @@ export function normalizeChallengeModel(
  * Migrate legacy flat reward_structure JSONB into normalized RewardData.
  * Supports:
  *  - { platinum: N, gold: N, silver: N } flat amounts
- *  - { type: 'monetary', ... } or { type: 'non_monetary', ... }
+ *  - { type: 'monetary', tiers: [...] } full round-trip format
+ *  - { type: 'non_monetary', items: [...] }
  *  - { tiered_perks: { platinum: [...], ... } }
  *  - { payment_milestones: [...] }
  */
@@ -174,26 +175,37 @@ export function migrateRawReward(raw: any): {
   }
 
   // Monetary path (default if any monetary fields exist)
+  const platinumAmt = Number(raw.platinum) || 0;
+  const goldAmt = Number(raw.gold) || 0;
+  const silverAmt = Number(raw.silver) || 0;
+  const totalFromFlat = platinumAmt + goldAmt + silverAmt;
+
   const hasTierAmounts =
-    (raw.platinum != null && raw.platinum > 0) ||
-    (raw.gold != null && raw.gold > 0) ||
+    totalFromFlat > 0 ||
     (raw.amount != null && raw.amount > 0);
 
   if (explicitType === 'monetary' || hasTierAmounts) {
-    const platinumAmt = Number(raw.platinum) || 0;
-    const goldAmt = Number(raw.gold) || 0;
-    const silverAmt = Number(raw.silver) || 0;
-    const totalFromFlat = platinumAmt + goldAmt + silverAmt;
+    let tiers: PrizeTier[] = [];
 
-    const tiers: PrizeTier[] = [];
-    if (platinumAmt > 0) {
-      tiers.push({ rank: 'platinum', amount: platinumAmt, count: 1, label: '1st Place' });
-    }
-    if (goldAmt > 0) {
-      tiers.push({ rank: 'gold', amount: goldAmt, count: 1, label: '2nd Place' });
-    }
-    if (silverAmt > 0) {
-      tiers.push({ rank: 'silver', amount: silverAmt, count: 1, label: '3rd Place' });
+    // Prefer serialized tiers array for lossless round-trip
+    if (Array.isArray(raw.tiers) && raw.tiers.length > 0) {
+      tiers = raw.tiers.map((t: any) => ({
+        rank: t.rank,
+        amount: Number(t.amount) || 0,
+        count: Number(t.count) || 1,
+        label: t.label,
+      }));
+    } else {
+      // Fallback: reconstruct from flat keys
+      if (platinumAmt > 0) {
+        tiers.push({ rank: 'platinum', amount: platinumAmt, count: 1, label: '1st Place' });
+      }
+      if (goldAmt > 0) {
+        tiers.push({ rank: 'gold', amount: goldAmt, count: 1, label: '2nd Place' });
+      }
+      if (silverAmt > 0) {
+        tiers.push({ rank: 'silver', amount: silverAmt, count: 1, label: '3rd Place' });
+      }
     }
 
     const milestones: PaymentMilestone[] =
@@ -203,7 +215,7 @@ export function migrateRawReward(raw: any): {
       type: 'monetary',
       monetary: {
         currency: raw.currency ?? 'USD',
-        totalPool: totalFromFlat || (Number(raw.amount) || undefined),
+        totalPool: raw.totalPool ?? totalFromFlat || (Number(raw.amount) || undefined),
         tiers,
         payment_milestones: milestones,
         payment_mode: raw.payment_mode,
@@ -254,8 +266,19 @@ export function resolveRewardSource(
 
   const hasContent =
     migrated.type !== null &&
-    ((migrated.monetary && migrated.monetary.tiers.length > 0) ||
+    ((migrated.monetary && (migrated.monetary.tiers.length > 0 || (migrated.monetary.totalPool ?? 0) > 0)) ||
       (migrated.nonMonetary && migrated.nonMonetary.items.length > 0));
+
+  // Bug 1 fix: Curator-saved data is NOT auto-populated — it's the curator's own work
+  if (embeddedRole === 'CURATOR' && hasContent) {
+    return {
+      ...migrated,
+      sourceRole: 'CURATOR',
+      sourceDate,
+      isAutoPopulated: false,
+      isEditable: true,
+    };
+  }
 
   if (embeddedRole && hasContent) {
     return {
@@ -277,7 +300,6 @@ export function resolveRewardSource(
   // Infer source based on model hierarchy
   if (hasContent) {
     if (model === 'marketplace') {
-      // Assume upstream came from AM or CA; default to AM for marketplace
       const inferredRole: SourceRole = 'AM';
       return {
         ...migrated,
@@ -326,6 +348,8 @@ export function resolveRewardSource(
 
 /**
  * Serialize RewardData back to the JSONB format stored in challenges.reward_structure.
+ * Persists full tiers array + totalPool for lossless round-trip,
+ * plus flat keys (platinum/gold/silver) for backward compatibility.
  */
 export function serializeRewardData(data: RewardData): Record<string, any> {
   const base: Record<string, any> = {
@@ -343,9 +367,13 @@ export function serializeRewardData(data: RewardData): Record<string, any> {
       ...base,
       type: 'monetary',
       currency: m.currency,
+      totalPool: m.totalPool,
+      // Flat keys for backward compat with legacy readers
       platinum: tierMap.platinum ?? 0,
       gold: tierMap.gold ?? 0,
       silver: tierMap.silver ?? 0,
+      // Full tiers for lossless round-trip (preserves count, label)
+      tiers: m.tiers,
       num_rewarded: String(m.tiers.filter((t) => t.amount > 0 && t.rank !== 'honorable_mention').length),
       payment_mode: m.payment_mode ?? 'escrow',
       payment_milestones: m.payment_milestones ?? [],
