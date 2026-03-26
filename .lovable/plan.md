@@ -1,50 +1,117 @@
 
 
-# Fix: Confirmation Alert When Switching Reward Type With Existing Data
+# Critical Analysis: Reward Structure Bugs & Fix Plan
 
-## Problem Analysis
-The confirmation dialog code already exists in `RewardTypeToggle.tsx` and the `hasExistingData` logic in the orchestrator looks correct. There are two issues:
+## What's Actually Broken (3 root causes)
 
-1. **The `hasExistingData` check only looks at current type's data** — It checks `monetary.tiers.length > 0 || nonMonetary.items.length > 0`. Because `setRewardType` enforces mutual exclusivity (clears the other type), only the *active* type has data. This should work fine for the toggle scenario. The check is correct.
+### Bug 1 — Curator-saved data treated as "auto-populated"
+When the curator saves reward data (monetary or non-monetary), the serializer writes `source_role: 'CURATOR'` into the JSONB. On page reload, `resolveRewardSource` sees `embeddedRole = 'CURATOR'` + `hasContent = true` and returns `isAutoPopulated: true`. This forces the section into `populated_from_source` state instead of `saved` — meaning the user sees a "Populated from Curator" banner instead of a normal read view with an Edit button.
 
-2. **After confirming the switch, the old data is cleared locally but the DB still has the old type's data.** The `setRewardType` hook clears the opposite type in state, but there's no auto-save triggered — so if the user navigates away before explicitly saving, the DB retains the old type. On reload, the old data comes back.
-
-3. **The dialog message could be clearer** — The current message says "will clear existing reward data" but doesn't emphasize that the *previous* type's data will be permanently lost.
-
-## Changes
-
-### 1. `src/components/cogniblend/curation/rewards/RewardTypeToggle.tsx`
-Update the confirmation dialog text to be more explicit about data loss:
-- Title: "Change reward type?"
-- Description: "You currently have **{currentLabel}** reward data configured. Switching to **{targetLabel}** will permanently delete all {currentLabel} data. This action cannot be undone."
-- Confirm button: "Yes, switch to {targetLabel}"
-
-### 2. `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
-Add auto-save after type switch when data existed. Create a `handleTypeSwitch` wrapper around `setRewardType`:
+**Fix in `src/services/rewardStructureResolver.ts`:**
+In `resolveRewardSource`, when `embeddedRole === 'CURATOR'`, return `isAutoPopulated: false` so the hook resolves to `saved` state:
 
 ```typescript
-const handleTypeSwitch = useCallback((type: RewardType) => {
-  const hadData = hasExistingData;
-  setRewardType(type);
-  if (hadData) {
-    setPendingSave(true); // Auto-save the cleared state to DB
+// After line 253 (const migrated = migrateRawReward(raw))
+if (embeddedRole === 'CURATOR' && hasContent) {
+  return {
+    ...migrated,
+    sourceRole: 'CURATOR',
+    isAutoPopulated: false,  // Curator's own data — not upstream
+    isEditable: true,
+  };
+}
+```
+
+### Bug 2 — Monetary serializer loses tier detail; reload fails
+`serializeRewardData` flattens tiers into `{ platinum: N, gold: N, silver: N }` (top-level keys with just the amount). This loses `count` and `label`. On reload, `migrateRawReward` reconstructs tiers with `count: 1` always — so if the user set `count: 3` for gold, it's lost.
+
+Additionally, `totalPool` is not serialized as a field — it's only derivable from the sum. If the user entered a lump sum of 500,000 but the AI split it into tiers totaling 500,000, on reload the `totalPool` is gone.
+
+**Fix in `src/services/rewardStructureResolver.ts`:**
+
+Update `serializeRewardData` to persist the full `tiers` array and `totalPool`:
+
+```typescript
+if (data.type === 'monetary' && data.monetary) {
+  const m = data.monetary;
+  const tierMap: Record<string, number> = {};
+  for (const t of m.tiers) {
+    tierMap[t.rank] = t.amount;
   }
-}, [setRewardType, hasExistingData]);
+  return {
+    ...base,
+    type: 'monetary',
+    currency: m.currency,
+    totalPool: m.totalPool,
+    // Keep flat keys for backward compat with any legacy readers
+    platinum: tierMap.platinum ?? 0,
+    gold: tierMap.gold ?? 0,
+    silver: tierMap.silver ?? 0,
+    // Also persist full tiers for lossless round-trip
+    tiers: m.tiers,
+    num_rewarded: String(m.tiers.filter(t => t.amount > 0 && t.rank !== 'honorable_mention').length),
+    payment_mode: m.payment_mode ?? 'escrow',
+    payment_milestones: m.payment_milestones ?? [],
+  };
+}
 ```
 
-Pass `handleTypeSwitch` to `RewardTypeToggle` instead of `setRewardType` directly.
+### Bug 3 — `migrateRawReward` doesn't read serialized `tiers` array
+When `tiers` array is now persisted (Bug 2 fix), `migrateRawReward` must prefer it over the flat `platinum`/`gold`/`silver` keys for lossless round-trip.
 
-### 3. `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
-Also check `hasExistingData` more broadly — include `totalPool` for monetary (user may have entered amount but no tiers yet):
+**Fix in `src/services/rewardStructureResolver.ts`:**
+
+In the monetary path of `migrateRawReward`, check for `raw.tiers` array first:
 
 ```typescript
-const hasExistingData =
-  (rewardData.monetary && (rewardData.monetary.tiers.length > 0 || (rewardData.monetary.totalPool ?? 0) > 0)) ||
-  (rewardData.nonMonetary && rewardData.nonMonetary.items.length > 0);
+if (explicitType === 'monetary' || hasTierAmounts) {
+  let tiers: PrizeTier[] = [];
+
+  // Prefer serialized tiers array (lossless round-trip)
+  if (Array.isArray(raw.tiers) && raw.tiers.length > 0) {
+    tiers = raw.tiers.map((t: any) => ({
+      rank: t.rank,
+      amount: Number(t.amount) || 0,
+      count: Number(t.count) || 1,
+      label: t.label,
+    }));
+  } else {
+    // Fallback: reconstruct from flat keys
+    if (platinumAmt > 0) tiers.push({ rank: 'platinum', amount: platinumAmt, count: 1, label: '1st Place' });
+    if (goldAmt > 0) tiers.push({ rank: 'gold', amount: goldAmt, count: 1, label: '2nd Place' });
+    if (silverAmt > 0) tiers.push({ rank: 'silver', amount: silverAmt, count: 1, label: '3rd Place' });
+  }
+
+  return {
+    type: 'monetary',
+    monetary: {
+      currency: raw.currency ?? 'USD',
+      totalPool: raw.totalPool ?? totalFromFlat || (Number(raw.amount) || undefined),
+      tiers,
+      payment_milestones: raw.payment_milestones ?? raw.payment_schedule ?? [],
+      payment_mode: raw.payment_mode,
+    },
+  };
+}
 ```
 
-## Result
-- Switching types with existing data shows a clear, descriptive confirmation alert
-- Confirming the switch auto-saves the cleared state to DB (preventing stale data on reload)
-- The `hasExistingData` check covers both tiers and totalPool for monetary rewards
+## Summary of Changes
+
+| File | Change |
+|------|--------|
+| `src/services/rewardStructureResolver.ts` | 1. `resolveRewardSource`: return `isAutoPopulated: false` for `CURATOR` role |
+| | 2. `serializeRewardData`: persist `tiers` array and `totalPool` alongside flat keys |
+| | 3. `migrateRawReward`: prefer `raw.tiers` array over flat keys; read `raw.totalPool` |
+
+## What Is NOT Broken
+- The DB data is intact (confirmed: non-monetary items with 5 AI-generated rewards exist)
+- The component tree (editors, cards, toggle, chooser) is structurally correct
+- The auto-save via `pendingSave` + `useEffect` is working (data did persist)
+- The confirmation dialog for type switching is wired correctly
+
+## Result After Fix
+- Curator-saved data → `saved` state → prominent Edit button
+- Monetary tiers with custom counts/labels survive page reload
+- Total pool value persists across saves
+- Non-monetary items continue to round-trip correctly (already working)
 
