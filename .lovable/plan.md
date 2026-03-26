@@ -1,117 +1,167 @@
 
 
-# Critical Analysis: Reward Structure Bugs & Fix Plan
+# Final Corrected Plan: Reward Structure Redesign
 
-## What's Actually Broken (3 root causes)
+## Corrections Applied from Review
 
-### Bug 1 — Curator-saved data treated as "auto-populated"
-When the curator saves reward data (monetary or non-monetary), the serializer writes `source_role: 'CURATOR'` into the JSONB. On page reload, `resolveRewardSource` sees `embeddedRole = 'CURATOR'` + `hasContent = true` and returns `isAutoPopulated: true`. This forces the section into `populated_from_source` state instead of `saved` — meaning the user sees a "Populated from Curator" banner instead of a normal read view with an Edit button.
+All 7 corrections from the review are incorporated below. Changes marked with **[CORRECTION]**.
 
-**Fix in `src/services/rewardStructureResolver.ts`:**
-In `resolveRewardSource`, when `embeddedRole === 'CURATOR'`, return `isAutoPopulated: false` so the hook resolves to `saved` state:
+---
 
+## 1. Source State Detection on Mount (`RewardStructureDisplay.tsx`)
+
+Detect `AMRewardPayload` scenario and configure UI automatically:
+
+| # | Condition | Action |
+|---|-----------|--------|
+| 1 | Payload null | Set `rewardType = 'monetary'` (default). Auto-trigger inline AI for both tabs. |
+| 2 | `monetary.totalPool` set, no tiers | Set `rewardType = 'monetary'`. Show AM badge on pool field. **[CORRECTION]** Auto-trigger inline AI to suggest tier split. |
+| 3 | `nonMonetary` set, no monetary | **[CORRECTION]** Programmatically set `rewardType = 'non_monetary'` before first render so curator lands on correct tab. Mark AM items with badge. |
+| 4 | Both present | **[CORRECTION]** Default to `rewardType = 'monetary'`. Show banner: "AM defined both reward types. Review each tab independently before submitting." Both tabs independently accessible. |
+
+**Auto-trigger condition (tightened):**
 ```typescript
-// After line 253 (const migrated = migrateRawReward(raw))
-if (embeddedRole === 'CURATOR' && hasContent) {
-  return {
-    ...migrated,
-    sourceRole: 'CURATOR',
-    isAutoPopulated: false,  // Curator's own data — not upstream
-    isEditable: true,
-  };
-}
+const shouldAutoTriggerAI =
+  !amPayload ||
+  (amPayload.monetary?.totalPool && !amPayload.monetary?.tiers);
 ```
 
-### Bug 2 — Monetary serializer loses tier detail; reload fails
-`serializeRewardData` flattens tiers into `{ platinum: N, gold: N, silver: N }` (top-level keys with just the amount). This loses `count` and `label`. On reload, `migrateRawReward` reconstructs tiers with `count: 1` always — so if the user set `count: 3` for gold, it's lost.
+---
 
-Additionally, `totalPool` is not serialized as a field — it's only derivable from the sum. If the user entered a lump sum of 500,000 but the AI split it into tiers totaling 500,000, on reload the `totalPool` is gone.
+## 2. Monetary Tab — Toggle-switch Tier Cards
 
-**Fix in `src/services/rewardStructureResolver.ts`:**
+Replace current lump-sum + free-form tiers with three fixed tier cards:
 
-Update `serializeRewardData` to persist the full `tiers` array and `totalPool`:
+- **Platinum** (always required when monetary active), **Gold**, **Silver** — each with enable/disable switch + amount input
+- Per-field source tracking: `FieldSource { src: 'am' | 'ai' | 'curator'; modified?: boolean }`
+- Inline AI suggestion chips per tier: "AI suggests: $5,000" + Accept button
+- AI Recommendations panel at bottom with "Apply tiers" / "Apply amounts" / "Accept all"
 
-```typescript
-if (data.type === 'monetary' && data.monetary) {
-  const m = data.monetary;
-  const tierMap: Record<string, number> = {};
-  for (const t of m.tiers) {
-    tierMap[t.rank] = t.amount;
-  }
-  return {
-    ...base,
-    type: 'monetary',
-    currency: m.currency,
-    totalPool: m.totalPool,
-    // Keep flat keys for backward compat with any legacy readers
-    platinum: tierMap.platinum ?? 0,
-    gold: tierMap.gold ?? 0,
-    silver: tierMap.silver ?? 0,
-    // Also persist full tiers for lossless round-trip
-    tiers: m.tiers,
-    num_rewarded: String(m.tiers.filter(t => t.amount > 0 && t.rank !== 'honorable_mention').length),
-    payment_mode: m.payment_mode ?? 'escrow',
-    payment_milestones: m.payment_milestones ?? [],
-  };
-}
-```
+**[CORRECTION] Tier hierarchy validation** — add to `rewardValidation.ts`:
+- Gold enabled & `gold.amount >= platinum.amount` → error
+- Silver enabled & `silver.amount >= gold.amount` → error
+- **Silver enabled without Gold enabled → error** (new rule)
 
-### Bug 3 — `migrateRawReward` doesn't read serialized `tiers` array
-When `tiers` array is now persisted (Bug 2 fix), `migrateRawReward` must prefer it over the flat `platinum`/`gold`/`silver` keys for lossless round-trip.
+**[CORRECTION] Source badge colors:**
+- AM → amber/warning (pre-filled, needs review)
+- AI → blue/info (suggested, not confirmed)
+- Curator → gray/secondary (curator-owned)
+- Modified → amber + pencil icon (overridden from AM/AI)
 
-**Fix in `src/services/rewardStructureResolver.ts`:**
-
-In the monetary path of `migrateRawReward`, check for `raw.tiers` array first:
-
-```typescript
-if (explicitType === 'monetary' || hasTierAmounts) {
-  let tiers: PrizeTier[] = [];
-
-  // Prefer serialized tiers array (lossless round-trip)
-  if (Array.isArray(raw.tiers) && raw.tiers.length > 0) {
-    tiers = raw.tiers.map((t: any) => ({
-      rank: t.rank,
-      amount: Number(t.amount) || 0,
-      count: Number(t.count) || 1,
-      label: t.label,
-    }));
-  } else {
-    // Fallback: reconstruct from flat keys
-    if (platinumAmt > 0) tiers.push({ rank: 'platinum', amount: platinumAmt, count: 1, label: '1st Place' });
-    if (goldAmt > 0) tiers.push({ rank: 'gold', amount: goldAmt, count: 1, label: '2nd Place' });
-    if (silverAmt > 0) tiers.push({ rank: 'silver', amount: silverAmt, count: 1, label: '3rd Place' });
-  }
-
-  return {
-    type: 'monetary',
-    monetary: {
-      currency: raw.currency ?? 'USD',
-      totalPool: raw.totalPool ?? totalFromFlat || (Number(raw.amount) || undefined),
-      tiers,
-      payment_milestones: raw.payment_milestones ?? raw.payment_schedule ?? [],
-      payment_mode: raw.payment_mode,
-    },
-  };
-}
-```
-
-## Summary of Changes
-
-| File | Change |
+### Files
+| File | Action |
 |------|--------|
-| `src/services/rewardStructureResolver.ts` | 1. `resolveRewardSource`: return `isAutoPopulated: false` for `CURATOR` role |
-| | 2. `serializeRewardData`: persist `tiers` array and `totalPool` alongside flat keys |
-| | 3. `migrateRawReward`: prefer `raw.tiers` array over flat keys; read `raw.totalPool` |
+| `rewards/PrizeTierCard.tsx` | Rewrite — toggle switch, amount input, inline AI chip, source badge |
+| `rewards/MonetaryRewardEditor.tsx` | Rewrite — 3 fixed tier cards, remove lump-sum mode |
+| `rewards/AIRecommendationsPanel.tsx` | New — AI panel with Apply tiers/amounts |
+| `rewards/SourceBadge.tsx` | New — AM (amber), AI (blue), Curator (gray), Modified (amber+pencil) |
 
-## What Is NOT Broken
-- The DB data is intact (confirmed: non-monetary items with 5 AI-generated rewards exist)
-- The component tree (editors, cards, toggle, chooser) is structurally correct
-- The auto-save via `pendingSave` + `useEffect` is working (data did persist)
-- The confirmation dialog for type switching is wired correctly
+---
 
-## Result After Fix
-- Curator-saved data → `saved` state → prominent Edit button
-- Monetary tiers with custom counts/labels survive page reload
-- Total pool value persists across saves
-- Non-monetary items continue to round-trip correctly (already working)
+## 3. Non-Monetary Tab — 5-Item Checkbox Grid
+
+Replace free-form item cards with five fixed checkbox cards in 2-column grid:
+- Certificate, Memento, Gift vouchers, Movie sponsorship, Others
+- Each card: bordered card + checkbox + label + source badge
+- Pre-checked AM items show amber AM badge
+- AI can recommend items (blue AI badge + individual Accept)
+
+### Files
+| File | Action |
+|------|--------|
+| `rewards/NonMonetaryRewardEditor.tsx` | Rewrite — 5 checkbox cards, 2-col grid |
+| `rewards/NonMonetaryItemCard.tsx` | Rewrite — checkbox card with source badge |
+
+---
+
+## 4. AI Review — Two Distinct Flows
+
+**[CORRECTION]** Explicitly separate two AI mechanisms:
+
+### Flow A: Inline AI (lightweight, structured)
+- **Trigger:** Auto on mount when `shouldAutoTriggerAI` is true; otherwise via small "✨ Suggest" button per section
+- **Monetary:** Returns suggested tier count + amounts as chips on each tier card
+- **Non-monetary:** Returns recommended items to check
+- **Actions:** Individual Accept per suggestion + "Accept all" at panel level
+
+### Flow B: Review with AI (full review panel)
+- **Trigger:** "Review with AI" button per tab
+- **Mechanism:** Calls `handleSingleSectionReview` — same as all other curator sections
+- **Output:** Narrative AI comments + AI Suggested Version + Accept/Keep original
+- **Location:** Renders in `CurationAIReviewInline` wrapper (unchanged, stays in `CuratorSectionPanel`)
+
+### Files
+| File | Action |
+|------|--------|
+| `rewards/MonetaryRewardEditor.tsx` | Add "Review with AI" button triggering Flow B |
+| `rewards/NonMonetaryRewardEditor.tsx` | Add "Review with AI" button triggering Flow B |
+| `rewards/AIRecommendationsPanel.tsx` | Handles Flow A inline suggestions |
+
+---
+
+## 5. Submission Lock
+
+**[CORRECTION]** Full lock after submission — nothing editable:
+
+- `isSubmitted = true` → type toggle disabled with lock badge
+- **All tier amounts locked** (inputs become read-only)
+- **All non-monetary checkboxes locked** (disabled)
+- Lock note displayed: "Reward structure is locked after submission."
+- No post-submission edits permitted
+
+### Files
+| File | Action |
+|------|--------|
+| `rewards/RewardTypeToggle.tsx` | Add `disabled` + lock badge when `isSubmitted` |
+| `useRewardStructureState.ts` | Add `isSubmitted` state + `markSubmitted` action |
+| `RewardStructureDisplay.tsx` | Pass `isSubmitted` to all child editors |
+
+---
+
+## 6. Validation Updates (`rewardValidation.ts`)
+
+**Monetary** (updated):
+- Platinum amount > 0 when monetary active
+- Gold < Platinum when Gold enabled
+- Silver < Gold when Gold enabled
+- **[CORRECTION]** Silver cannot be active without Gold
+- Total pool must match tier sum (if pool defined)
+
+**Non-monetary** (new checkbox model):
+- At least one item selected
+- No per-item title/type validation needed (fixed items)
+
+---
+
+## 7. State Hook Updates (`useRewardStructureState.ts`)
+
+- Add `isSubmitted` boolean + `markSubmitted()` action
+- Add per-field `FieldSource` tracking in `TierState`
+- Add `NonMonetarySelections` model (5 fixed checkboxes with source tracking)
+- On `markSubmitted`, freeze all state permanently
+
+---
+
+## 8. Serializer Backward Compatibility (`rewardStructureResolver.ts`)
+
+- Serialize new checkbox model as `items[]` array for DB compatibility
+- On migration/read, map old `items[]` titles to the 5 fixed checkboxes
+- Persist `tiers` array + `totalPool` + flat keys (already done)
+- Persist `fieldSources` in JSONB for source attribution round-trip
+
+---
+
+## Execution Order
+
+1. `SourceBadge.tsx` (new) — shared dependency
+2. `rewardValidation.ts` — add Silver-without-Gold rule
+3. `useRewardStructureState.ts` — add `isSubmitted`, source tracking, checkbox model
+4. `rewardStructureResolver.ts` — AMRewardPayload detection, serializer updates
+5. `PrizeTierCard.tsx` — rewrite with toggle + AI chip + badge
+6. `MonetaryRewardEditor.tsx` — rewrite with 3 fixed tiers + AI panel
+7. `AIRecommendationsPanel.tsx` (new)
+8. `NonMonetaryItemCard.tsx` — rewrite as checkbox card
+9. `NonMonetaryRewardEditor.tsx` — rewrite as 5-item grid
+10. `RewardTypeToggle.tsx` — add lock badge
+11. `RewardStructureDisplay.tsx` — orchestrator updates (source detection, submission lock, auto-trigger)
 
