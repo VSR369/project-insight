@@ -215,7 +215,7 @@ export function migrateRawReward(raw: any): {
       type: 'monetary',
       monetary: {
         currency: raw.currency ?? 'USD',
-        totalPool: raw.totalPool ?? totalFromFlat || (Number(raw.amount) || undefined),
+        totalPool: raw.totalPool ?? (totalFromFlat || (Number(raw.amount) || undefined)),
         tiers,
         payment_milestones: milestones,
         payment_mode: raw.payment_mode,
