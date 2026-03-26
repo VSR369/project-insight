@@ -7,6 +7,12 @@
  *   curator_editing       → Editable form + Save/Cancel footer
  *   saved                 → Read view + Edit button
  *   reviewed              → Read view + reviewed footer
+ *
+ * Redesign features:
+ *   - AMRewardPayload detection with 4 source state scenarios
+ *   - isSubmitted full lock (type toggle + all inputs)
+ *   - Per-field source tracking (AM/AI/Curator)
+ *   - Inline AI suggestions (Flow A) + Review with AI (Flow B)
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
@@ -14,10 +20,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Save, Loader2, Pencil, AlertCircle, X } from 'lucide-react';
+import { Save, Loader2, Pencil, AlertCircle, X, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Json } from '@/integrations/supabase/types';
-import { useRewardStructureState } from '@/hooks/useRewardStructureState';
+import { useRewardStructureState, type AMRewardPayload, type NonMonetaryKey, NM_KEYS } from '@/hooks/useRewardStructureState';
 import { serializeRewardData } from '@/services/rewardStructureResolver';
 import { requestAITierBreakup, requestAINonMonetarySuggestions } from '@/services/aiRewardBreakup';
 import RewardTypeChooser from './rewards/RewardTypeChooser';
@@ -33,6 +39,8 @@ interface RewardStructureDisplayProps {
   problemStatement?: string | null;
   operatingModel?: string | null;
   challengeTitle?: string;
+  amPayload?: AMRewardPayload | null;
+  onReviewWithAI?: (sectionKey: string) => void;
 }
 
 export default function RewardStructureDisplay({
@@ -42,31 +50,53 @@ export default function RewardStructureDisplay({
   problemStatement,
   operatingModel,
   challengeTitle,
+  amPayload,
+  onReviewWithAI,
 }: RewardStructureDisplayProps) {
   const queryClient = useQueryClient();
 
   // ── State machine ──
   const raw = useMemo(() => parseJson<any>(rewardStructure), [rewardStructure]);
+  const state = useRewardStructureState(raw, operatingModel);
+
   const {
     sectionState,
     rewardData,
+    rewardType,
+    tierStates,
+    nmSelections,
+    currency,
+    totalPool,
     errors,
     isValid,
     isModified,
+    isSubmitted,
     setRewardType,
+    setCurrency,
+    setTotalPool,
+    updateTier,
+    updateNMSelection,
     setMonetary,
     setNonMonetary,
     startEditing,
     cancelEditing,
     markSaved,
+    markSubmitted,
     resetToSource,
+    applyAISuggestions,
+    applyAINMSuggestions,
+    acceptAISuggestion,
+    acceptAINMSuggestion,
     getSerializedData,
-  } = useRewardStructureState(raw, operatingModel);
+  } = state;
 
   // ── Local UI state ──
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
+  const [hasAISuggestions, setHasAISuggestions] = useState(false);
+  const [aiRationale, setAiRationale] = useState<string>();
+  const [showBothBanner, setShowBothBanner] = useState(false);
 
   // ── Challenge context for AI ──
   const challengeContext = useMemo(() => ({
@@ -74,6 +104,96 @@ export default function RewardStructureDisplay({
     domain: 'General',
     type: 'Open Innovation',
   }), [challengeTitle]);
+
+  // ── AMRewardPayload detection on mount ──
+  useEffect(() => {
+    if (!amPayload) return;
+
+    const hasMonetary = !!amPayload.monetary;
+    const hasNonMonetary = amPayload.nonMonetary && Object.values(amPayload.nonMonetary).some(Boolean);
+
+    // Scenario 4: Both present
+    if (hasMonetary && hasNonMonetary) {
+      setShowBothBanner(true);
+      setRewardType('monetary'); // default to monetary tab
+      // Populate monetary tiers from AM
+      if (amPayload.monetary?.tiers) {
+        const tiers = amPayload.monetary.tiers;
+        if (tiers.platinum) updateTier('platinum', { enabled: true, amount: tiers.platinum, amountSrc: { src: 'am' } });
+        if (tiers.gold) updateTier('gold', { enabled: true, amount: tiers.gold, amountSrc: { src: 'am' } });
+        if (tiers.silver) updateTier('silver', { enabled: true, amount: tiers.silver, amountSrc: { src: 'am' } });
+      }
+      // Populate NM from AM
+      if (amPayload.nonMonetary) {
+        for (const [key, value] of Object.entries(amPayload.nonMonetary)) {
+          if (value && NM_KEYS.includes(key as NonMonetaryKey)) {
+            updateNMSelection(key as NonMonetaryKey, true);
+          }
+        }
+      }
+      return;
+    }
+
+    // Scenario 3: Non-monetary only
+    if (hasNonMonetary && !hasMonetary) {
+      setRewardType('non_monetary');
+      if (amPayload.nonMonetary) {
+        for (const [key, value] of Object.entries(amPayload.nonMonetary)) {
+          if (value && NM_KEYS.includes(key as NonMonetaryKey)) {
+            updateNMSelection(key as NonMonetaryKey, true);
+          }
+        }
+      }
+      return;
+    }
+
+    // Scenario 2: Monetary pool only (no tiers) — auto-trigger AI
+    if (hasMonetary && amPayload.monetary?.totalPool && !amPayload.monetary?.tiers) {
+      setRewardType('monetary');
+      setTotalPool(amPayload.monetary.totalPool);
+      // Auto-trigger AI for tier split
+      handleAutoTriggerAI(amPayload.monetary.totalPool);
+      return;
+    }
+
+    // Scenario 2b: Monetary with tiers
+    if (hasMonetary && amPayload.monetary?.tiers) {
+      setRewardType('monetary');
+      const tiers = amPayload.monetary.tiers;
+      if (tiers.platinum) updateTier('platinum', { enabled: true, amount: tiers.platinum, amountSrc: { src: 'am' } });
+      if (tiers.gold) updateTier('gold', { enabled: true, amount: tiers.gold, amountSrc: { src: 'am' } });
+      if (tiers.silver) updateTier('silver', { enabled: true, amount: tiers.silver, amountSrc: { src: 'am' } });
+      if (amPayload.monetary.totalPool) setTotalPool(amPayload.monetary.totalPool);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Auto-trigger AI for empty payload ──
+  useEffect(() => {
+    const shouldAutoTrigger = !amPayload && sectionState === 'empty_no_source';
+    if (shouldAutoTrigger) {
+      // Will trigger when user selects a type via the chooser
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAutoTriggerAI = useCallback(async (poolAmount: number) => {
+    setAiLoading(true);
+    try {
+      const result = await requestAITierBreakup(poolAmount, currency, challengeContext);
+      if (result) {
+        const suggestions: Record<string, number> = {};
+        for (const tier of result) {
+          suggestions[tier.rank] = tier.amount;
+        }
+        applyAISuggestions(suggestions);
+        setHasAISuggestions(true);
+        setAiRationale('Based on challenge complexity and domain analysis');
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  }, [currency, challengeContext, applyAISuggestions]);
 
   // ── Save handler ──
   const handleSave = useCallback(async () => {
@@ -100,13 +220,39 @@ export default function RewardStructureDisplay({
     }
   }, [isValid, errors, getSerializedData, challengeId, queryClient, markSaved]);
 
+  // ── Submit handler ──
+  const handleSubmit = useCallback(async () => {
+    if (!isValid) {
+      toast.error(`Fix ${errors.length} validation error(s) before submitting.`);
+      return;
+    }
+    setSaving(true);
+    try {
+      const serialized = getSerializedData();
+      const { error } = await supabase
+        .from('challenges')
+        .update({ reward_structure: serialized as unknown as Json })
+        .eq('id', challengeId);
+
+      if (error) throw new Error(error.message);
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      toast.success('Reward structure submitted and locked.');
+      markSubmitted();
+      markSaved();
+    } catch (err: any) {
+      toast.error(`Failed to submit: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [isValid, errors, getSerializedData, challengeId, queryClient, markSubmitted, markSaved]);
+
   // ── Auto-save effect for AI-generated data ──
   useEffect(() => {
-    if (!pendingSave || !rewardData.type) return;
+    if (!pendingSave || !rewardType) return;
     setPendingSave(false);
     const doSave = async () => {
       try {
-        const serialized = serializeRewardData(rewardData);
+        const serialized = getSerializedData();
         const { error } = await supabase
           .from('challenges')
           .update({ reward_structure: serialized as unknown as Json })
@@ -119,58 +265,45 @@ export default function RewardStructureDisplay({
       }
     };
     doSave();
-  }, [pendingSave, rewardData, challengeId, queryClient, markSaved]);
+  }, [pendingSave, rewardType, getSerializedData, challengeId, queryClient, markSaved]);
 
-  // ── AI handlers ──
-  const handleAIBreakup = useCallback(
-    async (amount: number, currency: string) => {
-      setAiLoading(true);
-      try {
-        const result = await requestAITierBreakup(amount, currency, challengeContext);
-        if (result) {
-          setMonetary({
-            currency,
-            totalPool: amount,
-            tiers: result,
-            payment_mode: rewardData.monetary?.payment_mode,
-          });
-          setPendingSave(true);
-          toast.success('AI tier breakup applied and saved.');
-        } else {
-          toast.info('AI could not generate breakup. Using default split.');
-        }
-        return result;
-      } finally {
-        setAiLoading(false);
+  // ── AI handlers (Flow A: inline) ──
+  const handleAcceptAllMonetaryAI = useCallback(() => {
+    for (const rank of ['platinum', 'gold', 'silver']) {
+      if (tierStates[rank]?.aiSuggestion) {
+        acceptAISuggestion(rank);
       }
-    },
-    [challengeContext, rewardData.monetary?.payment_mode, setMonetary],
-  );
-
-  const handleAINonMonetary = useCallback(async () => {
-    setAiLoading(true);
-    try {
-      const result = await requestAINonMonetarySuggestions(challengeContext);
-      if (result && result.length > 0) {
-        const currentItems = rewardData.nonMonetary?.items ?? [];
-        setNonMonetary({
-          items: [...currentItems, ...result.map((s) => ({ ...s, isAISuggested: true }))],
-        });
-        setPendingSave(true);
-        toast.success('AI reward suggestions applied and saved.');
-      } else {
-        toast.info('AI could not generate suggestions.');
-      }
-      return result;
-    } finally {
-      setAiLoading(false);
     }
-  }, [challengeContext, rewardData.nonMonetary?.items, setNonMonetary]);
+    setHasAISuggestions(false);
+  }, [tierStates, acceptAISuggestion]);
+
+  const handleAcceptAllNMAI = useCallback(() => {
+    for (const key of NM_KEYS) {
+      if (nmSelections[key]?.aiRecommended) {
+        acceptAINMSuggestion(key);
+      }
+    }
+  }, [nmSelections, acceptAINMSuggestion]);
+
+  // ── Flow B: Review with AI (delegates to parent's handler) ──
+  const handleReviewMonetary = useCallback(() => {
+    onReviewWithAI?.('reward_structure_monetary');
+  }, [onReviewWithAI]);
+
+  const handleReviewNonMonetary = useCallback(() => {
+    onReviewWithAI?.('reward_structure_non_monetary');
+  }, [onReviewWithAI]);
 
   // ── Has existing data check for toggle ──
-  const hasExistingData =
-    (rewardData.monetary && (rewardData.monetary.tiers.length > 0 || (rewardData.monetary.totalPool ?? 0) > 0)) ||
-    (rewardData.nonMonetary && rewardData.nonMonetary.items.length > 0);
+  const hasExistingData = useMemo(() => {
+    if (rewardType === 'monetary') {
+      return Object.values(tierStates).some((t) => t.enabled && t.amount > 0);
+    }
+    if (rewardType === 'non_monetary') {
+      return Object.values(nmSelections).some((s) => s.selected);
+    }
+    return false;
+  }, [rewardType, tierStates, nmSelections]);
 
   // ── Type switch handler with auto-save ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
@@ -185,10 +318,22 @@ export default function RewardStructureDisplay({
   // RENDER
   // ══════════════════════════════════════
 
+  const isEditing = sectionState === 'curator_editing' || (sectionState === 'empty_no_source' && !!rewardType);
+
   return (
     <div className="space-y-5">
+      {/* Both-types banner */}
+      {showBothBanner && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2">
+          <Info className="h-3 w-3 text-blue-500 shrink-0" />
+          <span className="text-[12px] text-blue-700">
+            AM defined both reward types. Review each tab independently before submitting.
+          </span>
+        </div>
+      )}
+
       {/* ── Empty state: Type Chooser Wizard ── */}
-      {sectionState === 'empty_no_source' && !rewardData.type && (
+      {sectionState === 'empty_no_source' && !rewardType && (
         <RewardTypeChooser onSelect={setRewardType} />
       )}
 
@@ -202,30 +347,48 @@ export default function RewardStructureDisplay({
             onEdit={startEditing}
             onReset={resetToSource}
           />
-          {/* Read-only summary */}
-          {rewardData.type === 'monetary' && rewardData.monetary && (
+          <RewardTypeToggle
+            currentType={rewardType}
+            hasExistingData={false}
+            disabled
+            onSwitch={() => {}}
+          />
+          {rewardType === 'monetary' && (
             <MonetaryRewardEditor
-              monetary={rewardData.monetary}
+              tierStates={tierStates}
+              currency={currency}
+              totalPool={totalPool}
               errors={[]}
-              onUpdate={() => {}}
+              disabled
+              onUpdateTier={() => {}}
+              onCurrencyChange={() => {}}
+              onAcceptAISuggestion={() => {}}
             />
           )}
-          {rewardData.type === 'non_monetary' && rewardData.nonMonetary && (
+          {rewardType === 'non_monetary' && (
             <NonMonetaryRewardEditor
-              nonMonetary={rewardData.nonMonetary}
+              selections={nmSelections}
               errors={[]}
-              onUpdate={() => {}}
+              disabled
+              onToggle={() => {}}
+              onAcceptAISuggestion={() => {}}
             />
           )}
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={startEditing} className="gap-1.5">
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          </div>
         </>
       )}
 
       {/* ── Curator editing ── */}
-      {(sectionState === 'curator_editing' || (sectionState === 'empty_no_source' && rewardData.type)) && (
+      {isEditing && (
         <>
           <RewardTypeToggle
-            currentType={rewardData.type}
+            currentType={rewardType}
             hasExistingData={!!hasExistingData}
+            disabled={isSubmitted}
             onSwitch={handleTypeSwitch}
           />
 
@@ -240,25 +403,33 @@ export default function RewardStructureDisplay({
             />
           )}
 
-          {rewardData.type === 'monetary' && (
+          {rewardType === 'monetary' && (
             <MonetaryRewardEditor
-              monetary={rewardData.monetary}
-              errors={errors.filter((e) =>
-                ['currency', 'platinum.amount', 'platinum.count', 'gold.amount', 'gold.count',
-                  'silver.amount', 'silver.count', 'totalPool'].includes(e.field),
-              )}
-              onUpdate={setMonetary}
-              onAIBreakup={handleAIBreakup}
+              tierStates={tierStates}
+              currency={currency}
+              totalPool={totalPool}
+              errors={errors}
+              disabled={isSubmitted}
+              onUpdateTier={updateTier}
+              onCurrencyChange={setCurrency}
+              onAcceptAISuggestion={acceptAISuggestion}
+              onAcceptAllAI={handleAcceptAllMonetaryAI}
+              onReviewWithAI={onReviewWithAI ? handleReviewMonetary : undefined}
               aiLoading={aiLoading}
+              hasAISuggestions={hasAISuggestions}
+              aiRationale={aiRationale}
             />
           )}
 
-          {rewardData.type === 'non_monetary' && (
+          {rewardType === 'non_monetary' && (
             <NonMonetaryRewardEditor
-              nonMonetary={rewardData.nonMonetary}
-              errors={errors.filter((e) => e.field.startsWith('items'))}
-              onUpdate={setNonMonetary}
-              onAISuggest={handleAINonMonetary}
+              selections={nmSelections}
+              errors={errors}
+              disabled={isSubmitted}
+              onToggle={updateNMSelection}
+              onAcceptAISuggestion={acceptAINMSuggestion}
+              onAcceptAllAI={handleAcceptAllNMAI}
+              onReviewWithAI={onReviewWithAI ? handleReviewNonMonetary : undefined}
               aiLoading={aiLoading}
             />
           )}
@@ -273,69 +444,107 @@ export default function RewardStructureDisplay({
             </div>
           )}
 
-          {/* Save/Cancel footer */}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={cancelEditing} className="gap-1.5">
-              <X className="h-3.5 w-3.5" /> Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={saving || !isValid}
-              className="gap-1.5"
-              title={!isValid ? 'Fix validation errors first' : undefined}
-            >
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Save className="h-3.5 w-3.5" />
-              )}
-              Save Reward Structure
-            </Button>
-          </div>
+          {/* Save/Cancel/Submit footer */}
+          {!isSubmitted && (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={cancelEditing} className="gap-1.5">
+                <X className="h-3.5 w-3.5" /> Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                disabled={saving || !isValid}
+                className="gap-1.5"
+              >
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Save
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={saving || !isValid}
+                className="gap-1.5"
+              >
+                Submit & Lock
+              </Button>
+            </div>
+          )}
         </>
       )}
 
       {/* ── Saved state: read view + edit button ── */}
-      {sectionState === 'saved' && (
+      {sectionState === 'saved' && !isEditing && (
         <>
-          {rewardData.type === 'monetary' && rewardData.monetary && (
+          <RewardTypeToggle
+            currentType={rewardType}
+            hasExistingData={false}
+            disabled={isSubmitted}
+            onSwitch={() => {}}
+          />
+          {rewardType === 'monetary' && (
             <MonetaryRewardEditor
-              monetary={rewardData.monetary}
+              tierStates={tierStates}
+              currency={currency}
+              totalPool={totalPool}
               errors={[]}
-              onUpdate={() => {}}
+              disabled
+              onUpdateTier={() => {}}
+              onCurrencyChange={() => {}}
+              onAcceptAISuggestion={() => {}}
             />
           )}
-          {rewardData.type === 'non_monetary' && rewardData.nonMonetary && (
+          {rewardType === 'non_monetary' && (
             <NonMonetaryRewardEditor
-              nonMonetary={rewardData.nonMonetary}
+              selections={nmSelections}
               errors={[]}
-              onUpdate={() => {}}
+              disabled
+              onToggle={() => {}}
+              onAcceptAISuggestion={() => {}}
             />
           )}
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={startEditing} className="gap-1.5">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </Button>
-          </div>
+          {!isSubmitted && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={startEditing} className="gap-1.5">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Button>
+            </div>
+          )}
         </>
       )}
 
       {/* ── Reviewed state ── */}
       {sectionState === 'reviewed' && (
         <>
-          {rewardData.type === 'monetary' && rewardData.monetary && (
+          <RewardTypeToggle
+            currentType={rewardType}
+            hasExistingData={false}
+            disabled={isSubmitted}
+            onSwitch={() => {}}
+          />
+          {rewardType === 'monetary' && (
             <MonetaryRewardEditor
-              monetary={rewardData.monetary}
+              tierStates={tierStates}
+              currency={currency}
+              totalPool={totalPool}
               errors={[]}
-              onUpdate={() => {}}
+              disabled
+              onUpdateTier={() => {}}
+              onCurrencyChange={() => {}}
+              onAcceptAISuggestion={() => {}}
             />
           )}
-          {rewardData.type === 'non_monetary' && rewardData.nonMonetary && (
+          {rewardType === 'non_monetary' && (
             <NonMonetaryRewardEditor
-              nonMonetary={rewardData.nonMonetary}
+              selections={nmSelections}
               errors={[]}
-              onUpdate={() => {}}
+              disabled
+              onToggle={() => {}}
+              onAcceptAISuggestion={() => {}}
             />
           )}
           <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">

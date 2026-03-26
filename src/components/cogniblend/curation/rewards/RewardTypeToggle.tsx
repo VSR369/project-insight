@@ -1,10 +1,11 @@
 /**
  * RewardTypeToggle — Two-option toggle for switching between Monetary and Non-Monetary.
  * Shows confirmation dialog when switching with existing data.
+ * Shows lock badge when isSubmitted.
  */
 
 import { useState } from 'react';
-import { CreditCard, Trophy } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RewardType } from '@/services/rewardStructureResolver';
 import {
@@ -21,18 +22,20 @@ import {
 interface RewardTypeToggleProps {
   currentType: RewardType;
   hasExistingData: boolean;
+  disabled?: boolean;
   onSwitch: (type: RewardType) => void;
 }
 
 export default function RewardTypeToggle({
   currentType,
   hasExistingData,
+  disabled = false,
   onSwitch,
 }: RewardTypeToggleProps) {
   const [pendingType, setPendingType] = useState<RewardType>(null);
 
   const handleClick = (type: RewardType) => {
-    if (type === currentType) return;
+    if (disabled || type === currentType) return;
     if (hasExistingData) {
       setPendingType(type);
     } else {
@@ -52,32 +55,51 @@ export default function RewardTypeToggle({
 
   return (
     <>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => handleClick('monetary')}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all',
-            currentType === 'monetary'
-              ? 'border-2 border-primary bg-primary/5 text-foreground font-semibold'
-              : 'border border-border bg-background text-muted-foreground hover:border-muted-foreground/50',
-          )}
-        >
-          💰 Monetary
-        </button>
-        <button
-          type="button"
-          onClick={() => handleClick('non_monetary')}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all',
-            currentType === 'non_monetary'
-              ? 'border-2 border-primary bg-primary/5 text-foreground font-semibold'
-              : 'border border-border bg-background text-muted-foreground hover:border-muted-foreground/50',
-          )}
-        >
-          🏆 Non-Monetary
-        </button>
+      <div className="flex items-center gap-2">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleClick('monetary')}
+            disabled={disabled}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all',
+              currentType === 'monetary'
+                ? 'border-2 border-primary bg-primary/5 text-foreground font-semibold'
+                : 'border border-border bg-background text-muted-foreground hover:border-muted-foreground/50',
+              disabled && 'cursor-not-allowed opacity-60',
+            )}
+          >
+            💰 Monetary
+          </button>
+          <button
+            type="button"
+            onClick={() => handleClick('non_monetary')}
+            disabled={disabled}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all',
+              currentType === 'non_monetary'
+                ? 'border-2 border-primary bg-primary/5 text-foreground font-semibold'
+                : 'border border-border bg-background text-muted-foreground hover:border-muted-foreground/50',
+              disabled && 'cursor-not-allowed opacity-60',
+            )}
+          >
+            🏆 Non-Monetary
+          </button>
+        </div>
+
+        {disabled && (
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            <span className="text-[10px] font-medium">Locked</span>
+          </div>
+        )}
       </div>
+
+      {disabled && (
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Reward structure is locked after submission.
+        </p>
+      )}
 
       {/* Confirmation dialog */}
       <AlertDialog open={!!pendingType} onOpenChange={(open) => !open && setPendingType(null)}>

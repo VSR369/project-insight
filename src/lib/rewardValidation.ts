@@ -1,6 +1,7 @@
 /**
  * rewardValidation.ts — Pure validation utilities for the reward structure.
  *
+ * Supports both legacy item-array model and new checkbox model.
  * Tier ordering, total pool matching, non-monetary validation, auto-balance.
  */
 
@@ -11,13 +12,84 @@ import type {
   MonetaryReward,
   NonMonetaryReward,
 } from '@/services/rewardStructureResolver';
+import type { TierState, NonMonetarySelections } from '@/hooks/useRewardStructureState';
 
 export interface ValidationError {
   field: string;
   message: string;
 }
 
-/* ── Monetary validation ── */
+/* ── Monetary validation (new toggle-switch model) ── */
+
+export function validateMonetaryTiers(
+  tiers: Record<string, TierState>,
+  totalPool?: number,
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const { platinum, gold, silver } = tiers;
+
+  // Platinum is always required when monetary is active
+  if (!platinum?.enabled) {
+    errors.push({ field: 'platinum.enabled', message: 'Platinum tier is required for monetary rewards.' });
+  } else if (platinum.amount <= 0) {
+    errors.push({ field: 'platinum.amount', message: 'Platinum prize amount must be greater than 0.' });
+  }
+
+  if (gold?.enabled) {
+    if (gold.amount <= 0) {
+      errors.push({ field: 'gold.amount', message: 'Gold prize amount must be greater than 0.' });
+    }
+    if (platinum?.enabled && gold.amount >= platinum.amount) {
+      errors.push({ field: 'gold.amount', message: 'Gold amount must be less than Platinum.' });
+    }
+  }
+
+  // Silver cannot be active without Gold
+  if (silver?.enabled && !gold?.enabled) {
+    errors.push({ field: 'silver.enabled', message: 'Silver cannot be active without Gold.' });
+  }
+
+  if (silver?.enabled) {
+    if (silver.amount <= 0) {
+      errors.push({ field: 'silver.amount', message: 'Silver prize amount must be greater than 0.' });
+    }
+    if (gold?.enabled && silver.amount >= gold.amount) {
+      errors.push({ field: 'silver.amount', message: 'Silver amount must be less than Gold.' });
+    }
+  }
+
+  // Total pool validation
+  if (totalPool != null && totalPool > 0) {
+    const computed = Object.values(tiers)
+      .filter((t) => t.enabled && t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0);
+    if (computed !== totalPool) {
+      const diff = computed - totalPool;
+      const direction = diff > 0 ? 'over' : 'under';
+      errors.push({
+        field: 'totalPool',
+        message: `Prize breakdown is ${Math.abs(diff)} ${direction} the total pool of ${totalPool}.`,
+      });
+    }
+  }
+
+  return errors;
+}
+
+/* ── Non-monetary validation (checkbox model) ── */
+
+export function validateNonMonetarySelections(
+  selections: NonMonetarySelections,
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const hasAny = Object.values(selections).some((s) => s.selected);
+  if (!hasAny) {
+    errors.push({ field: 'nonMonetary', message: 'Select at least one non-monetary reward.' });
+  }
+  return errors;
+}
+
+/* ── Legacy monetary validation (for backward compat with PrizeTier[]) ── */
 
 function validateMonetary(m: MonetaryReward): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -49,6 +121,11 @@ function validateMonetary(m: MonetaryReward): ValidationError[] {
     }
   }
 
+  // Silver without Gold check
+  if (silver && !gold) {
+    errors.push({ field: 'silver.enabled', message: 'Silver cannot be active without Gold.' });
+  }
+
   if (silver) {
     if (silver.amount <= 0) {
       errors.push({ field: 'silver.amount', message: 'Silver prize amount must be greater than 0.' });
@@ -77,7 +154,7 @@ function validateMonetary(m: MonetaryReward): ValidationError[] {
   return errors;
 }
 
-/* ── Non-monetary validation ── */
+/* ── Legacy non-monetary validation ── */
 
 function validateNonMonetary(nm: NonMonetaryReward): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -98,7 +175,7 @@ function validateNonMonetary(nm: NonMonetaryReward): ValidationError[] {
   return errors;
 }
 
-/* ── Main validator ── */
+/* ── Main validator (legacy RewardData interface) ── */
 
 export function validateRewardStructure(state: RewardData): ValidationError[] {
   const errors: ValidationError[] = [];
