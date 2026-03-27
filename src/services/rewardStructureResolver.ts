@@ -9,7 +9,7 @@
 
 export type ChallengeModel = 'marketplace' | 'aggregator';
 export type SourceRole = 'AM' | 'CA' | 'CR' | 'CURATOR';
-export type RewardType = 'monetary' | 'non_monetary' | null;
+export type RewardType = 'monetary' | 'non_monetary' | 'both' | null;
 
 export interface PrizeTier {
   rank: 'platinum' | 'gold' | 'silver' | 'honorable_mention';
