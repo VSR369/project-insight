@@ -6,22 +6,50 @@
  * - Debounce 800ms after setSectionData → upsert to Supabase
  * - Flush pending saves on unmount and tab-hide
  * - Expose saving/saved status for UI indicators
+ * - Supports per-section DB field mapping (reward_structure → challenges.reward_structure, etc.)
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { getCurationFormStore } from '@/store/curationFormStore';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { SECTION_KEYS } from '@/types/sections';
 
 const DEBOUNCE_MS = 800;
 
+/**
+ * Map section keys to their DB column names in the challenges table.
+ * Sections not listed here have their review state saved to ai_section_reviews.
+ */
+const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
+  problem_statement: 'problem_statement',
+  scope: 'scope',
+  hook: 'hook',
+  deliverables: 'deliverables',
+  evaluation_criteria: 'evaluation_criteria',
+  reward_structure: 'reward_structure',
+  phase_schedule: 'phase_schedule',
+  ip_model: 'ip_model',
+  maturity_level: 'maturity_level',
+  visibility: 'visibility',
+  eligibility: 'eligibility',
+  domain_tags: 'domain_tags',
+  submission_deadline: 'submission_deadline',
+  challenge_visibility: 'challenge_visibility',
+  effort_level: 'effort_level',
+  expected_outcomes: 'expected_outcomes',
+  extended_brief: 'extended_brief',
+  submission_guidelines: 'description',
+  solver_expertise: 'solver_expertise_requirements',
+};
+
 interface UseCurationStoreSyncOptions {
   challengeId: string;
   enabled?: boolean;
 }
 
-interface SyncStatus {
+export interface SyncStatus {
   isSaving: boolean;
   lastSavedAt: Date | null;
 }
@@ -32,18 +60,19 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
     lastSavedAt: null,
   });
 
+  const queryClient = useQueryClient();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSaveRef = useRef<Record<string, unknown> | null>(null);
+  const pendingSectionsRef = useRef<Set<SectionKey>>(new Set());
   const isMountedRef = useRef(true);
 
   const store = getCurationFormStore(challengeId);
 
-  // ── Flush pending save to DB ──
+  // ── Flush pending saves to DB ──
   const flushSave = useCallback(async () => {
-    if (!pendingSaveRef.current || !enabled) return;
+    if (pendingSectionsRef.current.size === 0 || !enabled) return;
 
-    const dataToSave = pendingSaveRef.current;
-    pendingSaveRef.current = null;
+    const sectionsToSave = new Set(pendingSectionsRef.current);
+    pendingSectionsRef.current.clear();
 
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -51,35 +80,94 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
     }
 
     try {
-      setSyncStatus((prev) => ({ ...prev, isSaving: true }));
+      if (isMountedRef.current) {
+        setSyncStatus((prev) => ({ ...prev, isSaving: true }));
+      }
 
-      // Save section data as part of the challenge's ai_section_reviews JSONB
-      // This preserves backward compat with the existing storage model
-      const { error } = await supabase
-        .from('challenges')
-        .update({
-          ai_section_reviews: dataToSave as any,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', challengeId);
+      const storeState = store.getState();
 
-      if (error) {
-        console.error('[CurationStoreSync] Save failed:', error.message);
-      } else if (isMountedRef.current) {
+      // Build update payload — group by DB field
+      const challengeUpdate: Record<string, unknown> = {};
+      const reviewEntries: Record<string, unknown> = {};
+
+      for (const sectionKey of sectionsToSave) {
+        const entry = storeState.sections[sectionKey];
+        if (!entry) continue;
+
+        const dbField = SECTION_DB_FIELD_MAP[sectionKey];
+        if (dbField && entry.data !== undefined) {
+          // Section has its own DB column
+          challengeUpdate[dbField] = entry.data;
+        }
+
+        // Always save review state to ai_section_reviews
+        reviewEntries[sectionKey] = {
+          section_key: sectionKey,
+          comments: entry.aiComments,
+          status: entry.reviewStatus === 'reviewed'
+            ? (entry.aiComments && entry.aiComments.length > 0 ? 'warning' : 'pass')
+            : 'pass',
+          addressed: entry.addressed,
+          reviewed_at: new Date().toISOString(),
+        };
+      }
+
+      // Save section data to their respective columns
+      if (Object.keys(challengeUpdate).length > 0) {
+        challengeUpdate.updated_at = new Date().toISOString();
+        const { error } = await supabase
+          .from('challenges')
+          .update(challengeUpdate as any)
+          .eq('id', challengeId);
+
+        if (error) {
+          console.error('[CurationStoreSync] Section data save failed:', error.message);
+        }
+      }
+
+      // Save review state
+      if (Object.keys(reviewEntries).length > 0) {
+        // Merge with existing ai_section_reviews
+        const { data: current } = await supabase
+          .from('challenges')
+          .select('ai_section_reviews')
+          .eq('id', challengeId)
+          .single();
+
+        const existingReviews = (current?.ai_section_reviews as Record<string, unknown>) ?? {};
+        const mergedReviews = { ...existingReviews, ...reviewEntries };
+
+        const { error } = await supabase
+          .from('challenges')
+          .update({
+            ai_section_reviews: mergedReviews as any,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', challengeId);
+
+        if (error) {
+          console.error('[CurationStoreSync] Review state save failed:', error.message);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+
+      if (isMountedRef.current) {
         setSyncStatus({ isSaving: false, lastSavedAt: new Date() });
       }
     } catch (err) {
       console.error('[CurationStoreSync] Save error:', err);
-    } finally {
       if (isMountedRef.current) {
         setSyncStatus((prev) => ({ ...prev, isSaving: false }));
       }
     }
-  }, [challengeId, enabled]);
+  }, [challengeId, enabled, store, queryClient]);
 
   // ── Debounced save ──
-  const scheduleSave = useCallback((data: Record<string, unknown>) => {
-    pendingSaveRef.current = data;
+  const scheduleSave = useCallback((changedSections: SectionKey[]) => {
+    for (const key of changedSections) {
+      pendingSectionsRef.current.add(key);
+    }
 
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -98,7 +186,6 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
     const hasLocalData = Object.keys(storeState.sections).length > 0;
 
     if (!hasLocalData) {
-      // No local data — hydrate from DB
       (async () => {
         try {
           const { data, error } = await supabase
@@ -111,7 +198,6 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
 
           const reviews = data.ai_section_reviews as Record<string, unknown>;
           if (reviews && typeof reviews === 'object') {
-            // Transform DB reviews into section data format for hydration
             const sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>> = {};
             for (const key of SECTION_KEYS) {
               if (key in reviews) {
@@ -132,24 +218,18 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
     if (!enabled) return;
 
     const unsubscribe = store.subscribe((state, prevState) => {
-      // Only save when sections data actually changed
       if (state.sections !== prevState.sections) {
-        // Build serializable save payload
-        const payload: Record<string, unknown> = {};
-        for (const [key, entry] of Object.entries(state.sections)) {
-          if (entry) {
-            payload[key] = {
-              section_key: key,
-              comments: entry.aiComments,
-              status: entry.reviewStatus === 'reviewed'
-                ? (entry.aiComments && entry.aiComments.length > 0 ? 'warning' : 'pass')
-                : 'pass',
-              addressed: entry.addressed,
-              reviewed_at: new Date().toISOString(),
-            };
+        // Find which sections changed
+        const changed: SectionKey[] = [];
+        for (const key of SECTION_KEYS) {
+          const sk = key as SectionKey;
+          if (state.sections[sk] !== prevState.sections[sk]) {
+            changed.push(sk);
           }
         }
-        scheduleSave(payload);
+        if (changed.length > 0) {
+          scheduleSave(changed);
+        }
       }
     });
 

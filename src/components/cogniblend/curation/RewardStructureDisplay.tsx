@@ -9,7 +9,6 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
-import { useDocumentVisibility } from '@/lib/useVisibilityPolling';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +20,7 @@ import type { Json } from '@/integrations/supabase/types';
 import { useRewardStructureState, type AMRewardPayload } from '@/hooks/useRewardStructureState';
 import { serializeRewardData } from '@/services/rewardStructureResolver';
 import { requestAITierBreakup, requestAINonMonetarySuggestions } from '@/services/aiRewardBreakup';
+import { getCurationFormStore } from '@/store/curationFormStore';
 import RewardTypeChooser from './rewards/RewardTypeChooser';
 import RewardTypeToggle from './rewards/RewardTypeToggle';
 import SourceBanner from './rewards/SourceBanner';
@@ -106,104 +106,49 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const [showBothBanner, setShowBothBanner] = useState(false);
   const [activeTab, setActiveTab] = useState<'monetary' | 'non_monetary'>('monetary');
 
-  // ── Ref to always hold latest getSerializedData ──
+  // ── Zustand store integration for navigation persistence ──
+  const storeRef = useRef(getCurationFormStore(challengeId));
   const getSerializedDataRef = useRef(getSerializedData);
   useEffect(() => {
     getSerializedDataRef.current = getSerializedData;
   }, [getSerializedData]);
 
-  // ── Robust autosave scheduler using refs ──
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSavingRef = useRef(false);
-  const queuedSaveRef = useRef(false);
-  const mountedRef = useRef(true);
-  const isVisible = useDocumentVisibility();
+  // Sync serialized data to store whenever editing state changes
+  const syncToStore = useCallback(() => {
+    if (!rewardType) return;
+    const serialized = getSerializedDataRef.current();
+    storeRef.current.getState().setSectionData('reward_structure', serialized);
+  }, [rewardType]);
 
+  const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  const performSave = useCallback(async () => {
-    if (!rewardType) return;
-    if (isSavingRef.current) {
-      queuedSaveRef.current = true;
-      return;
-    }
-    isSavingRef.current = true;
-    try {
-      const serialized = getSerializedDataRef.current();
-      const { error } = await supabase
-        .from('challenges')
-        .update({ reward_structure: serialized as unknown as Json })
-        .eq('id', challengeId);
-      if (error) throw new Error(error.message);
-      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
-      if (mountedRef.current) markSaved();
-    } catch (err: any) {
-      if (mountedRef.current) toast.error(`Auto-save failed: ${err.message}`);
-    } finally {
-      isSavingRef.current = false;
-      // If edits happened while saving, do one trailing save
-      if (queuedSaveRef.current) {
-        queuedSaveRef.current = false;
-        performSave();
-      }
-    }
-  }, [rewardType, challengeId, queryClient, markSaved]);
-
-  const scheduleAutoSave = useCallback(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveTimerRef.current = null;
-      performSave();
-    }, 400);
-  }, [performSave]);
-
-  // ── Flush on unmount or tab hide ──
-  useEffect(() => {
-    return () => {
-      // On unmount: flush any pending save immediately
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-        // Fire-and-forget: save latest state synchronously-ish
-        performSave();
-      }
-    };
-  }, [performSave]);
-
-  // Flush when tab becomes hidden
-  useEffect(() => {
-    if (!isVisible && saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-      performSave();
-    }
-  }, [isVisible, performSave]);
-
   // ── Expose AI review result handler to parent ──
   const handleApplyAIReviewResult = useCallback((data: any) => {
     applyAIReviewResult(data);
     setHasBeenReviewed(true);
-    scheduleAutoSave();
-  }, [applyAIReviewResult, scheduleAutoSave]);
+    syncToStore();
+  }, [applyAIReviewResult, syncToStore]);
 
   useImperativeHandle(ref, () => ({
     applyAIReviewResult: handleApplyAIReviewResult,
   }), [handleApplyAIReviewResult]);
 
-  // ── Save handler (manual) ──
+  // ── Save handler (manual) — syncs to store, which handles DB persistence ──
   const handleSave = useCallback(async () => {
     if (!isValid) {
       toast.error(`Fix ${errors.length} validation error(s) before saving.`);
       return;
     }
-    // Cancel any pending autosave — manual save supersedes
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     setSaving(true);
     try {
       const serialized = getSerializedDataRef.current();
+      // Sync to store — the store sync layer handles DB persistence
+      storeRef.current.getState().setSectionData('reward_structure', serialized);
+      // Also do an immediate DB save for manual saves
       const { error } = await supabase
         .from('challenges')
         .update({ reward_structure: serialized as unknown as Json })
@@ -225,11 +170,11 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       toast.error(`Fix ${errors.length} validation error(s) before locking.`);
       return;
     }
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     lockRewardType();
     setSaving(true);
     try {
       const serialized = getSerializedDataRef.current();
+      storeRef.current.getState().setSectionData('reward_structure', serialized);
       const { error } = await supabase
         .from('challenges')
         .update({ reward_structure: serialized as unknown as Json })
@@ -271,44 +216,44 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
-  // ── Auto-save wrapper callbacks ──
+  // ── Store-syncing wrapper callbacks (replace scheduleAutoSave) ──
   const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
     updateTier(rank, patch);
-    if (rewardType) scheduleAutoSave();
-  }, [updateTier, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [updateTier, rewardType, syncToStore]);
 
   const handleCurrencyChange = useCallback((cur: string) => {
     setCurrency(cur);
-    if (rewardType) scheduleAutoSave();
-  }, [setCurrency, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [setCurrency, rewardType, syncToStore]);
 
   const handleAddNMItem = useCallback((title: string) => {
     addNMItem(title);
-    if (rewardType) scheduleAutoSave();
-  }, [addNMItem, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [addNMItem, rewardType, syncToStore]);
 
   const handleUpdateNMItem = useCallback((id: string, title: string) => {
     updateNMItem(id, title);
-    if (rewardType) scheduleAutoSave();
-  }, [updateNMItem, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [updateNMItem, rewardType, syncToStore]);
 
   const handleDeleteNMItem = useCallback((id: string) => {
     deleteNMItem(id);
-    if (rewardType) scheduleAutoSave();
-  }, [deleteNMItem, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [deleteNMItem, rewardType, syncToStore]);
 
   // ── Type switch handler (unified — used by chooser + toggle + read-only) ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
-    scheduleAutoSave();
-  }, [setRewardType, scheduleAutoSave]);
+    syncToStore();
+  }, [setRewardType, syncToStore]);
 
   // ── Type switch from read-only states ──
   const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     startEditing();
     setRewardType(type);
-    scheduleAutoSave();
-  }, [startEditing, setRewardType, scheduleAutoSave]);
+    syncToStore();
+  }, [startEditing, setRewardType, syncToStore]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
