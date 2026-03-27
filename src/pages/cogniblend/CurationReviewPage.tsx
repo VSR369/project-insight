@@ -1782,7 +1782,7 @@ export default function CurationReviewPage() {
     const comments = Object.entries(ratings)
       .filter(([, r]) => r.justification)
       .map(([key, r]) => `${key}: ${r.justification}`);
-    const ws = computeWeightedComplexityScore(ratings, complexityParams);
+    
     const complexityReview: SectionReview = {
       section_key: 'complexity',
       status: comments.length > 0 ? 'warning' : 'pass',
