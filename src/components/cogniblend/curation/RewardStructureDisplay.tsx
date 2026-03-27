@@ -9,7 +9,6 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
-import { useDocumentVisibility } from '@/lib/useVisibilityPolling';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +20,7 @@ import type { Json } from '@/integrations/supabase/types';
 import { useRewardStructureState, type AMRewardPayload } from '@/hooks/useRewardStructureState';
 import { serializeRewardData } from '@/services/rewardStructureResolver';
 import { requestAITierBreakup, requestAINonMonetarySuggestions } from '@/services/aiRewardBreakup';
+import { getCurationFormStore } from '@/store/curationFormStore';
 import RewardTypeChooser from './rewards/RewardTypeChooser';
 import RewardTypeToggle from './rewards/RewardTypeToggle';
 import SourceBanner from './rewards/SourceBanner';
