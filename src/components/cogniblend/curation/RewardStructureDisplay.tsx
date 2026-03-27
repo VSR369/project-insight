@@ -410,9 +410,11 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
           {/* Save/Cancel/Lock/Submit footer */}
           {!isSubmitted && (
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={cancelEditing} className="gap-1.5">
-                <X className="h-3.5 w-3.5" /> Cancel
-              </Button>
+              {isDirty && (
+                <Button variant="outline" size="sm" onClick={cancelEditing} className="gap-1.5">
+                  <X className="h-3.5 w-3.5" /> Cancel
+                </Button>
+              )}
               {!isTypeLocked && rewardType && (
                 <Button
                   size="sm"
@@ -425,20 +427,22 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   Lock Reward Type
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSave}
-                disabled={saving || !isValid || !rewardType}
-                className="gap-1.5"
-              >
-                {saving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                Save
-              </Button>
+              {isDirty && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={saving || !isValid || !rewardType}
+                  className="gap-1.5"
+                >
+                  {saving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  Save
+                </Button>
+              )}
             </div>
           )}
         </>
