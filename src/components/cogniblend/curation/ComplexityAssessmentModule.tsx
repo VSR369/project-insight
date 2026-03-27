@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Save, X, Bot, Loader2 } from "lucide-react";
+import { Save, X, Bot, Loader2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
 
 /* ─── Thresholds & derivation helpers ─── */
@@ -82,6 +83,12 @@ export function ComplexityAssessmentModule({
   );
   const [aiAssessing, setAiAssessing] = useState(false);
   const [aiJustifications, setAiJustifications] = useState<Record<string, string>>({});
+  const [paramSources, setParamSources] = useState<Record<string, 'ai' | 'curator' | 'default'>>(() => {
+    // If we have existing params, mark them as default initially
+    const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+    complexityParams.forEach((p) => { sources[p.param_key] = 'default'; });
+    return sources;
+  });
 
   // ══════ Derived score (real-time recalc) ══════
   const { weightedScore, derivedLevel, derivedLabel } = useMemo(() => {
@@ -141,6 +148,10 @@ export function ComplexityAssessmentModule({
 
       setDraft(newDraft);
       setAiJustifications(justifications);
+      // Mark all params as AI-sourced
+      const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+      complexityParams.forEach((p) => { sources[p.param_key] = 'ai'; });
+      setParamSources(sources);
       setOverrideEnabled(true); // show sliders so curator can review/adjust
 
       // Auto-save the AI assessment
@@ -164,28 +175,55 @@ export function ComplexityAssessmentModule({
   // ══════ Handlers ══════
   const handleSliderChange = useCallback((paramKey: string, val: number) => {
     setDraft((prev) => ({ ...prev, [paramKey]: val }));
+    setParamSources((prev) => ({ ...prev, [paramKey]: 'curator' }));
   }, []);
 
   const handleQuickSelect = useCallback(
     (threshold: (typeof COMPLEXITY_THRESHOLDS)[number]) => {
-      const midpoint = Math.max(1, Math.min(10, Math.round((threshold.min + threshold.max) / 2)));
+      const targetScore = (threshold.min + threshold.max) / 2;
       const newDraft: Record<string, number> = {};
-      complexityParams.forEach((p) => {
-        newDraft[p.param_key] = midpoint;
-      });
+
+      // Use existing AI ratings as shape if available — scale proportionally
+      const hasAIRatings = Object.keys(aiJustifications).length > 0;
+
+      if (hasAIRatings) {
+        const currentAvg = complexityParams.reduce((s, p) => s + (draft[p.param_key] ?? 5), 0) / complexityParams.length;
+        const scaleFactor = currentAvg > 0 ? targetScore / currentAvg : 1;
+        complexityParams.forEach((p) => {
+          const scaled = Math.round((draft[p.param_key] ?? 5) * scaleFactor);
+          newDraft[p.param_key] = Math.max(1, Math.min(10, scaled));
+        });
+      } else {
+        // No AI data — use parameter weights to create variance
+        const weights = complexityParams.map((p) => p.weight);
+        const maxW = Math.max(...weights);
+        const minW = Math.min(...weights);
+        const range = maxW - minW || 1;
+
+        complexityParams.forEach((p) => {
+          const weightRank = (p.weight - minW) / range; // 0..1
+          const offset = (weightRank - 0.5) * 3; // -1.5 to +1.5
+          const value = Math.round(targetScore + offset);
+          newDraft[p.param_key] = Math.max(1, Math.min(10, value));
+        });
+      }
+
       setDraft(newDraft);
       setAiJustifications({});
-      // If override is not on, save immediately
-      if (!overrideEnabled) {
-        const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-        const ws = totalWeight > 0
-          ? complexityParams.reduce((s, p) => s + midpoint * p.weight, 0) / totalWeight
-          : 5;
-        const score = Math.round(ws * 100) / 100;
-        onSave(newDraft, score, threshold.level);
-      }
+      // Mark all as curator-sourced (manual quick-select)
+      const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+      complexityParams.forEach((p) => { sources[p.param_key] = 'curator'; });
+      setParamSources(sources);
+
+      // Save immediately
+      const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+      const ws = totalWeight > 0
+        ? complexityParams.reduce((s, p) => s + (newDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+        : 5;
+      const score = Math.round(ws * 100) / 100;
+      onSave(newDraft, score, threshold.level);
     },
-    [complexityParams, overrideEnabled, onSave],
+    [complexityParams, draft, aiJustifications, onSave],
   );
 
   const handleSave = useCallback(() => {
@@ -289,7 +327,20 @@ export function ComplexityAssessmentModule({
           return (
             <div key={param.param_key} className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">{param.name}</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-foreground">{param.name}</label>
+                  {paramSources[param.param_key] === 'ai' && (
+                    <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">
+                      AI
+                    </span>
+                  )}
+                  {paramSources[param.param_key] === 'curator' && (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-amber-50 text-amber-600 border-amber-200">
+                      <Pencil className="h-2 w-2" />
+                      Curator
+                    </span>
+                  )}
+                </div>
                 <span className="text-sm font-semibold text-primary">{value}</span>
               </div>
               {param.description && (

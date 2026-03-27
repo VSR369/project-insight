@@ -347,6 +347,13 @@ const SECTIONS: SectionDef[] = [
     },
   },
   {
+    key: "complexity",
+    label: "Complexity Assessment",
+    attribution: "by Curator",
+    isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
+    render: () => null, // Rendered via ComplexityAssessmentModule component
+  },
+  {
     key: "reward_structure",
     label: "Reward Structure",
     attribution: "by Curator",
@@ -365,13 +372,6 @@ const SECTIONS: SectionDef[] = [
         challengeTitle={ch.title}
       />
     ),
-  },
-  {
-    key: "complexity",
-    label: "Complexity Assessment",
-    attribution: "by Curator",
-    isFilled: (ch) => ch.complexity_score != null || !!ch.complexity_level,
-    render: () => null, // Rendered via ComplexityAssessmentModule component
   },
   {
     key: "ip_model",
