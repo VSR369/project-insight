@@ -501,14 +501,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                 )}
                 Save
               </Button>
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                disabled={saving || !isValid}
-                className="gap-1.5"
-              >
-                Submit & Lock
-              </Button>
             </div>
           )}
         </>
