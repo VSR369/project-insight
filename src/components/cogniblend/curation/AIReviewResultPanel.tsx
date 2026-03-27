@@ -729,8 +729,13 @@ export function AIReviewResultPanel({
         )}
       </div>
 
+      {/* ── Complexity Parameter Table ── */}
+      {complexityRatings && Object.keys(complexityRatings).length > 0 && (
+        <ComplexityParameterTable ratings={complexityRatings} />
+      )}
+
       {/* ── AI Suggested Version — always visible, no collapse ── */}
-      {hasSuggestedVersion && (
+      {hasSuggestedVersion && !complexityRatings && (
         <div className="space-y-3 border-l-4 border-l-indigo-400 rounded-r-lg">
           <div className="flex items-center gap-2 px-4 pt-3">
             <Sparkles className="h-4 w-4 text-indigo-600" />
