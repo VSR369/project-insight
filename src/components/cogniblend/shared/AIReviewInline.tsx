@@ -601,7 +601,7 @@ export function AIReviewInline({
     setIsAddressed(true);
     setIsOpen(false);
     onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects]);
+  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects, complexityRatings]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null);
