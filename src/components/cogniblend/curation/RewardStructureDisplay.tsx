@@ -500,23 +500,20 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   Lock Reward Type
                 </Button>
               )}
-              {/* Show Save when: individual type, or "both" with modifications */}
-              {(rewardType !== 'both' || isModified) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSave}
-                  disabled={saving || !isValid}
-                  className="gap-1.5"
-                >
-                  {saving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
-                  Save
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                disabled={saving || !isValid || !rewardType}
+                className="gap-1.5"
+              >
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Save
+              </Button>
             </div>
           )}
         </>
