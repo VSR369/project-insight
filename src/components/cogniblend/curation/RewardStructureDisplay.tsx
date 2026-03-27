@@ -137,17 +137,18 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     applyAIReviewResult: handleApplyAIReviewResult,
   }), [handleApplyAIReviewResult]);
 
-  // ── Save handler (manual) ──
+  // ── Save handler (manual) — syncs to store, which handles DB persistence ──
   const handleSave = useCallback(async () => {
     if (!isValid) {
       toast.error(`Fix ${errors.length} validation error(s) before saving.`);
       return;
     }
-    // Cancel any pending autosave — manual save supersedes
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     setSaving(true);
     try {
       const serialized = getSerializedDataRef.current();
+      // Sync to store — the store sync layer handles DB persistence
+      storeRef.current.getState().setSectionData('reward_structure', serialized);
+      // Also do an immediate DB save for manual saves
       const { error } = await supabase
         .from('challenges')
         .update({ reward_structure: serialized as unknown as Json })
@@ -169,11 +170,11 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       toast.error(`Fix ${errors.length} validation error(s) before locking.`);
       return;
     }
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     lockRewardType();
     setSaving(true);
     try {
       const serialized = getSerializedDataRef.current();
+      storeRef.current.getState().setSectionData('reward_structure', serialized);
       const { error } = await supabase
         .from('challenges')
         .update({ reward_structure: serialized as unknown as Json })
@@ -215,44 +216,44 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
-  // ── Auto-save wrapper callbacks ──
+  // ── Store-syncing wrapper callbacks (replace scheduleAutoSave) ──
   const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
     updateTier(rank, patch);
-    if (rewardType) scheduleAutoSave();
-  }, [updateTier, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [updateTier, rewardType, syncToStore]);
 
   const handleCurrencyChange = useCallback((cur: string) => {
     setCurrency(cur);
-    if (rewardType) scheduleAutoSave();
-  }, [setCurrency, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [setCurrency, rewardType, syncToStore]);
 
   const handleAddNMItem = useCallback((title: string) => {
     addNMItem(title);
-    if (rewardType) scheduleAutoSave();
-  }, [addNMItem, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [addNMItem, rewardType, syncToStore]);
 
   const handleUpdateNMItem = useCallback((id: string, title: string) => {
     updateNMItem(id, title);
-    if (rewardType) scheduleAutoSave();
-  }, [updateNMItem, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [updateNMItem, rewardType, syncToStore]);
 
   const handleDeleteNMItem = useCallback((id: string) => {
     deleteNMItem(id);
-    if (rewardType) scheduleAutoSave();
-  }, [deleteNMItem, rewardType, scheduleAutoSave]);
+    if (rewardType) syncToStore();
+  }, [deleteNMItem, rewardType, syncToStore]);
 
   // ── Type switch handler (unified — used by chooser + toggle + read-only) ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
-    scheduleAutoSave();
-  }, [setRewardType, scheduleAutoSave]);
+    syncToStore();
+  }, [setRewardType, syncToStore]);
 
   // ── Type switch from read-only states ──
   const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     startEditing();
     setRewardType(type);
-    scheduleAutoSave();
-  }, [startEditing, setRewardType, scheduleAutoSave]);
+    syncToStore();
+  }, [startEditing, setRewardType, syncToStore]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
