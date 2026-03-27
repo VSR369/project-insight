@@ -21,6 +21,7 @@ interface NonMonetaryRewardEditorProps {
   onAcceptAllAI?: () => void;
   onReviewWithAI?: () => void;
   aiLoading?: boolean;
+  hasBeenReviewed?: boolean;
 }
 
 export default function NonMonetaryRewardEditor({
