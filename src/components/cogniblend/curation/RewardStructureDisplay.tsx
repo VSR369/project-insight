@@ -220,44 +220,43 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   }, [tierStates, nmItems]);
 
   // ── Auto-save wrapper callbacks ──
-  // These wrap the raw state-hook mutators so every manual edit triggers persistence
   const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
     updateTier(rank, patch);
-    if (rewardType) setPendingSave(true);
-  }, [updateTier, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [updateTier, rewardType, scheduleAutoSave]);
 
   const handleCurrencyChange = useCallback((cur: string) => {
     setCurrency(cur);
-    if (rewardType) setPendingSave(true);
-  }, [setCurrency, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [setCurrency, rewardType, scheduleAutoSave]);
 
   const handleAddNMItem = useCallback((title: string) => {
     addNMItem(title);
-    if (rewardType) setPendingSave(true);
-  }, [addNMItem, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [addNMItem, rewardType, scheduleAutoSave]);
 
   const handleUpdateNMItem = useCallback((id: string, title: string) => {
     updateNMItem(id, title);
-    if (rewardType) setPendingSave(true);
-  }, [updateNMItem, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [updateNMItem, rewardType, scheduleAutoSave]);
 
   const handleDeleteNMItem = useCallback((id: string) => {
     deleteNMItem(id);
-    if (rewardType) setPendingSave(true);
-  }, [deleteNMItem, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [deleteNMItem, rewardType, scheduleAutoSave]);
 
-  // ── Type switch handler ──
+  // ── Type switch handler (unified — used by chooser + toggle + read-only) ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
-    // Auto-save type selection so it persists on navigation
-    setTimeout(() => setPendingSave(true), 200);
-  }, [setRewardType]);
+    scheduleAutoSave();
+  }, [setRewardType, scheduleAutoSave]);
 
   // ── Type switch from read-only states ──
   const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     startEditing();
     setRewardType(type);
-  }, [startEditing, setRewardType]);
+    scheduleAutoSave();
+  }, [startEditing, setRewardType, scheduleAutoSave]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
