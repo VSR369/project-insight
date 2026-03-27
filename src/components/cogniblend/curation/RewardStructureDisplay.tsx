@@ -297,9 +297,38 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
+  // ── Auto-save wrapper callbacks ──
+  // These wrap the raw state-hook mutators so every manual edit triggers persistence
+  const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
+    updateTier(rank, patch);
+    if (rewardType) setPendingSave(true);
+  }, [updateTier, rewardType]);
+
+  const handleCurrencyChange = useCallback((cur: string) => {
+    setCurrency(cur);
+    if (rewardType) setPendingSave(true);
+  }, [setCurrency, rewardType]);
+
+  const handleAddNMItem = useCallback((title: string) => {
+    addNMItem(title);
+    if (rewardType) setPendingSave(true);
+  }, [addNMItem, rewardType]);
+
+  const handleUpdateNMItem = useCallback((id: string, title: string) => {
+    updateNMItem(id, title);
+    if (rewardType) setPendingSave(true);
+  }, [updateNMItem, rewardType]);
+
+  const handleDeleteNMItem = useCallback((id: string) => {
+    deleteNMItem(id);
+    if (rewardType) setPendingSave(true);
+  }, [deleteNMItem, rewardType]);
+
   // ── Type switch handler ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
+    // Auto-save type selection so it persists on navigation
+    setTimeout(() => setPendingSave(true), 200);
   }, [setRewardType]);
 
   // ── Type switch from read-only states ──
@@ -321,8 +350,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       totalPool={totalPool}
       errors={showErrors ? monetaryErrors : []}
       disabled={disabled}
-      onUpdateTier={disabled ? () => {} : updateTier}
-      onCurrencyChange={disabled ? () => {} : setCurrency}
+      onUpdateTier={disabled ? () => {} : handleUpdateTier}
+      onCurrencyChange={disabled ? () => {} : handleCurrencyChange}
       onAcceptAISuggestion={disabled ? () => {} : acceptAISuggestion}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllMonetaryAI}
       hasAISuggestions={hasAISuggestions}
@@ -336,9 +365,9 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       items={nmItems}
       errors={showErrors ? nmErrors : []}
       disabled={disabled}
-      onAddItem={disabled ? () => {} : addNMItem}
-      onUpdateItem={disabled ? () => {} : updateNMItem}
-      onDeleteItem={disabled ? () => {} : deleteNMItem}
+      onAddItem={disabled ? () => {} : handleAddNMItem}
+      onUpdateItem={disabled ? () => {} : handleUpdateNMItem}
+      onDeleteItem={disabled ? () => {} : handleDeleteNMItem}
       onAcceptAISuggestion={disabled ? undefined : (id) => acceptAINMSuggestion(id)}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllNMAI}
     />
@@ -471,23 +500,20 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   Lock Reward Type
                 </Button>
               )}
-              {/* Show Save when: individual type, or "both" with modifications */}
-              {(rewardType !== 'both' || isModified) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSave}
-                  disabled={saving || !isValid}
-                  className="gap-1.5"
-                >
-                  {saving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
-                  Save
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                disabled={saving || !isValid || !rewardType}
+                className="gap-1.5"
+              >
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Save
+              </Button>
             </div>
           )}
         </>
