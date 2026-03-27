@@ -1,56 +1,59 @@
 
 
-# Fix: Reward AI Suggested Version Rendering + Non-Monetary Content
+# Fix: Reward AI Persistence Loss + "Re-review" Label Consistency
 
-## Problem 1 — Distorted rendering
+## Root Cause Analysis
 
-The AI now returns a structured JSON object for `reward_structure`:
-```json
-{"type":"both","monetary":{"tiers":{"platinum":1000,...}},"nonMonetary":{"items":[...]}}
+### Bug 1 — AI accepted values lost on navigation
+
+In `CurationReviewPage.tsx` line 1559, after accepting an AI suggestion for `reward_structure`, the code saves the **raw AI object** directly to the DB:
+
+```js
+saveSectionMutation.mutate({ field: dbField, value: valueToSave });
+// valueToSave = { type: "both", monetary: { tiers: { platinum: 5000, gold: 3000 } }, nonMonetary: { items: ["Mentorship", ...] } }
 ```
 
-But `AIReviewResultPanel` still treats `reward_structure` as format `table` and tries `parseTableRows()`, which expects an array. The object fails that check → returns `null` → the JSON string falls through to the `rich_text` or `line_items` renderer → each JSON line becomes a separate editable row (the distortion in the screenshot).
+This raw format is **incompatible** with `migrateRawReward()` which expects:
+- `tiers` as an **array** of `{ rank, amount, count }` objects (not a key-value map)
+- `items` as an array of **objects** with `{ title, description, type }` (not plain strings)
 
-## Problem 2 — Non-monetary content missing from AI
+Result on reload: monetary tiers can't be parsed → lost. NM items are strings → skipped → empty list → defaults populate.
 
-The edge function prompt now asks for both monetary and non-monetary, but the current reward data sent to the AI (in `CurationReviewPage.tsx`) may only serialize monetary tier data. The AI has no context about non-monetary items, so it defaults to generic or monetary-only suggestions.
+### Bug 2 — "Review with AI" instead of "Re-review"
+
+`MonetaryRewardEditor` and `NonMonetaryRewardEditor` have a hardcoded "Review with AI" label. Other sections use `AIReviewInline` which dynamically shows "Re-review this section" after initial review. The reward editors don't track review state.
 
 ## Fix Plan
 
-### 1. Custom renderer for `reward_structure` in `AIReviewResultPanel.tsx`
+### File 1: `src/pages/cogniblend/CurationReviewPage.tsx` (line ~1556-1559)
 
-Instead of routing through the generic `table` renderer, add a dedicated `reward_structure` rendering branch that:
+After calling `applyAIReviewResult`, instead of saving the raw AI object, call the reward component's `getSerializedData()` after a short delay (state update needs to settle), OR better: **convert the AI object to the proper serialized format before saving**.
 
-- Parses the structured `{type, monetary, nonMonetary}` object
-- Renders a clean card layout:
-  - **Type badge**: "Monetary", "Non-Monetary", or "Both"
-  - **Monetary section**: Tier cards showing Platinum/Gold/Silver amounts + currency + justification
-  - **Non-monetary section**: Bullet list of suggested items
-- Falls back to the old table renderer if the AI returns legacy flat-array format
+Transform the AI object inline:
+- Convert `monetary.tiers` from `{ platinum: N }` map → proper `tiers` array `[{ rank: "platinum", amount: N, count: 1 }]`
+- Convert `nonMonetary.items` from `["string"]` → `[{ id, type: "recognition", title: "string", description: "" }]`
+- Add flat keys (`platinum`, `gold`, `silver`) + `currency` + `source_role: "CURATOR"` for full round-trip compatibility
 
-Changes:
-- Add `rewardData` memo that detects and parses the new format (before `tableRows`)
-- Add a new rendering branch before the `tableRows` branch in the JSX
-- The "Accept" button will pass the parsed structured object (not the raw string)
+This ensures `migrateRawReward()` can reconstruct the data on next page load.
 
-### 2. Update `curationSectionFormats.ts`
+### File 2: `src/components/cogniblend/curation/rewards/MonetaryRewardEditor.tsx`
 
-Change `reward_structure` format from `'table'` to `'custom'` so it doesn't trigger generic table parsing.
+Add a `hasBeenReviewed` prop. When true, change button text from "Review with AI" to "Re-review with AI" and swap icon from `Sparkles` to `RefreshCw`.
 
-### 3. Pass current NM items to AI context in `CurationReviewPage.tsx`
+### File 3: `src/components/cogniblend/curation/rewards/NonMonetaryRewardEditor.tsx`
 
-Ensure the reward section data sent to the refine edge function includes any existing non-monetary items, so the AI can build on them.
+Same change — add `hasBeenReviewed` prop for label consistency.
 
-### 4. Update edge function prompt context
+### File 4: `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
 
-In `refine-challenge-section/index.ts`, ensure the `reward_structure` section prompt includes context about the current reward type selection and any existing non-monetary items, so the AI generates appropriate NM suggestions.
+Pass `hasBeenReviewed` (derived from `sectionState === 'reviewed'` or presence of AI review results) down to both editors.
 
-## Files
+## Summary
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Add `reward_structure` custom renderer branch with tier cards + NM item list |
-| `src/lib/cogniblend/curationSectionFormats.ts` | Change `reward_structure` format to `'custom'` |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Include NM items in reward section data sent to AI |
-| `supabase/functions/refine-challenge-section/index.ts` | Ensure prompt includes existing NM items context |
+| `CurationReviewPage.tsx` | Transform AI reward object to proper serialized format before DB save |
+| `MonetaryRewardEditor.tsx` | Add `hasBeenReviewed` prop → "Re-review with AI" label |
+| `NonMonetaryRewardEditor.tsx` | Add `hasBeenReviewed` prop → "Re-review with AI" label |
+| `RewardStructureDisplay.tsx` | Pass `hasBeenReviewed` to both editors |
 
