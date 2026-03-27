@@ -136,8 +136,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const handleApplyAIReviewResult = useCallback((data: any) => {
     applyAIReviewResult(data);
     setHasBeenReviewed(true);
-    syncToStore();
-  }, [applyAIReviewResult, syncToStore]);
+    // State-driven sync effect will handle store persistence
+  }, [applyAIReviewResult]);
 
   useImperativeHandle(ref, () => ({
     applyAIReviewResult: handleApplyAIReviewResult,
@@ -224,44 +224,66 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
-  // ── Store-syncing wrapper callbacks (replace scheduleAutoSave) ──
+  // ── State-driven store sync: debounce writes after React state settles ──
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!rewardType) return;
+    // Debounce: wait for state to settle before syncing to store
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      syncToStore();
+    }, 150);
+    return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
+  }, [rewardType, tierStates, nmItems, currency, totalPool, syncToStore]);
+
+  // Flush pending sync on unmount / tab-hide
+  useEffect(() => {
+    const flush = () => {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      if (rewardType) syncToStore();
+    };
+    const handleVisChange = () => { if (document.hidden) flush(); };
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisChange);
+      flush();
+    };
+  }, [rewardType, syncToStore]);
+
+  // ── Simple pass-through callbacks (no immediate syncToStore — handled by effect) ──
   const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
     updateTier(rank, patch);
-    if (rewardType) syncToStore();
-  }, [updateTier, rewardType, syncToStore]);
+  }, [updateTier]);
 
   const handleCurrencyChange = useCallback((cur: string) => {
     setCurrency(cur);
-    if (rewardType) syncToStore();
-  }, [setCurrency, rewardType, syncToStore]);
+  }, [setCurrency]);
 
   const handleAddNMItem = useCallback((title: string) => {
     addNMItem(title);
-    if (rewardType) syncToStore();
-  }, [addNMItem, rewardType, syncToStore]);
+  }, [addNMItem]);
 
   const handleUpdateNMItem = useCallback((id: string, title: string) => {
     updateNMItem(id, title);
-    if (rewardType) syncToStore();
-  }, [updateNMItem, rewardType, syncToStore]);
+  }, [updateNMItem]);
 
   const handleDeleteNMItem = useCallback((id: string) => {
     deleteNMItem(id);
-    if (rewardType) syncToStore();
-  }, [deleteNMItem, rewardType, syncToStore]);
+  }, [deleteNMItem]);
 
   // ── Type switch handler (unified — used by chooser + toggle + read-only) ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
-    syncToStore();
-  }, [setRewardType, syncToStore]);
+  }, [setRewardType]);
 
   // ── Type switch from read-only states ──
   const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     startEditing();
     setRewardType(type);
-    syncToStore();
-  }, [startEditing, setRewardType, syncToStore]);
+  }, [startEditing, setRewardType]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';

@@ -1151,9 +1151,34 @@ export default function CurationReviewPage() {
 
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
-      const stored = Array.isArray(challenge.ai_section_reviews)
-        ? normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[])
-        : [];
+      let stored: SectionReview[] = [];
+
+      if (Array.isArray(challenge.ai_section_reviews)) {
+        // Standard array format
+        stored = normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[]);
+      } else if (challenge.ai_section_reviews && typeof challenge.ai_section_reviews === 'object') {
+        // Legacy object-map format { section_key: { comments, status, ... } }
+        // Normalize into array format for recovery
+        const objMap = challenge.ai_section_reviews as Record<string, any>;
+        const converted: SectionReview[] = [];
+        for (const [key, val] of Object.entries(objMap)) {
+          if (val && typeof val === 'object' && 'section_key' in val) {
+            converted.push({
+              section_key: val.section_key ?? key,
+              status: val.status ?? 'pass',
+              comments: Array.isArray(val.comments) ? val.comments : [],
+              reviewed_at: val.reviewed_at,
+              addressed: val.addressed ?? false,
+            });
+          }
+        }
+        if (converted.length > 0) {
+          stored = normalizeSectionReviews(converted);
+          // Persist normalized array back to fix the legacy format
+          saveSectionMutation.mutate({ field: "ai_section_reviews", value: stored });
+        }
+      }
+
       if (stored.length > 0) {
         setAiReviews(stored);
       }

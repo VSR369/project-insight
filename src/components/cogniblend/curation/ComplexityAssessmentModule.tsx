@@ -180,18 +180,20 @@ export function ComplexityAssessmentModule({
     };
   }, [draft, complexityParams]);
 
-  // Display values
-  const displayScore = activeTab === "ai_review" ? (currentScore ?? weightedScore) : weightedScore;
+  // Display values — always derive from draft when draft has been populated
+  // This prevents score=0 when currentScore is stale after tab navigation
+  const hasDraftValues = Object.keys(draft).length > 0;
+  const displayScore = activeTab === "quick_select" ? 0
+    : hasDraftValues ? weightedScore
+    : (currentScore ?? weightedScore);
   const displayLevel = activeTab === "quick_select" && overrideLevel
     ? overrideLevel
-    : activeTab === "ai_review"
-      ? (currentLevel ?? derivedLevel)
-      : derivedLevel;
+    : hasDraftValues ? derivedLevel
+    : (currentLevel ?? derivedLevel);
   const displayLabel = activeTab === "quick_select" && overrideLevel
     ? getLabelForLevel(overrideLevel)
-    : activeTab === "ai_review"
-      ? deriveComplexityLabel(currentScore ?? weightedScore)
-      : derivedLabel;
+    : hasDraftValues ? derivedLabel
+    : deriveComplexityLabel(currentScore ?? weightedScore);
   const levelColor = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L3;
 
   // Dirty state: has the user made changes in the current tab?
