@@ -1318,8 +1318,22 @@ export default function CurationReviewPage() {
         throw new Error(triageData?.error?.message ?? "Triage failed");
       }
 
-      const triageReviews = triageData.data.all_reviews as SectionReview[];
-      const routing = triageData.data.routing as { pass: string[]; warning: string[]; inferred: string[]; phase2_queue: string[] };
+      const VALID_CURATION_KEYS = new Set([
+        'problem_statement', 'scope', 'deliverables', 'evaluation_criteria', 'reward_structure',
+        'phase_schedule', 'submission_guidelines', 'eligibility', 'complexity', 'ip_model',
+        'legal_docs', 'escrow_funding', 'maturity_level', 'hook', 'submission_deadline',
+        'challenge_visibility', 'effort_level', 'domain_tags', 'visibility', 'solver_expertise',
+        'context_and_background', 'root_causes', 'affected_stakeholders', 'current_deficiencies',
+        'preferred_approach', 'approaches_not_of_interest',
+      ]);
+      const triageReviews = (triageData.data.all_reviews as SectionReview[]).filter(r => VALID_CURATION_KEYS.has(r.section_key));
+      const rawRouting = triageData.data.routing as { pass: string[]; warning: string[]; inferred: string[]; phase2_queue: string[] };
+      const routing = {
+        pass: rawRouting.pass.filter(k => VALID_CURATION_KEYS.has(k)),
+        warning: rawRouting.warning.filter(k => VALID_CURATION_KEYS.has(k)),
+        inferred: rawRouting.inferred.filter(k => VALID_CURATION_KEYS.has(k)),
+        phase2_queue: rawRouting.phase2_queue.filter(k => VALID_CURATION_KEYS.has(k)),
+      };
 
       // Safety net: any "pass" section with comments must be routed to phase2_queue
       triageReviews.forEach(r => {
