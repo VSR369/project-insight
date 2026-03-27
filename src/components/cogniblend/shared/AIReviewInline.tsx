@@ -269,11 +269,13 @@ export function AIReviewInline({
   }, [comments.length]);
 
   // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
+  // Skip for complexity — it uses structured parameter table, not text refinement
   const autoRefineTriggered = React.useRef(false);
   useEffect(() => {
     if (
       !autoRefineTriggered.current &&
       !isLockedSection &&
+      sectionKey !== 'complexity' &&
       review &&
       !review.addressed &&
       (review.status === "warning" || review.status === "needs_revision") &&
@@ -289,7 +291,7 @@ export function AIReviewInline({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size]);
+  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size, sectionKey]);
 
   // Reset auto-refine flag AND stale suggestion state when review changes (e.g. re-review or new deep review)
   // Use content-based signature (not just count) to detect changes even when comment count stays the same
