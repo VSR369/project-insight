@@ -138,10 +138,12 @@ export default function NonMonetaryRewardEditor({
           >
             {aiLoading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
+            ) : hasBeenReviewed ? (
+              <RefreshCw className="h-3 w-3" />
             ) : (
               <Sparkles className="h-3 w-3" />
             )}
-            Review with AI
+            {hasBeenReviewed ? 'Re-review with AI' : 'Review with AI'}
           </Button>
         </div>
       )}
