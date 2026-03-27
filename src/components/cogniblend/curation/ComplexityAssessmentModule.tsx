@@ -180,24 +180,50 @@ export function ComplexityAssessmentModule({
 
   const handleQuickSelect = useCallback(
     (threshold: (typeof COMPLEXITY_THRESHOLDS)[number]) => {
-      const midpoint = Math.max(1, Math.min(10, Math.round((threshold.min + threshold.max) / 2)));
+      const targetScore = (threshold.min + threshold.max) / 2;
       const newDraft: Record<string, number> = {};
-      complexityParams.forEach((p) => {
-        newDraft[p.param_key] = midpoint;
-      });
+
+      // Use existing AI ratings as shape if available — scale proportionally
+      const hasAIRatings = Object.keys(aiJustifications).length > 0;
+
+      if (hasAIRatings) {
+        const currentAvg = complexityParams.reduce((s, p) => s + (draft[p.param_key] ?? 5), 0) / complexityParams.length;
+        const scaleFactor = currentAvg > 0 ? targetScore / currentAvg : 1;
+        complexityParams.forEach((p) => {
+          const scaled = Math.round((draft[p.param_key] ?? 5) * scaleFactor);
+          newDraft[p.param_key] = Math.max(1, Math.min(10, scaled));
+        });
+      } else {
+        // No AI data — use parameter weights to create variance
+        const weights = complexityParams.map((p) => p.weight);
+        const maxW = Math.max(...weights);
+        const minW = Math.min(...weights);
+        const range = maxW - minW || 1;
+
+        complexityParams.forEach((p) => {
+          const weightRank = (p.weight - minW) / range; // 0..1
+          const offset = (weightRank - 0.5) * 3; // -1.5 to +1.5
+          const value = Math.round(targetScore + offset);
+          newDraft[p.param_key] = Math.max(1, Math.min(10, value));
+        });
+      }
+
       setDraft(newDraft);
       setAiJustifications({});
-      // If override is not on, save immediately
-      if (!overrideEnabled) {
-        const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-        const ws = totalWeight > 0
-          ? complexityParams.reduce((s, p) => s + midpoint * p.weight, 0) / totalWeight
-          : 5;
-        const score = Math.round(ws * 100) / 100;
-        onSave(newDraft, score, threshold.level);
-      }
+      // Mark all as curator-sourced (manual quick-select)
+      const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+      complexityParams.forEach((p) => { sources[p.param_key] = 'curator'; });
+      setParamSources(sources);
+
+      // Save immediately
+      const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+      const ws = totalWeight > 0
+        ? complexityParams.reduce((s, p) => s + (newDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+        : 5;
+      const score = Math.round(ws * 100) / 100;
+      onSave(newDraft, score, threshold.level);
     },
-    [complexityParams, overrideEnabled, onSave],
+    [complexityParams, draft, aiJustifications, onSave],
   );
 
   const handleSave = useCallback(() => {
