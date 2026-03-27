@@ -1,54 +1,66 @@
 
-Root cause confirmation (from current code):
-1) Type selection path inconsistency still exists:
-- `RewardTypeChooser` uses `onSelect={setRewardType}` directly, so initial Non-Monetary/Both selection does not trigger autosave scheduling.
-- `handleTypeSwitchFromReadOnly` also bypasses autosave scheduling.
-2) Autosave is fragile on fast navigation:
-- Current flow uses `pendingSave + setTimeout(150ms)` in an effect.
-- The cleanup clears the timer, so if user navigates quickly/unmounts, the pending write is canceled.
-3) Result: Non-monetary edits/type changes can appear “lost” after section/page navigation.
 
-Implementation plan (permanent fix):
-1) Unify all reward-type changes through one autosaving handler
-- Route all type changes to a single `handleTypeSwitch` path (including empty chooser and read-only toggle path).
-- Update:
-  - `RewardTypeChooser onSelect` → `handleTypeSwitch`
-  - `handleTypeSwitchFromReadOnly` → call `startEditing()` + `handleTypeSwitch(type)`
-- This guarantees type transitions always mark the section dirty for persistence.
+# Fix: Complexity Section — Re-review + Review State Synchronization
 
-2) Replace brittle `pendingSave` boolean flow with robust autosave scheduler
-- In `RewardStructureDisplay.tsx`, replace `pendingSave` effect with a dedicated scheduler using refs:
-  - `saveTimerRef`
-  - `isSavingRef`
-  - `queuedSaveRef`
-- Add `scheduleAutoSave()` for all manual mutations (tier/non-monetary/currency/type/AI-accept).
-- Debounce writes (e.g., 300–500ms) to avoid write spam while preserving responsiveness.
-- Keep explicit `handleSave` button as manual fallback.
+## Problems Identified
 
-3) Add guaranteed flush on leave/unmount
-- Add cleanup/visibility handling that flushes pending changes immediately when component unmounts or page becomes hidden.
-- Ensure this flush is fire-and-forget safe and does not rely on component-mounted state updates.
-- Prevent state updates after unmount (no `setState` in late async completion paths).
+### 1. No Re-review action for Complexity
+The `CurationAIReviewInline` component renders a "Re-review this section" button for all sections. However, for Complexity, the AI review is routed to the `assess-complexity` edge function (not `review-challenge-sections`). When the inline panel calls `handleReReview`, it invokes `review-challenge-sections` with `section_key: "complexity"` — which returns generic review comments, not complexity-specific parameter ratings. The re-review button IS visible (it's part of `AIReviewInline`), but the result overwrites the specialized complexity review with a generic one.
 
-4) Harden save correctness and race handling
-- Save using latest serializer ref (`getSerializedDataRef.current()`).
-- If a save is in flight and new edits happen, queue one trailing save so latest state is always persisted.
-- Keep `queryClient.invalidateQueries(["curation-review", challengeId])` after successful writes.
+**Root cause**: `handleReReview` in `AIReviewInline.tsx` always calls `review-challenge-sections`. For complexity, it should call `assess-complexity` instead.
 
-5) Preserve current UX while fixing reliability
-- Keep Save button visible in editing mode.
-- Keep current validation behavior.
-- Keep lock/finalization logic unchanged.
-- No DB schema changes required.
+### 2. Comments badge remains static after acceptance
+When the curator accepts AI complexity recommendations (via Accept in the `AIReviewResultPanel`), `handleAcceptRefinement` at line 1502 applies the ratings and saves them via `handleSaveComplexity`. Then `handleMarkAddressed` is called (from `AIReviewInline.handleAccept`), which sets `addressed: true` on the review. However, the comments array is never cleared — the old `7 comments` badge persists. Per user preference: after acceptance, comments should reset to 0.
 
-Files to modify:
-- `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
-- `src/components/cogniblend/curation/rewards/RewardTypeChooser.tsx`
-- (if needed) `src/components/cogniblend/curation/rewards/RewardTypeToggle.tsx` for handler wiring consistency
+**Root cause**: `handleMarkAddressed` only sets `addressed: true` but keeps the comments array intact. For the user's desired behavior, we need to also clear the comments array when marking as addressed.
 
-Verification plan (end-to-end):
-1) Empty state: choose Non-Monetary, immediately navigate away/back → selection and items persist.
-2) Add/edit/delete non-monetary items, switch sections quickly, return → latest content persists.
-3) Switch Monetary ↔ Non-Monetary ↔ Both rapidly, then navigate away/back → final chosen type and data persist.
-4) Accept AI non-monetary suggestions, navigate immediately → persisted.
-5) Confirm no duplicate/burst save errors in console/network and no regressions in manual Save/Lock flow.
+## Fix Plan
+
+### Fix 1: Complexity-aware re-review in `AIReviewInline`
+**File**: `src/components/cogniblend/shared/AIReviewInline.tsx`
+
+Add a new prop `onReReview?: (sectionKey: string) => Promise<void>` to allow the parent to provide a custom re-review handler. When this prop is provided, `handleReReview` delegates to it instead of calling `review-challenge-sections` directly.
+
+**File**: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+Create a `handleComplexityReReview` callback that:
+1. Calls `assess-complexity` edge function
+2. Transforms the result into a `SectionReview` format
+3. Updates `aiSuggestedComplexity` state
+4. Calls `handleSingleSectionReview` to persist
+5. Resets addressed state
+
+Pass this as `onReReview` prop to `CurationAIReviewInline` when `section.key === "complexity"`.
+
+### Fix 2: Clear comments on acceptance
+**File**: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+Update `handleMarkAddressed` to clear the comments array (set to `[]`) along with setting `addressed: true`. This ensures the "Comments (7)" badge resets to 0 after acceptance.
+
+```typescript
+// Before:
+const updated = prev.map((r) =>
+  r.section_key === sectionKey ? { ...r, addressed: true } : r
+);
+
+// After:
+const updated = prev.map((r) =>
+  r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
+);
+```
+
+This change affects ALL sections (not just complexity), which is the correct behavior — once a section's AI suggestions are accepted, the old comments are no longer relevant.
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/components/cogniblend/shared/AIReviewInline.tsx` | Add optional `onReReview` prop; delegate to it in `handleReReview` when provided |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | 1) Create `handleComplexityReReview` callback; 2) Pass `onReReview` for complexity section; 3) Clear comments in `handleMarkAddressed` |
+
+## Behavior After Fix
+
+- **Re-review**: Always visible for complexity (and all sections). For complexity, it calls `assess-complexity` and returns parameter-specific ratings/justifications. For all other sections, existing `review-challenge-sections` flow is unchanged.
+- **Comments after accept**: Reset to 0 for all sections. The badge disappears. The section shows "Addressed" state with "Re-review this section" button.
+- **Data integrity**: All state changes are persisted to `ai_section_reviews` in the DB via `saveSectionMutation`.
+
