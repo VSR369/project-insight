@@ -30,11 +30,8 @@ interface MonetaryRewardEditorProps {
   onAcceptAllAI?: () => void;
   onApplyAITiers?: () => void;
   onApplyAIAmounts?: () => void;
-  onReviewWithAI?: () => void;
-  aiLoading?: boolean;
   hasAISuggestions?: boolean;
   aiRationale?: string;
-  hasBeenReviewed?: boolean;
 }
 
 export default function MonetaryRewardEditor({
