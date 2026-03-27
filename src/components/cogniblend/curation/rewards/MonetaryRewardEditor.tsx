@@ -3,8 +3,8 @@
  * toggle switches, per-field source badges, and inline AI suggestions.
  */
 
-import { useMemo, useCallback } from 'react';
-import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { useMemo } from 'react';
+import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { TierState } from '@/hooks/useRewardStructureState';
