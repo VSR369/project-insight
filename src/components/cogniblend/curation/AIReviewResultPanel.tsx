@@ -492,6 +492,12 @@ export function AIReviewResultPanel({
     }
   }, [suggestedFormat, scheduleRows]);
 
+  useEffect(() => {
+    if (suggestedFormat === "reward_custom" && rewardData) {
+      onSuggestedVersionChange?.(rewardData);
+    }
+  }, [suggestedFormat, rewardData]);
+
   // Change handlers that emit to parent
   const handleRichTextChange = useCallback((val: string) => {
     setEditedRichText(val);
