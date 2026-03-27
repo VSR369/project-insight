@@ -220,6 +220,7 @@ export function AIReviewInline({
   onSendToCoordinator,
   coordinatorRole,
   hasSentBefore = false,
+  onReReview,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
