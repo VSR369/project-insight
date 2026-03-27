@@ -452,7 +452,7 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
   };
 }
 
-
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

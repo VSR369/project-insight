@@ -365,6 +365,83 @@ function EditableScheduleRows({
   );
 }
 
+/** Complexity parameter table — renders AI-suggested per-parameter ratings */
+function ComplexityParameterTable({
+  ratings,
+}: {
+  ratings: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
+}) {
+  const entries = Object.entries(ratings);
+  if (entries.length === 0) return null;
+
+  // Simple average for display (weighted score computed elsewhere with master params)
+  const avgScore = entries.reduce((s, [, r]) => s + r.rating, 0) / entries.length;
+  const level = deriveComplexityLevel(avgScore);
+  const label = deriveComplexityLabel(avgScore);
+  const levelColor = LEVEL_COLORS[level] ?? "";
+
+  function ratingColor(rating: number): string {
+    if (rating <= 3) return "bg-emerald-100 text-emerald-800 border-emerald-300";
+    if (rating <= 5) return "bg-blue-100 text-blue-800 border-blue-300";
+    if (rating <= 7) return "bg-amber-100 text-amber-800 border-amber-300";
+    return "bg-red-100 text-red-800 border-red-300";
+  }
+
+  return (
+    <div className="space-y-3 border-l-4 border-l-indigo-400 rounded-r-lg">
+      <div className="flex items-center gap-2 px-4 pt-3">
+        <Sparkles className="h-4 w-4 text-indigo-600" />
+        <span className="text-sm font-semibold text-foreground">AI Complexity Assessment</span>
+        <Badge className={cn("text-[11px] px-2 py-0.5 border", levelColor)}>
+          {level} — {label}
+        </Badge>
+        <span className="text-xs text-muted-foreground ml-auto">
+          Avg: {avgScore.toFixed(1)}/10
+        </span>
+      </div>
+
+      <div className="relative w-full overflow-auto mx-4 mb-3 pr-8">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs w-[140px]">Parameter</TableHead>
+              <TableHead className="text-xs w-[70px] text-center">Rating</TableHead>
+              <TableHead className="text-xs">Justification</TableHead>
+              <TableHead className="text-xs w-[140px]">Evidence</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entries.map(([key, r]) => (
+              <TableRow key={key}>
+                <TableCell className="text-sm font-medium py-2">
+                  {key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                </TableCell>
+                <TableCell className="text-center py-2">
+                  <Badge className={cn("text-xs px-2 py-0.5 border tabular-nums", ratingColor(r.rating))}>
+                    {r.rating}/10
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground py-2 leading-relaxed">
+                  {r.justification}
+                </TableCell>
+                <TableCell className="py-2">
+                  <div className="flex flex-wrap gap-1">
+                    {(r.evidence_sections ?? []).map((sec) => (
+                      <Badge key={sec} variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground font-mono">
+                        {sec}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 /* ── Component ─────────────────────────────────────────── */
 
 export function AIReviewResultPanel({
@@ -729,8 +806,13 @@ export function AIReviewResultPanel({
         )}
       </div>
 
+      {/* ── Complexity Parameter Table ── */}
+      {complexityRatings && Object.keys(complexityRatings).length > 0 && (
+        <ComplexityParameterTable ratings={complexityRatings} />
+      )}
+
       {/* ── AI Suggested Version — always visible, no collapse ── */}
-      {hasSuggestedVersion && (
+      {hasSuggestedVersion && !complexityRatings && (
         <div className="space-y-3 border-l-4 border-l-indigo-400 rounded-r-lg">
           <div className="flex items-center gap-2 px-4 pt-3">
             <Sparkles className="h-4 w-4 text-indigo-600" />
@@ -913,7 +995,7 @@ export function AIReviewResultPanel({
       )}
 
       {/* ── Accept / Keep original actions — sticky footer ── */}
-      {(hasSuggestedVersion || isRefining) && (
+      {(hasSuggestedVersion || isRefining || (complexityRatings && Object.keys(complexityRatings).length > 0)) && (
         <div className="sticky bottom-0 bg-card flex gap-3 justify-end pt-3 pb-1 border-t border-border -mx-4 px-4">
           <Button
             variant="outline"
@@ -931,7 +1013,9 @@ export function AIReviewResultPanel({
             disabled={isRefining}
           >
             <Check className="h-4 w-4 mr-1.5" />
-            {isMasterData && resolvedCodes
+            {complexityRatings && Object.keys(complexityRatings).length > 0
+              ? "Accept complexity ratings"
+              : isMasterData && resolvedCodes
               ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
               : isStructured && structuredItems
                 ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
