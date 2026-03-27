@@ -1,102 +1,61 @@
 
 
-# Fix: Reward Section Triage Comments — Specialist Reward Design Guidance
+# Conditional Save Button Based on Reward Type & Save State
 
 ## Problem
 
-The AI Review comments shown under the Reward Structure section (Phase 1 triage) are generic and technical — telling the curator things like "provide a written rationale as a JSON object" or referencing "L4 rating" and "Budget Scale parameter". These are meaningless to a curator.
+When "Both" is selected and all data is saved, the Monetary and Non-Monetary sub-screens still show a Save button — redundant since everything was saved together. Conversely, when "Monetary" or "Non-Monetary" is selected individually, explicit Save buttons are needed since data hasn't been saved under "Both".
 
-**Root cause:** The triage system prompt in `triage-challenge-sections/index.ts` is a single generic prompt for all 28 sections. It has zero knowledge of reward design principles. It just evaluates "is content complete, correctly formatted" — producing structural/technical observations.
+## Current Behavior
 
-## Solution
+There is a single Save button at the bottom of the editing section (line 480-493 in `RewardStructureDisplay.tsx`). It appears regardless of whether the data was already saved under "Both" or is being configured fresh under a single type.
 
-Add **section-specific triage instructions** that are appended to the user prompt when the `reward_structure` section is being triaged. This transforms the AI from a generic format checker into a reward design specialist.
+## Proposed Fix
 
-## Changes
+**File:** `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
 
-### File: `supabase/functions/triage-challenge-sections/index.ts`
+Add logic to the Save/Cancel/Lock footer (lines 462-495) that checks:
 
-**1. Add a section-specific instructions map** (new constant, ~30 lines):
+1. **If `rewardType === 'both'` AND data is already saved** (i.e., the monetary and NM data came from a prior "Both" save and hasn't been modified) → hide the Save button. The user only sees Edit to make changes, then Save reappears.
 
-```typescript
-const SECTION_TRIAGE_INSTRUCTIONS: Record<string, string> = {
-  reward_structure: `
-For the reward_structure section, evaluate as a REWARD DESIGN SPECIALIST, not a format checker.
-Your comments must be curator-friendly recommendations, NOT technical or structural.
+2. **If `rewardType === 'monetary'` or `'non_monetary'` (individual selection)** → always show the Save button when in editing mode, since this data needs its own explicit save.
 
-Evaluate against these principles:
-1. BIG-4 BENCHMARK: Is the total prize pool reasonable compared to what Big-4 consulting 
-   firms (McKinsey, BCG, Deloitte, Bain) would charge for equivalent scope? 
-   Target ≈50% of Big-4 rates. Comment if the pool seems too low or too high.
-2. MATURITY ALIGNMENT: Does the prize amount match the maturity stage 
-   (Blueprint=$15K-$75K, POC=$30K-$150K, Pilot=$75K-$300K)?
-3. SOLVER ATTRACTION: Will this reward structure attract the right quality of solution 
-   providers? Explain why or why not.
-4. TIER STRUCTURE: Is the tier distribution (Platinum/Gold/Silver) appropriate for the 
-   pool size? Are there too many or too few tiers?
-5. NON-MONETARY VALUE: Are non-monetary items domain-relevant and genuinely attractive 
-   to top-tier solvers, or are they generic (certificates, trophies)?
-
-Frame every issue as a professional recommendation, e.g.:
-- "Consider increasing the prize pool to $X-$Y range — for a [maturity] challenge of this 
-  complexity, Big-4 firms would charge $Z, and 50% benchmark suggests at least $W."
-- "The current non-monetary rewards are generic. For [domain], consider [specific items] 
-  to attract specialized solvers."
-
-NEVER produce technical comments like "provide JSON", "missing field", or reference 
-internal data formats.`,
-};
-```
-
-**2. Inject section-specific instructions into the user prompt** in `buildTriageUserPrompt()`:
-
-After adding the section content line, append any section-specific instructions:
+Concretely, add a computed flag:
 
 ```typescript
-for (const key of sectionKeys) {
-  let content = extractSectionContent(key, challengeData);
-  if (content && content.length > 500) {
-    content = content.substring(0, 497) + "...";
-  }
-  parts.push(`[${key}]: ${content || "[empty]"}`);
-  
-  // Append specialist instructions for specific sections
-  if (SECTION_TRIAGE_INSTRUCTIONS[key]) {
-    parts.push(SECTION_TRIAGE_INSTRUCTIONS[key]);
-  }
-}
+const needsExplicitSave = useMemo(() => {
+  // "Both" that's already been saved and not modified → no save needed
+  if (rewardType === 'both' && sectionState === 'saved' && !isModified) return false;
+  // Individual types always need save
+  return true;
+}, [rewardType, sectionState, isModified]);
 ```
 
-**3. Enrich the triage prompt with challenge context for reward evaluation**
+Then wrap the Save button render with `needsExplicitSave`:
 
-The reward triage needs to know maturity, complexity, deliverable count, and domain to make meaningful comments. Add a context block when `reward_structure` is in the batch:
-
-```typescript
-// In buildTriageUserPrompt, before sections
-if (sectionKeys.includes('reward_structure')) {
-  parts.push(`\nChallenge Context for Reward Evaluation:`);
-  parts.push(`- Maturity: ${challengeData.maturity_level || 'not set'}`);
-  parts.push(`- Complexity: ${challengeData.complexity_level || 'not set'}`);
-  parts.push(`- Effort: ${challengeData.effort_level || 'not set'}`);
-  parts.push(`- Domains: ${JSON.stringify(challengeData.domain_tags || [])}`);
-  parts.push(`- Deliverables count: ${countDeliverables(challengeData.deliverables)}`);
-  parts.push(`- Problem summary: ${(challengeData.problem_statement || '').slice(0, 200)}\n`);
-}
+```tsx
+{needsExplicitSave && (
+  <Button size="sm" variant="outline" onClick={handleSave} disabled={saving || !isValid}>
+    <Save className="h-3.5 w-3.5" /> Save
+  </Button>
+)}
 ```
 
-### Result
+However, once the user edits anything in "Both" mode (tabs become dirty / `isModified` becomes true), the Save button reappears so they can persist changes.
 
-Instead of comments like:
-- "Provide a written rationale as a JSON object: { 'selected_id': '...', 'rationale': '...' }"
-- "Align the 'Budget Scale' parameter (currently 4/10) with the high complexity"
+**Edge case:** When transitioning from "Both" (saved) to editing mode via the Edit button, `isModified` will flip true on first change, naturally bringing Save back.
 
-Curators will see:
-- "The current prize pool of $1,750 is significantly below the recommended range for a high-complexity Blueprint challenge. Big-4 firms would charge $80K-$150K for equivalent scope — consider a pool of at least $40K-$75K to attract quality solvers."
-- "Non-monetary rewards should include domain-specific items like SAP developer certifications, IoT lab access partnerships, or co-authorship on an industrial automation white paper."
+| Scenario | Save Button |
+|----------|-------------|
+| "Both" selected + saved + no edits | Hidden |
+| "Both" selected + saved + user edits | Shown |
+| "Both" selected + not yet saved | Shown |
+| "Monetary" selected (any state) | Shown |
+| "Non-Monetary" selected (any state) | Shown |
 
 ## Files
 
 | File | Change |
 |------|--------|
-| `supabase/functions/triage-challenge-sections/index.ts` | Add reward-specialist triage instructions, inject challenge context for reward evaluation |
+| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Add `needsExplicitSave` flag, conditionally render Save button |
 
