@@ -76,7 +76,7 @@ import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 
-import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
+import RewardStructureDisplay, { type RewardStructureDisplayHandle } from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import {
