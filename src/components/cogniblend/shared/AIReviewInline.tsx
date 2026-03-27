@@ -700,6 +700,7 @@ export function AIReviewInline({
                     onDeliverableItemsChange={setEditedDeliverableItems}
                     badgePrefix={getDeliverableBadgePrefix(sectionKey)}
                     confidence={review?.confidence}
+                    complexityRatings={complexityRatings}
                     onConfirmPass={review?.status === "pass" && review?.phase === "triage" ? () => onMarkAddressed?.(sectionKey) : undefined}
                     onFlagForReview={review?.status === "pass" && review?.phase === "triage" ? () => onSingleSectionReview?.(sectionKey, { ...review, status: "warning", triage_status: "warning" }) : undefined}
                   />
