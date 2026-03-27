@@ -662,13 +662,37 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
       masterDataOptions = await fetchMasterDataOptions(adminClient);
     }
 
-    // ── Batch-split sections for AI calls ─────────────────────
+    // ── Separate complexity from standard batch ─────────────
+    const complexitySection = sectionsToReview.find(s => s.key === 'complexity');
+    const standardSections = sectionsToReview.filter(s => s.key !== 'complexity');
+
+    // ── Batch-split standard sections for AI calls ───────────
     const batches: { key: string; desc: string }[][] = [];
-    for (let i = 0; i < sectionsToReview.length; i += MAX_BATCH_SIZE) {
-      batches.push(sectionsToReview.slice(i, i + MAX_BATCH_SIZE));
+    for (let i = 0; i < standardSections.length; i += MAX_BATCH_SIZE) {
+      batches.push(standardSections.slice(i, i + MAX_BATCH_SIZE));
     }
 
     const allNewSections: any[] = [];
+
+    // Fire complexity assessment in parallel with standard batches
+    const complexityPromise = complexitySection
+      ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient)
+          .then((result) => {
+            (result as any).prompt_source = useDbConfig ? "supervisor" : "default";
+            allNewSections.push(result);
+          })
+          .catch((err: any) => {
+            if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
+            const now = new Date().toISOString();
+            allNewSections.push({
+              section_key: "complexity",
+              status: "warning",
+              comments: ["Complexity assessment could not be completed. Please re-review individually."],
+              reviewed_at: now,
+            });
+            console.error("Complexity AI call failed:", err);
+          })
+      : Promise.resolve();
 
     for (const batch of batches) {
       const userPrompt = section_key
@@ -738,6 +762,9 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
         console.error("Batch AI call failed:", err);
       }
     }
+
+    // Wait for complexity to finish
+    await complexityPromise;
 
     // Merge with existing reviews
     const existingReviews: any[] = Array.isArray(challengeResult.data.ai_section_reviews)
