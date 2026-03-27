@@ -477,20 +477,23 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   Lock Reward Type
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSave}
-                disabled={saving || !isValid}
-                className="gap-1.5"
-              >
-                {saving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                Save
-              </Button>
+              {/* Show Save when: individual type selected, or "both" with unsaved/modified data */}
+              {(rewardType !== 'both' || sectionState !== 'saved' || isModified) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={saving || !isValid}
+                  className="gap-1.5"
+                >
+                  {saving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  Save
+                </Button>
+              )}
             </div>
           )}
         </>
