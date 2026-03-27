@@ -1,7 +1,7 @@
 /**
  * rewardValidation.ts — Pure validation utilities for the reward structure.
  *
- * Supports both legacy item-array model and new checkbox model.
+ * Supports both legacy item-array model and new dynamic items model.
  * Tier ordering, total pool matching, non-monetary validation, auto-balance.
  */
 
@@ -12,14 +12,15 @@ import type {
   MonetaryReward,
   NonMonetaryReward,
 } from '@/services/rewardStructureResolver';
-import type { TierState, NonMonetarySelections } from '@/hooks/useRewardStructureState';
+import type { TierState } from '@/hooks/useRewardStructureState';
+import type { NonMonetaryItemData } from '@/components/cogniblend/curation/rewards/NonMonetaryItemCard';
 
 export interface ValidationError {
   field: string;
   message: string;
 }
 
-/* ── Monetary validation (new toggle-switch model) ── */
+/* ── Monetary validation (toggle-switch model) ── */
 
 export function validateMonetaryTiers(
   tiers: Record<string, TierState>,
@@ -28,7 +29,6 @@ export function validateMonetaryTiers(
   const errors: ValidationError[] = [];
   const { platinum, gold, silver } = tiers;
 
-  // Platinum is always required when monetary is active
   if (!platinum?.enabled) {
     errors.push({ field: 'platinum.enabled', message: 'Platinum tier is required for monetary rewards.' });
   } else if (platinum.amount <= 0) {
@@ -44,7 +44,6 @@ export function validateMonetaryTiers(
     }
   }
 
-  // Silver cannot be active without Gold
   if (silver?.enabled && !gold?.enabled) {
     errors.push({ field: 'silver.enabled', message: 'Silver cannot be active without Gold.' });
   }
@@ -58,7 +57,6 @@ export function validateMonetaryTiers(
     }
   }
 
-  // Total pool validation
   if (totalPool != null && totalPool > 0) {
     const computed = Object.values(tiers)
       .filter((t) => t.enabled && t.amount > 0)
@@ -76,16 +74,20 @@ export function validateMonetaryTiers(
   return errors;
 }
 
-/* ── Non-monetary validation (checkbox model) ── */
+/* ── Non-monetary validation (dynamic items model) ── */
 
-export function validateNonMonetarySelections(
-  selections: NonMonetarySelections,
+export function validateNonMonetaryItems(
+  items: NonMonetaryItemData[],
 ): ValidationError[] {
   const errors: ValidationError[] = [];
-  const hasAny = Object.values(selections).some((s) => s.selected);
-  if (!hasAny) {
-    errors.push({ field: 'nonMonetary', message: 'Select at least one non-monetary reward.' });
+  if (items.length === 0) {
+    errors.push({ field: 'nonMonetary', message: 'At least one non-monetary reward item is required.' });
   }
+  items.forEach((item, i) => {
+    if (!item.title.trim()) {
+      errors.push({ field: `items[${i}].title`, message: `Reward item #${i + 1} must have a title.` });
+    }
+  });
   return errors;
 }
 
@@ -121,7 +123,6 @@ function validateMonetary(m: MonetaryReward): ValidationError[] {
     }
   }
 
-  // Silver without Gold check
   if (silver && !gold) {
     errors.push({ field: 'silver.enabled', message: 'Silver cannot be active without Gold.' });
   }
@@ -138,7 +139,6 @@ function validateMonetary(m: MonetaryReward): ValidationError[] {
     }
   }
 
-  // Total pool validation
   if (m.totalPool != null && m.totalPool > 0) {
     const computed = computeTierTotal(m.tiers);
     if (computed !== m.totalPool) {
@@ -185,22 +185,18 @@ export function validateRewardStructure(state: RewardData): ValidationError[] {
     return errors;
   }
 
-  // Mutual exclusivity
-  const hasBoth =
-    state.monetary &&
-    state.monetary.tiers.length > 0 &&
-    state.nonMonetary &&
-    state.nonMonetary.items.length > 0;
-  if (hasBoth) {
-    errors.push({ field: 'mutual_exclusivity', message: 'Cannot have both monetary and non-monetary rewards.' });
-  }
-
   if (state.type === 'monetary' && state.monetary) {
     errors.push(...validateMonetary(state.monetary));
   }
 
   if (state.type === 'non_monetary' && state.nonMonetary) {
     errors.push(...validateNonMonetary(state.nonMonetary));
+  }
+
+  // 'both' type: validate both sections
+  if (state.type === 'both') {
+    if (state.monetary) errors.push(...validateMonetary(state.monetary));
+    if (state.nonMonetary) errors.push(...validateNonMonetary(state.nonMonetary));
   }
 
   return errors;
@@ -216,11 +212,6 @@ export function computeTierTotal(tiers: PrizeTier[]): number {
 
 /* ── Auto-balance ── */
 
-/**
- * Proportionally redistribute tier amounts to match the target total pool.
- * Rounds to nearest `roundUnit` (500 for <50k, 1000 for >=50k).
- * Distributes rounding remainder to platinum.
- */
 export function autoBalance(
   tiers: PrizeTier[],
   targetTotal: number,
@@ -239,7 +230,6 @@ export function autoBalance(
     return { ...t, amount: Math.max(newAmount, roundUnit) };
   });
 
-  // Fix rounding error by adjusting platinum
   const newTotal = balanced
     .filter((t) => t.rank !== 'honorable_mention')
     .reduce((s, t) => s + t.amount * t.count, 0);
