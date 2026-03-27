@@ -130,6 +130,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   // ── AMRewardPayload detection on mount ──
   useEffect(() => {
     if (!amPayload) return;
+    // Skip if data was already loaded from DB — prevent overwriting saved/AI data with AM defaults
+    if (sectionState === 'saved' || sectionState === 'populated_from_source') return;
 
     const hasMonetary = !!amPayload.monetary;
     const hasNonMonetary = amPayload.nonMonetary && Object.values(amPayload.nonMonetary).some(Boolean);
