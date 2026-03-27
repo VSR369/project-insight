@@ -327,6 +327,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       aiLoading={aiLoading}
       hasAISuggestions={hasAISuggestions}
       aiRationale={aiRationale}
+      hasBeenReviewed={hasBeenReviewed}
     />
   );
 
