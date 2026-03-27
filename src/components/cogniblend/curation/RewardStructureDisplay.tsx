@@ -477,8 +477,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   Lock Reward Type
                 </Button>
               )}
-              {/* Show Save when: individual type selected, or "both" with unsaved/modified data */}
-              {(rewardType !== 'both' || sectionState !== 'saved' || isModified) && (
+              {/* Show Save when: individual type, or "both" with modifications */}
+              {(rewardType !== 'both' || isModified) && (
                 <Button
                   size="sm"
                   variant="outline"
