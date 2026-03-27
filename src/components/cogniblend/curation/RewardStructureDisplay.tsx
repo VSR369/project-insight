@@ -201,10 +201,13 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     }
   }, [isValid, errors, getSerializedData, challengeId, queryClient, markSaved]);
 
-  // ── Lock reward type handler ──
+  // ── Lock reward type handler (single finalization action) ──
   const handleLockRewardType = useCallback(async () => {
+    if (!isValid) {
+      toast.error(`Fix ${errors.length} validation error(s) before locking.`);
+      return;
+    }
     lockRewardType();
-    // Auto-save after locking
     setSaving(true);
     try {
       const serialized = getSerializedData();
@@ -216,13 +219,14 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success(`Reward type locked as "${rewardType === 'both' ? 'Both' : rewardType === 'monetary' ? 'Monetary' : 'Non-Monetary'}". Irrelevant data cleared.`);
+      markSubmitted();
       markSaved();
     } catch (err: any) {
       toast.error(`Failed to lock: ${err.message}`);
     } finally {
       setSaving(false);
     }
-  }, [lockRewardType, getSerializedData, challengeId, queryClient, markSaved, rewardType]);
+  }, [isValid, errors, lockRewardType, getSerializedData, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
 
   // ── Submit handler ──
   const handleSubmit = useCallback(async () => {
