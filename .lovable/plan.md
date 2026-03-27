@@ -1,138 +1,74 @@
 
 
-# Fix: Complexity Assessment — Equal Ratings Bug & AI Input Enrichment
+# Unify Complexity Assessment with Standard AI Review Flow
 
-## Problems Identified
+## Problem
 
-### Bug 1: Quick-select L1-L5 sets ALL parameters to the same value
-In `handleQuickSelect` (line 169-189), when a user clicks L1/L2/L3/L4/L5, every parameter is set to the same midpoint value:
-```typescript
-const midpoint = Math.round((threshold.min + threshold.max) / 2);
-complexityParams.forEach((p) => {
-  newDraft[p.param_key] = midpoint; // ALL get the same value
-});
+The Complexity section currently has a standalone "Assess by AI" button (calling the `assess-complexity` edge function) AND participates in the global "Review Sections by AI" flow. This is redundant and confusing. Every other section follows one consistent pattern: AI review generates comments → AI suggested version → Accept/Keep original → re-review. Complexity should too.
+
+## Current Flow (Broken)
+
+```text
+Complexity section:
+├── "Assess by AI" button → calls assess-complexity edge function → returns per-param ratings
+├── Quick-select L1-L5 → sets uniform/weighted values
+├── Override toggle → manual sliders
+└── Global "Review Sections by AI" → treats complexity as checkbox_single → just picks a level
 ```
-This is fundamentally wrong — clicking "L3" sets Technical Novelty, Budget Scale, Domain Breadth, etc. all to 5. The quick-select should set the **overall target level** and distribute parameter values proportionally using their weights, or better: it should call the AI with a hint, or use a weighted distribution that produces the target score but with variance.
 
-### Bug 2: AI assessment may return equal ratings due to insufficient context
-The edge function only fetches basic challenge fields (title, problem_statement, scope, deliverables, etc.) but is missing the **extended brief** (context/background, root causes, stakeholders, current deficiencies, preferred approach) and **expected_outcomes, submission_guidelines, hook, effort_level, operating_model**. With thin input data, the AI defaults to similar ratings across parameters.
+Two separate AI calls, two different response formats, no unified UX.
 
-### Bug 3: Section ordering — Complexity after Rewards
-Complexity is at index 8 (after Reward Structure at index 7). Rewards should factor in complexity, so complexity must come first.
+## Proposed Flow (Unified)
 
----
+```text
+Complexity section (like every other section):
+├── "Review with AI" button (in section header) → calls assess-complexity
+│   ├── AI Review comments panel (pass/warning/needs_revision)
+│   └── AI Suggested Version panel showing per-parameter ratings + justifications
+│       ├── "Accept suggestion" → applies AI ratings, saves
+│       └── "Keep original" → retains current values
+├── After acceptance: Override toggle + sliders for curator adjustments
+├── Quick-select L1-L5 remains as a manual shortcut
+└── Re-review button available after acceptance (like all sections)
+```
 
-## Proposed Changes
+## Technical Changes
 
-### 1. Fix quick-select to use weighted distribution (not equal values)
+### 1. Remove standalone "Assess by AI" from ComplexityAssessmentModule
 
 **File:** `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
 
-Replace `handleQuickSelect` logic. Instead of setting all params to the same midpoint, create a differentiated spread around the target score:
+- Remove the "Assess by AI" button, `handleAIAssess`, `aiAssessing` state, and the `supabase.functions.invoke("assess-complexity")` call
+- Keep: Quick-select L1-L5, Override toggle + sliders, Save/Cancel, source badges
+- Add a new prop `aiSuggestedRatings` to receive AI-generated per-parameter ratings from the parent when the AI review suggested version is accepted
+- Add prop `onAcceptAISuggestion` callback
 
-```typescript
-const handleQuickSelect = useCallback((threshold) => {
-  const targetScore = (threshold.min + threshold.max) / 2;
-  const newDraft: Record<string, number> = {};
-
-  // Use existing AI ratings as a shape if available, scaled to target level
-  const hasAIRatings = Object.keys(aiJustifications).length > 0;
-
-  if (hasAIRatings) {
-    // Scale existing AI-derived ratings proportionally to hit the target score
-    const currentAvg = complexityParams.reduce((s, p) => s + (draft[p.param_key] ?? 5), 0) / complexityParams.length;
-    const scaleFactor = currentAvg > 0 ? targetScore / currentAvg : 1;
-    complexityParams.forEach((p) => {
-      const scaled = Math.round((draft[p.param_key] ?? 5) * scaleFactor);
-      newDraft[p.param_key] = Math.max(1, Math.min(10, scaled));
-    });
-  } else {
-    // No AI data — use parameter weights to create variance
-    // Higher-weighted params get slightly higher values, lower-weighted get lower
-    const weights = complexityParams.map(p => p.weight);
-    const maxW = Math.max(...weights);
-    const minW = Math.min(...weights);
-    const range = maxW - minW || 1;
-
-    complexityParams.forEach((p) => {
-      // Spread ±1.5 around target based on weight rank
-      const weightRank = (p.weight - minW) / range; // 0..1
-      const offset = (weightRank - 0.5) * 3; // -1.5 to +1.5
-      const value = Math.round(targetScore + offset);
-      newDraft[p.param_key] = Math.max(1, Math.min(10, value));
-    });
-  }
-
-  setDraft(newDraft);
-  setAiJustifications({});
-  // Save immediately
-  const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-  const ws = totalWeight > 0
-    ? complexityParams.reduce((s, p) => s + (newDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
-    : 5;
-  const score = Math.round(ws * 100) / 100;
-  onSave(newDraft, score, threshold.level);
-}, [complexityParams, draft, aiJustifications, onSave]);
-```
-
-### 2. Enrich AI inputs in the edge function
-
-**File:** `supabase/functions/assess-complexity/index.ts`
-
-Expand the challenge SELECT to include all available context:
-
-```sql
-title, problem_statement, scope, description, deliverables,
-evaluation_criteria, reward_structure, ip_model, maturity_level,
-eligibility, visibility, phase_schedule, domain_tags,
-consulting_fee, management_fee, total_fee, currency_code,
-max_solutions, submission_deadline,
--- NEW fields:
-extended_brief, expected_outcomes, submission_guidelines,
-hook, operating_model, effort_level
-```
-
-Update the user prompt to explicitly break out the extended brief subsections when present:
-
-```
-EXTENDED BRIEF (deep context):
-- Context & Background: ...
-- Root Causes: ...
-- Affected Stakeholders: ...
-- Current Deficiencies: ...
-- Preferred Approach: ...
-- Approaches Not of Interest: ...
-```
-
-This gives the AI rich context to differentiate ratings — e.g., complex stakeholder mapping increases `domain_breadth`, novel root causes increase `technical_novelty`, tight schedules with broad scope increase `timeline_urgency`.
-
-### 3. Reorder sections — Complexity before Rewards
+### 2. Route complexity AI review through the assess-complexity edge function
 
 **File:** `src/pages/cogniblend/CurationReviewPage.tsx`
 
-In the `SECTIONS` array, swap `complexity` (currently after `reward_structure`) to appear before it. Move the complexity object (lines 369-375) above the reward_structure object (lines 349-368).
+When the AI review runs for the `complexity` section (either via global "Review Sections by AI" or per-section "Review with AI"):
+- Instead of sending complexity to the generic triage batch, call `assess-complexity` separately
+- Transform the `assess-complexity` response (per-parameter ratings + justifications) into the standard AI review format (`status`, `comments`, `structured_output`)
+- The suggested version displays the parameter ratings table with justifications
+- "Accept suggestion" applies the ratings via `handleSaveComplexity`
 
-### 4. Add source attribution badges (AI / Curator)
+### 3. Update the AI Review inline display for complexity
 
-**File:** `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
+When AI review results exist for the complexity section:
+- **Comments panel**: Show AI observations (e.g., "Timeline urgency rated 8/10 due to 30-day deadline with prototype deliverable")
+- **Suggested Version panel**: Show a formatted table of parameter ratings with justifications and the computed weighted score
+- Accept/Keep original actions work as standard
 
-Track source per parameter:
+### 4. Keep quick-select L1-L5 as manual override
 
-```typescript
-const [paramSources, setParamSources] = useState<Record<string, 'ai' | 'curator' | 'default'>>({});
-```
-
-- When AI assessment runs → mark all rated params as `'ai'`
-- When curator moves a slider → mark that param as `'curator'`
-- Render a small badge next to each parameter name showing the source
-
----
+Quick-select stays as a curator shortcut. These are not AI-driven — they remain weight-distributed manual overrides. Source badge shows "Curator" for these.
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Fix quick-select distribution, add source badges, track AI vs curator per param |
-| `supabase/functions/assess-complexity/index.ts` | Add extended_brief, expected_outcomes, submission_guidelines, hook, operating_model, effort_level to SELECT; restructure prompt |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Swap complexity and reward_structure in SECTIONS array |
+| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Remove standalone AI assess button/logic; add props for AI review integration; keep sliders, quick-select, source badges |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Route complexity section's AI review to `assess-complexity` edge function; transform response to standard review format; wire Accept to `handleSaveComplexity` |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Remove `complexity` from `SECTION_FORMAT_MAP` (no longer processed by generic triage) |
 
