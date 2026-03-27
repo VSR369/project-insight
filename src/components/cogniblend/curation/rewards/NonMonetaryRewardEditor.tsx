@@ -19,9 +19,6 @@ interface NonMonetaryRewardEditorProps {
   onDeleteItem: (id: string) => void;
   onAcceptAISuggestion?: (id: string) => void;
   onAcceptAllAI?: () => void;
-  onReviewWithAI?: () => void;
-  aiLoading?: boolean;
-  hasBeenReviewed?: boolean;
 }
 
 export default function NonMonetaryRewardEditor({
