@@ -788,6 +788,48 @@ export function AIReviewResultPanel({
                 </label>
               ))}
             </div>
+          ) : rewardData ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm space-y-4">
+              {/* Type badge */}
+              <div className="flex items-center gap-2">
+                <Badge className="bg-indigo-100 text-indigo-700 border-indigo-300 text-xs px-2 py-0.5">
+                  {rewardData.type === 'both' ? 'Monetary + Non-Monetary' : rewardData.type === 'non_monetary' ? 'Non-Monetary' : 'Monetary'}
+                </Badge>
+              </div>
+
+              {/* Monetary tiers */}
+              {rewardData.monetary?.tiers && Object.keys(rewardData.monetary.tiers).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prize Tiers</p>
+                  {Object.entries(rewardData.monetary.tiers).map(([tier, amount]) => (
+                    <div key={tier} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                      <span className="text-sm font-medium text-foreground capitalize">{tier}</span>
+                      <span className="text-sm font-semibold text-foreground tabular-nums">
+                        {rewardData.monetary?.currency ?? 'USD'} {Number(amount).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                  {rewardData.monetary.justification && (
+                    <p className="text-xs text-muted-foreground italic">{rewardData.monetary.justification}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Non-monetary items */}
+              {rewardData.nonMonetary?.items && rewardData.nonMonetary.items.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Non-Monetary Rewards</p>
+                  <ul className="space-y-1.5">
+                    {rewardData.nonMonetary.items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                        <span className="text-sm text-foreground">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           ) : hasDeliverableCards ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
               <DeliverableCardRenderer
