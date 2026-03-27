@@ -1727,7 +1727,7 @@ export default function CurationReviewPage() {
   const handleMarkAddressed = useCallback((sectionKey: string) => {
     setAiReviews((prev) => {
       const updated = prev.map((r) =>
-        r.section_key === sectionKey ? { ...r, addressed: true } : r
+        r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
       );
       // Persist to DB so state survives navigation
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });

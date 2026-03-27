@@ -97,6 +97,8 @@ interface AIReviewInlineProps {
   coordinatorRole?: "LC" | "FC";
   /** Whether comments have been sent before (changes button to "Send Follow-up") */
   hasSentBefore?: boolean;
+  /** Custom re-review handler (e.g. for complexity which uses a different edge function) */
+  onReReview?: (sectionKey: string) => Promise<void>;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
