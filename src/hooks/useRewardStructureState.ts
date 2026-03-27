@@ -273,11 +273,11 @@ export function useRewardStructureState(
     if (isSubmitted || isTypeLocked) return;
     setRewardTypeState(type);
     setSectionState('curator_editing');
-    // Populate default NM items if switching to non_monetary or both and list is empty
-    if ((type === 'non_monetary' || type === 'both') && nmItems.length === 0) {
+    // Only populate defaults for brand-new sections, never for saved/loaded data
+    if ((type === 'non_monetary' || type === 'both') && nmItems.length === 0 && sectionState === 'empty_no_source') {
       setNMItems(defaultNMItems('curator'));
     }
-  }, [isSubmitted, isTypeLocked, nmItems.length]);
+  }, [isSubmitted, isTypeLocked, nmItems.length, sectionState]);
 
   const setCurrency = useCallback((c: string) => {
     if (isSubmitted) return;
