@@ -99,6 +99,8 @@ interface AIReviewInlineProps {
   hasSentBefore?: boolean;
   /** Custom re-review handler (e.g. for complexity which uses a different edge function) */
   onReReview?: (sectionKey: string) => Promise<void>;
+  /** Pre-built suggestion content (e.g. complexity markdown summary) — skips auto-refine */
+  initialRefinedContent?: string | null;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
