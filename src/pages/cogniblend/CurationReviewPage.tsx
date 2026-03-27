@@ -943,6 +943,7 @@ export default function CurationReviewPage() {
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [phase2Progress, setPhase2Progress] = useState({ total: 0, completed: 0 });
   const [phase2Status, setPhase2Status] = useState<'idle' | 'running' | 'completed'>('idle');
+  const [aiSuggestedComplexity, setAiSuggestedComplexity] = useState<Record<string, { rating: number; justification: string }> | null>(null);
   const [triageTotalCount, setTriageTotalCount] = useState(0);
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
