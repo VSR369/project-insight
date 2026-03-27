@@ -1,63 +1,119 @@
 
 
-# Fix: Save Button Visible When No Edits Made
+# Complexity Assessment — 3-Mode State Machine Refactor
 
 ## Problem
 
-After saving reward structure data, when navigating back or switching between Monetary/Non-Monetary/Both tabs, the Save/Cancel/Lock footer is always visible. This is because:
+The current `ComplexityAssessmentModule` has a single boolean `overrideEnabled` that conflates two different override behaviors (manual sliders vs. quick-select). This causes:
 
-1. **`sectionState` stays as `curator_editing`** — once editing mode is entered (e.g., by selecting a reward type), the footer always shows Save/Cancel regardless of whether anything changed.
-2. **`isModified` exists but is never used** to gate the Save button visibility.
-3. **After `markSaved()`, state goes to `saved`** which shows read-only + Edit button — but re-entering editing via type switch immediately shows Save again.
+1. **No confirmation gate** — toggling Override or clicking Quick Select immediately changes state with no warning that AI assessment is being overridden
+2. **Quick Select saves immediately** — bypasses any review, no undo path
+3. **Score/level coupling confusion** — Quick Select recalculates slider values to match a target score, but the intent is to disconnect the level from the calculated score entirely
+4. **No mode persistence** — the assessment mode (AI vs. manual vs. quick override) is not saved to DB
 
-## When Should Save Be Visible?
+## Design: 3-Mode State Machine
 
-| Scenario | Save Visible? | Reason |
-|----------|:---:|--------|
-| First time choosing reward type (empty → type selected) | Yes | New data being created |
-| Editing tier amounts, NM items, currency | Yes | Data changed |
-| After saving, viewing saved state | No | Read-only view with Edit button |
-| After saving, clicking Edit but no changes yet | No | Nothing to save |
-| Switching tabs (Monetary ↔ Non-Monetary) within Both | No | Tab switch ≠ data change |
+```text
+┌──────────────────────────────────────────────────────┐
+│                    AI_AUTO (default)                  │
+│  Sliders: read-only bars                             │
+│  Score: from AI / stored value                       │
+│  Quick Select: disabled until confirmed              │
+│  Override toggle: triggers confirmation dialog       │
+├──────────────────────────────────────────────────────┤
+│         ↓ Confirm override?                          │
+│    ┌────────────────────────────────────┐             │
+│    │   Confirmation AlertDialog        │             │
+│    │   "Override AI assessment?"       │             │
+│    │   [Cancel]  [Confirm]             │             │
+│    └────────────────────────────────────┘             │
+│         ↓ Confirm                     ↓ Cancel       │
+│    Mode = pendingMode            Stay AI_AUTO        │
+├──────────────────────────────────────────────────────┤
+│              MANUAL_PARAMS                           │
+│  Sliders: interactive (1-10)                         │
+│  Score: live weighted calculation                    │
+│  Level: derived from score via thresholds            │
+│  Save/Cancel buttons visible                         │
+├──────────────────────────────────────────────────────┤
+│              QUICK_OVERRIDE                          │
+│  Sliders: read-only (no interaction)                 │
+│  Score: still calculated but informational only      │
+│  Level: FIXED to the selected L1-L5 button           │
+│  Level is disconnected from score                    │
+│  Quick Select buttons remain active to change level  │
+│  Save/Cancel buttons visible                         │
+└──────────────────────────────────────────────────────┘
+```
 
 ## Implementation Plan
 
-### 1. Track dirty state with a `isDirty` flag
+### File: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
 
-Instead of relying on `sectionState === 'curator_editing'` alone, add a `isDirty` computed value that compares current data against last-saved snapshot.
+#### 1. Add mode state and confirmation dialog
 
-**In `RewardStructureDisplay.tsx`:**
-- Track a `savedSnapshot` ref that captures serialized data after each save
-- Compute `isDirty` by comparing current serialized data against the snapshot
-- On mount/hydration, set snapshot to initial data
+- Replace `overrideEnabled: boolean` with `mode: 'AI_AUTO' | 'MANUAL_PARAMS' | 'QUICK_OVERRIDE'`
+- Add `pendingMode` state and `showConfirmDialog` boolean
+- Import `AlertDialog` components from `@/components/ui/alert-dialog`
 
-### 2. Conditionally show Save button only when dirty
+#### 2. Confirmation flow
 
-**Change the footer section (lines 403-436):**
-- Save button: show only when `isDirty` is true (data has actually changed)
-- Cancel button: show only when `isDirty` is true (revert makes sense only if changes exist)
-- Lock Reward Type: keep visible when in editing mode (this is an intentional action, not a "save changes" action)
+When in `AI_AUTO` mode:
+- **Override toggle ON** → set `pendingMode = 'MANUAL_PARAMS'`, open dialog
+- **Quick Select click** → set `pendingMode = 'QUICK_OVERRIDE'`, store clicked level, open dialog
+- **Dialog Confirm** → apply `pendingMode` as active `mode`, execute the pending action
+- **Dialog Cancel** → clear `pendingMode`, keep `AI_AUTO`
 
-### 3. Ensure type selection from empty state counts as dirty
+When already in `MANUAL_PARAMS` or `QUICK_OVERRIDE`:
+- Override toggle and Quick Select work immediately (no re-confirmation needed)
+- Switching between MANUAL and QUICK does not require confirmation
 
-When going from `empty_no_source` → selecting a type, that IS a change worth saving. The `isDirty` check handles this naturally since the snapshot starts as empty/null.
+#### 3. Mode-specific behavior
 
-### 4. After save completes, update snapshot
+| Aspect | AI_AUTO | MANUAL_PARAMS | QUICK_OVERRIDE |
+|--------|---------|---------------|----------------|
+| Sliders | Read-only bars | Interactive | Read-only bars |
+| Score display | Stored/AI value | Live weighted calc | Weighted calc (informational) |
+| Level display | Derived from score | Derived from score | Fixed to selected button |
+| Quick Select | Gated by confirm | Changes mode to QUICK_OVERRIDE | Active, changes level directly |
+| Override toggle | Shows, triggers confirm | Shows ON, toggle OFF → AI_AUTO | Shows ON, toggle OFF → AI_AUTO |
+| Save/Cancel | Hidden | Visible | Visible |
 
-`markSaved()` already transitions to `saved` state. Additionally, update the snapshot ref so re-entering edit mode starts clean.
+#### 4. Quick Select in QUICK_OVERRIDE mode
+
+- Does NOT recalculate slider values
+- Simply sets `overrideLevel` to the clicked L1-L5
+- Slider values remain as-is (from AI or previous manual edit)
+- Score is still calculated and shown but labeled "Calculated Score" (informational)
+- The saved level is the user's chosen override, not the derived level
+
+#### 5. Save behavior
+
+- `onSave` called with: `{ params, score, level, mode }`
+- In QUICK_OVERRIDE: `level` = user's selected level (not derived from score)
+- In MANUAL_PARAMS: `level` = derived from weighted score
+- In AI_AUTO: save not available (read-only)
+
+#### 6. Cancel behavior
+
+- Resets `mode` to `AI_AUTO`
+- Restores draft from `currentParams`
+- Clears any `overrideLevel`
+
+#### 7. Persist mode to DB
+
+- Add `assessment_mode` to the save payload in `handleSaveComplexity` (in CurationReviewPage)
+- This requires no new column — store as part of the `complexity_parameters` JSON (add `_meta: { mode }` field)
+
+### No database migration needed
+
+The mode is stored inside the existing `complexity_parameters` JSONB column as metadata, avoiding schema changes.
 
 ## Technical Details
 
-```text
-File: src/components/cogniblend/curation/RewardStructureDisplay.tsx
-
-Changes:
-1. Add savedSnapshotRef = useRef<string>(JSON.stringify(getSerializedData()))
-2. Compute isDirty = JSON.stringify(getSerializedData()) !== savedSnapshotRef.current
-3. Update savedSnapshotRef.current in handleSave success path
-4. Gate Save + Cancel buttons on isDirty
-5. Keep Lock Reward Type independent of isDirty (intentional action)
-```
-
-This is a focused fix — no changes to the state machine, hooks, or store sync logic.
+- Uses existing `AlertDialog` from `@/components/ui/alert-dialog`
+- No new dependencies
+- Props interface adds optional `onSave` parameter for mode
+- Maintains backward compatibility with existing saved data (mode defaults to `AI_AUTO` if not present in params)
+- `deriveComplexityLevel` and weighted score calculation logic remain unchanged
 
