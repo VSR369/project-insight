@@ -1345,12 +1345,51 @@ export default function CurationReviewPage() {
       setTriageTotalCount(totalTriaged);
       toast.success(`Phase 1 triage: ${passCount} pass, ${phase2Count} need${phase2Count !== 1 ? '' : 's'} deeper review`);
 
-      // ── Phase 2: Deep suggestion (sequential, only non-pass) ──
-      if (routing.phase2_queue.length > 0) {
+      // ── Complexity: route to dedicated assess-complexity edge function ──
+      const complexityInQueue = routing.phase2_queue.includes('complexity');
+      const phase2QueueWithoutComplexity = routing.phase2_queue.filter(k => k !== 'complexity');
+      // Also remove complexity from triage if present — we'll replace with our own review
+      const hasComplexityTriage = triageReviews.some(r => r.section_key === 'complexity');
+
+      // Fire complexity assessment in parallel with Phase 2
+      const complexityPromise = (complexityInQueue || hasComplexityTriage)
+        ? supabase.functions.invoke("assess-complexity", { body: { challenge_id: challengeId } })
+            .then(({ data, error }) => {
+              if (error || !data?.success || !data?.data?.ratings) return;
+              const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
+              setAiSuggestedComplexity(ratings);
+
+              // Transform into standard AI review format
+              const comments = Object.entries(ratings)
+                .filter(([, r]) => r.justification)
+                .map(([key, r]) => `${key}: ${r.justification}`);
+              const avgRating = Object.values(ratings).reduce((s, r) => s + r.rating, 0) / Math.max(Object.keys(ratings).length, 1);
+              const complexityReview: SectionReview = {
+                section_key: 'complexity',
+                status: avgRating > 0 ? 'warning' : 'pass',
+                comments,
+                addressed: false,
+                structured_output: JSON.stringify(ratings),
+              };
+              const normalized = normalizeSectionReview(complexityReview);
+              setAiReviews((prev) => {
+                const filtered = prev.filter((r) => r.section_key !== 'complexity');
+                const merged = [...filtered, normalized];
+                saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
+                return merged;
+              });
+            })
+            .catch(() => { /* complexity assessment failure non-blocking */ })
+        : Promise.resolve();
+
+      // ── Phase 2: Deep suggestion (sequential, only non-pass, excluding complexity) ──
+      if (phase2QueueWithoutComplexity.length > 0 || complexityInQueue || hasComplexityTriage) {
+        const totalPhase2 = phase2QueueWithoutComplexity.length + (complexityInQueue || hasComplexityTriage ? 1 : 0);
         setPhase2Status('running');
-        setPhase2Progress({ total: routing.phase2_queue.length, completed: 0 });
-        // We just need to trigger the detailed review for warning/inferred sections
-        for (const sectionKey of routing.phase2_queue) {
+        setPhase2Progress({ total: totalPhase2, completed: 0 });
+
+        // Process non-complexity sections sequentially
+        for (const sectionKey of phase2QueueWithoutComplexity) {
           try {
             const { data: reviewData, error: reviewError } = await supabase.functions.invoke("review-challenge-sections", {
               body: { challenge_id: challengeId, section_key: sectionKey, role_context: 'curation' },
@@ -1360,7 +1399,6 @@ export default function CurationReviewPage() {
               const deepReview = (reviewData.data.sections as SectionReview[])[0];
               if (deepReview) {
                 const normalizedDeep = normalizeSectionReview(deepReview);
-                // Merge the deep review into triage results — UI updates section-by-section
                 setAiReviews((prev) => {
                   const filtered = prev.filter((r) => r.section_key !== sectionKey);
                   const merged = [...filtered, { ...normalizedDeep, addressed: false }];
@@ -1396,6 +1434,12 @@ export default function CurationReviewPage() {
           } finally {
             setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
           }
+        }
+
+        // Wait for complexity to finish if it was running
+        await complexityPromise;
+        if (complexityInQueue || hasComplexityTriage) {
+          setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         }
       } else {
         // All sections passed — no Phase 2 needed
