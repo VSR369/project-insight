@@ -2809,6 +2809,7 @@ export default function CurationReviewPage() {
                       isLockedSection={isLocked}
                       coordinatorRole={coordinatorRole}
                       hasSentBefore={hasSentBefore}
+                      onReReview={section.key === 'complexity' ? handleComplexityReReview : undefined}
                       onSendToCoordinator={isLocked ? (editedComments: string) => {
                         // Store original AI comments for audit
                         const originalAiComments = aiReview?.comments?.join("\n\n") ?? "";
