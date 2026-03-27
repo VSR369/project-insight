@@ -1786,9 +1786,10 @@ export default function CurationReviewPage() {
     const ws = computeWeightedComplexityScore(ratings, complexityParams);
     const complexityReview: SectionReview = {
       section_key: 'complexity',
-      status: ws > 0 ? 'warning' : 'pass',
+      status: comments.length > 0 ? 'warning' : 'pass',
       comments,
       addressed: false,
+      reviewed_at: new Date().toISOString(),
     };
     const normalized = normalizeSectionReview(complexityReview);
     setAiReviews((prev) => {
