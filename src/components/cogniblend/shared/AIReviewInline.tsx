@@ -680,6 +680,14 @@ export function AIReviewInline({
                     onFlagForReview={review?.status === "pass" && review?.phase === "triage" ? () => onSingleSectionReview?.(sectionKey, { ...review, status: "warning", triage_status: "warning" }) : undefined}
                   />
                 )}
+
+                {/* Re-review button — always available after initial review for non-locked sections */}
+                {!isLockedSection && (
+                  <Button size="sm" variant="outline" className="w-full text-xs h-7 mt-2" onClick={handleReReview} disabled={isReReviewing}>
+                    {isReReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                    {isReReviewing ? "Re-reviewing…" : "Re-review this section"}
+                  </Button>
+                )}
               </>
             )}
           </>
