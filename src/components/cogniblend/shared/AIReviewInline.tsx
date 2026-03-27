@@ -249,6 +249,14 @@ export function AIReviewInline({
     if (defaultOpen && !isAddressed) setIsOpen(true);
   }, [defaultOpen, isAddressed]);
 
+  // Sync refinedContent from initialRefinedContent prop (e.g. complexity re-review)
+  useEffect(() => {
+    if (initialRefinedContent != null) {
+      setRefinedContent(initialRefinedContent);
+      autoRefineTriggered.current = true; // prevent auto-refine from overwriting
+    }
+  }, [initialRefinedContent]);
+
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
 
   useEffect(() => {
