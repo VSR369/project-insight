@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createCurationFormStore } from '@/store/curationFormStore';
+import { createCurationFormStore, selectIsAnyReviewPending } from '@/store/curationFormStore';
 import type { SectionKey } from '@/types/sections';
 
 const TEST_CHALLENGE_ID = 'test-challenge-123';
