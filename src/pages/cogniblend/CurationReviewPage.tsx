@@ -767,52 +767,11 @@ function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(items, 'S');
 }
 
-/** Compute weighted average score from AI ratings + complexity params (matches ComplexityAssessmentModule) */
-function computeWeightedComplexityScore(
-  ratings: Record<string, { rating: number; justification: string }>,
-  complexityParams: MasterComplexityParam[]
-): number {
-  const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-  if (totalWeight > 0) {
-    return complexityParams.reduce((s, p) => {
-      const r = ratings[p.param_key];
-      return s + (r ? r.rating : 5) * p.weight;
-    }, 0) / totalWeight;
-  }
-  // Fallback: simple average
-  const entries = Object.values(ratings);
-  return entries.reduce((s, r) => s + r.rating, 0) / Math.max(entries.length, 1);
-}
-
-/** Derive complexity level label from a score */
-function deriveComplexityLevel(score: number): string {
-  const thresholds = [
-    { level: "L1", label: "Very Low", min: 0, max: 2 },
-    { level: "L2", label: "Low", min: 2, max: 4 },
-    { level: "L3", label: "Medium", min: 4, max: 6 },
-    { level: "L4", label: "High", min: 6, max: 8 },
-    { level: "L5", label: "Very High", min: 8, max: 10 },
-  ];
-  const match = thresholds.find((t) => score >= t.min && score < t.max);
-  return match ? `${match.level} — ${match.label}` : "L5 — Very High";
-}
-
-/** Build a human-readable markdown summary from AI complexity ratings (weighted) */
-function buildComplexitySuggestionMd(
-  ratings: Record<string, { rating: number; justification: string }>,
-  complexityParams: MasterComplexityParam[]
-): string {
-  const ws = computeWeightedComplexityScore(ratings, complexityParams);
-  const score = ws.toFixed(2);
-  const level = deriveComplexityLevel(ws);
-
-  let md = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
-  for (const [key, r] of Object.entries(ratings)) {
-    const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    md += `- **${label}**: ${r.rating}/10 — ${r.justification}\n`;
-  }
-  return md;
-}
+// Complexity scoring imported from shared utility — single source of truth
+import {
+  buildComplexitySuggestionMd,
+  formatLevelLabel as deriveComplexityLevel,
+} from "@/lib/cogniblend/complexityScoring";
 
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
   const raw = parseJson<any>(ch.evaluation_criteria);
@@ -1490,12 +1449,12 @@ export default function CurationReviewPage() {
               const comments = Object.entries(ratings)
                 .filter(([, r]) => r.justification)
                 .map(([key, r]) => `${key}: ${r.justification}`);
-              const ws = computeWeightedComplexityScore(ratings, complexityParams);
               const complexityReview: SectionReview = {
                 section_key: 'complexity',
-                status: ws > 0 ? 'warning' : 'pass',
+                status: comments.length > 0 ? 'warning' : 'pass',
                 comments,
                 addressed: false,
+                reviewed_at: new Date().toISOString(),
               };
               const normalized = normalizeSectionReview(complexityReview);
               setAiReviews((prev) => {
@@ -1822,12 +1781,13 @@ export default function CurationReviewPage() {
     const comments = Object.entries(ratings)
       .filter(([, r]) => r.justification)
       .map(([key, r]) => `${key}: ${r.justification}`);
-    const ws = computeWeightedComplexityScore(ratings, complexityParams);
+    
     const complexityReview: SectionReview = {
       section_key: 'complexity',
-      status: ws > 0 ? 'warning' : 'pass',
+      status: comments.length > 0 ? 'warning' : 'pass',
       comments,
       addressed: false,
+      reviewed_at: new Date().toISOString(),
     };
     const normalized = normalizeSectionReview(complexityReview);
     setAiReviews((prev) => {

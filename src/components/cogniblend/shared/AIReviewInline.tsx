@@ -289,9 +289,11 @@ export function AIReviewInline({
   }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size]);
 
   // Reset auto-refine flag AND stale suggestion state when review changes (e.g. re-review or new deep review)
+  // Use content-based signature (not just count) to detect changes even when comment count stays the same
   const prevReviewSignature = React.useRef<string | null>(null);
   useEffect(() => {
-    const sig = `${review?.reviewed_at}|${review?.status}|${(review?.comments ?? []).length}`;
+    const commentHash = (review?.comments ?? []).join('\x1f');
+    const sig = `${review?.reviewed_at}|${review?.status}|${commentHash}`;
     if (prevReviewSignature.current !== null && prevReviewSignature.current !== sig) {
       // Review changed — clear stale refinement/suggestion state
       autoRefineTriggered.current = false;
@@ -394,6 +396,15 @@ export function AIReviewInline({
       // Delegate to custom re-review handler if provided (e.g. complexity uses assess-complexity)
       if (onReReview) {
         await onReReview(sectionKey);
+        // Force reset local state — same as normal path — so stale comments/suggestion clear
+        setIsAddressed(false);
+        setEditedComments([]);
+        setSelectedComments(new Set());
+        setRefinedContent(null);
+        setEditedSuggestedContent(null);
+        setEditedDeliverableItems(null);
+        setSelectedItems(new Set());
+        autoRefineTriggered.current = false;
         return;
       }
 
