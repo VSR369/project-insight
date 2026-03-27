@@ -1,33 +1,64 @@
 
 
-# Remove "Submit & Lock" — Consolidate into "Lock Reward Type"
+# Fix: AI Reward Review — Include Non-Monetary Suggestions
 
-## Rationale
+## Current State
 
-Currently there are two overlapping actions:
-1. **Lock Reward Type** — freezes radio selection, cleans irrelevant data, auto-saves
-2. **Submit & Lock** — validates, saves, then calls `markSubmitted()` which makes everything read-only
+**"Review Sections by AI" does cover `reward_structure`** — it's listed in the triage function's 26-section curation list. So triage (Phase 1) runs on it, and Phase 2 refinement triggers for warning/needs_revision results.
 
-These are redundant. The flow should be: **Save** (draft saves) → **Lock Reward Type** (final action that freezes type + saves + marks as submitted). No separate "Submit & Lock" needed.
+**No sections are left out** — the triage covers: problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, **reward_structure**, phase_schedule, submission_guidelines, eligibility, complexity, ip_model, legal_docs, escrow_funding, maturity_level, hook, submission_deadline, challenge_visibility, effort_level, domain_tags, visibility, solver_expertise, context_and_background, root_causes, affected_stakeholders, current_deficiencies, preferred_approach, approaches_not_of_interest (26 sections).
 
-## Changes
+**The real bug**: The refine edge function's `FORMAT_INSTRUCTIONS` for `reward_structure` (line 298) instructs the AI to return **only** a flat table of monetary prize tiers:
 
-### File: `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
+```
+Return ONLY a valid JSON array of row objects with keys:
+"prize_tier", "amount", "currency", "payment_trigger"
+```
 
-1. **Remove** `handleSubmit` function (lines 227-251) entirely
-2. **Remove** the "Submit & Lock" button (lines 500-507)
-3. **Enhance `handleLockRewardType`** to also call `markSubmitted()` after successful save — making it the single finalization action
-4. **Move "Lock Reward Type" button** to where "Submit & Lock" was (primary position), keeping validation check (`!isValid` disables it)
-5. Keep the **Save** button as-is for draft saves
+This produces the constant "1st Place / 2nd Place / 3rd Place" table you see in the screenshot. It has **no instruction** to include non-monetary rewards or a recommended reward type.
 
-### File: `src/hooks/useRewardStructureState.ts`
+Meanwhile, `applyAIReviewResult` in `useRewardStructureState.ts` already supports parsing `{ monetary: { tiers }, nonMonetary: { items }, type }` — but the edge function never produces that structure.
 
-No changes needed — `markSubmitted()` and `lockRewardType()` already exist. The lock handler will simply call both.
+## Fix — Two Files
 
-### Result
+### 1. Edge Function: `supabase/functions/refine-challenge-section/index.ts` (line 298)
 
-The editing toolbar becomes: **Cancel | Save | Lock Reward Type**
+Replace the `reward_structure` format instruction to demand a structured JSON object containing both monetary and non-monetary:
 
-- **Save** = draft save, can keep editing
-- **Lock Reward Type** = validates → saves → locks type → cleans irrelevant data → marks submitted (fully read-only)
+```
+CRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with this structure:
+{
+  "type": "monetary" | "non_monetary" | "both",
+  "monetary": {
+    "tiers": { "platinum": <amount>, "gold": <amount>, "silver": <amount> },
+    "currency": "<ISO code>",
+    "justification": "<1-2 sentences explaining the tier split>"
+  },
+  "nonMonetary": {
+    "items": ["<unique/innovative item 1>", "<unique/innovative item 2>", ...]
+  }
+}
+Rules:
+- Suggest 1-3 tiers based on challenge budget and complexity
+- Tier amounts MUST sum to the total reward pool
+- Non-monetary items MUST be innovative and domain-relevant (NOT generic certificates)
+- If challenge context suggests non-monetary only, set type to "non_monetary" and omit monetary
+- If both are appropriate, set type to "both"
+```
+
+### 2. Frontend: `src/hooks/useRewardStructureState.ts` — `applyAIReviewResult`
+
+Already handles the `{ monetary, nonMonetary, type }` shape. Minor update needed: if the AI returns the old flat array format (backward compat), detect it and wrap into the expected structure.
+
+### 3. Frontend: `src/pages/cogniblend/CurationReviewPage.tsx` — `handleAcceptRefinement`
+
+The reward_structure branch at line 1544 calls `rewardStructureRef.current?.applyAIReviewResult(valueToSave)`. If the AI returns the new object format, it flows through correctly. Add a guard: if `valueToSave` is an array (old format), wrap it as `{ monetary: { tiers: ... }, type: 'monetary' }`.
+
+## Files Summary
+
+| File | Change |
+|------|--------|
+| `supabase/functions/refine-challenge-section/index.ts` | Update FORMAT_INSTRUCTIONS for `reward_structure` to demand structured JSON with both monetary tiers + NM items |
+| `src/hooks/useRewardStructureState.ts` | Add backward-compat guard for old flat-array AI responses |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add array-to-object wrapping guard for old-format AI reward responses |
 
