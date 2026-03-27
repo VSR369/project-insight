@@ -206,30 +206,10 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
     const hasLocalData = Object.keys(storeState.sections).length > 0;
 
     if (!hasLocalData) {
-      (async () => {
-        try {
-          const { data, error } = await supabase
-            .from('challenges')
-            .select('ai_section_reviews')
-            .eq('id', challengeId)
-            .single();
-
-          if (error || !data?.ai_section_reviews) return;
-
-          const reviews = data.ai_section_reviews as Record<string, unknown>;
-          if (reviews && typeof reviews === 'object') {
-            const sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>> = {};
-            for (const key of SECTION_KEYS) {
-              if (key in reviews) {
-                sectionsData[key as SectionKey] = reviews[key] as SectionStoreEntry['data'];
-              }
-            }
-            store.getState().hydrate(sectionsData);
-          }
-        } catch (err) {
-          console.error('[CurationStoreSync] Hydration failed:', err);
-        }
-      })();
+      // Store hydration from challenge data is handled by useCurationStoreHydration.
+      // Do NOT hydrate section data from ai_section_reviews — those are review metadata,
+      // not section content. Mixing them causes data corruption.
+      console.info('[CurationStoreSync] No local data — hydration deferred to useCurationStoreHydration.');
     }
   }, [challengeId, enabled, store]);
 

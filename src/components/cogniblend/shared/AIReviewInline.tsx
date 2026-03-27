@@ -598,9 +598,17 @@ export function AIReviewInline({
     <div className={cn("mt-3 rounded-md border bg-muted/30", isAddressed ? "border-blue-200/60" : "border-border/60")}>
       <div className="px-3 py-3 space-y-3">
         {isPending ? (
-          <p className="text-xs text-muted-foreground italic py-2">
-            Run <span className="font-medium text-foreground">"Review with AI"</span> to generate review comments for this section.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground italic py-1">
+              Run <span className="font-medium text-foreground">"Review with AI"</span> to generate review comments for this section.
+            </p>
+            {!isLockedSection && (
+              <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={handleReReview} disabled={isReReviewing}>
+                {isReReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                {isReReviewing ? "Reviewing…" : "Review this section with AI"}
+              </Button>
+            )}
+          </div>
         ) : isAddressed ? (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground italic py-1">

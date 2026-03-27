@@ -136,8 +136,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const handleApplyAIReviewResult = useCallback((data: any) => {
     applyAIReviewResult(data);
     setHasBeenReviewed(true);
-    syncToStore();
-  }, [applyAIReviewResult, syncToStore]);
+    // State-driven sync effect will handle store persistence
+  }, [applyAIReviewResult]);
 
   useImperativeHandle(ref, () => ({
     applyAIReviewResult: handleApplyAIReviewResult,
