@@ -11,6 +11,7 @@ interface SourceBannerProps {
   isModified: boolean;
   onEdit: () => void;
   onReset?: () => void;
+  budgetRange?: { min: number; max: number; currency: string };
 }
 
 export default function SourceBanner({
