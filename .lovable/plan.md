@@ -1,119 +1,88 @@
 
 
-# Complexity Assessment — 3-Mode State Machine Refactor
+# Complexity Assessment UX Redesign
 
 ## Problem
 
-The current `ComplexityAssessmentModule` has a single boolean `overrideEnabled` that conflates two different override behaviors (manual sliders vs. quick-select). This causes:
+The current UI has overlapping controls (Override toggle, Quick Select buttons, confirmation dialogs) that confuse users. The three assessment paths are not self-explanatory and the UX mixes concerns.
 
-1. **No confirmation gate** — toggling Override or clicking Quick Select immediately changes state with no warning that AI assessment is being overridden
-2. **Quick Select saves immediately** — bypasses any review, no undo path
-3. **Score/level coupling confusion** — Quick Select recalculates slider values to match a target score, but the intent is to disconnect the level from the calculated score entirely
-4. **No mode persistence** — the assessment mode (AI vs. manual vs. quick override) is not saved to DB
+## Redesigned UX: 3 Clear Paths via Tab Selector
 
-## Design: 3-Mode State Machine
+Replace the current mode/toggle/dialog mess with a clean **3-tab card selector** at the top. Each tab contextualizes the entire UI below it.
 
 ```text
-┌──────────────────────────────────────────────────────┐
-│                    AI_AUTO (default)                  │
-│  Sliders: read-only bars                             │
-│  Score: from AI / stored value                       │
-│  Quick Select: disabled until confirmed              │
-│  Override toggle: triggers confirmation dialog       │
-├──────────────────────────────────────────────────────┤
-│         ↓ Confirm override?                          │
-│    ┌────────────────────────────────────┐             │
-│    │   Confirmation AlertDialog        │             │
-│    │   "Override AI assessment?"       │             │
-│    │   [Cancel]  [Confirm]             │             │
-│    └────────────────────────────────────┘             │
-│         ↓ Confirm                     ↓ Cancel       │
-│    Mode = pendingMode            Stay AI_AUTO        │
-├──────────────────────────────────────────────────────┤
-│              MANUAL_PARAMS                           │
-│  Sliders: interactive (1-10)                         │
-│  Score: live weighted calculation                    │
-│  Level: derived from score via thresholds            │
-│  Save/Cancel buttons visible                         │
-├──────────────────────────────────────────────────────┤
-│              QUICK_OVERRIDE                          │
-│  Sliders: read-only (no interaction)                 │
-│  Score: still calculated but informational only      │
-│  Level: FIXED to the selected L1-L5 button           │
-│  Level is disconnected from score                    │
-│  Quick Select buttons remain active to change level  │
-│  Save/Cancel buttons visible                         │
-└──────────────────────────────────────────────────────┘
+┌─────────────────┐  ┌──────────────────────┐  ┌─────────────────┐
+│  🤖 AI Review   │  │  🎚️ Manual Params    │  │  ⚡ Quick Select │
+│  (recommended)  │  │  Adjust each slider  │  │  Pick a level   │
+└─────────────────┘  └──────────────────────┘  └─────────────────┘
 ```
 
-## Implementation Plan
+### Tab 1: AI Review (default)
+- Shows AI-generated parameter ratings as **read-only bars** with justifications
+- Score badge + derived level visible
+- Sliders are NOT interactive but each shows a small "edit" pencil icon — clicking it directly makes THAT slider editable (badges it "Curator") without switching tabs. This addresses "simply allow override of AI-given parameter ratings"
+- "Re-review this section" button at bottom (triggers AI re-assessment)
+- Save button appears only when any param has been curator-edited
 
-### File: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
+### Tab 2: Manual Parameters
+- ALL sliders unlocked and interactive (1-10)
+- Live weighted score recalculation as sliders move
+- Derived level shown from score
+- Source badges: AI / Curator / Default per parameter
+- Save + Cancel buttons always visible
 
-#### 1. Add mode state and confirmation dialog
+### Tab 3: Quick Select
+- **5 level cards** (NOT buttons) in a vertical or 2-column grid:
 
-- Replace `overrideEnabled: boolean` with `mode: 'AI_AUTO' | 'MANUAL_PARAMS' | 'QUICK_OVERRIDE'`
-- Add `pendingMode` state and `showConfirmDialog` boolean
-- Import `AlertDialog` components from `@/components/ui/alert-dialog`
+```text
+┌──────────────────────────────────────────┐
+│  L1 — Very Low                           │
+│  Score range: 0–2. Routine, well-defined │
+│  challenges with established methods.    │
+│                              [ Select ]  │
+├──────────────────────────────────────────┤
+│  L2 — Low                                │
+│  Score range: 2–4. Moderate complexity    │
+│  with some novel elements.               │
+│                              [ Select ]  │
+├──── ... L3, L4, L5 ─────────────────────┤
+```
 
-#### 2. Confirmation flow
+- When a level is selected, it's highlighted with a checkmark
+- **Score display is HIDDEN** (no weighted score, no slider bars) — just the selected level card
+- Parameter sliders NOT shown at all in this tab
+- Save + Cancel visible after selection
 
-When in `AI_AUTO` mode:
-- **Override toggle ON** → set `pendingMode = 'MANUAL_PARAMS'`, open dialog
-- **Quick Select click** → set `pendingMode = 'QUICK_OVERRIDE'`, store clicked level, open dialog
-- **Dialog Confirm** → apply `pendingMode` as active `mode`, execute the pending action
-- **Dialog Cancel** → clear `pendingMode`, keep `AI_AUTO`
+### Confirmation Dialog
+- Only appears when switching tabs IF the user has unsaved edits in the current tab
+- Message: "You have unsaved changes. Switching will discard them. Continue?"
+- NOT triggered when switching from a clean/saved state
 
-When already in `MANUAL_PARAMS` or `QUICK_OVERRIDE`:
-- Override toggle and Quick Select work immediately (no re-confirmation needed)
-- Switching between MANUAL and QUICK does not require confirmation
+### Key Changes from Current Code
 
-#### 3. Mode-specific behavior
+1. **Remove** the `Override Assessment` Switch/toggle entirely
+2. **Remove** the small L1-L5 buttons row — replaced by descriptive cards in Quick Select tab
+3. **Add** tab selector (3 cards/tabs) at top of component
+4. **AI Review tab**: allow per-param inline edit (click pencil on any slider to make it editable, no mode switch needed)
+5. **Quick Select tab**: hide score and sliders, show only level cards with descriptions
+6. **Confirmation dialog**: only on tab switch with dirty state, not on every override attempt
 
-| Aspect | AI_AUTO | MANUAL_PARAMS | QUICK_OVERRIDE |
-|--------|---------|---------------|----------------|
-| Sliders | Read-only bars | Interactive | Read-only bars |
-| Score display | Stored/AI value | Live weighted calc | Weighted calc (informational) |
-| Level display | Derived from score | Derived from score | Fixed to selected button |
-| Quick Select | Gated by confirm | Changes mode to QUICK_OVERRIDE | Active, changes level directly |
-| Override toggle | Shows, triggers confirm | Shows ON, toggle OFF → AI_AUTO | Shows ON, toggle OFF → AI_AUTO |
-| Save/Cancel | Hidden | Visible | Visible |
+### Files to Change
 
-#### 4. Quick Select in QUICK_OVERRIDE mode
+**`src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`** — Full rewrite of the render section:
+- Add tab state (`activeTab: 'ai_review' | 'manual_params' | 'quick_select'`)
+- Tab selector row with 3 cards (icon + title + subtitle)
+- Conditional rendering per tab
+- Per-param edit button in AI Review tab (sets individual param to editable)
+- Quick Select renders `COMPLEXITY_THRESHOLDS` as descriptive cards
+- Dirty-state tracking for tab-switch confirmation
+- Remove Override toggle, Quick Select button row, and always-show confirmation
 
-- Does NOT recalculate slider values
-- Simply sets `overrideLevel` to the clicked L1-L5
-- Slider values remain as-is (from AI or previous manual edit)
-- Score is still calculated and shown but labeled "Calculated Score" (informational)
-- The saved level is the user's chosen override, not the derived level
+**`src/pages/cogniblend/CurationReviewPage.tsx`** — No changes needed (props interface stays the same; `onSave` signature unchanged)
 
-#### 5. Save behavior
-
-- `onSave` called with: `{ params, score, level, mode }`
-- In QUICK_OVERRIDE: `level` = user's selected level (not derived from score)
-- In MANUAL_PARAMS: `level` = derived from weighted score
-- In AI_AUTO: save not available (read-only)
-
-#### 6. Cancel behavior
-
-- Resets `mode` to `AI_AUTO`
-- Restores draft from `currentParams`
-- Clears any `overrideLevel`
-
-#### 7. Persist mode to DB
-
-- Add `assessment_mode` to the save payload in `handleSaveComplexity` (in CurationReviewPage)
-- This requires no new column — store as part of the `complexity_parameters` JSON (add `_meta: { mode }` field)
-
-### No database migration needed
-
-The mode is stored inside the existing `complexity_parameters` JSONB column as metadata, avoiding schema changes.
-
-## Technical Details
-
-- Uses existing `AlertDialog` from `@/components/ui/alert-dialog`
-- No new dependencies
-- Props interface adds optional `onSave` parameter for mode
-- Maintains backward compatibility with existing saved data (mode defaults to `AI_AUTO` if not present in params)
-- `deriveComplexityLevel` and weighted score calculation logic remain unchanged
+### Data Flow (unchanged)
+- `onSave(params, score, level, mode)` — same signature
+- AI Review tab with edits: `mode = 'AI_AUTO'`, score/level derived
+- Manual Params tab: `mode = 'MANUAL_PARAMS'`, score/level derived
+- Quick Select tab: `mode = 'QUICK_OVERRIDE'`, level = user selection, score = 0 (not applicable)
 
