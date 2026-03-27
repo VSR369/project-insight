@@ -82,7 +82,7 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiUsesContext: ['spec.evaluation_criteria', 'deliverables'],
   },
   reward_structure: {
-    format: 'table',
+    format: 'custom',
     columns: ['prize_tier', 'amount', 'currency', 'payment_trigger'],
     aiCanDraft: true,
     aiReviewEnabled: true,
