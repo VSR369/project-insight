@@ -313,7 +313,62 @@ Rewrite the section content following the instructions. Return ONLY the refined 
         submission_guidelines: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per guideline item. Example: ["Guideline 1", "Guideline 2"]. Do NOT return prose paragraphs.`,
         expected_outcomes: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of strings, one per expected outcome. Example: ["Outcome 1", "Outcome 2"]. Do NOT return prose paragraphs.`,
         phase_schedule: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of phase objects with keys: "phase_name" (string), "duration_days" (number), "start_date" (ISO date YYYY-MM-DD or null), "end_date" (ISO date YYYY-MM-DD or null). Propose realistic dates based on challenge scope. Example: [{"phase_name":"Registration","duration_days":14,"start_date":"2025-07-01","end_date":"2025-07-14"}].`,
-        reward_structure: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object (NOT an array) with this structure:\n{\n  "type": "monetary" | "non_monetary" | "both",\n  "monetary": {\n    "tiers": { "platinum": <amount>, "gold": <amount>, "silver": <amount> },\n    "currency": "<ISO currency code from the challenge context>",\n    "justification": "<1-2 sentences explaining the tier split>"\n  },\n  "nonMonetary": {\n    "items": ["<unique/innovative item 1>", "<unique/innovative item 2>", ...]\n  }\n}\nRules:\n- Suggest 1-3 tiers based on challenge budget and complexity. Use tier keys: "platinum", "gold", "silver". Omit tiers that are not needed.\n- Tier amounts MUST sum to the total reward pool if one is specified.\n- Non-monetary items MUST be innovative and domain-relevant (NOT generic certificates or trophies). Suggest 3-5 items.\n- If challenge context suggests non-monetary only, set type to "non_monetary" and omit the monetary key.\n- If both are appropriate, set type to "both" and include both monetary and nonMonetary.\n- If only monetary, set type to "monetary" — still include nonMonetary with 2-3 complementary suggestions.\n- ALWAYS include the nonMonetary key with at least 2 items.`,
+        reward_structure: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with this structure:
+{
+  "type": "monetary" | "non_monetary" | "both",
+  "monetary": {
+    "tiers": { "platinum": <amount>, "gold": <amount>, "silver": <amount> },
+    "currency": "<ISO currency code>",
+    "justification": "<2-3 sentences explaining pricing rationale based on maturity, complexity, and Big-4 benchmark>"
+  },
+  "nonMonetary": {
+    "items": ["<domain-specific item 1>", "<domain-specific item 2>", ...]
+  }
+}
+
+PRICING METHODOLOGY (MANDATORY — follow these rules precisely):
+
+1. MATURITY-STAGE BASE PRICING (approximate 50% of Big-4 consulting rates):
+   - BLUEPRINT (conceptual/strategic work): Big-4 charges $50K-$200K → suggest $15K-$75K
+   - POC (proof of concept/feasibility): Big-4 charges $100K-$500K → suggest $30K-$150K
+   - PROTOTYPE (working demonstration): Big-4 charges $150K-$600K → suggest $50K-$200K
+   - PILOT (real-world deployment): Big-4 charges $200K-$1M → suggest $75K-$300K
+   - PRODUCTION (full implementation): Big-4 charges $500K-$2M → suggest $150K-$500K
+   Start with the midpoint of the range for the given maturity level.
+
+2. COMPLEXITY MULTIPLIER (applied to base):
+   - Low complexity: 0.6x
+   - Medium complexity: 1.0x
+   - High complexity: 1.5x
+   - Expert complexity: 2.0x
+
+3. DELIVERABLE SCALING: For each deliverable beyond 3, increase total pool by 10-15%.
+
+4. EFFORT LEVEL ADJUSTMENT: Low=0.7x, Medium=1.0x, High=1.3x, Expert=1.6x (compound with complexity).
+
+5. IF A REWARD POOL IS ALREADY SET: Use that exact amount. Only redistribute across tiers.
+
+6. TIER DISTRIBUTION:
+   - Pool > $50K: 3 tiers — Platinum 50-60%, Gold 25-30%, Silver 15-20%
+   - Pool $10K-$50K: 2 tiers — Platinum 65%, Gold 35%
+   - Pool < $10K: 1 tier — Platinum 100%
+   Use round numbers (nearest $500 or $1,000).
+
+7. CURRENCY: Use challenge currency from context. Default to USD if not specified.
+
+NON-MONETARY REWARDS (MANDATORY — domain-specific, innovative):
+- NEVER suggest generic items like "certificate", "trophy", "medal", or "plaque"
+- Must be directly relevant to the challenge industry/domain
+- Technology domain: cloud credits, dev tool licenses, tech conference sponsorship, CTO advisory sessions, startup incubator access
+- Business Strategy: co-authorship on published case study, advisory board seat, investor/VC introduction, executive mentorship
+- Healthcare: clinical trial partnership, regulatory advisory session, medical journal co-publication, research grant access
+- Manufacturing: factory floor pilot partnership, supply chain optimization tools, industry expo speaking slot
+- Finance: fintech sandbox access, regulatory compliance consultation, industry report co-authorship
+- General: pilot deployment partnership, IP licensing opportunity, co-branded publication, conference keynote slot, expert network membership
+- Suggest 3-5 items that would genuinely attract top-tier solvers in the specific domain
+- ALWAYS include the nonMonetary key with at least 3 items
+
+Return ONLY the JSON object. No markdown, no explanation.`,
         domain_tags: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of tag strings. Example: ["AI", "Healthcare", "Data Science"]. No prose.`,
       };
 
