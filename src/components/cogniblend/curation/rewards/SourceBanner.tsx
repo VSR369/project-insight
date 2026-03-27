@@ -14,12 +14,21 @@ interface SourceBannerProps {
   budgetRange?: { min: number; max: number; currency: string };
 }
 
+function formatBudget(value: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return `${currency} ${value.toLocaleString()}`;
+  }
+}
+
 export default function SourceBanner({
   sourceRole,
   sourceDate,
   isModified,
   onEdit,
   onReset,
+  budgetRange,
 }: SourceBannerProps) {
   const roleName = getRoleDisplayName(sourceRole);
   const formattedDate = sourceDate
@@ -28,6 +37,12 @@ export default function SourceBanner({
         day: 'numeric',
         year: 'numeric',
       })
+    : null;
+
+  const budgetLabel = budgetRange && (budgetRange.min > 0 || budgetRange.max > 0)
+    ? budgetRange.min > 0 && budgetRange.max > 0 && budgetRange.min !== budgetRange.max
+      ? `Budget: ${formatBudget(budgetRange.min, budgetRange.currency)}–${formatBudget(budgetRange.max, budgetRange.currency)}`
+      : `Budget: ${formatBudget(budgetRange.max || budgetRange.min, budgetRange.currency)}`
     : null;
 
   return (
