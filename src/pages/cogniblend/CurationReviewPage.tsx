@@ -1541,6 +1541,10 @@ export default function CurationReviewPage() {
     }
 
     // ── Reward structure: apply AI result to the reward component state ──
+    // The AI returns a structured object like { type, monetary: { tiers: { platinum: N } }, nonMonetary: { items: ["..."] } }.
+    // We apply it to the component state (which converts it to proper internal format),
+    // then let the component's auto-save (pendingSave) persist the properly serialized version.
+    // We do NOT save the raw AI object directly — migrateRawReward expects arrays, not maps.
     if (dbField === 'reward_structure' && valueToSave && typeof valueToSave === 'object') {
       // Backward compat: if AI returned old flat array format, wrap it
       if (Array.isArray(valueToSave)) {
@@ -1553,10 +1557,10 @@ export default function CurationReviewPage() {
         const currency = (valueToSave as any[])[0]?.currency || 'USD';
         valueToSave = { type: 'monetary', monetary: { tiers, currency } };
       }
+      // Apply to component state — this triggers pendingSave inside RewardStructureDisplay
       rewardStructureRef.current?.applyAIReviewResult(valueToSave);
-      // Also save to DB
-      setSavingSection(true);
-      saveSectionMutation.mutate({ field: dbField, value: valueToSave });
+      // Do NOT save raw AI object to DB here; the component's auto-save
+      // will persist the properly serialized version via getSerializedData()
       return;
     }
 
