@@ -1,52 +1,33 @@
 
 
-# Fix: Radio Button Switching Not Working
+# Remove "Submit & Lock" — Consolidate into "Lock Reward Type"
 
-## Root Causes
+## Rationale
 
-**Problem 1 — `onSwitch` is a no-op in most states:**
-In `RewardStructureDisplay.tsx`, the `RewardTypeToggle` receives `onSwitch={() => {}}` in `populated_from_source` (line 419), `saved` (line 516), and `reviewed` (line 537) states. Clicking any radio button calls this empty function — nothing happens.
+Currently there are two overlapping actions:
+1. **Lock Reward Type** — freezes radio selection, cleans irrelevant data, auto-saves
+2. **Submit & Lock** — validates, saves, then calls `markSubmitted()` which makes everything read-only
 
-**Problem 2 — `hasExistingData` is too broad:**
-At line 302-306, `hasExistingData` checks `nmItems.length > 0`. When the user selects any type that involves non-monetary, default NM items are auto-populated (5 items). So `hasExistingData` is always `true` after the first selection, and every subsequent radio change triggers the confirmation dialog — even though there's no real user data to lose.
+These are redundant. The flow should be: **Save** (draft saves) → **Lock Reward Type** (final action that freezes type + saves + marks as submitted). No separate "Submit & Lock" needed.
 
-## Fix
+## Changes
 
 ### File: `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
 
-**Fix 1 — Make radio buttons functional in all non-submitted states:**
+1. **Remove** `handleSubmit` function (lines 227-251) entirely
+2. **Remove** the "Submit & Lock" button (lines 500-507)
+3. **Enhance `handleLockRewardType`** to also call `markSubmitted()` after successful save — making it the single finalization action
+4. **Move "Lock Reward Type" button** to where "Submit & Lock" was (primary position), keeping validation check (`!isValid` disables it)
+5. Keep the **Save** button as-is for draft saves
 
-In `populated_from_source`, `saved`, and `reviewed` states, replace `onSwitch={() => {}}` with a handler that transitions to editing mode and applies the type switch:
+### File: `src/hooks/useRewardStructureState.ts`
 
-```typescript
-// New handler for switching type from read-only states
-const handleTypeSwitchFromReadOnly = useCallback((type: RewardType) => {
-  startEditing();
-  setRewardType(type);
-}, [startEditing, setRewardType]);
-```
+No changes needed — `markSubmitted()` and `lockRewardType()` already exist. The lock handler will simply call both.
 
-Update all three read-only state blocks:
-- Line 419: `onSwitch={handleTypeSwitchFromReadOnly}` + remove `disabled` (keep `isLocked` check)
-- Line 516: `onSwitch={handleTypeSwitchFromReadOnly}` (already has `disabled={isSubmitted}`)
-- Line 537: `onSwitch={handleTypeSwitchFromReadOnly}` (already has `disabled={isSubmitted}`)
+### Result
 
-**Fix 2 — Tighten `hasExistingData` check (line 302-306):**
+The editing toolbar becomes: **Cancel | Save | Lock Reward Type**
 
-Only count data as "existing" when there's real user/AM/AI-entered content, not just auto-populated defaults with no modifications:
-
-```typescript
-const hasExistingData = useMemo(() => {
-  const hasMonetary = Object.values(tierStates).some((t) => t.enabled && t.amount > 0);
-  const hasNM = nmItems.some((item) => !item.isDefault || item.src.src !== 'curator');
-  return hasMonetary || hasNM;
-}, [tierStates, nmItems]);
-```
-
-This way, default curator NM items won't trigger the confirmation dialog. Only items from AM/AI or custom-added items count.
-
-## Result
-- Radio buttons will be clickable in all states (unless submitted/locked)
-- Switching types from read-only states will auto-transition to editing mode
-- Confirmation dialog only appears when there's real data at risk
+- **Save** = draft save, can keep editing
+- **Lock Reward Type** = validates → saves → locks type → cleans irrelevant data → marks submitted (fully read-only)
 
