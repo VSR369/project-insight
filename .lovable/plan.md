@@ -1,69 +1,138 @@
 
 
-# Fix: Non-Monetary Items Lost After AI Acceptance
+# Fix: Complexity Assessment — Equal Ratings Bug & AI Input Enrichment
 
-## Root Cause (Two Bugs)
+## Problems Identified
 
-### Bug 1: Stale closure in auto-save
-When `applyAIReviewResult` runs, it sets NM items via `setNMItems(aiItems)` and then `setPendingSave(true)` in the same synchronous callback. The `pendingSave` effect captures the **old** `getSerializedData` function reference, which closes over the **previous** `nmItems`. The 150ms `setTimeout` delays execution but still uses the stale function — the closure was captured when the effect ran, not when the timeout fires.
+### Bug 1: Quick-select L1-L5 sets ALL parameters to the same value
+In `handleQuickSelect` (line 169-189), when a user clicks L1/L2/L3/L4/L5, every parameter is set to the same midpoint value:
+```typescript
+const midpoint = Math.round((threshold.min + threshold.max) / 2);
+complexityParams.forEach((p) => {
+  newDraft[p.param_key] = midpoint; // ALL get the same value
+});
+```
+This is fundamentally wrong — clicking "L3" sets Technical Novelty, Budget Scale, Domain Breadth, etc. all to 5. The quick-select should set the **overall target level** and distribute parameter values proportionally using their weights, or better: it should call the AI with a hint, or use a weighted distribution that produces the target score but with variance.
 
-### Bug 2: AMPayload effect overwrites loaded NM items
-On page reload, the init sequence is:
-1. `useRewardStructureState` loads NM items from DB via `legacyToNMItems` → correct AI items
-2. `rewardType` initializes to `'both'` from DB → correct
-3. AMPayload `useEffect` fires → calls `setRewardType('both')`
-4. Inside `setRewardType`, it checks `nmItems.length === 0` — but `nmItems` in the closure is from the **initial render** when `setRewardType` was created. Due to `useCallback` deps (`nmItems.length`), if the callback was created when items existed, this should be fine. **However**, if AMPayload re-triggers or the mount order differs, the defaults overwrite.
+### Bug 2: AI assessment may return equal ratings due to insufficient context
+The edge function only fetches basic challenge fields (title, problem_statement, scope, deliverables, etc.) but is missing the **extended brief** (context/background, root causes, stakeholders, current deficiencies, preferred approach) and **expected_outcomes, submission_guidelines, hook, effort_level, operating_model**. With thin input data, the AI defaults to similar ratings across parameters.
 
-The primary culprit is Bug 1 — the auto-save persists stale (empty or default) NM data, so on next reload the DB has no AI items.
+### Bug 3: Section ordering — Complexity after Rewards
+Complexity is at index 8 (after Reward Structure at index 7). Rewards should factor in complexity, so complexity must come first.
 
-## Fix
+---
 
-### File: `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
+## Proposed Changes
 
-**Replace the pendingSave effect** to use a ref for `getSerializedData` instead of the closure:
+### 1. Fix quick-select to use weighted distribution (not equal values)
+
+**File:** `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
+
+Replace `handleQuickSelect` logic. Instead of setting all params to the same midpoint, create a differentiated spread around the target score:
 
 ```typescript
-// Add a ref that always holds the latest getSerializedData
-const getSerializedDataRef = useRef(getSerializedData);
-useEffect(() => {
-  getSerializedDataRef.current = getSerializedData;
-}, [getSerializedData]);
+const handleQuickSelect = useCallback((threshold) => {
+  const targetScore = (threshold.min + threshold.max) / 2;
+  const newDraft: Record<string, number> = {};
 
-// Auto-save effect uses the ref
-useEffect(() => {
-  if (!pendingSave || !rewardType) return;
-  setPendingSave(false);
-  const timer = setTimeout(async () => {
-    try {
-      const serialized = getSerializedDataRef.current(); // Always latest
-      // ... rest of save logic
-    }
-  }, 150);
-  return () => clearTimeout(timer);
-}, [pendingSave, rewardType, challengeId, queryClient, markSaved]);
+  // Use existing AI ratings as a shape if available, scaled to target level
+  const hasAIRatings = Object.keys(aiJustifications).length > 0;
+
+  if (hasAIRatings) {
+    // Scale existing AI-derived ratings proportionally to hit the target score
+    const currentAvg = complexityParams.reduce((s, p) => s + (draft[p.param_key] ?? 5), 0) / complexityParams.length;
+    const scaleFactor = currentAvg > 0 ? targetScore / currentAvg : 1;
+    complexityParams.forEach((p) => {
+      const scaled = Math.round((draft[p.param_key] ?? 5) * scaleFactor);
+      newDraft[p.param_key] = Math.max(1, Math.min(10, scaled));
+    });
+  } else {
+    // No AI data — use parameter weights to create variance
+    // Higher-weighted params get slightly higher values, lower-weighted get lower
+    const weights = complexityParams.map(p => p.weight);
+    const maxW = Math.max(...weights);
+    const minW = Math.min(...weights);
+    const range = maxW - minW || 1;
+
+    complexityParams.forEach((p) => {
+      // Spread ±1.5 around target based on weight rank
+      const weightRank = (p.weight - minW) / range; // 0..1
+      const offset = (weightRank - 0.5) * 3; // -1.5 to +1.5
+      const value = Math.round(targetScore + offset);
+      newDraft[p.param_key] = Math.max(1, Math.min(10, value));
+    });
+  }
+
+  setDraft(newDraft);
+  setAiJustifications({});
+  // Save immediately
+  const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+  const ws = totalWeight > 0
+    ? complexityParams.reduce((s, p) => s + (newDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+    : 5;
+  const score = Math.round(ws * 100) / 100;
+  onSave(newDraft, score, threshold.level);
+}, [complexityParams, draft, aiJustifications, onSave]);
 ```
 
-This ensures the timeout always calls the latest version of `getSerializedData`, which closes over the updated `nmItems` after React's state batch has flushed.
+### 2. Enrich AI inputs in the edge function
 
-### File: `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
+**File:** `supabase/functions/assess-complexity/index.ts`
 
-**Guard the AMPayload effect** to skip when data is already loaded from DB:
+Expand the challenge SELECT to include all available context:
 
-Add a check at the top of the AMPayload `useEffect`:
+```sql
+title, problem_statement, scope, description, deliverables,
+evaluation_criteria, reward_structure, ip_model, maturity_level,
+eligibility, visibility, phase_schedule, domain_tags,
+consulting_fee, management_fee, total_fee, currency_code,
+max_solutions, submission_deadline,
+-- NEW fields:
+extended_brief, expected_outcomes, submission_guidelines,
+hook, operating_model, effort_level
+```
+
+Update the user prompt to explicitly break out the extended brief subsections when present:
+
+```
+EXTENDED BRIEF (deep context):
+- Context & Background: ...
+- Root Causes: ...
+- Affected Stakeholders: ...
+- Current Deficiencies: ...
+- Preferred Approach: ...
+- Approaches Not of Interest: ...
+```
+
+This gives the AI rich context to differentiate ratings — e.g., complex stakeholder mapping increases `domain_breadth`, novel root causes increase `technical_novelty`, tight schedules with broad scope increase `timeline_urgency`.
+
+### 3. Reorder sections — Complexity before Rewards
+
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+
+In the `SECTIONS` array, swap `complexity` (currently after `reward_structure`) to appear before it. Move the complexity object (lines 369-375) above the reward_structure object (lines 349-368).
+
+### 4. Add source attribution badges (AI / Curator)
+
+**File:** `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
+
+Track source per parameter:
+
 ```typescript
-useEffect(() => {
-  if (!amPayload) return;
-  // Skip if data was already loaded from DB (not empty/fresh)
-  if (sectionState === 'saved' || sectionState === 'populated_from_source') return;
-  // ... rest of AM payload logic
-}, []);
+const [paramSources, setParamSources] = useState<Record<string, 'ai' | 'curator' | 'default'>>({});
 ```
 
-This prevents AM defaults from overwriting curator-saved or AI-accepted data on reload.
+- When AI assessment runs → mark all rated params as `'ai'`
+- When curator moves a slider → mark that param as `'curator'`
+- Render a small badge next to each parameter name showing the source
 
-## Files
+---
+
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Use ref for `getSerializedData` in auto-save; guard AMPayload effect against already-loaded data |
+| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Fix quick-select distribution, add source badges, track AI vs curator per param |
+| `supabase/functions/assess-complexity/index.ts` | Add extended_brief, expected_outcomes, submission_guidelines, hook, operating_model, effort_level to SELECT; restructure prompt |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Swap complexity and reward_structure in SECTIONS array |
 
