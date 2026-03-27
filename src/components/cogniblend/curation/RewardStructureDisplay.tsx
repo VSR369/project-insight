@@ -193,7 +193,59 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     applyAIReviewResult: handleApplyAIReviewResult,
   }), [handleApplyAIReviewResult]);
 
-  // ── AI handlers ──
+  // ── Save handler (manual) ──
+  const handleSave = useCallback(async () => {
+    if (!isValid) {
+      toast.error(`Fix ${errors.length} validation error(s) before saving.`);
+      return;
+    }
+    // Cancel any pending autosave — manual save supersedes
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    setSaving(true);
+    try {
+      const serialized = getSerializedDataRef.current();
+      const { error } = await supabase
+        .from('challenges')
+        .update({ reward_structure: serialized as unknown as Json })
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      toast.success('Reward structure saved successfully');
+      markSaved();
+    } catch (err: any) {
+      toast.error(`Failed to save: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [isValid, errors, challengeId, queryClient, markSaved]);
+
+  // ── Lock reward type handler ──
+  const handleLockRewardType = useCallback(async () => {
+    if (!isValid) {
+      toast.error(`Fix ${errors.length} validation error(s) before locking.`);
+      return;
+    }
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    lockRewardType();
+    setSaving(true);
+    try {
+      const serialized = getSerializedDataRef.current();
+      const { error } = await supabase
+        .from('challenges')
+        .update({ reward_structure: serialized as unknown as Json })
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      toast.success(`Reward type locked as "${rewardType === 'both' ? 'Both' : rewardType === 'monetary' ? 'Monetary' : 'Non-Monetary'}". Irrelevant data cleared.`);
+      markSubmitted();
+      markSaved();
+    } catch (err: any) {
+      toast.error(`Failed to lock: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [isValid, errors, lockRewardType, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
+
   const handleAcceptAllMonetaryAI = useCallback(() => {
     for (const rank of ['platinum', 'gold', 'silver']) {
       if (tierStates[rank]?.aiSuggestion) {
