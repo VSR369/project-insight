@@ -341,9 +341,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       onDeleteItem={disabled ? () => {} : deleteNMItem}
       onAcceptAISuggestion={disabled ? undefined : (id) => acceptAINMSuggestion(id)}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllNMAI}
-      onReviewWithAI={onReviewWithAI && !disabled ? handleReviewNonMonetary : undefined}
-      aiLoading={aiLoading}
-      hasBeenReviewed={hasBeenReviewed}
     />
   );
 

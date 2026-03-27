@@ -2536,7 +2536,7 @@ export default function CurationReviewPage() {
                             problemStatement={challenge.problem_statement}
                             operatingModel={challenge.operating_model}
                             challengeTitle={challenge.title}
-                            onReviewWithAI={(sectionKey) => handleSingleSectionReview(sectionKey, {} as any)}
+                            
                           />
                         );
 

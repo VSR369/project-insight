@@ -126,27 +126,6 @@ export default function MonetaryRewardEditor({
         />
       )}
 
-      {/* Review with AI button */}
-      {onReviewWithAI && !disabled && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReviewWithAI}
-            disabled={aiLoading}
-            className="gap-1.5 text-xs"
-          >
-            {aiLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : hasBeenReviewed ? (
-              <RefreshCw className="h-3 w-3" />
-            ) : (
-              <Sparkles className="h-3 w-3" />
-            )}
-            {hasBeenReviewed ? 'Re-review with AI' : 'Review with AI'}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
