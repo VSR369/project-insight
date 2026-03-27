@@ -229,7 +229,7 @@ export function AIReviewInline({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
   const [isRefining, setIsRefining] = useState(false);
-  const [refinedContent, setRefinedContent] = useState<string | null>(null);
+  const [refinedContent, setRefinedContent] = useState<string | null>(initialRefinedContent ?? null);
   const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
