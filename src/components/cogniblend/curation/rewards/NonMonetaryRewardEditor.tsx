@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Sparkles, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { Sparkles, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ValidationError } from '@/lib/rewardValidation';
