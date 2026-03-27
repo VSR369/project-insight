@@ -35,6 +35,18 @@ import {
   LEVEL_CARD_COLORS,
 } from "@/lib/cogniblend/complexityScoring";
 
+/* ─── Types ─── */
+
+export type AssessmentMode = "AI_AUTO" | "MANUAL_PARAMS" | "QUICK_OVERRIDE";
+
+type ActiveTab = "ai_review" | "manual_params" | "quick_select";
+
+const TAB_TO_MODE: Record<ActiveTab, AssessmentMode> = {
+  ai_review: "AI_AUTO",
+  manual_params: "MANUAL_PARAMS",
+  quick_select: "QUICK_OVERRIDE",
+};
+
 /* ─── Props ─── */
 
 export interface ComplexityAssessmentModuleProps {
