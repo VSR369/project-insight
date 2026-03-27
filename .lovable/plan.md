@@ -1,74 +1,38 @@
 
 
-# Unify Complexity Assessment with Standard AI Review Flow
+# Fix: Non-Monetary Items Overwritten by Defaults After AI Acceptance
 
-## Problem
+## Root Cause
 
-The Complexity section currently has a standalone "Assess by AI" button (calling the `assess-complexity` edge function) AND participates in the global "Review Sections by AI" flow. This is redundant and confusing. Every other section follows one consistent pattern: AI review generates comments → AI suggested version → Accept/Keep original → re-review. Complexity should too.
+In `useRewardStructureState.ts`, the `setRewardType` callback (line 272-279) populates default NM items (Certificate, Memento, Gift Vouchers, Movie Sponsorship, Others) whenever `nmItems.length === 0` — but it doesn't check WHETHER the empty state is because the section is brand-new vs. items failing to load from a stale cache after remount.
 
-## Current Flow (Broken)
+When the component remounts (e.g., user navigates between sections, or React Query invalidation triggers a re-render cycle), if the cache briefly has stale data without NM items, `nmItems` initializes as `[]`. Any subsequent call to `setRewardType('both')` or `setRewardType('non_monetary')` then overwrites with defaults, replacing the saved AI items.
 
-```text
-Complexity section:
-├── "Assess by AI" button → calls assess-complexity edge function → returns per-param ratings
-├── Quick-select L1-L5 → sets uniform/weighted values
-├── Override toggle → manual sliders
-└── Global "Review Sections by AI" → treats complexity as checkbox_single → just picks a level
+Additionally, `sectionState` is not consulted — defaults are injected even for `'saved'` sections where the empty list may be intentional or transient.
+
+## Fix
+
+### File: `src/hooks/useRewardStructureState.ts`
+
+**Change 1**: Guard default population in `setRewardType` — only inject defaults for brand-new sections:
+
+```typescript
+const setRewardType = useCallback((type: RewardType) => {
+  if (isSubmitted || isTypeLocked) return;
+  setRewardTypeState(type);
+  setSectionState('curator_editing');
+  // Only populate defaults for brand-new sections, never for saved/loaded data
+  if ((type === 'non_monetary' || type === 'both') && nmItems.length === 0 && sectionState === 'empty_no_source') {
+    setNMItems(defaultNMItems('curator'));
+  }
+}, [isSubmitted, isTypeLocked, nmItems.length, sectionState]);
 ```
 
-Two separate AI calls, two different response formats, no unified UX.
+Adding `sectionState === 'empty_no_source'` ensures defaults are only set when the curator is creating a reward structure from scratch — never when loading saved data (even if items transiently appear empty due to cache/remount timing).
 
-## Proposed Flow (Unified)
-
-```text
-Complexity section (like every other section):
-├── "Review with AI" button (in section header) → calls assess-complexity
-│   ├── AI Review comments panel (pass/warning/needs_revision)
-│   └── AI Suggested Version panel showing per-parameter ratings + justifications
-│       ├── "Accept suggestion" → applies AI ratings, saves
-│       └── "Keep original" → retains current values
-├── After acceptance: Override toggle + sliders for curator adjustments
-├── Quick-select L1-L5 remains as a manual shortcut
-└── Re-review button available after acceptance (like all sections)
-```
-
-## Technical Changes
-
-### 1. Remove standalone "Assess by AI" from ComplexityAssessmentModule
-
-**File:** `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
-
-- Remove the "Assess by AI" button, `handleAIAssess`, `aiAssessing` state, and the `supabase.functions.invoke("assess-complexity")` call
-- Keep: Quick-select L1-L5, Override toggle + sliders, Save/Cancel, source badges
-- Add a new prop `aiSuggestedRatings` to receive AI-generated per-parameter ratings from the parent when the AI review suggested version is accepted
-- Add prop `onAcceptAISuggestion` callback
-
-### 2. Route complexity AI review through the assess-complexity edge function
-
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-
-When the AI review runs for the `complexity` section (either via global "Review Sections by AI" or per-section "Review with AI"):
-- Instead of sending complexity to the generic triage batch, call `assess-complexity` separately
-- Transform the `assess-complexity` response (per-parameter ratings + justifications) into the standard AI review format (`status`, `comments`, `structured_output`)
-- The suggested version displays the parameter ratings table with justifications
-- "Accept suggestion" applies the ratings via `handleSaveComplexity`
-
-### 3. Update the AI Review inline display for complexity
-
-When AI review results exist for the complexity section:
-- **Comments panel**: Show AI observations (e.g., "Timeline urgency rated 8/10 due to 30-day deadline with prototype deliverable")
-- **Suggested Version panel**: Show a formatted table of parameter ratings with justifications and the computed weighted score
-- Accept/Keep original actions work as standard
-
-### 4. Keep quick-select L1-L5 as manual override
-
-Quick-select stays as a curator shortcut. These are not AI-driven — they remain weight-distributed manual overrides. Source badge shows "Curator" for these.
-
-## Files to Modify
+## Files
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Remove standalone AI assess button/logic; add props for AI review integration; keep sliders, quick-select, source badges |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Route complexity section's AI review to `assess-complexity` edge function; transform response to standard review format; wire Accept to `handleSaveComplexity` |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Remove `complexity` from `SECTION_FORMAT_MAP` (no longer processed by generic triage) |
+| `src/hooks/useRewardStructureState.ts` | Add `sectionState === 'empty_no_source'` guard to default NM item population in `setRewardType` |
 
