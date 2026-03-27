@@ -241,10 +241,12 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
 
 
   // ── Auto-save effect ──
+  // Uses setTimeout to ensure React state batch (from applyAIReviewResult) has flushed
+  // before getSerializedData() reads tier/NM state.
   useEffect(() => {
     if (!pendingSave || !rewardType) return;
     setPendingSave(false);
-    const doSave = async () => {
+    const timer = setTimeout(async () => {
       try {
         const serialized = getSerializedData();
         const { error } = await supabase
@@ -257,8 +259,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       } catch (err: any) {
         toast.error(`Auto-save failed: ${err.message}`);
       }
-    };
-    doSave();
+    }, 150);
+    return () => clearTimeout(timer);
   }, [pendingSave, rewardType, getSerializedData, challengeId, queryClient, markSaved]);
 
   // ── AI handlers ──

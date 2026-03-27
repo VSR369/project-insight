@@ -174,6 +174,98 @@ export function migrateRawReward(raw: any): {
     };
   }
 
+  // Helper: parse monetary tiers from raw data
+  const parseTiers = (): { tiers: PrizeTier[]; totalFromFlat: number; monetary: MonetaryReward } => {
+    const platinumAmt = Number(raw.platinum) || 0;
+    const goldAmt = Number(raw.gold) || 0;
+    const silverAmt = Number(raw.silver) || 0;
+    const totalFromFlat = platinumAmt + goldAmt + silverAmt;
+
+    let tiers: PrizeTier[] = [];
+    if (Array.isArray(raw.tiers) && raw.tiers.length > 0) {
+      tiers = raw.tiers.map((t: any) => ({
+        rank: t.rank,
+        amount: Number(t.amount) || 0,
+        count: Number(t.count) || 1,
+        label: t.label,
+      }));
+    } else {
+      if (platinumAmt > 0) tiers.push({ rank: 'platinum', amount: platinumAmt, count: 1, label: '1st Place' });
+      if (goldAmt > 0) tiers.push({ rank: 'gold', amount: goldAmt, count: 1, label: '2nd Place' });
+      if (silverAmt > 0) tiers.push({ rank: 'silver', amount: silverAmt, count: 1, label: '3rd Place' });
+    }
+
+    const milestones: PaymentMilestone[] = raw.payment_milestones ?? raw.payment_schedule ?? [];
+
+    return {
+      tiers,
+      totalFromFlat,
+      monetary: {
+        currency: raw.currency ?? 'USD',
+        totalPool: raw.totalPool ?? (totalFromFlat || (Number(raw.amount) || undefined)),
+        tiers,
+        payment_milestones: milestones,
+        payment_mode: raw.payment_mode,
+      },
+    };
+  };
+
+  // Helper: parse non-monetary items from raw data
+  const parseNMItems = (): NonMonetaryItem[] => {
+    const items: NonMonetaryItem[] = [];
+
+    if (raw.tiered_perks) {
+      const perks = raw.tiered_perks;
+      const allPerks = new Set<string>();
+      for (const tier of ['platinum', 'gold', 'silver'] as const) {
+        if (Array.isArray(perks[tier])) {
+          for (const perk of perks[tier]) {
+            if (typeof perk === 'string' && !allPerks.has(perk)) {
+              allPerks.add(perk);
+              items.push({ id: crypto.randomUUID(), type: 'recognition', title: perk, description: '', isFromSource: true });
+            }
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(raw.non_monetary_perks)) {
+      for (const perk of raw.non_monetary_perks) {
+        if (typeof perk === 'string') {
+          items.push({ id: crypto.randomUUID(), type: 'recognition', title: perk, description: '', isFromSource: true });
+        }
+      }
+    }
+
+    if (Array.isArray(raw.items)) {
+      for (const item of raw.items) {
+        if (item && typeof item === 'object' && item.title) {
+          items.push({
+            id: item.id ?? crypto.randomUUID(),
+            type: item.type ?? 'other',
+            title: item.title,
+            description: item.description ?? '',
+            isAISuggested: !!item.isAISuggested,
+            isFromSource: !!item.isFromSource,
+          });
+        }
+      }
+    }
+
+    return items;
+  };
+
+  // ── Both path: monetary + non-monetary combined ──
+  if (explicitType === 'both') {
+    const { monetary } = parseTiers();
+    const nmItems = parseNMItems();
+    return {
+      type: 'both',
+      monetary,
+      nonMonetary: { items: nmItems },
+    };
+  }
+
   // Monetary path (default if any monetary fields exist)
   const platinumAmt = Number(raw.platinum) || 0;
   const goldAmt = Number(raw.gold) || 0;
