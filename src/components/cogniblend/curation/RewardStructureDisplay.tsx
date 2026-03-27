@@ -38,7 +38,7 @@ interface RewardStructureDisplayProps {
   operatingModel?: string | null;
   challengeTitle?: string;
   amPayload?: AMRewardPayload | null;
-  onReviewWithAI?: (sectionKey: string) => void;
+  
 }
 
 const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardStructureDisplayProps>(({
