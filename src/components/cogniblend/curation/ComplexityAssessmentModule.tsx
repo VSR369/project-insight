@@ -175,6 +175,7 @@ export function ComplexityAssessmentModule({
   // ══════ Handlers ══════
   const handleSliderChange = useCallback((paramKey: string, val: number) => {
     setDraft((prev) => ({ ...prev, [paramKey]: val }));
+    setParamSources((prev) => ({ ...prev, [paramKey]: 'curator' }));
   }, []);
 
   const handleQuickSelect = useCallback(
