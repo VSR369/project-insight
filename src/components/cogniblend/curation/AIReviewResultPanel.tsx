@@ -90,6 +90,8 @@ interface AIReviewResultPanelProps {
   onConfirmPass?: () => void;
   /** Callback to flag a pass section for deeper review */
   onFlagForReview?: () => void;
+  /** Structured complexity ratings from AI — renders parameter table */
+  complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
 }
 
 /* ── Severity helpers ──────────────────────────────────── */
