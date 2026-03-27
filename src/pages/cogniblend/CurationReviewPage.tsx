@@ -1540,6 +1540,15 @@ export default function CurationReviewPage() {
       }
     }
 
+    // ── Reward structure: apply AI result to the reward component state ──
+    if (dbField === 'reward_structure' && valueToSave && typeof valueToSave === 'object') {
+      rewardStructureRef.current?.applyAIReviewResult(valueToSave);
+      // Also save to DB
+      setSavingSection(true);
+      saveSectionMutation.mutate({ field: dbField, value: valueToSave });
+      return;
+    }
+
     // ── Evaluation criteria: normalize AI field names to canonical format ──
     if (dbField === 'evaluation_criteria' && valueToSave && typeof valueToSave === 'object') {
       const rawArr = Array.isArray(valueToSave)
