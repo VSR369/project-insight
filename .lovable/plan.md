@@ -1,88 +1,66 @@
 
 
-# Complexity Assessment UX Redesign
+# Add AI Comments + Suggested Observation to Complexity Re-Review
 
 ## Problem
 
-The current UI has overlapping controls (Override toggle, Quick Select buttons, confirmation dialogs) that confuse users. The three assessment paths are not self-explanatory and the UX mixes concerns.
+When "Re-review this section" runs for Complexity, `handleComplexityReReview` calls `assess-complexity` and sets:
+- `comments` (param justifications) on the `SectionReview` object
+- `aiSuggestedComplexity` (slider ratings) on the module
 
-## Redesigned UX: 3 Clear Paths via Tab Selector
+But it never sets a `suggestion` field, so the `AIReviewInline` panel shows AI comments but **no "AI Suggested Version"** block — unlike every other section.
 
-Replace the current mode/toggle/dialog mess with a clean **3-tab card selector** at the top. Each tab contextualizes the entire UI below it.
+## What the Suggested Version Should Show
 
-```text
-┌─────────────────┐  ┌──────────────────────┐  ┌─────────────────┐
-│  🤖 AI Review   │  │  🎚️ Manual Params    │  │  ⚡ Quick Select │
-│  (recommended)  │  │  Adjust each slider  │  │  Pick a level   │
-└─────────────────┘  └──────────────────────┘  └─────────────────┘
-```
+For complexity, the "AI Suggested Observation" should be a human-readable summary of the AI's assessment — e.g.:
 
-### Tab 1: AI Review (default)
-- Shows AI-generated parameter ratings as **read-only bars** with justifications
-- Score badge + derived level visible
-- Sliders are NOT interactive but each shows a small "edit" pencil icon — clicking it directly makes THAT slider editable (badges it "Curator") without switching tabs. This addresses "simply allow override of AI-given parameter ratings"
-- "Re-review this section" button at bottom (triggers AI re-assessment)
-- Save button appears only when any param has been curator-edited
+> **Suggested Complexity: L4 — High (Score: 6.80)**
+> - Technical Novelty: 7/10 — Requires novel approaches...
+> - Domain Breadth: 8/10 — Spans multiple disciplines...
+> - ... (all params with ratings + justifications)
 
-### Tab 2: Manual Parameters
-- ALL sliders unlocked and interactive (1-10)
-- Live weighted score recalculation as sliders move
-- Derived level shown from score
-- Source badges: AI / Curator / Default per parameter
-- Save + Cancel buttons always visible
+This gives curators a clear, reviewable AI output alongside the interactive sliders.
 
-### Tab 3: Quick Select
-- **5 level cards** (NOT buttons) in a vertical or 2-column grid:
+## Implementation
+
+### File: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+**In `handleComplexityReReview` (line ~1732) and the initial complexity assessment block (line ~1401):**
+
+After getting `ratings` from `assess-complexity`, build a markdown suggestion string:
 
 ```text
-┌──────────────────────────────────────────┐
-│  L1 — Very Low                           │
-│  Score range: 0–2. Routine, well-defined │
-│  challenges with established methods.    │
-│                              [ Select ]  │
-├──────────────────────────────────────────┤
-│  L2 — Low                                │
-│  Score range: 2–4. Moderate complexity    │
-│  with some novel elements.               │
-│                              [ Select ]  │
-├──── ... L3, L4, L5 ─────────────────────┤
+const score = avgRating.toFixed(2);
+const level = deriveLevel(avgRating);
+let suggestion = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
+for (const [key, r] of Object.entries(ratings)) {
+  suggestion += `- **${formatParamName(key)}**: ${r.rating}/10 — ${r.justification}\n`;
+}
 ```
 
-- When a level is selected, it's highlighted with a checkmark
-- **Score display is HIDDEN** (no weighted score, no slider bars) — just the selected level card
-- Parameter sliders NOT shown at all in this tab
-- Save + Cancel visible after selection
+Then include `suggestion` in the `SectionReview` object stored in `aiReviews`:
 
-### Confirmation Dialog
-- Only appears when switching tabs IF the user has unsaved edits in the current tab
-- Message: "You have unsaved changes. Switching will discard them. Continue?"
-- NOT triggered when switching from a clean/saved state
+```typescript
+const complexityReview: SectionReview = {
+  section_key: 'complexity',
+  status: avgRating > 0 ? 'warning' : 'pass',
+  comments,
+  suggestion,   // <-- NEW: enables "AI Suggested Version" in the panel
+  addressed: false,
+};
+```
 
-### Key Changes from Current Code
+### File: `src/components/cogniblend/shared/AIReviewInline.tsx`
 
-1. **Remove** the `Override Assessment` Switch/toggle entirely
-2. **Remove** the small L1-L5 buttons row — replaced by descriptive cards in Quick Select tab
-3. **Add** tab selector (3 cards/tabs) at top of component
-4. **AI Review tab**: allow per-param inline edit (click pencil on any slider to make it editable, no mode switch needed)
-5. **Quick Select tab**: hide score and sliders, show only level cards with descriptions
-6. **Confirmation dialog**: only on tab switch with dirty state, not on every override attempt
+The `SectionReview` interface needs a `suggestion` field (check if it already exists as an optional field used by the refinement pipeline — if not, add `suggestion?: string`).
 
-### Files to Change
+### No other changes needed
 
-**`src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`** — Full rewrite of the render section:
-- Add tab state (`activeTab: 'ai_review' | 'manual_params' | 'quick_select'`)
-- Tab selector row with 3 cards (icon + title + subtitle)
-- Conditional rendering per tab
-- Per-param edit button in AI Review tab (sets individual param to editable)
-- Quick Select renders `COMPLEXITY_THRESHOLDS` as descriptive cards
-- Dirty-state tracking for tab-switch confirmation
-- Remove Override toggle, Quick Select button row, and always-show confirmation
+The `AIReviewInline` component already renders `suggestion` when present. The `AiContentRenderer` already handles markdown. The `ComplexityAssessmentModule` continues to show interactive sliders independently — the suggestion in the review panel is a readable summary, not a duplicate.
 
-**`src/pages/cogniblend/CurationReviewPage.tsx`** — No changes needed (props interface stays the same; `onSave` signature unchanged)
+## Result
 
-### Data Flow (unchanged)
-- `onSave(params, score, level, mode)` — same signature
-- AI Review tab with edits: `mode = 'AI_AUTO'`, score/level derived
-- Manual Params tab: `mode = 'MANUAL_PARAMS'`, score/level derived
-- Quick Select tab: `mode = 'QUICK_OVERRIDE'`, level = user selection, score = 0 (not applicable)
-
+After re-review, curators see:
+1. **AI Review comments** — per-parameter justifications (already working)
+2. **AI Suggested Observation** — formatted summary with score, level, and all ratings (new)
+3. **Interactive sliders** — in the ComplexityAssessmentModule (already working)
