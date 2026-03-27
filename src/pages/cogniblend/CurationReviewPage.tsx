@@ -1485,6 +1485,32 @@ export default function CurationReviewPage() {
     const section = SECTION_MAP.get(sectionKey);
     const dbField = section?.dbField;
 
+    // ── Complexity: apply AI-suggested ratings via dedicated handler ──
+    if (sectionKey === "complexity") {
+      if (aiSuggestedComplexity) {
+        const paramValues: Record<string, number> = {};
+        complexityParams.forEach((p) => {
+          const r = aiSuggestedComplexity[p.param_key];
+          paramValues[p.param_key] = r ? Math.max(1, Math.min(10, Math.round(r.rating))) : 5;
+        });
+        const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+        const ws = totalWeight > 0
+          ? complexityParams.reduce((s, p) => s + (paramValues[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+          : 5;
+        const score = Math.round(ws * 100) / 100;
+        const level = (() => {
+          const t = [
+            { level: "L1", min: 0, max: 2 }, { level: "L2", min: 2, max: 4 },
+            { level: "L3", min: 4, max: 6 }, { level: "L4", min: 6, max: 8 },
+            { level: "L5", min: 8, max: 10 },
+          ].find(t => score >= t.min && score < t.max);
+          return t?.level ?? "L5";
+        })();
+        handleSaveComplexity(paramValues, score, level);
+      }
+      return;
+    }
+
     // ── Solver expertise: parse JSON and save directly ──
     if (sectionKey === "solver_expertise") {
       try {
