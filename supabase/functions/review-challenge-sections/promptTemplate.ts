@@ -59,7 +59,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   evaluation_criteria: 'table',
   reward_structure: 'table',
   phase_schedule: 'schedule_table',
-  // complexity: handled by dedicated assess-complexity edge function
+  complexity: 'complexity_assessment',
   ip_model: 'checkbox_single',
   maturity_level: 'checkbox_single',
   eligibility: 'checkbox_multi',
