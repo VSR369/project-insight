@@ -1542,6 +1542,17 @@ export default function CurationReviewPage() {
 
     // ── Reward structure: apply AI result to the reward component state ──
     if (dbField === 'reward_structure' && valueToSave && typeof valueToSave === 'object') {
+      // Backward compat: if AI returned old flat array format, wrap it
+      if (Array.isArray(valueToSave)) {
+        const tiers: Record<string, number> = {};
+        const tierNames = ['platinum', 'gold', 'silver'];
+        (valueToSave as any[]).forEach((row: any, i: number) => {
+          const key = tierNames[i] || `tier_${i}`;
+          tiers[key] = Number(row.amount) || 0;
+        });
+        const currency = (valueToSave as any[])[0]?.currency || 'USD';
+        valueToSave = { type: 'monetary', monetary: { tiers, currency } };
+      }
       rewardStructureRef.current?.applyAIReviewResult(valueToSave);
       // Also save to DB
       setSavingSection(true);
