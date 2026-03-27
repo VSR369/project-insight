@@ -30,9 +30,6 @@ export default function NonMonetaryRewardEditor({
   onDeleteItem,
   onAcceptAISuggestion,
   onAcceptAllAI,
-  onReviewWithAI,
-  aiLoading = false,
-  hasBeenReviewed = false,
 }: NonMonetaryRewardEditorProps) {
   const [newItemTitle, setNewItemTitle] = useState('');
   const hasAIRecommendations = items.some((item) => item.aiRecommended);
