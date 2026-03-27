@@ -1769,6 +1769,7 @@ export default function CurationReviewPage() {
 
     const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
     setAiSuggestedComplexity(ratings);
+    setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings));
 
     // Transform into standard AI review format
     const comments = Object.entries(ratings)
