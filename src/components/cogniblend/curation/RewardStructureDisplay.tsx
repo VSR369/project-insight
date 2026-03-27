@@ -189,6 +189,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success(`Reward type locked as "${rewardType === 'both' ? 'Both' : rewardType === 'monetary' ? 'Monetary' : 'Non-Monetary'}". Irrelevant data cleared.`);
+      savedSnapshotRef.current = JSON.stringify(serialized);
       markSubmitted();
       markSaved();
     } catch (err: any) {
