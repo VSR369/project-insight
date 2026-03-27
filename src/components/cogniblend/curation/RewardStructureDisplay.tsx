@@ -106,6 +106,12 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const [showBothBanner, setShowBothBanner] = useState(false);
   const [activeTab, setActiveTab] = useState<'monetary' | 'non_monetary'>('monetary');
 
+  // ── Dirty-state tracking: only show Save when data actually changed ──
+  const savedSnapshotRef = useRef<string>(JSON.stringify(getSerializedData()));
+  const isDirty = useMemo(() => {
+    return JSON.stringify(getSerializedData()) !== savedSnapshotRef.current;
+  }, [getSerializedData, rewardType, tierStates, nmItems, currency, totalPool]);
+
   // ── Zustand store integration for navigation persistence ──
   const storeRef = useRef(getCurationFormStore(challengeId));
   const getSerializedDataRef = useRef(getSerializedData);
@@ -156,13 +162,14 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success('Reward structure saved successfully');
+      savedSnapshotRef.current = JSON.stringify(serialized);
       markSaved();
     } catch (err: any) {
       toast.error(`Failed to save: ${err.message}`);
     } finally {
       setSaving(false);
     }
-  }, [isValid, errors, challengeId, queryClient, markSaved]);
+  }, [isValid, errors, challengeId, queryClient, markSaved, getSerializedData]);
 
   // ── Lock reward type handler ──
   const handleLockRewardType = useCallback(async () => {
@@ -182,6 +189,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success(`Reward type locked as "${rewardType === 'both' ? 'Both' : rewardType === 'monetary' ? 'Monetary' : 'Non-Monetary'}". Irrelevant data cleared.`);
+      savedSnapshotRef.current = JSON.stringify(serialized);
       markSubmitted();
       markSaved();
     } catch (err: any) {
@@ -403,9 +411,11 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
           {/* Save/Cancel/Lock/Submit footer */}
           {!isSubmitted && (
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={cancelEditing} className="gap-1.5">
-                <X className="h-3.5 w-3.5" /> Cancel
-              </Button>
+              {isDirty && (
+                <Button variant="outline" size="sm" onClick={cancelEditing} className="gap-1.5">
+                  <X className="h-3.5 w-3.5" /> Cancel
+                </Button>
+              )}
               {!isTypeLocked && rewardType && (
                 <Button
                   size="sm"
@@ -418,20 +428,22 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   Lock Reward Type
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSave}
-                disabled={saving || !isValid || !rewardType}
-                className="gap-1.5"
-              >
-                {saving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                Save
-              </Button>
+              {isDirty && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={saving || !isValid || !rewardType}
+                  className="gap-1.5"
+                >
+                  {saving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  Save
+                </Button>
+              )}
             </div>
           )}
         </>
