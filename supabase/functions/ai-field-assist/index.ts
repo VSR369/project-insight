@@ -16,10 +16,39 @@ const FIELD_PROMPTS: Record<string, string> = {
   description: `Write a concise challenge description (2-3 paragraphs) that summarizes the challenge for potential solvers.`,
   payment_milestones: `Suggest 3-5 payment milestones for this innovation challenge. Return a JSON object: {"payment_milestones":[{"name":"Milestone Name","pct":25,"trigger":"Condition to release payment"}]}. Percentages must sum to 100.`,
   tiered_perks: `Suggest tiered perks for a 3-tier reward structure (platinum, gold, silver). Return a JSON object: {"tiered_perks":{"platinum":["perk1","perk2"],"gold":["perk1","perk2"],"silver":["perk1","perk2"]}}. Make perks relevant to the challenge domain.`,
-  reward_tier_breakup: `Break down the total prize pool into prize tiers. Return ONLY a valid JSON object with this exact structure:
+  reward_tier_breakup: `Break down the total prize pool into prize tiers using intelligent pricing methodology.
+
+PRICING METHODOLOGY (MANDATORY):
+1. MATURITY-STAGE BASE PRICING (target ~50% of Big-4 consulting rates):
+   - BLUEPRINT (conceptual/strategic): Big-4 charges $50K-$200K → suggest $15K-$75K
+   - POC (proof of concept): Big-4 charges $100K-$500K → suggest $30K-$150K
+   - PROTOTYPE (working demo): Big-4 charges $150K-$600K → suggest $50K-$200K
+   - PILOT (deployment): Big-4 charges $200K-$1M → suggest $75K-$300K
+   If a total_amount is provided in context, use that exact amount and only distribute across tiers.
+
+2. COMPLEXITY MULTIPLIER: Low=0.6x, Medium=1.0x, High=1.5x, Expert=2.0x
+3. DELIVERABLE SCALING: +10-15% per deliverable beyond 3
+4. TIER DISTRIBUTION:
+   - Pool > $50K: 3 tiers (Platinum 55%, Gold 28%, Silver 17%)
+   - Pool $10K-$50K: 2 tiers (Platinum 65%, Gold 35%)
+   - Pool < $10K: 1 tier (Platinum 100%)
+
+Return ONLY a valid JSON object:
 {"platinum":{"amount":number,"count":number,"label":"string"},"gold":{"amount":number,"count":number,"label":"string"},"silver":{"amount":number,"count":number,"label":"string"},"honorable_mention":{"amount":0,"count":number,"label":"string"}}
-Rules: platinum.amount > gold.amount > silver.amount > 0. The sum of (amount × count) for platinum+gold+silver must equal the total pool exactly. Use round numbers. honorable_mention.amount must be 0. Return JSON only.`,
-  non_monetary_suggestions: `Suggest 3-5 non-monetary rewards for challenge winners. Return ONLY a JSON array:
+Rules: platinum.amount > gold.amount > silver.amount > 0. Sum of (amount × count) for platinum+gold+silver must equal the total pool. Use round numbers. honorable_mention.amount must be 0. Return JSON only.`,
+  non_monetary_suggestions: `Suggest 3-5 non-monetary rewards for challenge winners that are DOMAIN-SPECIFIC and INNOVATIVE.
+
+MANDATORY RULES:
+- NEVER suggest generic items like "certificate", "trophy", "medal", or "plaque"
+- Rewards must be directly relevant to the challenge's industry/domain
+- Technology: cloud credits, dev tool licenses, tech conference sponsorship, CTO advisory sessions, startup incubator access
+- Business Strategy: co-authorship on published case study, advisory board seat, investor introduction, executive mentorship
+- Healthcare: clinical trial partnership, regulatory advisory session, journal co-publication
+- Manufacturing: factory floor pilot partnership, supply chain optimization tools, industry expo speaking slot
+- Finance: fintech sandbox access, regulatory compliance consultation, industry report co-authorship
+- General: pilot deployment partnership, IP licensing opportunity, co-branded publication, conference keynote slot
+
+Return ONLY a JSON array:
 [{"type":"recognition"|"opportunity"|"resource"|"publication"|"access"|"other","title":"short reward name (max 8 words)","description":"one sentence description (max 20 words)"}]
 Return JSON array only.`,
 };
@@ -63,6 +92,12 @@ For evaluation/scoring:
     if (context?.maturity_level) contextParts.push(`Maturity Level: ${context.maturity_level}`);
     if (context?.governance_mode) contextParts.push(`Governance Mode: ${context.governance_mode}`);
     if (context?.industry) contextParts.push(`Industry: ${context.industry}`);
+    if (context?.complexity) contextParts.push(`Complexity: ${context.complexity}`);
+    if (context?.scope) contextParts.push(`Scope: ${context.scope}`);
+    if (context?.deliverables?.length) contextParts.push(`Deliverables (${context.deliverables.length}): ${JSON.stringify(context.deliverables)}`);
+    if (context?.effort_level) contextParts.push(`Effort Level: ${context.effort_level}`);
+    if (context?.total_amount) contextParts.push(`Total Reward Pool: ${context.currency || 'USD'} ${context.total_amount}`);
+    if (context?.domain) contextParts.push(`Domain: ${context.domain}`);
 
     const userPrompt = contextParts.length > 0
       ? `Given this challenge context:\n${contextParts.join('\n')}\n\n${FIELD_PROMPTS[field_name]}`
