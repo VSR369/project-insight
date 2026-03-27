@@ -162,13 +162,14 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success('Reward structure saved successfully');
+      savedSnapshotRef.current = JSON.stringify(serialized);
       markSaved();
     } catch (err: any) {
       toast.error(`Failed to save: ${err.message}`);
     } finally {
       setSaving(false);
     }
-  }, [isValid, errors, challengeId, queryClient, markSaved]);
+  }, [isValid, errors, challengeId, queryClient, markSaved, getSerializedData]);
 
   // ── Lock reward type handler ──
   const handleLockRewardType = useCallback(async () => {
