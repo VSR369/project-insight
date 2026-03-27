@@ -139,7 +139,6 @@ describe('curationFormStore', () => {
 
   // ── selectIsAnyReviewPending ──
   it('selectIsAnyReviewPending detects pending reviews', () => {
-    const { selectIsAnyReviewPending } = require('@/store/curationFormStore');
     store.getState().setReviewStatus(REWARD_KEY, 'pending');
     expect(selectIsAnyReviewPending(store.getState())).toBe(true);
 
