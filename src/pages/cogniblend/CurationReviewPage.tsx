@@ -1496,6 +1496,7 @@ export default function CurationReviewPage() {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
     } finally {
       setAiReviewLoading(false);
+      aiReviewInFlightRef.current = false;
       // Mark as completed — progress bar persists at 100%
       setPhase2Status('completed');
       setPhase2Progress((prev) => prev.total > 0 ? { ...prev, completed: prev.total } : prev);
