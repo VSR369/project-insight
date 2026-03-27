@@ -394,6 +394,15 @@ export function AIReviewInline({
       // Delegate to custom re-review handler if provided (e.g. complexity uses assess-complexity)
       if (onReReview) {
         await onReReview(sectionKey);
+        // Force reset local state — same as normal path — so stale comments/suggestion clear
+        setIsAddressed(false);
+        setEditedComments([]);
+        setSelectedComments(new Set());
+        setRefinedContent(null);
+        setEditedSuggestedContent(null);
+        setEditedDeliverableItems(null);
+        setSelectedItems(new Set());
+        autoRefineTriggered.current = false;
         return;
       }
 
