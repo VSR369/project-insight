@@ -495,6 +495,20 @@ export function AIReviewInline({
   }, [challengeId, sectionKey, currentContent, comments, selectedComments, challengeContext, roleContext]);
 
   const handleAccept = useCallback(() => {
+    // Complexity section: accept structured ratings (no refinedContent needed)
+    if (sectionKey === 'complexity' && complexityRatings && Object.keys(complexityRatings).length > 0) {
+      onAcceptRefinement(sectionKey, JSON.stringify(complexityRatings));
+      setRefinedContent(null);
+      setEditedComments([]);
+      setSelectedItems(new Set());
+      setEditedSuggestedContent(null);
+      setEditedDeliverableItems(null);
+      setIsAddressed(true);
+      setIsOpen(false);
+      onMarkAddressed?.(sectionKey);
+      return;
+    }
+
     if (!refinedContent) return;
 
     // If user edited the suggestion, use the edited version
