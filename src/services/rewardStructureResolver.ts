@@ -24,6 +24,9 @@ export interface MonetaryReward {
   tiers: PrizeTier[];
   payment_milestones?: PaymentMilestone[];
   payment_mode?: string;
+  /** Original AM/CR budget range (before curator tier breakup) */
+  budgetMin?: number;
+  budgetMax?: number;
 }
 
 export interface PaymentMilestone {

@@ -50,6 +50,7 @@ export default function SourceBanner({
       <Info className="h-3 w-3 text-primary shrink-0" />
       <span className="text-[12px] text-primary flex-1">
         Populated from {roleName}
+        {budgetLabel && <span className="text-primary/60"> · {budgetLabel}</span>}
         {formattedDate && <span className="text-primary/60"> · {formattedDate}</span>}
       </span>
 
