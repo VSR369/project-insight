@@ -106,6 +106,12 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const [showBothBanner, setShowBothBanner] = useState(false);
   const [activeTab, setActiveTab] = useState<'monetary' | 'non_monetary'>('monetary');
 
+  // ── Dirty-state tracking: only show Save when data actually changed ──
+  const savedSnapshotRef = useRef<string>(JSON.stringify(getSerializedData()));
+  const isDirty = useMemo(() => {
+    return JSON.stringify(getSerializedData()) !== savedSnapshotRef.current;
+  }, [getSerializedData, rewardType, tierStates, nmItems, currency, totalPool]);
+
   // ── Zustand store integration for navigation persistence ──
   const storeRef = useRef(getCurationFormStore(challengeId));
   const getSerializedDataRef = useRef(getSerializedData);
