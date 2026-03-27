@@ -228,31 +228,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     }
   }, [isValid, errors, lockRewardType, getSerializedData, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
 
-  // ── Submit handler ──
-  const handleSubmit = useCallback(async () => {
-    if (!isValid) {
-      toast.error(`Fix ${errors.length} validation error(s) before submitting.`);
-      return;
-    }
-    setSaving(true);
-    try {
-      const serialized = getSerializedData();
-      const { error } = await supabase
-        .from('challenges')
-        .update({ reward_structure: serialized as unknown as Json })
-        .eq('id', challengeId);
-
-      if (error) throw new Error(error.message);
-      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
-      toast.success('Reward structure submitted and locked.');
-      markSubmitted();
-      markSaved();
-    } catch (err: any) {
-      toast.error(`Failed to submit: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [isValid, errors, getSerializedData, challengeId, queryClient, markSubmitted, markSaved]);
 
   // ── Auto-save effect ──
   useEffect(() => {
