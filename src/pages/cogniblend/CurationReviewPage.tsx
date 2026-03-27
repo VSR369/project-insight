@@ -2537,6 +2537,7 @@ export default function CurationReviewPage() {
                             complexityParams={complexityParams}
                             onSave={handleSaveComplexity}
                             saving={savingSection}
+                            aiSuggestedRatings={aiSuggestedComplexity}
                           />
                         );
 
