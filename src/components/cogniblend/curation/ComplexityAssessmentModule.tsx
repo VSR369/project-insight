@@ -26,60 +26,14 @@ import {
 import { Save, X, Pencil, Bot, SlidersHorizontal, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
-
-/* ─── Types ─── */
-
-export type AssessmentMode = "AI_AUTO" | "MANUAL_PARAMS" | "QUICK_OVERRIDE";
-
-type ActiveTab = "ai_review" | "manual_params" | "quick_select";
-
-const TAB_TO_MODE: Record<ActiveTab, AssessmentMode> = {
-  ai_review: "AI_AUTO",
-  manual_params: "MANUAL_PARAMS",
-  quick_select: "QUICK_OVERRIDE",
-};
-
-/* ─── Thresholds & derivation helpers ─── */
-
-const COMPLEXITY_THRESHOLDS = [
-  { level: "L1", label: "Very Low", min: 0, max: 2, description: "Routine, well-defined challenges with established methods and minimal ambiguity." },
-  { level: "L2", label: "Low", min: 2, max: 4, description: "Moderately defined challenges with some novel elements requiring limited exploration." },
-  { level: "L3", label: "Medium", min: 4, max: 6, description: "Challenges requiring cross-domain thinking, moderate research, and creative approaches." },
-  { level: "L4", label: "High", min: 6, max: 8, description: "Complex, multi-faceted challenges demanding deep expertise and innovative solutions." },
-  { level: "L5", label: "Very High", min: 8, max: 10, description: "Frontier-level challenges with high uncertainty, novel domains, and breakthrough potential." },
-] as const;
-
-function deriveComplexityLevel(score: number): string {
-  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
-  return match?.level ?? "L5";
-}
-
-function deriveComplexityLabel(score: number): string {
-  const match = COMPLEXITY_THRESHOLDS.find((t) => score >= t.min && score < t.max);
-  return match?.label ?? "Very High";
-}
-
-function getLabelForLevel(level: string): string {
-  return COMPLEXITY_THRESHOLDS.find((t) => t.level === level)?.label ?? "Unknown";
-}
-
-/* ─── Level badge color mapping ─── */
-
-const LEVEL_COLORS: Record<string, string> = {
-  L1: "bg-green-100 text-green-800 border-green-300",
-  L2: "bg-blue-100 text-blue-800 border-blue-300",
-  L3: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  L4: "bg-orange-100 text-orange-800 border-orange-300",
-  L5: "bg-red-100 text-red-800 border-red-300",
-};
-
-const LEVEL_CARD_COLORS: Record<string, { ring: string; bg: string; text: string }> = {
-  L1: { ring: "ring-green-400", bg: "bg-green-50", text: "text-green-800" },
-  L2: { ring: "ring-blue-400", bg: "bg-blue-50", text: "text-blue-800" },
-  L3: { ring: "ring-yellow-400", bg: "bg-yellow-50", text: "text-yellow-800" },
-  L4: { ring: "ring-orange-400", bg: "bg-orange-50", text: "text-orange-800" },
-  L5: { ring: "ring-red-400", bg: "bg-red-50", text: "text-red-800" },
-};
+import {
+  COMPLEXITY_THRESHOLDS,
+  deriveComplexityLevel,
+  deriveComplexityLabel,
+  getLabelForLevel,
+  LEVEL_COLORS,
+  LEVEL_CARD_COLORS,
+} from "@/lib/cogniblend/complexityScoring";
 
 /* ─── Props ─── */
 
