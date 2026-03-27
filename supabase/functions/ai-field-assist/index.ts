@@ -92,6 +92,12 @@ For evaluation/scoring:
     if (context?.maturity_level) contextParts.push(`Maturity Level: ${context.maturity_level}`);
     if (context?.governance_mode) contextParts.push(`Governance Mode: ${context.governance_mode}`);
     if (context?.industry) contextParts.push(`Industry: ${context.industry}`);
+    if (context?.complexity) contextParts.push(`Complexity: ${context.complexity}`);
+    if (context?.scope) contextParts.push(`Scope: ${context.scope}`);
+    if (context?.deliverables?.length) contextParts.push(`Deliverables (${context.deliverables.length}): ${JSON.stringify(context.deliverables)}`);
+    if (context?.effort_level) contextParts.push(`Effort Level: ${context.effort_level}`);
+    if (context?.total_amount) contextParts.push(`Total Reward Pool: ${context.currency || 'USD'} ${context.total_amount}`);
+    if (context?.domain) contextParts.push(`Domain: ${context.domain}`);
 
     const userPrompt = contextParts.length > 0
       ? `Given this challenge context:\n${contextParts.join('\n')}\n\n${FIELD_PROMPTS[field_name]}`
