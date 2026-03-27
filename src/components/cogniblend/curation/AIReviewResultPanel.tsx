@@ -445,12 +445,14 @@ export function AIReviewResultPanel({
     (isStructured && structuredItems && structuredItems.length > 0) ||
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows ||
-    scheduleRows
+    scheduleRows ||
+    rewardData
   );
 
   // Determine which format this suggestion is in
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
+    if (rewardData) return "reward_custom";
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
@@ -459,7 +461,7 @@ export function AIReviewResultPanel({
     if (tableRows) return "table";
     if (result.suggested_version) return "rich_text";
     return null;
-  }, [isMasterData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
+  }, [isMasterData, rewardData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
 
   // Auto-seed edit state when data arrives or changes
   useEffect(() => {
