@@ -83,6 +83,12 @@ export function ComplexityAssessmentModule({
   );
   const [aiAssessing, setAiAssessing] = useState(false);
   const [aiJustifications, setAiJustifications] = useState<Record<string, string>>({});
+  const [paramSources, setParamSources] = useState<Record<string, 'ai' | 'curator' | 'default'>>(() => {
+    // If we have existing params, mark them as default initially
+    const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+    complexityParams.forEach((p) => { sources[p.param_key] = 'default'; });
+    return sources;
+  });
 
   // ══════ Derived score (real-time recalc) ══════
   const { weightedScore, derivedLevel, derivedLabel } = useMemo(() => {
