@@ -767,14 +767,25 @@ function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(items, 'S');
 }
 
-/** Build a human-readable markdown summary from AI complexity ratings */
-function buildComplexitySuggestionMd(
-  ratings: Record<string, { rating: number; justification: string }>
-): string {
-  const entries = Object.entries(ratings);
-  const avgRating = entries.reduce((s, [, r]) => s + r.rating, 0) / Math.max(entries.length, 1);
-  const score = avgRating.toFixed(2);
-  // Derive level label
+/** Compute weighted average score from AI ratings + complexity params (matches ComplexityAssessmentModule) */
+function computeWeightedComplexityScore(
+  ratings: Record<string, { rating: number; justification: string }>,
+  complexityParams: ComplexityParam[]
+): number {
+  const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+  if (totalWeight > 0) {
+    return complexityParams.reduce((s, p) => {
+      const r = ratings[p.param_key];
+      return s + (r ? r.rating : 5) * p.weight;
+    }, 0) / totalWeight;
+  }
+  // Fallback: simple average
+  const entries = Object.values(ratings);
+  return entries.reduce((s, r) => s + r.rating, 0) / Math.max(entries.length, 1);
+}
+
+/** Derive complexity level label from a score */
+function deriveComplexityLevel(score: number): string {
   const thresholds = [
     { level: "L1", label: "Very Low", min: 0, max: 2 },
     { level: "L2", label: "Low", min: 2, max: 4 },
@@ -782,11 +793,21 @@ function buildComplexitySuggestionMd(
     { level: "L4", label: "High", min: 6, max: 8 },
     { level: "L5", label: "Very High", min: 8, max: 10 },
   ];
-  const match = thresholds.find((t) => avgRating >= t.min && avgRating < t.max);
-  const level = match ? `${match.level} — ${match.label}` : "L5 — Very High";
+  const match = thresholds.find((t) => score >= t.min && score < t.max);
+  return match ? `${match.level} — ${match.label}` : "L5 — Very High";
+}
+
+/** Build a human-readable markdown summary from AI complexity ratings (weighted) */
+function buildComplexitySuggestionMd(
+  ratings: Record<string, { rating: number; justification: string }>,
+  complexityParams: ComplexityParam[]
+): string {
+  const ws = computeWeightedComplexityScore(ratings, complexityParams);
+  const score = ws.toFixed(2);
+  const level = deriveComplexityLevel(ws);
 
   let md = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
-  for (const [key, r] of entries) {
+  for (const [key, r] of Object.entries(ratings)) {
     const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     md += `- **${label}**: ${r.rating}/10 — ${r.justification}\n`;
   }
