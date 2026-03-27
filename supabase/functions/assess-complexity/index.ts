@@ -123,13 +123,42 @@ serve(async (req) => {
       (p: any) => `- **${p.param_key}** (${p.name}): ${p.description ?? "No description"} [weight: ${(p.weight * 100).toFixed(0)}%]`
     ).join("\n");
 
+    // Build extended brief breakdown if available
+    const challenge = challengeResult.data;
+    const extBrief = challenge.extended_brief as Record<string, any> | null;
+    let extendedBriefSection = "";
+    if (extBrief && typeof extBrief === "object") {
+      const parts: string[] = [];
+      if (extBrief.context_background) parts.push(`- Context & Background: ${extBrief.context_background}`);
+      if (extBrief.root_causes) parts.push(`- Root Causes: ${extBrief.root_causes}`);
+      if (Array.isArray(extBrief.affected_stakeholders) && extBrief.affected_stakeholders.length > 0) {
+        parts.push(`- Affected Stakeholders: ${extBrief.affected_stakeholders.join(", ")}`);
+      }
+      if (extBrief.current_deficiencies) parts.push(`- Current Deficiencies: ${extBrief.current_deficiencies}`);
+      if (extBrief.preferred_approach) parts.push(`- Preferred Approach: ${extBrief.preferred_approach}`);
+      if (extBrief.approaches_not_of_interest) parts.push(`- Approaches NOT of Interest: ${extBrief.approaches_not_of_interest}`);
+      if (parts.length > 0) {
+        extendedBriefSection = `\n\nEXTENDED BRIEF (deep context — use this to differentiate ratings):\n${parts.join("\n")}`;
+      }
+    }
+
+    let expectedOutcomesSection = "";
+    if (challenge.expected_outcomes) {
+      expectedOutcomesSection = `\n\nEXPECTED OUTCOMES:\n${JSON.stringify(challenge.expected_outcomes, null, 2)}`;
+    }
+
+    let additionalContext = "";
+    if (challenge.hook) additionalContext += `\nChallenge Hook: ${challenge.hook}`;
+    if (challenge.operating_model) additionalContext += `\nOperating Model: ${challenge.operating_model}`;
+    if (challenge.effort_level) additionalContext += `\nEffort Level: ${challenge.effort_level}`;
+
     const userPrompt = `Analyze this innovation challenge and rate each complexity parameter independently (1-10).
 
 COMPLEXITY PARAMETERS TO RATE:
 ${paramDescriptions}
 
 FULL CHALLENGE CONTENT:
-${JSON.stringify(challengeResult.data, null, 2)}
+${JSON.stringify(challenge, null, 2)}${extendedBriefSection}${expectedOutcomesSection}${additionalContext ? `\n\nADDITIONAL CONTEXT:${additionalContext}` : ""}
 
 Rate each parameter based on the actual challenge content. Do NOT give the same score to all parameters — each dimension is different.`;
 
