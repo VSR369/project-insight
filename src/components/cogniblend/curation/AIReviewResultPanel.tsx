@@ -396,9 +396,22 @@ export function AIReviewResultPanel({
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
 
-  // For table sections (eval_criteria, reward_structure), try parsing as row objects
+  // For reward_structure, parse structured { type, monetary, nonMonetary } object
+  const rewardData = useMemo(() => {
+    if (sectionKey !== "reward_structure" || !result.suggested_version) return null;
+    const cleaned = result.suggested_version.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && (parsed.type || parsed.monetary || parsed.nonMonetary)) {
+        return parsed as { type?: string; monetary?: { tiers?: Record<string, number>; currency?: string; justification?: string }; nonMonetary?: { items?: string[] } };
+      }
+    } catch {}
+    return null;
+  }, [sectionKey, result.suggested_version]);
+
+  // For table sections (eval_criteria), try parsing as row objects
   const tableRows = useMemo(() => {
-    if ((sectionKey === "evaluation_criteria" || sectionKey === "reward_structure") && result.suggested_version) {
+    if (sectionKey === "evaluation_criteria" && result.suggested_version) {
       return parseTableRows(result.suggested_version);
     }
     return null;
