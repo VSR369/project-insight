@@ -301,7 +301,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   // ── Has existing data check ──
   const hasExistingData = useMemo(() => {
     const hasMonetary = Object.values(tierStates).some((t) => t.enabled && t.amount > 0);
-    const hasNM = nmItems.length > 0;
+    const hasNM = nmItems.some((item) => !item.isDefault || item.src.src !== 'curator');
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
@@ -309,6 +309,12 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
   }, [setRewardType]);
+
+  // ── Type switch from read-only states ──
+  const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
+    startEditing();
+    setRewardType(type);
+  }, [startEditing, setRewardType]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
