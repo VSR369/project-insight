@@ -515,10 +515,10 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
         <>
           <RewardTypeToggle
             currentType={rewardType}
-            hasExistingData={false}
+            hasExistingData={hasExistingData}
             disabled={isSubmitted}
             isLocked={isTypeLocked}
-            onSwitch={() => {}}
+            onSwitch={handleTypeSwitchFromReadOnly}
           />
           {renderContent(true, false)}
           {!isSubmitted && (
@@ -536,10 +536,10 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
         <>
           <RewardTypeToggle
             currentType={rewardType}
-            hasExistingData={false}
+            hasExistingData={hasExistingData}
             disabled={isSubmitted}
             isLocked={isTypeLocked}
-            onSwitch={() => {}}
+            onSwitch={handleTypeSwitchFromReadOnly}
           />
           {renderContent(true, false)}
           <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
