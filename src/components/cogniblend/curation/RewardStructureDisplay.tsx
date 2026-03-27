@@ -394,7 +394,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
 
       {/* ── Empty state: Type Chooser Wizard ── */}
       {sectionState === 'empty_no_source' && !rewardType && (
-        <RewardTypeChooser onSelect={setRewardType} />
+        <RewardTypeChooser onSelect={handleTypeSwitch} />
       )}
 
       {/* ── Populated from source: read view + banner ── */}
