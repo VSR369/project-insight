@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Save, X, Bot, Loader2 } from "lucide-react";
+import { Save, X, Bot, Loader2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
 
 /* ─── Thresholds & derivation helpers ─── */
