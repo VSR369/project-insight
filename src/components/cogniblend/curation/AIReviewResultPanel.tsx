@@ -396,9 +396,22 @@ export function AIReviewResultPanel({
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
 
-  // For table sections (eval_criteria, reward_structure), try parsing as row objects
+  // For reward_structure, parse structured { type, monetary, nonMonetary } object
+  const rewardData = useMemo(() => {
+    if (sectionKey !== "reward_structure" || !result.suggested_version) return null;
+    const cleaned = result.suggested_version.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && (parsed.type || parsed.monetary || parsed.nonMonetary)) {
+        return parsed as { type?: string; monetary?: { tiers?: Record<string, number>; currency?: string; justification?: string }; nonMonetary?: { items?: string[] } };
+      }
+    } catch {}
+    return null;
+  }, [sectionKey, result.suggested_version]);
+
+  // For table sections (eval_criteria), try parsing as row objects
   const tableRows = useMemo(() => {
-    if ((sectionKey === "evaluation_criteria" || sectionKey === "reward_structure") && result.suggested_version) {
+    if (sectionKey === "evaluation_criteria" && result.suggested_version) {
       return parseTableRows(result.suggested_version);
     }
     return null;
@@ -432,12 +445,14 @@ export function AIReviewResultPanel({
     (isStructured && structuredItems && structuredItems.length > 0) ||
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows ||
-    scheduleRows
+    scheduleRows ||
+    rewardData
   );
 
   // Determine which format this suggestion is in
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
+    if (rewardData) return "reward_custom";
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
@@ -446,7 +461,7 @@ export function AIReviewResultPanel({
     if (tableRows) return "table";
     if (result.suggested_version) return "rich_text";
     return null;
-  }, [isMasterData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
+  }, [isMasterData, rewardData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
 
   // Auto-seed edit state when data arrives or changes
   useEffect(() => {
@@ -476,6 +491,12 @@ export function AIReviewResultPanel({
       onSuggestedVersionChange?.(scheduleRows);
     }
   }, [suggestedFormat, scheduleRows]);
+
+  useEffect(() => {
+    if (suggestedFormat === "reward_custom" && rewardData) {
+      onSuggestedVersionChange?.(rewardData);
+    }
+  }, [suggestedFormat, rewardData]);
 
   // Change handlers that emit to parent
   const handleRichTextChange = useCallback((val: string) => {
@@ -772,6 +793,48 @@ export function AIReviewResultPanel({
                   </div>
                 </label>
               ))}
+            </div>
+          ) : rewardData ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm space-y-4">
+              {/* Type badge */}
+              <div className="flex items-center gap-2">
+                <Badge className="bg-indigo-100 text-indigo-700 border-indigo-300 text-xs px-2 py-0.5">
+                  {rewardData.type === 'both' ? 'Monetary + Non-Monetary' : rewardData.type === 'non_monetary' ? 'Non-Monetary' : 'Monetary'}
+                </Badge>
+              </div>
+
+              {/* Monetary tiers */}
+              {rewardData.monetary?.tiers && Object.keys(rewardData.monetary.tiers).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prize Tiers</p>
+                  {Object.entries(rewardData.monetary.tiers).map(([tier, amount]) => (
+                    <div key={tier} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                      <span className="text-sm font-medium text-foreground capitalize">{tier}</span>
+                      <span className="text-sm font-semibold text-foreground tabular-nums">
+                        {rewardData.monetary?.currency ?? 'USD'} {Number(amount).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                  {rewardData.monetary.justification && (
+                    <p className="text-xs text-muted-foreground italic">{rewardData.monetary.justification}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Non-monetary items */}
+              {rewardData.nonMonetary?.items && rewardData.nonMonetary.items.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Non-Monetary Rewards</p>
+                  <ul className="space-y-1.5">
+                    {rewardData.nonMonetary.items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                        <span className="text-sm text-foreground">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ) : hasDeliverableCards ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
