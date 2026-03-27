@@ -1789,17 +1789,18 @@ export default function CurationReviewPage() {
     }
 
     const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
-    setAiSuggestedComplexity(ratings);
-    setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings));
+    // Ensure new object reference so ComplexityAssessmentModule's useEffect fires
+    setAiSuggestedComplexity({ ...ratings });
+    setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings, complexityParams));
 
     // Transform into standard AI review format
     const comments = Object.entries(ratings)
       .filter(([, r]) => r.justification)
       .map(([key, r]) => `${key}: ${r.justification}`);
-    const avgRating = Object.values(ratings).reduce((s, r) => s + r.rating, 0) / Math.max(Object.keys(ratings).length, 1);
+    const ws = computeWeightedComplexityScore(ratings, complexityParams);
     const complexityReview: SectionReview = {
       section_key: 'complexity',
-      status: avgRating > 0 ? 'warning' : 'pass',
+      status: ws > 0 ? 'warning' : 'pass',
       comments,
       addressed: false,
     };
@@ -1812,7 +1813,7 @@ export default function CurationReviewPage() {
     });
     const hasIssues = comments.length > 0;
     toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
-  }, [challengeId, saveSectionMutation]);
+  }, [challengeId, saveSectionMutation, complexityParams]);
 
   /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
