@@ -201,10 +201,13 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     }
   }, [isValid, errors, getSerializedData, challengeId, queryClient, markSaved]);
 
-  // ── Lock reward type handler ──
+  // ── Lock reward type handler (single finalization action) ──
   const handleLockRewardType = useCallback(async () => {
+    if (!isValid) {
+      toast.error(`Fix ${errors.length} validation error(s) before locking.`);
+      return;
+    }
     lockRewardType();
-    // Auto-save after locking
     setSaving(true);
     try {
       const serialized = getSerializedData();
@@ -216,39 +219,15 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success(`Reward type locked as "${rewardType === 'both' ? 'Both' : rewardType === 'monetary' ? 'Monetary' : 'Non-Monetary'}". Irrelevant data cleared.`);
+      markSubmitted();
       markSaved();
     } catch (err: any) {
       toast.error(`Failed to lock: ${err.message}`);
     } finally {
       setSaving(false);
     }
-  }, [lockRewardType, getSerializedData, challengeId, queryClient, markSaved, rewardType]);
+  }, [isValid, errors, lockRewardType, getSerializedData, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
 
-  // ── Submit handler ──
-  const handleSubmit = useCallback(async () => {
-    if (!isValid) {
-      toast.error(`Fix ${errors.length} validation error(s) before submitting.`);
-      return;
-    }
-    setSaving(true);
-    try {
-      const serialized = getSerializedData();
-      const { error } = await supabase
-        .from('challenges')
-        .update({ reward_structure: serialized as unknown as Json })
-        .eq('id', challengeId);
-
-      if (error) throw new Error(error.message);
-      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
-      toast.success('Reward structure submitted and locked.');
-      markSubmitted();
-      markSaved();
-    } catch (err: any) {
-      toast.error(`Failed to submit: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [isValid, errors, getSerializedData, challengeId, queryClient, markSubmitted, markSaved]);
 
   // ── Auto-save effect ──
   useEffect(() => {
@@ -496,14 +475,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
                   <Save className="h-3.5 w-3.5" />
                 )}
                 Save
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                disabled={saving || !isValid}
-                className="gap-1.5"
-              >
-                Submit & Lock
               </Button>
             </div>
           )}
