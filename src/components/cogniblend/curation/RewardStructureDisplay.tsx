@@ -8,7 +8,7 @@
  *   - AI review result acceptance
  */
 
-import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
@@ -130,6 +130,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   // ── AMRewardPayload detection on mount ──
   useEffect(() => {
     if (!amPayload) return;
+    // Skip if data was already loaded from DB — prevent overwriting saved/AI data with AM defaults
+    if (sectionState === 'saved' || sectionState === 'populated_from_source') return;
 
     const hasMonetary = !!amPayload.monetary;
     const hasNonMonetary = amPayload.nonMonetary && Object.values(amPayload.nonMonetary).some(Boolean);
@@ -240,15 +242,22 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   }, [isValid, errors, lockRewardType, getSerializedData, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
 
 
+  // ── Ref to always hold latest getSerializedData ──
+  // Prevents stale closure in auto-save timeout
+  const getSerializedDataRef = useRef(getSerializedData);
+  useEffect(() => {
+    getSerializedDataRef.current = getSerializedData;
+  }, [getSerializedData]);
+
   // ── Auto-save effect ──
-  // Uses setTimeout to ensure React state batch (from applyAIReviewResult) has flushed
-  // before getSerializedData() reads tier/NM state.
+  // Uses ref + setTimeout to ensure React state batch (from applyAIReviewResult) has flushed
+  // and the latest serializer is called, not a stale closure.
   useEffect(() => {
     if (!pendingSave || !rewardType) return;
     setPendingSave(false);
     const timer = setTimeout(async () => {
       try {
-        const serialized = getSerializedData();
+        const serialized = getSerializedDataRef.current();
         const { error } = await supabase
           .from('challenges')
           .update({ reward_structure: serialized as unknown as Json })
@@ -261,7 +270,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       }
     }, 150);
     return () => clearTimeout(timer);
-  }, [pendingSave, rewardType, getSerializedData, challengeId, queryClient, markSaved]);
+  }, [pendingSave, rewardType, challengeId, queryClient, markSaved]);
 
   // ── AI handlers ──
   const handleAcceptAllMonetaryAI = useCallback(() => {
