@@ -420,6 +420,11 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
               isModified={isModified}
               onEdit={() => {}}
               onReset={resetToSource}
+              budgetRange={rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
+                min: rewardData.monetary.budgetMin ?? 0,
+                max: rewardData.monetary.budgetMax ?? 0,
+                currency: rewardData.monetary?.currency ?? currencyCode ?? 'USD',
+              } : undefined}
             />
           )}
 
