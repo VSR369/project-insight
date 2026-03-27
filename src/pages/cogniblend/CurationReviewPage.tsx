@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
-import { useComplexityParams } from "@/hooks/queries/useComplexityParams";
+import { useComplexityParams, ComplexityParam as MasterComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
 import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
 import { contentRequiresHumanInput } from "@/lib/cogniblend/creatorDataTransformer";
@@ -767,14 +767,25 @@ function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(items, 'S');
 }
 
-/** Build a human-readable markdown summary from AI complexity ratings */
-function buildComplexitySuggestionMd(
-  ratings: Record<string, { rating: number; justification: string }>
-): string {
-  const entries = Object.entries(ratings);
-  const avgRating = entries.reduce((s, [, r]) => s + r.rating, 0) / Math.max(entries.length, 1);
-  const score = avgRating.toFixed(2);
-  // Derive level label
+/** Compute weighted average score from AI ratings + complexity params (matches ComplexityAssessmentModule) */
+function computeWeightedComplexityScore(
+  ratings: Record<string, { rating: number; justification: string }>,
+  complexityParams: MasterComplexityParam[]
+): number {
+  const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+  if (totalWeight > 0) {
+    return complexityParams.reduce((s, p) => {
+      const r = ratings[p.param_key];
+      return s + (r ? r.rating : 5) * p.weight;
+    }, 0) / totalWeight;
+  }
+  // Fallback: simple average
+  const entries = Object.values(ratings);
+  return entries.reduce((s, r) => s + r.rating, 0) / Math.max(entries.length, 1);
+}
+
+/** Derive complexity level label from a score */
+function deriveComplexityLevel(score: number): string {
   const thresholds = [
     { level: "L1", label: "Very Low", min: 0, max: 2 },
     { level: "L2", label: "Low", min: 2, max: 4 },
@@ -782,11 +793,21 @@ function buildComplexitySuggestionMd(
     { level: "L4", label: "High", min: 6, max: 8 },
     { level: "L5", label: "Very High", min: 8, max: 10 },
   ];
-  const match = thresholds.find((t) => avgRating >= t.min && avgRating < t.max);
-  const level = match ? `${match.level} — ${match.label}` : "L5 — Very High";
+  const match = thresholds.find((t) => score >= t.min && score < t.max);
+  return match ? `${match.level} — ${match.label}` : "L5 — Very High";
+}
+
+/** Build a human-readable markdown summary from AI complexity ratings (weighted) */
+function buildComplexitySuggestionMd(
+  ratings: Record<string, { rating: number; justification: string }>,
+  complexityParams: MasterComplexityParam[]
+): string {
+  const ws = computeWeightedComplexityScore(ratings, complexityParams);
+  const score = ws.toFixed(2);
+  const level = deriveComplexityLevel(ws);
 
   let md = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
-  for (const [key, r] of entries) {
+  for (const [key, r] of Object.entries(ratings)) {
     const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     md += `- **${label}**: ${r.rating}/10 — ${r.justification}\n`;
   }
@@ -1438,16 +1459,16 @@ export default function CurationReviewPage() {
               if (error || !data?.success || !data?.data?.ratings) return;
               const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
               setAiSuggestedComplexity(ratings);
-              setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings));
+              setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings, complexityParams));
 
               // Transform into standard AI review format
               const comments = Object.entries(ratings)
                 .filter(([, r]) => r.justification)
                 .map(([key, r]) => `${key}: ${r.justification}`);
-              const avgRating = Object.values(ratings).reduce((s, r) => s + r.rating, 0) / Math.max(Object.keys(ratings).length, 1);
+              const ws = computeWeightedComplexityScore(ratings, complexityParams);
               const complexityReview: SectionReview = {
                 section_key: 'complexity',
-                status: avgRating > 0 ? 'warning' : 'pass',
+                status: ws > 0 ? 'warning' : 'pass',
                 comments,
                 addressed: false,
               };
@@ -1768,17 +1789,18 @@ export default function CurationReviewPage() {
     }
 
     const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
-    setAiSuggestedComplexity(ratings);
-    setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings));
+    // Ensure new object reference so ComplexityAssessmentModule's useEffect fires
+    setAiSuggestedComplexity({ ...ratings });
+    setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings, complexityParams));
 
     // Transform into standard AI review format
     const comments = Object.entries(ratings)
       .filter(([, r]) => r.justification)
       .map(([key, r]) => `${key}: ${r.justification}`);
-    const avgRating = Object.values(ratings).reduce((s, r) => s + r.rating, 0) / Math.max(Object.keys(ratings).length, 1);
+    const ws = computeWeightedComplexityScore(ratings, complexityParams);
     const complexityReview: SectionReview = {
       section_key: 'complexity',
-      status: avgRating > 0 ? 'warning' : 'pass',
+      status: ws > 0 ? 'warning' : 'pass',
       comments,
       addressed: false,
     };
@@ -1791,7 +1813,7 @@ export default function CurationReviewPage() {
     });
     const hasIssues = comments.length > 0;
     toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
-  }, [challengeId, saveSectionMutation]);
+  }, [challengeId, saveSectionMutation, complexityParams]);
 
   /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
