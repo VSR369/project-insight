@@ -99,6 +99,8 @@ interface AIReviewInlineProps {
   hasSentBefore?: boolean;
   /** Custom re-review handler (e.g. for complexity which uses a different edge function) */
   onReReview?: (sectionKey: string) => Promise<void>;
+  /** Pre-built suggestion content (e.g. complexity markdown summary) — skips auto-refine */
+  initialRefinedContent?: string | null;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -221,12 +223,13 @@ export function AIReviewInline({
   coordinatorRole,
   hasSentBefore = false,
   onReReview,
+  initialRefinedContent,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
   const [isRefining, setIsRefining] = useState(false);
-  const [refinedContent, setRefinedContent] = useState<string | null>(null);
+  const [refinedContent, setRefinedContent] = useState<string | null>(initialRefinedContent ?? null);
   const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
@@ -245,6 +248,14 @@ export function AIReviewInline({
   useEffect(() => {
     if (defaultOpen && !isAddressed) setIsOpen(true);
   }, [defaultOpen, isAddressed]);
+
+  // Sync refinedContent from initialRefinedContent prop (e.g. complexity re-review)
+  useEffect(() => {
+    if (initialRefinedContent != null) {
+      setRefinedContent(initialRefinedContent);
+      autoRefineTriggered.current = true; // prevent auto-refine from overwriting
+    }
+  }, [initialRefinedContent]);
 
   const comments = editedComments.length > 0 ? editedComments : (review?.comments ?? []);
 
