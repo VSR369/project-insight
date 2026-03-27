@@ -3,8 +3,8 @@
  * toggle switches, per-field source badges, and inline AI suggestions.
  */
 
-import { useMemo, useCallback } from 'react';
-import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { useMemo } from 'react';
+import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { TierState } from '@/hooks/useRewardStructureState';
@@ -30,11 +30,8 @@ interface MonetaryRewardEditorProps {
   onAcceptAllAI?: () => void;
   onApplyAITiers?: () => void;
   onApplyAIAmounts?: () => void;
-  onReviewWithAI?: () => void;
-  aiLoading?: boolean;
   hasAISuggestions?: boolean;
   aiRationale?: string;
-  hasBeenReviewed?: boolean;
 }
 
 export default function MonetaryRewardEditor({
@@ -49,11 +46,8 @@ export default function MonetaryRewardEditor({
   onAcceptAllAI,
   onApplyAITiers,
   onApplyAIAmounts,
-  onReviewWithAI,
-  aiLoading = false,
   hasAISuggestions = false,
   aiRationale,
-  hasBeenReviewed = false,
 }: MonetaryRewardEditorProps) {
   const currSym = CURRENCY_SYMBOLS[currency] ?? '$';
 
@@ -132,27 +126,6 @@ export default function MonetaryRewardEditor({
         />
       )}
 
-      {/* Review with AI button */}
-      {onReviewWithAI && !disabled && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReviewWithAI}
-            disabled={aiLoading}
-            className="gap-1.5 text-xs"
-          >
-            {aiLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : hasBeenReviewed ? (
-              <RefreshCw className="h-3 w-3" />
-            ) : (
-              <Sparkles className="h-3 w-3" />
-            )}
-            {hasBeenReviewed ? 'Re-review with AI' : 'Review with AI'}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

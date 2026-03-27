@@ -38,7 +38,7 @@ interface RewardStructureDisplayProps {
   operatingModel?: string | null;
   challengeTitle?: string;
   amPayload?: AMRewardPayload | null;
-  onReviewWithAI?: (sectionKey: string) => void;
+  
 }
 
 const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardStructureDisplayProps>(({
@@ -49,7 +49,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   operatingModel,
   challengeTitle,
   amPayload,
-  onReviewWithAI,
 }, ref) => {
   const queryClient = useQueryClient();
 
@@ -290,14 +289,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     }
   }, [nmItems, acceptAINMSuggestion]);
 
-  // ── Flow B: Review with AI ──
-  const handleReviewMonetary = useCallback(() => {
-    onReviewWithAI?.('reward_structure');
-  }, [onReviewWithAI]);
-
-  const handleReviewNonMonetary = useCallback(() => {
-    onReviewWithAI?.('reward_structure');
-  }, [onReviewWithAI]);
 
   // ── Has existing data check ──
   const hasExistingData = useMemo(() => {
@@ -334,11 +325,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       onCurrencyChange={disabled ? () => {} : setCurrency}
       onAcceptAISuggestion={disabled ? () => {} : acceptAISuggestion}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllMonetaryAI}
-      onReviewWithAI={onReviewWithAI && !disabled ? handleReviewMonetary : undefined}
-      aiLoading={aiLoading}
       hasAISuggestions={hasAISuggestions}
       aiRationale={aiRationale}
-      hasBeenReviewed={hasBeenReviewed}
     />
   );
 
@@ -353,9 +341,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       onDeleteItem={disabled ? () => {} : deleteNMItem}
       onAcceptAISuggestion={disabled ? undefined : (id) => acceptAINMSuggestion(id)}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllNMAI}
-      onReviewWithAI={onReviewWithAI && !disabled ? handleReviewNonMonetary : undefined}
-      aiLoading={aiLoading}
-      hasBeenReviewed={hasBeenReviewed}
     />
   );
 

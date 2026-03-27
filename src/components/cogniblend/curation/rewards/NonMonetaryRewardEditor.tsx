@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Sparkles, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { Sparkles, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ValidationError } from '@/lib/rewardValidation';
@@ -19,9 +19,6 @@ interface NonMonetaryRewardEditorProps {
   onDeleteItem: (id: string) => void;
   onAcceptAISuggestion?: (id: string) => void;
   onAcceptAllAI?: () => void;
-  onReviewWithAI?: () => void;
-  aiLoading?: boolean;
-  hasBeenReviewed?: boolean;
 }
 
 export default function NonMonetaryRewardEditor({
@@ -33,9 +30,6 @@ export default function NonMonetaryRewardEditor({
   onDeleteItem,
   onAcceptAISuggestion,
   onAcceptAllAI,
-  onReviewWithAI,
-  aiLoading = false,
-  hasBeenReviewed = false,
 }: NonMonetaryRewardEditorProps) {
   const [newItemTitle, setNewItemTitle] = useState('');
   const hasAIRecommendations = items.some((item) => item.aiRecommended);
@@ -126,27 +120,6 @@ export default function NonMonetaryRewardEditor({
         </div>
       )}
 
-      {/* Review with AI button */}
-      {onReviewWithAI && !disabled && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReviewWithAI}
-            disabled={aiLoading}
-            className="gap-1.5 text-xs"
-          >
-            {aiLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : hasBeenReviewed ? (
-              <RefreshCw className="h-3 w-3" />
-            ) : (
-              <Sparkles className="h-3 w-3" />
-            )}
-            {hasBeenReviewed ? 'Re-review with AI' : 'Review with AI'}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
