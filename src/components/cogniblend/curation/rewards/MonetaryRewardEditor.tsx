@@ -34,6 +34,7 @@ interface MonetaryRewardEditorProps {
   aiLoading?: boolean;
   hasAISuggestions?: boolean;
   aiRationale?: string;
+  hasBeenReviewed?: boolean;
 }
 
 export default function MonetaryRewardEditor({
