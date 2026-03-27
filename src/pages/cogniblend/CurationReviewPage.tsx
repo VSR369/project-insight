@@ -102,6 +102,9 @@ import { SendForModificationModal } from "@/components/cogniblend/curation/SendF
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { normalizeSectionReview, normalizeSectionReviews } from "@/lib/cogniblend/normalizeSectionReview";
+import { useCurationStoreHydration } from "@/hooks/useCurationStoreHydration";
+import { useCurationStoreSync } from "@/hooks/useCurationStoreSync";
+import type { SectionKey, SectionStoreEntry } from "@/types/sections";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
@@ -1088,7 +1091,15 @@ export default function CurationReviewPage() {
     return sectionActions.filter(a => a.section_key === sectionKey);
   }, [sectionActions]);
 
+  // ── Zustand store hydration & sync ──
+  const { syncSectionToStore } = useCurationStoreHydration({
+    challengeId: challengeId!,
+    challenge: challenge ?? null,
+    aiReviews,
+  });
 
+  // ── Store sync layer (debounced DB persistence) ──
+  useCurationStoreSync({ challengeId: challengeId!, enabled: !!challengeId });
 
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
@@ -1152,18 +1163,23 @@ export default function CurationReviewPage() {
   // ══════════════════════════════════════
   const handleSaveText = useCallback((sectionKey: string, dbField: string, value: string) => {
     setSavingSection(true);
+    syncSectionToStore(sectionKey as SectionKey, value);
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation]);
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveDeliverables = useCallback((items: string[]) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "deliverables", value: { items } });
-  }, [saveSectionMutation]);
+    const data = { items };
+    syncSectionToStore('deliverables' as SectionKey, data);
+    saveSectionMutation.mutate({ field: "deliverables", value: data });
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveStructuredDeliverables = useCallback((items: DeliverableItem[]) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "deliverables", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
-  }, [saveSectionMutation]);
+    const data = { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) };
+    syncSectionToStore('deliverables' as SectionKey, data);
+    saveSectionMutation.mutate({ field: "deliverables", value: data });
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
     setSavingSection(true);
@@ -1171,23 +1187,37 @@ export default function CurationReviewPage() {
       criterion_name: c.name,
       weight_percentage: c.weight,
     }));
-    saveSectionMutation.mutate({ field: "evaluation_criteria", value: { criteria: normalized } });
-  }, [saveSectionMutation]);
+    const data = { criteria: normalized };
+    syncSectionToStore('evaluation_criteria' as SectionKey, data);
+    saveSectionMutation.mutate({ field: "evaluation_criteria", value: data });
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveMaturityLevel = useCallback((value: string) => {
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: "maturity_level", value: value.toUpperCase() });
-  }, [saveSectionMutation]);
+    const upper = value.toUpperCase();
+    syncSectionToStore('maturity_level' as SectionKey, upper);
+    saveSectionMutation.mutate({ field: "maturity_level", value: upper });
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
     setSavingSection(true);
+    syncSectionToStore('extended_brief' as SectionKey, updatedBrief);
     saveSectionMutation.mutate({ field: "extended_brief", value: updatedBrief });
-  }, [saveSectionMutation]);
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
     setSavingSection(true);
+    // Map dbField back to section key for store sync
+    const fieldToSection: Record<string, string> = {
+      ip_model: 'ip_model', submission_deadline: 'submission_deadline',
+      challenge_visibility: 'challenge_visibility', effort_level: 'effort_level',
+      solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
+      solver_expertise_requirements: 'solver_expertise',
+    };
+    const sectionKey = fieldToSection[dbField];
+    if (sectionKey) syncSectionToStore(sectionKey as SectionKey, value as SectionStoreEntry['data']);
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation]);
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveComplexity = useCallback((
     paramValues: Record<string, number>,
