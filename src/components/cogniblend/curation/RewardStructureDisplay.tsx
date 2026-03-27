@@ -8,7 +8,7 @@
  *   - AI review result acceptance
  */
 
-import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
