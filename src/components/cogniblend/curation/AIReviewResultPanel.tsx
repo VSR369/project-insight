@@ -389,6 +389,7 @@ export function AIReviewResultPanel({
   confidence,
   onConfirmPass,
   onFlagForReview,
+  complexityRatings,
 }: AIReviewResultPanelProps) {
 
   // Local edit state for each format type — always active (no toggle needed)
