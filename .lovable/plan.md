@@ -1,101 +1,54 @@
 
+Root cause confirmation (from current code):
+1) Type selection path inconsistency still exists:
+- `RewardTypeChooser` uses `onSelect={setRewardType}` directly, so initial Non-Monetary/Both selection does not trigger autosave scheduling.
+- `handleTypeSwitchFromReadOnly` also bypasses autosave scheduling.
+2) Autosave is fragile on fast navigation:
+- Current flow uses `pendingSave + setTimeout(150ms)` in an effect.
+- The cleanup clears the timer, so if user navigates quickly/unmounts, the pending write is canceled.
+3) Result: Non-monetary edits/type changes can appear “lost” after section/page navigation.
 
-# Fix: Reward Structure Save & Data Persistence
+Implementation plan (permanent fix):
+1) Unify all reward-type changes through one autosaving handler
+- Route all type changes to a single `handleTypeSwitch` path (including empty chooser and read-only toggle path).
+- Update:
+  - `RewardTypeChooser onSelect` → `handleTypeSwitch`
+  - `handleTypeSwitchFromReadOnly` → call `startEditing()` + `handleTypeSwitch(type)`
+- This guarantees type transitions always mark the section dirty for persistence.
 
-## Problems
+2) Replace brittle `pendingSave` boolean flow with robust autosave scheduler
+- In `RewardStructureDisplay.tsx`, replace `pendingSave` effect with a dedicated scheduler using refs:
+  - `saveTimerRef`
+  - `isSavingRef`
+  - `queuedSaveRef`
+- Add `scheduleAutoSave()` for all manual mutations (tier/non-monetary/currency/type/AI-accept).
+- Debounce writes (e.g., 300–500ms) to avoid write spam while preserving responsiveness.
+- Keep explicit `handleSave` button as manual fallback.
 
-1. **No Save button visible after selecting reward type from empty state** — When a curator picks Monetary/Non-Monetary/Both from the type chooser (in `empty_no_source` state), the section transitions to an editing view. The `isEditing` flag IS true (`sectionState === 'empty_no_source' && !!rewardType`), but the JSX at line 424 renders the footer with Save. However, line 475 adds a condition: `{(rewardType !== 'both' || isModified) && ...}` — for the "both" type, Save only appears if `isModified` is true, which it may not be on initial selection.
+3) Add guaranteed flush on leave/unmount
+- Add cleanup/visibility handling that flushes pending changes immediately when component unmounts or page becomes hidden.
+- Ensure this flush is fire-and-forget safe and does not rely on component-mounted state updates.
+- Prevent state updates after unmount (no `setState` in late async completion paths).
 
-2. **All manual edits are lost on navigation** — The auto-save (`pendingSave`) only fires when `applyAIReviewResult` is called (AI acceptance). Manual edits to tier amounts, NM items, reward type selection, and currency changes are NOT auto-saved. They're purely in-memory `useState` — gone on navigation or remount.
+4) Harden save correctness and race handling
+- Save using latest serializer ref (`getSerializedDataRef.current()`).
+- If a save is in flight and new edits happen, queue one trailing save so latest state is always persisted.
+- Keep `queryClient.invalidateQueries(["curation-review", challengeId])` after successful writes.
 
-## Root Cause
+5) Preserve current UX while fixing reliability
+- Keep Save button visible in editing mode.
+- Keep current validation behavior.
+- Keep lock/finalization logic unchanged.
+- No DB schema changes required.
 
-- `pendingSave` is only set to `true` in one place: `handleApplyAIReviewResult` (line 106).
-- Manual mutations (`updateTier`, `addNMItem`, `updateNMItem`, `deleteNMItem`, `setCurrency`, `setRewardType`) do not trigger any persistence mechanism.
-- The Save button condition at line 475 excludes the "both" type unless `isModified` is true.
+Files to modify:
+- `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
+- `src/components/cogniblend/curation/rewards/RewardTypeChooser.tsx`
+- (if needed) `src/components/cogniblend/curation/rewards/RewardTypeToggle.tsx` for handler wiring consistency
 
-## Fix Plan
-
-### 1. Auto-save on all meaningful edits (File: `RewardStructureDisplay.tsx`)
-
-Add `setPendingSave(true)` calls after manual mutations to ensure data persists without requiring an explicit Save click:
-
-- Wrap `updateTier`, `addNMItem`, `updateNMItem`, `deleteNMItem`, `setCurrency` with local callbacks that call the state hook function AND then set `setPendingSave(true)`.
-- Guard: only trigger auto-save when a `rewardType` is set (avoid saving empty state).
-
-```typescript
-const handleUpdateTier = useCallback((rank: string, patch: Partial<TierState>) => {
-  updateTier(rank, patch);
-  if (rewardType) setPendingSave(true);
-}, [updateTier, rewardType]);
-
-const handleAddNMItem = useCallback((title: string) => {
-  addNMItem(title);
-  if (rewardType) setPendingSave(true);
-}, [addNMItem, rewardType]);
-
-// Same pattern for updateNMItem, deleteNMItem, handleCurrencyChange
-```
-
-### 2. Auto-save on reward type selection (File: `RewardStructureDisplay.tsx`)
-
-When the user selects a reward type (from empty state or switches), trigger a save so the type choice persists:
-
-```typescript
-const handleTypeSwitch = useCallback((type: RewardType) => {
-  setRewardType(type);
-  // Auto-save type selection after a brief delay
-  setTimeout(() => setPendingSave(true), 200);
-}, [setRewardType]);
-```
-
-### 3. Fix Save button visibility for "both" type (File: `RewardStructureDisplay.tsx`, line 475)
-
-Remove the `rewardType !== 'both'` guard — Save should always be visible in editing mode:
-
-```tsx
-// Before:
-{(rewardType !== 'both' || isModified) && (
-  <Button ... >Save</Button>
-)}
-
-// After:
-<Button
-  size="sm"
-  variant="outline"
-  onClick={handleSave}
-  disabled={saving || !isValid || !rewardType}
-  className="gap-1.5"
->
-  ...Save
-</Button>
-```
-
-### 4. Wire auto-save wrappers into child editors (File: `RewardStructureDisplay.tsx`)
-
-Pass the new wrapped callbacks to `MonetaryRewardEditor` and `NonMonetaryRewardEditor` instead of the raw state hook functions:
-
-- `onUpdateTier={handleUpdateTier}` (instead of `updateTier`)
-- `onAddItem={handleAddNMItem}` (instead of `addNMItem`)
-- `onUpdateItem={handleUpdateNMItem}` (instead of `updateNMItem`)
-- `onDeleteItem={handleDeleteNMItem}` (instead of `deleteNMItem`)
-- `onCurrencyChange={handleCurrencyChange}` (instead of `setCurrency`)
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Add auto-save wrapper callbacks, fix Save button visibility, wire wrappers to child editors |
-
-No changes needed to `useRewardStructureState.ts`, `MonetaryRewardEditor.tsx`, or `NonMonetaryRewardEditor.tsx` — their interfaces remain the same.
-
-## Behavior After Fix
-
-- Selecting a reward type → auto-saved to DB
-- Editing tier amounts → auto-saved
-- Adding/editing/deleting NM items → auto-saved
-- Changing currency → auto-saved
-- Navigating away and back → data reloads from DB, nothing lost
-- Save button always visible during editing (regardless of reward type)
-- "Lock Reward Type" remains the explicit finalization gate
-
+Verification plan (end-to-end):
+1) Empty state: choose Non-Monetary, immediately navigate away/back → selection and items persist.
+2) Add/edit/delete non-monetary items, switch sections quickly, return → latest content persists.
+3) Switch Monetary ↔ Non-Monetary ↔ Both rapidly, then navigate away/back → final chosen type and data persist.
+4) Accept AI non-monetary suggestions, navigate immediately → persisted.
+5) Confirm no duplicate/burst save errors in console/network and no regressions in manual Save/Lock flow.
