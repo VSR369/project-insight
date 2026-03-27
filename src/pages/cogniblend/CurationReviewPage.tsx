@@ -1329,8 +1329,12 @@ export default function CurationReviewPage() {
    * Phase 1: Lightweight triage — single LLM call, returns pass/warning/inferred per section.
    * Phase 2: Deep suggestion — sequential calls only for warning/inferred sections.
    */
+  const aiReviewInFlightRef = useRef(false);
   const handleAIReview = useCallback(async () => {
     if (!challengeId || !challenge) return;
+    // Double-click guard — prevents parallel reviews even if state update is batched
+    if (aiReviewInFlightRef.current) return;
+    aiReviewInFlightRef.current = true;
     setAiReviewLoading(true);
     setPhase2Status('idle');
     setTriageTotalCount(0);
