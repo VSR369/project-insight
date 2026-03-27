@@ -767,6 +767,32 @@ function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(items, 'S');
 }
 
+/** Build a human-readable markdown summary from AI complexity ratings */
+function buildComplexitySuggestionMd(
+  ratings: Record<string, { rating: number; justification: string }>
+): string {
+  const entries = Object.entries(ratings);
+  const avgRating = entries.reduce((s, [, r]) => s + r.rating, 0) / Math.max(entries.length, 1);
+  const score = avgRating.toFixed(2);
+  // Derive level label
+  const thresholds = [
+    { level: "L1", label: "Very Low", min: 0, max: 2 },
+    { level: "L2", label: "Low", min: 2, max: 4 },
+    { level: "L3", label: "Medium", min: 4, max: 6 },
+    { level: "L4", label: "High", min: 6, max: 8 },
+    { level: "L5", label: "Very High", min: 8, max: 10 },
+  ];
+  const match = thresholds.find((t) => avgRating >= t.min && avgRating < t.max);
+  const level = match ? `${match.level} — ${match.label}` : "L5 — Very High";
+
+  let md = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
+  for (const [key, r] of entries) {
+    const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    md += `- **${label}**: ${r.rating}/10 — ${r.justification}\n`;
+  }
+  return md;
+}
+
 function getEvalCriteria(ch: ChallengeData): { name: string; weight: number }[] {
   const raw = parseJson<any>(ch.evaluation_criteria);
   const ec = Array.isArray(raw) ? raw : Array.isArray(raw?.criteria) ? raw.criteria : [];
