@@ -1124,6 +1124,9 @@ export default function CurationReviewPage() {
     },
   });
 
+  // ── Reward structure ref for AI review result acceptance ──
+  const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
+
   // ── One-time migration: repair corrupted section content ──
   const contentMigrationRanRef = useRef(false);
   useEffect(() => {
