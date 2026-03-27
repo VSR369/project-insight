@@ -92,7 +92,9 @@ serve(async (req) => {
           evaluation_criteria, reward_structure, ip_model, maturity_level,
           eligibility, visibility, phase_schedule, domain_tags,
           consulting_fee, management_fee, total_fee, currency_code,
-          max_solutions, submission_deadline
+          max_solutions, submission_deadline,
+          extended_brief, expected_outcomes,
+          hook, operating_model, effort_level
         `)
         .eq("id", challenge_id)
         .single(),
