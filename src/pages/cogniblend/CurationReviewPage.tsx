@@ -1725,35 +1725,44 @@ export default function CurationReviewPage() {
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
       return updated;
     });
+
+    // If complexity re-review, extract suggested_complexity from the review data
+    // The standard re-review path calls review-challenge-sections which returns suggested_complexity
+    // We need a custom handler for complexity to extract the ratings after re-review
   }, [saveSectionMutation]);
 
-  /** Custom re-review handler for complexity — calls assess-complexity instead of review-challenge-sections */
+  /** Custom re-review handler for complexity — calls review-challenge-sections and extracts suggested_complexity */
   const handleComplexityReReview = useCallback(async (_sectionKey: string) => {
     if (!challengeId) return;
-    const { data, error } = await supabase.functions.invoke("assess-complexity", {
-      body: { challenge_id: challengeId },
+    const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
+      body: { challenge_id: challengeId, section_key: 'complexity', role_context: 'curation' },
     });
 
-    if (error || !data?.success || !data?.data?.ratings) {
-      throw new Error(data?.error?.message ?? error?.message ?? "Complexity assessment failed");
+    if (error) {
+      let msg = error.message;
+      try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+      throw new Error(msg);
+    }
+    if (!data?.success) {
+      throw new Error(data?.error?.message ?? "Complexity review failed");
     }
 
-    const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
-    // Ensure new object reference so ComplexityAssessmentModule's useEffect fires
-    setAiSuggestedComplexity({ ...ratings });
-    setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings, complexityParams));
+    const sections = data.data?.sections as any[];
+    const complexitySection = sections?.[0];
+    if (!complexitySection) throw new Error("No complexity review returned");
 
-    // Transform into standard AI review format
-    const comments = Object.entries(ratings)
-      .filter(([, r]) => r.justification)
-      .map(([key, r]) => `${key}: ${r.justification}`);
-    
+    // Extract structured ratings
+    if (complexitySection.suggested_complexity) {
+      setAiSuggestedComplexity({ ...complexitySection.suggested_complexity });
+    }
+
+    // Update AI reviews
     const complexityReview: SectionReview = {
       section_key: 'complexity',
-      status: comments.length > 0 ? 'warning' : 'pass',
-      comments,
+      status: complexitySection.status ?? 'warning',
+      comments: complexitySection.comments ?? [],
       addressed: false,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: complexitySection.reviewed_at ?? new Date().toISOString(),
     };
     const normalized = normalizeSectionReview(complexityReview);
     setAiReviews((prev) => {
@@ -1762,9 +1771,9 @@ export default function CurationReviewPage() {
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
       return merged;
     });
-    const hasIssues = comments.length > 0;
+    const hasIssues = (complexitySection.comments ?? []).length > 0;
     toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
-  }, [challengeId, saveSectionMutation, complexityParams]);
+  }, [challengeId, saveSectionMutation]);
 
   /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
