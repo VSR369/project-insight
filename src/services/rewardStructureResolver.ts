@@ -266,6 +266,22 @@ export function migrateRawReward(raw: any): {
     };
   }
 
+  // Budget range path: AM/CR provided budget_min/budget_max but no tier breakup yet
+  const budgetMin = Number(raw.budget_min) || 0;
+  const budgetMax = Number(raw.budget_max) || 0;
+  if ((budgetMin > 0 || budgetMax > 0) && !explicitType) {
+    return {
+      type: 'monetary',
+      monetary: {
+        currency: raw.currency ?? 'USD',
+        totalPool: budgetMax || budgetMin,
+        tiers: [],
+        budgetMin,
+        budgetMax,
+      },
+    };
+  }
+
   // Monetary path (default if any monetary fields exist)
   const platinumAmt = Number(raw.platinum) || 0;
   const goldAmt = Number(raw.gold) || 0;
