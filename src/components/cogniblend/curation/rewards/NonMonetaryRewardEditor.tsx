@@ -1,57 +1,104 @@
 /**
- * NonMonetaryRewardEditor — 5 fixed checkbox cards in 2-column grid.
+ * NonMonetaryRewardEditor — Editable list of non-monetary reward items.
+ * Supports add, edit, delete with 5 default suggestions.
  */
 
-import { Sparkles, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { NonMonetarySelections, NonMonetaryKey } from '@/hooks/useRewardStructureState';
-import { NM_KEYS } from '@/hooks/useRewardStructureState';
+import { Input } from '@/components/ui/input';
 import type { ValidationError } from '@/lib/rewardValidation';
-import NonMonetaryItemCard from './NonMonetaryItemCard';
+import NonMonetaryItemCard, { type NonMonetaryItemData } from './NonMonetaryItemCard';
 
 interface NonMonetaryRewardEditorProps {
-  selections: NonMonetarySelections;
+  items: NonMonetaryItemData[];
   errors: ValidationError[];
   disabled?: boolean;
-  onToggle: (key: NonMonetaryKey, selected: boolean) => void;
-  onAcceptAISuggestion: (key: NonMonetaryKey) => void;
+  onAddItem: (title: string) => void;
+  onUpdateItem: (id: string, title: string) => void;
+  onDeleteItem: (id: string) => void;
+  onAcceptAISuggestion?: (id: string) => void;
   onAcceptAllAI?: () => void;
   onReviewWithAI?: () => void;
   aiLoading?: boolean;
 }
 
 export default function NonMonetaryRewardEditor({
-  selections,
+  items,
   errors,
   disabled = false,
-  onToggle,
+  onAddItem,
+  onUpdateItem,
+  onDeleteItem,
   onAcceptAISuggestion,
   onAcceptAllAI,
   onReviewWithAI,
   aiLoading = false,
 }: NonMonetaryRewardEditorProps) {
-  const hasAIRecommendations = NM_KEYS.some((k) => selections[k].aiRecommended);
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const hasAIRecommendations = items.some((item) => item.aiRecommended);
+
+  const handleAddItem = () => {
+    const trimmed = newItemTitle.trim();
+    if (trimmed) {
+      onAddItem(trimmed);
+      setNewItemTitle('');
+    }
+  };
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <p className="text-[13px] font-medium text-foreground">
-        Select non-monetary rewards for this challenge
+        Non-monetary rewards for this challenge
       </p>
 
-      {/* 2-column checkbox grid */}
+      {/* Items list */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {NM_KEYS.map((key) => (
+        {items.map((item) => (
           <NonMonetaryItemCard
-            key={key}
-            itemKey={key}
-            selection={selections[key]}
+            key={item.id}
+            item={item}
             disabled={disabled}
-            onToggle={(selected) => onToggle(key, selected)}
-            onAcceptAI={() => onAcceptAISuggestion(key)}
+            onUpdate={onUpdateItem}
+            onDelete={onDeleteItem}
+            onAcceptAI={onAcceptAISuggestion ? () => onAcceptAISuggestion(item.id) : undefined}
           />
         ))}
       </div>
+
+      {/* Empty state */}
+      {items.length === 0 && (
+        <div className="text-center py-6 border-2 border-dashed border-border rounded-xl">
+          <p className="text-[13px] text-muted-foreground">No items added yet</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Add non-monetary rewards below</p>
+        </div>
+      )}
+
+      {/* Add new item */}
+      {!disabled && (
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Add new reward item..."
+            value={newItemTitle}
+            onChange={(e) => setNewItemTitle(e.target.value)}
+            className="h-9 text-[13px] flex-1"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddItem();
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddItem}
+            disabled={!newItemTitle.trim()}
+            className="gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </Button>
+        </div>
+      )}
 
       {/* Accept all AI suggestions */}
       {hasAIRecommendations && onAcceptAllAI && (

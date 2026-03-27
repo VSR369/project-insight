@@ -9,7 +9,7 @@
 
 export type ChallengeModel = 'marketplace' | 'aggregator';
 export type SourceRole = 'AM' | 'CA' | 'CR' | 'CURATOR';
-export type RewardType = 'monetary' | 'non_monetary' | null;
+export type RewardType = 'monetary' | 'non_monetary' | 'both' | null;
 
 export interface PrizeTier {
   rank: 'platinum' | 'gold' | 'silver' | 'honorable_mention';
@@ -357,33 +357,45 @@ export function serializeRewardData(data: RewardData): Record<string, any> {
     source_date: data.sourceDate ?? new Date().toISOString(),
   };
 
-  if (data.type === 'monetary' && data.monetary) {
-    const m = data.monetary;
+  const serializeMonetary = (m: MonetaryReward) => {
     const tierMap: Record<string, number> = {};
     for (const t of m.tiers) {
       tierMap[t.rank] = t.amount;
     }
     return {
-      ...base,
-      type: 'monetary',
       currency: m.currency,
       totalPool: m.totalPool,
-      // Flat keys for backward compat with legacy readers
       platinum: tierMap.platinum ?? 0,
       gold: tierMap.gold ?? 0,
       silver: tierMap.silver ?? 0,
-      // Full tiers for lossless round-trip (preserves count, label)
       tiers: m.tiers,
       num_rewarded: String(m.tiers.filter((t) => t.amount > 0 && t.rank !== 'honorable_mention').length),
       payment_mode: m.payment_mode ?? 'escrow',
       payment_milestones: m.payment_milestones ?? [],
     };
-  }
+  };
 
-  if (data.type === 'non_monetary' && data.nonMonetary) {
+  if (data.type === 'both' && data.monetary && data.nonMonetary) {
     return {
       ...base,
-      type: 'non_monetary',
+      type: 'both',
+      ...serializeMonetary(data.monetary),
+      items: data.nonMonetary.items,
+    };
+  }
+
+  if ((data.type === 'monetary' || data.type === 'both') && data.monetary) {
+    return {
+      ...base,
+      type: data.type,
+      ...serializeMonetary(data.monetary),
+    };
+  }
+
+  if ((data.type === 'non_monetary' || data.type === 'both') && data.nonMonetary) {
+    return {
+      ...base,
+      type: data.type,
       items: data.nonMonetary.items,
     };
   }

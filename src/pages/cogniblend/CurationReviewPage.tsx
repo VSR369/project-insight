@@ -76,7 +76,7 @@ import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 
-import RewardStructureDisplay from "@/components/cogniblend/curation/RewardStructureDisplay";
+import RewardStructureDisplay, { type RewardStructureDisplayHandle } from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import {
@@ -1124,6 +1124,9 @@ export default function CurationReviewPage() {
     },
   });
 
+  // ── Reward structure ref for AI review result acceptance ──
+  const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
+
   // ── One-time migration: repair corrupted section content ──
   const contentMigrationRanRef = useRef(false);
   useEffect(() => {
@@ -1535,6 +1538,15 @@ export default function CurationReviewPage() {
         toast.error(`AI did not return structured JSON for ${dbField}. Please try again.`);
         return;
       }
+    }
+
+    // ── Reward structure: apply AI result to the reward component state ──
+    if (dbField === 'reward_structure' && valueToSave && typeof valueToSave === 'object') {
+      rewardStructureRef.current?.applyAIReviewResult(valueToSave);
+      // Also save to DB
+      setSavingSection(true);
+      saveSectionMutation.mutate({ field: dbField, value: valueToSave });
+      return;
     }
 
     // ── Evaluation criteria: normalize AI field names to canonical format ──
@@ -2357,12 +2369,14 @@ export default function CurationReviewPage() {
                       case "reward_structure":
                         return (
                           <RewardStructureDisplay
+                            ref={rewardStructureRef}
                             rewardStructure={challenge.reward_structure}
                             currencyCode={challenge.currency_code ?? undefined}
                             challengeId={challenge.id}
                             problemStatement={challenge.problem_statement}
                             operatingModel={challenge.operating_model}
                             challengeTitle={challenge.title}
+                            onReviewWithAI={(sectionKey) => handleSingleSectionReview(sectionKey, {} as any)}
                           />
                         );
 

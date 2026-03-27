@@ -1,18 +1,11 @@
 /**
  * useRewardStructureState — State machine hook for the Reward Structure section.
  *
- * States:
- *   empty_no_source      → No upstream data, curator must create
- *   populated_from_source → Auto-filled from AM/CA/CR
- *   curator_editing       → Actively editing
- *   saved                 → Saved, read-only view
- *   reviewed              → AI reviewed
- *
- * New in redesign:
- *   - Per-field source tracking (FieldSource)
- *   - Fixed 5-checkbox non-monetary model (NonMonetarySelections)
- *   - Toggle-switch tier model (TierState)
- *   - isSubmitted lock
+ * Redesign v2:
+ *   - 'both' reward type support
+ *   - Dynamic non-monetary items (add/edit/delete)
+ *   - Lock reward type action
+ *   - applyAIReviewResult for full AI acceptance
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -33,10 +26,11 @@ import {
 import {
   validateRewardStructure,
   validateMonetaryTiers,
-  validateNonMonetarySelections,
+  validateNonMonetaryItems,
   type ValidationError,
 } from '@/lib/rewardValidation';
 import type { FieldSource } from '@/components/cogniblend/curation/rewards/SourceBadge';
+import type { NonMonetaryItemData } from '@/components/cogniblend/curation/rewards/NonMonetaryItemCard';
 
 /* ── Exported types ── */
 
@@ -46,34 +40,6 @@ export interface TierState {
   amountSrc: FieldSource;
   aiSuggestion?: number;
 }
-
-export type NonMonetaryKey = 'certificate' | 'memento' | 'giftVouchers' | 'movieSponsorship' | 'others';
-
-export interface NonMonetarySelection {
-  selected: boolean;
-  src: FieldSource;
-  aiRecommended?: boolean;
-}
-
-export type NonMonetarySelections = Record<NonMonetaryKey, NonMonetarySelection>;
-
-export const NM_KEYS: NonMonetaryKey[] = ['certificate', 'memento', 'giftVouchers', 'movieSponsorship', 'others'];
-
-export const NM_LABELS: Record<NonMonetaryKey, string> = {
-  certificate: 'Certificate',
-  memento: 'Memento',
-  giftVouchers: 'Gift Vouchers',
-  movieSponsorship: 'Movie Sponsorship',
-  others: 'Others',
-};
-
-export const NM_ICONS: Record<NonMonetaryKey, string> = {
-  certificate: '📜',
-  memento: '🏆',
-  giftVouchers: '🎁',
-  movieSponsorship: '🎬',
-  others: '💡',
-};
 
 /* ── AM Payload interface ── */
 
@@ -95,6 +61,16 @@ export interface AMRewardPayload {
   };
 }
 
+/* ── Default NM items ── */
+
+const DEFAULT_NM_ITEMS: { title: string }[] = [
+  { title: 'Certificate' },
+  { title: 'Memento' },
+  { title: 'Gift Vouchers' },
+  { title: 'Movie Sponsorship' },
+  { title: 'Others' },
+];
+
 /* ── Default states ── */
 
 function defaultTierState(src: FieldSource['src'] = 'curator'): Record<string, TierState> {
@@ -105,14 +81,13 @@ function defaultTierState(src: FieldSource['src'] = 'curator'): Record<string, T
   };
 }
 
-function defaultNMSelections(src: FieldSource['src'] = 'curator'): NonMonetarySelections {
-  return {
-    certificate: { selected: false, src: { src } },
-    memento: { selected: false, src: { src } },
-    giftVouchers: { selected: false, src: { src } },
-    movieSponsorship: { selected: false, src: { src } },
-    others: { selected: false, src: { src } },
-  };
+function defaultNMItems(src: FieldSource['src'] = 'curator'): NonMonetaryItemData[] {
+  return DEFAULT_NM_ITEMS.map((item) => ({
+    id: crypto.randomUUID(),
+    title: item.title,
+    src: { src },
+    isDefault: true,
+  }));
 }
 
 /* ── Convert legacy data to new models ── */
@@ -132,33 +107,15 @@ function legacyToTierState(monetary?: MonetaryReward, srcDefault: FieldSource['s
   return state;
 }
 
-function legacyToNMSelections(nonMonetary?: NonMonetaryReward, srcDefault: FieldSource['src'] = 'curator'): NonMonetarySelections {
-  const selections = defaultNMSelections(srcDefault);
-  if (!nonMonetary) return selections;
+function legacyToNMItems(nonMonetary?: NonMonetaryReward, srcDefault: FieldSource['src'] = 'curator'): NonMonetaryItemData[] {
+  if (!nonMonetary || nonMonetary.items.length === 0) return [];
 
-  // Map legacy items to fixed checkboxes by title matching
-  const titleMap: Record<string, NonMonetaryKey> = {
-    certificate: 'certificate',
-    memento: 'memento',
-    'gift vouchers': 'giftVouchers',
-    'gift voucher': 'giftVouchers',
-    'movie sponsorship': 'movieSponsorship',
-    others: 'others',
-    other: 'others',
-  };
-
-  for (const item of nonMonetary.items) {
-    const normalized = item.title.toLowerCase().trim();
-    const key = titleMap[normalized];
-    if (key) {
-      selections[key] = {
-        selected: true,
-        src: { src: item.isFromSource ? 'am' : item.isAISuggested ? 'ai' : srcDefault },
-      };
-    }
-  }
-
-  return selections;
+  return nonMonetary.items.map((item) => ({
+    id: item.id ?? crypto.randomUUID(),
+    title: item.title,
+    src: { src: item.isFromSource ? 'am' : item.isAISuggested ? 'ai' : srcDefault },
+    isDefault: DEFAULT_NM_ITEMS.some((d) => d.title.toLowerCase() === item.title.toLowerCase()),
+  }));
 }
 
 /* ── Convert new models back to legacy for serialization ── */
@@ -179,21 +136,17 @@ function tierStateToTiers(tiers: Record<string, TierState>, currency: string): M
   return { currency, tiers: prizeTiers };
 }
 
-function nmSelectionsToItems(selections: NonMonetarySelections): NonMonetaryReward {
-  const items: NonMonetaryItem[] = [];
-  for (const key of NM_KEYS) {
-    if (selections[key].selected) {
-      items.push({
-        id: crypto.randomUUID(),
-        type: 'recognition',
-        title: NM_LABELS[key],
-        description: '',
-        isFromSource: selections[key].src.src === 'am',
-        isAISuggested: selections[key].src.src === 'ai',
-      });
-    }
-  }
-  return { items };
+function nmItemsToLegacy(items: NonMonetaryItemData[]): NonMonetaryReward {
+  return {
+    items: items.map((item) => ({
+      id: item.id,
+      type: 'recognition' as const,
+      title: item.title,
+      description: '',
+      isFromSource: item.src.src === 'am',
+      isAISuggested: item.src.src === 'ai',
+    })),
+  };
 }
 
 /* ── Section state types ── */
@@ -210,20 +163,25 @@ export interface UseRewardStructureStateReturn {
   rewardData: RewardData;
   rewardType: RewardType;
   tierStates: Record<string, TierState>;
-  nmSelections: NonMonetarySelections;
+  nmItems: NonMonetaryItemData[];
   currency: string;
   totalPool: number | undefined;
   errors: ValidationError[];
+  monetaryErrors: ValidationError[];
+  nmErrors: ValidationError[];
   isValid: boolean;
   isModified: boolean;
   isSubmitted: boolean;
+  isTypeLocked: boolean;
 
   /* Actions */
   setRewardType: (type: RewardType) => void;
   setCurrency: (currency: string) => void;
   setTotalPool: (pool: number | undefined) => void;
   updateTier: (rank: string, patch: Partial<TierState>) => void;
-  updateNMSelection: (key: NonMonetaryKey, selected: boolean) => void;
+  addNMItem: (title: string) => void;
+  updateNMItem: (id: string, title: string) => void;
+  deleteNMItem: (id: string) => void;
   setMonetary: (monetary: MonetaryReward) => void;
   setNonMonetary: (nonMonetary: NonMonetaryReward) => void;
   startEditing: () => void;
@@ -231,11 +189,13 @@ export interface UseRewardStructureStateReturn {
   markSaved: () => void;
   markReviewed: () => void;
   markSubmitted: () => void;
+  lockRewardType: () => void;
   resetToSource: () => void;
   applyAISuggestions: (suggestions: Record<string, number>) => void;
-  applyAINMSuggestions: (keys: NonMonetaryKey[]) => void;
+  applyAINMSuggestions: (items: { title: string }[]) => void;
   acceptAISuggestion: (rank: string) => void;
-  acceptAINMSuggestion: (key: NonMonetaryKey) => void;
+  acceptAINMSuggestion: (id: string) => void;
+  applyAIReviewResult: (data: { monetary?: { tiers?: Record<string, number>; currency?: string }; nonMonetary?: { items?: string[] }; type?: string }) => void;
   getSerializedData: () => Record<string, any>;
 }
 
@@ -265,61 +225,59 @@ export function useRewardStructureState(
   const [rewardData, setRewardData] = useState<RewardData>(resolved);
   const [originalData] = useState<RewardData>(resolved);
 
-  // ── New tier/checkbox models ──
+  // ── New tier/NM item models ──
   const [tierStates, setTierStates] = useState<Record<string, TierState>>(
     () => legacyToTierState(resolved.monetary, initialSrc),
   );
-  const [nmSelections, setNMSelections] = useState<NonMonetarySelections>(
-    () => legacyToNMSelections(resolved.nonMonetary, initialSrc),
+  const [nmItems, setNMItems] = useState<NonMonetaryItemData[]>(
+    () => {
+      const legacy = legacyToNMItems(resolved.nonMonetary, initialSrc);
+      return legacy.length > 0 ? legacy : [];
+    },
   );
   const [currency, setCurrencyState] = useState(resolved.monetary?.currency ?? 'USD');
   const [totalPool, setTotalPoolState] = useState<number | undefined>(resolved.monetary?.totalPool);
   const [rewardType, setRewardTypeState] = useState<RewardType>(resolved.type);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isTypeLocked, setIsTypeLocked] = useState(false);
 
   // ── Validation ──
+  const monetaryErrors = useMemo(() => {
+    if (!rewardType || (rewardType !== 'monetary' && rewardType !== 'both')) return [];
+    return validateMonetaryTiers(tierStates, totalPool);
+  }, [rewardType, tierStates, totalPool]);
+
+  const nmErrors = useMemo(() => {
+    if (!rewardType || (rewardType !== 'non_monetary' && rewardType !== 'both')) return [];
+    return validateNonMonetaryItems(nmItems);
+  }, [rewardType, nmItems]);
+
   const errors = useMemo(() => {
     if (sectionState === 'empty_no_source' || !rewardType) return [];
-    if (rewardType === 'monetary') {
-      return validateMonetaryTiers(tierStates, totalPool);
-    }
-    if (rewardType === 'non_monetary') {
-      return validateNonMonetarySelections(nmSelections);
-    }
-    return [];
-  }, [rewardType, tierStates, nmSelections, totalPool, sectionState]);
+    return [...monetaryErrors, ...nmErrors];
+  }, [sectionState, rewardType, monetaryErrors, nmErrors]);
 
   const isValid = errors.length === 0 && rewardType !== null;
 
   // ── Modified detection ──
   const isModified = useMemo(() => {
     if (!originalData.isAutoPopulated) return false;
-    // Simple check: compare serialized
     return JSON.stringify(tierStates) !== JSON.stringify(legacyToTierState(originalData.monetary, initialSrc)) ||
-      JSON.stringify(nmSelections) !== JSON.stringify(legacyToNMSelections(originalData.nonMonetary, initialSrc)) ||
+      JSON.stringify(nmItems) !== JSON.stringify(legacyToNMItems(originalData.nonMonetary, initialSrc)) ||
       rewardType !== originalData.type;
-  }, [tierStates, nmSelections, rewardType, originalData, initialSrc]);
-
-  // ── Sync rewardData from new models ──
-  const syncRewardData = useCallback((type: RewardType, tiers: Record<string, TierState>, nm: NonMonetarySelections, curr: string) => {
-    const monetary = type === 'monetary' ? tierStateToTiers(tiers, curr) : undefined;
-    const nonMonetary = type === 'non_monetary' ? nmSelectionsToItems(nm) : undefined;
-    setRewardData((prev) => ({
-      ...prev,
-      type,
-      monetary: monetary ? { ...monetary, totalPool: totalPool } : undefined,
-      nonMonetary,
-    }));
-  }, [totalPool]);
+  }, [tierStates, nmItems, rewardType, originalData, initialSrc]);
 
   // ── Actions ──
 
   const setRewardType = useCallback((type: RewardType) => {
-    if (isSubmitted) return;
+    if (isSubmitted || isTypeLocked) return;
     setRewardTypeState(type);
     setSectionState('curator_editing');
-    syncRewardData(type, tierStates, nmSelections, currency);
-  }, [isSubmitted, tierStates, nmSelections, currency, syncRewardData]);
+    // Populate default NM items if switching to non_monetary or both and list is empty
+    if ((type === 'non_monetary' || type === 'both') && nmItems.length === 0) {
+      setNMItems(defaultNMItems('curator'));
+    }
+  }, [isSubmitted, isTypeLocked, nmItems.length]);
 
   const setCurrency = useCallback((c: string) => {
     if (isSubmitted) return;
@@ -336,12 +294,10 @@ export function useRewardStructureState(
     setTierStates((prev) => {
       const current = prev[rank];
       const updated = { ...current, ...patch };
-      // Track source modification
       if ('amount' in patch && current.amountSrc.src !== 'curator') {
         updated.amountSrc = { ...current.amountSrc, modified: true };
       }
       const next = { ...prev, [rank]: updated };
-      // If disabling Gold, also disable Silver
       if (rank === 'gold' && patch.enabled === false) {
         next.silver = { ...next.silver, enabled: false };
       }
@@ -349,43 +305,45 @@ export function useRewardStructureState(
     });
   }, [isSubmitted]);
 
-  const updateNMSelection = useCallback((key: NonMonetaryKey, selected: boolean) => {
+  // ── NM Item actions ──
+
+  const addNMItem = useCallback((title: string) => {
     if (isSubmitted) return;
-    setNMSelections((prev) => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        selected,
-        src: { src: 'curator' },
-      },
-    }));
+    setNMItems((prev) => [...prev, {
+      id: crypto.randomUUID(),
+      title,
+      src: { src: 'curator' },
+      isDefault: false,
+    }]);
+  }, [isSubmitted]);
+
+  const updateNMItem = useCallback((id: string, title: string) => {
+    if (isSubmitted) return;
+    setNMItems((prev) => prev.map((item) =>
+      item.id === id
+        ? { ...item, title, src: item.src.src !== 'curator' ? { ...item.src, modified: true } : item.src }
+        : item,
+    ));
+  }, [isSubmitted]);
+
+  const deleteNMItem = useCallback((id: string) => {
+    if (isSubmitted) return;
+    setNMItems((prev) => prev.filter((item) => item.id !== id));
   }, [isSubmitted]);
 
   // Legacy setters for backward compat
   const setMonetary = useCallback((monetary: MonetaryReward) => {
-    setRewardData((prev) => ({
-      ...prev,
-      type: 'monetary',
-      monetary,
-      nonMonetary: undefined,
-    }));
+    setRewardData((prev) => ({ ...prev, type: 'monetary', monetary, nonMonetary: undefined }));
     setRewardTypeState('monetary');
-    // Sync to new model
-    const newTiers = legacyToTierState(monetary, 'curator');
-    setTierStates(newTiers);
+    setTierStates(legacyToTierState(monetary, 'curator'));
     setCurrencyState(monetary.currency);
     setTotalPoolState(monetary.totalPool);
   }, []);
 
   const setNonMonetary = useCallback((nonMonetary: NonMonetaryReward) => {
-    setRewardData((prev) => ({
-      ...prev,
-      type: 'non_monetary',
-      nonMonetary,
-      monetary: undefined,
-    }));
+    setRewardData((prev) => ({ ...prev, type: 'non_monetary', nonMonetary, monetary: undefined }));
     setRewardTypeState('non_monetary');
-    setNMSelections(legacyToNMSelections(nonMonetary, 'curator'));
+    setNMItems(legacyToNMItems(nonMonetary, 'curator'));
   }, []);
 
   const startEditing = useCallback(() => {
@@ -395,7 +353,7 @@ export function useRewardStructureState(
   const cancelEditing = useCallback(() => {
     setRewardData(originalData);
     setTierStates(legacyToTierState(originalData.monetary, initialSrc));
-    setNMSelections(legacyToNMSelections(originalData.nonMonetary, initialSrc));
+    setNMItems(legacyToNMItems(originalData.nonMonetary, initialSrc));
     setRewardTypeState(originalData.type);
     setCurrencyState(originalData.monetary?.currency ?? 'USD');
     setTotalPoolState(originalData.monetary?.totalPool);
@@ -420,11 +378,23 @@ export function useRewardStructureState(
     setIsSubmitted(true);
   }, []);
 
+  const lockRewardType = useCallback(() => {
+    setIsTypeLocked(true);
+    // Clean up data not relevant to locked type
+    if (rewardType === 'monetary') {
+      setNMItems([]);
+    } else if (rewardType === 'non_monetary') {
+      setTierStates(defaultTierState('curator'));
+      setTotalPoolState(undefined);
+    }
+    // 'both' keeps everything
+  }, [rewardType]);
+
   const resetToSource = useCallback(() => {
     if (originalData.isAutoPopulated) {
       setRewardData(originalData);
       setTierStates(legacyToTierState(originalData.monetary, initialSrc));
-      setNMSelections(legacyToNMSelections(originalData.nonMonetary, initialSrc));
+      setNMItems(legacyToNMItems(originalData.nonMonetary, initialSrc));
       setRewardTypeState(originalData.type);
       setSectionState('populated_from_source');
     }
@@ -461,33 +431,70 @@ export function useRewardStructureState(
     });
   }, []);
 
-  const applyAINMSuggestions = useCallback((keys: NonMonetaryKey[]) => {
-    setNMSelections((prev) => {
-      const next = { ...prev };
-      for (const key of keys) {
-        if (key in next) {
-          next[key] = { ...next[key], aiRecommended: true };
-        }
-      }
-      return next;
+  const applyAINMSuggestions = useCallback((suggestedItems: { title: string }[]) => {
+    setNMItems((prev) => {
+      const existing = new Set(prev.map((i) => i.title.toLowerCase()));
+      const newItems = suggestedItems
+        .filter((s) => !existing.has(s.title.toLowerCase()))
+        .map((s) => ({
+          id: crypto.randomUUID(),
+          title: s.title,
+          src: { src: 'ai' as const },
+          isDefault: false,
+          aiRecommended: true,
+        }));
+      return [...prev, ...newItems];
     });
   }, []);
 
-  const acceptAINMSuggestion = useCallback((key: NonMonetaryKey) => {
-    setNMSelections((prev) => ({
-      ...prev,
-      [key]: {
-        selected: true,
-        src: { src: 'ai' },
-        aiRecommended: false,
-      },
-    }));
+  const acceptAINMSuggestion = useCallback((id: string) => {
+    setNMItems((prev) => prev.map((item) =>
+      item.id === id ? { ...item, aiRecommended: false, src: { src: 'ai' } } : item,
+    ));
+  }, []);
+
+  // ── Apply full AI review result (from CurationAIReviewInline acceptance) ──
+  const applyAIReviewResult = useCallback((data: {
+    monetary?: { tiers?: Record<string, number>; currency?: string };
+    nonMonetary?: { items?: string[] };
+    type?: string;
+  }) => {
+    if (data.monetary?.tiers) {
+      setTierStates((prev) => {
+        const next = { ...prev };
+        for (const [rank, amount] of Object.entries(data.monetary!.tiers!)) {
+          if (rank in next) {
+            next[rank] = { enabled: true, amount, amountSrc: { src: 'ai' } };
+          }
+        }
+        return next;
+      });
+      if (data.monetary.currency) setCurrencyState(data.monetary.currency);
+    }
+
+    if (data.nonMonetary?.items) {
+      const aiItems: NonMonetaryItemData[] = data.nonMonetary.items.map((title) => ({
+        id: crypto.randomUUID(),
+        title,
+        src: { src: 'ai' as const },
+        isDefault: false,
+      }));
+      setNMItems(aiItems);
+    }
+
+    if (data.type === 'both' || data.type === 'monetary' || data.type === 'non_monetary') {
+      setRewardTypeState(data.type as RewardType);
+    }
+
+    setSectionState('curator_editing');
   }, []);
 
   const getSerializedData = useCallback(() => {
-    // Build from new models
-    const monetary = rewardType === 'monetary' ? tierStateToTiers(tierStates, currency) : undefined;
-    const nonMonetary = rewardType === 'non_monetary' ? nmSelectionsToItems(nmSelections) : undefined;
+    const includeMonetary = rewardType === 'monetary' || rewardType === 'both';
+    const includeNM = rewardType === 'non_monetary' || rewardType === 'both';
+
+    const monetary = includeMonetary ? tierStateToTiers(tierStates, currency) : undefined;
+    const nonMonetary = includeNM ? nmItemsToLegacy(nmItems) : undefined;
 
     const data: RewardData = {
       type: rewardType,
@@ -500,32 +507,37 @@ export function useRewardStructureState(
 
     const serialized = serializeRewardData(data);
 
-    // Also persist field sources and NM selections for round-trip
+    // Also persist field sources for round-trip
     serialized.fieldSources = {
       tiers: tierStates,
-      nmSelections,
+      nmItems,
     };
 
     return serialized;
-  }, [rewardType, tierStates, nmSelections, currency, totalPool]);
+  }, [rewardType, tierStates, nmItems, currency, totalPool]);
 
   return {
     sectionState,
     rewardData,
     rewardType,
     tierStates,
-    nmSelections,
+    nmItems,
     currency,
     totalPool,
     errors,
+    monetaryErrors,
+    nmErrors,
     isValid,
     isModified,
     isSubmitted,
+    isTypeLocked,
     setRewardType,
     setCurrency,
     setTotalPool,
     updateTier,
-    updateNMSelection,
+    addNMItem,
+    updateNMItem,
+    deleteNMItem,
     setMonetary,
     setNonMonetary,
     startEditing,
@@ -533,11 +545,13 @@ export function useRewardStructureState(
     markSaved,
     markReviewed,
     markSubmitted,
+    lockRewardType,
     resetToSource,
     applyAISuggestions,
     applyAINMSuggestions,
     acceptAISuggestion,
     acceptAINMSuggestion,
+    applyAIReviewResult,
     getSerializedData,
   };
 }
