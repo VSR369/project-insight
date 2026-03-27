@@ -1090,7 +1090,15 @@ export default function CurationReviewPage() {
     return sectionActions.filter(a => a.section_key === sectionKey);
   }, [sectionActions]);
 
+  // ── Zustand store hydration & sync ──
+  const { syncSectionToStore } = useCurationStoreHydration({
+    challengeId: challengeId!,
+    challenge: challenge ?? null,
+    aiReviews,
+  });
 
+  // ── Store sync layer (debounced DB persistence) ──
+  useCurationStoreSync({ challengeId: challengeId!, enabled: !!challengeId });
 
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
