@@ -24,6 +24,9 @@ export interface MonetaryReward {
   tiers: PrizeTier[];
   payment_milestones?: PaymentMilestone[];
   payment_mode?: string;
+  /** Original AM/CR budget range (before curator tier breakup) */
+  budgetMin?: number;
+  budgetMax?: number;
 }
 
 export interface PaymentMilestone {
@@ -263,6 +266,22 @@ export function migrateRawReward(raw: any): {
       type: 'both',
       monetary,
       nonMonetary: { items: nmItems },
+    };
+  }
+
+  // Budget range path: AM/CR provided budget_min/budget_max but no tier breakup yet
+  const budgetMin = Number(raw.budget_min) || 0;
+  const budgetMax = Number(raw.budget_max) || 0;
+  if ((budgetMin > 0 || budgetMax > 0) && !explicitType) {
+    return {
+      type: 'monetary',
+      monetary: {
+        currency: raw.currency ?? 'USD',
+        totalPool: budgetMax || budgetMin,
+        tiers: [],
+        budgetMin,
+        budgetMax,
+      },
     };
   }
 

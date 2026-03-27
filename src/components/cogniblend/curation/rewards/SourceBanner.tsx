@@ -11,6 +11,15 @@ interface SourceBannerProps {
   isModified: boolean;
   onEdit: () => void;
   onReset?: () => void;
+  budgetRange?: { min: number; max: number; currency: string };
+}
+
+function formatBudget(value: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return `${currency} ${value.toLocaleString()}`;
+  }
 }
 
 export default function SourceBanner({
@@ -19,6 +28,7 @@ export default function SourceBanner({
   isModified,
   onEdit,
   onReset,
+  budgetRange,
 }: SourceBannerProps) {
   const roleName = getRoleDisplayName(sourceRole);
   const formattedDate = sourceDate
@@ -29,11 +39,18 @@ export default function SourceBanner({
       })
     : null;
 
+  const budgetLabel = budgetRange && (budgetRange.min > 0 || budgetRange.max > 0)
+    ? budgetRange.min > 0 && budgetRange.max > 0 && budgetRange.min !== budgetRange.max
+      ? `Budget: ${formatBudget(budgetRange.min, budgetRange.currency)}–${formatBudget(budgetRange.max, budgetRange.currency)}`
+      : `Budget: ${formatBudget(budgetRange.max || budgetRange.min, budgetRange.currency)}`
+    : null;
+
   return (
     <div className="bg-primary/5 border border-primary/10 rounded-lg px-3 py-2 mb-3 flex items-center gap-2">
       <Info className="h-3 w-3 text-primary shrink-0" />
       <span className="text-[12px] text-primary flex-1">
         Populated from {roleName}
+        {budgetLabel && <span className="text-primary/60"> · {budgetLabel}</span>}
         {formattedDate && <span className="text-primary/60"> · {formattedDate}</span>}
       </span>
 

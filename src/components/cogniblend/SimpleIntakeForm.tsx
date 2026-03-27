@@ -447,6 +447,8 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       currency: data.currency,
       budget_min: data.budget_min ?? 0,
       budget_max: data.budget_max ?? 0,
+      source_role: isMP ? 'AM' : 'CR',
+      source_date: new Date().toISOString(),
     },
     phase_schedule: {
       expected_timeline: data.expected_timeline ?? '',
