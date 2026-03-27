@@ -148,6 +148,10 @@ export function ComplexityAssessmentModule({
 
       setDraft(newDraft);
       setAiJustifications(justifications);
+      // Mark all params as AI-sourced
+      const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+      complexityParams.forEach((p) => { sources[p.param_key] = 'ai'; });
+      setParamSources(sources);
       setOverrideEnabled(true); // show sliders so curator can review/adjust
 
       // Auto-save the AI assessment
