@@ -410,6 +410,22 @@ export function resolveRewardSource(
 
   // Infer source based on model hierarchy
   if (hasContent) {
+    // Curator-serialized data has explicit `type` + structured arrays (`tiers`/`items`).
+    // AM/CR intake data has only budget_min/budget_max or flat tier keys, no `type`.
+    const hasCuratorFingerprint =
+      raw.type && (Array.isArray(raw.tiers) || Array.isArray(raw.items));
+
+    if (hasCuratorFingerprint) {
+      // Data was saved by the curator serializer — attribute to CURATOR
+      return {
+        ...migrated,
+        sourceRole: 'CURATOR' as SourceRole,
+        sourceDate,
+        isAutoPopulated: false,
+        isEditable: true,
+      };
+    }
+
     if (model === 'marketplace') {
       const inferredRole: SourceRole = 'AM';
       return {
