@@ -1013,7 +1013,9 @@ export function AIReviewResultPanel({
             disabled={isRefining}
           >
             <Check className="h-4 w-4 mr-1.5" />
-            {isMasterData && resolvedCodes
+            {complexityRatings && Object.keys(complexityRatings).length > 0
+              ? "Accept complexity ratings"
+              : isMasterData && resolvedCodes
               ? `Accept ${selectedItems.size} selection${selectedItems.size !== 1 ? "s" : ""}`
               : isStructured && structuredItems
                 ? `Accept ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}`
