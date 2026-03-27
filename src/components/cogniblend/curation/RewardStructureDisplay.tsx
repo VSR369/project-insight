@@ -289,14 +289,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     }
   }, [nmItems, acceptAINMSuggestion]);
 
-  // ── Flow B: Review with AI ──
-  const handleReviewMonetary = useCallback(() => {
-    onReviewWithAI?.('reward_structure');
-  }, [onReviewWithAI]);
-
-  const handleReviewNonMonetary = useCallback(() => {
-    onReviewWithAI?.('reward_structure');
-  }, [onReviewWithAI]);
 
   // ── Has existing data check ──
   const hasExistingData = useMemo(() => {
