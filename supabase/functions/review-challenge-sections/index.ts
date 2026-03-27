@@ -293,7 +293,166 @@ async function callAIBatch(
   return sections;
 }
 
-serve(async (req) => {
+/**
+ * Call AI gateway for complexity assessment — separate from batch review.
+ * Uses full challenge context + master complexity params to produce per-parameter ratings.
+ */
+async function callComplexityAI(
+  apiKey: string,
+  model: string,
+  challengeData: any,
+  adminClient: any,
+): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string; suggested_complexity: Record<string, { rating: number; justification: string; evidence_sections: string[] }> }> {
+  // Fetch master complexity params
+  const { data: paramsData, error: paramsError } = await adminClient
+    .from("master_complexity_params")
+    .select("param_key, name, weight, description")
+    .eq("is_active", true)
+    .order("display_order");
+
+  if (paramsError || !paramsData?.length) {
+    const now = new Date().toISOString();
+    return {
+      section_key: "complexity",
+      status: "warning",
+      comments: ["No complexity parameters configured. Please set up master_complexity_params."],
+      reviewed_at: now,
+      suggested_complexity: {},
+    };
+  }
+
+  const COMPLEXITY_SYSTEM_PROMPT = `You are an expert innovation challenge complexity assessor. Your job is to analyze the full content of an innovation challenge and rate its complexity across multiple dimensions.
+
+For each complexity parameter, you must:
+1. Carefully read the problem statement, scope, deliverables, evaluation criteria, reward structure, IP model, maturity level, eligibility requirements, domain tags, and phase schedule.
+2. Consider the SPECIFIC content — not generic defaults. Each parameter must be rated independently based on what the challenge actually requires.
+3. Rate each parameter on a scale of 1-10 where:
+   - 1-2: Very Low complexity — straightforward, well-understood domain, minimal risk
+   - 3-4: Low complexity — some nuance but largely standard approaches apply
+   - 5-6: Medium complexity — requires meaningful expertise, moderate uncertainty
+   - 7-8: High complexity — significant technical depth, cross-domain challenges, tight constraints
+   - 9-10: Very High complexity — cutting-edge, high uncertainty, extreme constraints
+
+CRITICAL RULES:
+- Do NOT give the same rating to all parameters. Each parameter measures a DIFFERENT dimension and must be assessed independently.
+- Base your ratings on EVIDENCE from the challenge content, not assumptions.
+- If a section is missing or empty, factor that into your assessment (e.g., missing scope increases uncertainty).
+- Consider cross-section interactions: tight timelines + high technical novelty = amplified complexity.
+- For each rating, cite which challenge sections (e.g., problem_statement, deliverables, phase_schedule) informed your assessment.
+- Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."`;
+
+  const paramDescriptions = paramsData.map(
+    (p: any) => `- **${p.param_key}** (${p.name}): ${p.description ?? "No description"} [weight: ${(p.weight * 100).toFixed(0)}%]`
+  ).join("\n");
+
+  const userPrompt = `Analyze this innovation challenge and rate each complexity parameter independently (1-10).
+
+COMPLEXITY PARAMETERS TO RATE:
+${paramDescriptions}
+
+FULL CHALLENGE CONTENT:
+${JSON.stringify(challengeData, null, 2)}
+
+Rate each parameter based on the actual challenge content. Do NOT give the same score to all parameters — each dimension is different.
+For each parameter, cite which sections of the challenge data informed your rating in the evidence_sections array.
+Also provide 2-4 guideline_comments that help curators understand the key complexity drivers.`;
+
+  // Build tool schema dynamically
+  const paramProperties: Record<string, any> = {};
+  const requiredParams: string[] = [];
+  for (const p of paramsData) {
+    paramProperties[p.param_key] = {
+      type: "object",
+      properties: {
+        rating: { type: "integer", minimum: 1, maximum: 10, description: `Complexity rating for ${p.name} (1=very low, 10=very high)` },
+        justification: { type: "string", description: `Brief justification for the ${p.name} rating based on challenge content` },
+        evidence_sections: { type: "array", items: { type: "string" }, description: `Challenge sections that informed this rating (e.g. "problem_statement", "deliverables")` },
+      },
+      required: ["rating", "justification", "evidence_sections"],
+      additionalProperties: false,
+    };
+    requiredParams.push(p.param_key);
+  }
+
+  const response = await fetch(AI_GATEWAY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: COMPLEXITY_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "assess_complexity",
+            description: "Return per-parameter complexity ratings with justifications and evidence.",
+            parameters: {
+              type: "object",
+              properties: {
+                ...paramProperties,
+                guideline_comments: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "2-4 guideline comments helping curators understand complexity drivers. Each should reference specific parameters and suggest rating ranges.",
+                },
+              },
+              required: [...requiredParams, "guideline_comments"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "assess_complexity" } },
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("RATE_LIMIT");
+    if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
+    const errText = await response.text();
+    console.error("Complexity AI gateway error:", response.status, errText);
+    throw new Error(`AI gateway error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured complexity output");
+
+  const parsed = JSON.parse(toolCall.function.arguments);
+  const now = new Date().toISOString();
+
+  // Extract guideline comments
+  const guidelineComments: string[] = Array.isArray(parsed.guideline_comments) ? parsed.guideline_comments : [];
+
+  // Extract per-parameter ratings
+  const ratings: Record<string, { rating: number; justification: string; evidence_sections: string[] }> = {};
+  for (const p of paramsData) {
+    const r = parsed[p.param_key];
+    if (r) {
+      ratings[p.param_key] = {
+        rating: Math.max(1, Math.min(10, r.rating ?? 5)),
+        justification: r.justification ?? "",
+        evidence_sections: Array.isArray(r.evidence_sections) ? r.evidence_sections : [],
+      };
+    }
+  }
+
+  return {
+    section_key: "complexity",
+    status: guidelineComments.length > 0 ? "warning" : "pass",
+    comments: guidelineComments,
+    reviewed_at: now,
+    suggested_complexity: ratings,
+  };
+}
+
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
