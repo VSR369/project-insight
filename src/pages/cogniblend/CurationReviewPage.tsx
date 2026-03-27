@@ -1688,6 +1688,42 @@ export default function CurationReviewPage() {
     });
   }, [saveSectionMutation]);
 
+  /** Custom re-review handler for complexity — calls assess-complexity instead of review-challenge-sections */
+  const handleComplexityReReview = useCallback(async (_sectionKey: string) => {
+    if (!challengeId) return;
+    const { data, error } = await supabase.functions.invoke("assess-complexity", {
+      body: { challenge_id: challengeId },
+    });
+
+    if (error || !data?.success || !data?.data?.ratings) {
+      throw new Error(data?.error?.message ?? error?.message ?? "Complexity assessment failed");
+    }
+
+    const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
+    setAiSuggestedComplexity(ratings);
+
+    // Transform into standard AI review format
+    const comments = Object.entries(ratings)
+      .filter(([, r]) => r.justification)
+      .map(([key, r]) => `${key}: ${r.justification}`);
+    const avgRating = Object.values(ratings).reduce((s, r) => s + r.rating, 0) / Math.max(Object.keys(ratings).length, 1);
+    const complexityReview: SectionReview = {
+      section_key: 'complexity',
+      status: avgRating > 0 ? 'warning' : 'pass',
+      comments,
+      addressed: false,
+    };
+    const normalized = normalizeSectionReview(complexityReview);
+    setAiReviews((prev) => {
+      const filtered = prev.filter((r) => r.section_key !== 'complexity');
+      const merged = [...filtered, normalized];
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
+      return merged;
+    });
+    const hasIssues = comments.length > 0;
+    toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
+  }, [challengeId, saveSectionMutation]);
+
   /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
     const jsonbField = EXTENDED_BRIEF_FIELD_MAP[subsectionKey];
@@ -1727,7 +1763,7 @@ export default function CurationReviewPage() {
   const handleMarkAddressed = useCallback((sectionKey: string) => {
     setAiReviews((prev) => {
       const updated = prev.map((r) =>
-        r.section_key === sectionKey ? { ...r, addressed: true } : r
+        r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
       );
       // Persist to DB so state survives navigation
       saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
@@ -2773,6 +2809,7 @@ export default function CurationReviewPage() {
                       isLockedSection={isLocked}
                       coordinatorRole={coordinatorRole}
                       hasSentBefore={hasSentBefore}
+                      onReReview={section.key === 'complexity' ? handleComplexityReReview : undefined}
                       onSendToCoordinator={isLocked ? (editedComments: string) => {
                         // Store original AI comments for audit
                         const originalAiComments = aiReview?.comments?.join("\n\n") ?? "";
