@@ -242,15 +242,22 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   }, [isValid, errors, lockRewardType, getSerializedData, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
 
 
+  // ── Ref to always hold latest getSerializedData ──
+  // Prevents stale closure in auto-save timeout
+  const getSerializedDataRef = useRef(getSerializedData);
+  useEffect(() => {
+    getSerializedDataRef.current = getSerializedData;
+  }, [getSerializedData]);
+
   // ── Auto-save effect ──
-  // Uses setTimeout to ensure React state batch (from applyAIReviewResult) has flushed
-  // before getSerializedData() reads tier/NM state.
+  // Uses ref + setTimeout to ensure React state batch (from applyAIReviewResult) has flushed
+  // and the latest serializer is called, not a stale closure.
   useEffect(() => {
     if (!pendingSave || !rewardType) return;
     setPendingSave(false);
     const timer = setTimeout(async () => {
       try {
-        const serialized = getSerializedData();
+        const serialized = getSerializedDataRef.current();
         const { error } = await supabase
           .from('challenges')
           .update({ reward_structure: serialized as unknown as Json })
@@ -263,7 +270,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       }
     }, 150);
     return () => clearTimeout(timer);
-  }, [pendingSave, rewardType, getSerializedData, challengeId, queryClient, markSaved]);
+  }, [pendingSave, rewardType, challengeId, queryClient, markSaved]);
 
   // ── AI handlers ──
   const handleAcceptAllMonetaryAI = useCallback(() => {
