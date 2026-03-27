@@ -770,7 +770,7 @@ function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
 /** Compute weighted average score from AI ratings + complexity params (matches ComplexityAssessmentModule) */
 function computeWeightedComplexityScore(
   ratings: Record<string, { rating: number; justification: string }>,
-  complexityParams: ComplexityParam[]
+  complexityParams: MasterComplexityParam[]
 ): number {
   const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
   if (totalWeight > 0) {
@@ -800,7 +800,7 @@ function deriveComplexityLevel(score: number): string {
 /** Build a human-readable markdown summary from AI complexity ratings (weighted) */
 function buildComplexitySuggestionMd(
   ratings: Record<string, { rating: number; justification: string }>,
-  complexityParams: ComplexityParam[]
+  complexityParams: MasterComplexityParam[]
 ): string {
   const ws = computeWeightedComplexityScore(ratings, complexityParams);
   const score = ws.toFixed(2);
