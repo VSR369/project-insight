@@ -380,6 +380,12 @@ export function AIReviewInline({
     if (!challengeId) return;
     setIsReReviewing(true);
     try {
+      // Delegate to custom re-review handler if provided (e.g. complexity uses assess-complexity)
+      if (onReReview) {
+        await onReReview(sectionKey);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
         body: { challenge_id: challengeId, section_key: sectionKey, role_context: roleContext },
       });
@@ -408,7 +414,7 @@ export function AIReviewInline({
     } finally {
       setIsReReviewing(false);
     }
-  }, [challengeId, sectionKey, roleContext, onSingleSectionReview]);
+  }, [challengeId, sectionKey, roleContext, onSingleSectionReview, onReReview]);
 
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;
