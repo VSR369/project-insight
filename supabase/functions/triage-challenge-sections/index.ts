@@ -24,6 +24,43 @@ const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const BATCH_SIZE = 4;
 
+/** Section-specific triage instructions — transforms the AI into a domain specialist */
+const SECTION_TRIAGE_INSTRUCTIONS: Record<string, string> = {
+  reward_structure: `
+For the reward_structure section, evaluate as a REWARD DESIGN SPECIALIST, not a format checker.
+Your comments must be curator-friendly recommendations, NOT technical or structural.
+
+Evaluate against these principles:
+1. BIG-4 BENCHMARK: Is the total prize pool reasonable compared to what Big-4 consulting
+   firms (McKinsey, BCG, Deloitte, Bain) would charge for equivalent scope?
+   Target approximately 50% of Big-4 rates. Comment if the pool seems too low or too high.
+2. MATURITY ALIGNMENT: Does the prize amount match the maturity stage?
+   Blueprint=$15K-$75K, POC=$30K-$150K, Prototype=$50K-$200K, Pilot=$75K-$300K.
+3. SOLVER ATTRACTION: Will this reward structure attract the right quality of solution
+   providers? Explain why or why not based on the domain and complexity.
+4. TIER STRUCTURE: Is the tier distribution (Platinum/Gold/Silver) appropriate for the
+   pool size? Are there too many or too few tiers?
+5. NON-MONETARY VALUE: Are non-monetary items domain-relevant and genuinely attractive
+   to top-tier solvers, or are they generic (certificates, trophies)?
+
+Frame every issue as a professional recommendation, e.g.:
+- "Consider increasing the prize pool to $X-$Y range — for a [maturity] challenge of this
+  complexity, Big-4 firms would charge $Z, and 50% benchmark suggests at least $W."
+- "The current non-monetary rewards are generic. For [domain], consider [specific items]
+  to attract specialized solvers."
+
+NEVER produce technical comments like "provide JSON", "missing field", or reference
+internal data formats, L4 ratings, or Budget Scale parameters.`,
+};
+
+/** Count deliverables from challenge data */
+function countDeliverables(deliverables: any): number {
+  if (!deliverables) return 0;
+  if (Array.isArray(deliverables)) return deliverables.length;
+  if (typeof deliverables === 'object' && deliverables.items) return deliverables.items.length;
+  return 0;
+}
+
 const TRIAGE_SYSTEM_PROMPT = `You are a curator review assistant.
 
 Analyze each section and return ONLY a JSON array. No explanations.
@@ -94,12 +131,28 @@ function buildTriageUserPrompt(
 ): string {
   const parts: string[] = ["Sections to triage:\n"];
 
+  // Inject challenge context when reward_structure is in the batch
+  if (sectionKeys.includes('reward_structure')) {
+    parts.push(`Challenge Context for Reward Evaluation:`);
+    parts.push(`- Maturity: ${challengeData.maturity_level || 'not set'}`);
+    parts.push(`- Complexity: ${challengeData.complexity_level || 'not set'}`);
+    parts.push(`- Effort: ${challengeData.effort_level || 'not set'}`);
+    parts.push(`- Domains: ${JSON.stringify(challengeData.domain_tags || [])}`);
+    parts.push(`- Deliverables count: ${countDeliverables(challengeData.deliverables)}`);
+    parts.push(`- Problem summary: ${(challengeData.problem_statement || '').slice(0, 200)}\n`);
+  }
+
   for (const key of sectionKeys) {
     let content = extractSectionContent(key, challengeData);
     if (content && content.length > 500) {
       content = content.substring(0, 497) + "...";
     }
     parts.push(`[${key}]: ${content || "[empty]"}`);
+
+    // Append specialist instructions for specific sections
+    if (SECTION_TRIAGE_INSTRUCTIONS[key]) {
+      parts.push(SECTION_TRIAGE_INSTRUCTIONS[key]);
+    }
   }
 
   return parts.join("\n");
