@@ -344,6 +344,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       onAcceptAllAI={disabled ? undefined : handleAcceptAllNMAI}
       onReviewWithAI={onReviewWithAI && !disabled ? handleReviewNonMonetary : undefined}
       aiLoading={aiLoading}
+      hasBeenReviewed={hasBeenReviewed}
     />
   );
 
