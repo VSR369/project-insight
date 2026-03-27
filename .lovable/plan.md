@@ -1,64 +1,56 @@
 
 
-# Fix: AI Reward Review — Include Non-Monetary Suggestions
+# Fix: Reward AI Suggested Version Rendering + Non-Monetary Content
 
-## Current State
+## Problem 1 — Distorted rendering
 
-**"Review Sections by AI" does cover `reward_structure`** — it's listed in the triage function's 26-section curation list. So triage (Phase 1) runs on it, and Phase 2 refinement triggers for warning/needs_revision results.
-
-**No sections are left out** — the triage covers: problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, **reward_structure**, phase_schedule, submission_guidelines, eligibility, complexity, ip_model, legal_docs, escrow_funding, maturity_level, hook, submission_deadline, challenge_visibility, effort_level, domain_tags, visibility, solver_expertise, context_and_background, root_causes, affected_stakeholders, current_deficiencies, preferred_approach, approaches_not_of_interest (26 sections).
-
-**The real bug**: The refine edge function's `FORMAT_INSTRUCTIONS` for `reward_structure` (line 298) instructs the AI to return **only** a flat table of monetary prize tiers:
-
-```
-Return ONLY a valid JSON array of row objects with keys:
-"prize_tier", "amount", "currency", "payment_trigger"
+The AI now returns a structured JSON object for `reward_structure`:
+```json
+{"type":"both","monetary":{"tiers":{"platinum":1000,...}},"nonMonetary":{"items":[...]}}
 ```
 
-This produces the constant "1st Place / 2nd Place / 3rd Place" table you see in the screenshot. It has **no instruction** to include non-monetary rewards or a recommended reward type.
+But `AIReviewResultPanel` still treats `reward_structure` as format `table` and tries `parseTableRows()`, which expects an array. The object fails that check → returns `null` → the JSON string falls through to the `rich_text` or `line_items` renderer → each JSON line becomes a separate editable row (the distortion in the screenshot).
 
-Meanwhile, `applyAIReviewResult` in `useRewardStructureState.ts` already supports parsing `{ monetary: { tiers }, nonMonetary: { items }, type }` — but the edge function never produces that structure.
+## Problem 2 — Non-monetary content missing from AI
 
-## Fix — Two Files
+The edge function prompt now asks for both monetary and non-monetary, but the current reward data sent to the AI (in `CurationReviewPage.tsx`) may only serialize monetary tier data. The AI has no context about non-monetary items, so it defaults to generic or monetary-only suggestions.
 
-### 1. Edge Function: `supabase/functions/refine-challenge-section/index.ts` (line 298)
+## Fix Plan
 
-Replace the `reward_structure` format instruction to demand a structured JSON object containing both monetary and non-monetary:
+### 1. Custom renderer for `reward_structure` in `AIReviewResultPanel.tsx`
 
-```
-CRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with this structure:
-{
-  "type": "monetary" | "non_monetary" | "both",
-  "monetary": {
-    "tiers": { "platinum": <amount>, "gold": <amount>, "silver": <amount> },
-    "currency": "<ISO code>",
-    "justification": "<1-2 sentences explaining the tier split>"
-  },
-  "nonMonetary": {
-    "items": ["<unique/innovative item 1>", "<unique/innovative item 2>", ...]
-  }
-}
-Rules:
-- Suggest 1-3 tiers based on challenge budget and complexity
-- Tier amounts MUST sum to the total reward pool
-- Non-monetary items MUST be innovative and domain-relevant (NOT generic certificates)
-- If challenge context suggests non-monetary only, set type to "non_monetary" and omit monetary
-- If both are appropriate, set type to "both"
-```
+Instead of routing through the generic `table` renderer, add a dedicated `reward_structure` rendering branch that:
 
-### 2. Frontend: `src/hooks/useRewardStructureState.ts` — `applyAIReviewResult`
+- Parses the structured `{type, monetary, nonMonetary}` object
+- Renders a clean card layout:
+  - **Type badge**: "Monetary", "Non-Monetary", or "Both"
+  - **Monetary section**: Tier cards showing Platinum/Gold/Silver amounts + currency + justification
+  - **Non-monetary section**: Bullet list of suggested items
+- Falls back to the old table renderer if the AI returns legacy flat-array format
 
-Already handles the `{ monetary, nonMonetary, type }` shape. Minor update needed: if the AI returns the old flat array format (backward compat), detect it and wrap into the expected structure.
+Changes:
+- Add `rewardData` memo that detects and parses the new format (before `tableRows`)
+- Add a new rendering branch before the `tableRows` branch in the JSX
+- The "Accept" button will pass the parsed structured object (not the raw string)
 
-### 3. Frontend: `src/pages/cogniblend/CurationReviewPage.tsx` — `handleAcceptRefinement`
+### 2. Update `curationSectionFormats.ts`
 
-The reward_structure branch at line 1544 calls `rewardStructureRef.current?.applyAIReviewResult(valueToSave)`. If the AI returns the new object format, it flows through correctly. Add a guard: if `valueToSave` is an array (old format), wrap it as `{ monetary: { tiers: ... }, type: 'monetary' }`.
+Change `reward_structure` format from `'table'` to `'custom'` so it doesn't trigger generic table parsing.
 
-## Files Summary
+### 3. Pass current NM items to AI context in `CurationReviewPage.tsx`
+
+Ensure the reward section data sent to the refine edge function includes any existing non-monetary items, so the AI can build on them.
+
+### 4. Update edge function prompt context
+
+In `refine-challenge-section/index.ts`, ensure the `reward_structure` section prompt includes context about the current reward type selection and any existing non-monetary items, so the AI generates appropriate NM suggestions.
+
+## Files
 
 | File | Change |
 |------|--------|
-| `supabase/functions/refine-challenge-section/index.ts` | Update FORMAT_INSTRUCTIONS for `reward_structure` to demand structured JSON with both monetary tiers + NM items |
-| `src/hooks/useRewardStructureState.ts` | Add backward-compat guard for old flat-array AI responses |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Add array-to-object wrapping guard for old-format AI reward responses |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Add `reward_structure` custom renderer branch with tier cards + NM item list |
+| `src/lib/cogniblend/curationSectionFormats.ts` | Change `reward_structure` format to `'custom'` |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Include NM items in reward section data sent to AI |
+| `supabase/functions/refine-challenge-section/index.ts` | Ensure prompt includes existing NM items context |
 
