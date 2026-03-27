@@ -365,9 +365,9 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       items={nmItems}
       errors={showErrors ? nmErrors : []}
       disabled={disabled}
-      onAddItem={disabled ? () => {} : addNMItem}
-      onUpdateItem={disabled ? () => {} : updateNMItem}
-      onDeleteItem={disabled ? () => {} : deleteNMItem}
+      onAddItem={disabled ? () => {} : handleAddNMItem}
+      onUpdateItem={disabled ? () => {} : handleUpdateNMItem}
+      onDeleteItem={disabled ? () => {} : handleDeleteNMItem}
       onAcceptAISuggestion={disabled ? undefined : (id) => acceptAINMSuggestion(id)}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllNMAI}
     />
