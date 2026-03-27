@@ -1,20 +1,20 @@
 /**
- * ComplexityAssessmentModule — Standalone complexity assessment with override toggle.
+ * ComplexityAssessmentModule — Complexity assessment with override toggle.
  *
- * Default: read-only display of AI-generated parameters + Final Complexity Score badge.
- * "Assess by AI" button: calls the assess-complexity edge function for content-aware ratings.
+ * Default: read-only display of parameters + Final Complexity Score badge.
  * Override toggle: unlocks sliders for manual adjustment with real-time recalculation.
  * Quick-select: L1–L5 buttons always available for instant level override.
+ *
+ * AI assessment is now handled by the unified AI Review flow in CurationReviewPage.
+ * When accepted, aiSuggestedRatings are applied via onAcceptAISuggestion callback.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Save, X, Bot, Loader2, Pencil } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Save, X, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
 
@@ -51,7 +51,7 @@ const LEVEL_COLORS: Record<string, string> = {
 /* ─── Props ─── */
 
 export interface ComplexityAssessmentModuleProps {
-  /** Challenge ID for AI assessment */
+  /** Challenge ID */
   challengeId: string;
   /** Current complexity_score from the challenge record */
   currentScore: number | null;
@@ -65,6 +65,8 @@ export interface ComplexityAssessmentModuleProps {
   onSave: (params: Record<string, number>, score: number, level: string) => void;
   /** Whether a save is in progress */
   saving: boolean;
+  /** AI-suggested ratings from the unified AI review flow (set when AI review runs for complexity) */
+  aiSuggestedRatings?: Record<string, { rating: number; justification: string }> | null;
 }
 
 export function ComplexityAssessmentModule({
@@ -75,20 +77,45 @@ export function ComplexityAssessmentModule({
   complexityParams,
   onSave,
   saving,
+  aiSuggestedRatings,
 }: ComplexityAssessmentModuleProps) {
   // ══════ State ══════
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [draft, setDraft] = useState<Record<string, number>>(() =>
     buildDraftFromExisting(currentParams, complexityParams),
   );
-  const [aiAssessing, setAiAssessing] = useState(false);
   const [aiJustifications, setAiJustifications] = useState<Record<string, string>>({});
   const [paramSources, setParamSources] = useState<Record<string, 'ai' | 'curator' | 'default'>>(() => {
-    // If we have existing params, mark them as default initially
     const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
     complexityParams.forEach((p) => { sources[p.param_key] = 'default'; });
     return sources;
   });
+
+  // ══════ Apply AI suggested ratings when they come in from the parent ══════
+  useEffect(() => {
+    if (!aiSuggestedRatings || Object.keys(aiSuggestedRatings).length === 0) return;
+
+    const newDraft: Record<string, number> = {};
+    const justifications: Record<string, string> = {};
+    const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+
+    complexityParams.forEach((p) => {
+      const r = aiSuggestedRatings[p.param_key];
+      if (r && typeof r.rating === "number") {
+        newDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
+        if (r.justification) justifications[p.param_key] = r.justification;
+        sources[p.param_key] = 'ai';
+      } else {
+        newDraft[p.param_key] = draft[p.param_key] ?? 5;
+        sources[p.param_key] = paramSources[p.param_key] ?? 'default';
+      }
+    });
+
+    setDraft(newDraft);
+    setAiJustifications(justifications);
+    setParamSources(sources);
+    setOverrideEnabled(true);
+  }, [aiSuggestedRatings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ══════ Derived score (real-time recalc) ══════
   const { weightedScore, derivedLevel, derivedLabel } = useMemo(() => {
@@ -110,67 +137,6 @@ export function ComplexityAssessmentModule({
   const displayLevel = overrideEnabled ? derivedLevel : (currentLevel ?? derivedLevel);
   const displayLabel = overrideEnabled ? derivedLabel : deriveComplexityLabel(displayScore);
   const levelColor = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L3;
-
-  // ══════ AI Assessment ══════
-  const handleAIAssess = useCallback(async () => {
-    setAiAssessing(true);
-    setAiJustifications({});
-    try {
-      const { data, error } = await supabase.functions.invoke("assess-complexity", {
-        body: { challenge_id: challengeId },
-      });
-
-      if (error) {
-        const msg = error.message || "AI assessment failed";
-        toast.error(msg);
-        return;
-      }
-
-      if (!data?.success || !data?.data?.ratings) {
-        const errMsg = data?.error?.message || "AI did not return valid ratings";
-        toast.error(errMsg);
-        return;
-      }
-
-      const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
-      const newDraft: Record<string, number> = {};
-      const justifications: Record<string, string> = {};
-
-      complexityParams.forEach((p) => {
-        const r = ratings[p.param_key];
-        if (r && typeof r.rating === "number") {
-          newDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
-          if (r.justification) justifications[p.param_key] = r.justification;
-        } else {
-          newDraft[p.param_key] = draft[p.param_key] ?? 5;
-        }
-      });
-
-      setDraft(newDraft);
-      setAiJustifications(justifications);
-      // Mark all params as AI-sourced
-      const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
-      complexityParams.forEach((p) => { sources[p.param_key] = 'ai'; });
-      setParamSources(sources);
-      setOverrideEnabled(true); // show sliders so curator can review/adjust
-
-      // Auto-save the AI assessment
-      const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-      const ws = totalWeight > 0
-        ? complexityParams.reduce((s, p) => s + (newDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
-        : 5;
-      const score = Math.round(ws * 100) / 100;
-      const level = deriveComplexityLevel(score);
-      onSave(newDraft, score, level);
-
-      toast.success("AI complexity assessment complete — review the ratings below");
-    } catch (err) {
-      console.error("AI assess error:", err);
-      toast.error("Failed to run AI assessment");
-    } finally {
-      setAiAssessing(false);
-    }
-  }, [challengeId, complexityParams, draft, onSave]);
 
   // ══════ Handlers ══════
   const handleSliderChange = useCallback((paramKey: string, val: number) => {
@@ -266,25 +232,10 @@ export function ComplexityAssessmentModule({
         </Badge>
       </div>
 
-      {/* ── AI Assess + Quick Override Buttons ── */}
+      {/* ── Quick Override Buttons ── */}
       <div className="space-y-2">
         <div className="flex items-center gap-3 flex-wrap">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-            disabled={aiAssessing || saving}
-            onClick={handleAIAssess}
-          >
-            {aiAssessing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Bot className="h-3.5 w-3.5" />
-            )}
-            {aiAssessing ? "Assessing…" : "Assess by AI"}
-          </Button>
-          <span className="text-[10px] text-muted-foreground">or quick select:</span>
+          <span className="text-[10px] text-muted-foreground">Quick select:</span>
           {COMPLEXITY_THRESHOLDS.map((t) => {
             const isActive = displayLevel === t.level;
             return (
@@ -294,7 +245,7 @@ export function ComplexityAssessmentModule({
                 size="sm"
                 variant={isActive ? "default" : "outline"}
                 className="text-xs h-7 px-2"
-                disabled={saving || aiAssessing}
+                disabled={saving}
                 onClick={() => handleQuickSelect(t)}
               >
                 {t.level}
@@ -304,16 +255,16 @@ export function ComplexityAssessmentModule({
         </div>
       </div>
 
-      {/* ── Override AI Assessment Toggle ── */}
+      {/* ── Override Assessment Toggle ── */}
       <div className="flex items-center gap-3 border-t border-border pt-3">
         <Switch
           id="override-complexity"
           checked={overrideEnabled}
           onCheckedChange={handleToggleOverride}
-          disabled={saving || aiAssessing}
+          disabled={saving}
         />
         <label htmlFor="override-complexity" className="text-sm font-medium text-foreground cursor-pointer">
-          Override AI Assessment
+          Override Assessment
         </label>
       </div>
 
@@ -356,7 +307,7 @@ export function ComplexityAssessmentModule({
                     max={10}
                     step={1}
                     className="w-full"
-                    disabled={saving || aiAssessing}
+                    disabled={saving}
                   />
                   <div className="flex justify-between text-[10px] text-muted-foreground">
                     <span>Low (1)</span>
@@ -400,10 +351,10 @@ export function ComplexityAssessmentModule({
       {/* ── Save / Cancel (only when override is on) ── */}
       {overrideEnabled && (
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving || aiAssessing}>
+          <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
             <X className="h-3.5 w-3.5 mr-1" />Cancel
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving || aiAssessing}>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
             <Save className="h-3.5 w-3.5 mr-1" />{saving ? "Saving…" : "Save"}
           </Button>
         </div>
