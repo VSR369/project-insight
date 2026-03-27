@@ -4,7 +4,7 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { TierState } from '@/hooks/useRewardStructureState';
@@ -34,6 +34,7 @@ interface MonetaryRewardEditorProps {
   aiLoading?: boolean;
   hasAISuggestions?: boolean;
   aiRationale?: string;
+  hasBeenReviewed?: boolean;
 }
 
 export default function MonetaryRewardEditor({
@@ -52,6 +53,7 @@ export default function MonetaryRewardEditor({
   aiLoading = false,
   hasAISuggestions = false,
   aiRationale,
+  hasBeenReviewed = false,
 }: MonetaryRewardEditorProps) {
   const currSym = CURRENCY_SYMBOLS[currency] ?? '$';
 
@@ -142,10 +144,12 @@ export default function MonetaryRewardEditor({
           >
             {aiLoading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
+            ) : hasBeenReviewed ? (
+              <RefreshCw className="h-3 w-3" />
             ) : (
               <Sparkles className="h-3 w-3" />
             )}
-            Review with AI
+            {hasBeenReviewed ? 'Re-review with AI' : 'Review with AI'}
           </Button>
         </div>
       )}
