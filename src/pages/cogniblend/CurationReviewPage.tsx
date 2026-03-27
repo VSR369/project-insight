@@ -1223,14 +1223,19 @@ export default function CurationReviewPage() {
     paramValues: Record<string, number>,
     score: number,
     level: string,
+    assessmentMode?: string,
   ) => {
     setSavingSection(true);
-    const params = complexityParams.map((p) => ({
+    const params: any[] = complexityParams.map((p) => ({
       param_key: p.param_key,
       name: p.name,
       value: paramValues[p.param_key] ?? 5,
       weight: p.weight,
     }));
+    // Persist assessment mode as metadata entry
+    if (assessmentMode) {
+      params.push({ _meta: { mode: assessmentMode } });
+    }
     const updates = {
       complexity_parameters: params,
       complexity_score: score,

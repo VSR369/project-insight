@@ -1,12 +1,12 @@
 /**
- * ComplexityAssessmentModule — Complexity assessment with override toggle.
+ * ComplexityAssessmentModule — 3-mode complexity assessment state machine.
  *
- * Default: read-only display of parameters + Final Complexity Score badge.
- * Override toggle: unlocks sliders for manual adjustment with real-time recalculation.
- * Quick-select: L1–L5 buttons always available for instant level override.
+ * Modes:
+ *   AI_AUTO        — read-only display of AI-generated or stored ratings
+ *   MANUAL_PARAMS  — sliders unlocked, live weighted score recalculation
+ *   QUICK_OVERRIDE — level fixed to user-selected L1–L5, sliders read-only
  *
- * AI assessment is now handled by the unified AI Review flow in CurationReviewPage.
- * When accepted, aiSuggestedRatings are applied via onAcceptAISuggestion callback.
+ * Switching from AI_AUTO to any override mode requires confirmation dialog.
  */
 
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -14,9 +14,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Save, X, Pencil } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { Save, X, Pencil, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
+
+/* ─── Types ─── */
+
+export type AssessmentMode = "AI_AUTO" | "MANUAL_PARAMS" | "QUICK_OVERRIDE";
 
 /* ─── Thresholds & derivation helpers ─── */
 
@@ -38,6 +52,10 @@ function deriveComplexityLabel(score: number): string {
   return match?.label ?? "Very High";
 }
 
+function getLabelForLevel(level: string): string {
+  return COMPLEXITY_THRESHOLDS.find((t) => t.level === level)?.label ?? "Unknown";
+}
+
 /* ─── Level badge color mapping ─── */
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -51,21 +69,14 @@ const LEVEL_COLORS: Record<string, string> = {
 /* ─── Props ─── */
 
 export interface ComplexityAssessmentModuleProps {
-  /** Challenge ID */
   challengeId: string;
-  /** Current complexity_score from the challenge record */
   currentScore: number | null;
-  /** Current complexity_level from the challenge record */
   currentLevel: string | null;
-  /** Current complexity_parameters (parsed JSON array) */
   currentParams: { param_key?: string; key?: string; name?: string; value?: number; score?: number }[] | null;
-  /** Master complexity params from useComplexityParams() */
   complexityParams: ComplexityParam[];
-  /** Callback to persist changes */
-  onSave: (params: Record<string, number>, score: number, level: string) => void;
-  /** Whether a save is in progress */
+  /** Extended to accept optional mode for DB persistence */
+  onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode) => void;
   saving: boolean;
-  /** AI-suggested ratings from the unified AI review flow (set when AI review runs for complexity) */
   aiSuggestedRatings?: Record<string, { rating: number; justification: string }> | null;
 }
 
@@ -79,42 +90,67 @@ export function ComplexityAssessmentModule({
   saving,
   aiSuggestedRatings,
 }: ComplexityAssessmentModuleProps) {
-  // ══════ State ══════
-  const [overrideEnabled, setOverrideEnabled] = useState(false);
+  // ══════ Section 1: useState hooks ══════
+  const [mode, setMode] = useState<AssessmentMode>(() => {
+    // Restore mode from stored params metadata if available
+    if (Array.isArray(currentParams)) {
+      const meta = (currentParams as any)?._meta ?? (currentParams as any[]).find?.((p: any) => p._meta)?._meta;
+      if (meta?.mode && ["AI_AUTO", "MANUAL_PARAMS", "QUICK_OVERRIDE"].includes(meta.mode)) {
+        return meta.mode as AssessmentMode;
+      }
+    }
+    return "AI_AUTO";
+  });
+
+  const [pendingMode, setPendingMode] = useState<AssessmentMode | null>(null);
+  const [pendingQuickLevel, setPendingQuickLevel] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
   const [draft, setDraft] = useState<Record<string, number>>(() =>
     buildDraftFromExisting(currentParams, complexityParams),
   );
+
+  const [overrideLevel, setOverrideLevel] = useState<string | null>(() => {
+    // If stored mode was QUICK_OVERRIDE, restore the level
+    if (currentLevel && mode === "QUICK_OVERRIDE") return currentLevel;
+    return null;
+  });
+
   const [aiJustifications, setAiJustifications] = useState<Record<string, string>>({});
-  const [paramSources, setParamSources] = useState<Record<string, 'ai' | 'curator' | 'default'>>(() => {
-    const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
-    complexityParams.forEach((p) => { sources[p.param_key] = 'default'; });
+  const [paramSources, setParamSources] = useState<Record<string, "ai" | "curator" | "default">>(() => {
+    const sources: Record<string, "ai" | "curator" | "default"> = {};
+    complexityParams.forEach((p) => { sources[p.param_key] = "default"; });
     return sources;
   });
 
-  // ══════ Apply AI suggested ratings when they come in from the parent ══════
+  // ══════ Section 5: useEffect hooks ══════
+
+  // Apply AI suggested ratings when they come in from the parent
   useEffect(() => {
     if (!aiSuggestedRatings || Object.keys(aiSuggestedRatings).length === 0) return;
 
     const newDraft: Record<string, number> = {};
     const justifications: Record<string, string> = {};
-    const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
+    const sources: Record<string, "ai" | "curator" | "default"> = {};
 
     complexityParams.forEach((p) => {
       const r = aiSuggestedRatings[p.param_key];
       if (r && typeof r.rating === "number") {
         newDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
         if (r.justification) justifications[p.param_key] = r.justification;
-        sources[p.param_key] = 'ai';
+        sources[p.param_key] = "ai";
       } else {
         newDraft[p.param_key] = draft[p.param_key] ?? 5;
-        sources[p.param_key] = paramSources[p.param_key] ?? 'default';
+        sources[p.param_key] = paramSources[p.param_key] ?? "default";
       }
     });
 
     setDraft(newDraft);
     setAiJustifications(justifications);
     setParamSources(sources);
-    setOverrideEnabled(true);
+    // AI ratings arrive → stay in AI_AUTO mode (read-only review)
+    setMode("AI_AUTO");
+    setOverrideLevel(null);
   }, [aiSuggestedRatings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ══════ Derived score (real-time recalc) ══════
@@ -132,97 +168,133 @@ export function ComplexityAssessmentModule({
     };
   }, [draft, complexityParams]);
 
-  // Display score: when override is active show live calculation, else show stored value
-  const displayScore = overrideEnabled ? weightedScore : (currentScore ?? weightedScore);
-  const displayLevel = overrideEnabled ? derivedLevel : (currentLevel ?? derivedLevel);
-  const displayLabel = overrideEnabled ? derivedLabel : deriveComplexityLabel(displayScore);
+  // Display values based on mode
+  const displayScore = mode === "AI_AUTO" ? (currentScore ?? weightedScore) : weightedScore;
+  const displayLevel = mode === "QUICK_OVERRIDE" && overrideLevel
+    ? overrideLevel
+    : mode === "AI_AUTO"
+      ? (currentLevel ?? derivedLevel)
+      : derivedLevel;
+  const displayLabel = mode === "QUICK_OVERRIDE" && overrideLevel
+    ? getLabelForLevel(overrideLevel)
+    : mode === "AI_AUTO"
+      ? deriveComplexityLabel(currentScore ?? weightedScore)
+      : derivedLabel;
   const levelColor = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L3;
 
-  // ══════ Handlers ══════
-  const handleSliderChange = useCallback((paramKey: string, val: number) => {
-    setDraft((prev) => ({ ...prev, [paramKey]: val }));
-    setParamSources((prev) => ({ ...prev, [paramKey]: 'curator' }));
+  const isOverrideMode = mode !== "AI_AUTO";
+  const slidersInteractive = mode === "MANUAL_PARAMS";
+
+  // ══════ Section 7: Event handlers ══════
+
+  /** Request to enter an override mode — gates behind confirmation if currently AI_AUTO */
+  const requestModeChange = useCallback((targetMode: AssessmentMode, quickLevel?: string) => {
+    if (mode === "AI_AUTO") {
+      // Gate behind confirmation dialog
+      setPendingMode(targetMode);
+      setPendingQuickLevel(quickLevel ?? null);
+      setShowConfirmDialog(true);
+    } else {
+      // Already in override — switch freely
+      setMode(targetMode);
+      if (targetMode === "QUICK_OVERRIDE" && quickLevel) {
+        setOverrideLevel(quickLevel);
+      }
+    }
+  }, [mode]);
+
+  const handleConfirmOverride = useCallback(() => {
+    if (!pendingMode) return;
+    setMode(pendingMode);
+    if (pendingMode === "QUICK_OVERRIDE" && pendingQuickLevel) {
+      setOverrideLevel(pendingQuickLevel);
+    }
+    if (pendingMode === "MANUAL_PARAMS") {
+      setDraft(buildDraftFromExisting(currentParams, complexityParams));
+    }
+    setPendingMode(null);
+    setPendingQuickLevel(null);
+    setShowConfirmDialog(false);
+  }, [pendingMode, pendingQuickLevel, currentParams, complexityParams]);
+
+  const handleCancelOverride = useCallback(() => {
+    setPendingMode(null);
+    setPendingQuickLevel(null);
+    setShowConfirmDialog(false);
   }, []);
 
-  const handleQuickSelect = useCallback(
-    (threshold: (typeof COMPLEXITY_THRESHOLDS)[number]) => {
-      const targetScore = (threshold.min + threshold.max) / 2;
-      const newDraft: Record<string, number> = {};
+  const handleSliderChange = useCallback((paramKey: string, val: number) => {
+    setDraft((prev) => ({ ...prev, [paramKey]: val }));
+    setParamSources((prev) => ({ ...prev, [paramKey]: "curator" }));
+  }, []);
 
-      // Use existing AI ratings as shape if available — scale proportionally
-      const hasAIRatings = Object.keys(aiJustifications).length > 0;
+  const handleQuickSelect = useCallback((threshold: (typeof COMPLEXITY_THRESHOLDS)[number]) => {
+    if (mode === "AI_AUTO") {
+      requestModeChange("QUICK_OVERRIDE", threshold.level);
+    } else {
+      // Already in override mode — just set the level
+      setMode("QUICK_OVERRIDE");
+      setOverrideLevel(threshold.level);
+    }
+  }, [mode, requestModeChange]);
 
-      if (hasAIRatings) {
-        const currentAvg = complexityParams.reduce((s, p) => s + (draft[p.param_key] ?? 5), 0) / complexityParams.length;
-        const scaleFactor = currentAvg > 0 ? targetScore / currentAvg : 1;
-        complexityParams.forEach((p) => {
-          const scaled = Math.round((draft[p.param_key] ?? 5) * scaleFactor);
-          newDraft[p.param_key] = Math.max(1, Math.min(10, scaled));
-        });
-      } else {
-        // No AI data — use parameter weights to create variance
-        const weights = complexityParams.map((p) => p.weight);
-        const maxW = Math.max(...weights);
-        const minW = Math.min(...weights);
-        const range = maxW - minW || 1;
-
-        complexityParams.forEach((p) => {
-          const weightRank = (p.weight - minW) / range; // 0..1
-          const offset = (weightRank - 0.5) * 3; // -1.5 to +1.5
-          const value = Math.round(targetScore + offset);
-          newDraft[p.param_key] = Math.max(1, Math.min(10, value));
-        });
-      }
-
-      setDraft(newDraft);
+  const handleToggleOverride = useCallback((checked: boolean) => {
+    if (checked) {
+      requestModeChange("MANUAL_PARAMS");
+    } else {
+      // Turning off override → revert to AI_AUTO
+      setMode("AI_AUTO");
+      setDraft(buildDraftFromExisting(currentParams, complexityParams));
+      setOverrideLevel(null);
       setAiJustifications({});
-      // Mark all as curator-sourced (manual quick-select)
-      const sources: Record<string, 'ai' | 'curator' | 'default'> = {};
-      complexityParams.forEach((p) => { sources[p.param_key] = 'curator'; });
-      setParamSources(sources);
-
-      // Save immediately
-      const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-      const ws = totalWeight > 0
-        ? complexityParams.reduce((s, p) => s + (newDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
-        : 5;
-      const score = Math.round(ws * 100) / 100;
-      onSave(newDraft, score, threshold.level);
-    },
-    [complexityParams, draft, aiJustifications, onSave],
-  );
+    }
+  }, [requestModeChange, currentParams, complexityParams]);
 
   const handleSave = useCallback(() => {
-    onSave(draft, weightedScore, derivedLevel);
+    const finalLevel = mode === "QUICK_OVERRIDE" && overrideLevel ? overrideLevel : derivedLevel;
+    onSave(draft, weightedScore, finalLevel, mode);
     setAiJustifications({});
-  }, [draft, weightedScore, derivedLevel, onSave]);
+  }, [draft, weightedScore, derivedLevel, onSave, mode, overrideLevel]);
 
   const handleCancel = useCallback(() => {
     setDraft(buildDraftFromExisting(currentParams, complexityParams));
-    setOverrideEnabled(false);
+    setMode("AI_AUTO");
+    setOverrideLevel(null);
     setAiJustifications({});
   }, [currentParams, complexityParams]);
 
-  const handleToggleOverride = useCallback(
-    (checked: boolean) => {
-      setOverrideEnabled(checked);
-      if (checked) {
-        setDraft(buildDraftFromExisting(currentParams, complexityParams));
-      } else {
-        setAiJustifications({});
-      }
-    },
-    [currentParams, complexityParams],
-  );
-
-  // ══════ Empty state ══════
+  // ══════ Section 6: Conditional returns ══════
   if (complexityParams.length === 0) {
     return <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>;
   }
 
-  // ══════ Render ══════
+  // ══════ Section 8: Render ══════
   return (
     <div className="space-y-4">
+      {/* ── Confirmation Dialog ── */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              Override AI Assessment?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to override the AI-generated complexity assessment.
+              {pendingMode === "MANUAL_PARAMS"
+                ? " You will be able to manually adjust each parameter slider."
+                : ` The complexity level will be set to ${pendingQuickLevel ?? "your selection"}, disconnected from the calculated score.`}
+              <br /><br />
+              Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelOverride}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmOverride}>Confirm Override</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── Final Complexity Score Badge ── */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm font-medium text-foreground">Final Complexity Score:</span>
@@ -230,9 +302,19 @@ export function ComplexityAssessmentModule({
         <Badge className={`text-xs border ${levelColor}`}>
           {displayLevel} — {displayLabel}
         </Badge>
+        {mode === "QUICK_OVERRIDE" && (
+          <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600">
+            Level Override
+          </Badge>
+        )}
+        {mode === "MANUAL_PARAMS" && (
+          <Badge variant="outline" className="text-[10px] border-blue-300 text-blue-600">
+            Manual Override
+          </Badge>
+        )}
       </div>
 
-      {/* ── Quick Override Buttons ── */}
+      {/* ── Quick Select Buttons ── */}
       <div className="space-y-2">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-[10px] text-muted-foreground">Quick select:</span>
@@ -259,13 +341,18 @@ export function ComplexityAssessmentModule({
       <div className="flex items-center gap-3 border-t border-border pt-3">
         <Switch
           id="override-complexity"
-          checked={overrideEnabled}
+          checked={isOverrideMode}
           onCheckedChange={handleToggleOverride}
           disabled={saving}
         />
         <label htmlFor="override-complexity" className="text-sm font-medium text-foreground cursor-pointer">
           Override Assessment
         </label>
+        {isOverrideMode && (
+          <span className="text-[10px] text-muted-foreground">
+            Mode: {mode === "MANUAL_PARAMS" ? "Manual Parameters" : "Quick Override"}
+          </span>
+        )}
       </div>
 
       {/* ── Parameter Sliders / Read-only bars ── */}
@@ -280,12 +367,12 @@ export function ComplexityAssessmentModule({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <label className="text-sm font-medium text-foreground">{param.name}</label>
-                  {paramSources[param.param_key] === 'ai' && (
+                  {paramSources[param.param_key] === "ai" && (
                     <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">
                       AI
                     </span>
                   )}
-                  {paramSources[param.param_key] === 'curator' && (
+                  {paramSources[param.param_key] === "curator" && (
                     <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-amber-50 text-amber-600 border-amber-200">
                       <Pencil className="h-2 w-2" />
                       Curator
@@ -298,7 +385,7 @@ export function ComplexityAssessmentModule({
                 <p className="text-xs text-muted-foreground">{param.description}</p>
               )}
 
-              {overrideEnabled ? (
+              {slidersInteractive ? (
                 <>
                   <Slider
                     value={[value]}
@@ -324,7 +411,7 @@ export function ComplexityAssessmentModule({
                 </div>
               )}
 
-              {/* AI justification tooltip */}
+              {/* AI justification */}
               {justification && (
                 <p className="text-[11px] text-muted-foreground italic pl-1 border-l-2 border-primary/30">
                   {justification}
@@ -335,21 +422,28 @@ export function ComplexityAssessmentModule({
         })}
       </div>
 
-      {/* ── Weighted Score Summary (when override is on) ── */}
-      {overrideEnabled && (
+      {/* ── Weighted Score Summary (when in override modes) ── */}
+      {isOverrideMode && (
         <div className="border-t border-border pt-3">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-foreground">Weighted Score:</span>
+            <span className="text-sm text-foreground">
+              {mode === "QUICK_OVERRIDE" ? "Calculated Score:" : "Weighted Score:"}
+            </span>
             <span className="text-lg font-bold text-primary">{weightedScore.toFixed(2)}</span>
-            <Badge variant="secondary" className="text-xs">
-              {derivedLevel} — {derivedLabel}
-            </Badge>
+            {mode === "MANUAL_PARAMS" && (
+              <Badge variant="secondary" className="text-xs">
+                {derivedLevel} — {derivedLabel}
+              </Badge>
+            )}
+            {mode === "QUICK_OVERRIDE" && (
+              <span className="text-xs text-muted-foreground">(informational — level is overridden)</span>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Save / Cancel (only when override is on) ── */}
-      {overrideEnabled && (
+      {/* ── Save / Cancel (only in override modes) ── */}
+      {isOverrideMode && (
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
             <X className="h-3.5 w-3.5 mr-1" />Cancel
@@ -371,7 +465,8 @@ function buildDraftFromExisting(
 ): Record<string, number> {
   const draft: Record<string, number> = {};
   if (Array.isArray(existing)) {
-    existing.forEach((p) => {
+    existing.forEach((p: any) => {
+      if (p._meta) return; // skip metadata entries
       const key = p.param_key ?? p.key ?? "";
       if (key) draft[key] = Number(p.value ?? p.score ?? 5);
     });
