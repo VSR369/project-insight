@@ -49,7 +49,6 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   operatingModel,
   challengeTitle,
   amPayload,
-  onReviewWithAI,
 }, ref) => {
   const queryClient = useQueryClient();
 
