@@ -125,22 +125,42 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
         }
       }
 
-      // Save review state
+      // Save review state as normalized array (never object-map)
       if (Object.keys(reviewEntries).length > 0) {
-        // Merge with existing ai_section_reviews
+        // Fetch existing reviews and normalize to array
         const { data: current } = await supabase
           .from('challenges')
           .select('ai_section_reviews')
           .eq('id', challengeId)
           .single();
 
-        const existingReviews = (current?.ai_section_reviews as Record<string, unknown>) ?? {};
-        const mergedReviews = { ...existingReviews, ...reviewEntries };
+        let existingArray: any[] = [];
+        const raw = current?.ai_section_reviews;
+        if (Array.isArray(raw)) {
+          existingArray = raw;
+        } else if (raw && typeof raw === 'object') {
+          // Legacy object-map → convert to array
+          for (const [key, val] of Object.entries(raw as Record<string, any>)) {
+            if (val && typeof val === 'object') {
+              existingArray.push({ ...val, section_key: val.section_key ?? key });
+            }
+          }
+        }
+
+        // Merge by section_key (new entries replace existing ones)
+        const mergedMap = new Map<string, any>();
+        for (const entry of existingArray) {
+          if (entry?.section_key) mergedMap.set(entry.section_key, entry);
+        }
+        for (const [key, entry] of Object.entries(reviewEntries)) {
+          mergedMap.set(key, entry);
+        }
+        const mergedArray = Array.from(mergedMap.values());
 
         const { error } = await supabase
           .from('challenges')
           .update({
-            ai_section_reviews: mergedReviews as any,
+            ai_section_reviews: mergedArray as any,
             updated_at: new Date().toISOString(),
           })
           .eq('id', challengeId);
