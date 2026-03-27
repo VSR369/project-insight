@@ -350,8 +350,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       totalPool={totalPool}
       errors={showErrors ? monetaryErrors : []}
       disabled={disabled}
-      onUpdateTier={disabled ? () => {} : updateTier}
-      onCurrencyChange={disabled ? () => {} : setCurrency}
+      onUpdateTier={disabled ? () => {} : handleUpdateTier}
+      onCurrencyChange={disabled ? () => {} : handleCurrencyChange}
       onAcceptAISuggestion={disabled ? () => {} : acceptAISuggestion}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllMonetaryAI}
       hasAISuggestions={hasAISuggestions}
