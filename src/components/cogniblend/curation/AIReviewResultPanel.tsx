@@ -995,7 +995,7 @@ export function AIReviewResultPanel({
       )}
 
       {/* ── Accept / Keep original actions — sticky footer ── */}
-      {(hasSuggestedVersion || isRefining) && (
+      {(hasSuggestedVersion || isRefining || (complexityRatings && Object.keys(complexityRatings).length > 0)) && (
         <div className="sticky bottom-0 bg-card flex gap-3 justify-end pt-3 pb-1 border-t border-border -mx-4 px-4">
           <Button
             variant="outline"
