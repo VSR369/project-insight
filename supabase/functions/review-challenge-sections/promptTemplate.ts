@@ -46,6 +46,7 @@ const FORMAT_INSTRUCTIONS: Record<string, string> = {
   radio: 'Output: a single string value from the allowed options.',
   tag_input: 'Output: a JSON array of tag strings.',
   custom: 'Output: structured JSON appropriate to the section context.',
+  complexity_assessment: 'Output: Use the assess_complexity tool to return per-parameter ratings with justifications. Do NOT use the review_sections tool for this section.',
 };
 
 /** Map section keys to their format type for prompt enrichment */
@@ -58,7 +59,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   evaluation_criteria: 'table',
   reward_structure: 'table',
   phase_schedule: 'schedule_table',
-  // complexity: handled by dedicated assess-complexity edge function
+  complexity: 'complexity_assessment',
   ip_model: 'checkbox_single',
   maturity_level: 'checkbox_single',
   eligibility: 'checkbox_multi',

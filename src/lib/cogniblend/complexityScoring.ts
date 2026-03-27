@@ -84,22 +84,3 @@ export function computeWeightedComplexityScore(
   return Math.round(raw * 100) / 100;
 }
 
-/**
- * Build a human-readable markdown summary from AI complexity ratings.
- */
-export function buildComplexitySuggestionMd(
-  ratings: Record<string, { rating: number; justification: string }>,
-  complexityParams: { param_key: string; weight: number; name?: string }[],
-): string {
-  const ws = computeWeightedComplexityScore(ratings, complexityParams);
-  const score = ws.toFixed(2);
-  const level = formatLevelLabel(ws);
-
-  let md = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
-  for (const [key, r] of Object.entries(ratings)) {
-    const param = complexityParams.find((p) => p.param_key === key);
-    const label = param?.name ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    md += `- **${label}**: ${r.rating}/10 — ${r.justification}\n`;
-  }
-  return md;
-}

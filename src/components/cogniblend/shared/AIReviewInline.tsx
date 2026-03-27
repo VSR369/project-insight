@@ -101,6 +101,8 @@ interface AIReviewInlineProps {
   onReReview?: (sectionKey: string) => Promise<void>;
   /** Pre-built suggestion content (e.g. complexity markdown summary) — skips auto-refine */
   initialRefinedContent?: string | null;
+  /** Structured complexity ratings from AI — renders parameter table instead of text suggestion */
+  complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -224,6 +226,7 @@ export function AIReviewInline({
   hasSentBefore = false,
   onReReview,
   initialRefinedContent,
+  complexityRatings,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -266,11 +269,13 @@ export function AIReviewInline({
   }, [comments.length]);
 
   // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
+  // Skip for complexity — it uses structured parameter table, not text refinement
   const autoRefineTriggered = React.useRef(false);
   useEffect(() => {
     if (
       !autoRefineTriggered.current &&
       !isLockedSection &&
+      sectionKey !== 'complexity' &&
       review &&
       !review.addressed &&
       (review.status === "warning" || review.status === "needs_revision") &&
@@ -286,7 +291,7 @@ export function AIReviewInline({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size]);
+  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size, sectionKey]);
 
   // Reset auto-refine flag AND stale suggestion state when review changes (e.g. re-review or new deep review)
   // Use content-based signature (not just count) to detect changes even when comment count stays the same
@@ -695,6 +700,7 @@ export function AIReviewInline({
                     onDeliverableItemsChange={setEditedDeliverableItems}
                     badgePrefix={getDeliverableBadgePrefix(sectionKey)}
                     confidence={review?.confidence}
+                    complexityRatings={complexityRatings}
                     onConfirmPass={review?.status === "pass" && review?.phase === "triage" ? () => onMarkAddressed?.(sectionKey) : undefined}
                     onFlagForReview={review?.status === "pass" && review?.phase === "triage" ? () => onSingleSectionReview?.(sectionKey, { ...review, status: "warning", triage_status: "warning" }) : undefined}
                   />
