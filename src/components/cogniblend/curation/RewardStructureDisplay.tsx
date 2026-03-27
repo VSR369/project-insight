@@ -297,9 +297,38 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
+  // ── Auto-save wrapper callbacks ──
+  // These wrap the raw state-hook mutators so every manual edit triggers persistence
+  const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
+    updateTier(rank, patch);
+    if (rewardType) setPendingSave(true);
+  }, [updateTier, rewardType]);
+
+  const handleCurrencyChange = useCallback((cur: string) => {
+    setCurrency(cur);
+    if (rewardType) setPendingSave(true);
+  }, [setCurrency, rewardType]);
+
+  const handleAddNMItem = useCallback((title: string) => {
+    addNMItem(title);
+    if (rewardType) setPendingSave(true);
+  }, [addNMItem, rewardType]);
+
+  const handleUpdateNMItem = useCallback((id: string, title: string) => {
+    updateNMItem(id, title);
+    if (rewardType) setPendingSave(true);
+  }, [updateNMItem, rewardType]);
+
+  const handleDeleteNMItem = useCallback((id: string) => {
+    deleteNMItem(id);
+    if (rewardType) setPendingSave(true);
+  }, [deleteNMItem, rewardType]);
+
   // ── Type switch handler ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
+    // Auto-save type selection so it persists on navigation
+    setTimeout(() => setPendingSave(true), 200);
   }, [setRewardType]);
 
   // ── Type switch from read-only states ──
