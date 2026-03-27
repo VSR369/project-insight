@@ -46,6 +46,7 @@ const FORMAT_INSTRUCTIONS: Record<string, string> = {
   radio: 'Output: a single string value from the allowed options.',
   tag_input: 'Output: a JSON array of tag strings.',
   custom: 'Output: structured JSON appropriate to the section context.',
+  complexity_assessment: 'Output: Use the assess_complexity tool to return per-parameter ratings with justifications. Do NOT use the review_sections tool for this section.',
 };
 
 /** Map section keys to their format type for prompt enrichment */
