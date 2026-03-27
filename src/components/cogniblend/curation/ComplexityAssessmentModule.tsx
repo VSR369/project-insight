@@ -327,7 +327,20 @@ export function ComplexityAssessmentModule({
           return (
             <div key={param.param_key} className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">{param.name}</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-foreground">{param.name}</label>
+                  {paramSources[param.param_key] === 'ai' && (
+                    <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">
+                      AI
+                    </span>
+                  )}
+                  {paramSources[param.param_key] === 'curator' && (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-amber-50 text-amber-600 border-amber-200">
+                      <Pencil className="h-2 w-2" />
+                      Curator
+                    </span>
+                  )}
+                </div>
                 <span className="text-sm font-semibold text-primary">{value}</span>
               </div>
               {param.description && (
