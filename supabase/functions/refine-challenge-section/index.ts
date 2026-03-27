@@ -220,6 +220,14 @@ serve(async (req) => {
     if (context?.title) contextParts.push(`Challenge Title: ${context.title}`);
     if (context?.maturity_level) contextParts.push(`Maturity Level: ${context.maturity_level}`);
     if (context?.domain_tags?.length) contextParts.push(`Domain Tags: ${context.domain_tags.join(", ")}`);
+    if (context?.complexity) contextParts.push(`Complexity: ${context.complexity}`);
+    if (context?.scope) contextParts.push(`Scope: ${context.scope}`);
+    if (context?.deliverables?.length) contextParts.push(`Deliverables (${context.deliverables.length}): ${JSON.stringify(context.deliverables)}`);
+    if (context?.evaluation_criteria?.length) contextParts.push(`Evaluation Criteria: ${context.evaluation_criteria.join(", ")}`);
+    if (context?.effort_level) contextParts.push(`Effort Level: ${context.effort_level}`);
+    if (context?.industry) contextParts.push(`Industry: ${context.industry}`);
+    if (context?.reward_pool) contextParts.push(`Total Reward Pool: ${context.currency || 'USD'} ${context.reward_pool}`);
+    if (context?.problem_statement) contextParts.push(`Problem Summary: ${context.problem_statement.slice(0, 500)}`);
 
     const instructionLabel = resolvedRoleContext === "intake" ? "REVIEWER'S" : resolvedRoleContext === "spec" ? "CREATOR'S" : "CURATOR'S";
 
