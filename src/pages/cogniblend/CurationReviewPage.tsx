@@ -2360,12 +2360,14 @@ export default function CurationReviewPage() {
                       case "reward_structure":
                         return (
                           <RewardStructureDisplay
+                            ref={rewardStructureRef}
                             rewardStructure={challenge.reward_structure}
                             currencyCode={challenge.currency_code ?? undefined}
                             challengeId={challenge.id}
                             problemStatement={challenge.problem_statement}
                             operatingModel={challenge.operating_model}
                             challengeTitle={challenge.title}
+                            onReviewWithAI={(sectionKey) => handleSingleSectionReview(sectionKey, {} as any)}
                           />
                         );
 
