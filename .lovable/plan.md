@@ -1,66 +1,101 @@
 
 
-# Fix Reward Structure AI Review — Holistic Cleanup
+# Fix: Reward Structure Save & Data Persistence
 
-## Problems Identified
+## Problems
 
-### Problem 1: Global "Review Sections by AI" produces empty/broken results for reward_structure
-The global review flow (Phase 1 triage + Phase 2 deep review) correctly generates AI comments and suggested content for `reward_structure`. However, the `CurationAIReviewInline` panel that renders these results is placed in the `aiReviewSlot` prop of `CuratorSectionPanel` — which renders ALONGSIDE the section content. But for `reward_structure`, the section content case at line 2529 returns a `RewardStructureDisplay` that itself receives `onReviewWithAI` wired to `handleSingleSectionReview(sectionKey, {} as any)`. This is wrong:
-- It passes an **empty object** `{} as any` as the review — overwriting any real review with nothing
-- The `CurationAIReviewInline` in `aiReviewSlot` IS already rendering, but the standalone button inside the component triggers a competing broken flow
+1. **No Save button visible after selecting reward type from empty state** — When a curator picks Monetary/Non-Monetary/Both from the type chooser (in `empty_no_source` state), the section transitions to an editing view. The `isEditing` flag IS true (`sectionState === 'empty_no_source' && !!rewardType`), but the JSX at line 424 renders the footer with Save. However, line 475 adds a condition: `{(rewardType !== 'both' || isModified) && ...}` — for the "both" type, Save only appears if `isModified` is true, which it may not be on initial selection.
 
-### Problem 2: Redundant "Review with AI" buttons inside MonetaryRewardEditor and NonMonetaryRewardEditor
-Every other section relies on the global "Review Sections by AI" button + per-section "Re-review" in the `CurationAIReviewInline` panel. Reward structure has extra standalone buttons that:
-- Conflict with the standard flow
-- Call `handleSingleSectionReview` with empty data, wiping real review results
+2. **All manual edits are lost on navigation** — The auto-save (`pendingSave`) only fires when `applyAIReviewResult` is called (AI acceptance). Manual edits to tier amounts, NM items, reward type selection, and currency changes are NOT auto-saved. They're purely in-memory `useState` — gone on navigation or remount.
 
 ## Root Cause
-The `onReviewWithAI` prop was added to `RewardStructureDisplay` as a remnant of an earlier design where rewards had their own review flow. Now that the global flow handles it (and `CurationAIReviewInline` already renders in the `aiReviewSlot`), these standalone buttons are redundant and actively harmful.
+
+- `pendingSave` is only set to `true` in one place: `handleApplyAIReviewResult` (line 106).
+- Manual mutations (`updateTier`, `addNMItem`, `updateNMItem`, `deleteNMItem`, `setCurrency`, `setRewardType`) do not trigger any persistence mechanism.
+- The Save button condition at line 475 excludes the "both" type unless `isModified` is true.
 
 ## Fix Plan
 
-### 1. Remove `onReviewWithAI` prop from RewardStructureDisplay
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx` (line 2539)
-- Stop passing `onReviewWithAI` to `RewardStructureDisplay`
-- The `CurationAIReviewInline` in `aiReviewSlot` already handles review display, accept/keep, and re-review
+### 1. Auto-save on all meaningful edits (File: `RewardStructureDisplay.tsx`)
 
-### 2. Remove "Review with AI" button from MonetaryRewardEditor
-**File:** `src/components/cogniblend/curation/rewards/MonetaryRewardEditor.tsx` (lines 135-155)
-- Remove the `onReviewWithAI`, `aiLoading`, `hasBeenReviewed` props and the button JSX
-- Keep `hasAISuggestions`, `onAcceptAllAI`, `aiRationale` (these are for Flow A inline recommendations, not review)
+Add `setPendingSave(true)` calls after manual mutations to ensure data persists without requiring an explicit Save click:
 
-### 3. Remove "Review with AI" button from NonMonetaryRewardEditor
-**File:** `src/components/cogniblend/curation/rewards/NonMonetaryRewardEditor.tsx` (lines 129-149)
-- Same cleanup — remove the button and associated props
+- Wrap `updateTier`, `addNMItem`, `updateNMItem`, `deleteNMItem`, `setCurrency` with local callbacks that call the state hook function AND then set `setPendingSave(true)`.
+- Guard: only trigger auto-save when a `rewardType` is set (avoid saving empty state).
 
-### 4. Remove `onReviewWithAI` prop and related callbacks from RewardStructureDisplay
-**File:** `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
-- Remove `onReviewWithAI` from props interface
-- Remove `handleReviewMonetary` and `handleReviewNonMonetary` callbacks
-- Stop passing `onReviewWithAI` to child editors
+```typescript
+const handleUpdateTier = useCallback((rank: string, patch: Partial<TierState>) => {
+  updateTier(rank, patch);
+  if (rewardType) setPendingSave(true);
+}, [updateTier, rewardType]);
 
-## How It Works After Fix
+const handleAddNMItem = useCallback((title: string) => {
+  addNMItem(title);
+  if (rewardType) setPendingSave(true);
+}, [addNMItem, rewardType]);
 
-```text
-Reward Structure section (same as every other section):
-├── CuratorSectionPanel wrapper
-│   ├── RewardStructureDisplay (section content — editing, tiers, NM items)
-│   └── aiReviewSlot → CurationAIReviewInline
-│       ├── AI Review comments (from global "Review Sections by AI")
-│       ├── AI Suggested Version (from Phase 2 refinement)
-│       ├── Accept suggestion → applies via rewardStructureRef.applyAIReviewResult()
-│       ├── Keep original
-│       └── Re-review this section (triggers per-section deep review)
+// Same pattern for updateNMItem, deleteNMItem, handleCurrencyChange
 ```
 
-No separate "Review with AI" buttons. The global flow + re-review handles everything. The acceptance flow via `handleAcceptRefinement` → `rewardStructureRef.applyAIReviewResult()` (lines 1632-1648) is already correct and remains unchanged.
+### 2. Auto-save on reward type selection (File: `RewardStructureDisplay.tsx`)
+
+When the user selects a reward type (from empty state or switches), trigger a save so the type choice persists:
+
+```typescript
+const handleTypeSwitch = useCallback((type: RewardType) => {
+  setRewardType(type);
+  // Auto-save type selection after a brief delay
+  setTimeout(() => setPendingSave(true), 200);
+}, [setRewardType]);
+```
+
+### 3. Fix Save button visibility for "both" type (File: `RewardStructureDisplay.tsx`, line 475)
+
+Remove the `rewardType !== 'both'` guard — Save should always be visible in editing mode:
+
+```tsx
+// Before:
+{(rewardType !== 'both' || isModified) && (
+  <Button ... >Save</Button>
+)}
+
+// After:
+<Button
+  size="sm"
+  variant="outline"
+  onClick={handleSave}
+  disabled={saving || !isValid || !rewardType}
+  className="gap-1.5"
+>
+  ...Save
+</Button>
+```
+
+### 4. Wire auto-save wrappers into child editors (File: `RewardStructureDisplay.tsx`)
+
+Pass the new wrapped callbacks to `MonetaryRewardEditor` and `NonMonetaryRewardEditor` instead of the raw state hook functions:
+
+- `onUpdateTier={handleUpdateTier}` (instead of `updateTier`)
+- `onAddItem={handleAddNMItem}` (instead of `addNMItem`)
+- `onUpdateItem={handleUpdateNMItem}` (instead of `updateNMItem`)
+- `onDeleteItem={handleDeleteNMItem}` (instead of `deleteNMItem`)
+- `onCurrencyChange={handleCurrencyChange}` (instead of `setCurrency`)
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove `onReviewWithAI` prop from `RewardStructureDisplay` (line 2539) |
-| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Remove `onReviewWithAI` prop, `handleReviewMonetary`, `handleReviewNonMonetary`; stop passing to child editors |
-| `src/components/cogniblend/curation/rewards/MonetaryRewardEditor.tsx` | Remove `onReviewWithAI`, `aiLoading`, `hasBeenReviewed` props and button JSX |
-| `src/components/cogniblend/curation/rewards/NonMonetaryRewardEditor.tsx` | Remove `onReviewWithAI`, `aiLoading`, `hasBeenReviewed` props and button JSX |
+| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Add auto-save wrapper callbacks, fix Save button visibility, wire wrappers to child editors |
+
+No changes needed to `useRewardStructureState.ts`, `MonetaryRewardEditor.tsx`, or `NonMonetaryRewardEditor.tsx` — their interfaces remain the same.
+
+## Behavior After Fix
+
+- Selecting a reward type → auto-saved to DB
+- Editing tier amounts → auto-saved
+- Adding/editing/deleting NM items → auto-saved
+- Changing currency → auto-saved
+- Navigating away and back → data reloads from DB, nothing lost
+- Save button always visible during editing (regardless of reward type)
+- "Lock Reward Type" remains the explicit finalization gate
 
