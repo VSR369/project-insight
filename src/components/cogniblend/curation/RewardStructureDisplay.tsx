@@ -301,7 +301,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   // ── Has existing data check ──
   const hasExistingData = useMemo(() => {
     const hasMonetary = Object.values(tierStates).some((t) => t.enabled && t.amount > 0);
-    const hasNM = nmItems.length > 0;
+    const hasNM = nmItems.some((item) => !item.isDefault || item.src.src !== 'curator');
     return hasMonetary || hasNM;
   }, [tierStates, nmItems]);
 
@@ -309,6 +309,12 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
   }, [setRewardType]);
+
+  // ── Type switch from read-only states ──
+  const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
+    startEditing();
+    setRewardType(type);
+  }, [startEditing, setRewardType]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
@@ -413,10 +419,9 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
           />
           <RewardTypeToggle
             currentType={rewardType}
-            hasExistingData={false}
-            disabled
+            hasExistingData={hasExistingData}
             isLocked={isTypeLocked}
-            onSwitch={() => {}}
+            onSwitch={handleTypeSwitchFromReadOnly}
           />
           {renderContent(true, false)}
           <div className="flex justify-end">
@@ -510,10 +515,10 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
         <>
           <RewardTypeToggle
             currentType={rewardType}
-            hasExistingData={false}
+            hasExistingData={hasExistingData}
             disabled={isSubmitted}
             isLocked={isTypeLocked}
-            onSwitch={() => {}}
+            onSwitch={handleTypeSwitchFromReadOnly}
           />
           {renderContent(true, false)}
           {!isSubmitted && (
@@ -531,10 +536,10 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
         <>
           <RewardTypeToggle
             currentType={rewardType}
-            hasExistingData={false}
+            hasExistingData={hasExistingData}
             disabled={isSubmitted}
             isLocked={isTypeLocked}
-            onSwitch={() => {}}
+            onSwitch={handleTypeSwitchFromReadOnly}
           />
           {renderContent(true, false)}
           <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
