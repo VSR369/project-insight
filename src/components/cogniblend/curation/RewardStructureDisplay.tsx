@@ -95,10 +95,21 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     getSerializedData,
   } = state;
 
+  // ── Track whether AI review has been done ──
+  const [hasBeenReviewed, setHasBeenReviewed] = useState(false);
+
   // ── Expose AI review result handler to parent ──
+  // Wraps the state hook's applyAIReviewResult to also trigger auto-save
+  const handleApplyAIReviewResult = useCallback((data: any) => {
+    applyAIReviewResult(data);
+    setHasBeenReviewed(true);
+    // Trigger auto-save so properly serialized data is persisted
+    setPendingSave(true);
+  }, [applyAIReviewResult]);
+
   useImperativeHandle(ref, () => ({
-    applyAIReviewResult,
-  }), [applyAIReviewResult]);
+    applyAIReviewResult: handleApplyAIReviewResult,
+  }), [handleApplyAIReviewResult]);
 
   // ── Local UI state ──
   const [saving, setSaving] = useState(false);
