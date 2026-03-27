@@ -53,6 +53,7 @@ export default function MonetaryRewardEditor({
   aiLoading = false,
   hasAISuggestions = false,
   aiRationale,
+  hasBeenReviewed = false,
 }: MonetaryRewardEditorProps) {
   const currSym = CURRENCY_SYMBOLS[currency] ?? '$';
 
