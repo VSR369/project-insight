@@ -1,167 +1,131 @@
 
 
-# Final Corrected Plan: Reward Structure Redesign
+# Reward Structure UX Overhaul — Corrected Plan
 
-## Corrections Applied from Review
+## Critical Analysis of Your Requirements
 
-All 7 corrections from the review are incorporated below. Changes marked with **[CORRECTION]**.
+Before the plan, here are corrections and challenges I found in your proposed requirements:
+
+### Correction 1: "Both" reward type is valid and common
+Your instinct to add "Both" is correct. Many global innovation platforms (InnoCentive, HeroX, Kaggle) support combined monetary + non-monetary rewards. The current mutual-exclusivity rule (`validateRewardStructure` line 189-196 explicitly rejects having both) is overly restrictive. **Your proposal is aligned with industry practice.**
+
+### Correction 2: Radio buttons are the right pattern
+Current toggle buttons allow ambiguous state. Radio buttons (Monetary / Non-Monetary / Both) make it explicit and prevent confusion. This is a valid UX improvement.
+
+### Correction 3: Free navigation without data loss — needs a nuance
+You said "free navigation between monetary and non-monetary without losing data." This works perfectly with the "Both" option — both tabs retain data. But when the user explicitly locks to "Monetary only," the non-monetary data MUST be cleared (as you stated). The nuance: **during editing, both tabs always retain data. Data cleanup only happens at lock time, not during navigation.**
+
+### Correction 4: Non-monetary items — editable is correct
+Fixed 5 items was too rigid. Global practice: provide default suggestions but allow custom items. Certificate/Memento are fine defaults, but curators should add domain-specific items (e.g., "Patent filing support", "Conference speaking slot"). **Your proposal is correct.**
+
+### Correction 5: AI Review integration gap
+Currently `RewardStructureDisplay` is rendered at line 2359 of `CurationReviewPage.tsx` **without** `onReviewWithAI` prop. The `CurationAIReviewInline` panel IS built at line 2586-2613 and passed to `CuratorSectionPanel`, so the standard AI review infrastructure exists — but the reward section doesn't receive it properly. The reward component has its own separate "Review with AI" buttons that call `onReviewWithAI('reward_structure_monetary')` — but this prop is never passed. **This is a bug, not a design issue.**
+
+### One challenge with your proposal
+You want AI to "limit itself to suggested 1, 2, 3 level rewards with amounts and justification." This is a **prompt engineering** concern for the edge function, not a frontend change. The triage system already has section-specific prompts configurable by supervisors. The fix is to ensure the `reward_structure` section prompt in the AI config instructs the LLM to output structured tier recommendations + innovative NM items.
 
 ---
 
-## 1. Source State Detection on Mount (`RewardStructureDisplay.tsx`)
+## Plan
 
-Detect `AMRewardPayload` scenario and configure UI automatically:
+### 1. Wire AI Review into Reward Section (Bug Fix)
 
-| # | Condition | Action |
-|---|-----------|--------|
-| 1 | Payload null | Set `rewardType = 'monetary'` (default). Auto-trigger inline AI for both tabs. |
-| 2 | `monetary.totalPool` set, no tiers | Set `rewardType = 'monetary'`. Show AM badge on pool field. **[CORRECTION]** Auto-trigger inline AI to suggest tier split. |
-| 3 | `nonMonetary` set, no monetary | **[CORRECTION]** Programmatically set `rewardType = 'non_monetary'` before first render so curator lands on correct tab. Mark AM items with badge. |
-| 4 | Both present | **[CORRECTION]** Default to `rewardType = 'monetary'`. Show banner: "AM defined both reward types. Review each tab independently before submitting." Both tabs independently accessible. |
+**Problem:** `CurationReviewPage.tsx` line 2359 renders `RewardStructureDisplay` without passing AI handlers.
 
-**Auto-trigger condition (tightened):**
+**Fix:** Pass `onReviewWithAI` as a callback that triggers `handleSingleSectionReview` for key `reward_structure`. When AI review returns a suggested version, `handleAcceptRefinement` (line 1523) already handles `reward_structure` as a JSON field — it will parse the AI's structured output and save to DB.
+
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx` — update line 2359 case block to pass the handler.
+
+### 2. Replace Toggle with Radio Buttons: Monetary / Non-Monetary / Both
+
+**File:** `src/components/cogniblend/curation/rewards/RewardTypeToggle.tsx`
+
+Replace the two toggle buttons with a `RadioGroup` (already in `src/components/ui/radio-group.tsx`):
+- **Monetary** — show monetary tab only
+- **Non-Monetary** — show non-monetary tab only  
+- **Both** — show both tabs with a tab switcher between them
+
+**File:** `src/services/rewardStructureResolver.ts` — extend `RewardType` to include `'both'`.
+
+### 3. Both-Type Tab Navigation with Data Persistence
+
+When "Both" is selected, render both editors with a lightweight tab bar (Monetary | Non-Monetary) for navigation. Both tabs always retain their data — no clearing on switch.
+
+**File:** `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
+- Add `activeTab` state for "Both" mode
+- Render both editors but show one at a time
+- Remove the auto-save on type switch (no data clearing during navigation)
+
+### 4. Make Non-Monetary Items Editable (Add/Edit/Delete)
+
+Replace fixed 5-checkbox model with an editable list:
+- Keep the 5 defaults as pre-populated suggestions
+- Add "Add item" button to create custom NM items
+- Each item gets an edit (inline text field) and delete button
+- Items have: title (editable text), source badge
+
+**Files:**
+- `src/hooks/useRewardStructureState.ts` — change `NonMonetarySelections` from fixed Record to dynamic array model
+- `src/components/cogniblend/curation/rewards/NonMonetaryRewardEditor.tsx` — add/edit/delete UI
+- `src/components/cogniblend/curation/rewards/NonMonetaryItemCard.tsx` — editable mode
+- `src/lib/rewardValidation.ts` — update validation for dynamic items
+
+**New model:**
 ```typescript
-const shouldAutoTriggerAI =
-  !amPayload ||
-  (amPayload.monetary?.totalPool && !amPayload.monetary?.tiers);
+interface NonMonetaryItem {
+  id: string;
+  title: string;
+  src: FieldSource;
+  isDefault?: boolean; // true for the 5 preset items
+}
 ```
 
+### 5. Explicit "Lock Reward Type" Action
+
+Replace current "Submit & Lock" with a two-step flow:
+1. **Lock Reward Type** button — freezes the radio selection, cleans up irrelevant data:
+   - If "Monetary" locked → clear NM items from DB
+   - If "Non-Monetary" locked → clear tier data from DB
+   - If "Both" locked → save everything
+2. After locking, inputs remain editable for corrections
+3. Show lock badge + note on the radio group
+
+**Files:**
+- `src/components/cogniblend/curation/RewardStructureDisplay.tsx` — add lock handler
+- `src/hooks/useRewardStructureState.ts` — `lockRewardType()` action that cleans irrelevant data
+
+### 6. AI Acceptance Populates Fields
+
+When the curator accepts AI suggestions from `CurationAIReviewInline`:
+- Parse the AI's structured JSON (monetary tiers + NM items)
+- Populate both monetary tier states and NM item list
+- Mark all populated fields with `src: 'ai'`
+
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx` — in `handleAcceptRefinement`, add reward-specific parsing that calls back into `RewardStructureDisplay` state.
+
+**File:** `src/components/cogniblend/curation/RewardStructureDisplay.tsx` — expose `applyAIReviewResult(data)` that accepts parsed AI output and populates both sections.
+
+### 7. Validation Updates
+
+**File:** `src/lib/rewardValidation.ts`
+- For `'both'` type: validate monetary tiers AND at least one NM item
+- For `'monetary'`: existing tier hierarchy rules
+- For `'non_monetary'`: at least one item with non-empty title
+- Remove the mutual exclusivity check (line 189-196)
+
 ---
 
-## 2. Monetary Tab — Toggle-switch Tier Cards
+## Files Summary
 
-Replace current lump-sum + free-form tiers with three fixed tier cards:
-
-- **Platinum** (always required when monetary active), **Gold**, **Silver** — each with enable/disable switch + amount input
-- Per-field source tracking: `FieldSource { src: 'am' | 'ai' | 'curator'; modified?: boolean }`
-- Inline AI suggestion chips per tier: "AI suggests: $5,000" + Accept button
-- AI Recommendations panel at bottom with "Apply tiers" / "Apply amounts" / "Accept all"
-
-**[CORRECTION] Tier hierarchy validation** — add to `rewardValidation.ts`:
-- Gold enabled & `gold.amount >= platinum.amount` → error
-- Silver enabled & `silver.amount >= gold.amount` → error
-- **Silver enabled without Gold enabled → error** (new rule)
-
-**[CORRECTION] Source badge colors:**
-- AM → amber/warning (pre-filled, needs review)
-- AI → blue/info (suggested, not confirmed)
-- Curator → gray/secondary (curator-owned)
-- Modified → amber + pencil icon (overridden from AM/AI)
-
-### Files
-| File | Action |
+| File | Change |
 |------|--------|
-| `rewards/PrizeTierCard.tsx` | Rewrite — toggle switch, amount input, inline AI chip, source badge |
-| `rewards/MonetaryRewardEditor.tsx` | Rewrite — 3 fixed tier cards, remove lump-sum mode |
-| `rewards/AIRecommendationsPanel.tsx` | New — AI panel with Apply tiers/amounts |
-| `rewards/SourceBadge.tsx` | New — AM (amber), AI (blue), Curator (gray), Modified (amber+pencil) |
-
----
-
-## 3. Non-Monetary Tab — 5-Item Checkbox Grid
-
-Replace free-form item cards with five fixed checkbox cards in 2-column grid:
-- Certificate, Memento, Gift vouchers, Movie sponsorship, Others
-- Each card: bordered card + checkbox + label + source badge
-- Pre-checked AM items show amber AM badge
-- AI can recommend items (blue AI badge + individual Accept)
-
-### Files
-| File | Action |
-|------|--------|
-| `rewards/NonMonetaryRewardEditor.tsx` | Rewrite — 5 checkbox cards, 2-col grid |
-| `rewards/NonMonetaryItemCard.tsx` | Rewrite — checkbox card with source badge |
-
----
-
-## 4. AI Review — Two Distinct Flows
-
-**[CORRECTION]** Explicitly separate two AI mechanisms:
-
-### Flow A: Inline AI (lightweight, structured)
-- **Trigger:** Auto on mount when `shouldAutoTriggerAI` is true; otherwise via small "✨ Suggest" button per section
-- **Monetary:** Returns suggested tier count + amounts as chips on each tier card
-- **Non-monetary:** Returns recommended items to check
-- **Actions:** Individual Accept per suggestion + "Accept all" at panel level
-
-### Flow B: Review with AI (full review panel)
-- **Trigger:** "Review with AI" button per tab
-- **Mechanism:** Calls `handleSingleSectionReview` — same as all other curator sections
-- **Output:** Narrative AI comments + AI Suggested Version + Accept/Keep original
-- **Location:** Renders in `CurationAIReviewInline` wrapper (unchanged, stays in `CuratorSectionPanel`)
-
-### Files
-| File | Action |
-|------|--------|
-| `rewards/MonetaryRewardEditor.tsx` | Add "Review with AI" button triggering Flow B |
-| `rewards/NonMonetaryRewardEditor.tsx` | Add "Review with AI" button triggering Flow B |
-| `rewards/AIRecommendationsPanel.tsx` | Handles Flow A inline suggestions |
-
----
-
-## 5. Submission Lock
-
-**[CORRECTION]** Full lock after submission — nothing editable:
-
-- `isSubmitted = true` → type toggle disabled with lock badge
-- **All tier amounts locked** (inputs become read-only)
-- **All non-monetary checkboxes locked** (disabled)
-- Lock note displayed: "Reward structure is locked after submission."
-- No post-submission edits permitted
-
-### Files
-| File | Action |
-|------|--------|
-| `rewards/RewardTypeToggle.tsx` | Add `disabled` + lock badge when `isSubmitted` |
-| `useRewardStructureState.ts` | Add `isSubmitted` state + `markSubmitted` action |
-| `RewardStructureDisplay.tsx` | Pass `isSubmitted` to all child editors |
-
----
-
-## 6. Validation Updates (`rewardValidation.ts`)
-
-**Monetary** (updated):
-- Platinum amount > 0 when monetary active
-- Gold < Platinum when Gold enabled
-- Silver < Gold when Gold enabled
-- **[CORRECTION]** Silver cannot be active without Gold
-- Total pool must match tier sum (if pool defined)
-
-**Non-monetary** (new checkbox model):
-- At least one item selected
-- No per-item title/type validation needed (fixed items)
-
----
-
-## 7. State Hook Updates (`useRewardStructureState.ts`)
-
-- Add `isSubmitted` boolean + `markSubmitted()` action
-- Add per-field `FieldSource` tracking in `TierState`
-- Add `NonMonetarySelections` model (5 fixed checkboxes with source tracking)
-- On `markSubmitted`, freeze all state permanently
-
----
-
-## 8. Serializer Backward Compatibility (`rewardStructureResolver.ts`)
-
-- Serialize new checkbox model as `items[]` array for DB compatibility
-- On migration/read, map old `items[]` titles to the 5 fixed checkboxes
-- Persist `tiers` array + `totalPool` + flat keys (already done)
-- Persist `fieldSources` in JSONB for source attribution round-trip
-
----
-
-## Execution Order
-
-1. `SourceBadge.tsx` (new) — shared dependency
-2. `rewardValidation.ts` — add Silver-without-Gold rule
-3. `useRewardStructureState.ts` — add `isSubmitted`, source tracking, checkbox model
-4. `rewardStructureResolver.ts` — AMRewardPayload detection, serializer updates
-5. `PrizeTierCard.tsx` — rewrite with toggle + AI chip + badge
-6. `MonetaryRewardEditor.tsx` — rewrite with 3 fixed tiers + AI panel
-7. `AIRecommendationsPanel.tsx` (new)
-8. `NonMonetaryItemCard.tsx` — rewrite as checkbox card
-9. `NonMonetaryRewardEditor.tsx` — rewrite as 5-item grid
-10. `RewardTypeToggle.tsx` — add lock badge
-11. `RewardStructureDisplay.tsx` — orchestrator updates (source detection, submission lock, auto-trigger)
+| `CurationReviewPage.tsx` | Pass `onReviewWithAI` to RewardStructureDisplay; reward-specific acceptance parsing |
+| `RewardTypeToggle.tsx` | Rewrite as RadioGroup with 3 options |
+| `RewardStructureDisplay.tsx` | Both-mode tab navigation, lock handler, AI result acceptance |
+| `useRewardStructureState.ts` | Dynamic NM items array, `lockRewardType()`, `'both'` type support |
+| `NonMonetaryRewardEditor.tsx` | Add/edit/delete item UI |
+| `NonMonetaryItemCard.tsx` | Editable title, delete button |
+| `rewardValidation.ts` | Both-type validation, remove mutual exclusivity |
+| `rewardStructureResolver.ts` | Extend `RewardType` to include `'both'` |
+| `RewardTypeChooser.tsx` | Add "Both" option card |
 
