@@ -1,66 +1,65 @@
 
 
-# Add AI Comments + Suggested Observation to Complexity Re-Review
+# Fix: Complexity Score Mismatch Between AI Suggestion and Parameters
 
-## Problem
+## Root Cause
 
-When "Re-review this section" runs for Complexity, `handleComplexityReReview` calls `assess-complexity` and sets:
-- `comments` (param justifications) on the `SectionReview` object
-- `aiSuggestedComplexity` (slider ratings) on the module
+There are **two different averaging formulas** producing conflicting results:
 
-But it never sets a `suggestion` field, so the `AIReviewInline` panel shows AI comments but **no "AI Suggested Version"** block — unlike every other section.
+1. **`buildComplexitySuggestionMd`** (line 775) and both `complexityPromise` / `handleComplexityReReview` blocks use a **simple average** — sum of all ratings divided by count, ignoring weights.
 
-## What the Suggested Version Should Show
+2. **`ComplexityAssessmentModule`** (line 170) and the **accept handler** (line 1578) correctly use a **weighted average** — each rating multiplied by its parameter weight, divided by total weight.
 
-For complexity, the "AI Suggested Observation" should be a human-readable summary of the AI's assessment — e.g.:
+This means the "AI Suggested Observation" panel says "L3 — Medium (Score: 5.80)" while the sliders (which use weights) calculate "L4 — High (Score: 7.30)" from the same ratings. The AI panel is wrong.
 
-> **Suggested Complexity: L4 — High (Score: 6.80)**
-> - Technical Novelty: 7/10 — Requires novel approaches...
-> - Domain Breadth: 8/10 — Spans multiple disciplines...
-> - ... (all params with ratings + justifications)
+## Fix Plan
 
-This gives curators a clear, reviewable AI output alongside the interactive sliders.
+### 1. Pass `complexityParams` into `buildComplexitySuggestionMd`
 
-## Implementation
+Change the function signature to accept `complexityParams` so it can compute the weighted average instead of the simple average:
 
-### File: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-**In `handleComplexityReReview` (line ~1732) and the initial complexity assessment block (line ~1401):**
-
-After getting `ratings` from `assess-complexity`, build a markdown suggestion string:
-
-```text
-const score = avgRating.toFixed(2);
-const level = deriveLevel(avgRating);
-let suggestion = `**Suggested Complexity: ${level} (Score: ${score})**\n\n`;
-for (const [key, r] of Object.entries(ratings)) {
-  suggestion += `- **${formatParamName(key)}**: ${r.rating}/10 — ${r.justification}\n`;
+```typescript
+function buildComplexitySuggestionMd(
+  ratings: Record<string, { rating: number; justification: string }>,
+  complexityParams: ComplexityParam[]
+): string {
+  // Use weighted average (matching ComplexityAssessmentModule)
+  const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+  const ws = totalWeight > 0
+    ? complexityParams.reduce((s, p) => {
+        const r = ratings[p.param_key];
+        return s + (r ? r.rating : 5) * p.weight;
+      }, 0) / totalWeight
+    : /* fallback simple avg */;
+  // ... derive level from ws
 }
 ```
 
-Then include `suggestion` in the `SectionReview` object stored in `aiReviews`:
+### 2. Fix `complexityPromise` block (line 1447) — same simple average bug
 
-```typescript
-const complexityReview: SectionReview = {
-  section_key: 'complexity',
-  status: avgRating > 0 ? 'warning' : 'pass',
-  comments,
-  suggestion,   // <-- NEW: enables "AI Suggested Version" in the panel
-  addressed: false,
-};
-```
+Replace the simple `avgRating` calculation used for the `complexityReview.status` determination with the weighted formula.
 
-### File: `src/components/cogniblend/shared/AIReviewInline.tsx`
+### 3. Fix `handleComplexityReReview` (line 1778) — same bug
 
-The `SectionReview` interface needs a `suggestion` field (check if it already exists as an optional field used by the refinement pipeline — if not, add `suggestion?: string`).
+Same simple average → weighted average fix.
 
-### No other changes needed
+### 4. Update all call sites
 
-The `AIReviewInline` component already renders `suggestion` when present. The `AiContentRenderer` already handles markdown. The `ComplexityAssessmentModule` continues to show interactive sliders independently — the suggestion in the review panel is a readable summary, not a duplicate.
+Pass `complexityParams` to `buildComplexitySuggestionMd` at both call sites (lines 1441, 1772).
 
-## Result
+### 5. Auto-navigate to AI Review tab after re-review
 
-After re-review, curators see:
-1. **AI Review comments** — per-parameter justifications (already working)
-2. **AI Suggested Observation** — formatted summary with score, level, and all ratings (new)
-3. **Interactive sliders** — in the ComplexityAssessmentModule (already working)
+After `handleComplexityReReview` completes and sets `aiSuggestedComplexity`, the `ComplexityAssessmentModule` already auto-switches to `ai_review` tab via `useEffect` on line 162: `setActiveTab("ai_review")`. This should already work — but we need to verify the `useEffect` dependency fires correctly when `aiSuggestedRatings` reference changes. If the ratings object is the same reference, it won't trigger. We'll ensure a new object reference is always created.
+
+### Files to Change
+
+- **`src/pages/cogniblend/CurationReviewPage.tsx`**:
+  - `buildComplexitySuggestionMd` — accept `complexityParams`, use weighted average
+  - `complexityPromise` block — weighted average for status
+  - `handleComplexityReReview` — weighted average for status
+  - Both call sites — pass `complexityParams`
+
+### No other files need changes
+
+The `ComplexityAssessmentModule` already uses the correct weighted formula. The accept handler (line 1578) also already uses weighted. Only the suggestion/review-building code in `CurationReviewPage` is wrong.
+
