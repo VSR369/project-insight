@@ -419,10 +419,9 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
           />
           <RewardTypeToggle
             currentType={rewardType}
-            hasExistingData={false}
-            disabled
+            hasExistingData={hasExistingData}
             isLocked={isTypeLocked}
-            onSwitch={() => {}}
+            onSwitch={handleTypeSwitchFromReadOnly}
           />
           {renderContent(true, false)}
           <div className="flex justify-end">
