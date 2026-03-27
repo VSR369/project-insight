@@ -265,12 +265,15 @@ async function triageBatch(
   if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
 
   const parsed = JSON.parse(toolCall.function.arguments);
-  const sections: TriageResult[] = (parsed.sections ?? []).map((s: any) => ({
-    id: s.id,
-    status: s.status,
-    confidence: typeof s.confidence === "number" ? s.confidence : 0.5,
-    issues: Array.isArray(s.issues) ? s.issues : [],
-  }));
+  const validKeySet = new Set(batchKeys);
+  const sections: TriageResult[] = (parsed.sections ?? [])
+    .filter((s: any) => validKeySet.has(s.id))
+    .map((s: any) => ({
+      id: s.id,
+      status: s.status,
+      confidence: typeof s.confidence === "number" ? s.confidence : 0.5,
+      issues: Array.isArray(s.issues) ? s.issues : [],
+    }));
 
   // Auto-downgrade: low confidence pass → warning
   for (const section of sections) {

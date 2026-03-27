@@ -219,7 +219,8 @@ serve(async (req) => {
     const contextParts: string[] = [];
     if (context?.title) contextParts.push(`Challenge Title: ${context.title}`);
     if (context?.maturity_level) contextParts.push(`Maturity Level: ${context.maturity_level}`);
-    if (context?.domain_tags?.length) contextParts.push(`Domain Tags: ${context.domain_tags.join(", ")}`);
+    const domainTags = Array.isArray(context?.domain_tags) ? context.domain_tags : (typeof context?.domain_tags === 'string' ? JSON.parse(context.domain_tags || '[]') : []);
+    if (domainTags.length) contextParts.push(`Domain Tags: ${domainTags.join(", ")}`);
     if (context?.complexity) contextParts.push(`Complexity: ${context.complexity}`);
     if (context?.scope) contextParts.push(`Scope: ${context.scope}`);
     if (context?.deliverables?.length) contextParts.push(`Deliverables (${context.deliverables.length}): ${JSON.stringify(context.deliverables)}`);
