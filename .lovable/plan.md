@@ -1,93 +1,130 @@
 
-## What I found (actual root causes)
 
-1. **Complexity re-review uses a custom path that does not reset local inline state**
-   - In `AIReviewInline.tsx`, the default re-review path resets `isAddressed`, `editedComments`, and selected comments.
-   - But for complexity (`onReReview` custom handler), it returns early after `await onReReview(sectionKey)` and **skips that reset**, so old comments/suggestion can remain visible.
+# Overhaul Complexity AI Review: Merge into Global Flow with Parameter Table
 
-2. **Review-change detection is too weak, so stale suggestion state is not cleared**
-   - Current signature uses: `reviewed_at | status | comments.length`.
-   - Complexity re-review objects in `CurationReviewPage.tsx` are saved **without `reviewed_at`**, status is usually `warning`, and comment count is often constant (same parameter count), so signature may not change even when comment text changed.
+## Problem
 
-3. **Complexity review status derivation is wrong**
-   - In both complexity review creation blocks, status is `ws > 0 ? 'warning' : 'pass'` (effectively always warning).
-   - This causes inconsistent semantics and stale “warning” behavior.
+The current complexity AI review is broken in three ways:
+1. **Junk comments** — generic "warning" text that doesn't guide curators on how to rate parameters
+2. **Junk suggested selection** — markdown prose from `buildComplexitySuggestionMd` instead of structured justifications
+3. **Score mismatch** — dedicated `assess-complexity` edge function produces results independently from the global `review-challenge-sections` flow, causing drift between what's shown and what's calculated
 
-4. **Score contract is still duplicated in two files**
-   - `CurationReviewPage.tsx` and `ComplexityAssessmentModule.tsx` each maintain scoring/level logic.
-   - Even if currently similar, this duplication is brittle and can drift again.
+## Solution: Merge complexity into the global review engine
 
----
+Remove the dedicated `assess-complexity` path entirely. Make `review-challenge-sections` handle complexity like every other section — but with a custom prompt that reads ALL other section content and produces structured per-parameter output.
 
-## Implementation plan (fool-proof fix)
+```text
+Current flow:
+  triage → pass/warning → review-challenge-sections (26 sections)
+                        → assess-complexity (separate call)
+                        → buildComplexitySuggestionMd (prose)
 
-### 1) Fix custom complexity re-review state reset in inline panel
-**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
-- In `handleReReview`, after successful `onReReview(sectionKey)`:
-  - force reset local state just like normal path:
-    - `setIsAddressed(false)`
-    - `setEditedComments([])`
-    - `setSelectedComments(new Set())`
-    - `setRefinedContent(null)`
-    - clear edited suggestion/item states
-- This ensures old comments/suggestion cannot remain after complexity re-review.
+New flow:
+  triage → pass/warning → review-challenge-sections (27 sections, complexity included)
+                        → complexity gets structured tool_call output
+                        → parameter table rendered in UI
+```
 
-### 2) Strengthen review-change signature logic
-**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
-- Replace signature from `reviewed_at|status|comments.length` to include **actual content**, e.g. serialized comments hash/string.
-- This guarantees stale suggestion state is cleared whenever comment content changes (not just count).
+## Technical Changes
 
-### 3) Always stamp complexity re-reviews with fresh metadata
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- In both complexity review creation paths (initial complexity promise + `handleComplexityReReview`):
-  - include `reviewed_at: new Date().toISOString()`
-  - normalize review before persist
-- This guarantees deterministic refresh behavior in the inline panel.
+### 1. Edge Function: `review-challenge-sections`
 
-### 4) Correct complexity status derivation
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Replace `status: ws > 0 ? 'warning' : 'pass'` with:
-  - `status: comments.length > 0 ? 'warning' : 'pass'`
-- This aligns status with actual review content.
+**Add complexity-specific handling:**
+- When `section_key === 'complexity'`, fetch `master_complexity_params` (param_key, name, weight, description)
+- Build a specialized prompt that:
+  - Includes ALL other section content as context (problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, extended_brief, etc.)
+  - Instructs AI to rate each parameter independently (1-10) with justification citing specific evidence from other sections
+  - Uses tool calling with a structured schema: `{ ratings: { [param_key]: { rating, justification, evidence_sections } }, comments: string[] }`
+- Comments should be **guidelines** for curators: "Consider the technical novelty — the problem statement describes applying known ML techniques to a standard classification task, suggesting a rating of 3-4."
+- Suggested selection is the `ratings` object (not markdown)
 
-### 5) Remove scoring drift risk with one shared scorer
-**Files:**  
-- `src/lib/cogniblend/complexityScoring.ts` (new utility)  
-- `src/pages/cogniblend/CurationReviewPage.tsx`  
-- `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
-- Centralize:
-  - weighted score calculation
-  - level/label derivation
-  - rating normalization (clamp/round)
-- Use this single utility in both the AI suggestion markdown generator and module display.
+**Response shape for complexity:**
+```json
+{
+  "sections": [{
+    "section_key": "complexity",
+    "status": "warning",
+    "comments": [
+      "Technical novelty appears moderate (3-4): the problem describes applying established techniques to a novel dataset.",
+      "Timeline urgency is high (7-8): 6-week deadline for a multi-deliverable challenge."
+    ],
+    "suggested_complexity": {
+      "technical_novelty": { "rating": 4, "justification": "Standard ML techniques applied to novel domain", "evidence": ["problem_statement", "deliverables"] },
+      "solution_maturity": { "rating": 6, "justification": "POC-level prototype required", "evidence": ["maturity_level", "deliverables"] },
+      ...
+    }
+  }]
+}
+```
 
-### 6) Re-review button hardening
-**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
-- Keep “Review/Re-review” action consistently rendered in all non-locked states (pending, warning, pass, addressed).
-- Add a tiny guard to prevent any branch from hiding it after state transitions.
+### 2. Remove dedicated complexity infrastructure
 
----
+**Files to clean up:**
+- `supabase/functions/assess-complexity/index.ts` — delete entire function (no longer needed)
+- `src/lib/sectionRoutes.ts` — remove `complexity: 'assess-complexity'` from `SECTION_REVIEW_ROUTES`
+- `src/lib/cogniblend/complexityScoring.ts` — keep `computeWeightedComplexityScore`, `deriveComplexityLevel`, etc. Remove `buildComplexitySuggestionMd` (no longer needed — UI renders table directly)
 
-## Verification plan (must pass)
+### 3. `CurationReviewPage.tsx` — Remove dedicated complexity logic
 
-1. **Complexity re-review freshness**
-   - Run re-review twice; confirm comments and suggested text change immediately when AI output changes.
-   - Confirm no old comments persist after re-review.
+- Remove `handleComplexityReReview` callback
+- Remove `complexityPromise` parallel call in `handleAIReview`
+- Remove `complexitySuggestionMd` state (no longer needed)
+- Remove `aiSuggestedComplexity` state — instead, extract ratings from the standard review response
+- Parse complexity review from `review-challenge-sections` response like any other section
+- Extract `suggested_complexity` from review data and pass to `ComplexityAssessmentModule` as `aiSuggestedRatings`
+- Pass `onReReview={undefined}` for complexity (uses standard re-review path now)
+- Pass `initialRefinedContent={undefined}` for complexity (table rendered by panel)
 
-2. **Score consistency**
-   - In AI Review tab, ensure:
-     - score badge,
-     - level badge,
-     - suggested markdown score/level
-     all match for same parameter values.
+### 4. `AIReviewInline.tsx` — Complexity uses standard path
 
-3. **Manual → AI tab switch**
-   - Start with manual edits, switch to AI review, run re-review.
-   - Confirm no `0` score unless quick-select mode is active by design.
+- No special `onReReview` handler needed for complexity anymore
+- Standard re-review calls `review-challenge-sections` with `section_key: 'complexity'`
+- The response includes `suggested_complexity` which gets extracted and passed to the module
 
-4. **Re-review action availability**
-   - Verify button visibility for pending, warning, pass, addressed states in non-locked sections.
+### 5. `AIReviewResultPanel.tsx` — Render parameter table for complexity
 
-5. **Regression checks**
-   - Reward structure persistence remains intact.
-   - No break in standard AI review flow for non-complexity sections.
+Add complexity-specific rendering when `sectionKey === 'complexity'` and `result.suggested_version` contains structured ratings:
+- Parse the `suggested_complexity` JSON
+- Render a table with columns: **Parameter**, **Rating**, **Justification**, **Evidence Sections**
+- Each row shows the parameter name, a colored rating badge (1-10), the AI's reasoning, and which sections informed the rating
+- Accept button applies all ratings to `ComplexityAssessmentModule` draft state
+- Individual ratings remain overridable via the pencil icon in the module
+
+### 6. Scoring remains centralized
+
+`complexityScoring.ts` continues to be the single source of truth for:
+- `computeWeightedComplexityScore` — weighted average from ratings
+- `deriveComplexityLevel` / `deriveComplexityLabel` — L1-L5 mapping
+- `LEVEL_COLORS`, `LEVEL_CARD_COLORS` — display constants
+
+The score shown in the AI Review tab of the module will derive from the AI-suggested ratings (consistent with what the table shows).
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| `supabase/functions/review-challenge-sections/index.ts` | Add complexity-specific prompt + tool schema when `section_key === 'complexity'` |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Add complexity parameter format instructions |
+| `supabase/functions/assess-complexity/index.ts` | Delete |
+| `src/lib/sectionRoutes.ts` | Remove complexity route |
+| `src/lib/cogniblend/complexityScoring.ts` | Remove `buildComplexitySuggestionMd` |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Remove dedicated complexity logic, extract ratings from standard review |
+| `src/components/cogniblend/shared/AIReviewInline.tsx` | Remove complexity-specific `onReReview` wiring |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Add parameter table renderer for complexity |
+
+## What curators will see
+
+**AI Comments (guideline-style):**
+> "Technical novelty appears moderate (3-4): the problem statement describes applying established warehouse optimization techniques. Consider rating higher if the cross-domain integration with IoT sensors adds novelty."
+
+**AI Suggested Selection (parameter table):**
+
+| Parameter | Rating | Justification | Evidence |
+|-----------|--------|--------------|----------|
+| Technical Novelty | 4/10 | Standard techniques applied to novel dataset | problem_statement, deliverables |
+| Solution Maturity | 6/10 | POC prototype required with working demo | maturity_level, deliverables |
+| Domain Breadth | 7/10 | Crosses supply chain, IoT, and ML domains | scope, domain_tags |
+| ... | ... | ... | ... |
+
+**Weighted Score: 5.85 — L3 (Medium)**
+
