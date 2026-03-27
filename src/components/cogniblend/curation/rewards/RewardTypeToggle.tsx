@@ -1,13 +1,15 @@
 /**
- * RewardTypeToggle — Two-option toggle for switching between Monetary and Non-Monetary.
- * Shows confirmation dialog when switching with existing data.
- * Shows lock badge when isSubmitted.
+ * RewardTypeToggle — Radio group for Monetary / Non-Monetary / Both.
+ * Shows lock badge when isLocked or isSubmitted.
+ * Confirmation dialog when switching with existing data.
  */
 
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RewardType } from '@/services/rewardStructureResolver';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,19 +25,31 @@ interface RewardTypeToggleProps {
   currentType: RewardType;
   hasExistingData: boolean;
   disabled?: boolean;
+  isLocked?: boolean;
   onSwitch: (type: RewardType) => void;
 }
+
+const OPTIONS: { value: string; label: string; emoji: string; desc: string }[] = [
+  { value: 'monetary', label: 'Monetary', emoji: '💰', desc: 'Cash prizes for winners' },
+  { value: 'non_monetary', label: 'Non-Monetary', emoji: '🏆', desc: 'Recognition & resources' },
+  { value: 'both', label: 'Both', emoji: '🎯', desc: 'Monetary + Non-Monetary rewards' },
+];
 
 export default function RewardTypeToggle({
   currentType,
   hasExistingData,
   disabled = false,
+  isLocked = false,
   onSwitch,
 }: RewardTypeToggleProps) {
   const [pendingType, setPendingType] = useState<RewardType>(null);
 
-  const handleClick = (type: RewardType) => {
-    if (disabled || type === currentType) return;
+  const isDisabled = disabled || isLocked;
+
+  const handleChange = (value: string) => {
+    if (isDisabled) return;
+    const type = value as RewardType;
+    if (type === currentType) return;
     if (hasExistingData) {
       setPendingType(type);
     } else {
@@ -50,56 +64,56 @@ export default function RewardTypeToggle({
     }
   };
 
-  const targetLabel = pendingType === 'monetary' ? 'Monetary' : 'Non-Monetary';
-  const currentLabel = currentType === 'monetary' ? 'Monetary' : 'Non-Monetary';
+  const targetLabel = OPTIONS.find((o) => o.value === pendingType)?.label ?? '';
+  const currentLabel = OPTIONS.find((o) => o.value === currentType)?.label ?? '';
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => handleClick('monetary')}
-            disabled={disabled}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all',
-              currentType === 'monetary'
-                ? 'border-2 border-primary bg-primary/5 text-foreground font-semibold'
-                : 'border border-border bg-background text-muted-foreground hover:border-muted-foreground/50',
-              disabled && 'cursor-not-allowed opacity-60',
-            )}
-          >
-            💰 Monetary
-          </button>
-          <button
-            type="button"
-            onClick={() => handleClick('non_monetary')}
-            disabled={disabled}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all',
-              currentType === 'non_monetary'
-                ? 'border-2 border-primary bg-primary/5 text-foreground font-semibold'
-                : 'border border-border bg-background text-muted-foreground hover:border-muted-foreground/50',
-              disabled && 'cursor-not-allowed opacity-60',
-            )}
-          >
-            🏆 Non-Monetary
-          </button>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-medium text-foreground">Reward Type</span>
+          {isLocked && (
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Lock className="h-3 w-3" />
+              <span className="text-[10px] font-medium">Locked</span>
+            </div>
+          )}
         </div>
 
-        {disabled && (
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Lock className="h-3 w-3" />
-            <span className="text-[10px] font-medium">Locked</span>
-          </div>
+        <RadioGroup
+          value={currentType ?? ''}
+          onValueChange={handleChange}
+          disabled={isDisabled}
+          className="flex flex-wrap gap-3"
+        >
+          {OPTIONS.map((opt) => (
+            <Label
+              key={opt.value}
+              htmlFor={`reward-type-${opt.value}`}
+              className={cn(
+                'flex items-center gap-2.5 px-4 py-2.5 rounded-lg cursor-pointer transition-all border',
+                currentType === opt.value
+                  ? 'border-2 border-primary bg-primary/5 font-semibold'
+                  : 'border-border bg-background hover:border-muted-foreground/50',
+                isDisabled && 'cursor-not-allowed opacity-60',
+              )}
+            >
+              <RadioGroupItem value={opt.value} id={`reward-type-${opt.value}`} />
+              <span className="text-lg">{opt.emoji}</span>
+              <div>
+                <p className="text-[13px] font-medium text-foreground">{opt.label}</p>
+                <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+              </div>
+            </Label>
+          ))}
+        </RadioGroup>
+
+        {isLocked && (
+          <p className="text-[11px] text-muted-foreground">
+            Reward type is locked. Only data for the selected type will be saved.
+          </p>
         )}
       </div>
-
-      {disabled && (
-        <p className="text-[11px] text-muted-foreground mt-1">
-          Reward structure is locked after submission.
-        </p>
-      )}
 
       {/* Confirmation dialog */}
       <AlertDialog open={!!pendingType} onOpenChange={(open) => !open && setPendingType(null)}>
@@ -107,12 +121,12 @@ export default function RewardTypeToggle({
           <AlertDialogHeader>
             <AlertDialogTitle>Change reward type?</AlertDialogTitle>
             <AlertDialogDescription>
-              You currently have <span className="font-semibold text-foreground">{currentLabel}</span> reward data configured. Switching to <span className="font-semibold text-foreground">{targetLabel}</span> will permanently delete all {currentLabel} data. This action cannot be undone.
+              You currently have <span className="font-semibold text-foreground">{currentLabel}</span> data configured. Switching to <span className="font-semibold text-foreground">{targetLabel}</span> will change the active reward configuration. Your existing data will be preserved until you lock the reward type.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSwitch} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmSwitch}>
               Yes, switch to {targetLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
