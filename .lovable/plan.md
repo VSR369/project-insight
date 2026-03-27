@@ -1,75 +1,93 @@
 
-Goal: make Reward + Complexity + Re-review behavior deterministic and resilient, with one consistent data contract.
+## What I found (actual root causes)
 
-1) Root-cause diagnosis (based on current code)
-- Reward data loss is not random; it’s from two concrete issues:
-  1) `useCurationStoreSync` writes `ai_section_reviews` as an object map, while `CurationReviewPage` expects an array. This breaks review loading and causes unstable state across reloads.
-  2) `RewardStructureDisplay` calls `syncToStore()` immediately after `setState` updates (`setRewardType`, `updateTier`, NM edits). Because React state updates are async, stale serialized data is pushed to store/DB.
-- Complexity “score = 0 but params have values” is caused by `ComplexityAssessmentModule` AI tab rendering `currentScore/currentLevel` instead of the active `draft`-derived weighted values.
-- Re-review “removed” is primarily a state-contract failure (reviews not loading), plus pending-state UX currently has no per-section re-review button.
+1. **Complexity re-review uses a custom path that does not reset local inline state**
+   - In `AIReviewInline.tsx`, the default re-review path resets `isAddressed`, `editedComments`, and selected comments.
+   - But for complexity (`onReReview` custom handler), it returns early after `await onReReview(sectionKey)` and **skips that reset**, so old comments/suggestion can remain visible.
 
-2) Implementation plan (in order)
+2. **Review-change detection is too weak, so stale suggestion state is not cleared**
+   - Current signature uses: `reviewed_at | status | comments.length`.
+   - Complexity re-review objects in `CurationReviewPage.tsx` are saved **without `reviewed_at`**, status is usually `warning`, and comment count is often constant (same parameter count), so signature may not change even when comment text changed.
 
-A. Fix the review data contract first (stability foundation)
-- In `src/hooks/useCurationStoreSync.ts`:
-  - Replace object-merge persistence for `ai_section_reviews` with array-based merge by `section_key`.
-  - Normalize both legacy array/object payloads before merge, then always save back as array.
-  - Remove/replace the current “hydrate from `ai_section_reviews` into section data” path (this is unsafe and can inject review objects into section content).
-- In `src/pages/cogniblend/CurationReviewPage.tsx`:
-  - Read `ai_section_reviews` defensively: support both array and object-map legacy payloads.
-  - Normalize into `SectionReview[]` before rendering, so existing corrupted rows recover immediately.
+3. **Complexity review status derivation is wrong**
+   - In both complexity review creation blocks, status is `ws > 0 ? 'warning' : 'pass'` (effectively always warning).
+   - This causes inconsistent semantics and stale “warning” behavior.
 
-B. Make Reward Type persistence robust (no stale writes)
-- In `src/components/cogniblend/curation/RewardStructureDisplay.tsx`:
-  - Stop immediate `syncToStore()` calls inside event handlers that mutate state.
-  - Add a post-state synchronization effect (state-driven) that serializes latest reward state and writes once state is settled.
-  - Keep manual Save/Lock as explicit DB writes, but ensure they serialize from latest settled state.
-  - Ensure AI apply (`applyAIReviewResult`) also flows through the same state-driven sync path.
-- Result: switching type/tabs/editing tiers/NM items will persist the latest actual state, not prior snapshots.
+4. **Score contract is still duplicated in two files**
+   - `CurationReviewPage.tsx` and `ComplexityAssessmentModule.tsx` each maintain scoring/level logic.
+   - Even if currently similar, this duplication is brittle and can drift again.
 
-C. Fix complexity score consistency across tabs
-- In `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`:
-  - AI tab display should use draft-derived weighted score/derived level as source of truth when draft exists.
-  - Remove stale dependency on `currentScore/currentLevel` for live display after tab switches.
-  - Keep weighted formula identical to existing manual calculation logic.
-- Optional hardening in same pass:
-  - Prevent persisting literal `0` score for non-empty drafts; use derived weighted score or explicit override mapping so score/level/params stay coherent.
+---
 
-D. Make per-section Re-review always reachable
-- In `src/components/cogniblend/shared/AIReviewInline.tsx`:
-  - Keep re-review button in warning/pass/addressed branches.
-  - Add action in pending branch for non-locked sections (“Review this section with AI”), using existing `handleReReview`.
-- Combined with step A normalization, this restores “anytime re-review” behavior across sections.
+## Implementation plan (fool-proof fix)
 
-3) Technical file-level changes
-- `src/hooks/useCurationStoreSync.ts`
-  - Add `normalizeAiSectionReviewsPayload()` helper.
-  - Persist `ai_section_reviews` as normalized array only.
-  - Remove unsafe section-data hydration from `ai_section_reviews`.
-- `src/pages/cogniblend/CurationReviewPage.tsx`
-  - Parse array/object review payloads into normalized `SectionReview[]`.
-- `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
-  - Refactor sync strategy from handler-driven to state-driven effect.
-  - Remove stale immediate sync calls after async state setters.
+### 1) Fix custom complexity re-review state reset in inline panel
+**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
+- In `handleReReview`, after successful `onReReview(sectionKey)`:
+  - force reset local state just like normal path:
+    - `setIsAddressed(false)`
+    - `setEditedComments([])`
+    - `setSelectedComments(new Set())`
+    - `setRefinedContent(null)`
+    - clear edited suggestion/item states
+- This ensures old comments/suggestion cannot remain after complexity re-review.
+
+### 2) Strengthen review-change signature logic
+**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
+- Replace signature from `reviewed_at|status|comments.length` to include **actual content**, e.g. serialized comments hash/string.
+- This guarantees stale suggestion state is cleared whenever comment content changes (not just count).
+
+### 3) Always stamp complexity re-reviews with fresh metadata
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- In both complexity review creation paths (initial complexity promise + `handleComplexityReReview`):
+  - include `reviewed_at: new Date().toISOString()`
+  - normalize review before persist
+- This guarantees deterministic refresh behavior in the inline panel.
+
+### 4) Correct complexity status derivation
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Replace `status: ws > 0 ? 'warning' : 'pass'` with:
+  - `status: comments.length > 0 ? 'warning' : 'pass'`
+- This aligns status with actual review content.
+
+### 5) Remove scoring drift risk with one shared scorer
+**Files:**  
+- `src/lib/cogniblend/complexityScoring.ts` (new utility)  
+- `src/pages/cogniblend/CurationReviewPage.tsx`  
 - `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
-  - Use weighted draft score/level consistently in AI view.
-- `src/components/cogniblend/shared/AIReviewInline.tsx`
-  - Ensure pending-state per-section AI review/re-review action exists.
+- Centralize:
+  - weighted score calculation
+  - level/label derivation
+  - rating normalization (clamp/round)
+- Use this single utility in both the AI suggestion markdown generator and module display.
 
-4) Verification matrix (must-pass)
-- Reward persistence:
-  - Change reward type (monetary/non_monetary/both), edit values, navigate away/back, reload page: values unchanged.
-  - Accept AI reward suggestion, reload immediately: accepted structure remains.
-- Complexity consistency:
-  - Move Manual → AI Review tab without saving; score badge matches visible parameter values.
-  - Re-review complexity; AI summary score matches module weighted score.
-- Re-review availability:
-  - Verify button/action in pending, warning, pass, addressed (non-locked) states.
-- Data-contract recovery:
-  - For rows with object-shaped `ai_section_reviews`, UI still loads comments and actions correctly after refresh.
+### 6) Re-review button hardening
+**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
+- Keep “Review/Re-review” action consistently rendered in all non-locked states (pending, warning, pass, addressed).
+- Add a tiny guard to prevent any branch from hiding it after state transitions.
 
-5) Expected outcome
-- Reward Type data no longer “randomly disappears.”
-- Complexity score/level stays consistent with shown parameter values across tab navigation.
-- Re-review is reliably available section-by-section.
-- Existing inconsistent review payloads are backward-compatible and no longer break the UI.
+---
+
+## Verification plan (must pass)
+
+1. **Complexity re-review freshness**
+   - Run re-review twice; confirm comments and suggested text change immediately when AI output changes.
+   - Confirm no old comments persist after re-review.
+
+2. **Score consistency**
+   - In AI Review tab, ensure:
+     - score badge,
+     - level badge,
+     - suggested markdown score/level
+     all match for same parameter values.
+
+3. **Manual → AI tab switch**
+   - Start with manual edits, switch to AI review, run re-review.
+   - Confirm no `0` score unless quick-select mode is active by design.
+
+4. **Re-review action availability**
+   - Verify button visibility for pending, warning, pass, addressed states in non-locked sections.
+
+5. **Regression checks**
+   - Reward structure persistence remains intact.
+   - No break in standard AI review flow for non-complexity sections.
