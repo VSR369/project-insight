@@ -101,6 +101,8 @@ interface AIReviewInlineProps {
   onReReview?: (sectionKey: string) => Promise<void>;
   /** Pre-built suggestion content (e.g. complexity markdown summary) — skips auto-refine */
   initialRefinedContent?: string | null;
+  /** Structured complexity ratings from AI — renders parameter table instead of text suggestion */
+  complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
