@@ -325,11 +325,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       onCurrencyChange={disabled ? () => {} : setCurrency}
       onAcceptAISuggestion={disabled ? () => {} : acceptAISuggestion}
       onAcceptAllAI={disabled ? undefined : handleAcceptAllMonetaryAI}
-      onReviewWithAI={onReviewWithAI && !disabled ? handleReviewMonetary : undefined}
-      aiLoading={aiLoading}
       hasAISuggestions={hasAISuggestions}
       aiRationale={aiRationale}
-      hasBeenReviewed={hasBeenReviewed}
     />
   );
 
