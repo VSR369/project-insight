@@ -1369,7 +1369,6 @@ export default function CurationReviewPage() {
                 status: avgRating > 0 ? 'warning' : 'pass',
                 comments,
                 addressed: false,
-                structured_output: JSON.stringify(ratings),
               };
               const normalized = normalizeSectionReview(complexityReview);
               setAiReviews((prev) => {
