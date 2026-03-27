@@ -769,7 +769,8 @@ function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
 
 // Complexity scoring imported from shared utility — single source of truth
 import {
-  buildComplexitySuggestionMd,
+  computeWeightedComplexityScore,
+  deriveComplexityLevel as deriveComplexityLevelFn,
   formatLevelLabel as deriveComplexityLevel,
 } from "@/lib/cogniblend/complexityScoring";
 
