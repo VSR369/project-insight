@@ -1430,51 +1430,14 @@ export default function CurationReviewPage() {
       setTriageTotalCount(totalTriaged);
       toast.success(`Phase 1 triage: ${passCount} pass, ${phase2Count} need${phase2Count !== 1 ? '' : 's'} deeper review`);
 
-      // ── Complexity: route to dedicated assess-complexity edge function ──
-      const complexityInQueue = routing.phase2_queue.includes('complexity');
-      const phase2QueueWithoutComplexity = routing.phase2_queue.filter(k => k !== 'complexity');
-      // Also remove complexity from triage if present — we'll replace with our own review
-      const hasComplexityTriage = triageReviews.some(r => r.section_key === 'complexity');
+      // ── Phase 2: Deep review (sequential, for warning/inferred sections) ──
+      const phase2Queue = routing.phase2_queue;
 
-      // Fire complexity assessment in parallel with Phase 2
-      const complexityPromise = (complexityInQueue || hasComplexityTriage)
-        ? supabase.functions.invoke("assess-complexity", { body: { challenge_id: challengeId } })
-            .then(({ data, error }) => {
-              if (error || !data?.success || !data?.data?.ratings) return;
-              const ratings = data.data.ratings as Record<string, { rating: number; justification: string }>;
-              setAiSuggestedComplexity(ratings);
-              setComplexitySuggestionMd(buildComplexitySuggestionMd(ratings, complexityParams));
-
-              // Transform into standard AI review format
-              const comments = Object.entries(ratings)
-                .filter(([, r]) => r.justification)
-                .map(([key, r]) => `${key}: ${r.justification}`);
-              const complexityReview: SectionReview = {
-                section_key: 'complexity',
-                status: comments.length > 0 ? 'warning' : 'pass',
-                comments,
-                addressed: false,
-                reviewed_at: new Date().toISOString(),
-              };
-              const normalized = normalizeSectionReview(complexityReview);
-              setAiReviews((prev) => {
-                const filtered = prev.filter((r) => r.section_key !== 'complexity');
-                const merged = [...filtered, normalized];
-                saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-                return merged;
-              });
-            })
-            .catch(() => { /* complexity assessment failure non-blocking */ })
-        : Promise.resolve();
-
-      // ── Phase 2: Deep suggestion (sequential, only non-pass, excluding complexity) ──
-      if (phase2QueueWithoutComplexity.length > 0 || complexityInQueue || hasComplexityTriage) {
-        const totalPhase2 = phase2QueueWithoutComplexity.length + (complexityInQueue || hasComplexityTriage ? 1 : 0);
+      if (phase2Queue.length > 0) {
         setPhase2Status('running');
-        setPhase2Progress({ total: totalPhase2, completed: 0 });
+        setPhase2Progress({ total: phase2Queue.length, completed: 0 });
 
-        // Process non-complexity sections sequentially
-        for (const sectionKey of phase2QueueWithoutComplexity) {
+        for (const sectionKey of phase2Queue) {
           try {
             const { data: reviewData, error: reviewError } = await supabase.functions.invoke("review-challenge-sections", {
               body: { challenge_id: challengeId, section_key: sectionKey, role_context: 'curation' },
@@ -1484,6 +1447,15 @@ export default function CurationReviewPage() {
               const deepReview = (reviewData.data.sections as SectionReview[])[0];
               if (deepReview) {
                 const normalizedDeep = normalizeSectionReview(deepReview);
+
+                // Extract suggested_complexity from complexity section reviews
+                if (sectionKey === 'complexity') {
+                  const rawComplexitySection = (reviewData.data.sections as any[])[0];
+                  if (rawComplexitySection?.suggested_complexity) {
+                    setAiSuggestedComplexity({ ...rawComplexitySection.suggested_complexity });
+                  }
+                }
+
                 setAiReviews((prev) => {
                   const filtered = prev.filter((r) => r.section_key !== sectionKey);
                   const merged = [...filtered, { ...normalizedDeep, addressed: false }];
@@ -1491,8 +1463,8 @@ export default function CurationReviewPage() {
                   return merged;
                 });
 
-                // Auto-trigger Phase 2 refinement with issues from deep review
-                if (deepReview.comments && deepReview.comments.length > 0) {
+                // Auto-trigger Phase 2 refinement with issues from deep review (skip complexity — it uses structured table)
+                if (sectionKey !== 'complexity' && deepReview.comments && deepReview.comments.length > 0) {
                   try {
                     await supabase.functions.invoke("refine-challenge-section", {
                       body: {
@@ -1519,12 +1491,6 @@ export default function CurationReviewPage() {
           } finally {
             setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
           }
-        }
-
-        // Wait for complexity to finish if it was running
-        await complexityPromise;
-        if (complexityInQueue || hasComplexityTriage) {
-          setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         }
       } else {
         // All sections passed — no Phase 2 needed
