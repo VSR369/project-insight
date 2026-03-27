@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
+import { useDocumentVisibility } from '@/lib/useVisibilityPolling';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseJson } from '@/lib/cogniblend/jsonbUnwrap';
 import { supabase } from '@/integrations/supabase/client';
@@ -97,111 +98,116 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   // ── Track whether AI review has been done ──
   const [hasBeenReviewed, setHasBeenReviewed] = useState(false);
 
-  // ── Expose AI review result handler to parent ──
-  // Wraps the state hook's applyAIReviewResult to also trigger auto-save
-  const handleApplyAIReviewResult = useCallback((data: any) => {
-    applyAIReviewResult(data);
-    setHasBeenReviewed(true);
-    // Trigger auto-save so properly serialized data is persisted
-    setPendingSave(true);
-  }, [applyAIReviewResult]);
-
-  useImperativeHandle(ref, () => ({
-    applyAIReviewResult: handleApplyAIReviewResult,
-  }), [handleApplyAIReviewResult]);
-
   // ── Local UI state ──
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [pendingSave, setPendingSave] = useState(false);
   const [hasAISuggestions, setHasAISuggestions] = useState(false);
   const [aiRationale, setAiRationale] = useState<string>();
   const [showBothBanner, setShowBothBanner] = useState(false);
   const [activeTab, setActiveTab] = useState<'monetary' | 'non_monetary'>('monetary');
 
-  // ── Challenge context for AI ──
-  const challengeContext = useMemo(() => ({
-    title: challengeTitle ?? '',
-    domain: 'General',
-    type: 'Open Innovation',
-  }), [challengeTitle]);
-
-  // ── AMRewardPayload detection on mount ──
+  // ── Ref to always hold latest getSerializedData ──
+  const getSerializedDataRef = useRef(getSerializedData);
   useEffect(() => {
-    if (!amPayload) return;
-    // Skip if data was already loaded from DB — prevent overwriting saved/AI data with AM defaults
-    if (sectionState === 'saved' || sectionState === 'populated_from_source') return;
+    getSerializedDataRef.current = getSerializedData;
+  }, [getSerializedData]);
 
-    const hasMonetary = !!amPayload.monetary;
-    const hasNonMonetary = amPayload.nonMonetary && Object.values(amPayload.nonMonetary).some(Boolean);
+  // ── Robust autosave scheduler using refs ──
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef(false);
+  const queuedSaveRef = useRef(false);
+  const mountedRef = useRef(true);
+  const isVisible = useDocumentVisibility();
 
-    if (hasMonetary && hasNonMonetary) {
-      setShowBothBanner(true);
-      setRewardType('both');
-      if (amPayload.monetary?.tiers) {
-        const tiers = amPayload.monetary.tiers;
-        if (tiers.platinum) updateTier('platinum', { enabled: true, amount: tiers.platinum, amountSrc: { src: 'am' } });
-        if (tiers.gold) updateTier('gold', { enabled: true, amount: tiers.gold, amountSrc: { src: 'am' } });
-        if (tiers.silver) updateTier('silver', { enabled: true, amount: tiers.silver, amountSrc: { src: 'am' } });
-      }
-      return;
-    }
-
-    if (hasNonMonetary && !hasMonetary) {
-      setRewardType('non_monetary');
-      return;
-    }
-
-    if (hasMonetary && amPayload.monetary?.totalPool && !amPayload.monetary?.tiers) {
-      setRewardType('monetary');
-      setTotalPool(amPayload.monetary.totalPool);
-      handleAutoTriggerAI(amPayload.monetary.totalPool);
-      return;
-    }
-
-    if (hasMonetary && amPayload.monetary?.tiers) {
-      setRewardType('monetary');
-      const tiers = amPayload.monetary.tiers;
-      if (tiers.platinum) updateTier('platinum', { enabled: true, amount: tiers.platinum, amountSrc: { src: 'am' } });
-      if (tiers.gold) updateTier('gold', { enabled: true, amount: tiers.gold, amountSrc: { src: 'am' } });
-      if (tiers.silver) updateTier('silver', { enabled: true, amount: tiers.silver, amountSrc: { src: 'am' } });
-      if (amPayload.monetary.totalPool) setTotalPool(amPayload.monetary.totalPool);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
-  const handleAutoTriggerAI = useCallback(async (poolAmount: number) => {
-    setAiLoading(true);
-    try {
-      const result = await requestAITierBreakup(poolAmount, currency, challengeContext);
-      if (result) {
-        const suggestions: Record<string, number> = {};
-        for (const tier of result) {
-          suggestions[tier.rank] = tier.amount;
-        }
-        applyAISuggestions(suggestions);
-        setHasAISuggestions(true);
-        setAiRationale('Based on challenge complexity and domain analysis');
-      }
-    } finally {
-      setAiLoading(false);
+  const performSave = useCallback(async () => {
+    if (!rewardType) return;
+    if (isSavingRef.current) {
+      queuedSaveRef.current = true;
+      return;
     }
-  }, [currency, challengeContext, applyAISuggestions]);
+    isSavingRef.current = true;
+    try {
+      const serialized = getSerializedDataRef.current();
+      const { error } = await supabase
+        .from('challenges')
+        .update({ reward_structure: serialized as unknown as Json })
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      if (mountedRef.current) markSaved();
+    } catch (err: any) {
+      if (mountedRef.current) toast.error(`Auto-save failed: ${err.message}`);
+    } finally {
+      isSavingRef.current = false;
+      // If edits happened while saving, do one trailing save
+      if (queuedSaveRef.current) {
+        queuedSaveRef.current = false;
+        performSave();
+      }
+    }
+  }, [rewardType, challengeId, queryClient, markSaved]);
 
-  // ── Save handler ──
+  const scheduleAutoSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      performSave();
+    }, 400);
+  }, [performSave]);
+
+  // ── Flush on unmount or tab hide ──
+  useEffect(() => {
+    return () => {
+      // On unmount: flush any pending save immediately
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        // Fire-and-forget: save latest state synchronously-ish
+        performSave();
+      }
+    };
+  }, [performSave]);
+
+  // Flush when tab becomes hidden
+  useEffect(() => {
+    if (!isVisible && saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      performSave();
+    }
+  }, [isVisible, performSave]);
+
+  // ── Expose AI review result handler to parent ──
+  const handleApplyAIReviewResult = useCallback((data: any) => {
+    applyAIReviewResult(data);
+    setHasBeenReviewed(true);
+    scheduleAutoSave();
+  }, [applyAIReviewResult, scheduleAutoSave]);
+
+  useImperativeHandle(ref, () => ({
+    applyAIReviewResult: handleApplyAIReviewResult,
+  }), [handleApplyAIReviewResult]);
+
+  // ── Save handler (manual) ──
   const handleSave = useCallback(async () => {
     if (!isValid) {
       toast.error(`Fix ${errors.length} validation error(s) before saving.`);
       return;
     }
+    // Cancel any pending autosave — manual save supersedes
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     setSaving(true);
     try {
-      const serialized = getSerializedData();
+      const serialized = getSerializedDataRef.current();
       const { error } = await supabase
         .from('challenges')
         .update({ reward_structure: serialized as unknown as Json })
         .eq('id', challengeId);
-
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success('Reward structure saved successfully');
@@ -211,23 +217,23 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     } finally {
       setSaving(false);
     }
-  }, [isValid, errors, getSerializedData, challengeId, queryClient, markSaved]);
+  }, [isValid, errors, challengeId, queryClient, markSaved]);
 
-  // ── Lock reward type handler (single finalization action) ──
+  // ── Lock reward type handler ──
   const handleLockRewardType = useCallback(async () => {
     if (!isValid) {
       toast.error(`Fix ${errors.length} validation error(s) before locking.`);
       return;
     }
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     lockRewardType();
     setSaving(true);
     try {
-      const serialized = getSerializedData();
+      const serialized = getSerializedDataRef.current();
       const { error } = await supabase
         .from('challenges')
         .update({ reward_structure: serialized as unknown as Json })
         .eq('id', challengeId);
-
       if (error) throw new Error(error.message);
       queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
       toast.success(`Reward type locked as "${rewardType === 'both' ? 'Both' : rewardType === 'monetary' ? 'Monetary' : 'Non-Monetary'}". Irrelevant data cleared.`);
@@ -238,40 +244,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     } finally {
       setSaving(false);
     }
-  }, [isValid, errors, lockRewardType, getSerializedData, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
+  }, [isValid, errors, lockRewardType, challengeId, queryClient, markSubmitted, markSaved, rewardType]);
 
-
-  // ── Ref to always hold latest getSerializedData ──
-  // Prevents stale closure in auto-save timeout
-  const getSerializedDataRef = useRef(getSerializedData);
-  useEffect(() => {
-    getSerializedDataRef.current = getSerializedData;
-  }, [getSerializedData]);
-
-  // ── Auto-save effect ──
-  // Uses ref + setTimeout to ensure React state batch (from applyAIReviewResult) has flushed
-  // and the latest serializer is called, not a stale closure.
-  useEffect(() => {
-    if (!pendingSave || !rewardType) return;
-    setPendingSave(false);
-    const timer = setTimeout(async () => {
-      try {
-        const serialized = getSerializedDataRef.current();
-        const { error } = await supabase
-          .from('challenges')
-          .update({ reward_structure: serialized as unknown as Json })
-          .eq('id', challengeId);
-        if (error) throw new Error(error.message);
-        queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
-        markSaved();
-      } catch (err: any) {
-        toast.error(`Auto-save failed: ${err.message}`);
-      }
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [pendingSave, rewardType, challengeId, queryClient, markSaved]);
-
-  // ── AI handlers ──
   const handleAcceptAllMonetaryAI = useCallback(() => {
     for (const rank of ['platinum', 'gold', 'silver']) {
       if (tierStates[rank]?.aiSuggestion) {
@@ -298,44 +272,43 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   }, [tierStates, nmItems]);
 
   // ── Auto-save wrapper callbacks ──
-  // These wrap the raw state-hook mutators so every manual edit triggers persistence
   const handleUpdateTier = useCallback((rank: string, patch: Partial<import('@/hooks/useRewardStructureState').TierState>) => {
     updateTier(rank, patch);
-    if (rewardType) setPendingSave(true);
-  }, [updateTier, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [updateTier, rewardType, scheduleAutoSave]);
 
   const handleCurrencyChange = useCallback((cur: string) => {
     setCurrency(cur);
-    if (rewardType) setPendingSave(true);
-  }, [setCurrency, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [setCurrency, rewardType, scheduleAutoSave]);
 
   const handleAddNMItem = useCallback((title: string) => {
     addNMItem(title);
-    if (rewardType) setPendingSave(true);
-  }, [addNMItem, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [addNMItem, rewardType, scheduleAutoSave]);
 
   const handleUpdateNMItem = useCallback((id: string, title: string) => {
     updateNMItem(id, title);
-    if (rewardType) setPendingSave(true);
-  }, [updateNMItem, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [updateNMItem, rewardType, scheduleAutoSave]);
 
   const handleDeleteNMItem = useCallback((id: string) => {
     deleteNMItem(id);
-    if (rewardType) setPendingSave(true);
-  }, [deleteNMItem, rewardType]);
+    if (rewardType) scheduleAutoSave();
+  }, [deleteNMItem, rewardType, scheduleAutoSave]);
 
-  // ── Type switch handler ──
+  // ── Type switch handler (unified — used by chooser + toggle + read-only) ──
   const handleTypeSwitch = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     setRewardType(type);
-    // Auto-save type selection so it persists on navigation
-    setTimeout(() => setPendingSave(true), 200);
-  }, [setRewardType]);
+    scheduleAutoSave();
+  }, [setRewardType, scheduleAutoSave]);
 
   // ── Type switch from read-only states ──
   const handleTypeSwitchFromReadOnly = useCallback((type: import('@/services/rewardStructureResolver').RewardType) => {
     startEditing();
     setRewardType(type);
-  }, [startEditing, setRewardType]);
+    scheduleAutoSave();
+  }, [startEditing, setRewardType, scheduleAutoSave]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
@@ -421,7 +394,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
 
       {/* ── Empty state: Type Chooser Wizard ── */}
       {sectionState === 'empty_no_source' && !rewardType && (
-        <RewardTypeChooser onSelect={setRewardType} />
+        <RewardTypeChooser onSelect={handleTypeSwitch} />
       )}
 
       {/* ── Populated from source: read view + banner ── */}
