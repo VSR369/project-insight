@@ -43,12 +43,6 @@ export interface CurationMasterData {
 
 /* ── Static options (no DB table needed) ───────────────── */
 
-const EFFORT_OPTIONS: MasterDataOption[] = [
-  { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-  { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-  { value: "high", label: "High", description: "160–500 hours estimated effort" },
-  { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-];
 
 const IP_MODEL_OPTIONS: MasterDataOption[] = [
   { value: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
