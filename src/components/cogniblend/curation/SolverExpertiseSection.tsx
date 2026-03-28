@@ -41,8 +41,10 @@ interface SolverExpertiseSectionProps {
   data: Json | null;
   industrySegmentId: string | null;
   readOnly?: boolean;
+  editing?: boolean;
   onSave: (data: SolverExpertiseData) => void;
   saving?: boolean;
+  onCancel?: () => void;
 }
 
 // ---------------------------------------------------------------------------
