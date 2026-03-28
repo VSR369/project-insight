@@ -1126,7 +1126,6 @@ export default function AISpecReviewPage() {
                   evaluation_criteria: { criteria: spec.evaluation_criteria },
                   hook: spec.hook,
                   ip_model: spec.ip_model,
-                  challenge_visibility: spec.challenge_visibility,
                 };
                 if (spec.extended_brief) {
                   fieldsToSave.extended_brief = spec.extended_brief;
