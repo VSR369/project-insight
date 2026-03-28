@@ -40,7 +40,7 @@ import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
 import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
-import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
+
 import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
