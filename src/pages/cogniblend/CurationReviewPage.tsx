@@ -1662,7 +1662,7 @@ export default function CurationReviewPage() {
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
       challenge_visibility: { field: "challenge_visibility", options: masterData.challengeVisibilityOptions },
-      effort_level: { field: "effort_level", options: masterData.effortOptions },
+      
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
     if (singleCodeCfg) {
