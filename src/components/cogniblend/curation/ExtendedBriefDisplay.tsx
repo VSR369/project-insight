@@ -103,7 +103,7 @@ export function parseExtendedBrief(val: Json | null): ExtendedBriefData {
   return val as unknown as ExtendedBriefData;
 }
 
-function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: string): unknown {
+export function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: string): unknown {
   const jsonbField = EXTENDED_BRIEF_FIELD_MAP[subsectionKey];
   return jsonbField ? brief[jsonbField] : undefined;
 }
