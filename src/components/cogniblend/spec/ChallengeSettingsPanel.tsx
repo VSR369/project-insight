@@ -79,7 +79,7 @@ export default function ChallengeSettingsPanel({
             Deadline, visibility — {filledCount}/2 configured
           </p>
         </div>
-        {filledCount === 3 && (
+        {filledCount === 2 && (
           <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-300">
             Complete
           </Badge>
