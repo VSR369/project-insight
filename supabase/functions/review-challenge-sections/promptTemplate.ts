@@ -40,7 +40,6 @@ const FORMAT_INSTRUCTIONS: Record<string, string> = {
   schedule_table: 'Output: a JSON array of phase objects with keys: phase_name (string), duration_days (number), start_date (ISO date YYYY-MM-DD or null), end_date (ISO date YYYY-MM-DD or null). Propose realistic dates based on challenge scope and complexity.',
   checkbox_multi: 'Output: a JSON array of selected option codes from the allowed values list ONLY. Do NOT invent new codes.',
   checkbox_single: 'Output: a JSON object: { "selected_id": "...", "rationale": "one sentence" }. The selected_id MUST be from the allowed values list.',
-  date: 'Output: a single ISO date string YYYY-MM-DD. Calculate based on phase_schedule end dates, deliverables count, scope complexity, and effort level. The deadline should be the end date of the last phase in the schedule, or if no schedule exists, estimate based on scope and complexity (low=60d, medium=90d, high=120d, expert=180d from today). Never output null if phase_schedule data is available.',
   structured_fields: 'Output: { "status": "complete"|"incomplete", "missing_fields": [...], "comments": "..." }.',
   select: 'Output: a single string value from the allowed options.',
   radio: 'Output: a single string value from the allowed options.',
