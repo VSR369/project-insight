@@ -119,8 +119,6 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
     }
   }, [maturityLevel, isQuick, ipModel, setValue]);
 
-  // Compute reward guidance from effort level
-  const rewardGuidance = EFFORT_LEVELS.find((e) => e.value === effortLevel)?.guidance ?? '';
   // Compute IP suggestion from maturity level
   const ipSuggestion = maturityLevel ? IP_OPTIONS.find((o) => o.value === MATURITY_IP_DEFAULTS[maturityLevel])?.label ?? '' : '';
 
