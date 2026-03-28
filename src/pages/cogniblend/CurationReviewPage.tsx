@@ -1627,7 +1627,6 @@ export default function CurationReviewPage() {
       ip_model: { field: "ip_model", options: masterData.ipModelOptions },
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
-      challenge_visibility: { field: "challenge_visibility", options: masterData.challengeVisibilityOptions },
       
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
