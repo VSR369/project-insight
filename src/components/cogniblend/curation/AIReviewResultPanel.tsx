@@ -661,7 +661,7 @@ export function AIReviewResultPanel({
     }
   }, [suggestedFormat, solverExpertiseData]);
 
-
+  useEffect(() => {
     if (suggestedFormat === "date" && parsedDate) {
       setEditedDate(parsedDate);
       onSuggestedVersionChange?.(parsedDate);
