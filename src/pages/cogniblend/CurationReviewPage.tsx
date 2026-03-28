@@ -384,11 +384,18 @@ const SECTIONS: SectionDef[] = [
     isFilled: (ch) => !!ch.ip_model?.trim(),
     render: (ch) => {
       if (!ch.ip_model) return <p className="text-sm text-muted-foreground">Not set.</p>;
-      const ipOpt = masterData.ipModelOptions.find(o => o.value === ch.ip_model);
+      const IP_LABELS: Record<string, { label: string; desc: string }> = {
+        "IP-EA": { label: "Exclusive Assignment", desc: "All intellectual property transfers to the challenge seeker" },
+        "IP-NEL": { label: "Non-Exclusive License", desc: "Solver retains ownership, grants license to seeker" },
+        "IP-EL": { label: "Exclusive License", desc: "Solver grants exclusive license to seeker" },
+        "IP-JO": { label: "Joint Ownership", desc: "Joint ownership between solver and seeker" },
+        "IP-NONE": { label: "No IP Transfer", desc: "Solver retains full IP ownership" },
+      };
+      const ipInfo = IP_LABELS[ch.ip_model];
       return (
         <div className="space-y-1">
-          <Badge variant="secondary">{ipOpt?.label ?? ch.ip_model}</Badge>
-          {ipOpt?.description && <p className="text-xs text-muted-foreground">{ipOpt.description}</p>}
+          <Badge variant="secondary">{ipInfo?.label ?? ch.ip_model}</Badge>
+          {ipInfo?.desc && <p className="text-xs text-muted-foreground">{ipInfo.desc}</p>}
         </div>
       );
     },
