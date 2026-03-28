@@ -402,7 +402,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       maturity_level: values.maturity_level?.toUpperCase() || null,
       ip_model: values.ip_model || null,
       hook: (values as any).hook || null,
-      effort_level: (values as any).effort_level || null,
+      
       eligibility: values.eligibility || null,
       solver_eligibility_id: values.solver_eligibility_id || null,
       solver_eligibility_types: values.eligible_participation_modes?.length
