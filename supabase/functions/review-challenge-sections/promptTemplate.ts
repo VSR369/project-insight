@@ -84,7 +84,7 @@ const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
   affected_stakeholders: 'Output: JSON array of row objects with keys stakeholder_name, role, impact_description (max 100 chars), adoption_challenge (max 100 chars). Always populate adoption_challenge — this is the most valuable field.',
   current_deficiencies: 'Output: JSON array of current-state observation phrases. Max 10 items. Each item must be a factual observation about current state, not a wish or solution hint.',
   preferred_approach: 'If content exists, do NOT rewrite it. Produce review comments only. Set structured_output to the existing content unchanged. Always include: "This content represents the seeker\'s stated preferences and has been preserved exactly as written."',
-  approaches_not_of_interest: 'Always set requires_human_input: true. Never produce items for this section. Output: { "requires_human_input": true, "comment": "This section requires explicit human input about excluded approaches." }',
+  approaches_not_of_interest: 'Review existing content for clarity, completeness, and consistency with challenge scope. Output: JSON array of refined exclusion phrases. Preserve the seeker\'s original intent. If section is empty, set status to "warning" with a comment requesting human input.',
 };
 
 export function buildConfiguredBatchPrompt(

@@ -122,6 +122,10 @@ function parseStructuredItems(content: string, sectionKey: string): string[] | n
 
   try {
     const parsed = JSON.parse(cleaned);
+    // Guard: reject requires_human_input payloads (legacy junk from edge function)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.requires_human_input) {
+      return null;
+    }
     if (Array.isArray(parsed)) {
       // For line_items: flatten to strings
       const fmt = getSectionFormatType(sectionKey);
