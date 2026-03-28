@@ -1,6 +1,6 @@
 /**
  * ChallengeSettingsPanel — Creator-facing collapsible settings for org-policy fields.
- * Shows Submission Deadline and Challenge Visibility in a clean accordion.
+ * Shows Submission Deadline in a clean accordion.
  * Used on AISpecReviewPage so creators can set org-policy BEFORE submitting to Legal/Curation.
  */
 
@@ -10,13 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import {
   Collapsible,
@@ -26,29 +19,18 @@ import {
 import {
   CalendarIcon,
   ChevronDown,
-  Eye,
   Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChallengeSettingsPanelProps {
   submissionDeadline: string | null;
-  challengeVisibility: string | null;
-  
   onFieldChange: (field: string, value: unknown) => void;
   readOnly?: boolean;
 }
 
-
-const VISIBILITY_OPTIONS = [
-  { value: "public", label: "Public", description: "Visible to all solver types" },
-  { value: "private", label: "Private", description: "Only invited solvers can view" },
-  { value: "invite_only", label: "Invite Only", description: "Restricted access by invitation" },
-];
-
 export default function ChallengeSettingsPanel({
   submissionDeadline,
-  challengeVisibility,
   onFieldChange,
   readOnly = false,
 }: ChallengeSettingsPanelProps) {
@@ -65,7 +47,7 @@ export default function ChallengeSettingsPanel({
     [onFieldChange],
   );
 
-  const filledCount = [submissionDeadline, challengeVisibility].filter(Boolean).length;
+  const filledCount = [submissionDeadline].filter(Boolean).length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -74,10 +56,10 @@ export default function ChallengeSettingsPanel({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Challenge Settings</p>
           <p className="text-xs text-muted-foreground">
-            Deadline, visibility — {filledCount}/2 configured
+            Deadline — {filledCount}/1 configured
           </p>
         </div>
-        {filledCount === 2 && (
+        {filledCount === 1 && (
           <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-300">
             Complete
           </Badge>
@@ -128,39 +110,6 @@ export default function ChallengeSettingsPanel({
             </Popover>
           )}
         </div>
-
-        {/* Challenge Visibility */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Eye className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium text-foreground">Challenge Visibility</Label>
-          </div>
-          {readOnly ? (
-            <p className="text-sm text-foreground pl-6 capitalize">
-              {challengeVisibility?.replace(/_/g, " ") || "Not set"}
-            </p>
-          ) : (
-            <Select
-              value={challengeVisibility ?? ""}
-              onValueChange={(val) => onFieldChange("challenge_visibility", val)}
-            >
-              <SelectTrigger className="w-full max-w-xs ml-6">
-                <SelectValue placeholder="Select visibility" />
-              </SelectTrigger>
-              <SelectContent>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <div>
-                      <span className="font-medium">{opt.label}</span>
-                      <span className="text-xs text-muted-foreground ml-2">— {opt.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
       </CollapsibleContent>
     </Collapsible>
   );
