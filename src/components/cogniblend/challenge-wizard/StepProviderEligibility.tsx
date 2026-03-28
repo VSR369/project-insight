@@ -64,9 +64,6 @@ const ARTIFACT_TIERS: Record<string, string[]> = {
 
 /* ─── Enterprise Publication Config ──────────────────── */
 
-import {
-  VISIBILITY_OPTIONS,
-} from '@/constants/challengeOptions.constants';
 
 /* ─── Star Rating Badge ──────────────────────────────── */
 
