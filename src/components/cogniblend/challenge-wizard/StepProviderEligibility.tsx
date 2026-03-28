@@ -485,36 +485,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
           </div>
         )}
 
-        {/* ── Enterprise: Visibility Dropdown ── */}
-        {!isQuick && (solverEligibilityIds.length > 0 || isAllTiers) && (
-          <div className="space-y-3 border-t border-border pt-4">
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">Challenge Visibility</h4>
-              <p className="text-xs text-muted-foreground">
-                Who can discover this challenge? Eligible solvers (selected above) can view and submit.
-              </p>
-            </div>
-            <Select value={challengeVisibility} onValueChange={(v: string) => setValue('challenge_visibility', v, { shouldDirty: true })}>
-              <SelectTrigger className="text-base w-full max-w-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <AccessModelSummary
-              visibility={challengeVisibility}
-              eligibleSolverLabels={
-                solverEligibilityIds.length > 0
-                  ? activeCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
-                  : []
-              }
-            />
-          </div>
-        )}
-
         {/* ── Lightweight: Summary note ── */}
         {isQuick && (
           <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
