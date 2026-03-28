@@ -2842,19 +2842,6 @@ export default function CurationReviewPage() {
                           </>
                         );
 
-                      // ── Effort level (radio) ──
-                      case "effort_level":
-                        return (
-                          <>
-                            <RadioSectionRenderer
-                              value={challenge.effort_level}
-                              options={masterData.effortOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
                                 <Pencil className="h-3 w-3 mr-1" />Edit
