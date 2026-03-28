@@ -332,11 +332,6 @@ Generate a complete challenge specification including all extended brief fields.
                     },
                     description: "5-level scoring rubric per evaluation criterion",
                   },
-                  effort_level: {
-                    type: "string",
-                    enum: ["low", "medium", "high", "expert"],
-                    description: "Estimated effort level based on complexity",
-                  },
                   reward_description: {
                     type: "string",
                     description: "Paragraph describing reward structure expectations",
