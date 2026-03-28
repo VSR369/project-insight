@@ -45,7 +45,7 @@ export interface ChallengeDetail {
   solver_eligibility_id: string | null;
   challenge_visibility: string | null;
   hook: string | null;
-  effort_level: string | null;
+  
   extended_brief: Record<string, unknown> | null;
   eligibility_model: string | null;
   domain_tags: unknown;
