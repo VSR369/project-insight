@@ -542,6 +542,26 @@ export function AIReviewResultPanel({
     return null;
   }, [sectionKey, result.suggested_version]);
 
+  // For solver_expertise, parse structured tree data
+  const solverExpertiseData = useMemo(() => {
+    if (sectionKey !== "solver_expertise" || !result.suggested_version) return null;
+    const cleaned = result.suggested_version.trim()
+      .replace(/^```(?:json)?\s*\n?/i, "")
+      .replace(/\n?```\s*$/i, "").trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as {
+          expertise_levels?: { id: string; name: string }[];
+          proficiency_areas?: { id: string; name: string }[];
+          sub_domains?: { id: string; name: string }[];
+          specialities?: { id: string; name: string }[];
+        };
+      }
+    } catch {}
+    return null;
+  }, [sectionKey, result.suggested_version]);
+
   // For table sections (eval_criteria), try parsing as row objects
   const tableRows = useMemo(() => {
     if (sectionKey === "evaluation_criteria" && result.suggested_version) {
