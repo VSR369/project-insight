@@ -503,6 +503,7 @@ export function useRewardStructureState(
       sourceRole: 'CURATOR',
       isAutoPopulated: false,
       isEditable: true,
+      upstreamSource: resolved.upstreamSource,
     };
 
     const serialized = serializeRewardData(data);

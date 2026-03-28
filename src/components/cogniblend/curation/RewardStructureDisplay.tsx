@@ -376,12 +376,16 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       {sectionState === 'populated_from_source' && (
         <>
           <SourceBanner
-            sourceRole={rewardData.sourceRole}
-            sourceDate={rewardData.sourceDate}
+            sourceRole={rewardData.upstreamSource?.role ?? rewardData.sourceRole}
+            sourceDate={rewardData.upstreamSource?.date ?? rewardData.sourceDate}
             isModified={isModified}
             onEdit={startEditing}
             onReset={resetToSource}
-            budgetRange={rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
+            budgetRange={rewardData.upstreamSource ? {
+              min: rewardData.upstreamSource.budgetMin ?? 0,
+              max: rewardData.upstreamSource.budgetMax ?? 0,
+              currency: rewardData.upstreamSource.currency ?? currencyCode ?? 'USD',
+            } : rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
               min: rewardData.monetary.budgetMin ?? 0,
               max: rewardData.monetary.budgetMax ?? 0,
               currency: rewardData.monetary?.currency ?? currencyCode ?? 'USD',
@@ -413,14 +417,18 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
             onSwitch={handleTypeSwitch}
           />
 
-          {rewardData.isAutoPopulated && (
+          {(rewardData.isAutoPopulated || rewardData.upstreamSource) && (
             <SourceBanner
-              sourceRole={rewardData.sourceRole}
-              sourceDate={rewardData.sourceDate}
+              sourceRole={rewardData.upstreamSource?.role ?? rewardData.sourceRole}
+              sourceDate={rewardData.upstreamSource?.date ?? rewardData.sourceDate}
               isModified={isModified}
               onEdit={() => {}}
               onReset={resetToSource}
-              budgetRange={rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
+              budgetRange={rewardData.upstreamSource ? {
+                min: rewardData.upstreamSource.budgetMin ?? 0,
+                max: rewardData.upstreamSource.budgetMax ?? 0,
+                currency: rewardData.upstreamSource.currency ?? currencyCode ?? 'USD',
+              } : rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
                 min: rewardData.monetary.budgetMin ?? 0,
                 max: rewardData.monetary.budgetMax ?? 0,
                 currency: rewardData.monetary?.currency ?? currencyCode ?? 'USD',
@@ -484,6 +492,19 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       {/* ── Saved state: read view + edit button ── */}
       {sectionState === 'saved' && !isEditing && (
         <>
+          {rewardData.upstreamSource && (
+            <SourceBanner
+              sourceRole={rewardData.upstreamSource.role}
+              sourceDate={rewardData.upstreamSource.date}
+              isModified={true}
+              onEdit={startEditing}
+              budgetRange={{
+                min: rewardData.upstreamSource.budgetMin ?? 0,
+                max: rewardData.upstreamSource.budgetMax ?? 0,
+                currency: rewardData.upstreamSource.currency ?? currencyCode ?? 'USD',
+              }}
+            />
+          )}
           <RewardTypeToggle
             currentType={rewardType}
             hasExistingData={hasExistingData}
@@ -505,6 +526,19 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       {/* ── Reviewed state ── */}
       {sectionState === 'reviewed' && (
         <>
+          {rewardData.upstreamSource && (
+            <SourceBanner
+              sourceRole={rewardData.upstreamSource.role}
+              sourceDate={rewardData.upstreamSource.date}
+              isModified={true}
+              onEdit={startEditing}
+              budgetRange={{
+                min: rewardData.upstreamSource.budgetMin ?? 0,
+                max: rewardData.upstreamSource.budgetMax ?? 0,
+                currency: rewardData.upstreamSource.currency ?? currencyCode ?? 'USD',
+              }}
+            />
+          )}
           <RewardTypeToggle
             currentType={rewardType}
             hasExistingData={hasExistingData}
