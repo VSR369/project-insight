@@ -721,47 +721,52 @@ interface GroupDef {
 
 const GROUPS: GroupDef[] = [
   {
-    id: "content",
-    label: "Content",
+    id: "problem_definition",
+    label: "Problem Definition",
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["problem_statement", "scope", "deliverables", "expected_outcomes", "submission_guidelines", "maturity_level", "hook"],
+    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes"],
   },
   {
-    id: "evaluation",
-    label: "Evaluation",
+    id: "challenge_context",
+    label: "Challenge Context",
+    colorDone: "bg-teal-100 text-teal-800 border-teal-300",
+    colorActive: "bg-teal-50 border-teal-400",
+    colorBorder: "border-teal-200",
+    sectionKeys: ["root_causes", "affected_stakeholders", "current_deficiencies", "preferred_approach", "approaches_not_of_interest"],
+  },
+  {
+    id: "scope_complexity",
+    label: "Scope & Complexity",
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["evaluation_criteria", "reward_structure", "complexity"],
+    sectionKeys: ["deliverables", "maturity_level", "complexity"],
   },
   {
-    id: "legal_finance",
-    label: "Legal & Finance",
-    colorDone: "bg-amber-100 text-amber-800 border-amber-300",
-    colorActive: "bg-amber-50 border-amber-400",
-    colorBorder: "border-amber-200",
-    sectionKeys: ["ip_model", "legal_docs", "escrow_funding", "domain_tags"],
-  },
-  {
-    id: "publication",
-    label: "Publication",
+    id: "solvers_schedule",
+    label: "Solvers & Schedule",
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise"],
+    sectionKeys: ["solver_expertise", "eligibility", "phase_schedule", "submission_guidelines"],
   },
   {
-    id: "extended_brief",
-    label: "Extended Brief",
-    colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    colorActive: "bg-emerald-50 border-emerald-400",
-    colorBorder: "border-emerald-200",
-    sectionKeys: [
-      "context_and_background", "root_causes", "affected_stakeholders",
-      "current_deficiencies", "preferred_approach", "approaches_not_of_interest",
-    ],
+    id: "evaluation_rewards",
+    label: "Evaluation & Rewards",
+    colorDone: "bg-amber-100 text-amber-800 border-amber-300",
+    colorActive: "bg-amber-50 border-amber-400",
+    colorBorder: "border-amber-200",
+    sectionKeys: ["evaluation_criteria", "reward_structure", "ip_model", "escrow_funding", "legal_docs"],
+  },
+  {
+    id: "publish_discover",
+    label: "Publish & Discover",
+    colorDone: "bg-violet-100 text-violet-800 border-violet-300",
+    colorActive: "bg-violet-50 border-violet-400",
+    colorBorder: "border-violet-200",
+    sectionKeys: ["hook", "visibility", "domain_tags"],
   },
 ];
 
@@ -999,7 +1004,7 @@ export default function CurationReviewPage() {
   const { data: complexityParams = [] } = useComplexityParams();
   const { data: industrySegments } = useIndustrySegments();
 
-  const [activeGroup, setActiveGroup] = useState<string>("content");
+  const [activeGroup, setActiveGroup] = useState<string>("problem_definition");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
@@ -2377,7 +2382,7 @@ export default function CurationReviewPage() {
       )}
 
       {/* ═══ PROGRESS STRIP ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         {GROUPS.map((group) => {
           const progress = groupProgress[group.id];
           const done = progress?.done ?? 0;
