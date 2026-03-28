@@ -182,7 +182,7 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiUsesContext: ['intake.problem_statement', 'root_causes'],
   },
   preferred_approach: {
-    format: 'rich_text',
+    format: 'line_items',
     aiCanDraft: true,
     aiReviewEnabled: true,
     curatorCanEdit: true,

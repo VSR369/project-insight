@@ -364,12 +364,8 @@ export default function ExtendedBriefDisplay({
         const sectionContent = (() => {
           switch (subsectionKey) {
             // ── Rich text sections ──
-            case "context_and_background":
-            case "preferred_approach": {
+            case "context_and_background": {
               const textVal = typeof rawVal === "string" ? rawVal : "";
-              const emptyPlaceholder = subsectionKey === "preferred_approach"
-                ? "Preferred approaches have not been specified — solvers have full freedom to propose any approach."
-                : undefined;
               return (
                 <>
                   <RichTextSectionRenderer
@@ -381,9 +377,6 @@ export default function ExtendedBriefDisplay({
                     onEdit={() => setEditingKey(subsectionKey)}
                     saving={saving}
                   />
-                  {!textVal && emptyPlaceholder && !isEditing && (
-                    <p className="text-sm text-muted-foreground italic">{emptyPlaceholder}</p>
-                  )}
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>
                       <Pencil className="h-3 w-3 mr-1" />Edit
@@ -395,7 +388,8 @@ export default function ExtendedBriefDisplay({
 
             // ── Line items sections ──
             case "root_causes":
-            case "current_deficiencies": {
+            case "current_deficiencies":
+            case "preferred_approach": {
               const items = ensureStringArray(rawVal);
               return (
                 <>
@@ -406,7 +400,7 @@ export default function ExtendedBriefDisplay({
                     onSave={(newItems) => handleSubsectionSave(subsectionKey, newItems)}
                     onCancel={cancelEdit}
                     saving={saving}
-                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : "Deficiency"}
+                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : subsectionKey === "preferred_approach" ? "Approach" : "Deficiency"}
                   />
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>
@@ -417,7 +411,7 @@ export default function ExtendedBriefDisplay({
               );
             }
 
-            // ── Approaches NOT of interest (line items, aiCanDraft: false) ──
+            // ── Approaches NOT of interest (line items) ──
             case "approaches_not_of_interest": {
               const items = ensureStringArray(rawVal);
               return (
