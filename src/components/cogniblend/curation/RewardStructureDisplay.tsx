@@ -417,14 +417,18 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
             onSwitch={handleTypeSwitch}
           />
 
-          {rewardData.isAutoPopulated && (
+          {(rewardData.isAutoPopulated || rewardData.upstreamSource) && (
             <SourceBanner
-              sourceRole={rewardData.sourceRole}
-              sourceDate={rewardData.sourceDate}
+              sourceRole={rewardData.upstreamSource?.role ?? rewardData.sourceRole}
+              sourceDate={rewardData.upstreamSource?.date ?? rewardData.sourceDate}
               isModified={isModified}
               onEdit={() => {}}
               onReset={resetToSource}
-              budgetRange={rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
+              budgetRange={rewardData.upstreamSource ? {
+                min: rewardData.upstreamSource.budgetMin ?? 0,
+                max: rewardData.upstreamSource.budgetMax ?? 0,
+                currency: rewardData.upstreamSource.currency ?? currencyCode ?? 'USD',
+              } : rewardData.monetary?.budgetMin || rewardData.monetary?.budgetMax ? {
                 min: rewardData.monetary.budgetMin ?? 0,
                 max: rewardData.monetary.budgetMax ?? 0,
                 currency: rewardData.monetary?.currency ?? currencyCode ?? 'USD',
