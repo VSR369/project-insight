@@ -2801,7 +2801,6 @@ export default function CurationReviewPage() {
                       case "ip_model": return masterData.ipModelOptions;
                       case "maturity_level": return masterData.maturityOptions;
                       case "complexity": return masterData.complexityOptions;
-                      case "challenge_visibility": return masterData.challengeVisibilityOptions;
                       
                       default: return undefined;
                     }
