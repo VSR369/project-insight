@@ -1820,6 +1820,13 @@ export default function CurationReviewPage() {
           valueToSave = (valueToSave as any).items;
         }
       }
+      // Fallback for line_items: if still a plain string, split into array items
+      if (config.format === 'line_items' && typeof valueToSave === 'string') {
+        const lines = valueToSave.split('\n')
+          .map((l: string) => l.replace(/^(?:\d+[\.\)]\s*|[-*•]\s*)/, '').trim())
+          .filter((l: string) => l.length > 0);
+        valueToSave = lines.length > 1 ? lines : [valueToSave.trim()].filter(Boolean);
+      }
     } else if (config?.format === 'rich_text' && typeof newContent === 'string') {
       const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
       valueToSave = normalizeAiContentForEditor(newContent);
