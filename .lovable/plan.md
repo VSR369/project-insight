@@ -1,73 +1,98 @@
 
 
-# Fix Industry Segment Resolution + Curator Selector for Solver Expertise
+# Fix Solver Expertise Section: Edit Button, Expertise Levels, and "All" Semantics
 
-## Problem
+## Problems Identified
 
-When the curator clicks Edit on Solver Expertise Requirements, the taxonomy tree doesn't load because `industrySegmentId` resolves to `null`. The current code only checks `challenge.eligibility?.industry_segment_id` — missing two other sources. Additionally, if no source has the industry segment (e.g. early-stage challenges), the curator has no way to select one.
+1. **Edit button disappears intermittently**: `SolverExpertiseSection` has two early returns (lines 265-270 and 274-297) that **replace the entire section output** — including the parent's Edit button rendered *after* the component. When `effectiveSegmentId` is null, the component returns its own UI and the parent's `{canEdit && !isEditing && <Button>Edit</Button>}` never renders because it's outside the component.
 
-## What changes
+2. **Expertise levels not shown**: The view mode (lines 300-350) only displays proficiency areas, sub-domains, and specialities — expertise levels are completely omitted from both view and save.
 
-### 1. Add missing columns to the Supabase query
+3. **No "All" semantics**: Currently the user must manually check items. The requirement is: if nothing is selected at a level, it means "All" at that level.
 
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+## Plan
 
-- Add `targeting_filters` and `eligibility_model` to the `ChallengeData` interface (~line 141)
-- Add both columns to the `.select()` query (~line 970)
+### File: `src/components/cogniblend/curation/SolverExpertiseSection.tsx`
 
-### 2. Create `resolveIndustrySegmentId` helper
+**A. Remove conditional early returns that hide Edit button**
 
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+Move the "no segment" fallback UI *inside* the main return structure so the parent's Edit button is always rendered. The component should never return early in a way that prevents the parent from rendering its button. Specifically:
 
-A utility function that checks three sources in priority order:
+- Remove the early return at lines 265-270 (no segment, not editing). Instead, render this message inline within the normal view mode block.
+- Remove the early return at lines 274-296 (no segment, editing). Instead, render the industry segment selector as part of the normal edit mode flow, *before* the taxonomy tree.
 
-1. `targeting_filters.industries[0]` — set by Account Manager during intake
-2. `eligibility.industry_segment_id` — set by Challenge Creator in wizard
-3. `eligibility_model` — fallback field
+**B. Add expertise_levels to the data model and display**
 
-Returns the first non-null value, or `null` if none exist.
+- Add `selectedELs` state (Set of expertise level IDs) initialized from `parsed.expertise_levels`
+- In **view mode**: show a "Expertise Levels" badge row before proficiency areas. If none saved → show "All Levels"
+- In **edit mode**: show expertise level checkboxes at the top of the tree (before expanding into proficiency areas). Each expertise level gets a checkbox
+- In **handleSave**: include `expertise_levels` in the save payload
 
-### 3. Use the resolved ID in the `solver_expertise` case
+**C. Implement "All" = nothing selected semantics**
 
-Replace the current single-source lookup (~line 2763–2764) with `resolveIndustrySegmentId(challenge)`.
+- In view mode: if `expertise_levels` is empty/undefined → display "All Levels" badge. Same for proficiency areas ("All Areas"), sub-domains, specialities
+- In edit mode: show a note at the top: "Unchecked = All applicable at that level"
+- The tree still allows selective checking, but empty selection at any level means "all"
+- Filter the tree display: if specific expertise levels are checked, only show proficiency areas under those levels. If none checked (= all), show everything
 
-### 4. Add industry segment selector to `SolverExpertiseSection` when ID is null
+**D. Tree filtering by selected expertise levels**
 
-**File: `src/components/cogniblend/curation/SolverExpertiseSection.tsx`**
+When expertise levels are selectively checked:
+- Only show proficiency areas belonging to checked expertise levels
+- Sub-domains and specialities cascade naturally since they're nested under proficiency areas
+- When no expertise levels are checked → show all (current behavior)
 
-Instead of returning the dead-end "No industry segment configured" message (line 252–258), show a dropdown selector populated from the `useIndustrySegments()` hook (already imported). The curator picks an industry segment, which:
+### File: `src/pages/cogniblend/CurationReviewPage.tsx`
 
-- Sets a local state `selectedSegmentId` used to load the taxonomy tree
-- Includes the selected segment ID in the `onSave` callback data so the parent can persist it to `eligibility`
+No changes needed — the Edit button logic at line 2806 is already correct (`canEdit && !isEditing`). The fix is entirely in the component removing its early returns.
 
-The flow becomes:
-- If `industrySegmentId` prop is provided → auto-populate, show as read-only badge (existing behavior)
-- If `industrySegmentId` is null and `editing` is true → show a `<Select>` dropdown of active industry segments; curator must pick one before the taxonomy tree appears
-- If `industrySegmentId` is null and not editing → show "Not yet configured" with a prompt to click Edit
+## Technical Details
 
-### 5. Persist curator's industry segment choice
+**State additions in SolverExpertiseSection:**
+```typescript
+const [selectedELs, setSelectedELs] = useState<Set<string>>(
+  new Set((parsed.expertise_levels ?? []).map(i => i.id))
+);
+```
 
-**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+**Tree filtering logic:**
+```typescript
+const filteredTree = useMemo(() => {
+  if (selectedELs.size === 0) return tree; // All levels
+  return tree.filter(el => selectedELs.has(el.id));
+}, [tree, selectedELs]);
+```
 
-When `onSave` returns an `industry_segment_id` (new field on `SolverExpertiseData`), also update `challenge.eligibility` with the selected segment so it persists for future loads.
+**Save payload update:**
+```typescript
+const savePayload: SolverExpertiseData = {
+  expertise_levels: elItems.length > 0 ? elItems : undefined, // undefined = all
+  proficiency_areas: paItems.length > 0 ? paItems : undefined,
+  sub_domains: sdItems.length > 0 ? sdItems : undefined,
+  specialities: spItems.length > 0 ? spItems : undefined,
+};
+```
 
-## Technical details
-
-**`SolverExpertiseSection.tsx` changes:**
-- Add `industry_segment_id?: string` to `SolverExpertiseData`
-- Replace the early return at line 252 with a conditional: if editing and no ID, render a `<Select>` from `useIndustrySegments()` data
-- Use local state `effectiveSegmentId = industrySegmentId ?? localSelectedId`
-- Pass `effectiveSegmentId` to `useFullTaxonomyTree`
-
-**`CurationReviewPage.tsx` changes:**
-- `ChallengeData` gets `targeting_filters: Json | null` and `eligibility_model: string | null`
-- Query `.select(...)` adds both columns
-- New `resolveIndustrySegmentId()` function with 3-step fallback
-- `onSave` handler in `solver_expertise` case: if `expertiseData.industry_segment_id` exists, also mutate `eligibility` to include it
+**View mode expertise levels display:**
+```tsx
+<div>
+  <p className="text-xs font-medium text-muted-foreground mb-1">Expertise Levels</p>
+  {(!parsed.expertise_levels || parsed.expertise_levels.length === 0) ? (
+    <Badge variant="secondary">All Levels</Badge>
+  ) : (
+    <div className="flex flex-wrap gap-1.5">
+      {parsed.expertise_levels.map(el => (
+        <Badge key={el.id} variant="outline">{el.name}</Badge>
+      ))}
+    </div>
+  )}
+</div>
+```
 
 ## Result
 
-- If AM/CR already set an industry segment → auto-populated, curator sees it as a badge
-- If no one set it → curator sees a dropdown in edit mode, picks one, and proceeds with the taxonomy tree
-- Industry segment is never null when the expertise tree is needed
+- Edit button is **always visible** when `canEdit && !isEditing` — no more intermittent disappearance
+- Expertise levels shown in both view and edit modes with checkboxes
+- "All" semantics: unchecked at any level = all applicable (no restriction)
+- Selective expertise level checkboxes filter the visible tree below them
 
