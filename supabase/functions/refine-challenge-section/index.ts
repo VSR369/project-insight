@@ -38,7 +38,6 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   phase_schedule: 'schedule_table',
   complexity: 'checkbox_single', ip_model: 'checkbox_single', maturity_level: 'checkbox_single',
   eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
-  challenge_visibility: 'select',
   domain_tags: 'tag_input', solver_expertise: 'custom',
   context_and_background: 'rich_text', root_causes: 'line_items',
   current_deficiencies: 'line_items',
