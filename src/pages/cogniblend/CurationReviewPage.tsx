@@ -639,19 +639,6 @@ const SECTIONS: SectionDef[] = [
     render: () => null, // Rendered via ExtendedBriefDisplay component
   },
   {
-    key: "submission_deadline",
-    label: "Submission Deadline",
-    attribution: "by Curator",
-    dbField: "submission_deadline",
-    isFilled: (ch) => !!(ch as any).submission_deadline,
-    render: (ch) => {
-      const dl = (ch as any).submission_deadline;
-      return dl
-        ? <p className="text-sm font-medium text-foreground">{new Date(dl).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
-        : <p className="text-sm text-muted-foreground italic">Not set</p>;
-    },
-  },
-  {
     key: "challenge_visibility",
     label: "Challenge Visibility",
     attribution: "by Curator",
