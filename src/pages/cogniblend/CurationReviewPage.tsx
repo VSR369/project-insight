@@ -86,7 +86,6 @@ import {
   ScheduleTableSectionRenderer,
   CheckboxSingleSectionRenderer,
   CheckboxMultiSectionRenderer,
-  DateSectionRenderer,
   SelectSectionRenderer,
   RadioSectionRenderer,
   TagInputSectionRenderer,
@@ -149,7 +148,6 @@ interface ChallengeData {
   ai_section_reviews: Json | null;
   currency_code: string | null;
   // Phase 1 additions
-  submission_deadline: string | null;
   challenge_visibility: string | null;
   
   hook: string | null;
@@ -640,19 +638,6 @@ const SECTIONS: SectionDef[] = [
     render: () => null, // Rendered via ExtendedBriefDisplay component
   },
   {
-    key: "submission_deadline",
-    label: "Submission Deadline",
-    attribution: "by Curator",
-    dbField: "submission_deadline",
-    isFilled: (ch) => !!(ch as any).submission_deadline,
-    render: (ch) => {
-      const dl = (ch as any).submission_deadline;
-      return dl
-        ? <p className="text-sm font-medium text-foreground">{new Date(dl).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
-        : <p className="text-sm text-muted-foreground italic">Not set</p>;
-    },
-  },
-  {
     key: "challenge_visibility",
     label: "Challenge Visibility",
     attribution: "by Curator",
@@ -711,7 +696,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "submission_deadline", "challenge_visibility"],
+    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "challenge_visibility"],
   },
   {
     id: "extended_brief",
@@ -820,7 +805,6 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "maturity_level": return ch.maturity_level;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
     case "hook": return ch.hook;
-    case "submission_deadline": return ch.submission_deadline;
     case "challenge_visibility": return ch.challenge_visibility;
     
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
@@ -1000,7 +984,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, challenge_visibility, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1240,7 +1224,7 @@ export default function CurationReviewPage() {
     setSavingSection(true);
     // Map dbField back to section key for store sync
     const fieldToSection: Record<string, string> = {
-      ip_model: 'ip_model', submission_deadline: 'submission_deadline',
+      ip_model: 'ip_model',
       challenge_visibility: 'challenge_visibility',
       solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
       solver_expertise_requirements: 'solver_expertise',
@@ -1435,7 +1419,7 @@ export default function CurationReviewPage() {
       const VALID_CURATION_KEYS = new Set([
         'problem_statement', 'scope', 'deliverables', 'evaluation_criteria', 'reward_structure',
         'phase_schedule', 'submission_guidelines', 'eligibility', 'complexity', 'ip_model',
-        'legal_docs', 'escrow_funding', 'maturity_level', 'hook', 'submission_deadline',
+        'legal_docs', 'escrow_funding', 'maturity_level', 'hook',
         'challenge_visibility', 'domain_tags', 'visibility', 'solver_expertise',
         'context_and_background', 'root_causes', 'affected_stakeholders', 'current_deficiencies',
         'preferred_approach', 'approaches_not_of_interest',
@@ -2730,6 +2714,18 @@ export default function CurationReviewPage() {
                               onSave={(rows) => {
                                 setSavingSection(true);
                                 saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
+                                // Auto-derive submission_deadline from last phase end_date
+                                if (Array.isArray(rows) && rows.length > 0) {
+                                  const endDates = rows
+                                    .map((r: any) => r.end_date)
+                                    .filter(Boolean)
+                                    .map((d: string) => new Date(d).getTime())
+                                    .filter((t: number) => !isNaN(t));
+                                  if (endDates.length > 0) {
+                                    const maxEnd = new Date(Math.max(...endDates)).toISOString().split('T')[0];
+                                    saveSectionMutation.mutate({ field: "submission_deadline", value: maxEnd });
+                                  }
+                                }
                               }}
                               onCancel={() => setEditingSection(null)}
                               saving={savingSection}
@@ -2799,26 +2795,6 @@ export default function CurationReviewPage() {
                             challengeContext={challengeCtx}
                             expandVersion={expandVersion}
                           />
-                        );
-
-                      // ── Submission deadline (date picker) ──
-                      case "submission_deadline":
-                        return (
-                          <>
-                            <DateSectionRenderer
-                              value={challenge.submission_deadline}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
                         );
 
                       // ── Challenge visibility (select) ──

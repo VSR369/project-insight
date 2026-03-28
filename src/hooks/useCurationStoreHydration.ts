@@ -31,7 +31,6 @@ interface ChallengeDataSlice {
   eligibility: string | null;
   description: string | null;
   domain_tags: unknown;
-  submission_deadline: string | null;
   challenge_visibility: string | null;
   
   expected_outcomes: unknown;
@@ -55,7 +54,6 @@ const CHALLENGE_FIELD_TO_SECTION: Array<[keyof ChallengeDataSlice, SectionKey]> 
   ['eligibility', 'eligibility' as SectionKey],
   ['description', 'submission_guidelines' as SectionKey],
   ['domain_tags', 'domain_tags' as SectionKey],
-  ['submission_deadline', 'submission_deadline' as SectionKey],
   ['challenge_visibility', 'challenge_visibility' as SectionKey],
   
   ['expected_outcomes', 'expected_outcomes' as SectionKey],

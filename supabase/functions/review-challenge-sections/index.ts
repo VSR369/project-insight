@@ -40,9 +40,7 @@ const CURATION_SECTIONS = [
   { key: "escrow_funding", desc: "Escrow funded (if required)" },
   { key: "maturity_level", desc: "Set and consistent with challenge depth" },
   { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "submission_deadline", desc: "Realistic submission deadline with adequate solver time" },
   { key: "challenge_visibility", desc: "Appropriate visibility setting for the challenge type" },
-  { key: "effort_level", desc: "Effort level consistent with scope and complexity" },
   { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
   { key: "visibility", desc: "Solver visibility types properly configured" },
   { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
@@ -156,12 +154,6 @@ const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
     { code: "public", label: "Public" },
     { code: "private", label: "Private" },
     { code: "invite_only", label: "Invite Only" },
-  ],
-  effort_level: [
-    { code: "LOW", label: "Low" },
-    { code: "MEDIUM", label: "Medium" },
-    { code: "HIGH", label: "High" },
-    { code: "VERY_HIGH", label: "Very High" },
   ],
 };
 
@@ -551,7 +543,7 @@ serve(async (req) => {
       ? "title, reward_structure, phase_schedule, ai_section_reviews"
       : resolvedContext === "evaluation"
       ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, submission_deadline, effort_level, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
+      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
 
     const fetchPromises: Promise<any>[] = [
       adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),

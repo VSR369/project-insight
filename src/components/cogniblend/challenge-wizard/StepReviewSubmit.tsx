@@ -116,8 +116,8 @@ export function StepReviewSubmit({ form, isQuick, onNavigateToStep }: StepReview
       title: 'Step 4: Timeline & Phases',
       step: 4,
       fields: [
-        { label: 'Submission Deadline', value: v.submission_deadline ?? '', isValid: !!v.submission_deadline },
         { label: 'Expected Timeline', value: v.expected_timeline ?? '', isValid: true },
+        { label: 'Review Duration', value: v.review_duration ? `${v.review_duration} days` : '', isValid: true },
         { label: 'Review Duration', value: v.review_duration ? `${v.review_duration} days` : '', isValid: true },
         { label: 'Phase Notes', value: v.phase_notes ? '✓ Provided' : '', isValid: true },
         { label: 'Phase Durations', value: v.phase_durations ? `${Object.keys(v.phase_durations).length} phases configured` : '', isValid: true },

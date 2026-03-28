@@ -88,7 +88,7 @@ const CURATION_SECTION_KEYS = [
   "evaluation_criteria", "reward_structure", "phase_schedule",
   "submission_guidelines", "eligibility", "complexity", "ip_model",
   "legal_docs", "escrow_funding", "maturity_level", "hook",
-  "submission_deadline", "challenge_visibility",
+  "challenge_visibility",
   "domain_tags", "visibility", "solver_expertise",
   "context_and_background", "root_causes", "affected_stakeholders",
   "current_deficiencies", "preferred_approach", "approaches_not_of_interest",
@@ -136,7 +136,7 @@ function buildTriageUserPrompt(
     parts.push(`Challenge Context for Reward Evaluation:`);
     parts.push(`- Maturity: ${challengeData.maturity_level || 'not set'}`);
     parts.push(`- Complexity: ${challengeData.complexity_level || 'not set'}`);
-    parts.push(`- Effort: ${challengeData.effort_level || 'not set'}`);
+    parts.push(`- Complexity: ${challengeData.complexity_level || 'not set'}`);
     parts.push(`- Domains: ${JSON.stringify(challengeData.domain_tags || [])}`);
     parts.push(`- Deliverables count: ${countDeliverables(challengeData.deliverables)}`);
     parts.push(`- Problem summary: ${(challengeData.problem_statement || '').slice(0, 200)}\n`);
@@ -347,7 +347,7 @@ serve(async (req) => {
     // Fetch minimal challenge data
     const { data: challengeData, error: challengeError } = await adminClient
       .from("challenges")
-      .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, challenge_visibility, phase_schedule, complexity_level, hook, extended_brief, submission_deadline, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types")
+      .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, challenge_visibility, phase_schedule, complexity_level, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types")
       .eq("id", challenge_id)
       .single();
 

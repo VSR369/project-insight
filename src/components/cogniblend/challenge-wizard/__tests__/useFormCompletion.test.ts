@@ -47,7 +47,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): FieldKey[][] {
       ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
       ['weighted_criteria'],
       ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model'],
-      ['submission_deadline', 'expected_timeline', 'review_duration'],
+      ['expected_timeline', 'review_duration'],
       ['eligibility', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'],
       [],
       [],
@@ -59,7 +59,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): FieldKey[][] {
     ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
     ['weighted_criteria'],
     ['platinum_award', 'gold_award', 'rejection_fee_pct'],
-    ['submission_deadline', 'expected_timeline', 'review_duration'],
+    ['expected_timeline', 'review_duration'],
     ['eligibility'],
     [],
     [],
@@ -118,10 +118,10 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
       platinum_award: 500,
     };
     const result = computeCompletion(values, 'STRUCTURED');
-    // filled: step0=1/1, step1=4/5, step2=1/1, step3=1/3, step4=0/3, step5=0/1 → 7/14 = 50%
+    // filled: step0=1/1, step1=4/5, step2=1/1, step3=1/3, step4=0/2, step5=0/1 → 7/13 = 53%
     expect(result.totalFilled).toBe(7);
-    expect(result.totalRequired).toBe(14);
-    expect(result.pct).toBe(50);
+    expect(result.totalRequired).toBe(13);
+    expect(result.pct).toBe(54);
   });
 
   it('CONTROLLED has more required fields than STRUCTURED', () => {
@@ -137,12 +137,12 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
 
   it('per-step counts match expected totals (STRUCTURED)', () => {
     const result = computeCompletion({}, 'STRUCTURED');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 3, 3, 1, 0, 0]);
+    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 3, 2, 1, 0, 0]);
   });
 
   it('per-step counts match expected totals (CONTROLLED)', () => {
     const result = computeCompletion({}, 'CONTROLLED');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 4, 3, 4, 0, 0]);
+    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 4, 2, 4, 0, 0]);
   });
 
   it('treats empty arrays as not filled', () => {
