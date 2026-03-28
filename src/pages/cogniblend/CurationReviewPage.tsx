@@ -896,6 +896,22 @@ interface AIQualitySummary {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: resolve industry segment ID from multiple sources
+// ---------------------------------------------------------------------------
+
+function resolveIndustrySegmentId(challenge: ChallengeData): string | null {
+  // 1. targeting_filters.industries[0] — set by Account Manager during intake
+  const tf = parseJson<any>(challenge.targeting_filters);
+  if (tf?.industries?.length > 0) return tf.industries[0];
+  // 2. eligibility.industry_segment_id — set by Challenge Creator in wizard
+  const elig = parseJson<any>(challenge.eligibility);
+  if (elig?.industry_segment_id) return elig.industry_segment_id;
+  // 3. eligibility_model — fallback field
+  if (challenge.eligibility_model) return challenge.eligibility_model;
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
