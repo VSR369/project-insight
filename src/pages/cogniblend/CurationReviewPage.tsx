@@ -2071,7 +2071,7 @@ export default function CurationReviewPage() {
   }, [
     challenge?.title, challenge?.maturity_level, challenge?.domain_tags,
     challenge?.complexity_level, challenge?.scope, challenge?.deliverables,
-    challenge?.evaluation_criteria, challenge?.effort_level, challenge?.currency_code,
+    challenge?.evaluation_criteria, challenge?.currency_code,
     challenge?.problem_statement, challenge?.reward_structure,
   ]);
 
