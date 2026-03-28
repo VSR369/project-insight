@@ -67,7 +67,7 @@ export default function ChallengeSettingsPanel({
     [onFieldChange],
   );
 
-  const filledCount = [submissionDeadline, challengeVisibility, effortLevel].filter(Boolean).length;
+  const filledCount = [submissionDeadline, challengeVisibility].filter(Boolean).length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
