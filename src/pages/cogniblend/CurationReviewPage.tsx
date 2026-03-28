@@ -838,6 +838,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "effort_level": return ch.effort_level;
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
+    case "domain_tags": return ch.domain_tags ? JSON.stringify(ch.domain_tags) : null;
     case "expected_outcomes": {
       const eo = parseJson<any>(ch.expected_outcomes);
       if (!eo) return null;
@@ -1706,7 +1707,7 @@ export default function CurationReviewPage() {
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
-    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description'];
+    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
@@ -1772,8 +1773,9 @@ export default function CurationReviewPage() {
     }
 
     setSavingSection(true);
+    syncSectionToStore(sectionKey as SectionKey, valueToSave);
     saveSectionMutation.mutate({ field: dbField, value: valueToSave });
-  }, [saveSectionMutation, masterData, aiSuggestedComplexity, complexityParams, handleSaveComplexity]);
+  }, [saveSectionMutation, masterData, aiSuggestedComplexity, complexityParams, handleSaveComplexity, syncSectionToStore]);
 
   /** Handle a single-section re-review result from the inline panel */
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
