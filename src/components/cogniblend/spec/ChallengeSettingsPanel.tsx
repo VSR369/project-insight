@@ -76,7 +76,7 @@ export default function ChallengeSettingsPanel({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Challenge Settings</p>
           <p className="text-xs text-muted-foreground">
-            Deadline, visibility, effort level — {filledCount}/3 configured
+            Deadline, visibility — {filledCount}/2 configured
           </p>
         </div>
         {filledCount === 3 && (
