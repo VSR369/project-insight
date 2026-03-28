@@ -257,11 +257,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
     }
   };
 
-  // ── Auto-fill publication config from first selected category ──
-  const firstSelectedCategory = useMemo(() => {
-    if (solverEligibilityIds.length === 0) return null;
-    return solverCategories.find((c) => c.id === solverEligibilityIds[0]);
-  }, [solverCategories, solverEligibilityIds]);
 
 
   // ── Artifact types auto-populate ──
