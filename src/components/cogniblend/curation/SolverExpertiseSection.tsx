@@ -239,13 +239,18 @@ export default function SolverExpertiseSection({
       });
     });
 
-    onSave({
+    const savePayload: SolverExpertiseData = {
       proficiency_areas: paItems,
       sub_domains: sdItems,
       specialities: spItems,
-    });
+    };
+    // Include curator-selected industry segment if it was manually picked
+    if (!industrySegmentId && localSelectedSegmentId) {
+      savePayload.industry_segment_id = localSelectedSegmentId;
+    }
+    onSave(savePayload);
     setInternalEditing(false);
-  }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave]);
+  }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave, industrySegmentId, localSelectedSegmentId]);
 
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const toggleSD = (id: string) => setSelectedSDs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
