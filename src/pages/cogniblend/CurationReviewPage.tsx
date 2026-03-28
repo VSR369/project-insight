@@ -2778,29 +2778,6 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Challenge visibility (select) ──
-                      case "challenge_visibility":
-                        return (
-                          <>
-                            <SelectSectionRenderer
-                              value={challenge.challenge_visibility}
-                              options={masterData.visibilityOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-
-
                       // ── Fallback ──
                       default:
                         return (
