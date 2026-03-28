@@ -656,6 +656,12 @@ export function AIReviewResultPanel({
   }, [suggestedFormat, rewardData]);
 
   useEffect(() => {
+    if (suggestedFormat === "solver_expertise" && solverExpertiseData) {
+      onSuggestedVersionChange?.(JSON.stringify(solverExpertiseData));
+    }
+  }, [suggestedFormat, solverExpertiseData]);
+
+
     if (suggestedFormat === "date" && parsedDate) {
       setEditedDate(parsedDate);
       onSuggestedVersionChange?.(parsedDate);
