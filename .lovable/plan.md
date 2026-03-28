@@ -1,66 +1,94 @@
 
 
-# 5-Why Root Cause Analysis: Phase Schedule Distorted Table
+# Fix Submission Deadline: Date Renderer + Context-Aware Calculation
 
-## The Problem
+## Problem (2 issues)
 
-The screenshot shows each phase row appearing **twice** — once as read-only text and once as editable inputs — creating a messy, distorted layout. The dedicated `EditableScheduleRows` table component (with proper headers, alignment, row numbers) is **never reached**.
+1. **Rich text editor shown for a date field.** The `submission_deadline` section has format `'date'` in config, but the render priority chain in `AIReviewResultPanel.tsx` has no `date` branch. It falls through to `EditableRichText`, showing a full Tiptap editor for what should be a simple date display + date picker.
 
-## 5-Why Analysis
+2. **AI calculates the deadline with insufficient context.** The `aiUsesContext` for `submission_deadline` is only `['phase_schedule']`. It should also consider deliverables, scope, complexity, and effort level to produce a meaningful deadline rather than a random date.
 
-**Why #1: Why does the schedule table look distorted?**
-Because it's rendered by `TableLineItemRenderer` (a generic line-item table) or `EditableLineItems` (plain text list) instead of the purpose-built `EditableScheduleRows` component.
+## Changes
 
-**Why #2: Why is `EditableScheduleRows` not being used?**
-Because in the render chain (line 966-993 of `AIReviewResultPanel.tsx`), the `isStructured && structuredItems` branch comes **before** the `scheduleRows` branch. Since `isStructured` is `true` for `schedule_table`, the code enters the generic structured branch and **never reaches** the dedicated schedule branch at line 989.
+### File 1: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
 
-**Why #3: Why is `isStructured` true for schedule_table?**
-Because `isStructuredSection()` in `AIReviewInline.tsx` (line 53) explicitly includes `'schedule_table'` in its format list: `['line_items', 'table', 'schedule_table']`. This causes `structuredItems` to be populated with JSON-stringified phase objects.
+**A. Add date state + parser (near line 508)**
+- Add `editedDate` state: `useState<string | null>(null)`
+- Add `parsedDate` memo: detect when `sectionKey` has format `'date'` and extract the ISO date string from `result.suggested_version` (strip quotes, whitespace, markdown fences)
 
-**Why #4: Why does the generic structured branch produce bad output?**
-Because `detectAndParseLineItems` tries to detect if the JSON strings form a "table" — it was designed for evaluation criteria, not schedules. It either renders via `TableLineItemRenderer` (wrong columns, wrong layout) or falls back to `EditableLineItems` (plain text strings of JSON).
-
-**Why #5: Why wasn't this caught earlier?**
-Because the `scheduleRows` parsing at line 535 works correctly, and the `EditableScheduleRows` component was recently upgraded to a proper `<Table>` layout — but neither is ever invoked because the rendering priority is wrong. The code was added incrementally without adjusting the priority chain.
-
-## Root Cause
-
-**The render priority chain in `AIReviewResultPanel.tsx` (lines 958-1004) treats `schedule_table` as a generic structured section, preventing the dedicated schedule renderer from being used.**
-
-## Permanent Fix
-
-**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
-
-**Change 1 — Fix render priority (lines 966-992)**
-
-Move the `scheduleRows` check **before** the generic `isStructured && structuredItems` check in the ternary chain. This ensures phase schedule data hits the dedicated `EditableScheduleRows` component first:
-
-```
-Current order (BROKEN):
-  deliverableCards → isStructured+structuredItems → scheduleRows → tableRows → richText
-
-Fixed order:
-  deliverableCards → scheduleRows → isStructured+structuredItems → tableRows → richText
-```
-
-Specifically, swap the two branches so the ternary reads:
-
+**B. Add `isDateFormat` helper (near line 176)**
 ```tsx
-) : scheduleRows ? (
-  <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">
-    <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
-  </div>
-) : isStructured && structuredItems && structuredItems.length > 0 ? (
-  // ... generic structured / TableLineItemRenderer / EditableLineItems
+function isDateFormat(sectionKey: string): boolean {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'date';
+}
 ```
 
-This is the same pattern used for `deliverableCards` and `rewardData` — format-specific renderers get priority over generic ones.
+**C. Update `hasSuggestedVersion` (line 556)** — include `parsedDate` as a truthy signal
 
-**No other files need changes.** The `EditableScheduleRows` component already has the correct `<Table>` layout with `#` column, zebra striping, headers, and proper alignment from the previous fix.
+**D. Update `suggestedFormat` (line 567)** — add `if (parsedDate) return "date";` before the rich_text fallback
+
+**E. Add date render branch in the ternary chain (before the `result.suggested_version` rich text fallback at line 997)**
+
+Render a clean date display with an inline date input for editing:
+```tsx
+) : parsedDate ? (
+  <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm">
+    <div className="flex items-center gap-4">
+      <CalendarIcon className="h-5 w-5 text-indigo-500 shrink-0" />
+      <div className="flex-1">
+        <p className="text-xs text-muted-foreground mb-1">Suggested Deadline</p>
+        <p className="text-lg font-semibold text-foreground">
+          {format(new Date(editedDate ?? parsedDate), "MMMM d, yyyy")}
+        </p>
+      </div>
+      <Input 
+        type="date" 
+        value={editedDate ?? parsedDate} 
+        onChange={(e) => setEditedDate(e.target.value)}
+        className="w-[180px] h-9 text-sm"
+      />
+    </div>
+  </div>
+)
+```
+
+No rich text editor. Just a formatted date with a date picker for adjustment.
+
+**F. Wire `editedDate` into the accept flow** — update the `getEditedValue` or equivalent logic so that when `onAccept` fires for a date section, it passes the `editedDate ?? parsedDate` string (not rich text HTML).
+
+### File 2: `src/lib/cogniblend/curationSectionFormats.ts`
+
+Update `submission_deadline.aiUsesContext` to include full challenge context:
+```ts
+submission_deadline: {
+  format: 'date',
+  aiCanDraft: true,
+  aiReviewEnabled: true,
+  curatorCanEdit: true,
+  aiUsesContext: ['phase_schedule', 'deliverables', 'scope', 'complexity', 'effort_level', 'evaluation_criteria'],
+},
+```
+
+### File 3: `src/lib/aiReviewPromptTemplate.ts` (client-side prompt)
+
+Enhance the `date` format instruction to guide contextual calculation:
+```ts
+date: 'Output: a single ISO date string YYYY-MM-DD. Calculate based on phase_schedule end dates, deliverables count, scope complexity, and effort level. The deadline should be the end date of the last phase in the schedule, or if no schedule exists, estimate based on scope and complexity (low=60d, medium=90d, high=120d, expert=180d from today). Never output null if phase_schedule data is available.',
+```
+
+### File 4: `supabase/functions/review-challenge-sections/promptTemplate.ts` (edge function prompt)
+
+Same enhancement to the `date` format instruction — keep both in sync:
+```ts
+date: 'Output: a single ISO date string YYYY-MM-DD. Calculate based on phase_schedule end dates, deliverables count, scope complexity, and effort level. The deadline should be the end date of the last phase in the schedule, or if no schedule exists, estimate based on scope and complexity (low=60d, medium=90d, high=120d, expert=180d from today). Never output null if phase_schedule data is available.',
+```
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Reorder render priority: move `scheduleRows` branch before `isStructured && structuredItems` branch |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Add date format detection, date state, date render branch (formatted date + date picker), wire into accept flow |
+| `src/lib/cogniblend/curationSectionFormats.ts` | Expand `submission_deadline.aiUsesContext` to include deliverables, scope, complexity, effort_level, evaluation_criteria |
+| `src/lib/aiReviewPromptTemplate.ts` | Enhance `date` format instruction with context-aware calculation guidance |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Same date format instruction enhancement |
 
