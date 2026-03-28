@@ -2785,26 +2785,6 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Submission deadline (date picker) ──
-                      case "submission_deadline":
-                        return (
-                          <>
-                            <DateSectionRenderer
-                              value={challenge.submission_deadline}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("submission_deadline", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
                       // ── Challenge visibility (select) ──
                       case "challenge_visibility":
                         return (
