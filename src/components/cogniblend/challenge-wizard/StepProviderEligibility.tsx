@@ -197,7 +197,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
   const requiredProficiencies = watch('required_proficiencies') ?? [];
   const requiredSubDomains = watch('required_sub_domains') ?? [];
   const requiredSpecialities = watch('required_specialities') ?? [];
-  const challengeVisibility = watch('challenge_visibility') || '';
   const eligibleModes = watch('eligible_participation_modes') ?? [];
 
   // ── Taxonomy cascade — from industry segment through proficiency areas, sub-domains, specialities ──
