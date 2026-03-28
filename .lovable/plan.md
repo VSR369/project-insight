@@ -1,63 +1,73 @@
 
 
-# Fix Missing Edit Button on Solver Expertise Requirements Section
+# Fix Industry Segment Resolution + Curator Selector for Solver Expertise
 
 ## Problem
 
-The Solver Expertise Requirements section in the curation page doesn't show an Edit button consistent with other sections. Two issues:
+When the curator clicks Edit on Solver Expertise Requirements, the taxonomy tree doesn't load because `industrySegmentId` resolves to `null`. The current code only checks `challenge.eligibility?.industry_segment_id` — missing two other sources. Additionally, if no source has the industry segment (e.g. early-stage challenges), the curator has no way to select one.
 
-1. **No external Edit button**: Unlike other sections (problem_statement, deliverables, etc.) which add `{canEdit && !isEditing && <Button>Edit</Button>}` after their renderer, the `solver_expertise` case only renders `SolverExpertiseSection` without an external Edit button.
+## What changes
 
-2. **Null industry segment blocks all editing**: If `challenge.eligibility` doesn't contain `industry_segment_id`, the component returns early with "No industry segment configured" and provides zero editing capability.
+### 1. Add missing columns to the Supabase query
 
-## Fix
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
 
-### File: `src/pages/cogniblend/CurationReviewPage.tsx`
+- Add `targeting_filters` and `eligibility_model` to the `ChallengeData` interface (~line 141)
+- Add both columns to the `.select()` query (~line 970)
 
-**Add an external Edit button** after the `SolverExpertiseSection`, matching the pattern used by other sections. Wire it to the page-level `editingSection` state, and pass `isEditing` into the component so it opens in edit mode when triggered from the panel.
+### 2. Create `resolveIndustrySegmentId` helper
 
-In the `solver_expertise` case (~line 2762), change:
-```tsx
-case "solver_expertise": {
-  const targeting = parseJson<any>(challenge.eligibility);
-  const industrySegId = targeting?.industry_segment_id ?? null;
-  return (
-    <>
-      <SolverExpertiseSection
-        data={challenge.solver_expertise_requirements}
-        industrySegmentId={industrySegId}
-        readOnly={isReadOnly}
-        editing={isEditing}
-        onSave={(expertiseData) => {
-          setSavingSection(true);
-          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
-          setEditingSection(null);
-        }}
-        saving={savingSection}
-        onCancel={cancelEdit}
-      />
-      {canEdit && !isEditing && industrySegId && (
-        <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-          <Pencil className="h-3 w-3 mr-1" />Edit
-        </Button>
-      )}
-    </>
-  );
-}
-```
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
 
-### File: `src/components/cogniblend/curation/SolverExpertiseSection.tsx`
+A utility function that checks three sources in priority order:
 
-**Add `editing` and `onCancel` props** to allow the parent page to control edit state (matching the pattern of other renderers). The component should respect external `editing` prop alongside its internal state:
+1. `targeting_filters.industries[0]` — set by Account Manager during intake
+2. `eligibility.industry_segment_id` — set by Challenge Creator in wizard
+3. `eligibility_model` — fallback field
 
-- Add `editing?: boolean` and `onCancel?: () => void` to `SolverExpertiseSectionProps`
-- Use `editing` prop to enter edit mode when the parent triggers it
-- Call `onCancel` when cancel is clicked (alongside internal state reset)
-- Remove the internal "Edit Expertise Requirements" ghost button (edit is now triggered from the parent)
+Returns the first non-null value, or `null` if none exist.
+
+### 3. Use the resolved ID in the `solver_expertise` case
+
+Replace the current single-source lookup (~line 2763–2764) with `resolveIndustrySegmentId(challenge)`.
+
+### 4. Add industry segment selector to `SolverExpertiseSection` when ID is null
+
+**File: `src/components/cogniblend/curation/SolverExpertiseSection.tsx`**
+
+Instead of returning the dead-end "No industry segment configured" message (line 252–258), show a dropdown selector populated from the `useIndustrySegments()` hook (already imported). The curator picks an industry segment, which:
+
+- Sets a local state `selectedSegmentId` used to load the taxonomy tree
+- Includes the selected segment ID in the `onSave` callback data so the parent can persist it to `eligibility`
+
+The flow becomes:
+- If `industrySegmentId` prop is provided → auto-populate, show as read-only badge (existing behavior)
+- If `industrySegmentId` is null and `editing` is true → show a `<Select>` dropdown of active industry segments; curator must pick one before the taxonomy tree appears
+- If `industrySegmentId` is null and not editing → show "Not yet configured" with a prompt to click Edit
+
+### 5. Persist curator's industry segment choice
+
+**File: `src/pages/cogniblend/CurationReviewPage.tsx`**
+
+When `onSave` returns an `industry_segment_id` (new field on `SolverExpertiseData`), also update `challenge.eligibility` with the selected segment so it persists for future loads.
+
+## Technical details
+
+**`SolverExpertiseSection.tsx` changes:**
+- Add `industry_segment_id?: string` to `SolverExpertiseData`
+- Replace the early return at line 252 with a conditional: if editing and no ID, render a `<Select>` from `useIndustrySegments()` data
+- Use local state `effectiveSegmentId = industrySegmentId ?? localSelectedId`
+- Pass `effectiveSegmentId` to `useFullTaxonomyTree`
+
+**`CurationReviewPage.tsx` changes:**
+- `ChallengeData` gets `targeting_filters: Json | null` and `eligibility_model: string | null`
+- Query `.select(...)` adds both columns
+- New `resolveIndustrySegmentId()` function with 3-step fallback
+- `onSave` handler in `solver_expertise` case: if `expertiseData.industry_segment_id` exists, also mutate `eligibility` to include it
 
 ## Result
 
-- Edit button appears below the section content, consistent with all other sections
-- Clicking Edit opens the taxonomy tree editor
-- Save/Cancel work through the parent page state as expected
+- If AM/CR already set an industry segment → auto-populated, curator sees it as a badge
+- If no one set it → curator sees a dropdown in edit mode, picks one, and proceeds with the taxonomy tree
+- Industry segment is never null when the expertise tree is needed
 
