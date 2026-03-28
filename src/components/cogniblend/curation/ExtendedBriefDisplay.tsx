@@ -108,7 +108,7 @@ export function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: stri
   return jsonbField ? brief[jsonbField] : undefined;
 }
 
-function ensureStringArray(val: unknown): string[] {
+export function ensureStringArray(val: unknown): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val.map((v) => (typeof v === "string" ? v : String(v)));
   // Handle { items: [...] } wrapper from AI acceptance
