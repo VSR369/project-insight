@@ -2911,7 +2911,7 @@ export default function CurationReviewPage() {
                       currentContent={getSectionContent(challenge, section.key)}
                       challengeId={challengeId!}
                       challengeContext={challengeCtx}
-                      onAcceptRefinement={handleAcceptRefinement}
+                      onAcceptRefinement={EXTENDED_BRIEF_FIELD_MAP[section.key] ? handleAcceptExtendedBriefRefinement : handleAcceptRefinement}
                       onSingleSectionReview={handleSingleSectionReview}
                       onMarkAddressed={handleMarkAddressed}
                       defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
