@@ -339,7 +339,9 @@ export default function ExtendedBriefDisplay({
         // Determine fill status
         const filled = Array.isArray(rawVal)
           ? rawVal.length > 0
-          : typeof rawVal === "string" && rawVal.trim().length > 0;
+          : rawVal && typeof rawVal === "object" && Array.isArray((rawVal as any).items)
+            ? (rawVal as any).items.length > 0
+            : typeof rawVal === "string" && rawVal.trim().length > 0;
 
         // Compute panel status from AI review
         let panelStatus: SectionStatus = "not_reviewed";
