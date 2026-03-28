@@ -109,7 +109,7 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
   const paymentMode = watch('payment_mode') ?? 'escrow';
   const ipModel = watch('ip_model') ?? '';
   const maturityLevel = watch('maturity_level');
-  const effortLevel = watch('effort_level') ?? '';
+  
 
   // Auto-set IP model default from maturity level
   useEffect(() => {
