@@ -154,12 +154,6 @@ async function fetchMasterDataCodes(
       { code: "PILOT", label: "Pilot", description: null },
       { code: "PRODUCTION", label: "Production", description: null },
     ],
-    effort_level: [
-      { code: "low", label: "Low", description: null },
-      { code: "medium", label: "Medium", description: null },
-      { code: "high", label: "High", description: null },
-      { code: "expert", label: "Expert", description: null },
-    ],
     challenge_visibility: [
       { code: "public", label: "Public", description: null },
       { code: "registered_users", label: "Registered Users", description: null },
