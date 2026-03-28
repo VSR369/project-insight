@@ -1289,6 +1289,50 @@ export default function CurationReviewPage() {
       });
   }, [complexityParams, challengeId, user?.id, queryClient]);
 
+  /** Lock the complexity assessment as final */
+  const handleLockComplexity = useCallback(async () => {
+    if (!challengeId || !user?.id) return;
+    setSavingSection(true);
+    const { error } = await supabase
+      .from("challenges")
+      .update({
+        complexity_locked: true,
+        complexity_locked_at: new Date().toISOString(),
+        complexity_locked_by: user.id,
+        updated_by: user.id,
+      } as any)
+      .eq("id", challengeId);
+    if (error) {
+      toast.error(`Failed to lock: ${error.message}`);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+      toast.success("Complexity assessment locked");
+    }
+    setSavingSection(false);
+  }, [challengeId, user?.id, queryClient]);
+
+  /** Unlock the complexity assessment for corrections */
+  const handleUnlockComplexity = useCallback(async () => {
+    if (!challengeId || !user?.id) return;
+    setSavingSection(true);
+    const { error } = await supabase
+      .from("challenges")
+      .update({
+        complexity_locked: false,
+        complexity_locked_at: null,
+        complexity_locked_by: null,
+        updated_by: user.id,
+      } as any)
+      .eq("id", challengeId);
+    if (error) {
+      toast.error(`Failed to unlock: ${error.message}`);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+      toast.success("Complexity assessment unlocked");
+    }
+    setSavingSection(false);
+  }, [challengeId, user?.id, queryClient]);
+
   /** Approve a locked section (Legal/Escrow) — with audit metadata */
   const handleApproveLockedSection = useCallback(async (sectionKey: string) => {
     if (!user?.id || !challengeId) return;
