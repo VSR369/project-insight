@@ -1627,6 +1627,7 @@ export default function CurationReviewPage() {
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[1]);
           setSavingSection(true);
+          syncSectionToStore(sectionKey as SectionKey, parsed);
           saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
           return;
         }
