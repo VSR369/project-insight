@@ -45,7 +45,7 @@ export interface ChallengeDetail {
   solver_eligibility_id: string | null;
   challenge_visibility: string | null;
   hook: string | null;
-  effort_level: string | null;
+  
   extended_brief: Record<string, unknown> | null;
   eligibility_model: string | null;
   domain_tags: unknown;
@@ -72,7 +72,7 @@ export function useChallengeDetail(challengeId: string | undefined) {
           master_status, max_solutions, currency_code,
           solver_eligibility_types, solver_visibility_types,
           solver_eligibility_id,
-          challenge_visibility, hook, effort_level,
+          challenge_visibility, hook,
           extended_brief, eligibility_model, domain_tags,
           targeting_filters, ai_section_reviews
         `)

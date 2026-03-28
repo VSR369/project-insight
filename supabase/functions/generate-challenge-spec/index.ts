@@ -91,7 +91,7 @@ EXTENDED BRIEF FIELDS (generate all of these for richer challenge context):
 - preferred_approach: Guidance on preferred methodologies or approaches (1-2 paragraphs, or empty if open-ended)
 - approaches_not_of_interest: Approaches the seeker does NOT want (1 paragraph, or empty if none)
 - scoring_rubrics: For each evaluation criterion, provide a 5-level scoring rubric with score (1-5), label, and description
-- effort_level: One of "low", "medium", "high", "expert" — based on complexity and required expertise
+
 - reward_description: A paragraph describing the reward structure and what solvers can expect
 - phase_notes: Notes about the expected timeline and phasing of the challenge
 - complexity_notes: Assessment of the technical and organizational complexity
@@ -332,11 +332,6 @@ Generate a complete challenge specification including all extended brief fields.
                     },
                     description: "5-level scoring rubric per evaluation criterion",
                   },
-                  effort_level: {
-                    type: "string",
-                    enum: ["low", "medium", "high", "expert"],
-                    description: "Estimated effort level based on complexity",
-                  },
                   reward_description: {
                     type: "string",
                     description: "Paragraph describing reward structure expectations",
@@ -474,7 +469,7 @@ Generate a complete challenge specification including all extended brief fields.
       preferred_approach: spec.preferred_approach ?? "",
       approaches_not_of_interest: spec.approaches_not_of_interest ?? "",
       scoring_rubrics: spec.scoring_rubrics ?? [],
-      effort_level: spec.effort_level ?? "medium",
+      
       reward_description: spec.reward_description ?? "",
       phase_notes: spec.phase_notes ?? "",
       complexity_notes: spec.complexity_notes ?? "",
@@ -489,7 +484,7 @@ Generate a complete challenge specification including all extended brief fields.
     delete spec.preferred_approach;
     delete spec.approaches_not_of_interest;
     delete spec.scoring_rubrics;
-    delete spec.effort_level;
+    
     delete spec.reward_description;
     delete spec.phase_notes;
     delete spec.complexity_notes;

@@ -29,7 +29,6 @@ const SINGLE_CODE_SECTIONS = new Set([
   "maturity_level",
   "complexity",
   "challenge_visibility",
-  "effort_level",
 ]);
 
 /** Map section keys to their format type for prompt building */
@@ -40,7 +39,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   phase_schedule: 'schedule_table',
   complexity: 'checkbox_single', ip_model: 'checkbox_single', maturity_level: 'checkbox_single',
   eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
-  challenge_visibility: 'select', effort_level: 'radio',
+  challenge_visibility: 'select',
   domain_tags: 'tag_input', solver_expertise: 'custom',
   context_and_background: 'rich_text', root_causes: 'line_items',
   current_deficiencies: 'line_items',
@@ -113,7 +112,7 @@ Rules:
 - For structured fields (deliverables, evaluation_criteria, reward_structure, phase_schedule), return valid JSON matching the input structure.
 - Do NOT add markdown formatting unless the input already uses it.
 - Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
-- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, effort_level, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.`;
+- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.`;
 }
 
 /**
@@ -154,12 +153,6 @@ async function fetchMasterDataCodes(
       { code: "PROTOTYPE", label: "Prototype", description: null },
       { code: "PILOT", label: "Pilot", description: null },
       { code: "PRODUCTION", label: "Production", description: null },
-    ],
-    effort_level: [
-      { code: "low", label: "Low", description: null },
-      { code: "medium", label: "Medium", description: null },
-      { code: "high", label: "High", description: null },
-      { code: "expert", label: "Expert", description: null },
     ],
     challenge_visibility: [
       { code: "public", label: "Public", description: null },
@@ -225,7 +218,7 @@ serve(async (req) => {
     if (context?.scope) contextParts.push(`Scope: ${context.scope}`);
     if (context?.deliverables?.length) contextParts.push(`Deliverables (${context.deliverables.length}): ${JSON.stringify(context.deliverables)}`);
     if (context?.evaluation_criteria?.length) contextParts.push(`Evaluation Criteria: ${context.evaluation_criteria.join(", ")}`);
-    if (context?.effort_level) contextParts.push(`Effort Level: ${context.effort_level}`);
+    
     if (context?.industry) contextParts.push(`Industry: ${context.industry}`);
     if (context?.reward_pool) contextParts.push(`Total Reward Pool: ${context.currency || 'USD'} ${context.reward_pool}`);
     if (context?.problem_statement) contextParts.push(`Problem Summary: ${context.problem_statement.slice(0, 500)}`);

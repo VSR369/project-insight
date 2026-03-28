@@ -35,7 +35,7 @@ interface ExtendedBriefData {
     criterion_name: string;
     levels: Array<{ score: number; label: string; description: string }>;
   }>;
-  effort_level?: string;
+  
   reward_description?: string;
   phase_notes?: string;
   complexity_notes?: string;

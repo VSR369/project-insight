@@ -156,7 +156,7 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiCanDraft: true,
     aiReviewEnabled: true,
     curatorCanEdit: true,
-    aiUsesContext: ['phase_schedule', 'deliverables', 'scope', 'complexity', 'effort_level', 'evaluation_criteria'],
+    aiUsesContext: ['phase_schedule', 'deliverables', 'scope', 'complexity', 'evaluation_criteria'],
   },
   // ── Extended Brief subsections ──
   context_and_background: {
@@ -223,13 +223,6 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiReviewEnabled: true,
     curatorCanEdit: true,
     aiUsesContext: ['governance_profile'],
-  },
-  effort_level: {
-    format: 'radio',
-    aiCanDraft: true,
-    aiReviewEnabled: true,
-    curatorCanEdit: true,
-    aiUsesContext: ['deliverables', 'scope', 'phase_schedule'],
   },
   solver_expertise: {
     format: 'custom',

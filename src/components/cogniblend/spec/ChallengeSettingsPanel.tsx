@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import {
   Collapsible,
@@ -28,7 +27,6 @@ import {
   CalendarIcon,
   ChevronDown,
   Eye,
-  Clock,
   Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,17 +34,11 @@ import { cn } from "@/lib/utils";
 interface ChallengeSettingsPanelProps {
   submissionDeadline: string | null;
   challengeVisibility: string | null;
-  effortLevel: string | null;
+  
   onFieldChange: (field: string, value: unknown) => void;
   readOnly?: boolean;
 }
 
-const EFFORT_OPTIONS = [
-  { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-  { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-  { value: "high", label: "High", description: "160–500 hours estimated effort" },
-  { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-];
 
 const VISIBILITY_OPTIONS = [
   { value: "public", label: "Public", description: "Visible to all solver types" },
@@ -57,7 +49,6 @@ const VISIBILITY_OPTIONS = [
 export default function ChallengeSettingsPanel({
   submissionDeadline,
   challengeVisibility,
-  effortLevel,
   onFieldChange,
   readOnly = false,
 }: ChallengeSettingsPanelProps) {
@@ -74,7 +65,7 @@ export default function ChallengeSettingsPanel({
     [onFieldChange],
   );
 
-  const filledCount = [submissionDeadline, challengeVisibility, effortLevel].filter(Boolean).length;
+  const filledCount = [submissionDeadline, challengeVisibility].filter(Boolean).length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -83,10 +74,10 @@ export default function ChallengeSettingsPanel({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Challenge Settings</p>
           <p className="text-xs text-muted-foreground">
-            Deadline, visibility, effort level — {filledCount}/3 configured
+            Deadline, visibility — {filledCount}/2 configured
           </p>
         </div>
-        {filledCount === 3 && (
+        {filledCount === 2 && (
           <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-300">
             Complete
           </Badge>
@@ -170,34 +161,6 @@ export default function ChallengeSettingsPanel({
           )}
         </div>
 
-        {/* Effort Level */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium text-foreground">Effort Level</Label>
-          </div>
-          {readOnly ? (
-            <p className="text-sm text-foreground pl-6 capitalize">
-              {effortLevel || "Not set"}
-            </p>
-          ) : (
-            <RadioGroup
-              value={effortLevel ?? ""}
-              onValueChange={(val) => onFieldChange("effort_level", val)}
-              className="pl-6 space-y-2"
-            >
-              {EFFORT_OPTIONS.map((opt) => (
-                <div key={opt.value} className="flex items-start gap-3">
-                  <RadioGroupItem value={opt.value} id={`effort-${opt.value}`} className="mt-0.5" />
-                  <Label htmlFor={`effort-${opt.value}`} className="cursor-pointer">
-                    <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                    <span className="text-xs text-muted-foreground ml-2">— {opt.description}</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          )}
-        </div>
       </CollapsibleContent>
     </Collapsible>
   );

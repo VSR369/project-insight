@@ -175,7 +175,7 @@ export function createChallengeFormSchema(
     gold_award: z.number().min(0).default(0),
     silver_award: z.number().min(0).optional(),
     num_rewarded_solutions: z.enum(['1', '2', '3']).default('3'),
-    effort_level: z.string().optional().or(z.literal('')),
+    
     rejection_fee_pct: z.number().min(5).max(20).default(10),
     payment_mode: z.enum(['escrow', 'direct']).default('escrow'),
     payment_milestones: z.array(z.object({
@@ -271,7 +271,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   gold_award: 0,
   silver_award: undefined,
   num_rewarded_solutions: '3' as const,
-  effort_level: '',
+  
   rejection_fee_pct: 10,
   payment_mode: 'escrow' as const,
   payment_milestones: [

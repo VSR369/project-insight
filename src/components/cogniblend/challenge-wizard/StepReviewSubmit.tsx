@@ -105,7 +105,7 @@ export function StepReviewSubmit({ form, isQuick, onNavigateToStep }: StepReview
         { label: 'Gold Award', value: v.gold_award > 0 ? `${v.currency_code} ${v.gold_award.toLocaleString()}` : '', isValid: v.gold_award > 0 },
         { label: 'Silver Award', value: v.silver_award && v.silver_award > 0 ? `${v.currency_code} ${v.silver_award.toLocaleString()}` : '', isValid: true },
         { label: 'Rewarded Solutions', value: v.num_rewarded_solutions ?? '', isValid: true },
-        { label: 'Effort Level', value: v.effort_level ?? '', isValid: !!v.effort_level },
+        
         { label: 'IP Model', value: v.ip_model ?? '', isValid: !!v.ip_model },
         { label: 'Payment Mode', value: v.payment_mode ?? '', isValid: true },
         { label: 'Rejection Fee', value: `${v.rejection_fee_pct}%`, isValid: true },

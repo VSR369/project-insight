@@ -56,7 +56,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): Array<Array<keyof Challe
       // Step 2 — Evaluation
       ['weighted_criteria'],
       // Step 3 — Rewards
-      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model', 'effort_level'],
+      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model'],
       // Step 4 — Timeline
       ['submission_deadline', 'expected_timeline', 'review_duration'],
       // Step 5 — Eligibility

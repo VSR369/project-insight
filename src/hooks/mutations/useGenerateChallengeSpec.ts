@@ -42,7 +42,7 @@ export interface ExtendedBrief {
   preferred_approach: string;
   approaches_not_of_interest: string;
   scoring_rubrics: ScoringRubric[];
-  effort_level: string;
+  
   reward_description: string;
   phase_notes: string;
   complexity_notes: string;

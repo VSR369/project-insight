@@ -112,7 +112,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   phase_schedule: 'schedule_table', complexity: 'checkbox_single', ip_model: 'checkbox_single',
   maturity_level: 'checkbox_single', eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
   hook: 'rich_text', submission_deadline: 'date',
-  challenge_visibility: 'select', effort_level: 'radio', domain_tags: 'tag_input',
+  challenge_visibility: 'select', domain_tags: 'tag_input',
   legal_docs: 'table', escrow_funding: 'structured_fields',
   solver_expertise: 'custom',
   // Extended Brief subsections
@@ -179,6 +179,6 @@ export function buildConfiguredBatchPrompt(
   parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
   parts.push('CRITICAL: Each distinct issue or suggestion MUST be a separate comment in the array.');
   parts.push('Your suggested content for each section MUST match the prescribed format.');
-  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility, effort_level), your comments MUST reference specific allowed codes when suggesting changes.');
+  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility), your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }
