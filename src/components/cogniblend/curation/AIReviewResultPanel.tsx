@@ -579,7 +579,8 @@ export function AIReviewResultPanel({
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows ||
     scheduleRows ||
-    rewardData
+    rewardData ||
+    parsedDate
   );
 
   // Determine which format this suggestion is in
