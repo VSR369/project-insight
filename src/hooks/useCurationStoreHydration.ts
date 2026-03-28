@@ -31,7 +31,6 @@ interface ChallengeDataSlice {
   eligibility: string | null;
   description: string | null;
   domain_tags: unknown;
-  challenge_visibility: string | null;
   
   expected_outcomes: unknown;
   extended_brief: unknown;
