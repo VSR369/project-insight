@@ -1,6 +1,6 @@
 /**
  * SelectSectionRenderer — View/edit for select dropdown sections.
- * Used for: challenge_visibility
+ * Used for: select-based curation sections
  */
 
 import { Badge } from "@/components/ui/badge";

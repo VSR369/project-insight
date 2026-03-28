@@ -969,7 +969,7 @@ export function ConversationalIntakeContent({
           maturity_level: data.maturity_level?.toUpperCase() ?? null,
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
-          challenge_visibility: spec.challenge_visibility ?? 'public',
+          
           governance_profile: governanceMode,
           operating_model: engagementModel,
           // Persist domain-expert context in extended_brief JSONB
