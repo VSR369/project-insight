@@ -1,94 +1,97 @@
 
 
-# Fix Submission Deadline: Date Renderer + Context-Aware Calculation
+# Remove Effort Level Section Completely
 
-## Problem (2 issues)
-
-1. **Rich text editor shown for a date field.** The `submission_deadline` section has format `'date'` in config, but the render priority chain in `AIReviewResultPanel.tsx` has no `date` branch. It falls through to `EditableRichText`, showing a full Tiptap editor for what should be a simple date display + date picker.
-
-2. **AI calculates the deadline with insufficient context.** The `aiUsesContext` for `submission_deadline` is only `['phase_schedule']`. It should also consider deliverables, scope, complexity, and effort level to produce a meaningful deadline rather than a random date.
+Effort level is redundant — complexity assessment already covers this concern. This plan removes `effort_level` from the curation UI, AI review pipeline, and all supporting configuration.
 
 ## Changes
 
-### File 1: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+### 1. Remove from Section Format Config
+**File:** `src/lib/cogniblend/curationSectionFormats.ts`
+- Delete the `effort_level` entry from `SECTION_FORMAT_CONFIG`
+- Remove `'effort_level'` from `aiUsesContext` arrays in `submission_deadline` and any other sections referencing it
 
-**A. Add date state + parser (near line 508)**
-- Add `editedDate` state: `useState<string | null>(null)`
-- Add `parsedDate` memo: detect when `sectionKey` has format `'date'` and extract the ISO date string from `result.suggested_version` (strip quotes, whitespace, markdown fences)
+### 2. Remove from AI Review Triage
+**File:** `supabase/functions/triage-challenge-sections/index.ts`
+- Remove `"effort_level"` from the `ALL_SECTIONS` array (line 91)
+- Remove the `effort_level` context line from `buildChallengeContext()` (line 139)
+- Remove `effort_level` from the `.select()` column list (line 350)
 
-**B. Add `isDateFormat` helper (near line 176)**
-```tsx
-function isDateFormat(sectionKey: string): boolean {
-  return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'date';
-}
-```
+### 3. Remove from Refine Edge Function
+**File:** `supabase/functions/refine-challenge-section/index.ts`
+- Remove `"effort_level"` from the sections set (line 32)
+- Remove `effort_level` from the format map (line 43)
 
-**C. Update `hasSuggestedVersion` (line 556)** — include `parsedDate` as a truthy signal
+### 4. Remove from Generate Spec Edge Function
+**File:** `supabase/functions/generate-challenge-spec/index.ts`
+- Remove `effort_level` from the prompt instructions, JSON schema, output mapping, and cleanup
 
-**D. Update `suggestedFormat` (line 567)** — add `if (parsedDate) return "date";` before the rich_text fallback
+### 5. Remove from Store Sync & Hydration
+**File:** `src/hooks/useCurationStoreSync.ts`
+- Remove `effort_level: 'effort_level'` from `SECTION_DB_FIELD_MAP`
 
-**E. Add date render branch in the ternary chain (before the `result.suggested_version` rich text fallback at line 997)**
+**File:** `src/hooks/useCurationStoreHydration.ts`
+- Remove `effort_level` from the type interface, hydration field map, and select query
 
-Render a clean date display with an inline date input for editing:
-```tsx
-) : parsedDate ? (
-  <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm">
-    <div className="flex items-center gap-4">
-      <CalendarIcon className="h-5 w-5 text-indigo-500 shrink-0" />
-      <div className="flex-1">
-        <p className="text-xs text-muted-foreground mb-1">Suggested Deadline</p>
-        <p className="text-lg font-semibold text-foreground">
-          {format(new Date(editedDate ?? parsedDate), "MMMM d, yyyy")}
-        </p>
-      </div>
-      <Input 
-        type="date" 
-        value={editedDate ?? parsedDate} 
-        onChange={(e) => setEditedDate(e.target.value)}
-        className="w-[180px] h-9 text-sm"
-      />
-    </div>
-  </div>
-)
-```
+### 6. Remove from Challenge Wizard
+**File:** `src/components/cogniblend/challenge-wizard/StepRewards.tsx`
+- Remove the `EFFORT_LEVELS` constant, the `effortLevel` watch, `rewardGuidance`, and the entire Effort Level radio group UI block
 
-No rich text editor. Just a formatted date with a date picker for adjustment.
+**File:** `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts`
+- Remove `effort_level` from the Zod schema
 
-**F. Wire `editedDate` into the accept flow** — update the `getEditedValue` or equivalent logic so that when `onAccept` fires for a date section, it passes the `editedDate ?? parsedDate` string (not rich text HTML).
+**File:** `src/components/cogniblend/challenge-wizard/useFormCompletion.ts`
+- Remove `'effort_level'` from required fields in CONTROLLED mode (Step 3)
 
-### File 2: `src/lib/cogniblend/curationSectionFormats.ts`
+**File:** `src/pages/cogniblend/ChallengeWizardPage.tsx`
+- Remove `effort_level` from the save payload (line 405) and step field list (line 808)
 
-Update `submission_deadline.aiUsesContext` to include full challenge context:
-```ts
-submission_deadline: {
-  format: 'date',
-  aiCanDraft: true,
-  aiReviewEnabled: true,
-  curatorCanEdit: true,
-  aiUsesContext: ['phase_schedule', 'deliverables', 'scope', 'complexity', 'effort_level', 'evaluation_criteria'],
-},
-```
+### 7. Remove from Settings Panel & Spec Review
+**File:** `src/components/cogniblend/spec/ChallengeSettingsPanel.tsx`
+- Remove the Effort Level radio group and its `effortLevel` prop
 
-### File 3: `src/lib/aiReviewPromptTemplate.ts` (client-side prompt)
+**File:** `src/pages/cogniblend/AISpecReviewPage.tsx`
+- Remove `effortLevel` prop passing (lines 1614, 1847)
 
-Enhance the `date` format instruction to guide contextual calculation:
-```ts
-date: 'Output: a single ISO date string YYYY-MM-DD. Calculate based on phase_schedule end dates, deliverables count, scope complexity, and effort level. The deadline should be the end date of the last phase in the schedule, or if no schedule exists, estimate based on scope and complexity (low=60d, medium=90d, high=120d, expert=180d from today). Never output null if phase_schedule data is available.',
-```
+### 8. Remove from Query Hook
+**File:** `src/hooks/queries/useChallengeForm.ts`
+- Remove `effort_level` from the type interface and `.select()` query
 
-### File 4: `supabase/functions/review-challenge-sections/promptTemplate.ts` (edge function prompt)
+### 9. Clean Up Supporting Files
+**File:** `src/hooks/mutations/useGenerateChallengeSpec.ts` — Remove `effort_level` from the spec type
 
-Same enhancement to the `date` format instruction — keep both in sync:
-```ts
-date: 'Output: a single ISO date string YYYY-MM-DD. Calculate based on phase_schedule end dates, deliverables count, scope complexity, and effort level. The deadline should be the end date of the last phase in the schedule, or if no schedule exists, estimate based on scope and complexity (low=60d, medium=90d, high=120d, expert=180d from today). Never output null if phase_schedule data is available.',
-```
+**File:** `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx` — Remove `effort_level` from the legacy type
 
-## Files Changed
+**File:** `src/components/cogniblend/spec/ExtendedBriefPreview.tsx` — Remove `effort_level` from props type
+
+**File:** `src/components/cogniblend/challenge-wizard/__tests__/useFormCompletion.test.ts` — Remove from test expectations
+
+### 10. Prompt Templates
+**File:** `src/lib/aiReviewPromptTemplate.ts` — Remove `effort_level` / `radio` format references if present
+
+**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts` — Same cleanup
+
+## Files Changed (17 files)
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Add date format detection, date state, date render branch (formatted date + date picker), wire into accept flow |
-| `src/lib/cogniblend/curationSectionFormats.ts` | Expand `submission_deadline.aiUsesContext` to include deliverables, scope, complexity, effort_level, evaluation_criteria |
-| `src/lib/aiReviewPromptTemplate.ts` | Enhance `date` format instruction with context-aware calculation guidance |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Same date format instruction enhancement |
+| `src/lib/cogniblend/curationSectionFormats.ts` | Delete `effort_level` entry, remove from `aiUsesContext` |
+| `supabase/functions/triage-challenge-sections/index.ts` | Remove from sections list, context builder, select |
+| `supabase/functions/refine-challenge-section/index.ts` | Remove from sections set and format map |
+| `supabase/functions/generate-challenge-spec/index.ts` | Remove from prompt, schema, output, cleanup |
+| `src/hooks/useCurationStoreSync.ts` | Remove from DB field map |
+| `src/hooks/useCurationStoreHydration.ts` | Remove from type, hydration map, select |
+| `src/hooks/queries/useChallengeForm.ts` | Remove from type and select |
+| `src/hooks/mutations/useGenerateChallengeSpec.ts` | Remove from spec type |
+| `src/components/cogniblend/challenge-wizard/StepRewards.tsx` | Remove effort level UI block |
+| `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts` | Remove from schema |
+| `src/components/cogniblend/challenge-wizard/useFormCompletion.ts` | Remove from required fields |
+| `src/pages/cogniblend/ChallengeWizardPage.tsx` | Remove from payload and step fields |
+| `src/components/cogniblend/spec/ChallengeSettingsPanel.tsx` | Remove effort level radio group |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | Remove effortLevel prop |
+| `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx` | Remove from type |
+| `src/components/cogniblend/spec/ExtendedBriefPreview.tsx` | Remove from props type |
+| `src/components/cogniblend/challenge-wizard/__tests__/useFormCompletion.test.ts` | Update test |
+
+The `RadioSectionRenderer` component itself is kept — it may be used by future radio-format sections. Only `effort_level` references are removed.
 
