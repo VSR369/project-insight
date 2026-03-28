@@ -120,6 +120,17 @@ export function buildConfiguredBatchPrompt(
       parts.push(`You MUST only suggest values from this allowed list. Do not invent new codes.`);
     }
 
+    // IP Model selection guidelines
+    if (config.section_key === 'ip_model') {
+      parts.push(`IP MODEL SELECTION GUIDELINES — your comments MUST provide reasoning for the recommended model:`);
+      parts.push(`- "IP-EA" (Exclusive Assignment): Recommend when deliverables include proprietary IP (algorithms, designs, patents) and the seeker will commercialize exclusively.`);
+      parts.push(`- "IP-NEL" (Non-Exclusive License): Recommend when the solution methodology has broad applicability and the seeker only needs usage rights (consulting frameworks, analytical models).`);
+      parts.push(`- "IP-EL" (Exclusive License): Recommend when the seeker needs exclusive usage but the solver retains underlying ownership (specialized software, patentable inventions).`);
+      parts.push(`- "IP-JO" (Joint Ownership): Recommend for collaborative R&D where both parties contribute significant IP (co-developed technology, joint research).`);
+      parts.push(`- "IP-NONE" (No IP Transfer): Recommend for advisory/consulting challenges producing recommendations or assessments — no tangible IP is created.`);
+      parts.push(`Analyze the challenge deliverables, maturity level, and reward structure to justify your recommendation. Comments should explain WHY a specific IP model fits this challenge.`);
+    }
+
     if (config.section_description) parts.push(`Description: ${config.section_description}`);
     if (config.review_instructions) parts.push(`Instructions: ${config.review_instructions}`);
     if (config.dos) parts.push(`Do: ${config.dos}`);

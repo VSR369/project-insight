@@ -103,7 +103,7 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiCanDraft: true,
     aiReviewEnabled: true,
     curatorCanEdit: true,
-    aiUsesContext: ['spec.ip_model', 'spec.deliverables'],
+    aiUsesContext: ['spec.ip_model', 'spec.deliverables', 'maturity_level', 'reward_structure', 'scope', 'evaluation_criteria'],
   },
   legal_docs: {
     format: 'table',
