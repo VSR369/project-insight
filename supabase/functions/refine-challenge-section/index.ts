@@ -41,7 +41,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   domain_tags: 'tag_input', solver_expertise: 'custom',
   context_and_background: 'rich_text', root_causes: 'line_items',
   current_deficiencies: 'line_items',
-  preferred_approach: 'rich_text', approaches_not_of_interest: 'line_items',
+  preferred_approach: 'line_items', approaches_not_of_interest: 'line_items',
 };
 
 /**
