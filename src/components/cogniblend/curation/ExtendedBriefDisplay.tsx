@@ -95,7 +95,7 @@ const SUBSECTION_META: Record<string, { label: string; attribution?: string }> =
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseExtendedBrief(val: Json | null): ExtendedBriefData {
+export function parseExtendedBrief(val: Json | null): ExtendedBriefData {
   if (!val) return {};
   if (typeof val === "string") {
     try { return JSON.parse(val); } catch { return {}; }
