@@ -218,19 +218,7 @@ serve(async (req) => {
 
     const instructionLabel = resolvedRoleContext === "intake" ? "REVIEWER'S" : resolvedRoleContext === "spec" ? "CREATOR'S" : "CURATOR'S";
 
-    // ── Extended Brief subsection: approaches_not_of_interest — never AI-draft ──
-    if (section_key === "approaches_not_of_interest") {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: {
-            section_key,
-            refined_content: JSON.stringify({ requires_human_input: true, comment: "This section requires explicit human input about excluded approaches." }),
-          },
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // approaches_not_of_interest: handled via EB_FORMAT_INSTRUCTIONS below (no early return)
 
     let userPrompt: string;
 
