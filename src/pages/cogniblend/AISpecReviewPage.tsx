@@ -1608,7 +1608,6 @@ export default function AISpecReviewPage() {
         {/* Challenge Settings (Org Policy fields) */}
         <ChallengeSettingsPanel
           submissionDeadline={challengeRecord.submission_deadline as string | null}
-          challengeVisibility={challengeRecord.challenge_visibility as string | null}
           
           onFieldChange={handleOrgPolicyChange}
         />
