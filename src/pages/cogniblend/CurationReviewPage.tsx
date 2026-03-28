@@ -1627,6 +1627,7 @@ export default function CurationReviewPage() {
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[1]);
           setSavingSection(true);
+          syncSectionToStore(sectionKey as SectionKey, parsed);
           saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
           return;
         }
@@ -1645,6 +1646,7 @@ export default function CurationReviewPage() {
             label: masterData.eligibilityOptions.find(o => o.value === c)?.label ?? c,
           }));
           setSavingSection(true);
+          syncSectionToStore(sectionKey as SectionKey, typed as unknown as SectionStoreEntry['data']);
           saveSectionMutation.mutate({ field: "solver_eligibility_types", value: typed });
           return;
         }
@@ -1659,6 +1661,7 @@ export default function CurationReviewPage() {
             label: masterData.visibilityOptions.find(o => o.value === c)?.label ?? c,
           }));
           setSavingSection(true);
+          syncSectionToStore(sectionKey as SectionKey, typed as unknown as SectionStoreEntry['data']);
           saveSectionMutation.mutate({ field: "solver_visibility_types", value: typed });
           return;
         }
@@ -1681,6 +1684,7 @@ export default function CurationReviewPage() {
       const matched = singleCodeCfg.options.find(o => o.value.toLowerCase() === code.toLowerCase());
       if (matched) {
         setSavingSection(true);
+        syncSectionToStore(sectionKey as SectionKey, matched.value);
         saveSectionMutation.mutate({ field: singleCodeCfg.field, value: matched.value });
         return;
       }
@@ -1689,6 +1693,7 @@ export default function CurationReviewPage() {
         return;
       }
       setSavingSection(true);
+      syncSectionToStore(sectionKey as SectionKey, code);
       saveSectionMutation.mutate({ field: singleCodeCfg.field, value: code });
       return;
     }
