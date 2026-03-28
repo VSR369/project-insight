@@ -131,13 +131,25 @@ function ensureStringArray(val: unknown): string[] {
 }
 
 function ensureStakeholderArray(val: unknown): StakeholderRow[] {
-  if (!Array.isArray(val)) return [];
-  return val.map((item: any) => ({
-    stakeholder_name: item?.stakeholder_name ?? "",
-    role: item?.role ?? "",
-    impact_description: item?.impact_description ?? "",
-    adoption_challenge: item?.adoption_challenge ?? "",
-  }));
+  let arr: unknown[] | null = null;
+  if (Array.isArray(val)) arr = val;
+  else if (val && typeof val === "object" && Array.isArray((val as any).items)) arr = (val as any).items;
+  if (!arr) return [];
+
+  const seen = new Set<string>();
+  return arr
+    .map((item: any) => ({
+      stakeholder_name: item?.stakeholder_name ?? item?.name ?? item?.stakeholder ?? "",
+      role: item?.role ?? item?.type ?? "",
+      impact_description: item?.impact_description ?? item?.impact ?? item?.description ?? "",
+      adoption_challenge: item?.adoption_challenge ?? item?.challenge ?? item?.barrier ?? "",
+    }))
+    .filter((row) => {
+      const key = row.stakeholder_name.toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 // ---------------------------------------------------------------------------
