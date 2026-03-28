@@ -258,6 +258,7 @@ Rewrite the section content following the instructions. Return ONLY the refined 
       current_deficiencies: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of current-state observation phrases. Max 10 items. Each item must state a factual observation, not a wish. Example: ["Manual reconciliation produces 47 discrepancies weekly"]`,
       context_and_background: `\n\nReturn formatted rich text (HTML or markdown matching input format). Ensure an external solver with no prior knowledge can understand the operational setting.`,
       preferred_approach: `\n\nIMPORTANT: If content already exists, do NOT rewrite it. Return the existing content unchanged. This represents the seeker's stated preferences.`,
+      approaches_not_of_interest: `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON array of short phrase strings describing approaches the seeker does NOT want. Preserve the seeker's original intent — do not invent new exclusions. Refine existing items for clarity and consistency. Max 10 items. Example: ["Pure SaaS solutions without on-prem option", "Approaches requiring full system replacement"]`,
     };
     const ebInstruction = EB_FORMAT_INSTRUCTIONS[section_key];
     if (ebInstruction) {
