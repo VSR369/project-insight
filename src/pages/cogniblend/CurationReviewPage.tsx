@@ -1004,7 +1004,7 @@ export default function CurationReviewPage() {
   const { data: complexityParams = [] } = useComplexityParams();
   const { data: industrySegments } = useIndustrySegments();
 
-  const [activeGroup, setActiveGroup] = useState<string>("content");
+  const [activeGroup, setActiveGroup] = useState<string>("problem_definition");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
