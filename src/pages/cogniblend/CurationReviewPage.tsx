@@ -87,7 +87,6 @@ import {
   CheckboxSingleSectionRenderer,
   CheckboxMultiSectionRenderer,
   SelectSectionRenderer,
-  SelectSectionRenderer,
   RadioSectionRenderer,
   TagInputSectionRenderer,
   StructuredFieldsSectionRenderer,
