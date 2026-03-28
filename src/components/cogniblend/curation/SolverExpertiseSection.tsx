@@ -444,7 +444,7 @@ export default function SolverExpertiseSection({
       <div className="border rounded-md p-3 space-y-2">
         <p className="text-xs font-medium text-muted-foreground">Expertise Levels</p>
         <div className="flex flex-wrap gap-3">
-          {allExpertiseLevels.filter(el => tree.some(t => t.id === el.id)).map(el => (
+          {allExpertiseLevels.map(el => (
             <label key={el.id} className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 checked={selectedELs.has(el.id)}
