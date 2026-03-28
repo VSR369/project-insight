@@ -593,6 +593,7 @@ export function AIReviewResultPanel({
     }
     if (scheduleRows) return "schedule_table";
     if (tableRows) return "table";
+    if (parsedDate) return "date";
     if (result.suggested_version) return "rich_text";
     return null;
   }, [isMasterData, rewardData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
