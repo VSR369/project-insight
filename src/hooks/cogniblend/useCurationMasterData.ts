@@ -15,9 +15,6 @@ import {
   MATURITY_LABELS,
   MATURITY_DESCRIPTIONS,
 } from "@/lib/maturityLabels";
-import {
-  VISIBILITY_OPTIONS,
-} from "@/constants/challengeOptions.constants";
 
 /* ── Types ─────────────────────────────────────────────── */
 
