@@ -41,8 +41,10 @@ interface SolverExpertiseSectionProps {
   data: Json | null;
   industrySegmentId: string | null;
   readOnly?: boolean;
+  editing?: boolean;
   onSave: (data: SolverExpertiseData) => void;
   saving?: boolean;
+  onCancel?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,11 +179,14 @@ export default function SolverExpertiseSection({
   data,
   industrySegmentId,
   readOnly = false,
+  editing: externalEditing,
   onSave,
   saving,
+  onCancel: externalOnCancel,
 }: SolverExpertiseSectionProps) {
   const parsed = parseSolverExpertise(data);
-  const [editing, setEditing] = useState(false);
+  const [internalEditing, setInternalEditing] = useState(false);
+  const editing = externalEditing ?? internalEditing;
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
   const [selectedSPs, setSelectedSPs] = useState<Set<string>>(new Set((parsed.specialities ?? []).map(i => i.id)));
@@ -194,16 +199,20 @@ export default function SolverExpertiseSection({
 
   const { tree, isLoading } = useFullTaxonomyTree(industrySegmentId ?? undefined);
 
-  // Reset selections when entering edit mode
-  const handleStartEdit = useCallback(() => {
-    const p = parseSolverExpertise(data);
-    setSelectedPAs(new Set((p.proficiency_areas ?? []).map(i => i.id)));
-    setSelectedSDs(new Set((p.sub_domains ?? []).map(i => i.id)));
-    setSelectedSPs(new Set((p.specialities ?? []).map(i => i.id)));
-    setEditing(true);
-  }, [data]);
+  // Sync selections when entering edit mode externally
+  useEffect(() => {
+    if (editing) {
+      const p = parseSolverExpertise(data);
+      setSelectedPAs(new Set((p.proficiency_areas ?? []).map(i => i.id)));
+      setSelectedSDs(new Set((p.sub_domains ?? []).map(i => i.id)));
+      setSelectedSPs(new Set((p.specialities ?? []).map(i => i.id)));
+    }
+  }, [editing, data]);
 
-  const handleCancel = () => setEditing(false);
+  const handleCancel = () => {
+    setInternalEditing(false);
+    externalOnCancel?.();
+  };
 
   const handleSave = useCallback(() => {
     // Build named selections from tree
@@ -228,7 +237,7 @@ export default function SolverExpertiseSection({
       sub_domains: sdItems,
       specialities: spItems,
     });
-    setEditing(false);
+    setInternalEditing(false);
   }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave]);
 
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -298,11 +307,6 @@ export default function SolverExpertiseSection({
           </div>
         )}
 
-        {!readOnly && (
-          <Button variant="ghost" size="sm" className="text-xs" onClick={handleStartEdit}>
-            <Pencil className="h-3 w-3 mr-1" />Edit Expertise Requirements
-          </Button>
-        )}
       </div>
     );
   }
