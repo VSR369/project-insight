@@ -963,6 +963,10 @@ export function AIReviewResultPanel({
                 hideAcceptanceCriteria={badgePrefix === "O" || badgePrefix === "S"}
               />
             </div>
+          ) : scheduleRows ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">
+              <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
+            </div>
           ) : isStructured && structuredItems && structuredItems.length > 0 ? (
             (() => {
               const detection = detectAndParseLineItems(editedLineItems ?? [...structuredItems]);
@@ -986,10 +990,6 @@ export function AIReviewResultPanel({
                 </div>
               );
             })()
-          ) : scheduleRows ? (
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">
-              <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
-            </div>
           ) : tableRows ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
               <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
