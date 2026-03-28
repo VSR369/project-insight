@@ -96,7 +96,14 @@ import {
 } from "@/components/cogniblend/curation/renderers";
 import { parseDeliverables } from "@/utils/parseDeliverableItem";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
-import ExtendedBriefDisplay from "@/components/cogniblend/curation/ExtendedBriefDisplay";
+import ExtendedBriefDisplay, {
+  parseExtendedBrief,
+  ensureStringArray,
+  ensureStakeholderArray,
+  getSubsectionValue,
+  StakeholderTableEditor,
+  StakeholderTableView,
+} from "@/components/cogniblend/curation/ExtendedBriefDisplay";
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import SolverExpertiseSection from "@/components/cogniblend/curation/SolverExpertiseSection";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
@@ -625,16 +632,77 @@ const SECTIONS: SectionDef[] = [
     render: (ch) => <AiContentRenderer content={(ch as any).hook} compact fallback="—" />,
   },
   {
-    key: "extended_brief",
-    label: "Extended Brief",
-    attribution: "AI Generated",
+    key: "context_and_background",
+    label: "Context & Background",
+    attribution: "from Intake",
     dbField: "extended_brief",
     isFilled: (ch) => {
-      const eb = (ch as any).extended_brief;
-      if (!eb || typeof eb !== "object") return false;
-      return !!(eb.context_background || eb.root_causes || (eb.affected_stakeholders?.length > 0));
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.context_background;
+      return typeof val === "string" && val.trim().length > 0;
     },
-    render: () => null, // Rendered via ExtendedBriefDisplay component
+    render: () => null,
+  },
+  {
+    key: "root_causes",
+    label: "Root Causes",
+    attribution: "AI Inferred",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.root_causes;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "affected_stakeholders",
+    label: "Affected Stakeholders",
+    attribution: "AI Inferred",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.affected_stakeholders;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "current_deficiencies",
+    label: "Current Deficiencies",
+    attribution: "AI Inferred",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.current_deficiencies;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "preferred_approach",
+    label: "Preferred Approach",
+    attribution: "Human Input",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.preferred_approach;
+      if (typeof val === "string") return val.trim().length > 0;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "approaches_not_of_interest",
+    label: "Approaches NOT of Interest",
+    attribution: "Human Input",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.approaches_not_of_interest;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
   },
 ];
 
@@ -690,7 +758,10 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["extended_brief"],
+    sectionKeys: [
+      "context_and_background", "root_causes", "affected_stakeholders",
+      "current_deficiencies", "preferred_approach", "approaches_not_of_interest",
+    ],
   },
 ];
 
@@ -950,12 +1021,6 @@ export default function CurationReviewPage() {
     const state = loadExpandState(challengeId);
     for (const key of groupDef.sectionKeys) {
       state[key] = expand;
-    }
-    // For extended_brief, also handle subsection keys
-    if (groupDef.id === "extended_brief") {
-      for (const subKey of EXTENDED_BRIEF_SUBSECTION_KEYS) {
-        state[subKey] = expand;
-      }
     }
     saveExpandState(challengeId, state);
     setExpandVersion((v) => v + 1);
@@ -1951,31 +2016,6 @@ export default function CurationReviewPage() {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
     GROUPS.forEach((g) => {
-      // Special handling for Extended Brief: count 7 subsections instead of 1 parent key
-      if (g.id === "extended_brief") {
-        const eb = challenge.extended_brief;
-        const parsed = typeof eb === "string" ? (() => { try { return JSON.parse(eb); } catch { return null; } })() : eb;
-        const subsectionFields = EXTENDED_BRIEF_SUBSECTION_KEYS.map(
-          (k) => EXTENDED_BRIEF_FIELD_MAP[k] ?? k
-        );
-        let done = 0;
-        if (parsed && typeof parsed === "object") {
-          subsectionFields.forEach((field) => {
-            const val = (parsed as Record<string, unknown>)[field];
-            if (val != null && val !== "" && !(Array.isArray(val) && val.length === 0)) {
-              done++;
-            }
-          });
-        }
-        const total = EXTENDED_BRIEF_SUBSECTION_KEYS.length; // 7
-        const hasAIFlag = aiQuality?.gaps?.some((gap) => {
-          const mapped = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
-          return EXTENDED_BRIEF_SUBSECTION_KEYS.includes(mapped as any) || mapped === "extended_brief";
-        }) ?? false;
-        result[g.id] = { done, total, hasAIFlag };
-        return;
-      }
-
       const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
       const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
       const hasAIFlag = aiQuality?.gaps?.some((gap) => {
@@ -2337,7 +2377,7 @@ export default function CurationReviewPage() {
       )}
 
       {/* ═══ PROGRESS STRIP ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {GROUPS.map((group) => {
           const progress = groupProgress[group.id];
           const done = progress?.done ?? 0;
@@ -2812,22 +2852,98 @@ export default function CurationReviewPage() {
                         );
                       }
 
-                      case "extended_brief":
+                      // ── Extended Brief subsections ──
+                      case "context_and_background": {
+                        const eb = parseExtendedBrief(challenge.extended_brief);
+                        const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
+                          ? getSubsectionValue(eb, "context_and_background") as string : "";
                         return (
-                          <ExtendedBriefDisplay
-                            data={challenge.extended_brief}
-                            onSave={handleSaveExtendedBrief}
-                            saving={savingSection}
-                            readOnly={isReadOnly}
-                            challengeId={challengeId!}
-                            aiSectionReviews={aiReviews}
-                            onAcceptRefinement={handleAcceptExtendedBriefRefinement}
-                            onSingleSectionReview={handleSingleSectionReview}
-                            onMarkAddressed={handleMarkAddressed}
-                            challengeContext={challengeCtx}
-                            expandVersion={expandVersion}
-                          />
+                          <>
+                            <RichTextSectionRenderer
+                              value={textVal}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => {
+                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["context_and_background"]]: val };
+                                handleSaveExtendedBrief(updated);
+                              }}
+                              onCancel={cancelEdit}
+                              onEdit={() => setEditingSection(section.key)}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
                         );
+                      }
+
+                      case "root_causes":
+                      case "current_deficiencies":
+                      case "preferred_approach":
+                      case "approaches_not_of_interest": {
+                        const eb = parseExtendedBrief(challenge.extended_brief);
+                        const items = ensureStringArray(getSubsectionValue(eb, section.key));
+                        const itemLabel = section.key === "root_causes" ? "Root Cause"
+                          : section.key === "preferred_approach" ? "Approach"
+                          : section.key === "current_deficiencies" ? "Deficiency" : "Approach";
+                        return (
+                          <>
+                            {section.key === "approaches_not_of_interest" && items.length === 0 && !isEditing && (
+                              <p className="text-sm text-muted-foreground italic border border-dashed border-border rounded-md px-3 py-2">
+                                Add approaches you want solvers to avoid — e.g. specific technologies, vendor dependencies, or previously tried methods.
+                              </p>
+                            )}
+                            <LineItemsSectionRenderer
+                              items={items}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(newItems) => {
+                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP[section.key]]: newItems };
+                                handleSaveExtendedBrief(updated);
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                              itemLabel={itemLabel}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      case "affected_stakeholders": {
+                        const eb = parseExtendedBrief(challenge.extended_brief);
+                        const rows = ensureStakeholderArray(getSubsectionValue(eb, "affected_stakeholders"));
+                        if (isEditing && !isReadOnly) {
+                          return (
+                            <StakeholderTableEditor
+                              rows={rows}
+                              onSave={(newRows) => {
+                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["affected_stakeholders"]]: newRows };
+                                handleSaveExtendedBrief(updated);
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                          );
+                        }
+                        return (
+                          <>
+                            <StakeholderTableView rows={rows} />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
 
                       // ── Fallback ──
                       default:
@@ -2871,7 +2987,7 @@ export default function CurationReviewPage() {
                       currentContent={getSectionContent(challenge, section.key)}
                       challengeId={challengeId!}
                       challengeContext={challengeCtx}
-                      onAcceptRefinement={handleAcceptRefinement}
+                      onAcceptRefinement={EXTENDED_BRIEF_FIELD_MAP[section.key] ? handleAcceptExtendedBriefRefinement : handleAcceptRefinement}
                       onSingleSectionReview={handleSingleSectionReview}
                       onMarkAddressed={handleMarkAddressed}
                       defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
@@ -2895,10 +3011,7 @@ export default function CurationReviewPage() {
                     />
                   );
 
-                  // Extended brief renders its own nested panels — no outer wrapper needed
-                  if (section.key === "extended_brief") {
-                    return <React.Fragment key={section.key}>{sectionContent}</React.Fragment>;
-                  }
+
 
                   const isWarningHighlighted = highlightWarnings && aiReview && (aiReview.status === "warning" || aiReview.status === "needs_revision") && !aiReview.addressed;
 

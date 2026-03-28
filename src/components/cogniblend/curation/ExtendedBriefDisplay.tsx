@@ -40,7 +40,7 @@ import type { Json } from "@/integrations/supabase/types";
 // Types
 // ---------------------------------------------------------------------------
 
-interface StakeholderRow {
+export interface StakeholderRow {
   stakeholder_name: string;
   role: string;
   impact_description: string;
@@ -95,7 +95,7 @@ const SUBSECTION_META: Record<string, { label: string; attribution?: string }> =
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseExtendedBrief(val: Json | null): ExtendedBriefData {
+export function parseExtendedBrief(val: Json | null): ExtendedBriefData {
   if (!val) return {};
   if (typeof val === "string") {
     try { return JSON.parse(val); } catch { return {}; }
@@ -103,12 +103,12 @@ function parseExtendedBrief(val: Json | null): ExtendedBriefData {
   return val as unknown as ExtendedBriefData;
 }
 
-function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: string): unknown {
+export function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: string): unknown {
   const jsonbField = EXTENDED_BRIEF_FIELD_MAP[subsectionKey];
   return jsonbField ? brief[jsonbField] : undefined;
 }
 
-function ensureStringArray(val: unknown): string[] {
+export function ensureStringArray(val: unknown): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val.map((v) => (typeof v === "string" ? v : String(v)));
   // Handle { items: [...] } wrapper from AI acceptance
@@ -130,7 +130,7 @@ function ensureStringArray(val: unknown): string[] {
   return [];
 }
 
-function ensureStakeholderArray(val: unknown): StakeholderRow[] {
+export function ensureStakeholderArray(val: unknown): StakeholderRow[] {
   let arr: unknown[] | null = null;
   if (Array.isArray(val)) arr = val;
   else if (val && typeof val === "object" && Array.isArray((val as any).items)) arr = (val as any).items;
@@ -156,7 +156,7 @@ function ensureStakeholderArray(val: unknown): StakeholderRow[] {
 // Stakeholder table editor
 // ---------------------------------------------------------------------------
 
-function StakeholderTableEditor({
+export function StakeholderTableEditor({
   rows,
   onSave,
   onCancel,
@@ -230,7 +230,7 @@ function StakeholderTableEditor({
 // Stakeholder table read-only view
 // ---------------------------------------------------------------------------
 
-function StakeholderTableView({ rows }: { rows: StakeholderRow[] }) {
+export function StakeholderTableView({ rows }: { rows: StakeholderRow[] }) {
   if (!rows || rows.length === 0) {
     return <p className="text-sm text-muted-foreground">No stakeholders defined.</p>;
   }
