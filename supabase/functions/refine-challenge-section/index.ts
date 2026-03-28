@@ -142,11 +142,11 @@ async function fetchMasterDataCodes(
   // ip_model, maturity_level, challenge_visibility, effort_level are static for now
   const STATIC_OPTIONS: Record<string, { code: string; label: string; description: string | null }[]> = {
     ip_model: [
-      { code: "full_transfer", label: "Full IP Transfer", description: null },
-      { code: "licensed", label: "Licensed Use", description: null },
-      { code: "shared", label: "Shared IP", description: null },
-      { code: "open_source", label: "Open Source", description: null },
-      { code: "retained", label: "Solver Retains", description: null },
+      { code: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
+      { code: "IP-NEL", label: "Non-Exclusive License", description: "Solver retains ownership, grants license to seeker" },
+      { code: "IP-EL", label: "Exclusive License", description: "Solver grants exclusive license to seeker" },
+      { code: "IP-JO", label: "Joint Ownership", description: "Joint ownership between solver and seeker" },
+      { code: "IP-NONE", label: "No IP Transfer", description: "Solver retains full IP ownership" },
     ],
     maturity_level: [
       { code: "BLUEPRINT", label: "Blueprint", description: null },
