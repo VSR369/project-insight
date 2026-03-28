@@ -118,9 +118,9 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
       platinum_award: 500,
     };
     const result = computeCompletion(values, 'STRUCTURED');
-    // filled: step0=1/1, step1=4/5, step2=1/1, step3=1/3, step4=0/3, step5=0/1 → 7/14 = 50%
+    // filled: step0=1/1, step1=4/5, step2=1/1, step3=1/3, step4=0/2, step5=0/1 → 7/13 = 53%
     expect(result.totalFilled).toBe(7);
-    expect(result.totalRequired).toBe(14);
+    expect(result.totalRequired).toBe(13);
     expect(result.pct).toBe(50);
   });
 
