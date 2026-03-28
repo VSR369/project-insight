@@ -147,9 +147,6 @@ interface ChallengeData {
   domain_tags: Json | null;
   ai_section_reviews: Json | null;
   currency_code: string | null;
-  // Phase 1 additions
-  challenge_visibility: string | null;
-  
   hook: string | null;
   max_solutions: number | null;
   extended_brief: Json | null;
@@ -637,19 +634,6 @@ const SECTIONS: SectionDef[] = [
     },
     render: () => null, // Rendered via ExtendedBriefDisplay component
   },
-  {
-    key: "challenge_visibility",
-    label: "Challenge Visibility",
-    attribution: "by Curator",
-    dbField: "challenge_visibility",
-    isFilled: (ch) => !!(ch as any).challenge_visibility,
-    render: (ch) => {
-      const v = (ch as any).challenge_visibility;
-      return v
-        ? <Badge variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
-        : <p className="text-sm text-muted-foreground italic">Not set</p>;
-    },
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -696,7 +680,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "challenge_visibility"],
+    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise"],
   },
   {
     id: "extended_brief",
@@ -805,7 +789,6 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "maturity_level": return ch.maturity_level;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
     case "hook": return ch.hook;
-    case "challenge_visibility": return ch.challenge_visibility;
     
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
@@ -984,7 +967,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, challenge_visibility, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1225,7 +1208,6 @@ export default function CurationReviewPage() {
     // Map dbField back to section key for store sync
     const fieldToSection: Record<string, string> = {
       ip_model: 'ip_model',
-      challenge_visibility: 'challenge_visibility',
       solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
       solver_expertise_requirements: 'solver_expertise',
     };
@@ -1420,7 +1402,7 @@ export default function CurationReviewPage() {
         'problem_statement', 'scope', 'deliverables', 'evaluation_criteria', 'reward_structure',
         'phase_schedule', 'submission_guidelines', 'eligibility', 'complexity', 'ip_model',
         'legal_docs', 'escrow_funding', 'maturity_level', 'hook',
-        'challenge_visibility', 'domain_tags', 'visibility', 'solver_expertise',
+        'domain_tags', 'visibility', 'solver_expertise',
         'context_and_background', 'root_causes', 'affected_stakeholders', 'current_deficiencies',
         'preferred_approach', 'approaches_not_of_interest',
       ]);
@@ -1645,7 +1627,6 @@ export default function CurationReviewPage() {
       ip_model: { field: "ip_model", options: masterData.ipModelOptions },
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
-      challenge_visibility: { field: "challenge_visibility", options: masterData.challengeVisibilityOptions },
       
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
@@ -2797,29 +2778,6 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Challenge visibility (select) ──
-                      case "challenge_visibility":
-                        return (
-                          <>
-                            <SelectSectionRenderer
-                              value={challenge.challenge_visibility}
-                              options={masterData.visibilityOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("challenge_visibility", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-
-
                       // ── Fallback ──
                       default:
                         return (
@@ -2843,7 +2801,6 @@ export default function CurationReviewPage() {
                       case "ip_model": return masterData.ipModelOptions;
                       case "maturity_level": return masterData.maturityOptions;
                       case "complexity": return masterData.complexityOptions;
-                      case "challenge_visibility": return masterData.challengeVisibilityOptions;
                       
                       default: return undefined;
                     }

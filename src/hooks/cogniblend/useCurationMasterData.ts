@@ -15,9 +15,6 @@ import {
   MATURITY_LABELS,
   MATURITY_DESCRIPTIONS,
 } from "@/lib/maturityLabels";
-import {
-  VISIBILITY_OPTIONS,
-} from "@/constants/challengeOptions.constants";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -30,10 +27,9 @@ export interface MasterDataOption {
 export interface CurationMasterData {
   maturityOptions: MasterDataOption[];
   complexityOptions: MasterDataOption[];
-  /** Challenge visibility options (public, registered_users, etc.) */
-  challengeVisibilityOptions: MasterDataOption[];
   /** Solver-tier visibility options from md_solver_eligibility */
   visibilityOptions: MasterDataOption[];
+  
   
   ipModelOptions: MasterDataOption[];
   /** Solver-tier eligibility options from md_solver_eligibility */
@@ -115,20 +111,9 @@ export function useCurationMasterData(): CurationMasterData {
     [solverTierRows],
   );
 
-  // Build challenge visibility options from constants (separate from solver tiers)
-  const challengeVisibilityOptions = useMemo<MasterDataOption[]>(() =>
-    VISIBILITY_OPTIONS.map((o) => ({
-      value: o.value,
-      label: o.label,
-      description: o.description,
-    })),
-    [],
-  );
-
   return {
     maturityOptions,
     complexityOptions,
-    challengeVisibilityOptions,
     visibilityOptions: solverTierOptions,
     
     ipModelOptions: IP_MODEL_OPTIONS,

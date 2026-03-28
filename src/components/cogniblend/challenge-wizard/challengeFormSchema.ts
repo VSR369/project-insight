@@ -198,7 +198,7 @@ export function createChallengeFormSchema(
     eligible_participation_modes: z.array(z.string()).default([]),
     solver_eligibility_id: z.string().optional().or(z.literal('')),
     solver_eligibility_ids: z.array(z.string()).default([]),
-    challenge_visibility: z.string().optional().or(z.literal('')),
+    
     required_expertise_level_id: z.string().optional().or(z.literal('')),
     required_proficiencies: z.array(z.string()).default([]),
     required_sub_domains: z.array(z.string()).default([]),
@@ -294,7 +294,6 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   eligible_participation_modes: [],
   solver_eligibility_id: '',
   solver_eligibility_ids: [],
-  challenge_visibility: '',
   required_expertise_level_id: '',
   required_proficiencies: [],
   required_sub_domains: [],

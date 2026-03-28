@@ -28,7 +28,6 @@ const SINGLE_CODE_SECTIONS = new Set([
   "ip_model",
   "maturity_level",
   "complexity",
-  "challenge_visibility",
 ]);
 
 /** Map section keys to their format type for prompt building */
@@ -39,7 +38,6 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   phase_schedule: 'schedule_table',
   complexity: 'checkbox_single', ip_model: 'checkbox_single', maturity_level: 'checkbox_single',
   eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
-  challenge_visibility: 'select',
   domain_tags: 'tag_input', solver_expertise: 'custom',
   context_and_background: 'rich_text', root_causes: 'line_items',
   current_deficiencies: 'line_items',
@@ -112,7 +110,7 @@ Rules:
 - For structured fields (deliverables, evaluation_criteria, reward_structure, phase_schedule), return valid JSON matching the input structure.
 - Do NOT add markdown formatting unless the input already uses it.
 - Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
-- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.`;
+- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity), return ONLY the code values from the provided allowed options. Never invent new codes.`;
 }
 
 /**
@@ -138,7 +136,7 @@ async function fetchMasterDataCodes(
       .order("display_order");
     return (data ?? []).map((r: any) => ({ code: r.complexity_code, label: r.complexity_label, description: null }));
   }
-  // ip_model, maturity_level, challenge_visibility, effort_level are static for now
+  // ip_model, maturity_level are static for now
   const STATIC_OPTIONS: Record<string, { code: string; label: string; description: string | null }[]> = {
     ip_model: [
       { code: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
@@ -153,11 +151,6 @@ async function fetchMasterDataCodes(
       { code: "PROTOTYPE", label: "Prototype", description: null },
       { code: "PILOT", label: "Pilot", description: null },
       { code: "PRODUCTION", label: "Production", description: null },
-    ],
-    challenge_visibility: [
-      { code: "public", label: "Public", description: null },
-      { code: "registered_users", label: "Registered Users", description: null },
-      { code: "invite_only", label: "Invite Only", description: null },
     ],
   };
   return STATIC_OPTIONS[sectionKey] ?? null;

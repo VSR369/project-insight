@@ -210,13 +210,6 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['problem_statement', 'scope', 'deliverables'],
   },
-  challenge_visibility: {
-    format: 'select',
-    aiCanDraft: true,
-    aiReviewEnabled: true,
-    curatorCanEdit: true,
-    aiUsesContext: ['governance_profile'],
-  },
   solver_expertise: {
     format: 'custom',
     aiCanDraft: true,

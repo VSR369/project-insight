@@ -68,8 +68,7 @@ export interface GeneratedSpec {
   solver_visibility_details: SolverEligibilityDetail[];
   /** Free-text eligibility notes */
   eligibility_notes: string;
-  /** Derived from primary solver category's defaults */
-  challenge_visibility: string;
+  /** Extended brief containing Category B AI-generated fields */
   /** Extended brief containing Category B AI-generated fields */
   extended_brief?: ExtendedBrief;
 }

@@ -1007,7 +1007,6 @@ export default function AISpecReviewPage() {
         evaluation_criteria: { criteria: spec.evaluation_criteria },
         hook: spec.hook,
         ip_model: spec.ip_model,
-        challenge_visibility: spec.challenge_visibility,
       };
 
       // Persist extended_brief JSONB if AI generated it
@@ -1127,7 +1126,6 @@ export default function AISpecReviewPage() {
                   evaluation_criteria: { criteria: spec.evaluation_criteria },
                   hook: spec.hook,
                   ip_model: spec.ip_model,
-                  challenge_visibility: spec.challenge_visibility,
                 };
                 if (spec.extended_brief) {
                   fieldsToSave.extended_brief = spec.extended_brief;
@@ -1610,7 +1608,6 @@ export default function AISpecReviewPage() {
         {/* Challenge Settings (Org Policy fields) */}
         <ChallengeSettingsPanel
           submissionDeadline={challengeRecord.submission_deadline as string | null}
-          challengeVisibility={challengeRecord.challenge_visibility as string | null}
           
           onFieldChange={handleOrgPolicyChange}
         />
@@ -1843,7 +1840,6 @@ export default function AISpecReviewPage() {
       {/* Challenge Settings (Org Policy fields) */}
       <ChallengeSettingsPanel
         submissionDeadline={(orgPolicyOverrides.submission_deadline as string | null) ?? challengeRecord.submission_deadline as string | null}
-        challengeVisibility={(orgPolicyOverrides.challenge_visibility as string | null) ?? challengeRecord.challenge_visibility as string | null}
         
         onFieldChange={handleOrgPolicyChange}
       />

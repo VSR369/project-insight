@@ -352,7 +352,6 @@ export default function ChallengeCreatePage() {
         solver_eligibility_codes: spec.solver_eligibility_codes ?? [],
         solver_eligibility_details: spec.solver_eligibility_details ?? [],
         eligibility_notes: spec.eligibility_notes ?? '',
-        challenge_visibility: spec.challenge_visibility ?? 'public',
       },
     }));
   }, []);

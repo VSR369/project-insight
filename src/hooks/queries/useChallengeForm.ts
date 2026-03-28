@@ -43,7 +43,6 @@ export interface ChallengeDetail {
   solver_eligibility_types: unknown;
   solver_visibility_types: unknown;
   solver_eligibility_id: string | null;
-  challenge_visibility: string | null;
   hook: string | null;
   
   extended_brief: Record<string, unknown> | null;
@@ -71,8 +70,7 @@ export function useChallengeDetail(challengeId: string | undefined) {
           governance_profile, governance_mode_override, operating_model, current_phase,
           master_status, max_solutions, currency_code,
           solver_eligibility_types, solver_visibility_types,
-          solver_eligibility_id,
-          challenge_visibility, hook,
+          solver_eligibility_id, hook,
           extended_brief, eligibility_model, domain_tags,
           targeting_filters, ai_section_reviews
         `)

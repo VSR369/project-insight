@@ -6,7 +6,7 @@
  *
  * Simplified access model:
  *   - Eligible Solvers: Can view AND submit solutions (defined by solver_eligibility_ids)
- *   - Visible Solvers: Can only view/discover the challenge (defined by challenge_visibility)
+ *   - Visible Solvers: Can only view/discover the challenge (defined by visibility section)
  */
 
 export interface TierOption {

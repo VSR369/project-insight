@@ -64,7 +64,6 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   eligibility: 'checkbox_multi',
   visibility: 'checkbox_multi',
   hook: 'rich_text',
-  challenge_visibility: 'select',
   
   domain_tags: 'tag_input',
   legal_docs: 'table',
@@ -145,6 +144,6 @@ export function buildConfiguredBatchPrompt(
   parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
   parts.push('CRITICAL: Each distinct issue or suggestion MUST be a separate comment in the array. Do NOT combine multiple issues into one comment. For structured sections (deliverables, evaluation_criteria), provide one comment per issue — e.g., one comment about a missing deliverable, another about a vague deliverable.');
   parts.push('Your suggested content for each section MUST match the prescribed format — never write prose paragraphs for line_items, table, or checkbox sections.');
-  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility), your comments MUST reference specific allowed codes when suggesting changes.');
+  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity), your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }

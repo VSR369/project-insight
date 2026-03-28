@@ -40,7 +40,7 @@ import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
 import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
-import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
+
 import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
@@ -64,9 +64,6 @@ const ARTIFACT_TIERS: Record<string, string[]> = {
 
 /* ─── Enterprise Publication Config ──────────────────── */
 
-import {
-  VISIBILITY_OPTIONS,
-} from '@/constants/challengeOptions.constants';
 
 /* ─── Star Rating Badge ──────────────────────────────── */
 
@@ -197,7 +194,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
   const requiredProficiencies = watch('required_proficiencies') ?? [];
   const requiredSubDomains = watch('required_sub_domains') ?? [];
   const requiredSpecialities = watch('required_specialities') ?? [];
-  const challengeVisibility = watch('challenge_visibility') || '';
   const eligibleModes = watch('eligible_participation_modes') ?? [];
 
   // ── Taxonomy cascade — from industry segment through proficiency areas, sub-domains, specialities ──
@@ -258,23 +254,10 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
   const toggleAllTiers = (checked: boolean) => {
     if (checked) {
       setValue('solver_eligibility_ids', [], { shouldDirty: true });
-      // Set most open defaults
-      setValue('challenge_visibility', 'public', { shouldDirty: true });
     }
   };
 
-  // ── Auto-fill publication config from first selected category ──
-  const firstSelectedCategory = useMemo(() => {
-    if (solverEligibilityIds.length === 0) return null;
-    return solverCategories.find((c) => c.id === solverEligibilityIds[0]);
-  }, [solverCategories, solverEligibilityIds]);
 
-  useEffect(() => {
-    if (firstSelectedCategory) {
-      const cat = firstSelectedCategory as any;
-      if (cat.default_visibility) setValue('challenge_visibility', cat.default_visibility, { shouldDirty: true });
-    }
-  }, [firstSelectedCategory, setValue]);
 
   // ── Artifact types auto-populate ──
   useEffect(() => {
@@ -491,36 +474,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
                 </label>
               );
             })}
-          </div>
-        )}
-
-        {/* ── Enterprise: Visibility Dropdown ── */}
-        {!isQuick && (solverEligibilityIds.length > 0 || isAllTiers) && (
-          <div className="space-y-3 border-t border-border pt-4">
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">Challenge Visibility</h4>
-              <p className="text-xs text-muted-foreground">
-                Who can discover this challenge? Eligible solvers (selected above) can view and submit.
-              </p>
-            </div>
-            <Select value={challengeVisibility} onValueChange={(v: string) => setValue('challenge_visibility', v, { shouldDirty: true })}>
-              <SelectTrigger className="text-base w-full max-w-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <AccessModelSummary
-              visibility={challengeVisibility}
-              eligibleSolverLabels={
-                solverEligibilityIds.length > 0
-                  ? activeCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
-                  : []
-              }
-            />
           </div>
         )}
 

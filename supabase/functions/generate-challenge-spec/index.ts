@@ -452,9 +452,8 @@ Generate a complete challenge specification including all extended brief fields.
     spec.solver_eligibility_details = buildDetails([eligibleCode]);
     spec.solver_visibility_details = buildDetails([visibleCode]);
 
-    // Derive visibility from the eligible category's defaults
-    const primaryCategory = categories.find((c) => c.code === eligibleCode);
-    spec.challenge_visibility = primaryCategory?.default_visibility ?? "public";
+
+    // Keep legacy eligibility field mapped from notes
 
     // Keep legacy eligibility field mapped from notes
     spec.eligibility = spec.eligibility_notes;

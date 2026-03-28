@@ -235,7 +235,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         permitted_artifact_types: deliverables?.permitted_artifact_types ?? [],
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
-        challenge_visibility: (challengeData as any)?.challenge_visibility ?? '',
+        
         targeting_filters: (challengeData as any)?.targeting_filters ?? {
           industries: [], geographies: [], expertise_domains: [], certifications: [],
           languages: [], min_solver_rating: 'any', past_performance: 'any', solver_cluster: 'any',
@@ -408,7 +408,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       solver_eligibility_types: values.eligible_participation_modes?.length
         ? values.eligible_participation_modes
         : null,
-      challenge_visibility: isQuick ? null : (values.challenge_visibility || 'public'),
+      
       rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: (() => {
         // Auto-derive from phase_durations if available
@@ -819,7 +819,7 @@ function getStepFields(step: number): string[] {
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['eligible_participation_modes', 'solver_eligibility_ids', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission', 'eligibility'];
+      return ['eligible_participation_modes', 'solver_eligibility_ids', 'permitted_artifact_types', 'targeting_filters', 'challenge_enrollment', 'challenge_submission', 'eligibility'];
     case 6:
       return [];
     case 7:
