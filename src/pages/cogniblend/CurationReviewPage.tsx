@@ -697,7 +697,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "submission_deadline", "challenge_visibility"],
+    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "challenge_visibility"],
   },
   {
     id: "extended_brief",
