@@ -2573,6 +2573,8 @@ export default function CurationReviewPage() {
                               onSave={(val) => handleSaveOrgPolicyField("ip_model", val)}
                               onCancel={cancelEdit}
                               saving={savingSection}
+                              getLabel={(v) => masterData.ipModelOptions.find(o => o.value === v)?.label ?? v}
+                              getDescription={(v) => masterData.ipModelOptions.find(o => o.value === v)?.description}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>

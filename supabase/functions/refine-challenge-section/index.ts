@@ -302,6 +302,19 @@ Rewrite the section content following the instructions. Return ONLY the refined 
 
         if (MULTI_CODE_SECTIONS.has(section_key)) {
           userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: You MUST return ONLY a valid JSON array of code strings from the allowed options below. Pick the most appropriate codes based on the challenge context and instructions. Do NOT invent new codes. Do NOT return prose.\n\nALLOWED OPTIONS:\n${optionsList}\n\nExample output: ["certified_expert", "registered"]`;
+        } else if (section_key === "ip_model") {
+          userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: You MUST return ONLY a single code string (no quotes, no JSON) from the allowed options below.
+
+SELECTION GUIDELINES — analyze the challenge context to pick the most appropriate IP model:
+- "IP-EA" (Exclusive Assignment): Best when the seeker needs full ownership — e.g., proprietary algorithms, trade secrets, solutions that will be commercialized exclusively by the seeker.
+- "IP-NEL" (Non-Exclusive License): Best when the solver's methodology has broad applicability and the seeker only needs usage rights — e.g., consulting frameworks, analytical models, open research.
+- "IP-EL" (Exclusive License): Best when the seeker needs exclusive usage but the solver retains underlying ownership — e.g., specialized software, patentable inventions where the solver may license to non-competing industries later.
+- "IP-JO" (Joint Ownership): Best for collaborative R&D where both parties contribute significant IP — e.g., co-developed technology, joint research initiatives.
+- "IP-NONE" (No IP Transfer): Best for advisory/consulting challenges where the solver provides recommendations, assessments, or reviews — no tangible IP is created.
+
+Consider: (1) What deliverables are being produced? Tangible IP (code, designs, patents) → lean toward EA or EL. Intangible (advice, analysis) → lean toward NONE or NEL. (2) Maturity level: Blueprint/POC → often NEL or NONE. Prototype/Pilot/Production → often EA or EL. (3) Reward size: Higher rewards justify stronger IP transfer expectations.
+
+ALLOWED OPTIONS:\n${optionsList}\n\nExample output: IP-EA`;
         } else {
           userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: You MUST return ONLY a single code string (no quotes, no JSON) from the allowed options below. Pick the most appropriate option. Do NOT invent new codes. Do NOT return prose.\n\nALLOWED OPTIONS:\n${optionsList}\n\nExample output: certified_expert`;
         }
