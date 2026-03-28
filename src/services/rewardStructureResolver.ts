@@ -385,12 +385,24 @@ export function resolveRewardSource(
   const sourceDate = raw.source_date as string | undefined;
   const migrated = migrateRawReward(raw);
 
+  // Extract immutable upstream_source if present
+  const rawUpstream = raw.upstream_source as any;
+  const upstreamSource: UpstreamSource | undefined = rawUpstream && typeof rawUpstream === 'object'
+    ? {
+        role: (rawUpstream.role as string)?.toUpperCase() as SourceRole,
+        date: rawUpstream.date ?? rawUpstream.source_date,
+        budgetMin: Number(rawUpstream.budget_min) || undefined,
+        budgetMax: Number(rawUpstream.budget_max) || undefined,
+        currency: rawUpstream.currency,
+      }
+    : undefined;
+
   const hasContent =
     migrated.type !== null &&
     ((migrated.monetary && (migrated.monetary.tiers.length > 0 || (migrated.monetary.totalPool ?? 0) > 0)) ||
       (migrated.nonMonetary && migrated.nonMonetary.items.length > 0));
 
-  // Bug 1 fix: Curator-saved data is NOT auto-populated — it's the curator's own work
+  // Curator-saved data: NOT auto-populated — it's the curator's own work
   if (embeddedRole === 'CURATOR' && hasContent) {
     return {
       ...migrated,
@@ -398,9 +410,11 @@ export function resolveRewardSource(
       sourceDate,
       isAutoPopulated: false,
       isEditable: true,
+      upstreamSource,
     };
   }
 
+  // Explicit upstream role (AM/CR/CA) with content
   if (embeddedRole && hasContent) {
     return {
       ...migrated,
@@ -408,6 +422,13 @@ export function resolveRewardSource(
       sourceDate,
       isAutoPopulated: true,
       isEditable: true,
+      upstreamSource: upstreamSource ?? {
+        role: embeddedRole,
+        date: sourceDate,
+        budgetMin: Number(raw.budget_min) || undefined,
+        budgetMax: Number(raw.budget_max) || undefined,
+        currency: raw.currency,
+      },
       originalData: {
         ...migrated,
         sourceRole: embeddedRole,
@@ -418,58 +439,15 @@ export function resolveRewardSource(
     };
   }
 
-  // Infer source based on model hierarchy
+  // No explicit source_role — never infer, default to CURATOR with no banner
   if (hasContent) {
-    // Curator-serialized data has explicit `type` + structured arrays (`tiers`/`items`).
-    // AM/CR intake data has only budget_min/budget_max or flat tier keys, no `type`.
-    const hasCuratorFingerprint =
-      raw.type && (Array.isArray(raw.tiers) || Array.isArray(raw.items));
-
-    if (hasCuratorFingerprint) {
-      // Data was saved by the curator serializer — attribute to CURATOR
-      return {
-        ...migrated,
-        sourceRole: 'CURATOR' as SourceRole,
-        sourceDate,
-        isAutoPopulated: false,
-        isEditable: true,
-      };
-    }
-
-    if (model === 'marketplace') {
-      const inferredRole: SourceRole = 'AM';
-      return {
-        ...migrated,
-        sourceRole: inferredRole,
-        sourceDate,
-        isAutoPopulated: true,
-        isEditable: true,
-        originalData: {
-          ...migrated,
-          sourceRole: inferredRole,
-          sourceDate,
-          isAutoPopulated: true,
-          isEditable: true,
-        },
-      };
-    }
-
-    if (model === 'aggregator') {
-      return {
-        ...migrated,
-        sourceRole: 'CR',
-        sourceDate,
-        isAutoPopulated: true,
-        isEditable: true,
-        originalData: {
-          ...migrated,
-          sourceRole: 'CR',
-          sourceDate,
-          isAutoPopulated: true,
-          isEditable: true,
-        },
-      };
-    }
+    return {
+      ...migrated,
+      sourceRole: 'CURATOR',
+      isAutoPopulated: false,
+      isEditable: true,
+      upstreamSource,
+    };
   }
 
   // No upstream data — curator creates from scratch
