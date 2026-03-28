@@ -155,7 +155,7 @@ function useFullTaxonomyTree(industrySegmentId?: string) {
               })),
           })),
       }))
-      .filter(el => el.proficiencyAreas.length > 0);
+      ; // Keep all levels including those with no proficiency areas (e.g. Partner)
   }, [expertiseLevels, proficiencyAreas, subDomains, specialities]);
 
   return { tree, expertiseLevels: expertiseLevels ?? [], isLoading: elLoading || paLoading || sdLoading || spLoading };
