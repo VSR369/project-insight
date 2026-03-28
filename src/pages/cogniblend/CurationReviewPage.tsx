@@ -1022,12 +1022,6 @@ export default function CurationReviewPage() {
     for (const key of groupDef.sectionKeys) {
       state[key] = expand;
     }
-    // For extended_brief, also handle subsection keys
-    if (groupDef.id === "extended_brief") {
-      for (const subKey of EXTENDED_BRIEF_SUBSECTION_KEYS) {
-        state[subKey] = expand;
-      }
-    }
     saveExpandState(challengeId, state);
     setExpandVersion((v) => v + 1);
   }, [activeGroup, challengeId]);
