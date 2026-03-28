@@ -758,7 +758,10 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["extended_brief"],
+    sectionKeys: [
+      "context_and_background", "root_causes", "affected_stakeholders",
+      "current_deficiencies", "preferred_approach", "approaches_not_of_interest",
+    ],
   },
 ];
 
