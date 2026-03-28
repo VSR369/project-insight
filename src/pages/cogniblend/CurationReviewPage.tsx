@@ -1661,7 +1661,7 @@ export default function CurationReviewPage() {
             label: masterData.visibilityOptions.find(o => o.value === c)?.label ?? c,
           }));
           setSavingSection(true);
-          syncSectionToStore(sectionKey as SectionKey, typed);
+          syncSectionToStore(sectionKey as SectionKey, typed as unknown as SectionStoreEntry['data']);
           saveSectionMutation.mutate({ field: "solver_visibility_types", value: typed });
           return;
         }
