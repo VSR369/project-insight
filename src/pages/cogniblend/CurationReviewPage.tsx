@@ -86,7 +86,7 @@ import {
   ScheduleTableSectionRenderer,
   CheckboxSingleSectionRenderer,
   CheckboxMultiSectionRenderer,
-  DateSectionRenderer,
+  SelectSectionRenderer,
   SelectSectionRenderer,
   RadioSectionRenderer,
   TagInputSectionRenderer,
