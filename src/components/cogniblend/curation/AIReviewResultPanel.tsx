@@ -608,6 +608,7 @@ export function AIReviewResultPanel({
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
     if (rewardData) return "reward_custom";
+    if (solverExpertiseData) return "solver_expertise";
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
@@ -617,7 +618,7 @@ export function AIReviewResultPanel({
     if (parsedDate) return "date";
     if (result.suggested_version) return "rich_text";
     return null;
-  }, [isMasterData, rewardData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
+  }, [isMasterData, rewardData, solverExpertiseData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
 
   // Auto-seed edit state when data arrives or changes
   useEffect(() => {
