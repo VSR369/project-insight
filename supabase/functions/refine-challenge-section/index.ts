@@ -136,7 +136,7 @@ async function fetchMasterDataCodes(
       .order("display_order");
     return (data ?? []).map((r: any) => ({ code: r.complexity_code, label: r.complexity_label, description: null }));
   }
-  // ip_model, maturity_level, challenge_visibility, effort_level are static for now
+  // ip_model, maturity_level are static for now
   const STATIC_OPTIONS: Record<string, { code: string; label: string; description: string | null }[]> = {
     ip_model: [
       { code: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
@@ -151,11 +151,6 @@ async function fetchMasterDataCodes(
       { code: "PROTOTYPE", label: "Prototype", description: null },
       { code: "PILOT", label: "Pilot", description: null },
       { code: "PRODUCTION", label: "Production", description: null },
-    ],
-    challenge_visibility: [
-      { code: "public", label: "Public", description: null },
-      { code: "registered_users", label: "Registered Users", description: null },
-      { code: "invite_only", label: "Invite Only", description: null },
     ],
   };
   return STATIC_OPTIONS[sectionKey] ?? null;

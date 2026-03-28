@@ -346,7 +346,7 @@ serve(async (req) => {
     // Fetch minimal challenge data
     const { data: challengeData, error: challengeError } = await adminClient
       .from("challenges")
-      .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, challenge_visibility, phase_schedule, complexity_level, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types")
+      .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, phase_schedule, complexity_level, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types")
       .eq("id", challenge_id)
       .single();
 

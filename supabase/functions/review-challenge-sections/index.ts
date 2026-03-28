@@ -40,7 +40,7 @@ const CURATION_SECTIONS = [
   { key: "escrow_funding", desc: "Escrow funded (if required)" },
   { key: "maturity_level", desc: "Set and consistent with challenge depth" },
   { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "challenge_visibility", desc: "Appropriate visibility setting for the challenge type" },
+  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
   { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
   { key: "visibility", desc: "Solver visibility types properly configured" },
   { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
