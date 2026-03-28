@@ -156,7 +156,7 @@ export function ensureStakeholderArray(val: unknown): StakeholderRow[] {
 // Stakeholder table editor
 // ---------------------------------------------------------------------------
 
-function StakeholderTableEditor({
+export function StakeholderTableEditor({
   rows,
   onSave,
   onCancel,
