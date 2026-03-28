@@ -1646,6 +1646,7 @@ export default function CurationReviewPage() {
             label: masterData.eligibilityOptions.find(o => o.value === c)?.label ?? c,
           }));
           setSavingSection(true);
+          syncSectionToStore(sectionKey as SectionKey, typed);
           saveSectionMutation.mutate({ field: "solver_eligibility_types", value: typed });
           return;
         }
