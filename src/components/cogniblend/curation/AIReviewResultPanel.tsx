@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Check, X, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2, Sparkles, Square, CheckSquare, CheckCircle2 } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, ThumbsUp, Plus, Trash2, Sparkles, Square, CheckSquare, CheckCircle2, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 import { computeWeightedComplexityScore, deriveComplexityLevel, deriveComplexityLabel, LEVEL_COLORS } from "@/lib/cogniblend/complexityScoring";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { ExpandableAIComment } from "@/components/curator/ExpandableAIComment";
@@ -175,6 +176,20 @@ function parseTableRows(content: string): Record<string, unknown>[] | null {
 /** Determine if a section is a schedule_table format */
 function isScheduleFormat(sectionKey: string): boolean {
   return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'schedule_table';
+}
+
+/** Determine if a section is a date format */
+function isDateFormat(sectionKey: string): boolean {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'date';
+}
+
+/** Extract ISO date string from AI suggested_version (strips markdown fences, quotes, whitespace) */
+function parseDateFromSuggestion(sectionKey: string, suggestedVersion: string | undefined): string | null {
+  if (!isDateFormat(sectionKey) || !suggestedVersion) return null;
+  const cleaned = suggestedVersion.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim().replace(/^["']|["']$/g, "");
+  // Match YYYY-MM-DD
+  const match = cleaned.match(/(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
 }
 
 /* ── Inline edit sub-components ────────────────────────── */
@@ -506,6 +521,10 @@ export function AIReviewResultPanel({
   const [editedLineItems, setEditedLineItems] = useState<string[] | null>(null);
   const [editedTableRows, setEditedTableRows] = useState<Record<string, unknown>[] | null>(null);
   const [editedScheduleRows, setEditedScheduleRows] = useState<Record<string, unknown>[] | null>(null);
+  const [editedDate, setEditedDate] = useState<string | null>(null);
+
+  // Parse date from AI suggestion for date-format sections
+  const parsedDate = useMemo(() => parseDateFromSuggestion(sectionKey, result.suggested_version), [sectionKey, result.suggested_version]);
 
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
@@ -560,7 +579,8 @@ export function AIReviewResultPanel({
     (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
     tableRows ||
     scheduleRows ||
-    rewardData
+    rewardData ||
+    parsedDate
   );
 
   // Determine which format this suggestion is in
@@ -573,6 +593,7 @@ export function AIReviewResultPanel({
     }
     if (scheduleRows) return "schedule_table";
     if (tableRows) return "table";
+    if (parsedDate) return "date";
     if (result.suggested_version) return "rich_text";
     return null;
   }, [isMasterData, rewardData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
@@ -612,6 +633,13 @@ export function AIReviewResultPanel({
     }
   }, [suggestedFormat, rewardData]);
 
+  useEffect(() => {
+    if (suggestedFormat === "date" && parsedDate) {
+      setEditedDate(parsedDate);
+      onSuggestedVersionChange?.(parsedDate);
+    }
+  }, [suggestedFormat, parsedDate]);
+
   // Change handlers that emit to parent
   const handleRichTextChange = useCallback((val: string) => {
     setEditedRichText(val);
@@ -631,6 +659,11 @@ export function AIReviewResultPanel({
   const handleScheduleRowsChange = useCallback((rows: Record<string, unknown>[]) => {
     setEditedScheduleRows(rows);
     onSuggestedVersionChange?.(rows);
+  }, [onSuggestedVersionChange]);
+
+  const handleDateChange = useCallback((val: string) => {
+    setEditedDate(val);
+    onSuggestedVersionChange?.(val);
   }, [onSuggestedVersionChange]);
 
   // Track which comments are expanded for "Read more"
@@ -993,6 +1026,24 @@ export function AIReviewResultPanel({
           ) : tableRows ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
               <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
+            </div>
+          ) : parsedDate ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <CalendarIcon className="h-5 w-5 text-indigo-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-1">Suggested Deadline</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {format(new Date(editedDate ?? parsedDate), "MMMM d, yyyy")}
+                  </p>
+                </div>
+                <Input
+                  type="date"
+                  value={editedDate ?? parsedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="w-[180px] h-9 text-sm"
+                />
+              </div>
             </div>
           ) : result.suggested_version ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm text-sm leading-relaxed min-h-[160px]">
