@@ -1693,6 +1693,7 @@ export default function CurationReviewPage() {
         return;
       }
       setSavingSection(true);
+      syncSectionToStore(sectionKey as SectionKey, code);
       saveSectionMutation.mutate({ field: singleCodeCfg.field, value: code });
       return;
     }
