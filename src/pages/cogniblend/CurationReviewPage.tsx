@@ -2762,8 +2762,7 @@ export default function CurationReviewPage() {
 
                       // ── Solver expertise requirements ──
                       case "solver_expertise": {
-                        const targeting = parseJson<any>(challenge.eligibility);
-                        const industrySegId = targeting?.industry_segment_id ?? null;
+                        const industrySegId = resolveIndustrySegmentId(challenge);
                         return (
                           <>
                             <SolverExpertiseSection
@@ -2773,7 +2772,16 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(expertiseData) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+                                // If curator selected an industry segment, persist it to eligibility
+                                if (expertiseData.industry_segment_id) {
+                                  const currentElig = parseJson<any>(challenge.eligibility) ?? {};
+                                  currentElig.industry_segment_id = expertiseData.industry_segment_id;
+                                  supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId!).then(() => {
+                                    queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+                                  });
+                                }
+                                const { industry_segment_id, ...saveData } = expertiseData;
+                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: saveData });
                                 setEditingSection(null);
                               }}
                               saving={savingSection}
