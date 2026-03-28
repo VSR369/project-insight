@@ -313,6 +313,7 @@ export default function ExtendedBriefDisplay({
   const hasAnyContent = EXTENDED_BRIEF_SUBSECTION_KEYS.some((key) => {
     const val = getSubsectionValue(brief, key);
     if (Array.isArray(val)) return val.length > 0;
+    if (val && typeof val === "object" && Array.isArray((val as any).items)) return (val as any).items.length > 0;
     return typeof val === "string" && val.trim().length > 0;
   });
 
