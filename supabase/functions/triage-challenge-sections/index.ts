@@ -88,7 +88,6 @@ const CURATION_SECTION_KEYS = [
   "evaluation_criteria", "reward_structure", "phase_schedule",
   "submission_guidelines", "eligibility", "complexity", "ip_model",
   "legal_docs", "escrow_funding", "maturity_level", "hook",
-  "challenge_visibility",
   "domain_tags", "visibility", "solver_expertise",
   "context_and_background", "root_causes", "affected_stakeholders",
   "current_deficiencies", "preferred_approach", "approaches_not_of_interest",
