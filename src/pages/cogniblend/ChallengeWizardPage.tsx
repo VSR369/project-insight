@@ -408,7 +408,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       solver_eligibility_types: values.eligible_participation_modes?.length
         ? values.eligible_participation_modes
         : null,
-      challenge_visibility: isQuick ? null : (values.challenge_visibility || 'public'),
+      
       rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: (() => {
         // Auto-derive from phase_durations if available
