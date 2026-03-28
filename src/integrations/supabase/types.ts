@@ -1228,6 +1228,9 @@ export type Database = {
           completed_at: string | null
           complexity_id: string | null
           complexity_level: string | null
+          complexity_locked: boolean
+          complexity_locked_at: string | null
+          complexity_locked_by: string | null
           complexity_parameters: Json | null
           complexity_score: number | null
           consulting_fee: number | null
@@ -1295,6 +1298,9 @@ export type Database = {
           completed_at?: string | null
           complexity_id?: string | null
           complexity_level?: string | null
+          complexity_locked?: boolean
+          complexity_locked_at?: string | null
+          complexity_locked_by?: string | null
           complexity_parameters?: Json | null
           complexity_score?: number | null
           consulting_fee?: number | null
@@ -1362,6 +1368,9 @@ export type Database = {
           completed_at?: string | null
           complexity_id?: string | null
           complexity_level?: string | null
+          complexity_locked?: boolean
+          complexity_locked_at?: string | null
+          complexity_locked_by?: string | null
           complexity_parameters?: Json | null
           complexity_score?: number | null
           consulting_fee?: number | null
