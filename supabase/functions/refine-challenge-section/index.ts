@@ -28,7 +28,6 @@ const SINGLE_CODE_SECTIONS = new Set([
   "ip_model",
   "maturity_level",
   "complexity",
-  "challenge_visibility",
 ]);
 
 /** Map section keys to their format type for prompt building */
