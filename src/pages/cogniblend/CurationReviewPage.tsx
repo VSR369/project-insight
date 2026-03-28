@@ -806,7 +806,6 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "maturity_level": return ch.maturity_level;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
     case "hook": return ch.hook;
-    case "submission_deadline": return ch.submission_deadline;
     case "challenge_visibility": return ch.challenge_visibility;
     
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
