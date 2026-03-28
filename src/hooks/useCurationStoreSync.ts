@@ -35,7 +35,6 @@ const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
   visibility: 'visibility',
   eligibility: 'eligibility',
   domain_tags: 'domain_tags',
-  submission_deadline: 'submission_deadline',
   challenge_visibility: 'challenge_visibility',
   
   expected_outcomes: 'expected_outcomes',

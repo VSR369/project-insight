@@ -151,13 +151,6 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['spec.phase_schedule', 'intake.scope'],
   },
-  submission_deadline: {
-    format: 'date',
-    aiCanDraft: true,
-    aiReviewEnabled: true,
-    curatorCanEdit: true,
-    aiUsesContext: ['phase_schedule', 'deliverables', 'scope', 'complexity', 'evaluation_criteria'],
-  },
   // ── Extended Brief subsections ──
   context_and_background: {
     format: 'rich_text',

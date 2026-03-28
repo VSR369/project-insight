@@ -64,7 +64,6 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   eligibility: 'checkbox_multi',
   visibility: 'checkbox_multi',
   hook: 'rich_text',
-  submission_deadline: 'date',
   challenge_visibility: 'select',
   
   domain_tags: 'tag_input',

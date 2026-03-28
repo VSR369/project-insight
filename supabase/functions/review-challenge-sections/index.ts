@@ -155,12 +155,6 @@ const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
     { code: "private", label: "Private" },
     { code: "invite_only", label: "Invite Only" },
   ],
-  effort_level: [
-    { code: "LOW", label: "Low" },
-    { code: "MEDIUM", label: "Medium" },
-    { code: "HIGH", label: "High" },
-    { code: "VERY_HIGH", label: "Very High" },
-  ],
 };
 
 /**

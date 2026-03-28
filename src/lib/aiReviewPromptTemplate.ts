@@ -110,7 +110,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   evaluation_criteria: 'table', reward_structure: 'table',
   phase_schedule: 'schedule_table', complexity: 'checkbox_single', ip_model: 'checkbox_single',
   maturity_level: 'checkbox_single', eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
-  hook: 'rich_text', submission_deadline: 'date',
+  hook: 'rich_text',
   challenge_visibility: 'select', domain_tags: 'tag_input',
   legal_docs: 'table', escrow_funding: 'structured_fields',
   solver_expertise: 'custom',
