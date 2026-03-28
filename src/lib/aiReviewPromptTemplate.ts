@@ -117,7 +117,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   // Extended Brief subsections
   context_and_background: 'rich_text', root_causes: 'line_items',
   affected_stakeholders: 'table', current_deficiencies: 'line_items',
-  preferred_approach: 'rich_text', approaches_not_of_interest: 'line_items',
+  preferred_approach: 'line_items', approaches_not_of_interest: 'line_items',
 };
 
 /** Extended Brief subsection-specific format instructions */
