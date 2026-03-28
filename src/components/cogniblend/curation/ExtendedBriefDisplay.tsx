@@ -388,7 +388,8 @@ export default function ExtendedBriefDisplay({
 
             // ── Line items sections ──
             case "root_causes":
-            case "current_deficiencies": {
+            case "current_deficiencies":
+            case "preferred_approach": {
               const items = ensureStringArray(rawVal);
               return (
                 <>
