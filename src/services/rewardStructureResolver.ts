@@ -56,6 +56,14 @@ export interface NonMonetaryReward {
   items: NonMonetaryItem[];
 }
 
+export interface UpstreamSource {
+  role: SourceRole;
+  date?: string;
+  budgetMin?: number;
+  budgetMax?: number;
+  currency?: string;
+}
+
 export interface RewardData {
   type: RewardType;
   monetary?: MonetaryReward;
@@ -66,6 +74,8 @@ export interface RewardData {
   isEditable: boolean;
   /** Original upstream data for reset functionality */
   originalData?: RewardData;
+  /** Immutable upstream source attribution — survives curator saves */
+  upstreamSource?: UpstreamSource;
 }
 
 /* ── Role display names ── */
