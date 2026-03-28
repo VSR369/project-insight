@@ -329,17 +329,24 @@ function EditableScheduleRows({
       <div className="relative w-full overflow-auto">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50">
+              <TableHead className="w-10 text-xs">#</TableHead>
               <TableHead className="min-w-[180px] text-xs">Phase / Deliverable</TableHead>
-              <TableHead className="w-[100px] text-xs text-right">Duration (days)</TableHead>
-              <TableHead className="w-[140px] text-xs">Start Date</TableHead>
-              <TableHead className="w-[140px] text-xs">End Date</TableHead>
+              <TableHead className="w-[120px] text-xs text-center">Duration (days)</TableHead>
+              <TableHead className="w-[140px] text-xs text-center">Start Date</TableHead>
+              <TableHead className="w-[140px] text-xs text-center">End Date</TableHead>
               <TableHead className="w-[40px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row, i) => (
-              <TableRow key={i}>
+              <TableRow key={i} className={cn(
+                "transition-colors hover:bg-accent/40",
+                i % 2 !== 0 && "bg-muted/30"
+              )}>
+                <TableCell className="p-1.5 text-muted-foreground font-mono text-xs text-center">
+                  {i + 1}
+                </TableCell>
                 <TableCell className="p-1.5">
                   <Input
                     value={String(row.phase_name ?? row.label ?? row.name ?? "")}
@@ -353,7 +360,7 @@ function EditableScheduleRows({
                     type="number"
                     value={String(row.duration_days ?? "")}
                     onChange={(e) => handleChange(i, "duration_days", e.target.value)}
-                    className="text-sm h-8 text-right"
+                    className="text-sm h-8 text-center"
                     placeholder="0"
                   />
                 </TableCell>
@@ -980,7 +987,7 @@ export function AIReviewResultPanel({
               );
             })()
           ) : scheduleRows ? (
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">
               <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
             </div>
           ) : tableRows ? (
