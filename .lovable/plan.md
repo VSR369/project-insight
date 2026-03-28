@@ -1,97 +1,66 @@
 
 
-# Improve Phase Schedule AI Suggested Table Layout
+# 5-Why Root Cause Analysis: Phase Schedule Distorted Table
 
-## Problem
+## The Problem
 
-The current `EditableScheduleRows` component renders a basic `<Table>` with inputs but lacks the polished structure shown in the reference design: no row numbers, no zebra striping, no highlighted duration badges, and the container's `max-h-72` clips content awkwardly.
+The screenshot shows each phase row appearing **twice** — once as read-only text and once as editable inputs — creating a messy, distorted layout. The dedicated `EditableScheduleRows` table component (with proper headers, alignment, row numbers) is **never reached**.
 
-## Changes
+## 5-Why Analysis
 
-**File:** `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+**Why #1: Why does the schedule table look distorted?**
+Because it's rendered by `TableLineItemRenderer` (a generic line-item table) or `EditableLineItems` (plain text list) instead of the purpose-built `EditableScheduleRows` component.
 
-### 1. Enhance `EditableScheduleRows` (lines 308-391)
+**Why #2: Why is `EditableScheduleRows` not being used?**
+Because in the render chain (line 966-993 of `AIReviewResultPanel.tsx`), the `isStructured && structuredItems` branch comes **before** the `scheduleRows` branch. Since `isStructured` is `true` for `schedule_table`, the code enters the generic structured branch and **never reaches** the dedicated schedule branch at line 989.
 
-- Add a `#` column with row number (mono font, muted text)
-- Add zebra striping via alternating row backgrounds (`even:bg-muted/30`)
-- Highlight duration values with an amber badge-style wrapper (`bg-amber-50 text-amber-700 border border-amber-200 rounded px-2`)
-- Improve cell padding for a cleaner look (match reference's `py-3 px-4` feel while keeping inputs compact)
-- Use `hover:bg-blue-50/40` on rows for interactive feedback
+**Why #3: Why is `isStructured` true for schedule_table?**
+Because `isStructuredSection()` in `AIReviewInline.tsx` (line 53) explicitly includes `'schedule_table'` in its format list: `['line_items', 'table', 'schedule_table']`. This causes `structuredItems` to be populated with JSON-stringified phase objects.
 
-### 2. Fix container (line 983)
+**Why #4: Why does the generic structured branch produce bad output?**
+Because `detectAndParseLineItems` tries to detect if the JSON strings form a "table" — it was designed for evaluation criteria, not schedules. It either renders via `TableLineItemRenderer` (wrong columns, wrong layout) or falls back to `EditableLineItems` (plain text strings of JSON).
 
-- Remove `max-h-72` constraint — the schedule table is typically 5-7 rows and should display fully without scroll clipping
-- Keep `overflow-y-auto` as a safety net for unusually long schedules
+**Why #5: Why wasn't this caught earlier?**
+Because the `scheduleRows` parsing at line 535 works correctly, and the `EditableScheduleRows` component was recently upgraded to a proper `<Table>` layout — but neither is ever invoked because the rendering priority is wrong. The code was added incrementally without adjusting the priority chain.
 
-### Result
+## Root Cause
 
-The AI Suggested Version schedule table will match the polished reference design with row numbers, zebra striping, duration highlighting, and hover states while remaining fully editable.
+**The render priority chain in `AIReviewResultPanel.tsx` (lines 958-1004) treats `schedule_table` as a generic structured section, preventing the dedicated schedule renderer from being used.**
 
-## Technical Details
+## Permanent Fix
 
-```tsx
-function EditableScheduleRows({ rows, onChange }) {
-  return (
-    <div className="space-y-2">
-      <div className="relative w-full overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="w-10 text-xs">#</TableHead>
-              <TableHead className="min-w-[180px] text-xs">Phase / Deliverable</TableHead>
-              <TableHead className="w-[120px] text-xs text-center">Duration (days)</TableHead>
-              <TableHead className="w-[140px] text-xs text-center">Start Date</TableHead>
-              <TableHead className="w-[140px] text-xs text-center">End Date</TableHead>
-              <TableHead className="w-[40px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={i} className={cn(
-                "transition-colors hover:bg-blue-50/40",
-                i % 2 !== 0 && "bg-muted/30"
-              )}>
-                <TableCell className="p-1.5 text-muted-foreground font-mono text-xs">
-                  {i + 1}
-                </TableCell>
-                <TableCell className="p-1.5">
-                  <Input value={...} className="text-sm h-8" />
-                </TableCell>
-                <TableCell className="p-1.5">
-                  <Input type="number" className="text-sm h-8 text-center" />
-                </TableCell>
-                <TableCell className="p-1.5">
-                  <Input type="date" className="text-sm h-8" />
-                </TableCell>
-                <TableCell className="p-1.5">
-                  <Input type="date" className="text-sm h-8" />
-                </TableCell>
-                <TableCell className="p-1.5">
-                  <Button variant="ghost" ... />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <Button variant="outline" size="sm">+ Add Phase</Button>
-    </div>
-  );
-}
+**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
+
+**Change 1 — Fix render priority (lines 966-992)**
+
+Move the `scheduleRows` check **before** the generic `isStructured && structuredItems` check in the ternary chain. This ensures phase schedule data hits the dedicated `EditableScheduleRows` component first:
+
+```
+Current order (BROKEN):
+  deliverableCards → isStructured+structuredItems → scheduleRows → tableRows → richText
+
+Fixed order:
+  deliverableCards → scheduleRows → isStructured+structuredItems → tableRows → richText
 ```
 
-Container change (line 983):
-```tsx
-// Before
-<div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
+Specifically, swap the two branches so the ternary reads:
 
-// After
-<div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">
+```tsx
+) : scheduleRows ? (
+  <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">
+    <EditableScheduleRows rows={editedScheduleRows ?? scheduleRows.map(r => ({ ...r }))} onChange={handleScheduleRowsChange} />
+  </div>
+) : isStructured && structuredItems && structuredItems.length > 0 ? (
+  // ... generic structured / TableLineItemRenderer / EditableLineItems
 ```
+
+This is the same pattern used for `deliverableCards` and `rewardData` — format-specific renderers get priority over generic ones.
+
+**No other files need changes.** The `EditableScheduleRows` component already has the correct `<Table>` layout with `#` column, zebra striping, headers, and proper alignment from the previous fix.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Enhance `EditableScheduleRows` with row numbers, zebra striping, header styling, hover states; remove `max-h-72` from container |
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Reorder render priority: move `scheduleRows` branch before `isStructured && structuredItems` branch |
 
