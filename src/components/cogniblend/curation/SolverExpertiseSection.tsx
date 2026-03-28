@@ -237,7 +237,7 @@ export default function SolverExpertiseSection({
       sub_domains: sdItems,
       specialities: spItems,
     });
-    setEditing(false);
+    setInternalEditing(false);
   }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave]);
 
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
