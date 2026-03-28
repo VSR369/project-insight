@@ -41,12 +41,6 @@ interface ChallengeSettingsPanelProps {
   readOnly?: boolean;
 }
 
-const EFFORT_OPTIONS = [
-  { value: "low", label: "Low", description: "< 40 hours estimated effort" },
-  { value: "medium", label: "Medium", description: "40–160 hours estimated effort" },
-  { value: "high", label: "High", description: "160–500 hours estimated effort" },
-  { value: "expert", label: "Expert", description: "500+ hours, deep domain expertise" },
-];
 
 const VISIBILITY_OPTIONS = [
   { value: "public", label: "Public", description: "Visible to all solver types" },
