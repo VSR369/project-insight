@@ -70,7 +70,7 @@ export function useChallengeDetail(challengeId: string | undefined) {
           governance_profile, governance_mode_override, operating_model, current_phase,
           master_status, max_solutions, currency_code,
           solver_eligibility_types, solver_visibility_types,
-          solver_eligibility_id,
+          solver_eligibility_id, hook,
           extended_brief, eligibility_model, domain_tags,
           targeting_filters, ai_section_reviews
         `)
