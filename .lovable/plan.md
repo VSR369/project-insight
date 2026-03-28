@@ -1,126 +1,69 @@
 
 
-# Fix: Reward Source Attribution — 5 Why Analysis & Fix Plan
+# Fix: Complexity Assessment — Isolate AI vs Manual State + Lock Mechanism
 
-## 5 Why Root Cause Analysis
+## Problem 1: Shared Draft State Corruption
 
-**Symptom**: Curator cannot see the reward amount/details provided by Account Manager (Marketplace) or Challenge Creator (Aggregator) in the Reward Structure section.
+The `ComplexityAssessmentModule` uses a **single `draft` state** for all three tabs. Both AI Review and Manual Params read from and write to the same `draft` object via the shared `handleSliderChange` callback. When the curator adjusts sliders in Manual Params, the AI Review tab's ratings change too — even though no AI review was run.
 
-1. **Why can't the curator see AM/CR-provided reward data?**
-   Because the SourceBanner and budget details only show when `sectionState === 'populated_from_source'` or `rewardData.isAutoPopulated === true`. Once the curator saves, both become false.
-
-2. **Why do both become false after curator saves?**
-   Because `serializeRewardData()` always sets `source_role: 'CURATOR'`. On next page load, the resolver sees `source_role: CURATOR` and returns `isAutoPopulated: false`.
-
-3. **Why does the serializer overwrite the original source?**
-   Because there is no separate "upstream source" concept. The single `source_role` field serves double duty — it indicates both who provided the original data AND who last edited it. When the curator saves, the original AM/CR attribution is destroyed.
-
-4. **Why is there no separate upstream source concept?**
-   Because the initial design assumed a linear handoff: AM provides data → curator takes over completely. There was no requirement to preserve the original source attribution after the curator modifies the data.
-
-5. **Why was the original budget range not preserved?**
-   Because `useSubmitSolutionRequest` saves `{ budget_min, budget_max }` at intake, but `serializeRewardData()` (curator save) replaces the entire JSONB with `{ type, tiers, platinum, gold, silver, ... }` — the original `budget_min`/`budget_max` fields are lost.
-
-## Root Cause
-
-**The original upstream data (source, budget range) is destroyed when the curator saves.** There is no immutable record of what the AM/CR originally provided.
-
-## Fix Plan — 4 Changes
-
-### 1. Persist immutable `upstream_source` sub-object during intake
-
-**Files:** `useSubmitSolutionRequest.ts`, `SimpleIntakeForm.tsx`, `ConversationalIntakePage.tsx`
-
-When intake saves `reward_structure`, embed an `upstream_source` sub-object that is never overwritten:
-
-```js
-reward_structure: {
-  currency: "USD",
-  budget_min: 25000,
-  budget_max: 75000,
-  upstream_source: {        // ← NEW immutable sub-object
-    role: "AM",             // or "CR"
-    date: "2026-03-28T...",
-    budget_min: 25000,
-    budget_max: 75000,
-    currency: "USD"
-  }
-}
+**Root cause** (line 210-212):
 ```
-
-### 2. Curator serializer preserves `upstream_source` on save
-
-**File:** `rewardStructureResolver.ts` (`serializeRewardData`)
-
-When serializing, if the original resolved data had `upstreamSource`, carry it forward:
-
-```js
-serializeRewardData(data) → {
-  source_role: 'CURATOR',
-  type: 'monetary',
-  tiers: [...],
-  upstream_source: data.upstreamSource  // ← preserved across saves
-}
+handleSliderChange → setDraft(prev => ({...prev, [key]: val}))
 ```
+This mutates the same `draft` that AI Review renders at line 435: `const value = draft[param.param_key] ?? 5`.
 
-### 3. Resolver surfaces upstream source regardless of current `source_role`
+## Problem 2: No Lock Mechanism
 
-**File:** `rewardStructureResolver.ts` (`resolveRewardSource`)
+There is no way for the curator to finalize the complexity assessment. The current "Save" button persists values but doesn't prevent further changes or signal that complexity is locked for downstream use.
 
-Add `upstreamSource` to `RewardData` interface. Even when `source_role` is `CURATOR`, if `raw.upstream_source` exists, populate it:
+## Fix Plan
 
-```ts
-interface RewardData {
-  // ... existing fields
-  upstreamSource?: {
-    role: SourceRole;
-    date?: string;
-    budgetMin?: number;
-    budgetMax?: number;
-    currency?: string;
-  };
-}
-```
+### Change 1: Split `draft` into `aiDraft` and `manualDraft`
 
-Remove the model-based inference block entirely — per user preference, never infer source. Only use explicit metadata.
+**File:** `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`
 
-### 4. Show SourceBanner in all section states when upstream source exists
+- Introduce two separate state objects:
+  - `aiDraft` — populated **only** from `aiSuggestedRatings` (via the existing `useEffect` at line 106) and from inline pencil edits in AI Review tab
+  - `manualDraft` — populated from `currentParams` on mount, updated by Manual Params sliders
+- AI Review tab renders `aiDraft` values; Manual Params tab renders `manualDraft` values
+- Each tab's `handleSliderChange` targets only its own draft
+- `handleSave` sends the active tab's draft (not a shared one)
+- Quick Select remains unchanged (no sliders)
 
-**File:** `RewardStructureDisplay.tsx`
+### Change 2: Add "Lock Complexity" action
 
-Currently the banner only shows in `populated_from_source` state or when `isAutoPopulated`. Change to show in ALL states (saved, curator_editing, reviewed, populated_from_source) whenever `rewardData.upstreamSource` is present:
+**Files:**
+- `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` — add Lock button + locked read-only state
+- `src/pages/cogniblend/CurationReviewPage.tsx` — pass `isLocked` and `onLock` props
+- **DB migration** — add `complexity_locked` boolean column to `challenges` table (default false)
 
-```tsx
-// Before each state's render block, add:
-{rewardData.upstreamSource && (
-  <SourceBanner
-    sourceRole={rewardData.upstreamSource.role}
-    sourceDate={rewardData.upstreamSource.date}
-    isModified={sectionState !== 'populated_from_source'}
-    onEdit={startEditing}
-    budgetRange={{
-      min: rewardData.upstreamSource.budgetMin ?? 0,
-      max: rewardData.upstreamSource.budgetMax ?? 0,
-      currency: rewardData.upstreamSource.currency ?? 'USD'
-    }}
-  />
-)}
-```
+Lock behavior:
+- Lock button appears after Save (or directly if data exists), styled as a confirmation action
+- Once locked: all tabs become read-only, sliders disabled, Lock badge shown
+- Lock persists `complexity_locked = true`, `complexity_locked_at`, `complexity_locked_by` to DB
+- Unlock requires explicit curator action (toggle button)
+- Locked complexity values become the basis for downstream pricing and reward calculations
+
+### Change 3: Protect AI draft from non-AI mutations
+
+The `aiDraft` state will only be writable through:
+1. The `useEffect` that processes `aiSuggestedRatings` (global review or re-review)
+2. Inline pencil edits within the AI Review tab (marking as "Curator" override)
+
+No other path can modify AI Review ratings.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/services/rewardStructureResolver.ts` | Add `upstreamSource` to RewardData; extract from `upstream_source` sub-object; preserve in serializer; remove inference block |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Add `upstream_source` sub-object to reward_structure on create and draft |
-| `src/components/cogniblend/SimpleIntakeForm.tsx` | Add `upstream_source` to reward_structure update payload |
-| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Add `upstream_source` to reward_structure on edit save |
-| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Show SourceBanner in all states when `upstreamSource` exists |
-| `src/hooks/useRewardStructureState.ts` | Pass through `upstreamSource` from resolved data |
+| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Split draft into `aiDraft`/`manualDraft`; add Lock/Unlock UI; read-only when locked |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Pass `isLocked`/`onLock` props from challenge data |
+| **DB migration** | Add `complexity_locked`, `complexity_locked_at`, `complexity_locked_by` to `challenges` |
 
 ## Result
 
-- **AM/CR budget always visible**: Even after curator edits and saves, banner shows "Populated from Account Manager · Budget: $25K–$75K"
-- **Curator can freely edit**: Tier breakup, amounts, type — all editable. Banner persists as context.
-- **No inference**: Only explicit metadata drives attribution. Legacy challenges without metadata show no banner.
+- Manual Params changes **never** affect AI Review ratings
+- AI Review ratings change **only** on AI review/re-review or explicit inline override
+- Curator can Lock complexity as final — all tabs become read-only with a visual indicator
+- Locked state persists to DB and is respected on reload
 
