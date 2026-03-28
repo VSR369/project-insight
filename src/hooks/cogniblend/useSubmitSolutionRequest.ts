@@ -61,10 +61,20 @@ export function useSubmitSolutionRequest() {
       if (!challengeId) throw new Error('Failed to create challenge');
 
       // 2. Update challenge with form fields
+      const sourceRole = payload.operatingModel === 'MP' ? 'AM' : 'CR';
       const rewardStructure = {
         currency: payload.currency,
         budget_min: payload.budgetMin,
         budget_max: payload.budgetMax,
+        source_role: sourceRole,
+        source_date: new Date().toISOString(),
+        upstream_source: {
+          role: sourceRole,
+          date: new Date().toISOString(),
+          budget_min: payload.budgetMin,
+          budget_max: payload.budgetMax,
+          currency: payload.currency,
+        },
       };
 
       const phaseSchedule = {
