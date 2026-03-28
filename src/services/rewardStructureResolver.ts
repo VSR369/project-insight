@@ -472,6 +472,17 @@ export function serializeRewardData(data: RewardData): Record<string, any> {
     source_date: data.sourceDate ?? new Date().toISOString(),
   };
 
+  // Preserve immutable upstream_source across saves
+  if (data.upstreamSource) {
+    base.upstream_source = {
+      role: data.upstreamSource.role,
+      date: data.upstreamSource.date,
+      budget_min: data.upstreamSource.budgetMin,
+      budget_max: data.upstreamSource.budgetMax,
+      currency: data.upstreamSource.currency,
+    };
+  }
+
   const serializeMonetary = (m: MonetaryReward) => {
     const tierMap: Record<string, number> = {};
     for (const t of m.tiers) {
