@@ -235,27 +235,32 @@ function StakeholderTableView({ rows }: { rows: StakeholderRow[] }) {
     return <p className="text-sm text-muted-foreground">No stakeholders defined.</p>;
   }
   return (
-    <div className="relative w-full overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Stakeholder</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Impact</TableHead>
-            <TableHead>Adoption Challenge</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, i) => (
-            <TableRow key={i}>
-              <TableCell className="text-sm font-medium">{row.stakeholder_name || "—"}</TableCell>
-              <TableCell className="text-sm">{row.role || "—"}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{row.impact_description || "—"}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{row.adoption_challenge || "—"}</TableCell>
+    <div className="space-y-2">
+      <Badge variant="secondary" className="text-xs font-normal">
+        {rows.length} stakeholder{rows.length !== 1 ? "s" : ""} identified
+      </Badge>
+      <div className="relative w-full overflow-auto rounded-lg border border-border">
+        <Table>
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className="bg-muted/60 hover:bg-muted/60">
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[140px]">Stakeholder</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[100px]">Role</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[180px]">Impact</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[180px]">Adoption Challenge</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow key={i} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                <TableCell className="text-sm font-medium text-foreground">{row.stakeholder_name || "—"}</TableCell>
+                <TableCell className="text-sm text-foreground/80">{row.role || "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{row.impact_description || "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{row.adoption_challenge || "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
