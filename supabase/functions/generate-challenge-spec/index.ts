@@ -469,7 +469,7 @@ Generate a complete challenge specification including all extended brief fields.
       preferred_approach: spec.preferred_approach ?? "",
       approaches_not_of_interest: spec.approaches_not_of_interest ?? "",
       scoring_rubrics: spec.scoring_rubrics ?? [],
-      effort_level: spec.effort_level ?? "medium",
+      
       reward_description: spec.reward_description ?? "",
       phase_notes: spec.phase_notes ?? "",
       complexity_notes: spec.complexity_notes ?? "",
