@@ -1,57 +1,84 @@
 
 
-# Fix Partner Level & Expertise Level UX in Solver Expertise Section
+# Render Solver Expertise AI Suggestion as Structured Tree
 
-## Problems
+## Problem
 
-1. **Partner level missing from tree**: Line 158 filters out expertise levels with zero proficiency areas (`.filter(el => el.proficiencyAreas.length > 0)`). Partner has no proficiency areas for the selected industry, so it's excluded from the collapsible tree.
-2. **Tree shown without clicking checkboxes**: When no expertise levels are checked, `filteredTree` returns the full tree (line 217). User expects the tree to only appear after explicitly selecting levels.
-3. **No "All" option**: There's no explicit "All" checkbox for expertise levels.
-4. **Empty selection should mean full tree**: If only industry segment is selected and nothing else is explicitly checked, saving should imply ALL levels/areas/sub-domains/specialities.
+The AI suggestion for `solver_expertise` returns a JSON object with `proficiency_areas`, `sub_domains`, and `specialities` arrays. Since the section format is `custom`, it falls through to the default `rich_text` renderer (line 1048), which dumps the raw JSON into a RichTextEditor — completely unreadable (as shown in the screenshot).
 
-## Changes — `SolverExpertiseSection.tsx`
+After acceptance, the view mode already renders nicely with badges. The fix is to add a custom renderer in the AI suggestion panel.
 
-### A. Include all expertise levels in tree (even those with no proficiency areas)
-Remove the `.filter(el => el.proficiencyAreas.length > 0)` at line 158. All levels appear in the tree — Partner will show with "0 areas" badge.
+## Changes
 
-### B. Add "All" checkbox for expertise levels
-Add an "All Levels" checkbox above the individual level checkboxes. When checked, all individual checkboxes become checked. When unchecked, all get unchecked. When individual boxes are toggled such that all are checked, "All" auto-checks. When any individual is unchecked, "All" unchecks.
+### 1. Add solver expertise tree renderer in `AIReviewResultPanel.tsx`
 
-### C. Only show taxonomy tree after expertise level selection
-Change the tree rendering logic:
-- If no expertise level checkboxes are checked AND "All" is not checked → show a hint message: "Select expertise levels above to view the taxonomy tree"
-- If "All" is checked → show full tree
-- If specific levels are checked → show filtered tree (only those levels)
+**Between the `rewardData` check (line 949) and the `hasDeliverableCards` check (line 991)**, add a new branch that detects `sectionKey === "solver_expertise"` and parses the `result.suggested_version` JSON.
 
-### D. Save semantics: empty = all
-No change needed here — the current save already stores `undefined` for empty arrays, and view mode shows "All Applicable". The "All" checkbox just provides explicit UX for this.
+Parse the suggested version to extract:
+- `expertise_levels?: {id, name}[]`
+- `proficiency_areas?: {id, name}[]`
+- `sub_domains?: {id, name}[]`
+- `specialities?: {id, name}[]`
 
-## Technical Details
+Render as a **read-only collapsible tree** matching the manual selection view format:
+- Each level gets a labeled row with badges
+- Empty arrays show "All [Level Name]" badge (matching view mode)
+- Tree hierarchy uses indentation and icons consistent with `SolverExpertiseSection` view mode
 
-**"All" checkbox state**: Derived from `selectedELs.size === allExpertiseLevels.length` (all checked) or a separate `allELsChecked` boolean. When "All" is toggled ON, set `selectedELs` to all IDs. When toggled OFF, clear the set.
+Add a `useMemo` block (near lines 532-559 where other format-specific parsers live) to detect and parse solver expertise data:
 
-**Tree visibility condition**:
 ```typescript
-const showTree = selectedELs.size > 0;
+const solverExpertiseData = useMemo(() => {
+  if (sectionKey !== "solver_expertise" || !result.suggested_version) return null;
+  const cleaned = result.suggested_version.trim()
+    .replace(/^```(?:json)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "").trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as {
+        expertise_levels?: {id: string; name: string}[];
+        proficiency_areas?: {id: string; name: string}[];
+        sub_domains?: {id: string; name: string}[];
+        specialities?: {id: string; name: string}[];
+      };
+    }
+  } catch {}
+  return null;
+}, [sectionKey, result.suggested_version]);
 ```
 
-**Tree building** (line 158 change):
-```typescript
-// Remove: .filter(el => el.proficiencyAreas.length > 0);
-// Keep all levels in tree regardless of whether they have proficiency areas
+**Rendering block** — structured card with four labeled rows:
+
+```
+Expertise Levels:    [Badge] [Badge] ...  (or "All Levels" badge)
+Proficiency Areas:   [Badge] [Badge] ...  (or "All Areas" badge)
+Sub-domains:         [Badge] [Badge] ...  (or "All Sub-domains" badge)
+Specialities:        [Badge] [Badge] ...  (or "All Specialities" badge)
 ```
 
-**"All" checkbox rendering**:
-```tsx
-<label className="flex items-center gap-2 cursor-pointer font-medium">
-  <Checkbox
-    checked={selectedELs.size === allExpertiseLevels.length && allExpertiseLevels.length > 0}
-    onCheckedChange={(checked) => {
-      if (checked) setSelectedELs(new Set(allExpertiseLevels.map(el => el.id)));
-      else setSelectedELs(new Set());
-    }}
-  />
-  <span className="text-sm">All Levels</span>
-</label>
-```
+Each row uses the same styling as `SolverExpertiseSection` view mode (lines 324-378): `text-xs font-medium text-muted-foreground` labels, `Badge variant="outline"` for items.
+
+### 2. Update `hasSuggestedVersion` to include solver expertise
+
+Add `solverExpertiseData` to the check at line 575-584 so the suggestion panel renders.
+
+### 3. Update `suggestedFormat` detection
+
+Add a check before the `rich_text` fallback: if `solverExpertiseData` exists, return `"solver_expertise"` format.
+
+### 4. Seed the `onSuggestedVersionChange` for solver expertise
+
+Add a `useEffect` (near lines 602-641) that emits the parsed JSON string to the parent when solver expertise data is detected, so acceptance works correctly with the existing handler.
+
+### 5. No changes to acceptance logic
+
+The existing acceptance handler at line 1594-1608 in `CurationReviewPage.tsx` already correctly parses JSON and saves as structured data. After acceptance, the `SolverExpertiseSection` view mode (lines 309-382) already renders the tree with badges.
+
+## Result
+
+- AI suggestion shows a clean, labeled badge layout matching the manual selection format
+- "All [Level]" badges shown when a category is empty
+- Accept button saves the structured data identically to manual selection
+- View mode after acceptance displays the same tree format as manual editing
 
