@@ -29,7 +29,6 @@ const SINGLE_CODE_SECTIONS = new Set([
   "maturity_level",
   "complexity",
   "challenge_visibility",
-  "effort_level",
 ]);
 
 /** Map section keys to their format type for prompt building */
