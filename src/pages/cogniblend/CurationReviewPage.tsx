@@ -2062,7 +2062,7 @@ export default function CurationReviewPage() {
       scope: challenge?.scope ? (typeof challenge.scope === 'string' ? challenge.scope.slice(0, 500) : undefined) : undefined,
       deliverables: deliverableNames.length > 0 ? deliverableNames : undefined,
       evaluation_criteria: evalCriteriaNames.length > 0 ? evalCriteriaNames : undefined,
-      effort_level: challenge?.effort_level ?? undefined,
+      
       industry: domainTags.length > 0 ? domainTags[0] : undefined,
       reward_pool: rewardPool,
       currency: challenge?.currency_code ?? 'USD',
