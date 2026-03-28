@@ -3011,10 +3011,7 @@ export default function CurationReviewPage() {
                     />
                   );
 
-                  // Extended brief renders its own nested panels — no outer wrapper needed
-                  if (section.key === "extended_brief") {
-                    return <React.Fragment key={section.key}>{sectionContent}</React.Fragment>;
-                  }
+
 
                   const isWarningHighlighted = highlightWarnings && aiReview && (aiReview.status === "warning" || aiReview.status === "needs_revision") && !aiReview.addressed;
 
