@@ -2681,6 +2681,9 @@ export default function CurationReviewPage() {
                             currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
                             complexityParams={complexityParams}
                             onSave={handleSaveComplexity}
+                            onLock={handleLockComplexity}
+                            onUnlock={handleUnlockComplexity}
+                            isLocked={(challenge as any).complexity_locked === true}
                             saving={savingSection}
                             aiSuggestedRatings={aiSuggestedComplexity}
                           />
