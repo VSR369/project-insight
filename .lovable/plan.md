@@ -1,92 +1,46 @@
 
 
-# Standardize Extended Brief Subsections as Individual Sections
+# Reorganize Curation Review Tabs — 5 → 6 Tabs
 
-## Problem
+## What Changes
 
-The Extended Brief tab currently treats its 6 subsections differently from all other tabs:
-- Other tabs (Content, Evaluation, etc.) list individual `SECTIONS` entries, each getting its own `CuratorSectionPanel` rendered by the main `sectionKeys.map()` loop
-- Extended Brief has a single `SECTIONS` entry (`key: "extended_brief"`) that delegates to `ExtendedBriefDisplay`, which internally creates its own `CuratorSectionPanel` per subsection
-
-This creates inconsistency in progress tracking, expand/collapse, AI review integration, and the overall UX.
-
-## Approach
-
-Replace the single `extended_brief` SECTIONS entry with 6 individual section entries — one per subsection. They render in the standard main loop like every other section, using the same format-native renderers.
-
-**No changes to**: AI review, acceptance logic, JSONB persistence, `handleAcceptExtendedBriefRefinement`, `handleSaveExtendedBrief`, or `ExtendedBriefDisplay` internals (we stop using it but don't delete it).
+Replace the current 5-tab GROUPS definition with a 6-tab structure and update the progress strip grid. **Zero functional changes** — only which tab each section lives under and tab labels.
 
 ## Changes — `CurationReviewPage.tsx`
 
-### A. Replace the single `extended_brief` SECTIONS entry with 6 entries
+### 1. Replace GROUPS array (lines 722-766)
 
-Remove the existing `{ key: "extended_brief", ... }` from `SECTIONS`. Add 6 new entries:
+Replace the entire `GROUPS` constant with 6 new tab definitions:
 
-```
-context_and_background  → rich_text, dbField: "extended_brief"
-root_causes             → line_items, dbField: "extended_brief"
-affected_stakeholders   → table, dbField: "extended_brief"
-current_deficiencies    → line_items, dbField: "extended_brief"
-preferred_approach      → line_items, dbField: "extended_brief"
-approaches_not_of_interest → line_items, dbField: "extended_brief"
-```
+| # | Tab ID | Label | Sections (by key) | Color Theme |
+|---|--------|-------|--------------------|-------------|
+| 1 | `problem_definition` | Problem Definition | `context_and_background`, `problem_statement`, `scope`, `expected_outcomes` | emerald (reuse content) |
+| 2 | `challenge_context` | Challenge Context | `root_causes`, `affected_stakeholders`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest` | teal (new) |
+| 3 | `scope_complexity` | Scope & Complexity | `deliverables`, `maturity_level`, `complexity` | blue (reuse evaluation) |
+| 4 | `solvers_schedule` | Solvers & Schedule | `solver_expertise`, `eligibility`, `phase_schedule`, `submission_guidelines` | slate (reuse publication) |
+| 5 | `evaluation_rewards` | Evaluation & Rewards | `evaluation_criteria`, `reward_structure`, `ip_model`, `escrow_funding`, `legal_docs` | amber (reuse legal) |
+| 6 | `publish_discover` | Publish & Discover | `hook`, `visibility`, `domain_tags` | violet (new) |
 
-Each has `isFilled` that checks the specific JSONB field within `challenge.extended_brief`, and `render` that returns null (handled by the switch-case in the main loop).
+Verification: 4+5+3+4+5+3 = 24 sections total (unchanged).
 
-### B. Update `GROUPS` definition for `extended_brief`
+### 2. Update progress strip grid (line 2380)
 
-Change `sectionKeys` from `["extended_brief"]` to the 6 subsection keys:
-```typescript
-sectionKeys: [
-  "context_and_background", "root_causes", "affected_stakeholders",
-  "current_deficiencies", "preferred_approach", "approaches_not_of_interest"
-]
-```
+Change `lg:grid-cols-5` → `lg:grid-cols-6`.
 
-### C. Add switch-case branches in the main section rendering loop
+### 3. Update default active group
 
-For each of the 6 subsection keys, add a case that:
-- Reads from `challenge.extended_brief` JSONB using `EXTENDED_BRIEF_FIELD_MAP`
-- Renders with the appropriate renderer (RichText, LineItems, or StakeholderTable)
-- Saves via a subsection-aware handler that merges into the `extended_brief` JSONB
+If there's a default `activeGroup` state initialized to `"content"`, change it to `"problem_definition"`.
 
-Move the `StakeholderTableEditor` and `StakeholderTableView` components (currently in `ExtendedBriefDisplay.tsx`) — import them or inline equivalent rendering.
+## What Does NOT Change
 
-### D. Simplify `groupProgress` computation
-
-Remove the special `if (g.id === "extended_brief")` branch. The standard path (`secs.filter(s => s.isFilled(...))`) now works because each subsection has its own `isFilled`.
-
-### E. Remove `handleExpandCollapseAll` special case
-
-Remove the `if (groupDef.id === "extended_brief")` block that manually iterates subsection keys — no longer needed since subsections are now top-level section keys.
-
-### F. Update progress strip grid
-
-Change `grid-cols-4` to `grid-cols-5` at `lg:` breakpoint to properly fit all 5 group buttons. Or use `lg:grid-cols-5`.
-
-### G. Wire AI review and save handlers
-
-Each subsection's `CuratorSectionPanel` in the main loop gets:
-- `aiReviewSlot` using the existing `CurationAIReviewInline` (same as current)
-- Save handler: merges value into `challenge.extended_brief` JSONB via `handleSaveExtendedBrief`
-- Accept refinement: delegates to `handleAcceptExtendedBriefRefinement` (already handles subsection keys)
-
-### H. Import StakeholderTableEditor/View
-
-Import the `StakeholderTableEditor` and `StakeholderTableView` from `ExtendedBriefDisplay.tsx` (export them) or move to a separate file under `renderers/`.
+- All 24 section definitions in the `SECTIONS` array
+- All rendering logic (switch-cases, component imports)
+- AI review, acceptance, save handlers
+- Right sidebar, top banner, bottom actions
+- Role permissions, view-only locks, supervisor badges
+- Progress calculation logic (already iterates GROUPS dynamically)
 
 ## Files Modified
 
-1. **`src/pages/cogniblend/CurationReviewPage.tsx`** — Main changes (sections, groups, rendering, progress)
-2. **`src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`** — Export `StakeholderTableEditor`, `StakeholderTableView`, helper functions (`parseExtendedBrief`, `ensureStringArray`, `ensureStakeholderArray`, `getSubsectionValue`)
-
-## What Stays the Same
-
-- All AI review logic (per-subsection reviews already work)
-- `handleAcceptExtendedBriefRefinement` — unchanged, already handles subsection keys
-- `handleSaveExtendedBrief` — unchanged, merges into JSONB
-- JSONB persistence model (`extended_brief` column structure)
-- `EXTENDED_BRIEF_FIELD_MAP` and `EXTENDED_BRIEF_SUBSECTION_KEYS`
-- Zustand store sync
-- All other tabs' rendering
+1. `src/pages/cogniblend/CurationReviewPage.tsx` — GROUPS array, grid class, default active group
 
