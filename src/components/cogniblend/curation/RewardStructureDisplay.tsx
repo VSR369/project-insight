@@ -492,6 +492,19 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       {/* ── Saved state: read view + edit button ── */}
       {sectionState === 'saved' && !isEditing && (
         <>
+          {rewardData.upstreamSource && (
+            <SourceBanner
+              sourceRole={rewardData.upstreamSource.role}
+              sourceDate={rewardData.upstreamSource.date}
+              isModified={true}
+              onEdit={startEditing}
+              budgetRange={{
+                min: rewardData.upstreamSource.budgetMin ?? 0,
+                max: rewardData.upstreamSource.budgetMax ?? 0,
+                currency: rewardData.upstreamSource.currency ?? currencyCode ?? 'USD',
+              }}
+            />
+          )}
           <RewardTypeToggle
             currentType={rewardType}
             hasExistingData={hasExistingData}
