@@ -79,7 +79,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): Array<Array<keyof Challe
     // Step 3 — Rewards
     ['platinum_award', 'gold_award', 'rejection_fee_pct'],
     // Step 4 — Timeline
-    ['submission_deadline', 'expected_timeline', 'review_duration'],
+    ['expected_timeline', 'review_duration'],
     // Step 5 — Eligibility
     ['eligibility'],
     // Step 6 — Templates
