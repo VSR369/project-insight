@@ -1,50 +1,62 @@
 
 
-# Fix: AI Suggested Selection acceptance must update the section display
+# Fix: Phase Schedule AI Suggested Table — Distorted Layout
 
 ## Problem
 
-When the curator accepts an AI Suggested Selection (e.g., "Non-Exclusive License" / IP-NEL) for the IP Model section, the section's dropdown continues showing the old value ("Exclusive License" / IP-EL). The same pattern affects all `checkbox_single` sections (maturity_level, effort_level, challenge_visibility).
+The AI Suggested Version for the Phase Schedule section renders each row as a flat `div` with inline inputs (no column headers, no alignment). This looks distorted compared to every other table in the system which uses the proper `<Table>` component with aligned columns.
 
-## Root Cause
-
-In `CurationReviewPage.tsx`, the `handleAcceptRefinement` path for single-code master-data sections (line 1683) calls only `saveSectionMutation.mutate()` — it does **not** call `syncSectionToStore()`. 
-
-Compare:
-- **Manual edit path** (`handleSaveOrgPolicyField`, line 1208-1210): calls `syncSectionToStore` → immediate local update → then `saveSectionMutation.mutate`
-- **AI acceptance path** (line 1683-1684): calls only `saveSectionMutation.mutate` → relies entirely on query refetch, which may be delayed or stale-cached
-
-The query invalidation at line 1171 triggers a refetch, but if React Query serves the stale cache optimistically or the component re-renders before the refetch completes, the dropdown shows the old value.
+The root cause is the `EditableScheduleRows` component (lines 308-366 of `AIReviewResultPanel.tsx`) which uses `flex` divs instead of a structured table.
 
 ## Fix
 
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx` (lines 1677-1693)
+**File:** `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
 
-Add `syncSectionToStore` call before the mutation for all single-code sections in `handleAcceptRefinement`:
+Replace the `EditableScheduleRows` component with a proper `<Table>`-based layout that matches the `ScheduleTableSectionRenderer` edit mode:
 
 ```tsx
-if (singleCodeCfg) {
-  const code = newContent.trim().replace(/^["']|["']$/g, '');
-  const matched = singleCodeCfg.options.find(o => o.value.toLowerCase() === code.toLowerCase());
-  if (matched) {
-    setSavingSection(true);
-    syncSectionToStore(sectionKey as SectionKey, matched.value);  // ← ADD THIS
-    saveSectionMutation.mutate({ field: singleCodeCfg.field, value: matched.value });
-    return;
-  }
-  // ... existing fallback
+function EditableScheduleRows({ rows, onChange }) {
+  return (
+    <div className="space-y-2">
+      <div className="relative w-full overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[180px] text-xs">Phase / Deliverable</TableHead>
+              <TableHead className="w-[100px] text-xs text-right">Duration (days)</TableHead>
+              <TableHead className="w-[140px] text-xs">Start Date</TableHead>
+              <TableHead className="w-[140px] text-xs">End Date</TableHead>
+              <TableHead className="w-[40px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow key={i}>
+                <TableCell><Input ... /></TableCell>
+                <TableCell><Input type="number" ... /></TableCell>
+                <TableCell><Input type="date" ... /></TableCell>
+                <TableCell><Input type="date" ... /></TableCell>
+                <TableCell><Delete button /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <Button>+ Add Phase</Button>
+    </div>
+  );
 }
 ```
 
-Also apply the same fix to the `eligibility` and `visibility` acceptance paths (lines 1639-1665) and the `solver_expertise` path (line 1630) — ensure every acceptance path calls `syncSectionToStore` before the mutation, matching the manual edit pattern.
+This gives:
+- Proper column headers (Phase/Deliverable, Duration, Start Date, End Date)
+- Aligned columns via `<Table>` layout
+- Consistent styling with the view-mode schedule table and other AI suggestion tables
+- Scrollable overflow wrapper for narrow viewports
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Add `syncSectionToStore` calls in all `handleAcceptRefinement` branches (single-code, multi-code, solver_expertise) |
-
-## Result
-
-Accepting any AI suggestion immediately updates the section's displayed value — no waiting for refetch, no stale cache showing the old value. This standardizes behavior across all section types: what AI suggests and curator accepts is what the section displays.
+| `src/components/cogniblend/curation/AIReviewResultPanel.tsx` | Rewrite `EditableScheduleRows` to use `<Table>` with headers and aligned columns |
 
