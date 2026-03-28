@@ -230,7 +230,7 @@ export function StakeholderTableEditor({
 // Stakeholder table read-only view
 // ---------------------------------------------------------------------------
 
-function StakeholderTableView({ rows }: { rows: StakeholderRow[] }) {
+export function StakeholderTableView({ rows }: { rows: StakeholderRow[] }) {
   if (!rows || rows.length === 0) {
     return <p className="text-sm text-muted-foreground">No stakeholders defined.</p>;
   }
