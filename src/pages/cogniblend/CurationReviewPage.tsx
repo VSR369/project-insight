@@ -1814,15 +1814,23 @@ export default function CurationReviewPage() {
           return;
         }
       }
+      // Unwrap { items: [...] } wrapper — extended_brief subsections expect flat arrays
+      if (valueToSave && typeof valueToSave === 'object' && !Array.isArray(valueToSave)) {
+        if (Array.isArray((valueToSave as any).items)) {
+          valueToSave = (valueToSave as any).items;
+        }
+      }
     } else if (config?.format === 'rich_text' && typeof newContent === 'string') {
       const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
       valueToSave = normalizeAiContentForEditor(newContent);
     }
 
     const updated = { ...currentBrief, [jsonbField]: valueToSave };
+    // Sync to Zustand store so UI reflects accepted content immediately
+    syncSectionToStore('extended_brief' as SectionKey, updated);
     setSavingSection(true);
     saveSectionMutation.mutate({ field: "extended_brief", value: updated });
-  }, [challenge?.extended_brief, saveSectionMutation, handleAcceptRefinement]);
+  }, [challenge?.extended_brief, saveSectionMutation, handleAcceptRefinement, syncSectionToStore]);
 
   /** Persist "addressed" flag when a refinement is accepted */
   const handleMarkAddressed = useCallback((sectionKey: string) => {

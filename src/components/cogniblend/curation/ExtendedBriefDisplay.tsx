@@ -111,21 +111,45 @@ function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: string): un
 function ensureStringArray(val: unknown): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val.map((v) => (typeof v === "string" ? v : String(v)));
+  // Handle { items: [...] } wrapper from AI acceptance
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items.map((v) => (typeof v === "string" ? v : String(v)));
+  }
   if (typeof val === "string") {
-    try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch {}
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.map((v: unknown) => (typeof v === "string" ? v : String(v)));
+      // Handle stringified { items: [...] }
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+        return parsed.items.map((v: unknown) => (typeof v === "string" ? v : String(v)));
+      }
+    } catch {}
     return val.trim() ? [val] : [];
   }
   return [];
 }
 
 function ensureStakeholderArray(val: unknown): StakeholderRow[] {
-  if (!Array.isArray(val)) return [];
-  return val.map((item: any) => ({
-    stakeholder_name: item?.stakeholder_name ?? "",
-    role: item?.role ?? "",
-    impact_description: item?.impact_description ?? "",
-    adoption_challenge: item?.adoption_challenge ?? "",
-  }));
+  let arr: unknown[] | null = null;
+  if (Array.isArray(val)) arr = val;
+  else if (val && typeof val === "object" && Array.isArray((val as any).items)) arr = (val as any).items;
+  if (!arr) return [];
+
+  const seen = new Set<string>();
+  return arr
+    .map((item: any) => ({
+      stakeholder_name: item?.stakeholder_name ?? item?.name ?? item?.stakeholder ?? "",
+      role: item?.role ?? item?.type ?? "",
+      impact_description: item?.impact_description ?? item?.impact ?? item?.description ?? "",
+      adoption_challenge: item?.adoption_challenge ?? item?.challenge ?? item?.barrier ?? "",
+    }))
+    .filter((row) => {
+      const key = row.stakeholder_name.toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -211,27 +235,32 @@ function StakeholderTableView({ rows }: { rows: StakeholderRow[] }) {
     return <p className="text-sm text-muted-foreground">No stakeholders defined.</p>;
   }
   return (
-    <div className="relative w-full overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Stakeholder</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Impact</TableHead>
-            <TableHead>Adoption Challenge</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, i) => (
-            <TableRow key={i}>
-              <TableCell className="text-sm font-medium">{row.stakeholder_name || "—"}</TableCell>
-              <TableCell className="text-sm">{row.role || "—"}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{row.impact_description || "—"}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{row.adoption_challenge || "—"}</TableCell>
+    <div className="space-y-2">
+      <Badge variant="secondary" className="text-xs font-normal">
+        {rows.length} stakeholder{rows.length !== 1 ? "s" : ""} identified
+      </Badge>
+      <div className="relative w-full overflow-auto rounded-lg border border-border">
+        <Table>
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className="bg-muted/60 hover:bg-muted/60">
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[140px]">Stakeholder</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[100px]">Role</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[180px]">Impact</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-foreground/70 min-w-[180px]">Adoption Challenge</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow key={i} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                <TableCell className="text-sm font-medium text-foreground">{row.stakeholder_name || "—"}</TableCell>
+                <TableCell className="text-sm text-foreground/80">{row.role || "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{row.impact_description || "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{row.adoption_challenge || "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -284,6 +313,7 @@ export default function ExtendedBriefDisplay({
   const hasAnyContent = EXTENDED_BRIEF_SUBSECTION_KEYS.some((key) => {
     const val = getSubsectionValue(brief, key);
     if (Array.isArray(val)) return val.length > 0;
+    if (val && typeof val === "object" && Array.isArray((val as any).items)) return (val as any).items.length > 0;
     return typeof val === "string" && val.trim().length > 0;
   });
 
@@ -309,7 +339,9 @@ export default function ExtendedBriefDisplay({
         // Determine fill status
         const filled = Array.isArray(rawVal)
           ? rawVal.length > 0
-          : typeof rawVal === "string" && rawVal.trim().length > 0;
+          : rawVal && typeof rawVal === "object" && Array.isArray((rawVal as any).items)
+            ? (rawVal as any).items.length > 0
+            : typeof rawVal === "string" && rawVal.trim().length > 0;
 
         // Compute panel status from AI review
         let panelStatus: SectionStatus = "not_reviewed";
