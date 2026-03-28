@@ -634,19 +634,6 @@ const SECTIONS: SectionDef[] = [
     },
     render: () => null, // Rendered via ExtendedBriefDisplay component
   },
-  {
-    key: "challenge_visibility",
-    label: "Challenge Visibility",
-    attribution: "by Curator",
-    dbField: "challenge_visibility",
-    isFilled: (ch) => !!(ch as any).challenge_visibility,
-    render: (ch) => {
-      const v = (ch as any).challenge_visibility;
-      return v
-        ? <Badge variant="secondary" className="capitalize">{v.replace(/_/g, " ")}</Badge>
-        : <p className="text-sm text-muted-foreground italic">Not set</p>;
-    },
-  },
 ];
 
 // ---------------------------------------------------------------------------
