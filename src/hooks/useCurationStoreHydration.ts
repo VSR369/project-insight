@@ -33,7 +33,7 @@ interface ChallengeDataSlice {
   domain_tags: unknown;
   submission_deadline: string | null;
   challenge_visibility: string | null;
-  effort_level: string | null;
+  
   expected_outcomes: unknown;
   extended_brief: unknown;
   solver_expertise_requirements: unknown;
