@@ -87,12 +87,6 @@ const MATURITY_IP_DEFAULTS: Record<string, string> = {
   pilot: 'IP-EA',
 };
 
-const EFFORT_LEVELS = [
-  { value: 'low', label: 'Low', description: 'Minimal effort — straightforward problem', guidance: '< $5,000' },
-  { value: 'medium', label: 'Medium', description: 'Moderate effort — some complexity', guidance: '$5,000 – $25,000' },
-  { value: 'high', label: 'High', description: 'Significant effort — complex, multi-domain', guidance: '$25,000 – $100,000' },
-  { value: 'very_high', label: 'Very High', description: 'Extensive effort — cutting-edge research', guidance: '$100,000+' },
-] as const;
 
 interface StepRewardsProps {
   form: UseFormReturn<ChallengeFormValues>;
