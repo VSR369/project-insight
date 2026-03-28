@@ -178,6 +178,20 @@ function isScheduleFormat(sectionKey: string): boolean {
   return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'schedule_table';
 }
 
+/** Determine if a section is a date format */
+function isDateFormat(sectionKey: string): boolean {
+  return SECTION_FORMAT_CONFIG[sectionKey]?.format === 'date';
+}
+
+/** Extract ISO date string from AI suggested_version (strips markdown fences, quotes, whitespace) */
+function parseDateFromSuggestion(sectionKey: string, suggestedVersion: string | undefined): string | null {
+  if (!isDateFormat(sectionKey) || !suggestedVersion) return null;
+  const cleaned = suggestedVersion.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim().replace(/^["']|["']$/g, "");
+  // Match YYYY-MM-DD
+  const match = cleaned.match(/(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
+
 /* ── Inline edit sub-components ────────────────────────── */
 
 /** Editable rich text using Tiptap RichTextEditor */
