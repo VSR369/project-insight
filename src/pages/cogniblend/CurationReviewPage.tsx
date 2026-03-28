@@ -151,7 +151,7 @@ interface ChallengeData {
   // Phase 1 additions
   submission_deadline: string | null;
   challenge_visibility: string | null;
-  effort_level: string | null;
+  
   hook: string | null;
   max_solutions: number | null;
   extended_brief: Json | null;
@@ -665,19 +665,6 @@ const SECTIONS: SectionDef[] = [
         : <p className="text-sm text-muted-foreground italic">Not set</p>;
     },
   },
-  {
-    key: "effort_level",
-    label: "Effort Level",
-    attribution: "by Curator",
-    dbField: "effort_level",
-    isFilled: (ch) => !!(ch as any).effort_level,
-    render: (ch) => {
-      const e = (ch as any).effort_level;
-      return e
-        ? <Badge variant="outline" className="capitalize">{e}</Badge>
-        : <p className="text-sm text-muted-foreground italic">Not set</p>;
-    },
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -724,7 +711,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "submission_deadline", "challenge_visibility", "effort_level"],
+    sectionKeys: ["phase_schedule", "eligibility", "visibility", "solver_expertise", "submission_deadline", "challenge_visibility"],
   },
   {
     id: "extended_brief",
@@ -835,7 +822,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "hook": return ch.hook;
     case "submission_deadline": return ch.submission_deadline;
     case "challenge_visibility": return ch.challenge_visibility;
-    case "effort_level": return ch.effort_level;
+    
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "domain_tags": return ch.domain_tags ? JSON.stringify(ch.domain_tags) : null;
@@ -1013,7 +1000,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, effort_level, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, submission_deadline, challenge_visibility, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1254,7 +1241,7 @@ export default function CurationReviewPage() {
     // Map dbField back to section key for store sync
     const fieldToSection: Record<string, string> = {
       ip_model: 'ip_model', submission_deadline: 'submission_deadline',
-      challenge_visibility: 'challenge_visibility', effort_level: 'effort_level',
+      challenge_visibility: 'challenge_visibility',
       solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
       solver_expertise_requirements: 'solver_expertise',
     };
@@ -1449,7 +1436,7 @@ export default function CurationReviewPage() {
         'problem_statement', 'scope', 'deliverables', 'evaluation_criteria', 'reward_structure',
         'phase_schedule', 'submission_guidelines', 'eligibility', 'complexity', 'ip_model',
         'legal_docs', 'escrow_funding', 'maturity_level', 'hook', 'submission_deadline',
-        'challenge_visibility', 'effort_level', 'domain_tags', 'visibility', 'solver_expertise',
+        'challenge_visibility', 'domain_tags', 'visibility', 'solver_expertise',
         'context_and_background', 'root_causes', 'affected_stakeholders', 'current_deficiencies',
         'preferred_approach', 'approaches_not_of_interest',
       ]);
@@ -1675,7 +1662,7 @@ export default function CurationReviewPage() {
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
       challenge_visibility: { field: "challenge_visibility", options: masterData.challengeVisibilityOptions },
-      effort_level: { field: "effort_level", options: masterData.effortOptions },
+      
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
     if (singleCodeCfg) {
@@ -2075,7 +2062,7 @@ export default function CurationReviewPage() {
       scope: challenge?.scope ? (typeof challenge.scope === 'string' ? challenge.scope.slice(0, 500) : undefined) : undefined,
       deliverables: deliverableNames.length > 0 ? deliverableNames : undefined,
       evaluation_criteria: evalCriteriaNames.length > 0 ? evalCriteriaNames : undefined,
-      effort_level: challenge?.effort_level ?? undefined,
+      
       industry: domainTags.length > 0 ? domainTags[0] : undefined,
       reward_pool: rewardPool,
       currency: challenge?.currency_code ?? 'USD',
@@ -2084,7 +2071,7 @@ export default function CurationReviewPage() {
   }, [
     challenge?.title, challenge?.maturity_level, challenge?.domain_tags,
     challenge?.complexity_level, challenge?.scope, challenge?.deliverables,
-    challenge?.evaluation_criteria, challenge?.effort_level, challenge?.currency_code,
+    challenge?.evaluation_criteria, challenge?.currency_code,
     challenge?.problem_statement, challenge?.reward_structure,
   ]);
 
@@ -2855,26 +2842,7 @@ export default function CurationReviewPage() {
                           </>
                         );
 
-                      // ── Effort level (radio) ──
-                      case "effort_level":
-                        return (
-                          <>
-                            <RadioSectionRenderer
-                              value={challenge.effort_level}
-                              options={masterData.effortOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("effort_level", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
+
 
                       // ── Fallback ──
                       default:
@@ -2900,7 +2868,7 @@ export default function CurationReviewPage() {
                       case "maturity_level": return masterData.maturityOptions;
                       case "complexity": return masterData.complexityOptions;
                       case "challenge_visibility": return masterData.challengeVisibilityOptions;
-                      case "effort_level": return masterData.effortOptions;
+                      
                       default: return undefined;
                     }
                   })();

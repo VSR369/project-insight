@@ -46,7 +46,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): FieldKey[][] {
       ['governance_mode'],
       ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
       ['weighted_criteria'],
-      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model', 'effort_level'],
+      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model'],
       ['submission_deadline', 'expected_timeline', 'review_duration'],
       ['eligibility', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'],
       [],
@@ -142,7 +142,7 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
 
   it('per-step counts match expected totals (CONTROLLED)', () => {
     const result = computeCompletion({}, 'CONTROLLED');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 5, 3, 4, 0, 0]);
+    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 4, 3, 4, 0, 0]);
   });
 
   it('treats empty arrays as not filled', () => {

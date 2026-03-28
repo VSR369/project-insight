@@ -1,6 +1,6 @@
 /**
  * RadioSectionRenderer — View/edit for radio-button sections.
- * Used for: effort_level
+ * Used for: single-value radio selections (e.g. ip_model, maturity_level)
  */
 
 import { Badge } from "@/components/ui/badge";
