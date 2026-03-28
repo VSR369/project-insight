@@ -67,7 +67,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   hook: 'rich_text',
   submission_deadline: 'date',
   challenge_visibility: 'select',
-  effort_level: 'radio',
+  
   domain_tags: 'tag_input',
   legal_docs: 'table',
   escrow_funding: 'structured_fields',
