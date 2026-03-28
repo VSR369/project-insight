@@ -665,19 +665,6 @@ const SECTIONS: SectionDef[] = [
         : <p className="text-sm text-muted-foreground italic">Not set</p>;
     },
   },
-  {
-    key: "effort_level",
-    label: "Effort Level",
-    attribution: "by Curator",
-    dbField: "effort_level",
-    isFilled: (ch) => !!(ch as any).effort_level,
-    render: (ch) => {
-      const e = (ch as any).effort_level;
-      return e
-        ? <Badge variant="outline" className="capitalize">{e}</Badge>
-        : <p className="text-sm text-muted-foreground italic">Not set</p>;
-    },
-  },
 ];
 
 // ---------------------------------------------------------------------------
