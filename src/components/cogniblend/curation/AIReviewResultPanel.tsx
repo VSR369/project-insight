@@ -661,6 +661,11 @@ export function AIReviewResultPanel({
     onSuggestedVersionChange?.(rows);
   }, [onSuggestedVersionChange]);
 
+  const handleDateChange = useCallback((val: string) => {
+    setEditedDate(val);
+    onSuggestedVersionChange?.(val);
+  }, [onSuggestedVersionChange]);
+
   // Track which comments are expanded for "Read more"
   const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
   const toggleCommentExpand = useCallback((index: number) => {
