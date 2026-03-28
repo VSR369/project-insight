@@ -130,7 +130,7 @@ export function ensureStringArray(val: unknown): string[] {
   return [];
 }
 
-function ensureStakeholderArray(val: unknown): StakeholderRow[] {
+export function ensureStakeholderArray(val: unknown): StakeholderRow[] {
   let arr: unknown[] | null = null;
   if (Array.isArray(val)) arr = val;
   else if (val && typeof val === "object" && Array.isArray((val as any).items)) arr = (val as any).items;
