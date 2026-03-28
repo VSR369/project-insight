@@ -1,84 +1,92 @@
 
 
-# Render Solver Expertise AI Suggestion as Structured Tree
+# Standardize Extended Brief Subsections as Individual Sections
 
 ## Problem
 
-The AI suggestion for `solver_expertise` returns a JSON object with `proficiency_areas`, `sub_domains`, and `specialities` arrays. Since the section format is `custom`, it falls through to the default `rich_text` renderer (line 1048), which dumps the raw JSON into a RichTextEditor — completely unreadable (as shown in the screenshot).
+The Extended Brief tab currently treats its 6 subsections differently from all other tabs:
+- Other tabs (Content, Evaluation, etc.) list individual `SECTIONS` entries, each getting its own `CuratorSectionPanel` rendered by the main `sectionKeys.map()` loop
+- Extended Brief has a single `SECTIONS` entry (`key: "extended_brief"`) that delegates to `ExtendedBriefDisplay`, which internally creates its own `CuratorSectionPanel` per subsection
 
-After acceptance, the view mode already renders nicely with badges. The fix is to add a custom renderer in the AI suggestion panel.
+This creates inconsistency in progress tracking, expand/collapse, AI review integration, and the overall UX.
 
-## Changes
+## Approach
 
-### 1. Add solver expertise tree renderer in `AIReviewResultPanel.tsx`
+Replace the single `extended_brief` SECTIONS entry with 6 individual section entries — one per subsection. They render in the standard main loop like every other section, using the same format-native renderers.
 
-**Between the `rewardData` check (line 949) and the `hasDeliverableCards` check (line 991)**, add a new branch that detects `sectionKey === "solver_expertise"` and parses the `result.suggested_version` JSON.
+**No changes to**: AI review, acceptance logic, JSONB persistence, `handleAcceptExtendedBriefRefinement`, `handleSaveExtendedBrief`, or `ExtendedBriefDisplay` internals (we stop using it but don't delete it).
 
-Parse the suggested version to extract:
-- `expertise_levels?: {id, name}[]`
-- `proficiency_areas?: {id, name}[]`
-- `sub_domains?: {id, name}[]`
-- `specialities?: {id, name}[]`
+## Changes — `CurationReviewPage.tsx`
 
-Render as a **read-only collapsible tree** matching the manual selection view format:
-- Each level gets a labeled row with badges
-- Empty arrays show "All [Level Name]" badge (matching view mode)
-- Tree hierarchy uses indentation and icons consistent with `SolverExpertiseSection` view mode
+### A. Replace the single `extended_brief` SECTIONS entry with 6 entries
 
-Add a `useMemo` block (near lines 532-559 where other format-specific parsers live) to detect and parse solver expertise data:
+Remove the existing `{ key: "extended_brief", ... }` from `SECTIONS`. Add 6 new entries:
 
+```
+context_and_background  → rich_text, dbField: "extended_brief"
+root_causes             → line_items, dbField: "extended_brief"
+affected_stakeholders   → table, dbField: "extended_brief"
+current_deficiencies    → line_items, dbField: "extended_brief"
+preferred_approach      → line_items, dbField: "extended_brief"
+approaches_not_of_interest → line_items, dbField: "extended_brief"
+```
+
+Each has `isFilled` that checks the specific JSONB field within `challenge.extended_brief`, and `render` that returns null (handled by the switch-case in the main loop).
+
+### B. Update `GROUPS` definition for `extended_brief`
+
+Change `sectionKeys` from `["extended_brief"]` to the 6 subsection keys:
 ```typescript
-const solverExpertiseData = useMemo(() => {
-  if (sectionKey !== "solver_expertise" || !result.suggested_version) return null;
-  const cleaned = result.suggested_version.trim()
-    .replace(/^```(?:json)?\s*\n?/i, "")
-    .replace(/\n?```\s*$/i, "").trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as {
-        expertise_levels?: {id: string; name: string}[];
-        proficiency_areas?: {id: string; name: string}[];
-        sub_domains?: {id: string; name: string}[];
-        specialities?: {id: string; name: string}[];
-      };
-    }
-  } catch {}
-  return null;
-}, [sectionKey, result.suggested_version]);
+sectionKeys: [
+  "context_and_background", "root_causes", "affected_stakeholders",
+  "current_deficiencies", "preferred_approach", "approaches_not_of_interest"
+]
 ```
 
-**Rendering block** — structured card with four labeled rows:
+### C. Add switch-case branches in the main section rendering loop
 
-```
-Expertise Levels:    [Badge] [Badge] ...  (or "All Levels" badge)
-Proficiency Areas:   [Badge] [Badge] ...  (or "All Areas" badge)
-Sub-domains:         [Badge] [Badge] ...  (or "All Sub-domains" badge)
-Specialities:        [Badge] [Badge] ...  (or "All Specialities" badge)
-```
+For each of the 6 subsection keys, add a case that:
+- Reads from `challenge.extended_brief` JSONB using `EXTENDED_BRIEF_FIELD_MAP`
+- Renders with the appropriate renderer (RichText, LineItems, or StakeholderTable)
+- Saves via a subsection-aware handler that merges into the `extended_brief` JSONB
 
-Each row uses the same styling as `SolverExpertiseSection` view mode (lines 324-378): `text-xs font-medium text-muted-foreground` labels, `Badge variant="outline"` for items.
+Move the `StakeholderTableEditor` and `StakeholderTableView` components (currently in `ExtendedBriefDisplay.tsx`) — import them or inline equivalent rendering.
 
-### 2. Update `hasSuggestedVersion` to include solver expertise
+### D. Simplify `groupProgress` computation
 
-Add `solverExpertiseData` to the check at line 575-584 so the suggestion panel renders.
+Remove the special `if (g.id === "extended_brief")` branch. The standard path (`secs.filter(s => s.isFilled(...))`) now works because each subsection has its own `isFilled`.
 
-### 3. Update `suggestedFormat` detection
+### E. Remove `handleExpandCollapseAll` special case
 
-Add a check before the `rich_text` fallback: if `solverExpertiseData` exists, return `"solver_expertise"` format.
+Remove the `if (groupDef.id === "extended_brief")` block that manually iterates subsection keys — no longer needed since subsections are now top-level section keys.
 
-### 4. Seed the `onSuggestedVersionChange` for solver expertise
+### F. Update progress strip grid
 
-Add a `useEffect` (near lines 602-641) that emits the parsed JSON string to the parent when solver expertise data is detected, so acceptance works correctly with the existing handler.
+Change `grid-cols-4` to `grid-cols-5` at `lg:` breakpoint to properly fit all 5 group buttons. Or use `lg:grid-cols-5`.
 
-### 5. No changes to acceptance logic
+### G. Wire AI review and save handlers
 
-The existing acceptance handler at line 1594-1608 in `CurationReviewPage.tsx` already correctly parses JSON and saves as structured data. After acceptance, the `SolverExpertiseSection` view mode (lines 309-382) already renders the tree with badges.
+Each subsection's `CuratorSectionPanel` in the main loop gets:
+- `aiReviewSlot` using the existing `CurationAIReviewInline` (same as current)
+- Save handler: merges value into `challenge.extended_brief` JSONB via `handleSaveExtendedBrief`
+- Accept refinement: delegates to `handleAcceptExtendedBriefRefinement` (already handles subsection keys)
 
-## Result
+### H. Import StakeholderTableEditor/View
 
-- AI suggestion shows a clean, labeled badge layout matching the manual selection format
-- "All [Level]" badges shown when a category is empty
-- Accept button saves the structured data identically to manual selection
-- View mode after acceptance displays the same tree format as manual editing
+Import the `StakeholderTableEditor` and `StakeholderTableView` from `ExtendedBriefDisplay.tsx` (export them) or move to a separate file under `renderers/`.
+
+## Files Modified
+
+1. **`src/pages/cogniblend/CurationReviewPage.tsx`** — Main changes (sections, groups, rendering, progress)
+2. **`src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`** — Export `StakeholderTableEditor`, `StakeholderTableView`, helper functions (`parseExtendedBrief`, `ensureStringArray`, `ensureStakeholderArray`, `getSubsectionValue`)
+
+## What Stays the Same
+
+- All AI review logic (per-subsection reviews already work)
+- `handleAcceptExtendedBriefRefinement` — unchanged, already handles subsection keys
+- `handleSaveExtendedBrief` — unchanged, merges into JSONB
+- JSONB persistence model (`extended_brief` column structure)
+- `EXTENDED_BRIEF_FIELD_MAP` and `EXTENDED_BRIEF_SUBSECTION_KEYS`
+- Zustand store sync
+- All other tabs' rendering
 
