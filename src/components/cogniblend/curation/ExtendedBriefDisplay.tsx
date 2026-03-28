@@ -111,8 +111,20 @@ function getSubsectionValue(brief: ExtendedBriefData, subsectionKey: string): un
 function ensureStringArray(val: unknown): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val.map((v) => (typeof v === "string" ? v : String(v)));
+  // Handle { items: [...] } wrapper from AI acceptance
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items.map((v) => (typeof v === "string" ? v : String(v)));
+  }
   if (typeof val === "string") {
-    try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch {}
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.map((v: unknown) => (typeof v === "string" ? v : String(v)));
+      // Handle stringified { items: [...] }
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+        return parsed.items.map((v: unknown) => (typeof v === "string" ? v : String(v)));
+      }
+    } catch {}
     return val.trim() ? [val] : [];
   }
   return [];
