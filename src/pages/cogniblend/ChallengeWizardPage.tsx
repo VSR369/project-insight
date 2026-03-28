@@ -410,7 +410,17 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         : null,
       challenge_visibility: isQuick ? null : (values.challenge_visibility || 'public'),
       rejection_fee_percentage: values.rejection_fee_pct,
-      submission_deadline: values.submission_deadline || null,
+      submission_deadline: (() => {
+        // Auto-derive from phase_durations if available
+        const durations = values.phase_durations;
+        if (durations && Object.keys(durations).length > 0) {
+          const totalDays = Object.values(durations).reduce((sum, d) => sum + (d || 0), 0);
+          const deadline = new Date();
+          deadline.setDate(deadline.getDate() + totalDays);
+          return deadline.toISOString().split('T')[0];
+        }
+        return values.submission_deadline || null;
+      })(),
       submission_template_url: values.submission_template_url || null,
       phase_schedule: {
         expected_timeline: values.expected_timeline || null,

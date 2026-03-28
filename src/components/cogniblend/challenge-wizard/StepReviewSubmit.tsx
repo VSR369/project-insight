@@ -117,7 +117,7 @@ export function StepReviewSubmit({ form, isQuick, onNavigateToStep }: StepReview
       step: 4,
       fields: [
         { label: 'Expected Timeline', value: v.expected_timeline ?? '', isValid: true },
-        { label: 'Expected Timeline', value: v.expected_timeline ?? '', isValid: true },
+        { label: 'Review Duration', value: v.review_duration ? `${v.review_duration} days` : '', isValid: true },
         { label: 'Review Duration', value: v.review_duration ? `${v.review_duration} days` : '', isValid: true },
         { label: 'Phase Notes', value: v.phase_notes ? '✓ Provided' : '', isValid: true },
         { label: 'Phase Durations', value: v.phase_durations ? `${Object.keys(v.phase_durations).length} phases configured` : '', isValid: true },
