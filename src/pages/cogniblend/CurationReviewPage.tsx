@@ -156,6 +156,8 @@ interface ChallengeData {
   solver_visibility_types: Json | null;
   // Phase: solver expertise requirements
   solver_expertise_requirements: Json | null;
+  targeting_filters: Json | null;
+  eligibility_model: string | null;
 }
 
 interface LegalDocSummary {
