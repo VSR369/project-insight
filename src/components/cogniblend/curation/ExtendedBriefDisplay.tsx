@@ -40,7 +40,7 @@ import type { Json } from "@/integrations/supabase/types";
 // Types
 // ---------------------------------------------------------------------------
 
-interface StakeholderRow {
+export interface StakeholderRow {
   stakeholder_name: string;
   role: string;
   impact_description: string;
