@@ -266,12 +266,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
     return solverCategories.find((c) => c.id === solverEligibilityIds[0]);
   }, [solverCategories, solverEligibilityIds]);
 
-  useEffect(() => {
-    if (firstSelectedCategory) {
-      const cat = firstSelectedCategory as any;
-      if (cat.default_visibility) setValue('challenge_visibility', cat.default_visibility, { shouldDirty: true });
-    }
-  }, [firstSelectedCategory, setValue]);
 
   // ── Artifact types auto-populate ──
   useEffect(() => {
