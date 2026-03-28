@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 interface ChallengeSettingsPanelProps {
   submissionDeadline: string | null;
   challengeVisibility: string | null;
-  effortLevel: string | null;
+  
   onFieldChange: (field: string, value: unknown) => void;
   readOnly?: boolean;
 }
