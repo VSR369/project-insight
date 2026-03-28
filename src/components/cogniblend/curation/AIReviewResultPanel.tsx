@@ -633,6 +633,13 @@ export function AIReviewResultPanel({
     }
   }, [suggestedFormat, rewardData]);
 
+  useEffect(() => {
+    if (suggestedFormat === "date" && parsedDate) {
+      setEditedDate(parsedDate);
+      onSuggestedVersionChange?.(parsedDate);
+    }
+  }, [suggestedFormat, parsedDate]);
+
   // Change handlers that emit to parent
   const handleRichTextChange = useCallback((val: string) => {
     setEditedRichText(val);
