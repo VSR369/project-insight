@@ -114,20 +114,9 @@ export function useCurationMasterData(): CurationMasterData {
     [solverTierRows],
   );
 
-  // Build challenge visibility options from constants (separate from solver tiers)
-  const challengeVisibilityOptions = useMemo<MasterDataOption[]>(() =>
-    VISIBILITY_OPTIONS.map((o) => ({
-      value: o.value,
-      label: o.label,
-      description: o.description,
-    })),
-    [],
-  );
-
   return {
     maturityOptions,
     complexityOptions,
-    challengeVisibilityOptions,
     visibilityOptions: solverTierOptions,
     
     ipModelOptions: IP_MODEL_OPTIONS,
