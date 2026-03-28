@@ -400,7 +400,7 @@ export default function ExtendedBriefDisplay({
                     onSave={(newItems) => handleSubsectionSave(subsectionKey, newItems)}
                     onCancel={cancelEdit}
                     saving={saving}
-                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : "Deficiency"}
+                    itemLabel={subsectionKey === "root_causes" ? "Root Cause" : subsectionKey === "preferred_approach" ? "Approach" : "Deficiency"}
                   />
                   {!readOnly && !isEditing && (
                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingKey(subsectionKey)}>
