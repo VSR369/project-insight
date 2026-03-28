@@ -147,9 +147,6 @@ interface ChallengeData {
   domain_tags: Json | null;
   ai_section_reviews: Json | null;
   currency_code: string | null;
-  // Phase 1 additions
-  challenge_visibility: string | null;
-  
   hook: string | null;
   max_solutions: number | null;
   extended_brief: Json | null;
