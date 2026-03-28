@@ -822,7 +822,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "hook": return ch.hook;
     case "submission_deadline": return ch.submission_deadline;
     case "challenge_visibility": return ch.challenge_visibility;
-    case "effort_level": return ch.effort_level;
+    
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "domain_tags": return ch.domain_tags ? JSON.stringify(ch.domain_tags) : null;
