@@ -521,6 +521,10 @@ export function AIReviewResultPanel({
   const [editedLineItems, setEditedLineItems] = useState<string[] | null>(null);
   const [editedTableRows, setEditedTableRows] = useState<Record<string, unknown>[] | null>(null);
   const [editedScheduleRows, setEditedScheduleRows] = useState<Record<string, unknown>[] | null>(null);
+  const [editedDate, setEditedDate] = useState<string | null>(null);
+
+  // Parse date from AI suggestion for date-format sections
+  const parsedDate = useMemo(() => parseDateFromSuggestion(sectionKey, result.suggested_version), [sectionKey, result.suggested_version]);
 
   const statusBadge = STATUS_BADGE[result.status];
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
