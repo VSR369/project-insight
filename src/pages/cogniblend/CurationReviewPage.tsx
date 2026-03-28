@@ -1436,7 +1436,7 @@ export default function CurationReviewPage() {
         'problem_statement', 'scope', 'deliverables', 'evaluation_criteria', 'reward_structure',
         'phase_schedule', 'submission_guidelines', 'eligibility', 'complexity', 'ip_model',
         'legal_docs', 'escrow_funding', 'maturity_level', 'hook', 'submission_deadline',
-        'challenge_visibility', 'effort_level', 'domain_tags', 'visibility', 'solver_expertise',
+        'challenge_visibility', 'domain_tags', 'visibility', 'solver_expertise',
         'context_and_background', 'root_causes', 'affected_stakeholders', 'current_deficiencies',
         'preferred_approach', 'approaches_not_of_interest',
       ]);
