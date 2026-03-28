@@ -2714,6 +2714,18 @@ export default function CurationReviewPage() {
                               onSave={(rows) => {
                                 setSavingSection(true);
                                 saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
+                                // Auto-derive submission_deadline from last phase end_date
+                                if (Array.isArray(rows) && rows.length > 0) {
+                                  const endDates = rows
+                                    .map((r: any) => r.end_date)
+                                    .filter(Boolean)
+                                    .map((d: string) => new Date(d).getTime())
+                                    .filter((t: number) => !isNaN(t));
+                                  if (endDates.length > 0) {
+                                    const maxEnd = new Date(Math.max(...endDates)).toISOString().split('T')[0];
+                                    saveSectionMutation.mutate({ field: "submission_deadline", value: maxEnd });
+                                  }
+                                }
                               }}
                               onCancel={() => setEditingSection(null)}
                               saving={savingSection}
