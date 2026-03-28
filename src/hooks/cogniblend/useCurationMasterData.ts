@@ -34,7 +34,7 @@ export interface CurationMasterData {
   challengeVisibilityOptions: MasterDataOption[];
   /** Solver-tier visibility options from md_solver_eligibility */
   visibilityOptions: MasterDataOption[];
-  effortOptions: MasterDataOption[];
+  
   ipModelOptions: MasterDataOption[];
   /** Solver-tier eligibility options from md_solver_eligibility */
   eligibilityOptions: MasterDataOption[];
