@@ -384,8 +384,12 @@ const SECTIONS: SectionDef[] = [
     isFilled: (ch) => !!ch.ip_model?.trim(),
     render: (ch) => {
       if (!ch.ip_model) return <p className="text-sm text-muted-foreground">Not set.</p>;
+      const ipOpt = masterData.ipModelOptions.find(o => o.value === ch.ip_model);
       return (
-        <Badge variant="secondary" className="capitalize">{ch.ip_model.replace(/_/g, " ")}</Badge>
+        <div className="space-y-1">
+          <Badge variant="secondary">{ipOpt?.label ?? ch.ip_model}</Badge>
+          {ipOpt?.description && <p className="text-xs text-muted-foreground">{ipOpt.description}</p>}
+        </div>
       );
     },
   },
