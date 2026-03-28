@@ -30,10 +30,9 @@ export interface MasterDataOption {
 export interface CurationMasterData {
   maturityOptions: MasterDataOption[];
   complexityOptions: MasterDataOption[];
-  /** Challenge visibility options (public, registered_users, etc.) */
-  challengeVisibilityOptions: MasterDataOption[];
   /** Solver-tier visibility options from md_solver_eligibility */
   visibilityOptions: MasterDataOption[];
+  
   
   ipModelOptions: MasterDataOption[];
   /** Solver-tier eligibility options from md_solver_eligibility */
