@@ -46,7 +46,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): FieldKey[][] {
       ['governance_mode'],
       ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
       ['weighted_criteria'],
-      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model', 'effort_level'],
+      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model'],
       ['submission_deadline', 'expected_timeline', 'review_duration'],
       ['eligibility', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'],
       [],

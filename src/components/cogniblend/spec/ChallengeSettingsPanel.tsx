@@ -1,6 +1,6 @@
 /**
  * ChallengeSettingsPanel — Creator-facing collapsible settings for org-policy fields.
- * Shows Submission Deadline, Challenge Visibility, Effort Level in a clean accordion.
+ * Shows Submission Deadline and Challenge Visibility in a clean accordion.
  * Used on AISpecReviewPage so creators can set org-policy BEFORE submitting to Legal/Curation.
  */
 

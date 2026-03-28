@@ -2874,7 +2874,7 @@ export default function CurationReviewPage() {
                       case "maturity_level": return masterData.maturityOptions;
                       case "complexity": return masterData.complexityOptions;
                       case "challenge_visibility": return masterData.challengeVisibilityOptions;
-                      case "effort_level": return masterData.effortOptions;
+                      
                       default: return undefined;
                     }
                   })();

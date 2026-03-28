@@ -7,7 +7,7 @@
  *   3. Reward Tiers (Platinum/Gold/Silver)
  *   4. Total Reward Pool
  *   5. IP Model (moved from Step 5)
- *   6. Effort Level + Reward Guidance
+ *   6. (removed — effort level deprecated)
  *   7. Payment Mode (Escrow / Direct)
  *   8. Payment Schedule (milestone-based)
  *   9. Platform Provider Fee banner

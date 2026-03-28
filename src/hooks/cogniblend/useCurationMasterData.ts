@@ -130,7 +130,7 @@ export function useCurationMasterData(): CurationMasterData {
     complexityOptions,
     challengeVisibilityOptions,
     visibilityOptions: solverTierOptions,
-    effortOptions: EFFORT_OPTIONS,
+    
     ipModelOptions: IP_MODEL_OPTIONS,
     eligibilityOptions: solverTierOptions,
     isLoading: complexityLoading || solverTierLoading,
