@@ -542,6 +542,26 @@ export function AIReviewResultPanel({
     return null;
   }, [sectionKey, result.suggested_version]);
 
+  // For solver_expertise, parse structured tree data
+  const solverExpertiseData = useMemo(() => {
+    if (sectionKey !== "solver_expertise" || !result.suggested_version) return null;
+    const cleaned = result.suggested_version.trim()
+      .replace(/^```(?:json)?\s*\n?/i, "")
+      .replace(/\n?```\s*$/i, "").trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as {
+          expertise_levels?: { id: string; name: string }[];
+          proficiency_areas?: { id: string; name: string }[];
+          sub_domains?: { id: string; name: string }[];
+          specialities?: { id: string; name: string }[];
+        };
+      }
+    } catch {}
+    return null;
+  }, [sectionKey, result.suggested_version]);
+
   // For table sections (eval_criteria), try parsing as row objects
   const tableRows = useMemo(() => {
     if (sectionKey === "evaluation_criteria" && result.suggested_version) {
@@ -580,6 +600,7 @@ export function AIReviewResultPanel({
     tableRows ||
     scheduleRows ||
     rewardData ||
+    solverExpertiseData ||
     parsedDate
   );
 
@@ -587,6 +608,7 @@ export function AIReviewResultPanel({
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
     if (rewardData) return "reward_custom";
+    if (solverExpertiseData) return "solver_expertise";
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
@@ -596,7 +618,7 @@ export function AIReviewResultPanel({
     if (parsedDate) return "date";
     if (result.suggested_version) return "rich_text";
     return null;
-  }, [isMasterData, rewardData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
+  }, [isMasterData, rewardData, solverExpertiseData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
 
   // Auto-seed edit state when data arrives or changes
   useEffect(() => {
@@ -632,6 +654,12 @@ export function AIReviewResultPanel({
       onSuggestedVersionChange?.(rewardData);
     }
   }, [suggestedFormat, rewardData]);
+
+  useEffect(() => {
+    if (suggestedFormat === "solver_expertise" && solverExpertiseData) {
+      onSuggestedVersionChange?.(JSON.stringify(solverExpertiseData));
+    }
+  }, [suggestedFormat, solverExpertiseData]);
 
   useEffect(() => {
     if (suggestedFormat === "date" && parsedDate) {
@@ -987,6 +1015,53 @@ export function AIReviewResultPanel({
                   </ul>
                 </div>
               )}
+            </div>
+          ) : solverExpertiseData ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm space-y-3">
+              {/* Expertise Levels */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Expertise Levels</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.expertise_levels && solverExpertiseData.expertise_levels.length > 0
+                    ? solverExpertiseData.expertise_levels.map((el) => (
+                        <Badge key={el.id} variant="outline" className="text-xs">{el.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Levels</Badge>}
+                </div>
+              </div>
+              {/* Proficiency Areas */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Proficiency Areas</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.proficiency_areas && solverExpertiseData.proficiency_areas.length > 0
+                    ? solverExpertiseData.proficiency_areas.map((pa) => (
+                        <Badge key={pa.id} variant="outline" className="text-xs">{pa.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Areas</Badge>}
+                </div>
+              </div>
+              {/* Sub-domains */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Sub-domains</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.sub_domains && solverExpertiseData.sub_domains.length > 0
+                    ? solverExpertiseData.sub_domains.map((sd) => (
+                        <Badge key={sd.id} variant="outline" className="text-xs">{sd.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Sub-domains</Badge>}
+                </div>
+              </div>
+              {/* Specialities */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Specialities</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.specialities && solverExpertiseData.specialities.length > 0
+                    ? solverExpertiseData.specialities.map((sp) => (
+                        <Badge key={sp.id} variant="outline" className="text-xs">{sp.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Specialities</Badge>}
+                </div>
+              </div>
             </div>
           ) : hasDeliverableCards ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
