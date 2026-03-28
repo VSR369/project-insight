@@ -307,11 +307,6 @@ export default function SolverExpertiseSection({
           </div>
         )}
 
-        {!readOnly && (
-          <Button variant="ghost" size="sm" className="text-xs" onClick={handleStartEdit}>
-            <Pencil className="h-3 w-3 mr-1" />Edit Expertise Requirements
-          </Button>
-        )}
       </div>
     );
   }

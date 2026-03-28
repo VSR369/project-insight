@@ -2763,16 +2763,26 @@ export default function CurationReviewPage() {
                         const targeting = parseJson<any>(challenge.eligibility);
                         const industrySegId = targeting?.industry_segment_id ?? null;
                         return (
-                          <SolverExpertiseSection
-                            data={challenge.solver_expertise_requirements}
-                            industrySegmentId={industrySegId}
-                            readOnly={isReadOnly}
-                            onSave={(expertiseData) => {
-                              setSavingSection(true);
-                              saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
-                            }}
-                            saving={savingSection}
-                          />
+                          <>
+                            <SolverExpertiseSection
+                              data={challenge.solver_expertise_requirements}
+                              industrySegmentId={industrySegId}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(expertiseData) => {
+                                setSavingSection(true);
+                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+                                setEditingSection(null);
+                              }}
+                              saving={savingSection}
+                              onCancel={cancelEdit}
+                            />
+                            {canEdit && !isEditing && industrySegId && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
                         );
                       }
 
