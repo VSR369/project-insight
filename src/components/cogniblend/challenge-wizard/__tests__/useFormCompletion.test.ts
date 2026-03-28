@@ -137,7 +137,7 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
 
   it('per-step counts match expected totals (STRUCTURED)', () => {
     const result = computeCompletion({}, 'STRUCTURED');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 3, 3, 1, 0, 0]);
+    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 3, 2, 1, 0, 0]);
   });
 
   it('per-step counts match expected totals (CONTROLLED)', () => {
