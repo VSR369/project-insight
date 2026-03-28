@@ -305,7 +305,7 @@ function EditableTableRows({
   );
 }
 
-/** Editable schedule rows */
+/** Editable schedule rows — structured table layout */
 function EditableScheduleRows({
   rows,
   onChange,
@@ -325,39 +325,64 @@ function EditableScheduleRows({
   const handleRemove = (index: number) => onChange(rows.filter((_, i) => i !== index));
 
   return (
-    <div className="space-y-1.5">
-      {rows.map((row, i) => (
-        <div key={i} className="flex items-center gap-1.5 rounded border border-border/50 p-2 bg-background/50">
-          <Input
-            value={String(row.phase_name ?? row.label ?? row.name ?? "")}
-            onChange={(e) => handleChange(i, "phase_name", e.target.value)}
-            className="text-sm h-7 flex-1"
-            placeholder="Phase name..."
-          />
-          <Input
-            type="number"
-            value={String(row.duration_days ?? "")}
-            onChange={(e) => handleChange(i, "duration_days", e.target.value)}
-            className="text-sm h-7 w-20"
-            placeholder="Days"
-          />
-          <Input
-            type="date"
-            value={String(row.start_date ?? "")}
-            onChange={(e) => handleChange(i, "start_date", e.target.value)}
-            className="text-sm h-7 w-32"
-          />
-          <Input
-            type="date"
-            value={String(row.end_date ?? "")}
-            onChange={(e) => handleChange(i, "end_date", e.target.value)}
-            className="text-sm h-7 w-32"
-          />
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleRemove(i)}>
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      ))}
+    <div className="space-y-2">
+      <div className="relative w-full overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[180px] text-xs">Phase / Deliverable</TableHead>
+              <TableHead className="w-[100px] text-xs text-right">Duration (days)</TableHead>
+              <TableHead className="w-[140px] text-xs">Start Date</TableHead>
+              <TableHead className="w-[140px] text-xs">End Date</TableHead>
+              <TableHead className="w-[40px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow key={i}>
+                <TableCell className="p-1.5">
+                  <Input
+                    value={String(row.phase_name ?? row.label ?? row.name ?? "")}
+                    onChange={(e) => handleChange(i, "phase_name", e.target.value)}
+                    className="text-sm h-8"
+                    placeholder="Phase name..."
+                  />
+                </TableCell>
+                <TableCell className="p-1.5">
+                  <Input
+                    type="number"
+                    value={String(row.duration_days ?? "")}
+                    onChange={(e) => handleChange(i, "duration_days", e.target.value)}
+                    className="text-sm h-8 text-right"
+                    placeholder="0"
+                  />
+                </TableCell>
+                <TableCell className="p-1.5">
+                  <Input
+                    type="date"
+                    value={String(row.start_date ?? "")}
+                    onChange={(e) => handleChange(i, "start_date", e.target.value)}
+                    className="text-sm h-8"
+                  />
+                </TableCell>
+                <TableCell className="p-1.5">
+                  <Input
+                    type="date"
+                    value={String(row.end_date ?? "")}
+                    onChange={(e) => handleChange(i, "end_date", e.target.value)}
+                    className="text-sm h-8"
+                  />
+                </TableCell>
+                <TableCell className="p-1.5">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleRemove(i)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdd}>
         <Plus className="h-3 w-3 mr-1" />Add Phase
       </Button>
