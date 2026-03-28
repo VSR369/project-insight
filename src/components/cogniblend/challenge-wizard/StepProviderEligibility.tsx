@@ -257,8 +257,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
   const toggleAllTiers = (checked: boolean) => {
     if (checked) {
       setValue('solver_eligibility_ids', [], { shouldDirty: true });
-      // Set most open defaults
-      setValue('challenge_visibility', 'public', { shouldDirty: true });
     }
   };
 
