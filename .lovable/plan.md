@@ -1,30 +1,63 @@
 
 
-# Convert Preferred Approach to Line Items Format
+# Fix Missing Edit Button on Solver Expertise Requirements Section
 
-## What changes
+## Problem
 
-Make "Preferred Approach" use the exact same line_items format as "Approaches NOT of Interest" — both in the original display and in AI-generated suggestions.
+The Solver Expertise Requirements section in the curation page doesn't show an Edit button consistent with other sections. Two issues:
 
-## Files to change
+1. **No external Edit button**: Unlike other sections (problem_statement, deliverables, etc.) which add `{canEdit && !isEditing && <Button>Edit</Button>}` after their renderer, the `solver_expertise` case only renders `SolverExpertiseSection` without an external Edit button.
 
-### 1. `src/lib/cogniblend/curationSectionFormats.ts`
-Change `preferred_approach.format` from `'rich_text'` to `'line_items'`.
+2. **Null industry segment blocks all editing**: If `challenge.eligibility` doesn't contain `industry_segment_id`, the component returns early with "No industry segment configured" and provides zero editing capability.
 
-### 2. `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`
-Move `preferred_approach` from the `rich_text` switch case (lines 360-394) into a line_items case alongside `approaches_not_of_interest`. It will use `LineItemsSectionRenderer` with `itemLabel="Approach"` and an empty-state placeholder like: *"Preferred approaches have not been specified — solvers have full freedom to propose any approach."*
+## Fix
 
-### 3. `supabase/functions/refine-challenge-section/index.ts`
-- Change `preferred_approach` format from `'rich_text'` to `'line_items'` in `SECTION_FORMAT_MAP`
-- Update `EB_FORMAT_INSTRUCTIONS.preferred_approach` to return a JSON array of phrases (matching `approaches_not_of_interest` pattern): `"Return ONLY a valid JSON array of short phrase strings describing preferred approaches. Preserve the seeker's original intent. Max 10 items."`
+### File: `src/pages/cogniblend/CurationReviewPage.tsx`
 
-### 4. `src/lib/aiReviewPromptTemplate.ts` + `supabase/functions/review-challenge-sections/promptTemplate.ts`
-- Change `preferred_approach` in `SECTION_FORMAT_MAP` from `'rich_text'` to `'line_items'`
-- Update `EXTENDED_BRIEF_FORMAT_INSTRUCTIONS.preferred_approach` to produce a JSON array instead of preserving rich text unchanged
+**Add an external Edit button** after the `SolverExpertiseSection`, matching the pattern used by other sections. Wire it to the page-level `editingSection` state, and pass `isEditing` into the component so it opens in edit mode when triggered from the panel.
 
-### 5. Edge function redeployment
-Redeploy `refine-challenge-section` and `review-challenge-sections`.
+In the `solver_expertise` case (~line 2762), change:
+```tsx
+case "solver_expertise": {
+  const targeting = parseJson<any>(challenge.eligibility);
+  const industrySegId = targeting?.industry_segment_id ?? null;
+  return (
+    <>
+      <SolverExpertiseSection
+        data={challenge.solver_expertise_requirements}
+        industrySegmentId={industrySegId}
+        readOnly={isReadOnly}
+        editing={isEditing}
+        onSave={(expertiseData) => {
+          setSavingSection(true);
+          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+          setEditingSection(null);
+        }}
+        saving={savingSection}
+        onCancel={cancelEdit}
+      />
+      {canEdit && !isEditing && industrySegId && (
+        <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+          <Pencil className="h-3 w-3 mr-1" />Edit
+        </Button>
+      )}
+    </>
+  );
+}
+```
+
+### File: `src/components/cogniblend/curation/SolverExpertiseSection.tsx`
+
+**Add `editing` and `onCancel` props** to allow the parent page to control edit state (matching the pattern of other renderers). The component should respect external `editing` prop alongside its internal state:
+
+- Add `editing?: boolean` and `onCancel?: () => void` to `SolverExpertiseSectionProps`
+- Use `editing` prop to enter edit mode when the parent triggers it
+- Call `onCancel` when cancel is clicked (alongside internal state reset)
+- Remove the internal "Edit Expertise Requirements" ghost button (edit is now triggered from the parent)
 
 ## Result
-Both "Preferred Approach" and "Approaches NOT of Interest" render identically — numbered line item cards in view mode, editable list inputs in edit mode, and proper JSON array AI suggestions.
+
+- Edit button appears below the section content, consistent with all other sections
+- Clicking Edit opens the taxonomy tree editor
+- Save/Cancel work through the parent page state as expected
 
