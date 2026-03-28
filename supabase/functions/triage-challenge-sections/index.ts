@@ -136,7 +136,7 @@ function buildTriageUserPrompt(
     parts.push(`Challenge Context for Reward Evaluation:`);
     parts.push(`- Maturity: ${challengeData.maturity_level || 'not set'}`);
     parts.push(`- Complexity: ${challengeData.complexity_level || 'not set'}`);
-    parts.push(`- Effort: ${challengeData.effort_level || 'not set'}`);
+    parts.push(`- Complexity: ${challengeData.complexity_level || 'not set'}`);
     parts.push(`- Domains: ${JSON.stringify(challengeData.domain_tags || [])}`);
     parts.push(`- Deliverables count: ${countDeliverables(challengeData.deliverables)}`);
     parts.push(`- Problem summary: ${(challengeData.problem_statement || '').slice(0, 200)}\n`);
