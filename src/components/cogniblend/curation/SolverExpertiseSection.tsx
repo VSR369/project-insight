@@ -2,10 +2,11 @@
  * SolverExpertiseSection — Taxonomy tree-based expertise requirement selector.
  *
  * Shows the challenge's industry segment (read-only) and lets curators select
- * proficiency areas, sub-domains, and specialities that solvers must possess.
- * When nothing is selected = "All applicable" (no restriction).
+ * expertise levels, proficiency areas, sub-domains, and specialities that
+ * solvers must possess.
+ * When nothing is selected at any level = "All applicable" (no restriction).
  *
- * Uses useProficiencyTaxonomy hook to fetch the tree for each expertise level.
+ * Uses useFullTaxonomyTree hook to fetch the tree for each expertise level.
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, Pencil, Save, X, GraduationCap } from "lucide-react";
+import { ChevronDown, ChevronRight, Save, X, GraduationCap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
@@ -95,7 +96,6 @@ function useFullTaxonomyTree(industrySegmentId?: string) {
     queryKey: ["taxonomy-sub-domains", paIds],
     queryFn: async () => {
       if (paIds.length === 0) return [];
-      // Batch to avoid URL limits
       const results = [];
       for (let i = 0; i < paIds.length; i += 50) {
         const batch = paIds.slice(i, i + 50);
@@ -155,10 +155,10 @@ function useFullTaxonomyTree(industrySegmentId?: string) {
               })),
           })),
       }))
-      .filter(el => el.proficiencyAreas.length > 0); // Only show levels with content
+      .filter(el => el.proficiencyAreas.length > 0);
   }, [expertiseLevels, proficiencyAreas, subDomains, specialities]);
 
-  return { tree, isLoading: elLoading || paLoading || sdLoading || spLoading };
+  return { tree, expertiseLevels: expertiseLevels ?? [], isLoading: elLoading || paLoading || sdLoading || spLoading };
 }
 
 // ---------------------------------------------------------------------------
@@ -187,9 +187,13 @@ export default function SolverExpertiseSection({
   onCancel: externalOnCancel,
 }: SolverExpertiseSectionProps) {
   const parsed = parseSolverExpertise(data);
+
+  // ══════════════════════════════════════
+  // SECTION 1: useState hooks
+  // ══════════════════════════════════════
   const [internalEditing, setInternalEditing] = useState(false);
-  const editing = externalEditing ?? internalEditing;
   const [localSelectedSegmentId, setLocalSelectedSegmentId] = useState<string | null>(null);
+  const [selectedELs, setSelectedELs] = useState<Set<string>>(new Set((parsed.expertise_levels ?? []).map(i => i.id)));
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
   const [selectedSPs, setSelectedSPs] = useState<Set<string>>(new Set((parsed.specialities ?? []).map(i => i.id)));
@@ -197,24 +201,39 @@ export default function SolverExpertiseSection({
   const [expandedPAs, setExpandedPAs] = useState<Set<string>>(new Set());
   const [expandedSDs, setExpandedSDs] = useState<Set<string>>(new Set());
 
+  // ══════════════════════════════════════
+  // SECTION 2: Derived state & hooks
+  // ══════════════════════════════════════
+  const editing = externalEditing ?? internalEditing;
   const { data: industrySegments } = useIndustrySegments();
 
-  // Effective segment: prop value OR curator's local selection
   const effectiveSegmentId = industrySegmentId ?? localSelectedSegmentId;
   const industryName = industrySegments?.find(s => s.id === effectiveSegmentId)?.name;
 
-  const { tree, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
+  const { tree, expertiseLevels: allExpertiseLevels, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
 
-  // Sync selections when entering edit mode externally
+  // Filter tree by selected expertise levels
+  const filteredTree = useMemo(() => {
+    if (selectedELs.size === 0) return tree; // None selected = ALL
+    return tree.filter(el => selectedELs.has(el.id));
+  }, [tree, selectedELs]);
+
+  // ══════════════════════════════════════
+  // SECTION 5: useEffect hooks
+  // ══════════════════════════════════════
   useEffect(() => {
     if (editing) {
       const p = parseSolverExpertise(data);
+      setSelectedELs(new Set((p.expertise_levels ?? []).map(i => i.id)));
       setSelectedPAs(new Set((p.proficiency_areas ?? []).map(i => i.id)));
       setSelectedSDs(new Set((p.sub_domains ?? []).map(i => i.id)));
       setSelectedSPs(new Set((p.specialities ?? []).map(i => i.id)));
     }
   }, [editing, data]);
 
+  // ══════════════════════════════════════
+  // SECTION 7: Event handlers
+  // ══════════════════════════════════════
   const handleCancel = () => {
     setInternalEditing(false);
     setLocalSelectedSegmentId(null);
@@ -223,9 +242,15 @@ export default function SolverExpertiseSection({
 
   const handleSave = useCallback(() => {
     // Build named selections from tree
+    const elItems: SelectedItem[] = [];
     const paItems: SelectedItem[] = [];
     const sdItems: SelectedItem[] = [];
     const spItems: SelectedItem[] = [];
+
+    // Expertise levels
+    allExpertiseLevels.forEach(el => {
+      if (selectedELs.has(el.id)) elItems.push({ id: el.id, name: el.name });
+    });
 
     tree.forEach(el => {
       el.proficiencyAreas.forEach(pa => {
@@ -240,18 +265,19 @@ export default function SolverExpertiseSection({
     });
 
     const savePayload: SolverExpertiseData = {
-      proficiency_areas: paItems,
-      sub_domains: sdItems,
-      specialities: spItems,
+      expertise_levels: elItems.length > 0 ? elItems : undefined,
+      proficiency_areas: paItems.length > 0 ? paItems : undefined,
+      sub_domains: sdItems.length > 0 ? sdItems : undefined,
+      specialities: spItems.length > 0 ? spItems : undefined,
     };
-    // Include curator-selected industry segment if it was manually picked
     if (!industrySegmentId && localSelectedSegmentId) {
       savePayload.industry_segment_id = localSelectedSegmentId;
     }
     onSave(savePayload);
     setInternalEditing(false);
-  }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave, industrySegmentId, localSelectedSegmentId]);
+  }, [tree, allExpertiseLevels, selectedELs, selectedPAs, selectedSDs, selectedSPs, onSave, industrySegmentId, localSelectedSegmentId]);
 
+  const toggleEL = (id: string) => setSelectedELs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const toggleSD = (id: string) => setSelectedSDs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const toggleSP = (id: string) => setSelectedSPs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -259,19 +285,107 @@ export default function SolverExpertiseSection({
   const togglePAExpand = (id: string) => setExpandedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const toggleSDExpand = (id: string) => setExpandedSDs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const hasAnySelection = (parsed.proficiency_areas?.length ?? 0) + (parsed.sub_domains?.length ?? 0) + (parsed.specialities?.length ?? 0) > 0;
+  const hasAnySelection =
+    (parsed.expertise_levels?.length ?? 0) +
+    (parsed.proficiency_areas?.length ?? 0) +
+    (parsed.sub_domains?.length ?? 0) +
+    (parsed.specialities?.length ?? 0) > 0;
 
-  // If no industry segment from any source and not editing, show prompt
-  if (!effectiveSegmentId && !editing) {
+  // ══════════════════════════════════════
+  // SECTION 8: Render — NO early returns that would hide parent's Edit button
+  // ══════════════════════════════════════
+
+  // ── View mode ──
+  if (!editing) {
+    // No industry segment and not editing — show prompt inline (no early return)
+    if (!effectiveSegmentId) {
+      return (
+        <div className="text-sm text-muted-foreground italic py-2">
+          No industry segment configured yet. Click <strong>Edit</strong> to select one and configure expertise requirements.
+        </div>
+      );
+    }
+
     return (
-      <div className="text-sm text-muted-foreground italic py-2">
-        No industry segment configured yet. Click <strong>Edit</strong> to select one and configure expertise requirements.
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm">
+          <GraduationCap className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Industry:</span>
+          <Badge variant="outline">{industryName ?? "Loading..."}</Badge>
+        </div>
+
+        {!hasAnySelection ? (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">All Applicable</Badge>
+            <span className="text-xs text-muted-foreground">No specific expertise restrictions — all solver expertise levels qualify.</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Expertise Levels */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Expertise Levels</p>
+              {(!parsed.expertise_levels || parsed.expertise_levels.length === 0) ? (
+                <Badge variant="secondary" className="text-xs">All Levels</Badge>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.expertise_levels.map(el => (
+                    <Badge key={el.id} variant="outline" className="text-xs">{el.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Proficiency Areas */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Proficiency Areas</p>
+              {(!parsed.proficiency_areas || parsed.proficiency_areas.length === 0) ? (
+                <Badge variant="secondary" className="text-xs">All Areas</Badge>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.proficiency_areas.map(pa => (
+                    <Badge key={pa.id} variant="secondary" className="text-xs">{pa.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sub-domains */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Sub-domains</p>
+              {(!parsed.sub_domains || parsed.sub_domains.length === 0) ? (
+                <Badge variant="secondary" className="text-xs">All Sub-domains</Badge>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.sub_domains.map(sd => (
+                    <Badge key={sd.id} variant="outline" className="text-xs">{sd.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Specialities */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Specialities</p>
+              {(!parsed.specialities || parsed.specialities.length === 0) ? (
+                <Badge variant="secondary" className="text-xs">All Specialities</Badge>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.specialities.map(sp => (
+                    <Badge key={sp.id} className="text-xs bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">{sp.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  // If editing and no segment yet, show dropdown to pick one
-  if (!effectiveSegmentId && editing) {
+  // ── Edit mode ──
+
+  // Industry segment selector (shown inline when no segment, NOT as early return)
+  if (!effectiveSegmentId) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
@@ -296,61 +410,6 @@ export default function SolverExpertiseSection({
     );
   }
 
-  // ── View mode ──
-  if (!editing) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm">
-          <GraduationCap className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Industry:</span>
-          <Badge variant="outline">{industryName ?? "Loading..."}</Badge>
-        </div>
-
-        {!hasAnySelection ? (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">All Applicable</Badge>
-            <span className="text-xs text-muted-foreground">No specific expertise restrictions — all solver expertise levels qualify.</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {parsed.proficiency_areas && parsed.proficiency_areas.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Proficiency Areas</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.proficiency_areas.map(pa => (
-                    <Badge key={pa.id} variant="secondary" className="text-xs">{pa.name}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {parsed.sub_domains && parsed.sub_domains.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Sub-domains</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.sub_domains.map(sd => (
-                    <Badge key={sd.id} variant="outline" className="text-xs">{sd.name}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {parsed.specialities && parsed.specialities.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Specialities</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.specialities.map(sp => (
-                    <Badge key={sp.id} className="text-xs bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">{sp.name}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
-    );
-  }
-
-  // ── Edit mode ──
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -378,11 +437,31 @@ export default function SolverExpertiseSection({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Select the proficiency areas, sub-domains, and specialities solvers should possess. Leave unchecked for "All applicable".
+        Select expertise levels, proficiency areas, sub-domains, and specialities. <strong>Unchecked = All applicable</strong> at that level.
       </p>
 
+      {/* Expertise Level Checkboxes */}
+      <div className="border rounded-md p-3 space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">Expertise Levels</p>
+        <div className="flex flex-wrap gap-3">
+          {allExpertiseLevels.filter(el => tree.some(t => t.id === el.id)).map(el => (
+            <label key={el.id} className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={selectedELs.has(el.id)}
+                onCheckedChange={() => toggleEL(el.id)}
+              />
+              <span className="text-sm">{el.name}</span>
+            </label>
+          ))}
+        </div>
+        {selectedELs.size === 0 && (
+          <p className="text-[11px] text-muted-foreground italic">No levels checked — all expertise levels apply.</p>
+        )}
+      </div>
+
+      {/* Taxonomy Tree (filtered by selected expertise levels) */}
       <div className="border rounded-md divide-y max-h-[400px] overflow-y-auto">
-        {tree.map(el => (
+        {filteredTree.map(el => (
           <Collapsible key={el.id} open={expandedLevels.has(el.id)} onOpenChange={() => toggleLevel(el.id)}>
             <CollapsibleTrigger className="w-full px-3 py-2 flex items-center gap-2 text-sm font-medium hover:bg-muted/50">
               {expandedLevels.has(el.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
