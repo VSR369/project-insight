@@ -1241,7 +1241,7 @@ export default function CurationReviewPage() {
     // Map dbField back to section key for store sync
     const fieldToSection: Record<string, string> = {
       ip_model: 'ip_model', submission_deadline: 'submission_deadline',
-      challenge_visibility: 'challenge_visibility', effort_level: 'effort_level',
+      challenge_visibility: 'challenge_visibility',
       solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
       solver_expertise_requirements: 'solver_expertise',
     };
