@@ -1684,6 +1684,7 @@ export default function CurationReviewPage() {
       const matched = singleCodeCfg.options.find(o => o.value.toLowerCase() === code.toLowerCase());
       if (matched) {
         setSavingSection(true);
+        syncSectionToStore(sectionKey as SectionKey, matched.value);
         saveSectionMutation.mutate({ field: singleCodeCfg.field, value: matched.value });
         return;
       }
