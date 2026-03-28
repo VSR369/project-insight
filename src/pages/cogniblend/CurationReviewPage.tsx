@@ -632,16 +632,77 @@ const SECTIONS: SectionDef[] = [
     render: (ch) => <AiContentRenderer content={(ch as any).hook} compact fallback="—" />,
   },
   {
-    key: "extended_brief",
-    label: "Extended Brief",
-    attribution: "AI Generated",
+    key: "context_and_background",
+    label: "Context & Background",
+    attribution: "from Intake",
     dbField: "extended_brief",
     isFilled: (ch) => {
-      const eb = (ch as any).extended_brief;
-      if (!eb || typeof eb !== "object") return false;
-      return !!(eb.context_background || eb.root_causes || (eb.affected_stakeholders?.length > 0));
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.context_background;
+      return typeof val === "string" && val.trim().length > 0;
     },
-    render: () => null, // Rendered via ExtendedBriefDisplay component
+    render: () => null,
+  },
+  {
+    key: "root_causes",
+    label: "Root Causes",
+    attribution: "AI Inferred",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.root_causes;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "affected_stakeholders",
+    label: "Affected Stakeholders",
+    attribution: "AI Inferred",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.affected_stakeholders;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "current_deficiencies",
+    label: "Current Deficiencies",
+    attribution: "AI Inferred",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.current_deficiencies;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "preferred_approach",
+    label: "Preferred Approach",
+    attribution: "Human Input",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.preferred_approach;
+      if (typeof val === "string") return val.trim().length > 0;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
+  },
+  {
+    key: "approaches_not_of_interest",
+    label: "Approaches NOT of Interest",
+    attribution: "Human Input",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.approaches_not_of_interest;
+      return Array.isArray(val) && val.length > 0;
+    },
+    render: () => null,
   },
 ];
 
