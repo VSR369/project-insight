@@ -1010,6 +1010,53 @@ export function AIReviewResultPanel({
                 </div>
               )}
             </div>
+          ) : solverExpertiseData ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm space-y-3">
+              {/* Expertise Levels */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Expertise Levels</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.expertise_levels && solverExpertiseData.expertise_levels.length > 0
+                    ? solverExpertiseData.expertise_levels.map((el) => (
+                        <Badge key={el.id} variant="outline" className="text-xs">{el.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Levels</Badge>}
+                </div>
+              </div>
+              {/* Proficiency Areas */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Proficiency Areas</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.proficiency_areas && solverExpertiseData.proficiency_areas.length > 0
+                    ? solverExpertiseData.proficiency_areas.map((pa) => (
+                        <Badge key={pa.id} variant="outline" className="text-xs">{pa.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Areas</Badge>}
+                </div>
+              </div>
+              {/* Sub-domains */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Sub-domains</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.sub_domains && solverExpertiseData.sub_domains.length > 0
+                    ? solverExpertiseData.sub_domains.map((sd) => (
+                        <Badge key={sd.id} variant="outline" className="text-xs">{sd.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Sub-domains</Badge>}
+                </div>
+              </div>
+              {/* Specialities */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Specialities</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {solverExpertiseData.specialities && solverExpertiseData.specialities.length > 0
+                    ? solverExpertiseData.specialities.map((sp) => (
+                        <Badge key={sp.id} variant="outline" className="text-xs">{sp.name}</Badge>
+                      ))
+                    : <Badge variant="secondary" className="text-xs">All Specialities</Badge>}
+                </div>
+              </div>
+            </div>
           ) : hasDeliverableCards ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
               <DeliverableCardRenderer
