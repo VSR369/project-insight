@@ -2852,22 +2852,98 @@ export default function CurationReviewPage() {
                         );
                       }
 
-                      case "extended_brief":
+                      // ── Extended Brief subsections ──
+                      case "context_and_background": {
+                        const eb = parseExtendedBrief(challenge.extended_brief);
+                        const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
+                          ? getSubsectionValue(eb, "context_and_background") as string : "";
                         return (
-                          <ExtendedBriefDisplay
-                            data={challenge.extended_brief}
-                            onSave={handleSaveExtendedBrief}
-                            saving={savingSection}
-                            readOnly={isReadOnly}
-                            challengeId={challengeId!}
-                            aiSectionReviews={aiReviews}
-                            onAcceptRefinement={handleAcceptExtendedBriefRefinement}
-                            onSingleSectionReview={handleSingleSectionReview}
-                            onMarkAddressed={handleMarkAddressed}
-                            challengeContext={challengeCtx}
-                            expandVersion={expandVersion}
-                          />
+                          <>
+                            <RichTextSectionRenderer
+                              value={textVal}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(val) => {
+                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["context_and_background"]]: val };
+                                handleSaveExtendedBrief(updated);
+                              }}
+                              onCancel={cancelEdit}
+                              onEdit={() => setEditingSection(section.key)}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
                         );
+                      }
+
+                      case "root_causes":
+                      case "current_deficiencies":
+                      case "preferred_approach":
+                      case "approaches_not_of_interest": {
+                        const eb = parseExtendedBrief(challenge.extended_brief);
+                        const items = ensureStringArray(getSubsectionValue(eb, section.key));
+                        const itemLabel = section.key === "root_causes" ? "Root Cause"
+                          : section.key === "preferred_approach" ? "Approach"
+                          : section.key === "current_deficiencies" ? "Deficiency" : "Approach";
+                        return (
+                          <>
+                            {section.key === "approaches_not_of_interest" && items.length === 0 && !isEditing && (
+                              <p className="text-sm text-muted-foreground italic border border-dashed border-border rounded-md px-3 py-2">
+                                Add approaches you want solvers to avoid — e.g. specific technologies, vendor dependencies, or previously tried methods.
+                              </p>
+                            )}
+                            <LineItemsSectionRenderer
+                              items={items}
+                              readOnly={isReadOnly}
+                              editing={isEditing}
+                              onSave={(newItems) => {
+                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP[section.key]]: newItems };
+                                handleSaveExtendedBrief(updated);
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                              itemLabel={itemLabel}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      case "affected_stakeholders": {
+                        const eb = parseExtendedBrief(challenge.extended_brief);
+                        const rows = ensureStakeholderArray(getSubsectionValue(eb, "affected_stakeholders"));
+                        if (isEditing && !isReadOnly) {
+                          return (
+                            <StakeholderTableEditor
+                              rows={rows}
+                              onSave={(newRows) => {
+                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["affected_stakeholders"]]: newRows };
+                                handleSaveExtendedBrief(updated);
+                              }}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                          );
+                        }
+                        return (
+                          <>
+                            <StakeholderTableView rows={rows} />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
 
                       // ── Fallback ──
                       default:
