@@ -156,6 +156,8 @@ interface ChallengeData {
   solver_visibility_types: Json | null;
   // Phase: solver expertise requirements
   solver_expertise_requirements: Json | null;
+  targeting_filters: Json | null;
+  eligibility_model: string | null;
 }
 
 interface LegalDocSummary {
@@ -894,6 +896,22 @@ interface AIQualitySummary {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: resolve industry segment ID from multiple sources
+// ---------------------------------------------------------------------------
+
+function resolveIndustrySegmentId(challenge: ChallengeData): string | null {
+  // 1. targeting_filters.industries[0] — set by Account Manager during intake
+  const tf = parseJson<any>(challenge.targeting_filters);
+  if (tf?.industries?.length > 0) return tf.industries[0];
+  // 2. eligibility.industry_segment_id — set by Challenge Creator in wizard
+  const elig = parseJson<any>(challenge.eligibility);
+  if (elig?.industry_segment_id) return elig.industry_segment_id;
+  // 3. eligibility_model — fallback field
+  if (challenge.eligibility_model) return challenge.eligibility_model;
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -967,7 +985,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -2760,8 +2778,7 @@ export default function CurationReviewPage() {
 
                       // ── Solver expertise requirements ──
                       case "solver_expertise": {
-                        const targeting = parseJson<any>(challenge.eligibility);
-                        const industrySegId = targeting?.industry_segment_id ?? null;
+                        const industrySegId = resolveIndustrySegmentId(challenge);
                         return (
                           <>
                             <SolverExpertiseSection
@@ -2771,7 +2788,16 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(expertiseData) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+                                // If curator selected an industry segment, persist it to eligibility
+                                if (expertiseData.industry_segment_id) {
+                                  const currentElig = parseJson<any>(challenge.eligibility) ?? {};
+                                  currentElig.industry_segment_id = expertiseData.industry_segment_id;
+                                  supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId!).then(() => {
+                                    queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+                                  });
+                                }
+                                const { industry_segment_id, ...saveData } = expertiseData;
+                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: saveData });
                                 setEditingSection(null);
                               }}
                               saving={savingSection}

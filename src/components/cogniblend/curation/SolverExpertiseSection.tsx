@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, Pencil, Save, X, GraduationCap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,7 @@ export interface SolverExpertiseData {
   proficiency_areas?: SelectedItem[];
   sub_domains?: SelectedItem[];
   specialities?: SelectedItem[];
+  industry_segment_id?: string;
 }
 
 interface SolverExpertiseSectionProps {
@@ -187,6 +189,7 @@ export default function SolverExpertiseSection({
   const parsed = parseSolverExpertise(data);
   const [internalEditing, setInternalEditing] = useState(false);
   const editing = externalEditing ?? internalEditing;
+  const [localSelectedSegmentId, setLocalSelectedSegmentId] = useState<string | null>(null);
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
   const [selectedSPs, setSelectedSPs] = useState<Set<string>>(new Set((parsed.specialities ?? []).map(i => i.id)));
@@ -195,9 +198,12 @@ export default function SolverExpertiseSection({
   const [expandedSDs, setExpandedSDs] = useState<Set<string>>(new Set());
 
   const { data: industrySegments } = useIndustrySegments();
-  const industryName = industrySegments?.find(s => s.id === industrySegmentId)?.name;
 
-  const { tree, isLoading } = useFullTaxonomyTree(industrySegmentId ?? undefined);
+  // Effective segment: prop value OR curator's local selection
+  const effectiveSegmentId = industrySegmentId ?? localSelectedSegmentId;
+  const industryName = industrySegments?.find(s => s.id === effectiveSegmentId)?.name;
+
+  const { tree, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
 
   // Sync selections when entering edit mode externally
   useEffect(() => {
@@ -211,6 +217,7 @@ export default function SolverExpertiseSection({
 
   const handleCancel = () => {
     setInternalEditing(false);
+    setLocalSelectedSegmentId(null);
     externalOnCancel?.();
   };
 
@@ -232,13 +239,18 @@ export default function SolverExpertiseSection({
       });
     });
 
-    onSave({
+    const savePayload: SolverExpertiseData = {
       proficiency_areas: paItems,
       sub_domains: sdItems,
       specialities: spItems,
-    });
+    };
+    // Include curator-selected industry segment if it was manually picked
+    if (!industrySegmentId && localSelectedSegmentId) {
+      savePayload.industry_segment_id = localSelectedSegmentId;
+    }
+    onSave(savePayload);
     setInternalEditing(false);
-  }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave]);
+  }, [tree, selectedPAs, selectedSDs, selectedSPs, onSave, industrySegmentId, localSelectedSegmentId]);
 
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const toggleSD = (id: string) => setSelectedSDs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -249,10 +261,37 @@ export default function SolverExpertiseSection({
 
   const hasAnySelection = (parsed.proficiency_areas?.length ?? 0) + (parsed.sub_domains?.length ?? 0) + (parsed.specialities?.length ?? 0) > 0;
 
-  if (!industrySegmentId) {
+  // If no industry segment from any source and not editing, show prompt
+  if (!effectiveSegmentId && !editing) {
     return (
       <div className="text-sm text-muted-foreground italic py-2">
-        No industry segment configured for this challenge. Expertise requirements cannot be specified.
+        No industry segment configured yet. Click <strong>Edit</strong> to select one and configure expertise requirements.
+      </div>
+    );
+  }
+
+  // If editing and no segment yet, show dropdown to pick one
+  if (!effectiveSegmentId && editing) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Select the industry segment for this challenge to configure solver expertise requirements.
+        </p>
+        <Select onValueChange={(val) => setLocalSelectedSegmentId(val)}>
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Select industry segment…" />
+          </SelectTrigger>
+          <SelectContent>
+            {(industrySegments ?? []).map(seg => (
+              <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
+            <X className="h-3 w-3 mr-1" />Cancel
+          </Button>
+        </div>
       </div>
     );
   }
