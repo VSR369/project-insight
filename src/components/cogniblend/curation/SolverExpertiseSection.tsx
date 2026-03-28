@@ -199,16 +199,20 @@ export default function SolverExpertiseSection({
 
   const { tree, isLoading } = useFullTaxonomyTree(industrySegmentId ?? undefined);
 
-  // Reset selections when entering edit mode
-  const handleStartEdit = useCallback(() => {
-    const p = parseSolverExpertise(data);
-    setSelectedPAs(new Set((p.proficiency_areas ?? []).map(i => i.id)));
-    setSelectedSDs(new Set((p.sub_domains ?? []).map(i => i.id)));
-    setSelectedSPs(new Set((p.specialities ?? []).map(i => i.id)));
-    setEditing(true);
-  }, [data]);
+  // Sync selections when entering edit mode externally
+  useEffect(() => {
+    if (editing) {
+      const p = parseSolverExpertise(data);
+      setSelectedPAs(new Set((p.proficiency_areas ?? []).map(i => i.id)));
+      setSelectedSDs(new Set((p.sub_domains ?? []).map(i => i.id)));
+      setSelectedSPs(new Set((p.specialities ?? []).map(i => i.id)));
+    }
+  }, [editing, data]);
 
-  const handleCancel = () => setEditing(false);
+  const handleCancel = () => {
+    setInternalEditing(false);
+    externalOnCancel?.();
+  };
 
   const handleSave = useCallback(() => {
     // Build named selections from tree
