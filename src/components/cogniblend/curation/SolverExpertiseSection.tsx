@@ -471,64 +471,74 @@ export default function SolverExpertiseSection({
         )}
       </div>
 
-      {/* Taxonomy Tree (filtered by selected expertise levels) */}
-      <div className="border rounded-md divide-y max-h-[400px] overflow-y-auto">
-        {filteredTree.map(el => (
-          <Collapsible key={el.id} open={expandedLevels.has(el.id)} onOpenChange={() => toggleLevel(el.id)}>
-            <CollapsibleTrigger className="w-full px-3 py-2 flex items-center gap-2 text-sm font-medium hover:bg-muted/50">
-              {expandedLevels.has(el.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <span>{el.name}</span>
-              <Badge variant="outline" className="text-[10px] ml-auto">{el.proficiencyAreas.length} areas</Badge>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pl-4">
-              {el.proficiencyAreas.map(pa => (
-                <div key={pa.id} className="border-l border-border ml-2">
-                  <div className="flex items-center gap-2 px-3 py-1.5">
-                    <Checkbox
-                      checked={selectedPAs.has(pa.id)}
-                      onCheckedChange={() => togglePA(pa.id)}
-                      id={`pa-${pa.id}`}
-                    />
-                    <label htmlFor={`pa-${pa.id}`} className="text-sm cursor-pointer flex-1">{pa.name}</label>
-                    {pa.subDomains.length > 0 && (
-                      <button onClick={() => togglePAExpand(pa.id)} className="text-muted-foreground hover:text-foreground">
-                        {expandedPAs.has(pa.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                      </button>
-                    )}
-                  </div>
-                  {expandedPAs.has(pa.id) && pa.subDomains.map(sd => (
-                    <div key={sd.id} className="border-l border-border ml-6">
-                      <div className="flex items-center gap-2 px-3 py-1">
+      {/* Taxonomy Tree — only shown after expertise level selection */}
+      {selectedELs.size === 0 ? (
+        <p className="text-sm text-muted-foreground italic border rounded-md p-4 text-center">
+          Select expertise levels above to view the taxonomy tree.
+        </p>
+      ) : (
+        <div className="border rounded-md divide-y max-h-[400px] overflow-y-auto">
+          {filteredTree.map(el => (
+            <Collapsible key={el.id} open={expandedLevels.has(el.id)} onOpenChange={() => toggleLevel(el.id)}>
+              <CollapsibleTrigger className="w-full px-3 py-2 flex items-center gap-2 text-sm font-medium hover:bg-muted/50">
+                {expandedLevels.has(el.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <span>{el.name}</span>
+                <Badge variant="outline" className="text-[10px] ml-auto">{el.proficiencyAreas.length} areas</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pl-4">
+                {el.proficiencyAreas.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic px-3 py-2">No proficiency areas for this level in the selected industry.</p>
+                ) : (
+                  el.proficiencyAreas.map(pa => (
+                    <div key={pa.id} className="border-l border-border ml-2">
+                      <div className="flex items-center gap-2 px-3 py-1.5">
                         <Checkbox
-                          checked={selectedSDs.has(sd.id)}
-                          onCheckedChange={() => toggleSD(sd.id)}
-                          id={`sd-${sd.id}`}
+                          checked={selectedPAs.has(pa.id)}
+                          onCheckedChange={() => togglePA(pa.id)}
+                          id={`pa-${pa.id}`}
                         />
-                        <label htmlFor={`sd-${sd.id}`} className="text-xs cursor-pointer flex-1">{sd.name}</label>
-                        {sd.specialities.length > 0 && (
-                          <button onClick={() => toggleSDExpand(sd.id)} className="text-muted-foreground hover:text-foreground">
-                            {expandedSDs.has(sd.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        <label htmlFor={`pa-${pa.id}`} className="text-sm cursor-pointer flex-1">{pa.name}</label>
+                        {pa.subDomains.length > 0 && (
+                          <button onClick={() => togglePAExpand(pa.id)} className="text-muted-foreground hover:text-foreground">
+                            {expandedPAs.has(pa.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
                         )}
                       </div>
-                      {expandedSDs.has(sd.id) && sd.specialities.map(sp => (
-                        <div key={sp.id} className="flex items-center gap-2 px-3 py-1 ml-6">
-                          <Checkbox
-                            checked={selectedSPs.has(sp.id)}
-                            onCheckedChange={() => toggleSP(sp.id)}
-                            id={`sp-${sp.id}`}
-                          />
-                          <label htmlFor={`sp-${sp.id}`} className="text-[11px] cursor-pointer text-muted-foreground">{sp.name}</label>
+                      {expandedPAs.has(pa.id) && pa.subDomains.map(sd => (
+                        <div key={sd.id} className="border-l border-border ml-6">
+                          <div className="flex items-center gap-2 px-3 py-1">
+                            <Checkbox
+                              checked={selectedSDs.has(sd.id)}
+                              onCheckedChange={() => toggleSD(sd.id)}
+                              id={`sd-${sd.id}`}
+                            />
+                            <label htmlFor={`sd-${sd.id}`} className="text-xs cursor-pointer flex-1">{sd.name}</label>
+                            {sd.specialities.length > 0 && (
+                              <button onClick={() => toggleSDExpand(sd.id)} className="text-muted-foreground hover:text-foreground">
+                                {expandedSDs.has(sd.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                              </button>
+                            )}
+                          </div>
+                          {expandedSDs.has(sd.id) && sd.specialities.map(sp => (
+                            <div key={sp.id} className="flex items-center gap-2 px-3 py-1 ml-6">
+                              <Checkbox
+                                checked={selectedSPs.has(sp.id)}
+                                onCheckedChange={() => toggleSP(sp.id)}
+                                id={`sp-${sp.id}`}
+                              />
+                              <label htmlFor={`sp-${sp.id}`} className="text-[11px] cursor-pointer text-muted-foreground">{sp.name}</label>
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
-                  ))}
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
-      </div>
+                  ))
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Button size="sm" disabled={saving} onClick={handleSave}>
