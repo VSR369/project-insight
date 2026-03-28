@@ -797,9 +797,19 @@ export function ConversationalIntakeContent({
         if (val?.trim()) extendedBrief[key] = val.trim();
       }
 
+      const sourceRole = engagementModel === 'MP' ? 'AM' : 'CR';
       const rewardStructure: Record<string, unknown> = {
         budget_max: data.prize_amount,
         currency: data.currency_code,
+        source_role: sourceRole,
+        source_date: new Date().toISOString(),
+        upstream_source: {
+          role: sourceRole,
+          date: new Date().toISOString(),
+          budget_min: data.budget_min ?? 0,
+          budget_max: data.prize_amount,
+          currency: data.currency_code,
+        },
       };
       if (data.budget_min != null && data.budget_min > 0) {
         rewardStructure.budget_min = data.budget_min;

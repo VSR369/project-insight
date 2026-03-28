@@ -201,6 +201,15 @@ export function useSaveDraft() {
             currency: payload.currency,
             budget_min: payload.budgetMin,
             budget_max: payload.budgetMax,
+            source_role: payload.operatingModel === 'MP' ? 'AM' : 'CR',
+            source_date: new Date().toISOString(),
+            upstream_source: {
+              role: payload.operatingModel === 'MP' ? 'AM' : 'CR',
+              date: new Date().toISOString(),
+              budget_min: payload.budgetMin,
+              budget_max: payload.budgetMax,
+              currency: payload.currency,
+            },
           },
           phase_schedule: {
             expected_timeline: payload.expectedTimeline,
