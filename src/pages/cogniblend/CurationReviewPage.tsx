@@ -1773,8 +1773,9 @@ export default function CurationReviewPage() {
     }
 
     setSavingSection(true);
+    syncSectionToStore(sectionKey as SectionKey, valueToSave);
     saveSectionMutation.mutate({ field: dbField, value: valueToSave });
-  }, [saveSectionMutation, masterData, aiSuggestedComplexity, complexityParams, handleSaveComplexity]);
+  }, [saveSectionMutation, masterData, aiSuggestedComplexity, complexityParams, handleSaveComplexity, syncSectionToStore]);
 
   /** Handle a single-section re-review result from the inline panel */
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
