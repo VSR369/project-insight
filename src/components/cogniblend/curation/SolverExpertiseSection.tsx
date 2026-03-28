@@ -444,6 +444,18 @@ export default function SolverExpertiseSection({
       <div className="border rounded-md p-3 space-y-2">
         <p className="text-xs font-medium text-muted-foreground">Expertise Levels</p>
         <div className="flex flex-wrap gap-3">
+          {/* All Levels checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer font-medium">
+            <Checkbox
+              checked={allExpertiseLevels.length > 0 && selectedELs.size === allExpertiseLevels.length}
+              onCheckedChange={(checked) => {
+                if (checked) setSelectedELs(new Set(allExpertiseLevels.map(el => el.id)));
+                else setSelectedELs(new Set());
+              }}
+            />
+            <span className="text-sm">All Levels</span>
+          </label>
+          <span className="text-border">|</span>
           {allExpertiseLevels.map(el => (
             <label key={el.id} className="flex items-center gap-2 cursor-pointer">
               <Checkbox
@@ -455,7 +467,7 @@ export default function SolverExpertiseSection({
           ))}
         </div>
         {selectedELs.size === 0 && (
-          <p className="text-[11px] text-muted-foreground italic">No levels checked — all expertise levels apply.</p>
+          <p className="text-[11px] text-muted-foreground italic">No levels checked — select levels to view and configure the taxonomy tree below.</p>
         )}
       </div>
 
