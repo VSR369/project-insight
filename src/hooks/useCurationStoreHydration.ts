@@ -57,7 +57,7 @@ const CHALLENGE_FIELD_TO_SECTION: Array<[keyof ChallengeDataSlice, SectionKey]> 
   ['domain_tags', 'domain_tags' as SectionKey],
   ['submission_deadline', 'submission_deadline' as SectionKey],
   ['challenge_visibility', 'challenge_visibility' as SectionKey],
-  ['effort_level', 'effort_level' as SectionKey],
+  
   ['expected_outcomes', 'expected_outcomes' as SectionKey],
   ['extended_brief', 'extended_brief' as SectionKey],
   ['solver_expertise_requirements', 'solver_expertise' as SectionKey],

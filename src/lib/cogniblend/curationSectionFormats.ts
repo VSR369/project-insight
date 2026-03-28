@@ -224,13 +224,6 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['governance_profile'],
   },
-  effort_level: {
-    format: 'radio',
-    aiCanDraft: true,
-    aiReviewEnabled: true,
-    curatorCanEdit: true,
-    aiUsesContext: ['deliverables', 'scope', 'phase_schedule'],
-  },
   solver_expertise: {
     format: 'custom',
     aiCanDraft: true,

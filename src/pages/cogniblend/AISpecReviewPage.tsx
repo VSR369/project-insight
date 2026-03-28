@@ -1844,7 +1844,7 @@ export default function AISpecReviewPage() {
       <ChallengeSettingsPanel
         submissionDeadline={(orgPolicyOverrides.submission_deadline as string | null) ?? challengeRecord.submission_deadline as string | null}
         challengeVisibility={(orgPolicyOverrides.challenge_visibility as string | null) ?? challengeRecord.challenge_visibility as string | null}
-        effortLevel={(orgPolicyOverrides.effort_level as string | null) ?? challengeRecord.effort_level as string | null}
+        
         onFieldChange={handleOrgPolicyChange}
       />
 

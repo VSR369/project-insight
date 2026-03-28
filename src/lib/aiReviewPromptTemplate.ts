@@ -179,6 +179,6 @@ export function buildConfiguredBatchPrompt(
   parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
   parts.push('CRITICAL: Each distinct issue or suggestion MUST be a separate comment in the array.');
   parts.push('Your suggested content for each section MUST match the prescribed format.');
-  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility, effort_level), your comments MUST reference specific allowed codes when suggesting changes.');
+  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility), your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }

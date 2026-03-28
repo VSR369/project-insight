@@ -163,34 +163,6 @@ export default function ChallengeSettingsPanel({
           )}
         </div>
 
-        {/* Effort Level */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium text-foreground">Effort Level</Label>
-          </div>
-          {readOnly ? (
-            <p className="text-sm text-foreground pl-6 capitalize">
-              {effortLevel || "Not set"}
-            </p>
-          ) : (
-            <RadioGroup
-              value={effortLevel ?? ""}
-              onValueChange={(val) => onFieldChange("effort_level", val)}
-              className="pl-6 space-y-2"
-            >
-              {EFFORT_OPTIONS.map((opt) => (
-                <div key={opt.value} className="flex items-start gap-3">
-                  <RadioGroupItem value={opt.value} id={`effort-${opt.value}`} className="mt-0.5" />
-                  <Label htmlFor={`effort-${opt.value}`} className="cursor-pointer">
-                    <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                    <span className="text-xs text-muted-foreground ml-2">— {opt.description}</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          )}
-        </div>
       </CollapsibleContent>
     </Collapsible>
   );

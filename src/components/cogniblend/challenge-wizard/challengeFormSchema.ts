@@ -271,7 +271,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   gold_award: 0,
   silver_award: undefined,
   num_rewarded_solutions: '3' as const,
-  effort_level: '',
+  
   rejection_fee_pct: 10,
   payment_mode: 'escrow' as const,
   payment_milestones: [

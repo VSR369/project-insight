@@ -484,7 +484,7 @@ Generate a complete challenge specification including all extended brief fields.
     delete spec.preferred_approach;
     delete spec.approaches_not_of_interest;
     delete spec.scoring_rubrics;
-    delete spec.effort_level;
+    
     delete spec.reward_description;
     delete spec.phase_notes;
     delete spec.complexity_notes;

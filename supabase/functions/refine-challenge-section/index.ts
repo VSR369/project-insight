@@ -218,7 +218,7 @@ serve(async (req) => {
     if (context?.scope) contextParts.push(`Scope: ${context.scope}`);
     if (context?.deliverables?.length) contextParts.push(`Deliverables (${context.deliverables.length}): ${JSON.stringify(context.deliverables)}`);
     if (context?.evaluation_criteria?.length) contextParts.push(`Evaluation Criteria: ${context.evaluation_criteria.join(", ")}`);
-    if (context?.effort_level) contextParts.push(`Effort Level: ${context.effort_level}`);
+    
     if (context?.industry) contextParts.push(`Industry: ${context.industry}`);
     if (context?.reward_pool) contextParts.push(`Total Reward Pool: ${context.currency || 'USD'} ${context.reward_pool}`);
     if (context?.problem_statement) contextParts.push(`Problem Summary: ${context.problem_statement.slice(0, 500)}`);

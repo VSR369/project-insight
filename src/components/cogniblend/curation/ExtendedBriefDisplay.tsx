@@ -57,7 +57,7 @@ interface ExtendedBriefData {
   approaches_not_of_interest?: string[];
   // Legacy fields preserved
   scoring_rubrics?: unknown;
-  effort_level?: string;
+  
   reward_description?: string;
   phase_notes?: string;
   complexity_notes?: string;

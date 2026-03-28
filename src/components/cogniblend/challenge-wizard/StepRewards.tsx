@@ -314,40 +314,7 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
             </div>
           )}
 
-          {/* ═══ 4b. Effort Level ═══ */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Effort Level <span className="text-destructive">*</span></Label>
-            <p className="text-xs text-muted-foreground">Estimated effort required from solvers</p>
-            <Controller name="effort_level" control={control}
-              render={({ field }) => (
-                <RadioGroup value={field.value ?? ''} onValueChange={field.onChange} className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                  {EFFORT_LEVELS.map((level) => (
-                    <label key={level.value} className={cn(
-                      'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                      field.value === level.value ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/50',
-                    )}>
-                      <RadioGroupItem value={level.value} className="mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{level.label}</p>
-                        <p className="text-xs text-muted-foreground">{level.description}</p>
-                        <p className="text-xs font-medium text-primary mt-0.5">Suggested reward: {level.guidance}</p>
-                      </div>
-                    </label>
-                  ))}
-                </RadioGroup>
-              )}
-            />
-            {rewardGuidance && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3 flex items-start gap-2.5">
-                <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Reward Guidance:</span> Based on effort level, suggested reward range is <span className="font-semibold text-primary">{rewardGuidance}</span>
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* ═══ 4c. IP Model ═══ */}
+          {/* ═══ 4b. IP Model ═══ */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">
               IP Model <span className="text-destructive">*</span>
