@@ -91,7 +91,7 @@ EXTENDED BRIEF FIELDS (generate all of these for richer challenge context):
 - preferred_approach: Guidance on preferred methodologies or approaches (1-2 paragraphs, or empty if open-ended)
 - approaches_not_of_interest: Approaches the seeker does NOT want (1 paragraph, or empty if none)
 - scoring_rubrics: For each evaluation criterion, provide a 5-level scoring rubric with score (1-5), label, and description
-- effort_level: One of "low", "medium", "high", "expert" — based on complexity and required expertise
+
 - reward_description: A paragraph describing the reward structure and what solvers can expect
 - phase_notes: Notes about the expected timeline and phasing of the challenge
 - complexity_notes: Assessment of the technical and organizational complexity
