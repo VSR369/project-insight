@@ -179,11 +179,14 @@ export default function SolverExpertiseSection({
   data,
   industrySegmentId,
   readOnly = false,
+  editing: externalEditing,
   onSave,
   saving,
+  onCancel: externalOnCancel,
 }: SolverExpertiseSectionProps) {
   const parsed = parseSolverExpertise(data);
-  const [editing, setEditing] = useState(false);
+  const [internalEditing, setInternalEditing] = useState(false);
+  const editing = externalEditing ?? internalEditing;
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
   const [selectedSPs, setSelectedSPs] = useState<Set<string>>(new Set((parsed.specialities ?? []).map(i => i.id)));
