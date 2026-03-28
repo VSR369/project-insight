@@ -411,7 +411,7 @@ export default function ExtendedBriefDisplay({
               );
             }
 
-            // ── Approaches NOT of interest (line items, aiCanDraft: false) ──
+            // ── Approaches NOT of interest (line items) ──
             case "approaches_not_of_interest": {
               const items = ensureStringArray(rawVal);
               return (
