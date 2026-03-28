@@ -1027,6 +1027,24 @@ export function AIReviewResultPanel({
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
               <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
             </div>
+          ) : parsedDate ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <CalendarIcon className="h-5 w-5 text-indigo-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-1">Suggested Deadline</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {format(new Date(editedDate ?? parsedDate), "MMMM d, yyyy")}
+                  </p>
+                </div>
+                <Input
+                  type="date"
+                  value={editedDate ?? parsedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="w-[180px] h-9 text-sm"
+                />
+              </div>
+            </div>
           ) : result.suggested_version ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm text-sm leading-relaxed min-h-[160px]">
               <EditableRichText

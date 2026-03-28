@@ -156,7 +156,7 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiCanDraft: true,
     aiReviewEnabled: true,
     curatorCanEdit: true,
-    aiUsesContext: ['phase_schedule'],
+    aiUsesContext: ['phase_schedule', 'deliverables', 'scope', 'complexity', 'effort_level', 'evaluation_criteria'],
   },
   // ── Extended Brief subsections ──
   context_and_background: {
