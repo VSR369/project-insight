@@ -217,6 +217,7 @@ export default function SolverExpertiseSection({
 
   const handleCancel = () => {
     setInternalEditing(false);
+    setLocalSelectedSegmentId(null);
     externalOnCancel?.();
   };
 
