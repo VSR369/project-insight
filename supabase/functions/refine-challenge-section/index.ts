@@ -110,7 +110,7 @@ Rules:
 - For structured fields (deliverables, evaluation_criteria, reward_structure, phase_schedule), return valid JSON matching the input structure.
 - Do NOT add markdown formatting unless the input already uses it.
 - Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
-- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity, challenge_visibility), return ONLY the code values from the provided allowed options. Never invent new codes.`;
+- For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity), return ONLY the code values from the provided allowed options. Never invent new codes.`;
 }
 
 /**
