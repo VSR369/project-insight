@@ -51,7 +51,6 @@ const VISIBILITY_OPTIONS = [
 export default function ChallengeSettingsPanel({
   submissionDeadline,
   challengeVisibility,
-  effortLevel,
   onFieldChange,
   readOnly = false,
 }: ChallengeSettingsPanelProps) {
