@@ -43,7 +43,6 @@ export interface ChallengeDetail {
   solver_eligibility_types: unknown;
   solver_visibility_types: unknown;
   solver_eligibility_id: string | null;
-  challenge_visibility: string | null;
   hook: string | null;
   
   extended_brief: Record<string, unknown> | null;
