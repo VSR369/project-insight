@@ -600,6 +600,7 @@ export function AIReviewResultPanel({
     tableRows ||
     scheduleRows ||
     rewardData ||
+    solverExpertiseData ||
     parsedDate
   );
 
