@@ -189,6 +189,7 @@ export default function SolverExpertiseSection({
   const parsed = parseSolverExpertise(data);
   const [internalEditing, setInternalEditing] = useState(false);
   const editing = externalEditing ?? internalEditing;
+  const [localSelectedSegmentId, setLocalSelectedSegmentId] = useState<string | null>(null);
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
   const [selectedSPs, setSelectedSPs] = useState<Set<string>>(new Set((parsed.specialities ?? []).map(i => i.id)));
@@ -197,9 +198,12 @@ export default function SolverExpertiseSection({
   const [expandedSDs, setExpandedSDs] = useState<Set<string>>(new Set());
 
   const { data: industrySegments } = useIndustrySegments();
-  const industryName = industrySegments?.find(s => s.id === industrySegmentId)?.name;
 
-  const { tree, isLoading } = useFullTaxonomyTree(industrySegmentId ?? undefined);
+  // Effective segment: prop value OR curator's local selection
+  const effectiveSegmentId = industrySegmentId ?? localSelectedSegmentId;
+  const industryName = industrySegments?.find(s => s.id === effectiveSegmentId)?.name;
+
+  const { tree, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
 
   // Sync selections when entering edit mode externally
   useEffect(() => {
