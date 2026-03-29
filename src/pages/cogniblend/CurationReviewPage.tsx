@@ -130,8 +130,8 @@ import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse }
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
-
-
+import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queries/useCompletenessChecks";
+import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 
 
 
