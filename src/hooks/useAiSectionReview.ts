@@ -100,6 +100,7 @@ export function useAiSectionReview({
 
   const accept = useCallback((sectionKey: SectionKey) => {
     store.getState().acceptAiSuggestion(sectionKey);
+    store.getState().clearStaleness(sectionKey);
   }, [store]);
 
   const reject = useCallback((sectionKey: SectionKey) => {
