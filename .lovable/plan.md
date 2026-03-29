@@ -1,52 +1,111 @@
 
 
-# Fix Plan: Remaining Audit Issues (6 still open + 3 new)
+# Gap Analysis: Remaining Issues Across 26 Active Curation Sections
 
-## Current State Assessment
+## Summary
 
-After verifying the database, several items the audit flagged are **already fixed**:
-- **Escrow Funding** already has `phase_schedule` in cross_references ✓
-- **Data & Resources** already has `complexity` in cross_references ✓  
-- **Problem Statement** already has a web search directive ✓
-- **Success Metrics KPIs** web search queries have content (not blank) ✓
-- **Hook** has INCENTIVE_HIGHLIGHT criterion ✓
-
-**Actually remaining fixes: 4 data updates via INSERT tool**
+The structural architecture is solid (all sections have instructions, preambles, quality criteria, and cross-references). The remaining gaps are **content completeness** issues — missing examples, dos/donts, and content templates in many sections.
 
 ---
 
-## Fix 1: Success Metrics KPIs — Bump version to 2
-The preamble fix didn't bump the version. Update `version` from 1 to 2.
+## Priority 1: Data Integrity Issues (Fix Now)
 
-**SQL:** `UPDATE ai_review_section_config SET version = 2 WHERE section_key = 'success_metrics_kpis' AND role_context = 'curation'`
+### 1. Success Metrics KPIs — web_search_queries use wrong key names
+The two search entries use `query` instead of `queryTemplate` and are missing the `purpose` field. Every other section uses `queryTemplate` + `purpose`. This will cause the assembler to skip these queries at runtime.
 
-## Fix 2: Maturity Level — Remove TRL terminology
-Replace `review_instructions` to remove all TRL references ("TRL3", "TRL 1-3", "TRL 4-6", "TRL 7-9") and use only platform terms (Blueprint, POC, Pilot). Change the rule "any maturity level above TRL3 requires evidence" to "POC and Pilot maturity levels require evidence of technical context."
+**Current:** `{"query": "{{domain}} KPI benchmarks..."}`
+**Should be:** `{"purpose": "KPI benchmarks", "queryTemplate": "{{domain}} KPI benchmarks...", "when": "always"}`
 
-Updated definitions:
-- **Blueprint**: Strategic analysis, framework design, feasibility study. No working code required.
-- **POC / Proof of Concept**: Working prototype demonstrating technical feasibility. Limited scope, controlled environment.
-- **Pilot**: Production-ready system tested in real-world conditions. Full operational documentation required.
+### 2. Data & Resources — version still 1
+All other fixed sections are at version 2. This one was missed.
 
-## Fix 3: Differentiate Wave 2 web search queries
-Currently all 5 Wave 2 sections share the same query `"{{domain}} common challenges root causes enterprise"`. Update each:
+---
 
-| Section | New queryTemplate |
-|---------|------------------|
-| `root_causes` | Keep as-is |
-| `affected_stakeholders` | `{{domain}} stakeholder analysis change management enterprise` |
-| `current_deficiencies` | `{{domain}} current system limitations technology gaps` |
-| `preferred_approach` | `{{domain}} solution approaches best practices emerging` |
-| `approaches_not_of_interest` | Remove web search query entirely (human-only section) |
+## Priority 2: Missing Dos/Donts (8 sections)
 
-## Fix 4: Evaluation Criteria — Align supervisor instructions with validation layer
-Change the instruction from "weights sum exactly to 100% — compute this explicitly, do not assume" style to: "Flag weight errors explicitly — state the computed sum. The system validation layer will suggest normalization, but the curator must approve." This removes the conflict where the prompt says "don't adjust" but the system auto-normalizes.
+These sections have no `dos` or `donts`, which means the AI gets instructions but no guardrails:
+
+| Section | dos | donts |
+|---------|-----|-------|
+| expected_outcomes | MISSING | MISSING |
+| success_metrics_kpis | MISSING | MISSING |
+| data_resources_provided | MISSING | MISSING |
+| solver_expertise | MISSING | MISSING |
+| approaches_not_of_interest | MISSING | — |
+| current_deficiencies | MISSING | — |
+| root_causes | MISSING | — |
+
+**Recommended action:** Add concise dos/donts for each. These are short text fields — 3-5 bullet points each.
+
+---
+
+## Priority 3: Missing Examples (6 sections)
+
+These sections lack `example_good` and `example_poor`, so the AI has no reference output to calibrate quality:
+
+| Section | example_good | example_poor |
+|---------|-------------|-------------|
+| success_metrics_kpis | MISSING | MISSING |
+| approaches_not_of_interest | MISSING | MISSING |
+| current_deficiencies | MISSING | MISSING |
+| preferred_approach | MISSING | MISSING |
+| root_causes | MISSING | MISSING |
+| data_resources_provided | MISSING | MISSING |
+
+**Recommended action:** Add one good and one poor example for each section. These are the most impactful missing fields — examples anchor the AI's output quality more than any other field.
+
+---
+
+## Priority 4: Missing Content Templates (Most sections)
+
+Only 5 of 26 sections have maturity-specific `content_templates` (context_and_background, expected_outcomes, problem_statement, deliverables, hook). The remaining 21 have empty `{}`.
+
+Content templates provide Blueprint/POC/Pilot-specific structural guidance. Not every section needs them — but these **should** have them:
+
+| Section | Why it needs templates |
+|---------|----------------------|
+| scope | Scope depth varies significantly by maturity |
+| evaluation_criteria | Scoring methods differ by maturity |
+| reward_structure | Prize structures differ by maturity |
+| phase_schedule | Timeline patterns differ by maturity |
+| submission_guidelines | Submission expectations differ by maturity |
+
+**Recommended action:** Add content templates for these 5 high-impact sections. The other 16 can remain empty — their quality criteria already provide sufficient guidance.
+
+---
+
+## Priority 5: Missing Supervisor Examples (24 sections)
+
+Only 2 sections have `supervisor_examples` (maturity_level: 2, hook: 2). All other 24 have 0.
+
+Supervisor examples show the AI what a "pass" vs "fail" review looks like. They are optional but significantly improve review accuracy.
+
+**Recommended action:** Add 2 supervisor examples (1 pass, 1 fail) for at least the 5 Critical/High-importance sections: problem_statement, deliverables, evaluation_criteria, reward_structure, phase_schedule.
+
+---
+
+## Priority 6: Cosmetic / Low Priority
+
+### Missing computation_rules
+Only phase_schedule has computation rules (6 rules). Other sections that could benefit: evaluation_criteria (weight sum validation), reward_structure (budget validation). Currently these checks are described in review_instructions text — not structured as computation rules.
+
+### No master_data_constraints on sections that use master data
+eligibility, complexity, and maturity_level each have 1 constraint. Sections like visibility, ip_model, and domain_tags reference master data tables in `curationSectionFormats.ts` but have 0 constraints in the DB config. Low impact since the format config already enforces this.
 
 ---
 
 ## Implementation
 
-All 4 fixes are **data updates** to existing rows — executed via the INSERT tool (UPDATE statements). No schema migrations or code changes required.
+All fixes are data-only UPDATEs to `ai_review_section_config`. No code or schema changes.
+
+- **Priority 1:** 2 SQL updates (fix search query keys, bump version) — 5 minutes
+- **Priority 2:** 8 updates adding dos/donts text — 15 minutes  
+- **Priority 3:** 6 updates adding example_good/example_poor — 20 minutes
+- **Priority 4:** 5 updates adding content_templates — 15 minutes
+- **Priority 5:** 5 updates adding supervisor_examples — 15 minutes
+- **Priority 6:** Optional, defer
+
+**Total estimate: ~70 minutes for Priority 1-5**
 
 ## Files Modified
 
