@@ -1692,13 +1692,13 @@ export default function CurationReviewPage() {
     if (!challengeId || !challenge) return;
     const currentElig = parseJson<any>(challenge.eligibility) ?? {};
     currentElig.industry_segment_id = segmentId;
-    const { error } = await supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId);
+    const { error } = await supabase.from("challenges").update({ eligibility: currentElig }).eq("id", challengeId);
     if (error) {
       toast.error("Failed to save industry segment");
       return;
     }
     toast.success("Industry segment updated");
-    queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+    await queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
   }, [challengeId, challenge, queryClient]);
 
   /**
