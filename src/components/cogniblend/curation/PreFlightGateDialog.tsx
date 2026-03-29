@@ -1,6 +1,7 @@
 /**
  * PreFlightGateDialog — Modal shown before global AI review
  * when mandatory sections are missing or recommended sections are empty.
+ * Redesigned as an actionable navigation checklist.
  */
 
 import React from 'react';
@@ -13,17 +14,59 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, XCircle, Info } from 'lucide-react';
-import type { PreFlightResult } from '@/lib/cogniblend/preFlightCheck';
+import { Badge } from '@/components/ui/badge';
+import { XCircle, AlertTriangle, ChevronRight } from 'lucide-react';
+import type { PreFlightResult, PreFlightItem } from '@/lib/cogniblend/preFlightCheck';
+import { SECTION_TO_TAB } from '@/lib/cogniblend/preFlightCheck';
 
 interface PreFlightGateDialogProps {
   result: PreFlightResult | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Navigate to a section by key */
   onGoToSection: (sectionKey: string) => void;
-  /** Called when user chooses to proceed despite warnings */
   onProceed: () => void;
+}
+
+function NavigableRow({
+  item,
+  variant,
+  onNavigate,
+}: {
+  item: PreFlightItem;
+  variant: 'required' | 'recommended';
+  onNavigate: () => void;
+}) {
+  const tabLabel = SECTION_TO_TAB[item.sectionId] ?? 'Unknown';
+  const isRequired = variant === 'required';
+
+  return (
+    <button
+      type="button"
+      onClick={onNavigate}
+      className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors cursor-pointer group ${
+        isRequired
+          ? 'border-destructive/30 bg-destructive/5 hover:bg-destructive/10'
+          : 'border-amber-300/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/40'
+      }`}
+    >
+      {isRequired ? (
+        <XCircle className="h-4 w-4 text-destructive shrink-0" />
+      ) : (
+        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+      )}
+
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <p className="text-sm font-medium text-foreground">{item.sectionName}</p>
+        <p className="text-xs text-muted-foreground truncate">{item.reason}</p>
+      </div>
+
+      <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground">
+        {tabLabel}
+      </Badge>
+
+      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
+    </button>
+  );
 }
 
 export function PreFlightGateDialog({
@@ -39,6 +82,14 @@ export function PreFlightGateDialog({
   const hasWarnings = result.warnings.length > 0;
 
   if (!isBlocking && !hasWarnings) return null;
+
+  const handleNavigate = (sectionId: string) => {
+    onGoToSection(sectionId);
+    onOpenChange(false);
+  };
+
+  const firstMandatory = result.missingMandatory[0];
+  const firstWarning = result.warnings[0];
 
   return (
     <Dialog
@@ -60,71 +111,69 @@ export function PreFlightGateDialog({
               </>
             ) : (
               <>
-                <Info className="h-5 w-5 text-amber-500" />
-                Sections will be AI-generated
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Some sections are empty
               </>
             )}
           </DialogTitle>
           <DialogDescription>
             {isBlocking
-              ? 'These mandatory sections need your input before AI can proceed:'
-              : 'These sections are empty and will be AI-generated:'}
+              ? 'Complete the required sections below before AI can proceed. Click any row to navigate.'
+              : 'These empty sections will be AI-generated. Click any row to fill them first, or proceed.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-4">
           {/* Mandatory missing sections */}
-          {result.missingMandatory.map((item) => (
-            <div
-              key={item.sectionId}
-              className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-            >
-              <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <div className="space-y-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{item.sectionName}</p>
-                <p className="text-xs text-muted-foreground">{item.reason}</p>
-              </div>
+          {result.missingMandatory.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-destructive px-1">
+                Required — Must be filled
+              </p>
+              {result.missingMandatory.map((item) => (
+                <NavigableRow
+                  key={item.sectionId}
+                  item={item}
+                  variant="required"
+                  onNavigate={() => handleNavigate(item.sectionId)}
+                />
+              ))}
             </div>
-          ))}
+          )}
 
           {/* Recommended empty sections */}
-          {result.warnings.map((item) => (
-            <div
-              key={item.sectionId}
-              className="flex items-start gap-3 rounded-lg border border-amber-300/50 bg-amber-50/50 dark:bg-amber-950/20 p-3"
-            >
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <div className="space-y-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{item.sectionName}</p>
-                <p className="text-xs text-muted-foreground">{item.reason}</p>
-              </div>
+          {hasWarnings && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 px-1">
+                Recommended — Will be AI-generated
+              </p>
+              {result.warnings.map((item) => (
+                <NavigableRow
+                  key={item.sectionId}
+                  item={item}
+                  variant="recommended"
+                  onNavigate={() => handleNavigate(item.sectionId)}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         <DialogFooter className="shrink-0 gap-2">
           {isBlocking ? (
-            /* Blocking: show Go-to buttons for each mandatory section */
-            result.missingMandatory.map((item) => (
-              <Button
-                key={item.sectionId}
-                variant="default"
-                size="sm"
-                onClick={() => {
-                  onGoToSection(item.sectionId);
-                  onOpenChange(false);
-                }}
-              >
-                Go to {item.sectionName}
-              </Button>
-            ))
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => handleNavigate(firstMandatory.sectionId)}
+            >
+              Go to {firstMandatory.sectionName}
+            </Button>
           ) : (
-            /* Warning only: allow proceed or fill first */
             <>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleNavigate(firstWarning.sectionId)}
               >
                 Fill them first
               </Button>
