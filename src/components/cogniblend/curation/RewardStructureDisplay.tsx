@@ -66,6 +66,18 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
 }, ref) => {
   const queryClient = useQueryClient();
 
+  // ── Prize Tiers + Incentive hooks (always called, before any conditionals) ──
+  const { data: prizeTiers = [] } = useChallengePrizeTiers(challengeId);
+  const createPrizeTier = useCreatePrizeTier();
+  const updatePrizeTierMut = useUpdatePrizeTier();
+  const deletePrizeTierMut = useDeletePrizeTier();
+
+  const { data: incentiveSelections = [] } = useChallengeIncentiveSelections(challengeId);
+  const { data: allIncentives = [] } = useNonMonetaryIncentives();
+  const addIncentiveSelectionMut = useAddIncentiveSelection();
+  const removeIncentiveSelectionMut = useRemoveIncentiveSelection();
+  const updateIncentiveCommitmentMut = useUpdateIncentiveCommitment();
+
   // ── State machine ──
   const raw = useMemo(() => parseJson<any>(rewardStructure), [rewardStructure]);
   const state = useRewardStructureState(raw, operatingModel);
