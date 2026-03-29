@@ -1,89 +1,53 @@
 
 
-# Plan: Fix 6 Diagnostic Audit Gaps
+# Plan: Format-Aware AI Suggestion Parsing
 
-## Overview
-Six gaps identified in the AI Review pipeline. Fixes 1→2→3 are sequential (critical chain). Fixes 4, 5, 6 are independent.
+## Problem
+The LLM tool schema defines `suggestion` as `type: "string"`. For rich_text sections this works. For structured sections (line_items, table, schedule_table, checkbox, tag_input), the LLM returns stringified JSON (e.g. `'["item1","item2"]'`). Two breakages occur:
 
----
+1. **Store type mismatch**: `setAiReview` accepts `Record<string, unknown> | null` for suggestion — strings/arrays are silently dropped or mistyped
+2. **Accept corruption**: `acceptAiSuggestion` calls `deepMerge(currentData, suggestion)` which expects two objects — a string or array causes silent failure or corrupt data
 
-## Fix 1: Expand LLM Tool Schema (Edge Function)
-**File:** `supabase/functions/review-challenge-sections/index.ts`
+Rich text sections work by accident because the existing `AIReviewInline` auto-refine path bypasses the store's `acceptAiSuggestion` and writes directly. But the new wave-executor path (Fix 3) writes raw strings for ALL section types.
 
-**Lines 219-238** — Update the `review_sections` tool schema:
-- Add `suggestion` (string) field for generated/improved content
-- Add `cross_section_issues` array for consistency checks
-- Add `"generated"` to status enum
-- Add `field` and `reasoning` to comment items
-- Remove `additionalProperties: false` from items to allow new fields
-- Add descriptions to all fields
+## Changes (4 files, ~60 lines total)
 
-**Lines 260-270** — Update response parser to extract `suggestion` and `cross_section_issues` from each section result and pass them through in the response.
+### 1. New utility: `src/lib/cogniblend/parseSuggestion.ts`
+~35 lines. Takes `(sectionKey: string, rawSuggestion: string)` → returns parsed native type.
 
-**Lines 28-54** — Fix fallback `CURATION_SECTIONS`: remove duplicate `domain_tags` (line 44), add missing `expected_outcomes`, `success_metrics_kpis`, `data_resources_provided` (Fix 5 combined here).
+- Looks up format from `SECTION_FORMAT_CONFIG`
+- `rich_text` → return string as-is
+- `line_items`, `checkbox_multi`, `tag_input` → `JSON.parse()` → expect `string[]`
+- `table`, `schedule_table` → `JSON.parse()` → expect `Record<string, unknown>[]`
+- `checkbox_single` → `JSON.parse()` → expect object with selection
+- `custom`, `structured_fields` → `JSON.parse()` → expect object
+- All parsing wrapped in try/catch — falls back to raw string on failure
 
----
+### 2. Update `src/hooks/useWaveExecutor.ts` (lines 100-111)
+- Import `parseSuggestionForSection`
+- Parse suggestion before writing to store (line 110): `store.getState().setSectionData(sectionKey, parseSuggestionForSection(sectionKey, suggestion))`
+- Parse suggestion before passing to `setAiReview` (line 103): pass parsed value instead of raw string
 
-## Fix 2: Differentiate Prompts by `wave_action` (Edge Function)
-**File:** `supabase/functions/review-challenge-sections/index.ts`
+### 3. Update `src/store/curationFormStore.ts`
+- **Type signature** (line 32): Change `suggestion` param from `Record<string, unknown> | null` to `SectionStoreEntry['data'] | null`
+- **`acceptAiSuggestion`** (lines 120-147): Add guard — if `aiSuggestion` is a string or array, replace `data` entirely instead of calling `deepMerge`. Only `deepMerge` when both current data and suggestion are plain objects.
 
-**Line 484** — Add `wave_action` to destructured request body.
+### 4. Update edge function suggestion description
+**File:** `supabase/functions/review-challenge-sections/index.ts` (lines 253-256)
 
-**Lines 713-715** — Replace static user prompt with action-aware logic:
-- `'generate'` → instruct LLM to create content, return in `suggestion`, set status `"generated"`
-- `'review'` (default) → current behavior plus optional `suggestion` for significant improvements
-- Skip action already handled client-side (useWaveExecutor line 67)
-
----
-
-## Fix 3: Propagate Generated Content Between Waves (Client)
-**File:** `src/hooks/useWaveExecutor.ts`
-
-**Lines 87-118** — After `onSectionReviewed` in `reviewSingleSection`, check if the response contains a `suggestion` with content. If so, write it to the Zustand store via `store.getState().setSectionData(sectionKey, suggestion)` so that `buildContextOptions()` at line 223 picks it up for the next wave's context refresh.
-
-No new store actions needed — `setSectionData` already exists (curationFormStore.ts line 84).
-
----
-
-## Fix 4: Inject `analyst_sources` into Prompts (Edge Function)
-**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts`
-
-**After line 263** — Add 3 lines:
-```typescript
-const sources = config.analyst_sources ?? [];
-if (sources.length > 0) {
-  parts.push(`Analyst sources to cite: ${(sources as string[]).join(', ')}`);
-}
-```
-
----
-
-## Fix 5: Fix Fallback CURATION_SECTIONS (Edge Function)
-Combined with Fix 1 above — update lines 28-54 in `index.ts` to have all 26 sections, no duplicates.
-
----
-
-## Fix 6: Add Token Usage Logging (Edge Function)
-**File:** `supabase/functions/review-challenge-sections/index.ts`
-
-**After line 254** (where `result` is parsed from AI gateway response) — Add structured `console.log` of `result.usage` with challengeId, section keys, action, model, and token counts. Console-only, no DB table needed initially.
-
----
+Update the `suggestion` field description to instruct the LLM on format expectations per section type:
+- rich_text → HTML string
+- line_items → JSON array of strings
+- table/schedule_table → JSON array of row objects
+- checkbox → JSON object
 
 ## Implementation Order
-1. Fix 1 + Fix 5 (tool schema + fallback list) — edge function
-2. Fix 2 (wave_action prompt differentiation) — edge function
-3. Fix 4 (analyst_sources injection) — edge function promptTemplate
-4. Fix 6 (token logging) — edge function
-5. Fix 3 (propagate content between waves) — client useWaveExecutor
-6. Deploy edge function, verify TypeScript build
+1. Create `parseSuggestion.ts` (no dependencies)
+2. Update `curationFormStore.ts` type + accept logic
+3. Update `useWaveExecutor.ts` to use parser
+4. Update edge function description
 
-## Files Modified
-- `supabase/functions/review-challenge-sections/index.ts` — Fixes 1, 2, 5, 6
-- `supabase/functions/review-challenge-sections/promptTemplate.ts` — Fix 4
-- `src/hooks/useWaveExecutor.ts` — Fix 3
-
-## Risk Assessment
-- **Low risk**: All changes are additive — existing `pass`/`warning`/`needs_revision` flow is preserved
-- **Fix 3** has the highest risk — must ensure `setSectionData` doesn't trigger unwanted sync/staleness propagation for AI-generated content. Will use the existing `setSectionData` which only updates `data` without touching staleness flags.
+## Risk
+- Low: try/catch fallback ensures no regression — if parsing fails, raw string behavior is preserved
+- Existing `normalizeAiContentForEditor` and `challengeFieldNormalizer` run post-acceptance, so this fix ensures data arrives in correct shape before those normalizers run
 
