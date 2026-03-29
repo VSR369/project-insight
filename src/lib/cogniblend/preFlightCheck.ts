@@ -66,6 +66,32 @@ function getSectionContent(
   return String(val).trim();
 }
 
+/** Maps section keys to their parent tab label for navigation context */
+export const SECTION_TO_TAB: Record<string, string> = {
+  problem_statement: 'Problem Definition',
+  scope: 'Problem Definition',
+  context_and_background: 'Problem Definition',
+  expected_outcomes: 'Problem Definition',
+  root_causes: 'Challenge Context',
+  affected_stakeholders: 'Challenge Context',
+  current_deficiencies: 'Challenge Context',
+  preferred_approach: 'Challenge Context',
+  approaches_not_of_interest: 'Challenge Context',
+  deliverables: 'Scope & Complexity',
+  maturity_level: 'Scope & Complexity',
+  complexity_assessment: 'Scope & Complexity',
+  solver_expertise: 'Solvers & Schedule',
+  eligibility: 'Solvers & Schedule',
+  phase_schedule: 'Solvers & Schedule',
+  submission_guidelines: 'Solvers & Schedule',
+  evaluation_criteria: 'Evaluation & Rewards',
+  reward_structure: 'Evaluation & Rewards',
+  ip_model: 'Evaluation & Rewards',
+  challenge_hook: 'Publish & Discover',
+  visibility: 'Publish & Discover',
+  domain_tags: 'Publish & Discover',
+};
+
 export function preFlightCheck(
   sections: Record<string, string | null | unknown>,
 ): PreFlightResult {
