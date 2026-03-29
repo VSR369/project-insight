@@ -1,50 +1,61 @@
 
-Fix plan: Industry Segment is not persisting in a way pre-flight can read, so AI review keeps blocking.
 
-## What is happening now
-- DB check for challenge `8348e671-1174-48d8-b1f4-389290ea885a` shows:
-  - `eligibility` = array JSON string (no `industry_segment_id`)
-  - `targeting_filters` = empty
-- Current save handler writes industry segment into `eligibility`, but that field is currently used/stored as an array-like payload in this record, so `industry_segment_id` is not reliably persisted.
-- Pre-flight uses `resolveIndustrySegmentId()`, which currently does not fully handle all targeting_filters shapes used elsewhere.
+# Fix: AI Review, Re-Review, and Edit UX for All Sections
 
-## Implementation plan
+## Problems Identified
 
-### 1) Make industry segment persistence canonical in `targeting_filters`
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Update `handleIndustrySegmentChange` to save into `targeting_filters` (not `eligibility`).
-- Persist both keys for compatibility:
-  - `targeting_filters.industry_segment_id = <id>`
-  - `targeting_filters.industries = [<id>]`
-- Keep existing query invalidation and success/error toasts.
+### 1. Re-review does NOT generate AI suggested content
+**Root cause:** In `AIReviewInline.tsx` line 447-456, the `handleReReview` callback only processes `comments` from the re-review response — it completely ignores the `suggestion` field. It calls `onSingleSectionReview` which saves the review, but does NOT set `refinedContent` from `freshReview.suggestion`. The auto-refine effect (line 288-307) won't trigger because `autoRefineTriggered.current` is still `true` from the first review.
 
-### 2) Harden industry segment resolver
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Update `resolveIndustrySegmentId()` fallback order to support both existing data formats:
-  1. `targeting_filters.industry_segment_id`
-  2. `targeting_filters.industries[0]`
-  3. `eligibility.industry_segment_id` (only when eligibility parses to object, not array)
-  4. `eligibility_model` (existing legacy fallback)
+**Fix:** After re-review, reset `autoRefineTriggered.current = false` and extract `freshReview.suggestion` into `refinedContent` state. This mirrors what the initial review path does.
 
-### 3) Remove race condition before refetch completes
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Add a local optimistic state/ref for the just-selected industry segment.
-- Use this optimistic value in:
-  - Context & Background rendering
-  - Pre-flight check (`handleAIReview`)
-- Clear/reconcile it after query refetch.
+### 2. Re-review is NOT blocked by pre-flight checks
+**Root cause:** The pre-flight check (`preFlightCheck()`) only runs when the user clicks the global "Review Sections by AI" button in `handleAIReview`. The per-section "Re-review this section" button in `AIReviewInline` calls the edge function directly without any pre-flight validation.
 
-### 4) Align “from intake” detection with real data shapes
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Update intake attribution check to recognize both:
-  - `targeting_filters.industry_segment_id`
-  - `targeting_filters.industries[0]`
-- Ensures badge/readonly logic reflects actual source correctly.
+**Design decision:** Re-review should NOT be blocked by pre-flight. Pre-flight gates the initial global review because the AI needs seed content to work. Re-review is per-section and already has content — blocking it would be counterproductive. This is correct behavior.
 
-## Validation checklist
-- Select industry segment in Context & Background.
-- Verify PATCH payload includes `targeting_filters` with `industry_segment_id`.
-- Verify DB row stores the selected segment under `targeting_filters`.
-- Click AI Review immediately after selecting; pre-flight should no longer block for Industry Segment.
-- Refresh page and confirm selected segment persists.
-- Re-test old records where segment was set from intake and from wizard to ensure resolver works for both.
+### 3. `data_resources_provided` and `success_metrics_kpis` — Edit button does nothing
+**Root cause:** Both sections fall into the `default` case of the switch statement (line 3208). The default case renders `section.render()` (read-only table view) and shows an Edit button, but when `isEditing` becomes `true`, the default case has NO editing UI — it just renders the same read-only view. There is no `TableSectionEditor` or equivalent for these table-format sections.
+
+**Fix:** Add explicit `case` handlers for both sections with a table editor UI that allows adding/removing/editing rows and saving.
+
+### 4. "AI Suggested Section" label wrong after re-review
+**Root cause:** Same as issue #1 — since `suggestion` is ignored during re-review, the panel shows stale or empty suggestion content. The label appears but with no actual suggested content.
+
+## Plan
+
+### File 1: `src/components/cogniblend/shared/AIReviewInline.tsx`
+
+**Fix re-review suggestion handling** (lines 418-465):
+- After the re-review API returns successfully and `freshReview` is extracted:
+  - Reset `autoRefineTriggered.current = false`
+  - Reset `refinedContent` to `null`
+  - Reset `editedSuggestedContent` to `null`
+  - If `freshReview.suggestion` exists and is non-empty, set `refinedContent` to it
+  - If no suggestion, let the auto-refine effect trigger naturally (since we reset the ref)
+
+### File 2: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+**Add table editor for `data_resources_provided`** — new case in the switch (before `default`):
+- When not editing: render the existing read-only table + Edit button
+- When editing: render a `TableRowEditor` component (inline) with columns: resource, type, format, size, access_method, restrictions
+- On save: call `saveSectionMutation.mutate({ field: "data_resources_provided", value: rows })`
+
+**Add table editor for `success_metrics_kpis`** — new case in the switch:
+- Same pattern with columns: kpi, baseline, target, measurement_method, timeframe
+- On save: call `saveSectionMutation.mutate({ field: "success_metrics_kpis", value: rows })`
+
+### File 3: `src/components/cogniblend/curation/renderers/TableSectionEditor.tsx` (new)
+
+**Generic table row editor component** for JSON array table sections:
+- Props: `columns: {key, label}[]`, `rows: Record<string, string>[]`, `onSave`, `onCancel`, `saving`
+- Features: add row, remove row, edit cells inline
+- Reusable for both data_resources and success_metrics sections
+
+## Technical Notes
+
+- The re-review fix is ~10 lines in `handleReReview`
+- The table editor is a new ~120-line component
+- Two new switch cases in CurationReviewPage (~40 lines each)
+- No database or edge function changes needed
+
