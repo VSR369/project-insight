@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { getCurationFormStore, selectIsAnyReviewPending } from '@/store/curationFormStore';
 import { getReviewRoute } from '@/lib/sectionRoutes';
 import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
+import { parseSuggestionForSection } from '@/lib/cogniblend/parseSuggestion';
 import type { ChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
 import type { SectionKey } from '@/types/sections';
 
@@ -63,6 +64,7 @@ export function useAiSectionReview({
           role_context: roleContext,
           current_content: currentContent,
           context: challengeContext,
+          wave_action: 'review',
         },
       });
 
@@ -73,10 +75,14 @@ export function useAiSectionReview({
       if (data?.success && data.data?.sections) {
         const reviewResult = (data.data.sections as any[])[0];
         if (reviewResult) {
+          const rawSuggestion = reviewResult.suggestion ?? null;
+          const parsedSuggestion = rawSuggestion && typeof rawSuggestion === 'string'
+            ? parseSuggestionForSection(sectionKey, rawSuggestion)
+            : rawSuggestion;
           store.getState().setAiReview(
             sectionKey,
             reviewResult.comments ?? [],
-            reviewResult.suggestion ?? null,
+            parsedSuggestion,
           );
           // Clear staleness after successful review
           store.getState().clearStaleness(sectionKey);
@@ -93,10 +99,14 @@ export function useAiSectionReview({
         }
       } else if (data?.success && data.data) {
         // Handle assess-complexity and other non-standard response shapes
+        const rawFallbackSuggestion = data.data.suggestion ?? data.data;
+        const parsedFallbackSuggestion = rawFallbackSuggestion && typeof rawFallbackSuggestion === 'string'
+          ? parseSuggestionForSection(sectionKey, rawFallbackSuggestion)
+          : rawFallbackSuggestion;
         store.getState().setAiReview(
           sectionKey,
           data.data.comments ?? [],
-          data.data.suggestion ?? data.data,
+          parsedFallbackSuggestion,
         );
         store.getState().clearStaleness(sectionKey);
 
