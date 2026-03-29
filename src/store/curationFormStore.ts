@@ -33,6 +33,10 @@ interface CurationFormState {
   acceptAiSuggestion: (key: SectionKey) => void;
   rejectAiSuggestion: (key: SectionKey) => void;
   markAddressed: (key: SectionKey) => void;
+  /** Mark a section as saved — clears own staleness, propagates to dependents. Returns staled keys. */
+  markSectionSaved: (key: SectionKey) => SectionKey[];
+  /** Clear staleness for a section (after AI re-review or manual edit+save) */
+  clearStaleness: (key: SectionKey) => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
