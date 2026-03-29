@@ -1,64 +1,66 @@
 
 
-# Implement 4 Claude Feedback Fixes for Prompt Studio
+# Generate Consolidated 5-Layer Prompts for All Sections
 
-## Summary
-Apply 4 tuning adjustments identified from Claude's review of the assembled prompt output. These involve a mix of database updates (migration) and code changes to the default platform preamble.
+## What This Does
 
-## What Changes
+Generate a comprehensive document containing the fully assembled 5-layer prompt for each of the 24 AI-review-enabled curation sections (excluding `legal_docs` and `escrow_funding` which have AI review disabled). You already validated `deliverables` — this covers the remaining 23.
 
-### Fix 1 — Verify Expected Outcomes in Deliverables Cross-References
-**Status: Already done.** The DB already has `expected_outcomes` in both `cross_references` and the OUTCOME COVERAGE quality criterion's `crossReferences`. No action needed.
+## Approach
 
-### Fix 2 — Change SELF-CONTAINED Severity from "error" to "warning"
-The current DB has `SELF-CONTAINED` at severity `"error"`. Claude's feedback recommends `"warning"` — it's a real problem but not as severe as a maturity mismatch or missing outcome coverage.
+Create a Markdown document at `/mnt/documents/` with each section's assembled prompt rendered using mock context (same as the Preview & Test tab uses). Each section entry will show:
 
-**Change:** Migration to update the `quality_criteria` JSONB for `deliverables` section, changing SELF-CONTAINED severity from `error` to `warning`.
+1. **Section header** with key, label, importance level
+2. **Layer 1** — Platform Preamble (shared, shown once at top, then referenced)
+3. **Layer 2** — Quality Criteria, Master Data Constraints, Computation Rules, Content Templates
+4. **Layer 3** — Research Directives, Industry Frameworks, Analyst Sources
+5. **Layer 4** — Supervisor Instructions, Do's/Don'ts, Good/Bad Examples
+6. **Layer 5** — Runtime Context + Cross-Referenced Sections (listed, not injected since no real challenge data)
+7. **Token estimate** for each section
 
-### Fix 3 — Add Open Innovation Benchmarking Search Query
-Add a new web search directive to the `deliverables` section's `web_search_queries`:
-- Purpose: "Comparable challenge deliverables"
-- Query: "InnoCentive HeroX open innovation challenge deliverables {{domain}}"
-- When: "if_available"
+The preamble (Layer 1) is identical across all sections, so it will be shown once at the top rather than repeated 23 times.
 
-**Change:** Migration to append to `web_search_queries` JSONB array.
+## Sections Covered (23)
 
-### Fix 4 — Expand Platform Preamble with All 17 Solution Domains
-The current preamble lists ~11 domains with trailing "...". Based on the platform's proficiency areas and sub-domains, expand to the full 17 domains. Update in both:
-1. `src/lib/cogniblend/assemblePrompt.ts` (DEFAULT_PLATFORM_PREAMBLE)
-2. `supabase/functions/review-challenge-sections/promptTemplate.ts` (DEFAULT_PLATFORM_PREAMBLE)
-3. Migration to update all rows in `ai_review_section_config` where `platform_preamble` contains the old text
+| # | Section Key | Importance |
+|---|------------|-----------|
+| 1 | `affected_stakeholders` | Medium |
+| 2 | `approaches_not_of_interest` | Low |
+| 3 | `challenge_visibility` | Medium |
+| 4 | `complexity` | Medium |
+| 5 | `context_and_background` | High |
+| 6 | `current_deficiencies` | Medium |
+| 7 | `data_resources_provided` | High |
+| 8 | `domain_tags` | Low |
+| 9 | `effort_level` | Low |
+| 10 | `eligibility` | Medium |
+| 11 | `escrow_funding` | High |
+| 12 | `evaluation_criteria` | Critical |
+| 13 | `expected_outcomes` | High |
+| 14 | `hook` | Medium |
+| 15 | `ip_model` | High |
+| 16 | `maturity_level` | Medium |
+| 17 | `phase_schedule` | High |
+| 18 | `preferred_approach` | Low |
+| 19 | `problem_statement` | Critical |
+| 20 | `reward_structure` | High |
+| 21 | `root_causes` | Medium |
+| 22 | `scope` | High |
+| 23 | `solver_expertise` | Medium |
+| 24 | `submission_deadline` | Medium |
+| 25 | `submission_guidelines` | Medium |
+| 26 | `success_metrics_kpis` | High |
 
-The 17 domains (derived from the 4 proficiency areas and their sub-domains):
-1. Digital Business Models
-2. Digital Strategy
-3. Enterprise Strategy Design
-4. Intelligent Process Design (SCM, Procurement, Finance, HR)
-5. Process Excellence & Automation
-6. Technology Architecture
-7. Enterprise Architecture
-8. Data Strategy & Analytics
-9. AI/ML Solutions
-10. Agentic AI & GenAI Lifecycle Management
-11. Cybersecurity & Trust
-12. Cloud Modernization & Infrastructure
-13. Smart Workplaces & Digital Experience
-14. Operating Model Transformation
-15. Product & Service Innovation
-16. Platform Ecosystems & API Strategy
-17. Workforce Transformation & Change Management
+## Output
 
-## Files Modified
+A single Markdown file (`all_section_prompts.md`) written to `/mnt/documents/` that you can download and share with Claude for validation. Each section will be a self-contained block showing exactly what the LLM receives.
 
-| File | Change |
-|------|--------|
-| `supabase/migrations/new.sql` | Update deliverables quality_criteria (Fix 2), web_search_queries (Fix 3), and all platform_preamble rows (Fix 4) |
-| `src/lib/cogniblend/assemblePrompt.ts` | Update DEFAULT_PLATFORM_PREAMBLE with 17 domains (Fix 4) |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Update DEFAULT_PLATFORM_PREAMBLE with 17 domains (Fix 4) |
+## Technical Detail
 
-## Technical Notes
-- Fix 2 uses a JSONB manipulation query to update just the severity field of the SELF-CONTAINED criterion without touching other criteria
-- Fix 3 appends to existing `web_search_queries` array
-- Fix 4 updates all rows sharing the same preamble text in one UPDATE statement
-- The edge function must be redeployed after the code change to promptTemplate.ts
+The script will replicate the `assemblePrompt()` logic from `src/lib/cogniblend/assemblePrompt.ts` using the actual DB configurations queried above, with the same mock context used by `PreviewTestTab`:
+- todaysDate: 2026-03-29
+- solutionType: technology_architecture
+- maturityLevel: poc
+- complexityLevel: L3
+- seekerSegment: Enterprise
 
