@@ -1,96 +1,119 @@
 
 
-# Phase 6 Remaining Work: Gap Analysis + Continuation Plan
+# Phase 7: Challenge Completeness + New Sections + Polish
 
-## Identified Gaps in Steps 1-5
+## Overview
 
-### Gap 1: Bug in edge function — `activeConfigs` undefined
-In `supabase/functions/review-challenge-sections/index.ts` line 701, `buildSmartBatchPrompt(activeConfigs, ...)` references `activeConfigs` which is never declared. It should be the batch-filtered configs from `dbConfigMap`. This will cause a runtime error on every AI review call.
+Three features: (1) a completeness checklist sidebar card, (2) two new optional curation sections, and (3) wiring to ensure everything integrates with existing waves, dependencies, and staleness tracking. Feature 3 (end-to-end test scenario) is a manual verification guide, not code.
 
-### Gap 2: `assemblePrompt.ts` task marked todo but already implemented
-Roadmap task `d0b155d2` ("Create assemblePrompt utility") is still `todo` but the file exists at `src/lib/cogniblend/assemblePrompt.ts` — needs status update to `done`.
+---
 
-### Gap 3: `phase_templates` table migration task still `todo`
-Roadmap task `dc2a3be0` ("Create phase_templates table migration") is `todo` but the table was created in the migration. Needs `done`.
+## Feature 1: Challenge Completeness Checklist
 
-### Gap 4: Edge function not re-deployed after the `activeConfigs` bug
-The edge function was deployed with the bug. Needs fix + redeploy.
+### Step 1: Database — Create `completeness_checks` table
 
-## Implementation Plan
+Migration to create a reference table storing the 10 checklist items:
 
-### Task 1: Fix edge function `activeConfigs` bug + redeploy
-
-**File:** `supabase/functions/review-challenge-sections/index.ts` line 701
-
-Replace `activeConfigs` with batch-scoped configs from `dbConfigMap`:
-```typescript
-const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
-systemPrompt = buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
+```sql
+CREATE TABLE completeness_checks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  concept TEXT NOT NULL,
+  question TEXT NOT NULL,
+  check_sections JSONB NOT NULL DEFAULT '[]',
+  criticality TEXT NOT NULL CHECK (criticality IN ('error','warning','conditional')),
+  condition_field TEXT,
+  condition_value TEXT,
+  remediation_hint TEXT NOT NULL,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ
+);
+ALTER TABLE completeness_checks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read active checks" ON completeness_checks FOR SELECT TO authenticated USING (is_active = TRUE);
 ```
 
-Redeploy the edge function.
+Then seed the 10 default checks via the insert tool.
 
-### Task 2: Seed 24 section prompt configs
+### Step 2: Completeness engine — `src/lib/cogniblend/completenessCheck.ts`
 
-Use the Supabase insert tool to UPDATE existing `ai_review_section_config` rows (role_context='curation') with the structured JSONB data from the Phase 6 spec. For each of the 24 sections:
+Pure function that takes all section contents + challenge metadata + check definitions and returns `CompletenessResult` with score, passed count, and failures with remediation hints. Uses the simple heuristic (content length > 50 chars across relevant sections).
 
-- `platform_preamble`: Shared consulting-grade preamble (same for all)
-- `quality_criteria`: Section-specific criteria with severity and cross-references
-- `cross_references`: Section keys this section depends on (from `DIRECT_DEPENDENCIES`)
-- `master_data_constraints`: For master-data-bound sections (maturity_level, complexity, eligibility, ip_model, visibility, domain_tags)
-- `content_templates`: Per-maturity templates (blueprint, poc, pilot) where specified
-- `computation_rules`: For computed sections (phase_schedule, evaluation_criteria, reward_structure)
-- `web_search_queries`: Research directives
-- `industry_frameworks`: Reference frameworks
-- `wave_number`: From EXECUTION_WAVES config
-- `tab_group`: Problem Definition, Challenge Context, Scope & Complexity, Solvers & Schedule, Evaluation & Rewards, Publish & Discover
+### Step 3: React Query hook — `src/hooks/queries/useCompletenessChecks.ts`
 
-All 24 section keys from SECTION_FORMAT_CONFIG: problem_statement, scope, deliverables, expected_outcomes, submission_guidelines, maturity_level, evaluation_criteria, reward_structure, complexity, ip_model, legal_docs, escrow_funding, eligibility, visibility, domain_tags, phase_schedule, context_and_background, root_causes, affected_stakeholders, current_deficiencies, preferred_approach, approaches_not_of_interest, hook, solver_expertise.
+- `useCompletenessCheckDefs()` — fetches active checks from DB
+- `useRunCompletenessCheck(challengeId)` — combines section data from curation store with check defs, runs engine, returns results
 
-### Task 3: Seed 12 phase templates
+### Step 4: Sidebar widget — `src/components/cogniblend/curation/CompletenessChecklistCard.tsx`
 
-Insert 12 rows into `phase_templates` table for:
-- 4 solution types: strategy_design, technology_architecture, process_operations, product_innovation
-- 3 maturity levels: blueprint, poc, pilot
+Card component placed in the right rail of `CurationReviewPage.tsx`, between "AI Quality" card and "Review Sections by AI" button (around line 3138). Shows:
+- Progress bar with X/N score
+- Pass items with green checkmarks
+- Failed items with warning/error icons + remediation hint on hover
+- Click on failed item navigates to the first relevant section (sets `activeGroup`)
+- "Run completeness check" button for on-demand analysis
 
-Each with phase structures (name, minDays, maxDays) and total duration ranges from the Phase 6 spec. For the 10 combinations not explicitly specified, derive reasonable defaults from the 2 given examples.
+### Step 5: Auto-trigger after Global AI Review
 
-### Task 4: Enhance AIReviewConfigPage with structured editing tabs
+In `CurationReviewPage.tsx`, after wave execution completes (when `phase2Status === 'completed'`), auto-run the completeness check.
 
-Extend the existing `SectionEditor` component in `AIReviewConfigPage.tsx` to add tabbed editing for the new structured fields:
+---
 
-1. **Instructions tab** (existing) — review_instructions, dos, donts, tone, word counts
-2. **Quality Criteria tab** — CRUD list; each criterion: name, description, severity dropdown (error/warning/suggestion), cross-reference multi-select (picks from other section keys)
-3. **Constraints & Templates tab** — master data constraints table, computation rules list, content templates textarea per maturity level
-4. **Research tab** — web search queries (purpose + template + when), industry frameworks tag input, analyst sources tag input
-5. **Preview & Test tab** — shows fully assembled 5-layer prompt using `assemblePrompt()`, token count estimate, test button that invokes edge function
+## Feature 2: Two New Recommended Sections
 
-The save handler already exists — extend it to also persist the new JSONB columns.
+### Step 6: Database — Add columns to `challenges` table
 
-### Task 5: Wire useWaveExecutor to pass prompt configs
+Migration to add two JSONB columns:
+```sql
+ALTER TABLE challenges
+  ADD COLUMN IF NOT EXISTS data_resources_provided JSONB,
+  ADD COLUMN IF NOT EXISTS success_metrics_kpis JSONB;
+```
 
-Modify `useWaveExecutor.ts` to:
-- Import and use `useExtendedSectionConfigs` to load configs
-- Pass matched config data to the edge function call via the existing `context` body parameter
-- The edge function already reads `clientContext` — just ensure configs are available for `buildSmartBatchPrompt`
+### Step 7: Register sections in config files
 
-This step may be minimal since the edge function already loads configs from DB directly (line 500-506). The wave executor already passes `context` which the edge function uses. The main value is ensuring the `cross_references` field drives which section content gets injected into the prompt.
+**`curationSectionFormats.ts`** — Add `data_resources_provided` (format: `table`, columns: resource/type/format/size/access_method/restrictions) and `success_metrics_kpis` (format: `table`, columns: kpi/baseline/target/measurement_method/timeframe).
 
-## Execution Order
+**`sectionDependencies.ts`** — Add dependency entries:
+- `data_resources_provided` depends on `scope` and `deliverables`; downstream: `submission_guidelines`
+- `success_metrics_kpis` depends on `expected_outcomes`; downstream: `evaluation_criteria`
 
-1. Fix `activeConfigs` bug + redeploy edge function (critical — current reviews are broken)
-2. Seed 24 section configs (unblocks structured prompt assembly)
-3. Seed 12 phase templates (reference data for phase schedule)
-4. Enhance AIReviewConfigPage UI (admin can manage structured fields)
-5. Wire useWaveExecutor (minimal — verify config flow)
-6. Update roadmap task statuses
+**`waveConfig.ts`** — Add `data_resources_provided` to Wave 3 (Complexity), `success_metrics_kpis` to Wave 1 (Foundation).
+
+### Step 8: Register in CurationReviewPage
+
+- Add to `SECTIONS` array with `SectionDef` (key, label, attribution, dbField, isFilled, render)
+- Add `data_resources_provided` to GROUPS `scope_complexity` (position 2, after deliverables)
+- Add `success_metrics_kpis` to GROUPS `problem_definition` (position 5, after expected_outcomes)
+- Add to `SECTION_DB_FIELD_MAP` in `useCurationStoreSync.ts`
+
+### Step 9: Seed AI prompt configs
+
+Use insert tool to UPDATE `ai_review_section_config` with prompt configs for the 2 new sections (quality criteria, cross-references, content templates as specified in the Phase 7 doc).
+
+---
 
 ## Technical Details
 
-- Seeding uses Supabase insert tool with UPDATE statements (not migrations)
-- UI uses existing Tabs component from `@/components/ui/tabs`
-- Quality criteria CRUD uses inline editing pattern consistent with existing admin pages
-- Preview tab reuses `assemblePrompt()` from `src/lib/cogniblend/assemblePrompt.ts`
-- Test tab calls `supabase.functions.invoke('review-challenge-sections', ...)` with a mock/real challenge
-- All new fields are nullable with defaults, so backward compatibility is maintained
+### Files to create
+- `src/lib/cogniblend/completenessCheck.ts` — Engine
+- `src/hooks/queries/useCompletenessChecks.ts` — Hook
+- `src/components/cogniblend/curation/CompletenessChecklistCard.tsx` — UI card
+
+### Files to modify
+- `src/pages/cogniblend/CurationReviewPage.tsx` — Add completeness card to right rail, add 2 new section defs, update GROUPS
+- `src/lib/cogniblend/curationSectionFormats.ts` — Add 2 section format configs
+- `src/lib/cogniblend/sectionDependencies.ts` — Add dependency entries + display names
+- `src/lib/cogniblend/waveConfig.ts` — Add sections to waves
+- `src/hooks/useCurationStoreSync.ts` — Add 2 entries to SECTION_DB_FIELD_MAP
+- `src/types/sections.ts` — Types auto-derive from SECTION_FORMAT_CONFIG (no change needed)
+
+### Execution order
+1. Migration: `completeness_checks` table + RLS
+2. Seed 10 default checks
+3. Migration: Add 2 columns to `challenges`
+4. Create completeness engine + hook + card
+5. Update config files (formats, dependencies, waves)
+6. Add sections + card to CurationReviewPage
+7. Seed AI prompt configs for new sections
 
