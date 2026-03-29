@@ -1692,18 +1692,25 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "domain_tags", value: updated });
   }, [challenge, saveSectionMutation]);
 
-  // ── Industry Segment change handler (persists to eligibility JSONB) ──
+  // ── Industry Segment change handler (persists to targeting_filters JSONB) ──
   const handleIndustrySegmentChange = useCallback(async (segmentId: string) => {
     if (!challengeId || !challenge) return;
-    const currentElig = parseJson<any>(challenge.eligibility) ?? {};
-    currentElig.industry_segment_id = segmentId;
-    const { error } = await supabase.from("challenges").update({ eligibility: currentElig }).eq("id", challengeId);
+    // Set optimistic value immediately so UI + pre-flight see it
+    setOptimisticIndustrySegId(segmentId);
+    // Build updated targeting_filters with both keys for compatibility
+    const currentTf = parseJson<any>(challenge.targeting_filters) ?? {};
+    currentTf.industry_segment_id = segmentId;
+    currentTf.industries = [segmentId];
+    const { error } = await supabase.from("challenges").update({ targeting_filters: currentTf }).eq("id", challengeId);
     if (error) {
       toast.error("Failed to save industry segment");
+      setOptimisticIndustrySegId(null);
       return;
     }
     toast.success("Industry segment updated");
     await queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+    // Clear optimistic state after refetch
+    setOptimisticIndustrySegId(null);
   }, [challengeId, challenge, queryClient]);
 
   /**
