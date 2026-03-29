@@ -192,7 +192,7 @@ export default function SolverExpertiseSection({
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
   const [internalEditing, setInternalEditing] = useState(false);
-  const [localSelectedSegmentId, setLocalSelectedSegmentId] = useState<string | null>(null);
+  // localSelectedSegmentId removed — industry segment is now set upstream in Context & Background
   const [selectedELs, setSelectedELs] = useState<Set<string>>(new Set((parsed.expertise_levels ?? []).map(i => i.id)));
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
