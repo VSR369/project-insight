@@ -28,6 +28,19 @@ export interface SectionStoreEntry {
   reviewStatus: ReviewStatus;
   /** Whether AI suggestions have been addressed (accepted or rejected) */
   addressed: boolean;
+
+  /* ── Staleness tracking (Phase 3) ── */
+
+  /** ISO timestamp — updated on every save */
+  lastEditedAt: string | null;
+  /** ISO timestamp — updated after AI review completes */
+  lastReviewedAt: string | null;
+  /** true when an upstream dependency changed after lastReviewedAt */
+  isStale: boolean;
+  /** Section keys that caused staleness (can be multiple) */
+  staleBecauseOf: string[];
+  /** When it became stale (for display: "stale since 10 min ago") */
+  staleAt: string | null;
 }
 
 /* ── Reward Structure data shape ── */
@@ -65,5 +78,10 @@ export function createEmptySectionEntry(): SectionStoreEntry {
     aiSuggestion: null,
     reviewStatus: 'idle',
     addressed: false,
+    lastEditedAt: null,
+    lastReviewedAt: null,
+    isStale: false,
+    staleBecauseOf: [],
+    staleAt: null,
   };
 }

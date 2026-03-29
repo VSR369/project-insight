@@ -14,6 +14,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { deepMerge, ensureArrayItemIds } from '@/lib/deepMerge';
+import { getTransitiveDependents } from '@/lib/cogniblend/sectionDependencies';
 import type { SectionKey, SectionStoreEntry, ReviewStatus } from '@/types/sections';
 import { createEmptySectionEntry } from '@/types/sections';
 
@@ -32,6 +33,10 @@ interface CurationFormState {
   acceptAiSuggestion: (key: SectionKey) => void;
   rejectAiSuggestion: (key: SectionKey) => void;
   markAddressed: (key: SectionKey) => void;
+  /** Mark a section as saved — clears own staleness, propagates to dependents. Returns staled keys. */
+  markSectionSaved: (key: SectionKey) => SectionKey[];
+  /** Clear staleness for a section (after AI re-review or manual edit+save) */
+  clearStaleness: (key: SectionKey) => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
@@ -41,7 +46,18 @@ interface CurationFormState {
 export const selectIsAnyReviewPending = (state: CurationFormState): boolean =>
   Object.values(state.sections).some((s) => s?.reviewStatus === 'pending');
 
-/* ── Store factory ── */
+export const selectStaleSections = (state: CurationFormState): Array<{
+  key: SectionKey;
+  staleBecauseOf: string[];
+  staleAt: string | null;
+}> =>
+  Object.entries(state.sections)
+    .filter(([, s]) => s?.isStale)
+    .map(([key, s]) => ({
+      key: key as SectionKey,
+      staleBecauseOf: s!.staleBecauseOf,
+      staleAt: s!.staleAt,
+    }));
 
 /**
  * Create a curation form store scoped to a specific challenge.
@@ -147,6 +163,55 @@ export function createCurationFormStore(challengeId: string) {
                 ...(state.sections[key] ?? createEmptySectionEntry()),
                 addressed: true,
                 aiComments: null,
+              },
+            },
+          })),
+
+        markSectionSaved: (key) => {
+          const state = get();
+          const now = new Date().toISOString();
+          const updatedSections = { ...state.sections };
+
+          // Clear own staleness and update lastEditedAt
+          const existing = updatedSections[key] ?? createEmptySectionEntry();
+          updatedSections[key] = {
+            ...existing,
+            lastEditedAt: now,
+            isStale: false,
+            staleBecauseOf: [],
+            staleAt: null,
+          };
+
+          // Compute transitive dependents
+          const affectedKeys = getTransitiveDependents(key);
+
+          // Mark each dependent as stale (accumulate causes)
+          for (const depKey of affectedKeys) {
+            const depEntry = updatedSections[depKey as SectionKey] ?? createEmptySectionEntry();
+            const existingCauses = depEntry.staleBecauseOf ?? [];
+            const updatedCauses = [...new Set([...existingCauses, key])];
+            updatedSections[depKey as SectionKey] = {
+              ...depEntry,
+              isStale: true,
+              staleBecauseOf: updatedCauses,
+              staleAt: depEntry.staleAt ?? now,
+            };
+          }
+
+          set({ sections: updatedSections });
+          return affectedKeys as SectionKey[];
+        },
+
+        clearStaleness: (key) =>
+          set((state) => ({
+            sections: {
+              ...state.sections,
+              [key]: {
+                ...(state.sections[key] ?? createEmptySectionEntry()),
+                isStale: false,
+                staleBecauseOf: [],
+                staleAt: null,
+                lastReviewedAt: new Date().toISOString(),
               },
             },
           })),

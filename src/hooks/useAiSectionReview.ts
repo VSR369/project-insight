@@ -74,6 +74,8 @@ export function useAiSectionReview({
             reviewResult.comments ?? [],
             reviewResult.suggestion ?? null,
           );
+          // Clear staleness after successful review
+          store.getState().clearStaleness(sectionKey);
         }
       } else if (data?.success && data.data) {
         // Handle assess-complexity and other non-standard response shapes
@@ -82,6 +84,7 @@ export function useAiSectionReview({
           data.data.comments ?? [],
           data.data.suggestion ?? data.data,
         );
+        store.getState().clearStaleness(sectionKey);
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response from AI review');
       }
@@ -97,6 +100,7 @@ export function useAiSectionReview({
 
   const accept = useCallback((sectionKey: SectionKey) => {
     store.getState().acceptAiSuggestion(sectionKey);
+    store.getState().clearStaleness(sectionKey);
   }, [store]);
 
   const reject = useCallback((sectionKey: SectionKey) => {

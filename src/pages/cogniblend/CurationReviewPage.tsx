@@ -114,6 +114,8 @@ import type { SectionKey, SectionStoreEntry } from "@/types/sections";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
+import { getCurationFormStore, selectStaleSections } from "@/store/curationFormStore";
+import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
@@ -1185,6 +1187,19 @@ export default function CurationReviewPage() {
   // ── Store sync layer (debounced DB persistence) ──
   useCurationStoreSync({ challengeId: challengeId!, enabled: !!challengeId });
 
+  // ── Staleness tracking via Zustand store ──
+  const curationStore = challengeId ? getCurationFormStore(challengeId) : null;
+  const staleSections = curationStore ? curationStore(selectStaleSections) : [];
+
+  /** Wrapper: call markSectionSaved after any section save and toast if sections became stale */
+  const notifyStaleness = useCallback((sectionKey: string) => {
+    if (!curationStore) return;
+    const affected = curationStore.getState().markSectionSaved(sectionKey as SectionKey);
+    if (affected.length > 0) {
+      toast.warning(`${affected.length} downstream section(s) marked stale after "${getSectionDisplayName(sectionKey as SectionKey)}" was changed.`);
+    }
+  }, [curationStore]);
+
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       let stored: SectionReview[] = [];
@@ -1274,21 +1289,24 @@ export default function CurationReviewPage() {
     setSavingSection(true);
     syncSectionToStore(sectionKey as SectionKey, value);
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness(sectionKey);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveDeliverables = useCallback((items: string[]) => {
     setSavingSection(true);
     const data = { items };
     syncSectionToStore('deliverables' as SectionKey, data);
     saveSectionMutation.mutate({ field: "deliverables", value: data });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('deliverables');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveStructuredDeliverables = useCallback((items: DeliverableItem[]) => {
     setSavingSection(true);
     const data = { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) };
     syncSectionToStore('deliverables' as SectionKey, data);
     saveSectionMutation.mutate({ field: "deliverables", value: data });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('deliverables');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
     setSavingSection(true);
@@ -1299,33 +1317,38 @@ export default function CurationReviewPage() {
     const data = { criteria: normalized };
     syncSectionToStore('evaluation_criteria' as SectionKey, data);
     saveSectionMutation.mutate({ field: "evaluation_criteria", value: data });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('evaluation_criteria');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveMaturityLevel = useCallback((value: string) => {
     setSavingSection(true);
     const upper = value.toUpperCase();
     syncSectionToStore('maturity_level' as SectionKey, upper);
     saveSectionMutation.mutate({ field: "maturity_level", value: upper });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('maturity_level');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
     setSavingSection(true);
     syncSectionToStore('extended_brief' as SectionKey, updatedBrief);
     saveSectionMutation.mutate({ field: "extended_brief", value: updatedBrief });
+    // Extended brief subsection staleness is handled per-subsection in handleSaveOrgPolicyField
   }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
     setSavingSection(true);
-    // Map dbField back to section key for store sync
     const fieldToSection: Record<string, string> = {
       ip_model: 'ip_model',
       solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
       solver_expertise_requirements: 'solver_expertise',
     };
     const sectionKey = fieldToSection[dbField];
-    if (sectionKey) syncSectionToStore(sectionKey as SectionKey, value as SectionStoreEntry['data']);
+    if (sectionKey) {
+      syncSectionToStore(sectionKey as SectionKey, value as SectionStoreEntry['data']);
+      notifyStaleness(sectionKey);
+    }
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation, syncSectionToStore]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveComplexity = useCallback((
     paramValues: Record<string, number>,
@@ -2039,13 +2062,15 @@ export default function CurationReviewPage() {
       method: item.autoChecked ? "auto" : "manual",
     })), [checklistItems]);
 
-  // Group progress computation
+  // Group progress computation — stale sections count as NOT done
+  const staleKeySet = useMemo(() => new Set(staleSections.map(s => s.key)), [staleSections]);
+
   const groupProgress = useMemo(() => {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
     GROUPS.forEach((g) => {
       const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
-      const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
+      const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord) && !staleKeySet.has(s.key)).length;
       const hasAIFlag = aiQuality?.gaps?.some((gap) => {
         const mapped = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
         return g.sectionKeys.includes(mapped);
@@ -2053,7 +2078,7 @@ export default function CurationReviewPage() {
       result[g.id] = { done, total: secs.length, hasAIFlag };
     });
     return result;
-  }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality]);
+  }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality, staleKeySet]);
 
   // Inline AI flags per section from quality gaps
   const sectionAIFlags = useMemo(() => {

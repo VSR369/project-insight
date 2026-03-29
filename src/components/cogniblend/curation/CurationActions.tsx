@@ -29,6 +29,18 @@ import {
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 
+interface StaleSectionInfo {
+  key: string;
+  name: string;
+  causes: string[];
+  staleAt: string;
+}
+
+interface UnreviewedSectionInfo {
+  key: string;
+  name: string;
+}
+
 interface CurationActionsProps {
   challengeId: string;
   phaseStatus: string | null;
@@ -40,6 +52,10 @@ interface CurationActionsProps {
   readOnly?: boolean;
   legalEscrowBlocked?: boolean;
   blockingReason?: string;
+  staleSections?: StaleSectionInfo[];
+  unreviewedSections?: UnreviewedSectionInfo[];
+  onNavigateToStale?: () => void;
+  onReReviewStale?: () => void;
 }
 
 export default function CurationActions({
@@ -53,6 +69,10 @@ export default function CurationActions({
   readOnly = false,
   legalEscrowBlocked = false,
   blockingReason,
+  staleSections = [],
+  unreviewedSections = [],
+  onNavigateToStale,
+  onReReviewStale,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -266,6 +286,10 @@ export default function CurationActions({
   });
 
   const handleSubmitClick = () => {
+    if (staleSections.length > 0) {
+      toast.error(`${staleSections.length} section(s) are stale and need re-review before submitting.`);
+      return;
+    }
     if (legalEscrowBlocked) {
       toast.error(blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.');
       return;
@@ -377,14 +401,54 @@ export default function CurationActions({
         </div>
       )}
 
+      {/* Staleness blocking banner */}
+      {!readOnly && staleSections.length > 0 && (
+        <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-900/20 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                Submission blocked — {staleSections.length} section{staleSections.length !== 1 ? 's' : ''} need{staleSections.length === 1 ? 's' : ''} re-review
+              </p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                Stale: {staleSections.map(s => s.name).join(', ')}
+              </p>
+              {unreviewedSections.length > 0 && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                  Unreviewed: {unreviewedSections.map(s => s.name).join(', ')}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-6">
+            {onReReviewStale && (
+              <Button variant="outline" size="sm" className="h-7 text-xs border-amber-400 text-amber-700 hover:bg-amber-100" onClick={onReReviewStale}>
+                Re-review {staleSections.length} stale section{staleSections.length !== 1 ? 's' : ''}
+              </Button>
+            )}
+            {onNavigateToStale && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-700" onClick={onNavigateToStale}>
+                View stale sections
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons — always visible for Phase 3+ curators */}
       {!readOnly && (
         <div className="space-y-2">
           <Button
             className="w-full"
             onClick={handleSubmitClick}
-            disabled={completePhase.isPending || amApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked}
-            title={legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
+            disabled={completePhase.isPending || amApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
+            title={
+              staleSections.length > 0
+                ? `${staleSections.length} stale section(s) need re-review`
+                : legalEscrowBlocked
+                  ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting')
+                  : undefined
+            }
           >
             {(completePhase.isPending || amApprovalMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />

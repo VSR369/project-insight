@@ -48,6 +48,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
+import { getSectionDisplayName, getLockedSectionRole } from "@/lib/cogniblend/sectionDependencies";
 import { SectionEmptyState } from "@/components/cogniblend/curation/SectionEmptyState";
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,7 @@ export type SectionStatus =
   | "pending_response"
   | "response_received"
   | "accepted"
+  | "stale"
   // Legacy (kept for backward compat)
   | "pending_modification"
   | "curator_approved";
@@ -106,6 +108,10 @@ export interface CuratorSectionPanelProps {
   promptSource?: "supervisor" | "default" | null;
   /** Increment to force re-read expand state from localStorage (for expand/collapse all) */
   expandVersion?: number;
+  /** Staleness: upstream section keys that caused this section to become stale */
+  staleBecauseOf?: string[];
+  /** Staleness: when this section became stale (ISO timestamp) */
+  staleAt?: string | null;
 }
 
 // Export localStorage helpers so parent can bulk-update expand state
@@ -159,6 +165,12 @@ function StatusBadge({ status }: { status: SectionStatus }) {
       return (
         <Badge className={cn(badgeBase, "bg-red-100 text-red-800 border-red-300 hover:bg-red-100")}>
           Needs Revision
+        </Badge>
+      );
+    case "stale":
+      return (
+        <Badge className={cn(badgeBase, "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100")}>
+          <AlertTriangle className="h-3 w-3 mr-1" />Stale — re-review
         </Badge>
       );
     case "view_only":
@@ -222,6 +234,8 @@ export function CuratorSectionPanel({
   sectionActions,
   promptSource,
   expandVersion,
+  staleBecauseOf,
+  staleAt,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
@@ -322,6 +336,8 @@ export function CuratorSectionPanel({
           return "border-l-amber-400";
         case "needs_revision":
           return "border-l-red-400";
+        case "stale":
+          return "border-l-amber-500";
         case "view_only":
         case "ai_reviewed":
           return "border-l-blue-400";
@@ -329,6 +345,17 @@ export function CuratorSectionPanel({
           return "border-l-transparent";
       }
     })();
+
+    // Time ago helper for stale display
+    const staleTimeAgo = staleAt ? (() => {
+      const diff = Date.now() - new Date(staleAt).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins} min ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      return `${Math.floor(hrs / 24)}d ago`;
+    })() : null;
 
     return (
       <>
@@ -430,31 +457,47 @@ export function CuratorSectionPanel({
             </div>
 
             {/* Row 2: Secondary metadata — attribution, prompt source, inline flags */}
-            {(attribution || promptSource || (inlineFlags && inlineFlags.length > 0) || isLocked) && (
-              <div className="flex items-center gap-2 ml-[4.5rem] mt-1">
-                {attribution && (
-                  <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted shrink-0">
-                    {attribution}
-                  </Badge>
-                )}
+            {(attribution || promptSource || (inlineFlags && inlineFlags.length > 0) || isLocked || (status === "stale" && staleBecauseOf && staleBecauseOf.length > 0)) && (
+              <div className="flex flex-col gap-1 ml-[4.5rem] mt-1">
+                <div className="flex items-center gap-2">
+                  {attribution && (
+                    <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted shrink-0">
+                      {attribution}
+                    </Badge>
+                  )}
 
-                {promptSource === "supervisor" && (
-                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
-                    ✅ Supervisor
-                  </Badge>
-                )}
-                {promptSource === "default" && (
-                  <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
-                    ⚠️ Default AI
-                  </Badge>
-                )}
+                  {promptSource === "supervisor" && (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
+                      ✅ Supervisor
+                    </Badge>
+                  )}
+                  {promptSource === "default" && (
+                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
+                      ⚠️ Default AI
+                    </Badge>
+                  )}
 
-                {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                  {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
 
-                {inlineFlags && inlineFlags.length > 0 && (
-                  <span className="text-[11px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
-                    <AlertTriangle className="h-3 w-3 inline mr-0.5" />
-                    {inlineFlags[0]}
+                  {inlineFlags && inlineFlags.length > 0 && (
+                    <span className="text-[11px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
+                      <AlertTriangle className="h-3 w-3 inline mr-0.5" />
+                      {inlineFlags[0]}
+                    </span>
+                  )}
+                </div>
+
+                {/* Stale reason line */}
+                {status === "stale" && staleBecauseOf && staleBecauseOf.length > 0 && (
+                  <span className="text-[11px] text-amber-600 flex items-center gap-1">
+                    <span className="opacity-70">Changed upstream:</span>{' '}
+                    {staleBecauseOf.map(k => getSectionDisplayName(k)).join(', ')}
+                    {staleTimeAgo && <span className="opacity-60">({staleTimeAgo})</span>}
+                    {isLocked && getLockedSectionRole(sectionKey) && (
+                      <span className="ml-1 text-amber-700 font-medium">
+                        — requires {getLockedSectionRole(sectionKey)} re-review
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
