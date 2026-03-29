@@ -457,31 +457,47 @@ export function CuratorSectionPanel({
             </div>
 
             {/* Row 2: Secondary metadata — attribution, prompt source, inline flags */}
-            {(attribution || promptSource || (inlineFlags && inlineFlags.length > 0) || isLocked) && (
-              <div className="flex items-center gap-2 ml-[4.5rem] mt-1">
-                {attribution && (
-                  <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted shrink-0">
-                    {attribution}
-                  </Badge>
-                )}
+            {(attribution || promptSource || (inlineFlags && inlineFlags.length > 0) || isLocked || (status === "stale" && staleBecauseOf && staleBecauseOf.length > 0)) && (
+              <div className="flex flex-col gap-1 ml-[4.5rem] mt-1">
+                <div className="flex items-center gap-2">
+                  {attribution && (
+                    <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted shrink-0">
+                      {attribution}
+                    </Badge>
+                  )}
 
-                {promptSource === "supervisor" && (
-                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
-                    ✅ Supervisor
-                  </Badge>
-                )}
-                {promptSource === "default" && (
-                  <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
-                    ⚠️ Default AI
-                  </Badge>
-                )}
+                  {promptSource === "supervisor" && (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
+                      ✅ Supervisor
+                    </Badge>
+                  )}
+                  {promptSource === "default" && (
+                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
+                      ⚠️ Default AI
+                    </Badge>
+                  )}
 
-                {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                  {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
 
-                {inlineFlags && inlineFlags.length > 0 && (
-                  <span className="text-[11px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
-                    <AlertTriangle className="h-3 w-3 inline mr-0.5" />
-                    {inlineFlags[0]}
+                  {inlineFlags && inlineFlags.length > 0 && (
+                    <span className="text-[11px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
+                      <AlertTriangle className="h-3 w-3 inline mr-0.5" />
+                      {inlineFlags[0]}
+                    </span>
+                  )}
+                </div>
+
+                {/* Stale reason line */}
+                {status === "stale" && staleBecauseOf && staleBecauseOf.length > 0 && (
+                  <span className="text-[11px] text-amber-600 flex items-center gap-1">
+                    <span className="opacity-70">Changed upstream:</span>{' '}
+                    {staleBecauseOf.map(k => getSectionDisplayName(k)).join(', ')}
+                    {staleTimeAgo && <span className="opacity-60">({staleTimeAgo})</span>}
+                    {isLocked && getLockedSectionRole(sectionKey) && (
+                      <span className="ml-1 text-amber-700 font-medium">
+                        — requires {getLockedSectionRole(sectionKey)} re-review
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
