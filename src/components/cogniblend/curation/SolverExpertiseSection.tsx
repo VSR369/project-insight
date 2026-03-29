@@ -269,12 +269,9 @@ export default function SolverExpertiseSection({
       sub_domains: sdItems.length > 0 ? sdItems : undefined,
       specialities: spItems.length > 0 ? spItems : undefined,
     };
-    if (!industrySegmentId && localSelectedSegmentId) {
-      savePayload.industry_segment_id = localSelectedSegmentId;
-    }
     onSave(savePayload);
     setInternalEditing(false);
-  }, [tree, allExpertiseLevels, selectedELs, selectedPAs, selectedSDs, selectedSPs, onSave, industrySegmentId, localSelectedSegmentId]);
+  }, [tree, allExpertiseLevels, selectedELs, selectedPAs, selectedSDs, selectedSPs, onSave]);
 
   const toggleEL = (id: string) => setSelectedELs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
