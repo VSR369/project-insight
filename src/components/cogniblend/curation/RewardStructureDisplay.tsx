@@ -26,6 +26,12 @@ import RewardTypeToggle from './rewards/RewardTypeToggle';
 import SourceBanner from './rewards/SourceBanner';
 import MonetaryRewardEditor from './rewards/MonetaryRewardEditor';
 import NonMonetaryRewardEditor from './rewards/NonMonetaryRewardEditor';
+import PrizeTierEditor from './rewards/PrizeTierEditor';
+import IncentiveSelector from './rewards/IncentiveSelector';
+import EffectiveSolverValue from './rewards/EffectiveSolverValue';
+import { useChallengePrizeTiers, useCreatePrizeTier, useUpdatePrizeTier, useDeletePrizeTier } from '@/hooks/queries/useChallengePrizeTiers';
+import { useChallengeIncentiveSelections, useAddIncentiveSelection, useRemoveIncentiveSelection, useUpdateIncentiveCommitment } from '@/hooks/queries/useChallengeIncentiveSelections';
+import { useNonMonetaryIncentives } from '@/hooks/queries/useNonMonetaryIncentives';
 
 export interface RewardStructureDisplayHandle {
   applyAIReviewResult: (data: any) => void;
@@ -39,8 +45,13 @@ interface RewardStructureDisplayProps {
   operatingModel?: string | null;
   challengeTitle?: string;
   amPayload?: AMRewardPayload | null;
-  
+  maturityLevel?: string | null;
+  complexityLevel?: string | null;
 }
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', INR: '₹', AED: 'د.إ', SGD: 'S$', AUD: 'A$',
+};
 
 const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardStructureDisplayProps>(({
   rewardStructure,
@@ -50,8 +61,22 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   operatingModel,
   challengeTitle,
   amPayload,
+  maturityLevel,
+  complexityLevel,
 }, ref) => {
   const queryClient = useQueryClient();
+
+  // ── Prize Tiers + Incentive hooks (always called, before any conditionals) ──
+  const { data: prizeTiers = [] } = useChallengePrizeTiers(challengeId);
+  const createPrizeTier = useCreatePrizeTier();
+  const updatePrizeTierMut = useUpdatePrizeTier();
+  const deletePrizeTierMut = useDeletePrizeTier();
+
+  const { data: incentiveSelections = [] } = useChallengeIncentiveSelections(challengeId);
+  const { data: allIncentives = [] } = useNonMonetaryIncentives();
+  const addIncentiveSelectionMut = useAddIncentiveSelection();
+  const removeIncentiveSelectionMut = useRemoveIncentiveSelection();
+  const updateIncentiveCommitmentMut = useUpdateIncentiveCommitment();
 
   // ── State machine ──
   const raw = useMemo(() => parseJson<any>(rewardStructure), [rewardStructure]);
@@ -284,6 +309,62 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     startEditing();
     setRewardType(type);
   }, [startEditing, setRewardType]);
+
+  // ── Prize tier handlers ──
+  const currSym = CURRENCY_SYMBOLS[currency] ?? '$';
+  const cashPool = useMemo(() => {
+    return Object.values(tierStates)
+      .filter(t => t.enabled)
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [tierStates]);
+
+  const handleAddPrizeTier = useCallback(() => {
+    const nextRank = prizeTiers.length > 0 ? Math.max(...prizeTiers.map(t => t.rank)) + 1 : 1;
+    createPrizeTier.mutate({
+      challenge_id: challengeId,
+      tier_name: `Tier ${nextRank}`,
+      rank: nextRank,
+      percentage_of_pool: 0,
+      fixed_amount: null,
+      max_winners: 1,
+      description: null,
+      created_by_role: 'curator',
+      is_default: false,
+    });
+  }, [prizeTiers, challengeId, createPrizeTier]);
+
+  const handleUpdatePrizeTier = useCallback((id: string, updates: any) => {
+    updatePrizeTierMut.mutate({ id, challengeId, ...updates });
+  }, [updatePrizeTierMut, challengeId]);
+
+  const handleDeletePrizeTier = useCallback((id: string) => {
+    deletePrizeTierMut.mutate({ id, challengeId });
+  }, [deletePrizeTierMut, challengeId]);
+
+  const handleReorderPrizeTier = useCallback((id: string, direction: 'up' | 'down') => {
+    const sorted = [...prizeTiers].sort((a, b) => a.rank - b.rank);
+    const idx = sorted.findIndex(t => t.id === id);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const currentRank = sorted[idx].rank;
+    const swapRank = sorted[swapIdx].rank;
+    updatePrizeTierMut.mutate({ id: sorted[idx].id, challengeId, rank: swapRank });
+    updatePrizeTierMut.mutate({ id: sorted[swapIdx].id, challengeId, rank: currentRank });
+  }, [prizeTiers, updatePrizeTierMut, challengeId]);
+
+  // ── Incentive handlers ──
+  const handleAddIncentive = useCallback((incentiveId: string) => {
+    addIncentiveSelectionMut.mutate({ challenge_id: challengeId, incentive_id: incentiveId });
+  }, [addIncentiveSelectionMut, challengeId]);
+
+  const handleRemoveIncentive = useCallback((selectionId: string) => {
+    removeIncentiveSelectionMut.mutate({ id: selectionId, challengeId });
+  }, [removeIncentiveSelectionMut, challengeId]);
+
+  const handleUpdateCommitment = useCallback((selectionId: string, commitment: string) => {
+    updateIncentiveCommitmentMut.mutate({ id: selectionId, challengeId, seeker_commitment: commitment });
+  }, [updateIncentiveCommitmentMut, challengeId]);
 
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
@@ -553,6 +634,48 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
             </span>
           </div>
         </>
+      )}
+
+      {/* ── Prize Tier Editor (shown when reward type includes monetary) ── */}
+      {rewardType && showMonetary && prizeTiers.length > 0 && (
+        <div className="border-t border-border pt-4">
+          <h4 className="text-sm font-semibold text-foreground mb-3">Prize Tier Breakdown</h4>
+          <PrizeTierEditor
+            tiers={prizeTiers}
+            totalPool={cashPool}
+            currencySymbol={currSym}
+            disabled={isSubmitted || (!isEditing && sectionState !== 'saved')}
+            onAddTier={handleAddPrizeTier}
+            onUpdateTier={handleUpdatePrizeTier}
+            onDeleteTier={handleDeletePrizeTier}
+            onReorder={handleReorderPrizeTier}
+          />
+        </div>
+      )}
+
+      {/* ── Incentive Selector ── */}
+      {rewardType && (
+        <div className="border-t border-border pt-4">
+          <IncentiveSelector
+            availableIncentives={allIncentives}
+            selections={incentiveSelections}
+            maturityLevel={maturityLevel}
+            complexityLevel={complexityLevel}
+            disabled={isSubmitted || (!isEditing && sectionState !== 'saved')}
+            onAdd={handleAddIncentive}
+            onRemove={handleRemoveIncentive}
+            onUpdateCommitment={handleUpdateCommitment}
+          />
+        </div>
+      )}
+
+      {/* ── Effective Solver Value ── */}
+      {rewardType && (cashPool > 0 || incentiveSelections.length > 0) && (
+        <EffectiveSolverValue
+          cashPool={cashPool}
+          currencySymbol={currSym}
+          selections={incentiveSelections}
+        />
       )}
     </div>
   );

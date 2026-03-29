@@ -165,6 +165,7 @@ interface ChallengeData {
   solver_expertise_requirements: Json | null;
   targeting_filters: Json | null;
   eligibility_model: string | null;
+  organization_id: string;
 }
 
 interface LegalDocSummary {
@@ -1055,13 +1056,35 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model, organization_id")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
       return data as ChallengeData;
     },
     enabled: !!challengeId,
+  });
+
+  // ── Org type name for badge ──
+  const { data: orgTypeName } = useQuery({
+    queryKey: ["curation-org-type", challenge?.organization_id],
+    queryFn: async () => {
+      const { data: org, error: orgErr } = await supabase
+        .from("seeker_organizations")
+        .select("organization_type_id")
+        .eq("id", challenge!.organization_id)
+        .single();
+      if (orgErr || !org?.organization_type_id) return null;
+      const { data: ot, error: otErr } = await supabase
+        .from("organization_types")
+        .select("name")
+        .eq("id", org.organization_type_id)
+        .single();
+      if (otErr) return null;
+      return ot?.name ?? null;
+    },
+    enabled: !!challenge?.organization_id,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: legalDocs = [] } = useQuery({
@@ -2197,7 +2220,9 @@ export default function CurationReviewPage() {
           </Badge>
         )}
         <GovernanceProfileBadge profile={challenge.governance_profile} compact />
-
+        {orgTypeName && (
+          <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
+        )}
         {user?.id && !isReadOnly && (
           <HoldResumeActions
             challengeId={challengeId!}
@@ -2717,7 +2742,8 @@ export default function CurationReviewPage() {
                             problemStatement={challenge.problem_statement}
                             operatingModel={challenge.operating_model}
                             challengeTitle={challenge.title}
-                            
+                            maturityLevel={challenge.maturity_level}
+                            complexityLevel={challenge.complexity_level}
                           />
                         );
 
