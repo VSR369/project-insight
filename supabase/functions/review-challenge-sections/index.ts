@@ -242,13 +242,25 @@ async function callAIBatch(
                         items: {
                           type: "object",
                           properties: {
-                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "Comment severity level" },
-                            field: { type: "string", description: "Specific field name or null for general comment" },
-                            comment: { type: "string", description: "Clear, specific issue description referencing challenge details" },
-                            reasoning: { type: "string", description: "Why this matters, referencing other sections" },
+                            text: { type: "string", description: "Clear, specific comment referencing challenge details" },
+                            type: {
+                              type: "string",
+                              enum: ["error", "warning", "suggestion", "best_practice", "strength"],
+                              description: "error = must fix, warning = should improve, suggestion = nice-to-have, best_practice = industry standard reference, strength = positive reinforcement of what works well",
+                            },
+                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "DEPRECATED — use 'type' instead. Kept for backward compatibility." },
+                            field: { type: "string", description: "Specific field name this comment applies to, or null for general" },
+                            comment: { type: "string", description: "DEPRECATED — use 'text' instead. Kept for backward compatibility." },
+                            reasoning: { type: "string", description: "Why this matters, referencing other sections for cross-consistency" },
                           },
-                          required: ["severity", "comment"],
+                          required: ["text", "type"],
                         },
+                        description: "Multi-tier feedback: errors, warnings, suggestions, best practices, AND strengths. For 'pass' sections, include 1-2 strength comments confirming what is good.",
+                      },
+                      guidelines: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "1-3 domain-specific guidelines based on challenge context and solution type. Each must reference THIS specific challenge — not generic consulting advice.",
                       },
                       suggestion: {
                         type: "string",
