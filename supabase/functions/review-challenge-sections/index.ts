@@ -619,45 +619,42 @@ serve(async (req) => {
 
       challengeData = challengeResult.data;
 
-    // Extract extended_brief fields for intake/spec
-    if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
-      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
-      challengeData = {
-        ...challengeData,
-        beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
-        solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
-        expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
-      };
-    }
+      // Extract extended_brief fields for intake/spec
+      if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
+        const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+        challengeData = {
+          ...challengeData,
+          beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
+          solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
+          expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
+        };
+      }
 
-    // For curation context: extract extended_brief subsections as individual data fields
-    if (resolvedContext === "curation" && challengeData.extended_brief) {
-      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
-      challengeData = {
-        ...challengeData,
-        context_and_background: (eb as any).context_background ?? null,
-        root_causes: (eb as any).root_causes ?? null,
-        affected_stakeholders: (eb as any).affected_stakeholders ?? null,
-        current_deficiencies: (eb as any).current_deficiencies ?? null,
-        preferred_approach: (eb as any).preferred_approach ?? null,
-        approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
-      };
-    }
+      // For curation context: extract extended_brief subsections as individual data fields
+      if (resolvedContext === "curation" && challengeData.extended_brief) {
+        const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+        challengeData = {
+          ...challengeData,
+          context_and_background: (eb as any).context_background ?? null,
+          root_causes: (eb as any).root_causes ?? null,
+          affected_stakeholders: (eb as any).affected_stakeholders ?? null,
+          current_deficiencies: (eb as any).current_deficiencies ?? null,
+          preferred_approach: (eb as any).preferred_approach ?? null,
+          approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
+        };
+      }
 
-    // Build context-specific data sections for user prompt
-    let additionalData = "";
-    let resultIdx = 1;
-
-    if (resolvedContext === "curation") {
-      const legalResult = results[resultIdx++];
-      const escrowResult = results[resultIdx++];
-      if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
-      if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
-    } else if (resolvedContext === "legal") {
-      const legalResult = results[resultIdx++];
-      if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
-    } else if (resolvedContext === "finance") {
-      const escrowResult = results[resultIdx++];
+      // Build context-specific data sections for user prompt
+      if (resolvedContext === "curation") {
+        const legalResult = results[resultIdx++];
+        const escrowResult = results[resultIdx++];
+        if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
+        if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
+      } else if (resolvedContext === "legal") {
+        const legalResult = results[resultIdx++];
+        if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
+      } else if (resolvedContext === "finance") {
+        const escrowResult = results[resultIdx++];
       if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
     } else if (resolvedContext === "evaluation") {
       const evalResult = results[resultIdx++];
