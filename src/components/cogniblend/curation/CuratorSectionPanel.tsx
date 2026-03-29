@@ -542,7 +542,10 @@ export function CuratorSectionPanel({
             {/* AI Review slot */}
             {aiReviewSlot}
 
-            {/* Expanded inline flags */}
+            {/* Post-LLM Validation Results */}
+            {validationResult && (validationResult.corrections.length > 0 || validationResult.passedChecks.length > 0) && (
+              <ValidationResultsBar result={validationResult} />
+            )}
             {inlineFlags && inlineFlags.length > 1 && (
               <div className="mt-2 space-y-1">
                 {inlineFlags.slice(1).map((flag, i) => (
