@@ -440,7 +440,7 @@ export function ComplexityAssessmentModule({
       {/* ── Tab Content ── */}
       {activeTab === "ai_review" && (
         <AIReviewTab
-          complexityParams={complexityParams}
+          complexityParams={effectiveParams}
           draft={aiDraft}
           paramSources={aiParamSources}
           aiJustifications={aiJustifications}
