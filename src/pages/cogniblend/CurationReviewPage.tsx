@@ -2524,6 +2524,8 @@ export default function CurationReviewPage() {
                     else if (aiReview.status === "warning") panelStatus = "warning";
                     else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
                   }
+                  // Override with stale status if section is stale
+                  if (staleKeySet.has(section.key)) panelStatus = "stale";
 
                   // Domain tag state
                   const currentTags = section.key === "domain_tags"
