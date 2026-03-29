@@ -1286,8 +1286,22 @@ export default function CurationReviewPage() {
 
   // ── Staleness tracking via Zustand store ──
   const curationStore = challengeId ? getCurationFormStore(challengeId) : null;
-  const staleSectionsRaw = curationStore ? curationStore(useShallow(selectStaleSections)) : EMPTY_STALE;
-  const staleSections = staleSectionsRaw;
+  // Use a stable selector: extract only stale keys as a serializable fingerprint,
+  // then derive the full objects via useMemo to prevent re-render cascades.
+  const staleFingerprint = curationStore
+    ? curationStore((state) => {
+        const keys = Object.entries(state.sections)
+          .filter(([, s]) => s?.isStale)
+          .map(([k]) => k)
+          .sort()
+          .join(',');
+        return keys;
+      })
+    : '';
+  const staleSections = useMemo(() => {
+    if (!staleFingerprint || !curationStore) return [];
+    return selectStaleSections(curationStore.getState());
+  }, [staleFingerprint, curationStore]);
 
   /** Wrapper: call markSectionSaved after any section save and toast if sections became stale */
   const notifyStaleness = useCallback((sectionKey: string) => {
