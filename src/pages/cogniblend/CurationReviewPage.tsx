@@ -1332,6 +1332,7 @@ export default function CurationReviewPage() {
     setSavingSection(true);
     syncSectionToStore('extended_brief' as SectionKey, updatedBrief);
     saveSectionMutation.mutate({ field: "extended_brief", value: updatedBrief });
+    // Extended brief subsection staleness is handled per-subsection in handleSaveOrgPolicyField
   }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
