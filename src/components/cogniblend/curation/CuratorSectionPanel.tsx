@@ -335,6 +335,8 @@ export function CuratorSectionPanel({
           return "border-l-amber-400";
         case "needs_revision":
           return "border-l-red-400";
+        case "stale":
+          return "border-l-amber-500";
         case "view_only":
         case "ai_reviewed":
           return "border-l-blue-400";
@@ -342,6 +344,17 @@ export function CuratorSectionPanel({
           return "border-l-transparent";
       }
     })();
+
+    // Time ago helper for stale display
+    const staleTimeAgo = staleAt ? (() => {
+      const diff = Date.now() - new Date(staleAt).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins} min ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      return `${Math.floor(hrs / 24)}d ago`;
+    })() : null;
 
     return (
       <>
