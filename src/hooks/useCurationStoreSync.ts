@@ -40,6 +40,8 @@ const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
   extended_brief: 'extended_brief',
   submission_guidelines: 'description',
   solver_expertise: 'solver_expertise_requirements',
+  data_resources_provided: 'data_resources_provided',
+  success_metrics_kpis: 'success_metrics_kpis',
 };
 
 interface UseCurationStoreSyncOptions {

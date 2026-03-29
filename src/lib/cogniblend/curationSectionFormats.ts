@@ -217,6 +217,22 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['scope', 'deliverables', 'evaluation_criteria', 'eligibility', 'domain_tags'],
   },
+  data_resources_provided: {
+    format: 'table',
+    columns: ['resource', 'type', 'format', 'size', 'access_method', 'restrictions'],
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['scope', 'deliverables'],
+  },
+  success_metrics_kpis: {
+    format: 'table',
+    columns: ['kpi', 'baseline', 'target', 'measurement_method', 'timeframe'],
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['expected_outcomes', 'evaluation_criteria'],
+  },
 };
 
 /** Sections where the curator has no edit access */

@@ -60,7 +60,7 @@ export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 3,
     name: 'Complexity',
-    sectionIds: ['deliverables', 'maturity_level', 'complexity'],
+    sectionIds: ['deliverables', 'maturity_level', 'complexity', 'data_resources_provided'],
     prerequisiteSections: ['problem_statement', 'scope'],
   },
   {
