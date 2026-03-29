@@ -107,7 +107,24 @@ interface AIReviewResultPanelProps {
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
 }
 
-/* ── Severity helpers ──────────────────────────────────── */
+/* ── Multi-tier comment type config ─────────────────────── */
+
+const COMMENT_TYPE_CONFIG: Record<string, { label: string; icon: typeof ThumbsUp; badgeClass: string }> = {
+  error:         { label: "Error",         icon: ShieldAlert,    badgeClass: "bg-red-100 text-red-800 border-red-300" },
+  warning:       { label: "Warning",       icon: AlertTriangle,  badgeClass: "bg-amber-100 text-amber-800 border-amber-300" },
+  suggestion:    { label: "Suggestion",    icon: Sparkles,       badgeClass: "bg-blue-100 text-blue-700 border-blue-300" },
+  best_practice: { label: "Best Practice", icon: CheckCircle2,   badgeClass: "bg-purple-100 text-purple-700 border-purple-300" },
+  strength:      { label: "Strength",      icon: ThumbsUp,       badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+};
+
+/* Legacy severity → type mapping */
+const SEVERITY_TO_TYPE: Record<string, string> = {
+  required: 'error',
+  warning: 'warning',
+  strength: 'strength',
+};
+
+/* ── Severity helpers (backward compat) ────────────────── */
 
 const SEVERITY_CONFIG = {
   strength: {
