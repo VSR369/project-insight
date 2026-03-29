@@ -2003,13 +2003,14 @@ export default function CurationReviewPage() {
     const normalized = normalizeSectionReview(complexityReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== 'complexity');
-      const merged = [...filtered, normalized];
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-      return merged;
+      return [...filtered, normalized];
     });
+    // Persist outside setState to avoid mutation-during-render cascades
+    const currentReviews = aiReviews.filter((r) => r.section_key !== 'complexity');
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: [...currentReviews, normalized] });
     const hasIssues = (complexitySection.comments ?? []).length > 0;
     toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
-  }, [challengeId, saveSectionMutation]);
+  }, [challengeId, aiReviews]);
 
   /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
