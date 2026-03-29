@@ -458,7 +458,7 @@ export function ComplexityAssessmentModule({
 
       {activeTab === "manual_params" && (
         <ManualParamsTab
-          complexityParams={complexityParams}
+          complexityParams={effectiveParams}
           draft={manualDraft}
           paramSources={manualParamSources}
           aiJustifications={aiJustifications}
