@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getCurationFormStore, selectStaleSections } from '@/store/curationFormStore';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
+import { parseSuggestionForSection } from '@/lib/cogniblend/parseSuggestion';
 import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
 import { buildChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
 import type { ChallengeContext, BuildChallengeContextOptions } from '@/lib/cogniblend/challengeContextAssembler';
