@@ -495,6 +495,9 @@ Return ONLY the JSON object. No markdown, no explanation.`,
       userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with keys: "proficiency_areas", "sub_domains", "specialities". Each is an array of objects with "id" and "name" keys. Only use IDs from the taxonomy below.${taxonomyContext}\n\nExample: {"proficiency_areas":[{"id":"uuid","name":"Area Name"}],"sub_domains":[{"id":"uuid","name":"SD Name"}],"specialities":[{"id":"uuid","name":"Spec Name"}]}`;
     }
 
+    // Load section config from DB for enriched prompts (Change 5)
+    const dbConfig = await loadSectionConfig(supabaseClient, section_key, resolvedRoleContext);
+
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -504,7 +507,7 @@ Return ONLY the JSON object. No markdown, no explanation.`,
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined) },
+          { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined, dbConfig) },
           { role: "user", content: userPrompt },
         ],
       }),
