@@ -3205,6 +3205,69 @@ export default function CurationReviewPage() {
                         );
                       }
 
+                      case "data_resources_provided": {
+                        const raw = parseJson<Record<string, string>[]>((challenge as any).data_resources_provided) ?? [];
+                        if (isEditing && !isReadOnly) {
+                          return (
+                            <TableSectionEditor
+                              columns={[
+                                { key: "resource", label: "Resource" },
+                                { key: "type", label: "Type" },
+                                { key: "format", label: "Format" },
+                                { key: "size", label: "Size" },
+                                { key: "access_method", label: "Access Method" },
+                                { key: "restrictions", label: "Restrictions" },
+                              ]}
+                              initialRows={raw}
+                              onSave={(rows) => saveSectionMutation.mutate({ field: "data_resources_provided", value: rows })}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                          );
+                        }
+                        return (
+                          <>
+                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      case "success_metrics_kpis": {
+                        const raw = parseJson<Record<string, string>[]>((challenge as any).success_metrics_kpis) ?? [];
+                        if (isEditing && !isReadOnly) {
+                          return (
+                            <TableSectionEditor
+                              columns={[
+                                { key: "kpi", label: "KPI" },
+                                { key: "baseline", label: "Baseline" },
+                                { key: "target", label: "Target" },
+                                { key: "measurement_method", label: "Measurement Method" },
+                                { key: "timeframe", label: "Timeframe" },
+                              ]}
+                              initialRows={raw}
+                              onSave={(rows) => saveSectionMutation.mutate({ field: "success_metrics_kpis", value: rows })}
+                              onCancel={cancelEdit}
+                              saving={savingSection}
+                            />
+                          );
+                        }
+                        return (
+                          <>
+                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+
                       // ── Fallback ──
                       default:
                         return (
