@@ -2742,7 +2742,8 @@ export default function CurationReviewPage() {
                             problemStatement={challenge.problem_statement}
                             operatingModel={challenge.operating_model}
                             challengeTitle={challenge.title}
-                            
+                            maturityLevel={challenge.maturity_level}
+                            complexityLevel={challenge.complexity_level}
                           />
                         );
 
