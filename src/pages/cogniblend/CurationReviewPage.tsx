@@ -3100,6 +3100,8 @@ export default function CurationReviewPage() {
                         sectionActions={getSectionActions(section.key)}
                         promptSource={aiReview?.prompt_source ?? null}
                         expandVersion={expandVersion}
+                        staleBecauseOf={staleSections.find(s => s.key === section.key)?.staleBecauseOf}
+                        staleAt={staleSections.find(s => s.key === section.key)?.staleAt ?? null}
                       >
                         {sectionContent}
                       </CuratorSectionPanel>
