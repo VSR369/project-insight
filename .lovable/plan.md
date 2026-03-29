@@ -1,86 +1,133 @@
 
 
-# Gap Analysis: Spec (Phases 2–7) vs Codebase — Final Status
+# Prompt Engineering Studio: How the 5 Tabs Work During AI Reviews
 
-## Summary
+## What You're Looking At
 
-All previously identified critical gaps from the Phase 7 plan have been **resolved**. The remaining gaps are either spec-vs-codebase naming differences (by design) or minor discrepancies in the spec's original 24-section model vs the implemented 26-section model.
+The Prompt Engineering Studio at `/admin/seeker-config/ai-review-config` is the **control panel** for everything the AI "sees" when it reviews or drafts a curation section. Each of the 26 sections has its own configuration row, edited through these tabs:
 
----
+```text
+┌──────────────┬──────────────────┬───────────────────────┬──────────┬────────────────┐
+│ Instructions │ Quality Criteria │ Constraints &         │ Research │ Preview & Test │
+│              │                  │ Templates             │          │                │
+└──────┬───────┴────────┬─────────┴───────────┬───────────┴────┬─────┴───────┬────────┘
+       │                │                     │                │             │
+   Layer 4          Layer 2               Layer 2          Layer 3     All 5 Layers
+  Supervisor      Structured           Master Data +      Web Search    Assembled
+  Overrides       Quality Rules        Maturity Templates  Directives   & Tested
+```
 
-## RESOLVED GAPS (Confirmed Fixed)
+## How Each Tab Maps to the 5-Layer Prompt
 
-| Gap | Status |
-|-----|--------|
-| GAP 1: 10 completeness checks not seeded | **FIXED** — All 10 rows exist in DB with canonical keys |
-| GAP 2: `complexity_assessment` vs `complexity` key mismatch | **FIXED** — DB uses `complexity`, `legal_docs`, `hook` (canonical) |
-| GAP 3: AI configs missing for new sections | **FIXED** — `data_resources_provided` and `success_metrics_kpis` rows exist in `ai_review_section_config` |
-| GAP 4: Wave config comment says 24 | **FIXED** — Now says "26 curation sections" |
-| GAP 5: `legal_documents` in seed data | **FIXED** — DB uses `legal_docs` |
-| GAP 7: `data_resources_provided` missing from deliverables deps | **FIXED** — Present in deliverables array |
-| GAP 8: `success_metrics_kpis` tab placement | **CORRECT** — Position 5 in problem_definition |
-| GAP 9: `data_resources_provided` tab placement | **CORRECT** — Position 2 in scope_complexity |
+### Tab 1: Instructions (Layer 4 — Supervisor Overrides)
+**Fields:** Review Instructions, Do's, Don'ts, Example Good, Example Poor
 
----
+This is the **human supervisor's voice**. When a curator clicks "AI Review" on a section, these instructions are injected into the prompt as explicit directives. For example, for `evaluation_criteria`:
+- *Review Instructions:* "Check weights sum to 100%, each criterion has a description..."
+- *Do:* "Cross-reference with deliverables and scope"
+- *Don't:* "Do not invent criteria not implied by the challenge"
 
-## REMAINING GAPS (Non-Critical)
+### Tab 2: Quality Criteria (Layer 2 — Structured Rules)
+**Fields:** Name, Description, Severity (error/warning/suggestion), Cross-References
 
-### GAP A: Spec Wave Config Uses Old Section Keys (Informational — No Action Needed)
+These are **machine-readable quality gates**. Each criterion tells the LLM exactly what to check and how severely to flag it. Cross-references inject content from other sections so the AI can check consistency. Example for `deliverables`:
+- MEASURABILITY (error): "Each deliverable must have quantifiable acceptance criteria" — cross-check with `evaluation_criteria`
+- MATURITY_ALIGNMENT (warning): "Deliverable depth must match maturity level" — cross-check with `problem_statement`
 
-The spec's `EXECUTION_WAVES` (Phase 5, lines 2528–2602) uses `context_background`, `complexity_assessment`, `legal_documents`, `challenge_hook`. The codebase correctly maps these to `context_and_background`, `complexity`, `legal_docs`, `hook`. This is already resolved — just noting the spec-vs-code divergence is intentional.
+### Tab 3: Constraints & Templates (Layer 2 — Data Rules)
+**Fields:** Master Data Constraints, Computation Rules, Content Templates (per maturity level)
 
-### GAP B: Spec Dependency Map Uses Old Keys (Informational — No Action Needed)
+- **Master Data Constraints** lock the AI to valid values (e.g., for `domain_tags`, only suggest tags from `md_domain_tags` table)
+- **Computation Rules** give the AI formulas (e.g., "timeline = todaysDate + duration")
+- **Content Templates** provide maturity-specific blueprints (e.g., a POC deliverable template vs a Pilot template)
 
-Same pattern: spec's `DIRECT_DEPENDENCIES` (Phase 3, lines 722–769) uses `context_background`, `complexity_assessment`, `legal_documents`, `challenge_hook`. Codebase uses canonical keys. Already correct.
+### Tab 4: Research (Layer 3 — External Knowledge)
+**Fields:** Web Search Queries, Industry Frameworks, Analyst Sources
 
-### GAP C: Completeness Check #2 Cross-References `success_metrics_kpis` (Enhancement)
+Tells the AI what external knowledge to reference. Example for `context_and_background`:
+- Search: "{{domain}} industry trends 2025 market size" (always)
+- Frameworks: TOGAF, Value Chain Analysis
+- Sources: Gartner, Forrester
 
-The seeded check for "Measurable success criteria" includes `success_metrics_kpis` in its `check_sections` alongside `expected_outcomes` and `evaluation_criteria`. The original spec only listed `['expected_outcomes', 'evaluation_criteria']`. This is an **improvement** — the new section was correctly included as a relevant source for measurability checks.
+### Tab 5: Preview & Test (All 5 Layers Combined)
+Shows the **fully assembled prompt** the LLM will receive, with token count estimate and a "Test Live" button to invoke the edge function with mock data.
 
-### GAP D: Completeness Check #4 Cross-References `data_resources_provided` (Enhancement)
+## The Flow During a Curator AI Review
 
-Similarly, "Data availability" check now includes `data_resources_provided` in its `check_sections`. Original spec only had `['scope', 'deliverables', 'submission_guidelines']`. This is correct — the new section is the canonical place for data specs.
+```text
+Curator clicks "AI Review" on a section
+       │
+       ▼
+useAiSectionReview → edge function (review-challenge-sections)
+       │
+       ▼
+assemblePrompt() composes 5 layers:
+  1. Platform Preamble (shared consulting persona + anti-hallucination rules)
+  2. Section config (quality criteria, constraints, templates from DB)
+  3. Research directives (web searches, frameworks)
+  4. Supervisor overrides (instructions, dos/donts, examples)
+  5. Runtime context (challenge data, cross-referenced section content)
+       │
+       ▼
+Single system prompt → Lovable AI Gateway → LLM response
+       │
+       ▼
+Post-LLM validation (date math, weight sums, master data checks)
+       │
+       ▼
+Result shown in curator panel (accept/reject)
+```
 
-### GAP E: Auto-Trigger Race Condition (LOW — Existing Mitigation)
+## Why Some Boxes Are Empty — and Which Ones Matter
 
-The completeness check auto-triggers when `waveProgress?.overallStatus === 'completed'`. The store may not yet have fresh content synced. Mitigated by the manual "Run completeness check" button. No code change needed unless users report inaccurate first-run results.
+### Current State of All 26 Sections
 
-### GAP F: `extended_brief` Not in Waves or Groups (By Design — No Action)
+**5 sections have NO quality criteria and NO cross-references** — they fall back to a simpler "legacy" prompt path that only uses the Instructions tab:
 
-`extended_brief` exists in `SECTION_FORMAT_CONFIG` as a container section but is intentionally excluded from waves and tab groups. No completeness checks reference it. No issue.
+| Section | Quality Criteria | Cross-Refs | Web Search | Instructions | Impact |
+|---------|:---:|:---:|:---:|:---:|--------|
+| `data_resources_provided` | EMPTY | EMPTY | EMPTY | Minimal | HIGH — new section, needs full config |
+| `success_metrics_kpis` | EMPTY | EMPTY | EMPTY | Minimal | HIGH — new section, needs full config |
+| `challenge_visibility` | EMPTY | EMPTY | EMPTY | YES | MEDIUM — simple field, but could benefit |
+| `effort_level` | EMPTY | EMPTY | EMPTY | YES | MEDIUM — same |
+| `submission_deadline` | EMPTY | EMPTY | EMPTY | YES | LOW — date validation handled by post-LLM |
 
----
+The remaining **21 sections** have quality criteria + cross-references populated and use the full 5-layer prompt path.
 
-## CROSS-PHASE CONSISTENCY CHECK
+### Why This Matters
 
-| Phase | Spec Requirement | Implemented |
-|-------|-----------------|-------------|
-| **Phase 2** | Rate cards table + 18 seed rows | ✅ |
-| **Phase 2** | Prize tier editor in Reward Structure | ✅ |
-| **Phase 2** | Non-monetary incentive registry | ✅ |
-| **Phase 3** | Staleness tracking fields on section state | ✅ |
-| **Phase 3** | Dependency map with transitive BFS | ✅ (26 sections) |
-| **Phase 3** | Submission gate with stale/unreviewed/escrow blockers | ✅ |
-| **Phase 4** | Context assembler (`buildChallengeContext`) | ✅ |
-| **Phase 4** | Post-LLM validation (dates, weights, master data, rates) | ✅ |
-| **Phase 4** | Solution-type complexity dimensions | ✅ |
-| **Phase 5** | 6-wave sequential execution | ✅ (26 sections across 6 waves) |
-| **Phase 5** | Pre-flight gate (PS + Scope mandatory) | ✅ |
-| **Phase 5** | Budget shortfall auto-revision | ✅ |
-| **Phase 5** | Wave progress UI | ✅ |
-| **Phase 6** | 5-layer prompt config schema | ✅ |
-| **Phase 6** | Prompt Engineering Studio (`/admin/seeker-config/ai-review-config`) | ✅ |
-| **Phase 6** | All 24 section prompts seeded | ✅ (now 26) |
-| **Phase 6** | Phase templates (12 combos) | ✅ |
-| **Phase 7** | Completeness checks table + 10 seeds | ✅ |
-| **Phase 7** | Completeness engine + hook + sidebar card | ✅ |
-| **Phase 7** | 2 new sections (Data & Resources, Success Metrics) | ✅ |
-| **Phase 7** | Sections in formats, deps, waves, groups, DB field map | ✅ |
-| **Phase 7** | AI configs seeded for 2 new sections | ✅ |
+The `assemblePrompt()` function has a **critical fork** at line 160:
 
----
+```text
+if (!hasStructuredData(config))  →  assembleLegacyPrompt()   // minimal prompt
+else                             →  assemblePrompt()          // full 5-layer prompt
+```
 
-## VERDICT
+`hasStructuredData` returns `true` only if `quality_criteria`, `cross_references`, or `master_data_constraints` has at least one entry. **The 5 empty sections above get the legacy path** — a stripped-down prompt with just the Instructions tab content, no quality gates, no cross-section consistency checks, no research directives.
 
-**No actionable gaps remain.** All 10 completeness checks are seeded with correct canonical keys. AI review configs exist for all 26 sections. Dependencies, waves, and tab placements match the spec. The only remaining item (GAP E: race condition) is low-priority and has a manual workaround already in place.
+### What Should Be Populated
+
+For the two **new Phase 7 sections**, the spec defined specific quality criteria:
+
+**`data_resources_provided`** should have:
+- COMPLETENESS (error): Every data dependency in Scope must have a resource listed
+- ACCESS_CLARITY (warning): Each resource must specify format, size, access method
+- FORMAT_SPECIFICITY (suggestion): Prefer structured formats (CSV, API) over "will be provided"
+- Cross-references: `scope`, `deliverables`, `submission_guidelines`
+
+**`success_metrics_kpis`** should have:
+- QUANTITATIVE (error): Every KPI must have a numeric target, not qualitative
+- OUTCOME_ALIGNMENT (warning): KPIs must map to Expected Outcomes
+- EVALUATION_ALIGNMENT (warning): KPIs should be measurable by evaluation criteria
+- BASELINE_REALITY (suggestion): Include current baseline if available
+- Cross-references: `expected_outcomes`, `evaluation_criteria`, `deliverables`
+
+### Recommended Fix
+
+Create a migration to populate the quality criteria, cross-references, and research directives for all 5 under-configured sections. Priority:
+1. `data_resources_provided` — new, completely bare
+2. `success_metrics_kpis` — new, completely bare
+3. `challenge_visibility`, `effort_level`, `submission_deadline` — functional but would benefit from structured criteria
+
+This ensures every section gets the full 5-layer prompt with proper quality gates and cross-section consistency checks when curators run AI reviews.
 
