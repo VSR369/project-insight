@@ -635,6 +635,48 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
           </div>
         </>
       )}
+
+      {/* ── Prize Tier Editor (shown when reward type includes monetary) ── */}
+      {rewardType && (showMonetary || rewardType === 'both') && prizeTiers.length > 0 && (
+        <div className="border-t border-border pt-4">
+          <h4 className="text-sm font-semibold text-foreground mb-3">Prize Tier Breakdown</h4>
+          <PrizeTierEditor
+            tiers={prizeTiers}
+            totalPool={cashPool}
+            currencySymbol={currSym}
+            disabled={isSubmitted || (!isEditing && sectionState !== 'saved')}
+            onAddTier={handleAddPrizeTier}
+            onUpdateTier={handleUpdatePrizeTier}
+            onDeleteTier={handleDeletePrizeTier}
+            onReorder={handleReorderPrizeTier}
+          />
+        </div>
+      )}
+
+      {/* ── Incentive Selector ── */}
+      {rewardType && (
+        <div className="border-t border-border pt-4">
+          <IncentiveSelector
+            availableIncentives={allIncentives}
+            selections={incentiveSelections}
+            maturityLevel={maturityLevel}
+            complexityLevel={complexityLevel}
+            disabled={isSubmitted || (!isEditing && sectionState !== 'saved')}
+            onAdd={handleAddIncentive}
+            onRemove={handleRemoveIncentive}
+            onUpdateCommitment={handleUpdateCommitment}
+          />
+        </div>
+      )}
+
+      {/* ── Effective Solver Value ── */}
+      {rewardType && (cashPool > 0 || incentiveSelections.length > 0) && (
+        <EffectiveSolverValue
+          cashPool={cashPool}
+          currencySymbol={currSym}
+          selections={incentiveSelections}
+        />
+      )}
     </div>
   );
 });
