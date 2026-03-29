@@ -1,43 +1,21 @@
 
 
-# Fix: Pre-Flight Falsely Flags Extended Brief Subsections as Empty
+# Fix: Runtime crash "Cannot read properties of undefined (reading 'icon')"
 
 ## Root Cause
 
-The `handleAIReview` function (line 1725-1738) builds `sectionContents` for the pre-flight check by:
-1. Checking the Zustand store
-2. Falling back to `(challenge as any)?.[key]`
+In `AIReviewResultPanel.tsx` line 569, `STATUS_BADGE[result.status]` returns `undefined` when `result.status` contains a value not in the map (only `pass`, `warning`, `needs_revision`, `inferred` are defined). The AI review API likely returns a status like `"fail"` or `"error"` that has no entry, causing `statusBadge.icon` to crash on line 767.
 
-Step 2 fails for **all 6 extended brief subsections** (`context_and_background`, `root_causes`, `affected_stakeholders`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`) because these are stored inside the `extended_brief` JSONB column, not as top-level fields on the `challenges` table.
+## Fix
 
-The `getSectionContent` helper (line 926) already handles this correctly via `EXTENDED_BRIEF_FIELD_MAP`, but it is never called during pre-flight content assembly.
+**File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`**
 
-## Fix — Single change in `CurationReviewPage.tsx`
-
-### Location: Lines 1733-1738 (the fallback branch inside the `sectionContents` builder)
-
-After the existing store/challenge fallback loop, add a second pass that populates any still-missing extended brief subsections from `challenge.extended_brief`:
+1. Add a fallback entry to handle unknown statuses:
 
 ```typescript
-// After the existing loop (line 1738), add:
-// Populate extended_brief subsections that aren't top-level challenge fields
-const eb = parseJson<any>(challenge.extended_brief);
-if (eb) {
-  for (const [subKey, jsonbField] of Object.entries(EXTENDED_BRIEF_FIELD_MAP)) {
-    if (!sectionContents[subKey]) {
-      const val = eb[jsonbField];
-      if (val != null) {
-        sectionContents[subKey] = typeof val === 'string' ? val : JSON.stringify(val);
-      }
-    }
-  }
-}
+const statusBadge = STATUS_BADGE[result.status] 
+  ?? STATUS_BADGE.warning;  // Safe fallback for unknown statuses
 ```
 
-This is ~8 lines. It uses the already-imported `EXTENDED_BRIEF_FIELD_MAP` and `parseJson`, so no new imports needed. It covers all 6 subsections universally — any future subsections added to the map will automatically be included.
-
-## What this fixes
-- "Context & Background" false warning disappears when content exists in `extended_brief.context_background`
-- All other extended brief subsections (`root_causes`, `affected_stakeholders`, etc.) will also be correctly detected if they are ever added to pre-flight checks
-- No changes to `preFlightCheck.ts` needed — the problem is in how data is assembled, not how it is checked
+This single-line change on line 569 prevents the crash by falling back to the `warning` badge config when an unrecognized status comes from the API. No other files need changes.
 
