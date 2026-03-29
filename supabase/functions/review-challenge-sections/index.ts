@@ -26,31 +26,38 @@ const MAX_BATCH_SIZE = 12;
 /* ── Hardcoded fallback section definitions ──────────────── */
 
 const CURATION_SECTIONS = [
+  // Wave 1: Foundation
   { key: "problem_statement", desc: "Clarity, specificity, context, why it matters, what has been tried" },
   { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity, no ambiguity" },
-  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
-  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
-  { key: "reward_structure", desc: "Fair, well-structured, matches challenge complexity" },
-  { key: "phase_schedule", desc: "Realistic timelines, sufficient for the scope and complexity" },
-  { key: "submission_guidelines", desc: "Clear format, content, and process requirements" },
-  { key: "eligibility", desc: "Specific qualifications, no overly broad or restrictive criteria" },
-  { key: "complexity", desc: "Properly assessed with justified parameter values" },
-  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
-  { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
-  { key: "escrow_funding", desc: "Escrow funded (if required)" },
-  { key: "maturity_level", desc: "Set and consistent with challenge depth" },
-  { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
-  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
-  { key: "visibility", desc: "Solver visibility types properly configured" },
-  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
-  // Extended Brief subsections
+  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
   { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
+  { key: "success_metrics_kpis", desc: "Quantitative KPIs aligned with expected outcomes and deliverables" },
+  // Wave 2: Enrichment
   { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
   { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
   { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
   { key: "preferred_approach", desc: "Seeker's strategic preferences — never rewrite human content" },
   { key: "approaches_not_of_interest", desc: "Human-only section — approaches to exclude" },
+  // Wave 3: Complexity
+  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
+  { key: "maturity_level", desc: "Set and consistent with challenge depth" },
+  { key: "complexity", desc: "Properly assessed with justified parameter values" },
+  { key: "data_resources_provided", desc: "Datasets, APIs, documentation, and resources available to solvers" },
+  // Wave 4: Solvers & Timeline
+  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
+  { key: "eligibility", desc: "Specific qualifications, no overly broad or restrictive criteria" },
+  { key: "phase_schedule", desc: "Realistic timelines, sufficient for the scope and complexity" },
+  { key: "submission_guidelines", desc: "Clear format, content, and process requirements" },
+  // Wave 5: Evaluation & Commercial
+  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
+  { key: "reward_structure", desc: "Fair, well-structured, matches challenge complexity" },
+  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
+  { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
+  { key: "escrow_funding", desc: "Escrow funded (if required)" },
+  // Wave 6: Presentation
+  { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
+  { key: "visibility", desc: "Solver visibility types properly configured" },
+  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
 ];
 
 const INTAKE_SECTIONS = [
@@ -197,7 +204,7 @@ async function callAIBatch(
   systemPrompt: string,
   userPrompt: string,
   sectionKeys: string[],
-): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string }[]> {
+): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[] }[]> {
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
     headers: {
@@ -215,7 +222,7 @@ async function callAIBatch(
           type: "function",
           function: {
             name: "review_sections",
-            description: "Return per-section review results.",
+            description: "Return per-section review results with optional suggestions and cross-section issues.",
             parameters: {
               type: "object",
               properties: {
@@ -224,17 +231,47 @@ async function callAIBatch(
                   items: {
                     type: "object",
                     properties: {
-                      section_key: { type: "string" },
-                      status: { type: "string", enum: ["pass", "warning", "needs_revision"] },
-                      comments: { type: "array", items: { type: "string" } },
+                      section_key: { type: "string", description: "The section identifier" },
+                      status: {
+                        type: "string",
+                        enum: ["pass", "warning", "needs_revision", "generated"],
+                        description: "pass = content is good, warning = minor issues, needs_revision = errors found, generated = new content was created for an empty section",
+                      },
+                      comments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "Comment severity level" },
+                            field: { type: "string", description: "Specific field name or null for general comment" },
+                            comment: { type: "string", description: "Clear, specific issue description referencing challenge details" },
+                            reasoning: { type: "string", description: "Why this matters, referencing other sections" },
+                          },
+                          required: ["severity", "comment"],
+                        },
+                      },
+                      suggestion: {
+                        type: "string",
+                        description: "For 'generate' action: the full generated content for this section. For 'review' action: suggested improved content if significant changes are recommended. Null/empty if no content suggestion needed.",
+                      },
+                      cross_section_issues: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            related_section: { type: "string", description: "Section key of the conflicting section" },
+                            issue: { type: "string", description: "Description of the cross-section inconsistency" },
+                            suggested_resolution: { type: "string" },
+                          },
+                        },
+                        description: "Cross-section consistency issues found during review. Empty array if none.",
+                      },
                     },
                     required: ["section_key", "status", "comments"],
-                    additionalProperties: false,
                   },
                 },
               },
               required: ["sections"],
-              additionalProperties: false,
             },
           },
         },
@@ -252,6 +289,19 @@ async function callAIBatch(
   }
 
   const result = await response.json();
+
+  // Token usage logging (Fix 6)
+  const tokenUsage = result.usage || {};
+  console.log(JSON.stringify({
+    event: 'ai_review_tokens',
+    sectionKeys,
+    model: result.model || model || 'unknown',
+    prompt_tokens: tokenUsage.prompt_tokens || 0,
+    completion_tokens: tokenUsage.completion_tokens || 0,
+    total_tokens: tokenUsage.total_tokens || 0,
+    timestamp: new Date().toISOString(),
+  }));
+
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
 
@@ -259,12 +309,15 @@ async function callAIBatch(
   const now = new Date().toISOString();
   const sections = (parsed.sections ?? []).map((s: any) => {
     // Normalize: pass with comments → warning (prevent confusing UI)
-    const hasComments = Array.isArray(s.comments) && s.comments.length > 0;
+    const comments = Array.isArray(s.comments) ? s.comments : [];
+    const hasComments = comments.length > 0;
     const normalizedStatus = (s.status === 'pass' && hasComments) ? 'warning' : s.status;
     return {
       ...s,
       status: normalizedStatus,
-      comments: Array.isArray(s.comments) ? s.comments : [],
+      comments,
+      suggestion: s.suggestion || null,
+      cross_section_issues: Array.isArray(s.cross_section_issues) ? s.cross_section_issues : [],
       reviewed_at: now,
     };
   });
@@ -277,6 +330,8 @@ async function callAIBatch(
         section_key: key,
         status: "warning",
         comments: ["Review could not be completed for this section. Please re-review individually."],
+        suggestion: null,
+        cross_section_issues: [],
         reviewed_at: now,
       });
     }
@@ -481,7 +536,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content } = await req.json();
+    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content, wave_action } = await req.json();
     const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
 
     if (!challenge_id && !isPreviewMode) {
@@ -710,9 +765,19 @@ serve(async (req) => {
       : Promise.resolve();
 
     for (const batch of batches) {
-      const userPrompt = section_key
-        ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`
-        : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
+      // Build action-aware user prompt instruction (Fix 2)
+      let userPromptInstruction: string;
+      if (wave_action === 'generate') {
+        userPromptInstruction = `The following section(s) are EMPTY. Generate complete, enterprise-grade content for each based on the challenge context provided. The content must be specific to THIS challenge — reference the problem domain, technologies, constraints, and stakeholders by name. Return the generated content in the "suggestion" field of each section result. Set status to "generated".`;
+      } else if (wave_action === 'review_and_enhance') {
+        userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. If the content needs improvement based on the new context, return enhanced content in the "suggestion" field. If the content is fine, leave suggestion empty and set status to "pass" or "warning".`;
+      } else if (section_key) {
+        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity, and optionally a suggestion with improved content if significant changes are recommended.`;
+      } else {
+        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity, and optionally a suggestion with improved content if significant changes are recommended.`;
+      }
+
+      const userPrompt = `${userPromptInstruction}\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
 
       let systemPrompt: string;
       if (useDbConfig && dbConfigMap) {
