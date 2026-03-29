@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, Save, X, GraduationCap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +36,6 @@ export interface SolverExpertiseData {
   proficiency_areas?: SelectedItem[];
   sub_domains?: SelectedItem[];
   specialities?: SelectedItem[];
-  industry_segment_id?: string;
 }
 
 interface SolverExpertiseSectionProps {
@@ -192,7 +190,7 @@ export default function SolverExpertiseSection({
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
   const [internalEditing, setInternalEditing] = useState(false);
-  const [localSelectedSegmentId, setLocalSelectedSegmentId] = useState<string | null>(null);
+  // localSelectedSegmentId removed — industry segment is now set upstream in Context & Background
   const [selectedELs, setSelectedELs] = useState<Set<string>>(new Set((parsed.expertise_levels ?? []).map(i => i.id)));
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
@@ -207,7 +205,7 @@ export default function SolverExpertiseSection({
   const editing = externalEditing ?? internalEditing;
   const { data: industrySegments } = useIndustrySegments();
 
-  const effectiveSegmentId = industrySegmentId ?? localSelectedSegmentId;
+  const effectiveSegmentId = industrySegmentId;
   const industryName = industrySegments?.find(s => s.id === effectiveSegmentId)?.name;
 
   const { tree, expertiseLevels: allExpertiseLevels, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
@@ -236,7 +234,6 @@ export default function SolverExpertiseSection({
   // ══════════════════════════════════════
   const handleCancel = () => {
     setInternalEditing(false);
-    setLocalSelectedSegmentId(null);
     externalOnCancel?.();
   };
 
@@ -270,12 +267,9 @@ export default function SolverExpertiseSection({
       sub_domains: sdItems.length > 0 ? sdItems : undefined,
       specialities: spItems.length > 0 ? spItems : undefined,
     };
-    if (!industrySegmentId && localSelectedSegmentId) {
-      savePayload.industry_segment_id = localSelectedSegmentId;
-    }
     onSave(savePayload);
     setInternalEditing(false);
-  }, [tree, allExpertiseLevels, selectedELs, selectedPAs, selectedSDs, selectedSPs, onSave, industrySegmentId, localSelectedSegmentId]);
+  }, [tree, allExpertiseLevels, selectedELs, selectedPAs, selectedSDs, selectedSPs, onSave]);
 
   const toggleEL = (id: string) => setSelectedELs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -389,18 +383,8 @@ export default function SolverExpertiseSection({
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Select the industry segment for this challenge to configure solver expertise requirements.
+          No industry segment configured. Please set it in <strong>Context &amp; Background</strong> (Tab 1) first.
         </p>
-        <Select onValueChange={(val) => setLocalSelectedSegmentId(val)}>
-          <SelectTrigger className="w-full max-w-sm">
-            <SelectValue placeholder="Select industry segment…" />
-          </SelectTrigger>
-          <SelectContent>
-            {(industrySegments ?? []).map(seg => (
-              <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={handleCancel}>
             <X className="h-3 w-3 mr-1" />Cancel

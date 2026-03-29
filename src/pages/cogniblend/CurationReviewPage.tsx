@@ -1687,6 +1687,16 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "domain_tags", value: updated });
   }, [challenge, saveSectionMutation]);
 
+  // ── Industry Segment change handler (persists to eligibility JSONB) ──
+  const handleIndustrySegmentChange = useCallback((segmentId: string) => {
+    if (!challengeId || !challenge) return;
+    const currentElig = parseJson<any>(challenge.eligibility) ?? {};
+    currentElig.industry_segment_id = segmentId;
+    supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+    });
+  }, [challengeId, challenge, queryClient]);
+
   /**
    * Phase 5: Wave-based AI Review with Pre-Flight Gate.
    * Replaces the old 2-phase triage+deep pipeline.
@@ -1713,7 +1723,24 @@ export default function CurationReviewPage() {
     if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
     if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
 
+    // Also check industry segment is set
+    const industrySegId = resolveIndustrySegmentId(challenge);
+    if (!industrySegId) {
+      sectionContents['industry_segment'] = null;
+    }
+
     const pfResult = preFlightCheck(sectionContents);
+
+    // Add industry segment as mandatory blocker if missing
+    if (!industrySegId) {
+      pfResult.missingMandatory.push({
+        sectionId: 'context_and_background' as any,
+        sectionName: 'Industry Segment',
+        reason: 'Industry segment must be set in Context & Background before AI review. It drives taxonomy cascades across all sections.',
+      });
+      pfResult.canProceed = false;
+    }
+
     setPreFlightResult(pfResult);
 
     if (!pfResult.canProceed) {
@@ -2441,8 +2468,7 @@ export default function CurationReviewPage() {
 
               {/* Industry Segment */}
               {(() => {
-                const targeting = parseJson<any>(challenge.eligibility);
-                const segmentId = targeting?.industry_segment_id;
+                const segmentId = resolveIndustrySegmentId(challenge);
                 const segmentName = industrySegments?.find(s => s.id === segmentId)?.name;
                 return (
                   <div>
@@ -2450,7 +2476,7 @@ export default function CurationReviewPage() {
                     {segmentName ? (
                       <Badge variant="outline" className="mt-1 text-xs">{segmentName}</Badge>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic mt-0.5">No industry segment specified</p>
+                      <p className="text-sm text-destructive/80 italic mt-0.5">Not set — required in Context &amp; Background</p>
                     )}
                   </div>
                 );
@@ -2993,16 +3019,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(expertiseData) => {
                                 setSavingSection(true);
-                                // If curator selected an industry segment, persist it to eligibility
-                                if (expertiseData.industry_segment_id) {
-                                  const currentElig = parseJson<any>(challenge.eligibility) ?? {};
-                                  currentElig.industry_segment_id = expertiseData.industry_segment_id;
-                                  supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId!).then(() => {
-                                    queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
-                                  });
-                                }
-                                const { industry_segment_id, ...saveData } = expertiseData;
-                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: saveData });
+                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
                                 setEditingSection(null);
                               }}
                               saving={savingSection}
@@ -3022,8 +3039,69 @@ export default function CurationReviewPage() {
                         const eb = parseExtendedBrief(challenge.extended_brief);
                         const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
                           ? getSubsectionValue(eb, "context_and_background") as string : "";
+                        const resolvedSegId = resolveIndustrySegmentId(challenge);
+                        // Determine if segment came from AM intake (targeting_filters)
+                        const tf = parseJson<any>(challenge.targeting_filters);
+                        const segmentFromIntake = !!(tf?.industries?.length > 0);
                         return (
                           <>
+                            {/* Industry Segment — mandatory prerequisite field */}
+                            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5 mb-3">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
+                                {segmentFromIntake && resolvedSegId && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
+                                )}
+                                {!resolvedSegId && !isReadOnly && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">Required</Badge>
+                                )}
+                              </div>
+
+                              {/* Read-only: from intake or viewer mode */}
+                              {resolvedSegId && (segmentFromIntake || isReadOnly) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {industrySegments?.find(s => s.id === resolvedSegId)?.name ?? "Loading…"}
+                                </Badge>
+                              )}
+
+                              {/* Editable: curator-set, allow change */}
+                              {resolvedSegId && !segmentFromIntake && !isReadOnly && (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {industrySegments?.find(s => s.id === resolvedSegId)?.name ?? "Loading…"}
+                                  </Badge>
+                                  <Select value={resolvedSegId} onValueChange={handleIndustrySegmentChange}>
+                                    <SelectTrigger className="w-auto max-w-[220px] h-7 text-xs border-dashed">
+                                      <span className="text-muted-foreground">Change</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(industrySegments ?? []).map(seg => (
+                                        <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+
+                              {/* Not set: mandatory dropdown */}
+                              {!resolvedSegId && !isReadOnly && (
+                                <Select onValueChange={handleIndustrySegmentChange}>
+                                  <SelectTrigger className="w-full max-w-sm h-8 text-sm border-destructive/50">
+                                    <SelectValue placeholder="Select industry segment…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(industrySegments ?? []).map(seg => (
+                                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {!resolvedSegId && isReadOnly && (
+                                <p className="text-sm text-destructive italic">No industry segment specified — required before review.</p>
+                              )}
+                            </div>
+
                             <RichTextSectionRenderer
                               value={textVal}
                               readOnly={isReadOnly}

@@ -12,7 +12,9 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Plus, Trash2, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pencil, Plus, Trash2, Sparkles, AlertCircle } from "lucide-react";
+import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import {
   Table,
   TableBody,
@@ -76,6 +78,12 @@ interface ExtendedBriefDisplayProps {
   onMarkAddressed: (sectionKey: string) => void;
   challengeContext?: { title?: string; maturity_level?: string | null; domain_tags?: string[] };
   expandVersion?: number;
+  /** Resolved industry segment ID (from AM/Creator or curator) */
+  industrySegmentId?: string | null;
+  /** Whether the segment was provided by AM/Creator (intake origin) */
+  industrySegmentFromIntake?: boolean;
+  /** Callback when curator selects/changes industry segment */
+  onIndustrySegmentChange?: (segmentId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -281,9 +289,16 @@ export default function ExtendedBriefDisplay({
   onMarkAddressed,
   challengeContext,
   expandVersion,
+  industrySegmentId,
+  industrySegmentFromIntake,
+  onIndustrySegmentChange,
 }: ExtendedBriefDisplayProps) {
   const brief = parseExtendedBrief(data);
   const [editingKey, setEditingKey] = useState<string | null>(null);
+
+  // ── Industry segment master data ──
+  const { data: industrySegments } = useIndustrySegments();
+  const resolvedSegmentName = industrySegments?.find(s => s.id === industrySegmentId)?.name;
 
   // ── Save a subsection into the extended_brief JSONB ──
   const handleSubsectionSave = useCallback(
@@ -328,6 +343,61 @@ export default function ExtendedBriefDisplay({
 
   return (
     <div className="space-y-2">
+      {/* ── Industry Segment Field (mandatory prerequisite) ── */}
+      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
+          {industrySegmentFromIntake && industrySegmentId && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
+          )}
+          {!industrySegmentId && !readOnly && (
+            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+              <AlertCircle className="h-2.5 w-2.5 mr-0.5" />Required
+            </Badge>
+          )}
+        </div>
+
+        {/* Read-only: segment was provided by AM/Creator or already set */}
+        {industrySegmentId && (industrySegmentFromIntake || readOnly) && (
+          <Badge variant="secondary" className="text-xs">{resolvedSegmentName ?? "Loading…"}</Badge>
+        )}
+
+        {/* Editable: segment was set by curator (not from intake) — show with change option */}
+        {industrySegmentId && !industrySegmentFromIntake && !readOnly && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">{resolvedSegmentName ?? "Loading…"}</Badge>
+            <Select value={industrySegmentId} onValueChange={(val) => onIndustrySegmentChange?.(val)}>
+              <SelectTrigger className="w-auto max-w-[220px] h-7 text-xs border-dashed">
+                <span className="text-muted-foreground">Change</span>
+              </SelectTrigger>
+              <SelectContent>
+                {(industrySegments ?? []).map(seg => (
+                  <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Not set: mandatory dropdown for curator */}
+        {!industrySegmentId && !readOnly && (
+          <Select onValueChange={(val) => onIndustrySegmentChange?.(val)}>
+            <SelectTrigger className="w-full max-w-sm h-8 text-sm border-destructive/50">
+              <SelectValue placeholder="Select industry segment…" />
+            </SelectTrigger>
+            <SelectContent>
+              {(industrySegments ?? []).map(seg => (
+                <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {!industrySegmentId && readOnly && (
+          <p className="text-sm text-destructive italic">No industry segment specified — required before review.</p>
+        )}
+      </div>
+
       {EXTENDED_BRIEF_SUBSECTION_KEYS.map((subsectionKey) => {
         const meta = SUBSECTION_META[subsectionKey];
         const formatConfig = SECTION_FORMAT_CONFIG[subsectionKey];
