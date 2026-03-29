@@ -73,6 +73,7 @@ export function ComplexityAssessmentModule({
   currentLevel,
   currentParams,
   complexityParams,
+  solutionType,
   onSave,
   onLock,
   onUnlock,
