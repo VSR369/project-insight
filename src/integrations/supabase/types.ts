@@ -1026,6 +1026,65 @@ export type Database = {
           },
         ]
       }
+      challenge_prize_tiers: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          created_by_role: string | null
+          description: string | null
+          fixed_amount: number | null
+          id: string
+          is_default: boolean
+          max_winners: number
+          percentage_of_pool: number
+          rank: number
+          tier_name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_role?: string | null
+          description?: string | null
+          fixed_amount?: number | null
+          id?: string
+          is_default?: boolean
+          max_winners?: number
+          percentage_of_pool?: number
+          rank?: number
+          tier_name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_role?: string | null
+          description?: string | null
+          fixed_amount?: number | null
+          id?: string
+          is_default?: boolean
+          max_winners?: number
+          percentage_of_pool?: number
+          rank?: number
+          tier_name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_prize_tiers_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_qa: {
         Row: {
           anonymous_id: string | null
