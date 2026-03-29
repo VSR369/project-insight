@@ -20,10 +20,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+/** Comment can be a plain string (legacy) or structured object (multi-tier) */
+export type SectionComment = string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string };
+
 export interface SectionReview {
   section_key: string;
   status: "pass" | "warning" | "needs_revision" | "generated";
-  comments: (string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string })[];
+  comments: SectionComment[];
   reviewed_at?: string;
   addressed?: boolean;
   prompt_source?: "supervisor" | "default";
