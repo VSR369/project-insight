@@ -963,6 +963,8 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "domain_tags": return ch.domain_tags ? JSON.stringify(ch.domain_tags) : null;
+    case "data_resources_provided": return ch.data_resources_provided ? JSON.stringify(ch.data_resources_provided) : null;
+    case "success_metrics_kpis": return ch.success_metrics_kpis ? JSON.stringify(ch.success_metrics_kpis) : null;
     case "expected_outcomes": {
       const eo = parseJson<any>(ch.expected_outcomes);
       if (!eo) return null;
