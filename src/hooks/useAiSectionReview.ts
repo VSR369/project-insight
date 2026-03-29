@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { getCurationFormStore, selectIsAnyReviewPending } from '@/store/curationFormStore';
 import { getReviewRoute } from '@/lib/sectionRoutes';
 import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
+import { parseSuggestionForSection } from '@/lib/cogniblend/parseSuggestion';
 import type { ChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
 import type { SectionKey } from '@/types/sections';
 
