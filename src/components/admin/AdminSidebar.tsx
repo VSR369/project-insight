@@ -109,6 +109,8 @@ const seekerConfigItems = [
   { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
   { title: 'Governance Rules', icon: Shield, path: '/admin/seeker-config/governance-rules' },
   { title: 'AI Review Config', icon: Settings, path: '/admin/seeker-config/ai-review-config' },
+  { title: 'Rate Cards', icon: CreditCard, path: '/admin/seeker-config/rate-cards' },
+  { title: 'Non-Monetary Incentives', icon: Award, path: '/admin/seeker-config/incentives' },
 ];
 
 const complianceConfigItems = [
