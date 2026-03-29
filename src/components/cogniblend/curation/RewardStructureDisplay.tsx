@@ -26,6 +26,12 @@ import RewardTypeToggle from './rewards/RewardTypeToggle';
 import SourceBanner from './rewards/SourceBanner';
 import MonetaryRewardEditor from './rewards/MonetaryRewardEditor';
 import NonMonetaryRewardEditor from './rewards/NonMonetaryRewardEditor';
+import PrizeTierEditor from './rewards/PrizeTierEditor';
+import IncentiveSelector from './rewards/IncentiveSelector';
+import EffectiveSolverValue from './rewards/EffectiveSolverValue';
+import { useChallengePrizeTiers, useCreatePrizeTier, useUpdatePrizeTier, useDeletePrizeTier } from '@/hooks/queries/useChallengePrizeTiers';
+import { useChallengeIncentiveSelections, useAddIncentiveSelection, useRemoveIncentiveSelection, useUpdateIncentiveCommitment } from '@/hooks/queries/useChallengeIncentiveSelections';
+import { useNonMonetaryIncentives } from '@/hooks/queries/useNonMonetaryIncentives';
 
 export interface RewardStructureDisplayHandle {
   applyAIReviewResult: (data: any) => void;
