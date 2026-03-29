@@ -219,6 +219,17 @@ export function createCurationFormStore(challengeId: string) {
             },
           })),
 
+        setValidationResult: (key, result) =>
+          set((state) => ({
+            sections: {
+              ...state.sections,
+              [key]: {
+                ...(state.sections[key] ?? createEmptySectionEntry()),
+                validationResult: result,
+              },
+            },
+          })),
+
         hydrate: (sectionsData) =>
           set((state) => {
             const hydrated: Partial<Record<SectionKey, SectionStoreEntry>> = { ...state.sections };
