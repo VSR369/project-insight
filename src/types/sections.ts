@@ -29,6 +29,8 @@ export interface SectionStoreEntry {
   reviewStatus: ReviewStatus;
   /** Whether AI suggestions have been addressed (accepted or rejected) */
   addressed: boolean;
+  /** Post-LLM validation results (null = no validation run) */
+  validationResult: ValidationResult | null;
 
   /* ── Staleness tracking (Phase 3) ── */
 
