@@ -816,7 +816,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes"],
+    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes", "success_metrics_kpis"],
   },
   {
     id: "challenge_context",
