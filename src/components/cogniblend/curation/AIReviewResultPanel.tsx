@@ -864,8 +864,10 @@ export function AIReviewResultPanel({
               </div>
             </div>
             {parsedComments.map((comment, i) => {
-              const sev = comment.severity ? SEVERITY_CONFIG[comment.severity] : SEVERITY_CONFIG.warning;
-              const SevIcon = sev.icon;
+              // Use new multi-tier type if available, else fall back to inferred severity
+              const commentType = comment.type || SEVERITY_TO_TYPE[comment.severity || 'warning'] || 'warning';
+              const typeConfig = COMMENT_TYPE_CONFIG[commentType] || COMMENT_TYPE_CONFIG.warning;
+              const TypeIcon = typeConfig.icon;
               const isSelected = selectedComments.has(i);
               const isExpanded = expandedComments.has(i);
               const isLong = comment.text.length > 160;
@@ -898,11 +900,16 @@ export function AIReviewResultPanel({
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2 mb-0.5">
                       <Badge
-                        className={cn("text-[11px] px-2 py-0.5 shrink-0", sev.badgeClass)}
+                        className={cn("text-[11px] px-2 py-0.5 shrink-0", typeConfig.badgeClass)}
                       >
-                        <SevIcon className="h-2.5 w-2.5 mr-0.5" />
-                        {sev.label}
+                        <TypeIcon className="h-2.5 w-2.5 mr-0.5" />
+                        {typeConfig.label}
                       </Badge>
+                      {comment.field && (
+                        <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                          {comment.field}
+                        </span>
+                      )}
                     </div>
                     <span className={cn(
                       "text-sm text-foreground leading-relaxed block",
@@ -910,6 +917,11 @@ export function AIReviewResultPanel({
                     )}>
                       {comment.text}
                     </span>
+                    {comment.reasoning && (
+                      <p className="text-xs text-muted-foreground italic mt-1">
+                        {comment.reasoning}
+                      </p>
+                    )}
                     {isLong && (
                       <button
                         type="button"
@@ -935,6 +947,32 @@ export function AIReviewResultPanel({
                 </label>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Domain Guidelines ── */}
+        {result.guidelines && result.guidelines.length > 0 && (
+          <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800/40">
+            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-1.5">Domain Guidelines</p>
+            {result.guidelines.map((g: string, gi: number) => (
+              <p key={gi} className="text-sm text-indigo-600 dark:text-indigo-400 mt-1 leading-relaxed">• {g}</p>
+            ))}
+          </div>
+        )}
+
+        {/* ── Cross-Section Issues ── */}
+        {result.cross_section_issues && result.cross_section_issues.length > 0 && (
+          <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800/40">
+            <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1.5">Cross-Section Issues</p>
+            {result.cross_section_issues.map((issue: CrossSectionIssue, ci: number) => (
+              <div key={ci} className="text-sm text-orange-600 dark:text-orange-400 mt-1 leading-relaxed">
+                <span className="font-medium">↔ {issue.related_section.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: </span>
+                {issue.issue}
+                {issue.suggested_resolution && (
+                  <span className="text-orange-500 dark:text-orange-300 ml-1">→ {issue.suggested_resolution}</span>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
