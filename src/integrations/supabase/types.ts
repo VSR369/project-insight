@@ -1375,6 +1375,7 @@ export type Database = {
           reward_structure: Json | null
           scope: string | null
           shadow_fee_amount: number | null
+          solution_type: string | null
           solutions_awarded: number
           solver_eligibility_id: string | null
           solver_eligibility_types: Json | null
@@ -1445,6 +1446,7 @@ export type Database = {
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
+          solution_type?: string | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
@@ -1515,6 +1517,7 @@ export type Database = {
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
+          solution_type?: string | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
@@ -1697,6 +1700,54 @@ export type Database = {
           id?: string
           to_role?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      complexity_dimensions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dimension_key: string
+          dimension_name: string
+          display_order: number
+          id: string
+          is_active: boolean
+          level_1_description: string
+          level_3_description: string
+          level_5_description: string
+          solution_type: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dimension_key: string
+          dimension_name: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          level_1_description: string
+          level_3_description: string
+          level_5_description: string
+          solution_type: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dimension_key?: string
+          dimension_name?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          level_1_description?: string
+          level_3_description?: string
+          level_5_description?: string
+          solution_type?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
