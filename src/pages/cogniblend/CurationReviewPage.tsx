@@ -3165,7 +3165,7 @@ export default function CurationReviewPage() {
                     const updatedData = {
                       ...(typeof existingReward.data === 'object' && existingReward.data ? existingReward.data : {}),
                       _budgetRevised: true,
-                      _revisedReward: budgetShortfall.revisedReward ?? budgetShortfall.originalBudget,
+                      _revisedReward: budgetShortfall.originalBudget,
                       _revisionStrategy: budgetShortfall.strategy,
                     };
                     curationStore.getState().setSectionData('reward_structure' as SectionKey, updatedData as Record<string, unknown>);
