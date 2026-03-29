@@ -104,6 +104,12 @@ export function useWaveExecutor({
           );
           store.getState().clearStaleness(sectionKey);
 
+          // Fix 3: Propagate generated content to store so next wave sees it in context
+          const suggestion = (normalized as any).suggestion;
+          if (suggestion && typeof suggestion === 'string' && suggestion.trim().length > 0) {
+            store.getState().setSectionData(sectionKey, suggestion);
+          }
+
           // Post-LLM validation
           if (context.todaysDate) {
             const validationResult = validateAIOutput(

@@ -765,9 +765,19 @@ serve(async (req) => {
       : Promise.resolve();
 
     for (const batch of batches) {
-      const userPrompt = section_key
-        ? `Review ONLY the "${section_key}" section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`
-        : `Review each section of this ${contextLabel}:\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
+      // Build action-aware user prompt instruction (Fix 2)
+      let userPromptInstruction: string;
+      if (wave_action === 'generate') {
+        userPromptInstruction = `The following section(s) are EMPTY. Generate complete, enterprise-grade content for each based on the challenge context provided. The content must be specific to THIS challenge — reference the problem domain, technologies, constraints, and stakeholders by name. Return the generated content in the "suggestion" field of each section result. Set status to "generated".`;
+      } else if (wave_action === 'review_and_enhance') {
+        userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. If the content needs improvement based on the new context, return enhanced content in the "suggestion" field. If the content is fine, leave suggestion empty and set status to "pass" or "warning".`;
+      } else if (section_key) {
+        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity, and optionally a suggestion with improved content if significant changes are recommended.`;
+      } else {
+        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity, and optionally a suggestion with improved content if significant changes are recommended.`;
+      }
+
+      const userPrompt = `${userPromptInstruction}\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
 
       let systemPrompt: string;
       if (useDbConfig && dbConfigMap) {

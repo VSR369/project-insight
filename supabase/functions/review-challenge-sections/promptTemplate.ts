@@ -262,6 +262,12 @@ export function buildStructuredBatchPrompt(
       parts.push(`Frameworks: ${(frameworks as string[]).join(', ')}`);
     }
 
+    // Analyst sources (Fix 4)
+    const sources = config.analyst_sources ?? [];
+    if (sources.length > 0) {
+      parts.push(`Analyst sources to cite: ${(sources as string[]).join(', ')}`);
+    }
+
     // IP Model selection guidelines
     if (config.section_key === 'ip_model') {
       parts.push(`IP MODEL SELECTION GUIDELINES — your comments MUST provide reasoning for the recommended model:`);
