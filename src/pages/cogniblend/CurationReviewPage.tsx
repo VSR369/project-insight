@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+// shallow equality removed — using JSON stabilization instead
 // Phase 5 imports
 import { preFlightCheck, type PreFlightResult } from "@/lib/cogniblend/preFlightCheck";
 import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
@@ -1285,7 +1286,22 @@ export default function CurationReviewPage() {
 
   // ── Staleness tracking via Zustand store ──
   const curationStore = challengeId ? getCurationFormStore(challengeId) : null;
-  const staleSections = curationStore ? curationStore(selectStaleSections) : [];
+  // Use a stable selector: extract only stale keys as a serializable fingerprint,
+  // then derive the full objects via useMemo to prevent re-render cascades.
+  const staleFingerprint = curationStore
+    ? curationStore((state) => {
+        const keys = Object.entries(state.sections)
+          .filter(([, s]) => s?.isStale)
+          .map(([k]) => k)
+          .sort()
+          .join(',');
+        return keys;
+      })
+    : '';
+  const staleSections = useMemo(() => {
+    if (!staleFingerprint || !curationStore) return [];
+    return selectStaleSections(curationStore.getState());
+  }, [staleFingerprint, curationStore]);
 
   /** Wrapper: call markSectionSaved after any section save and toast if sections became stale */
   const notifyStaleness = useCallback((sectionKey: string) => {
@@ -1381,11 +1397,13 @@ export default function CurationReviewPage() {
     const normalized = normalizeSectionReview(review);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const merged = [...filtered, { ...normalized, addressed: false }];
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-      return merged;
+      return [...filtered, { ...normalized, addressed: false }];
     });
-  }, [saveSectionMutation]);
+    // Persist outside setState to avoid mutation-during-render cascades
+    const currentReviews = aiReviews.filter((r) => r.section_key !== sectionKey);
+    const merged = [...currentReviews, { ...normalized, addressed: false }];
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: merged });
+  }, [aiReviews]);
 
   const { executeWaves, reReviewStale, cancelReview, waveProgress, isRunning: isWaveRunning } = useWaveExecutor({
     challengeId: challengeId!,
@@ -1423,6 +1441,10 @@ export default function CurationReviewPage() {
 
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
 
+  // Stable ref for saveSectionMutation — avoids unstable deps in effects
+  const saveSectionMutationRef = useRef(saveSectionMutation);
+  saveSectionMutationRef.current = saveSectionMutation;
+
   // ── One-time migration: repair corrupted section content ──
   const contentMigrationRanRef = useRef(false);
   useEffect(() => {
@@ -1438,9 +1460,9 @@ export default function CurationReviewPage() {
 
     const corrupted = findCorruptedFields(targets);
     corrupted.forEach(({ dbField, fixed }) => {
-      saveSectionMutation.mutate({ field: dbField, value: fixed });
+      saveSectionMutationRef.current.mutate({ field: dbField, value: fixed });
     });
-  }, [challenge, saveSectionMutation]);
+  }, [challenge]);
 
   // ══════════════════════════════════════
   // SECTION 4: Handlers
@@ -1948,16 +1970,17 @@ export default function CurationReviewPage() {
     const normalized = normalizeSectionReview(freshReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const updated = [...filtered, { ...normalized, addressed: false }];
-      // Persist updated reviews to DB
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
-      return updated;
+      return [...filtered, { ...normalized, addressed: false }];
     });
+    // Persist outside setState to avoid mutation-during-render cascades
+    const currentReviews = aiReviews.filter((r) => r.section_key !== sectionKey);
+    const updated = [...currentReviews, { ...normalized, addressed: false }];
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: updated });
 
     // If complexity re-review, extract suggested_complexity from the review data
     // The standard re-review path calls review-challenge-sections which returns suggested_complexity
     // We need a custom handler for complexity to extract the ratings after re-review
-  }, [saveSectionMutation]);
+  }, [aiReviews]);
 
   /** Custom re-review handler for complexity — calls review-challenge-sections and extracts suggested_complexity */
   const handleComplexityReReview = useCallback(async (_sectionKey: string) => {
@@ -1995,13 +2018,14 @@ export default function CurationReviewPage() {
     const normalized = normalizeSectionReview(complexityReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== 'complexity');
-      const merged = [...filtered, normalized];
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-      return merged;
+      return [...filtered, normalized];
     });
+    // Persist outside setState to avoid mutation-during-render cascades
+    const currentReviews = aiReviews.filter((r) => r.section_key !== 'complexity');
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: [...currentReviews, normalized] });
     const hasIssues = (complexitySection.comments ?? []).length > 0;
     toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
-  }, [challengeId, saveSectionMutation]);
+  }, [challengeId, aiReviews]);
 
   /** Accept refinement for extended brief subsections — merge into extended_brief JSONB */
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
@@ -2056,14 +2080,16 @@ export default function CurationReviewPage() {
   /** Persist "addressed" flag when a refinement is accepted */
   const handleMarkAddressed = useCallback((sectionKey: string) => {
     setAiReviews((prev) => {
-      const updated = prev.map((r) =>
+      return prev.map((r) =>
         r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
       );
-      // Persist to DB so state survives navigation
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
-      return updated;
     });
-  }, [saveSectionMutation]);
+    // Persist outside setState to avoid mutation-during-render cascades
+    const updated = aiReviews.map((r) =>
+      r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
+    );
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: updated });
+  }, [aiReviews]);
 
 
   const toggleSectionApproval = useCallback((key: string) => {
