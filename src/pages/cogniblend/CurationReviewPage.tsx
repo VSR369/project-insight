@@ -3285,6 +3285,29 @@ export default function CurationReviewPage() {
             readOnly={isReadOnly}
             legalEscrowBlocked={legalEscrowBlocked}
             blockingReason={blockingReason}
+            staleSections={staleSections.map(s => ({
+              key: s.key,
+              name: getSectionDisplayName(s.key),
+              causes: s.staleBecauseOf.map(c => getSectionDisplayName(c)),
+              staleAt: s.staleAt ?? new Date().toISOString(),
+            }))}
+            unreviewedSections={aiReviews
+              .filter(r => r.status === 'needs_revision')
+              .map(r => ({ key: r.section_key, name: SECTION_MAP.get(r.section_key)?.label ?? r.section_key }))}
+            onNavigateToStale={() => {
+              if (staleSections.length > 0) {
+                const firstKey = staleSections[0].key;
+                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
+                if (group) setActiveGroup(group.id);
+              }
+            }}
+            onReReviewStale={() => {
+              if (staleSections.length > 0) {
+                const firstKey = staleSections[0].key;
+                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
+                if (group) setActiveGroup(group.id);
+              }
+            }}
           />
 
           {/* Modification Points Tracker */}
