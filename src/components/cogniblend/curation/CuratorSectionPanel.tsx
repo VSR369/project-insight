@@ -166,6 +166,12 @@ function StatusBadge({ status }: { status: SectionStatus }) {
           Needs Revision
         </Badge>
       );
+    case "stale":
+      return (
+        <Badge className={cn(badgeBase, "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100")}>
+          <AlertTriangle className="h-3 w-3 mr-1" />Stale — re-review
+        </Badge>
+      );
     case "view_only":
       return (
         <Badge className={cn(badgeBase, "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100")}>
