@@ -1955,16 +1955,17 @@ export default function CurationReviewPage() {
     const normalized = normalizeSectionReview(freshReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const updated = [...filtered, { ...normalized, addressed: false }];
-      // Persist updated reviews to DB
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
-      return updated;
+      return [...filtered, { ...normalized, addressed: false }];
     });
+    // Persist outside setState to avoid mutation-during-render cascades
+    const currentReviews = aiReviews.filter((r) => r.section_key !== sectionKey);
+    const updated = [...currentReviews, { ...normalized, addressed: false }];
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: updated });
 
     // If complexity re-review, extract suggested_complexity from the review data
     // The standard re-review path calls review-challenge-sections which returns suggested_complexity
     // We need a custom handler for complexity to extract the ratings after re-review
-  }, [saveSectionMutation]);
+  }, [aiReviews]);
 
   /** Custom re-review handler for complexity — calls review-challenge-sections and extracts suggested_complexity */
   const handleComplexityReReview = useCallback(async (_sectionKey: string) => {
