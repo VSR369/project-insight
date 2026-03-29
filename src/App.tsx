@@ -156,6 +156,8 @@ const BillingCyclesPage = lazy(() => import("@/pages/admin/billing-cycles").then
 const PaymentMethodsPage = lazy(() => import("@/pages/admin/payment-methods").then(m => ({ default: m.PaymentMethodsPage })));
 const GovernanceRulesPage = lazy(() => import("@/pages/admin/seeker-config/GovernanceRulesPage"));
 const AIReviewConfigPage = lazy(() => import("@/pages/admin/seeker-config/AIReviewConfigPage"));
+const RateCardsPage = lazy(() => import("@/pages/admin/rate-cards").then(m => ({ default: m.RateCardsPage })));
+const IncentivesPage = lazy(() => import("@/pages/admin/incentives").then(m => ({ default: m.IncentivesPage })));
 
 // Platform Admin Management Pages (MOD-01, lazy loaded)
 const PlatformAdminListPage = lazy(() => import("@/pages/admin/platform-admins/PlatformAdminListPage"));
