@@ -64,6 +64,7 @@ export type SectionStatus =
   | "pending_response"
   | "response_received"
   | "accepted"
+  | "stale"
   // Legacy (kept for backward compat)
   | "pending_modification"
   | "curator_approved";
