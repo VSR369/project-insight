@@ -286,6 +286,10 @@ export default function CurationActions({
   });
 
   const handleSubmitClick = () => {
+    if (staleSections.length > 0) {
+      toast.error(`${staleSections.length} section(s) are stale and need re-review before submitting.`);
+      return;
+    }
     if (legalEscrowBlocked) {
       toast.error(blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.');
       return;
