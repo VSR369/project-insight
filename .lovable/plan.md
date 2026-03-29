@@ -1,37 +1,50 @@
 
+Fix plan: Industry Segment is not persisting in a way pre-flight can read, so AI review keeps blocking.
 
-# Fix: Industry Segment Selection Not Persisting / Pre-Flight Still Blocking
+## What is happening now
+- DB check for challenge `8348e671-1174-48d8-b1f4-389290ea885a` shows:
+  - `eligibility` = array JSON string (no `industry_segment_id`)
+  - `targeting_filters` = empty
+- Current save handler writes industry segment into `eligibility`, but that field is currently used/stored as an array-like payload in this record, so `industry_segment_id` is not reliably persisted.
+- Pre-flight uses `resolveIndustrySegmentId()`, which currently does not fully handle all targeting_filters shapes used elsewhere.
 
-## Root Cause Analysis
+## Implementation plan
 
-Based on network logs, **no PATCH request was made** when the user selected an industry segment. This means `handleIndustrySegmentChange` either wasn't invoked or returned early. Two issues found:
+### 1) Make industry segment persistence canonical in `targeting_filters`
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Update `handleIndustrySegmentChange` to save into `targeting_filters` (not `eligibility`).
+- Persist both keys for compatibility:
+  - `targeting_filters.industry_segment_id = <id>`
+  - `targeting_filters.industries = [<id>]`
+- Keep existing query invalidation and success/error toasts.
 
-1. **Context & Background section may not be expanded/visible** when the user navigates to it from the pre-flight dialog. The `onGoToSection('context_and_background')` navigates to the correct tab, but the industry segment dropdown is rendered inside the section's case block — if the section isn't the active/visible one, the user may see the tab but not the dropdown.
+### 2) Harden industry segment resolver
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Update `resolveIndustrySegmentId()` fallback order to support both existing data formats:
+  1. `targeting_filters.industry_segment_id`
+  2. `targeting_filters.industries[0]`
+  3. `eligibility.industry_segment_id` (only when eligibility parses to object, not array)
+  4. `eligibility_model` (existing legacy fallback)
 
-2. **Double-encoding risk**: `handleIndustrySegmentChange` calls `JSON.stringify(currentElig)` before passing to `.update()`. The Supabase JS client already serializes the body to JSON, so JSONB columns should receive plain objects, not pre-stringified values. This could cause the saved value to be a JSON string literal rather than a JSON object, making `parseJson` return the right result once but potentially causing issues with the fallback chain.
+### 3) Remove race condition before refetch completes
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Add a local optimistic state/ref for the just-selected industry segment.
+- Use this optimistic value in:
+  - Context & Background rendering
+  - Pre-flight check (`handleAIReview`)
+- Clear/reconcile it after query refetch.
 
-3. **No visual confirmation in the dropdown itself**: After save + query invalidation + refetch, the dropdown re-renders from scratch. If the refetch is slow, the user sees the old state momentarily.
+### 4) Align “from intake” detection with real data shapes
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Update intake attribution check to recognize both:
+  - `targeting_filters.industry_segment_id`
+  - `targeting_filters.industries[0]`
+- Ensures badge/readonly logic reflects actual source correctly.
 
-## Plan (1 file, ~15 lines changed)
-
-### File: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-**Fix 1 — Remove double-encoding**: Change the save from `JSON.stringify(currentElig)` to passing the object directly:
-```typescript
-// Before (double-encodes):
-.update({ eligibility: JSON.stringify(currentElig) })
-
-// After (correct for JSONB):
-.update({ eligibility: currentElig })
-```
-
-**Fix 2 — Await query refetch before proceeding**: Change `invalidateQueries` to await the refetch so the UI reflects the updated value immediately:
-```typescript
-await queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
-```
-
-**Fix 3 — Pre-flight dialog navigation**: When `onGoToSection('context_and_background')` fires, ensure it scrolls to and highlights the industry segment field so the user knows exactly where to act. Add a small auto-scroll-to-element behavior using the existing section navigation mechanism.
-
-## Risk
-- Very low — fixes a data serialization bug and adds proper async handling
-- No behavioral change for users who already have the segment set from intake
+## Validation checklist
+- Select industry segment in Context & Background.
+- Verify PATCH payload includes `targeting_filters` with `industry_segment_id`.
+- Verify DB row stores the selected segment under `targeting_filters`.
+- Click AI Review immediately after selecting; pre-flight should no longer block for Industry Segment.
+- Refresh page and confirm selected segment persists.
+- Re-test old records where segment was set from intake and from wizard to ensure resolver works for both.
