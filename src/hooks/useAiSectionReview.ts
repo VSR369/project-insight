@@ -75,10 +75,14 @@ export function useAiSectionReview({
       if (data?.success && data.data?.sections) {
         const reviewResult = (data.data.sections as any[])[0];
         if (reviewResult) {
+          const rawSuggestion = reviewResult.suggestion ?? null;
+          const parsedSuggestion = rawSuggestion && typeof rawSuggestion === 'string'
+            ? parseSuggestionForSection(sectionKey, rawSuggestion)
+            : rawSuggestion;
           store.getState().setAiReview(
             sectionKey,
             reviewResult.comments ?? [],
-            reviewResult.suggestion ?? null,
+            parsedSuggestion,
           );
           // Clear staleness after successful review
           store.getState().clearStaleness(sectionKey);
