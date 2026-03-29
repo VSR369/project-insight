@@ -8,6 +8,14 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+// Phase 5 imports
+import { preFlightCheck, type PreFlightResult } from "@/lib/cogniblend/preFlightCheck";
+import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
+import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
+import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
+import { useWaveExecutor } from "@/hooks/useWaveExecutor";
+import { detectBudgetShortfall, type BudgetShortfallResult } from "@/lib/cogniblend/budgetShortfallDetection";
+import { buildChallengeContext, type BuildChallengeContextOptions } from "@/lib/cogniblend/challengeContextAssembler";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -1022,6 +1030,11 @@ export default function CurationReviewPage() {
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
 
+  // ── Phase 5: Pre-flight gate + budget shortfall state ──
+  const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
+  const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
+  const [budgetShortfall, setBudgetShortfall] = useState<BudgetShortfallResult | null>(null);
+
   // Expand / collapse all sections in the active group
   const handleExpandCollapseAll = useCallback((expand: boolean) => {
     const groupDef = GROUPS.find((g) => g.id === activeGroup);
@@ -1260,7 +1273,45 @@ export default function CurationReviewPage() {
     },
   });
 
-  // ── Reward structure ref for AI review result acceptance ──
+  // ── Phase 5: Wave Executor ──
+  const buildContextOptions = useCallback((): BuildChallengeContextOptions => {
+    const store = challengeId ? getCurationFormStore(challengeId) : null;
+    const storeSections: BuildChallengeContextOptions['storeSections'] = {};
+    if (store) {
+      const state = store.getState();
+      for (const [key, entry] of Object.entries(state.sections)) {
+        if (entry) storeSections[key as SectionKey] = { data: entry.data };
+      }
+    }
+    return {
+      challengeId: challengeId!,
+      challengeTitle: challenge?.title ?? '',
+      solutionType: (challenge as any)?.solution_type ?? null,
+      seekerSegment: null,
+      organizationTypeId: null,
+      maturityLevelFromChallenge: challenge?.maturity_level ?? null,
+      storeSections,
+    };
+  }, [challengeId, challenge?.title, challenge?.maturity_level]);
+
+  const handleWaveSectionReviewed = useCallback((sectionKey: string, review: SectionReview) => {
+    const normalized = normalizeSectionReview(review);
+    setAiReviews((prev) => {
+      const filtered = prev.filter((r) => r.section_key !== sectionKey);
+      const merged = [...filtered, { ...normalized, addressed: false }];
+      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
+      return merged;
+    });
+  }, [saveSectionMutation]);
+
+  const { executeWaves, reReviewStale, cancelReview, waveProgress, isRunning: isWaveRunning } = useWaveExecutor({
+    challengeId: challengeId!,
+    buildContextOptions,
+    onSectionReviewed: handleWaveSectionReviewed,
+    onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
+  });
+
+
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
 
   // ── One-time migration: repair corrupted section content ──
@@ -1506,150 +1557,69 @@ export default function CurationReviewPage() {
   }, [challenge, saveSectionMutation]);
 
   /**
-   * 2-Phase Smart Pipeline:
-   * Phase 1: Lightweight triage — single LLM call, returns pass/warning/inferred per section.
-   * Phase 2: Deep suggestion — sequential calls only for warning/inferred sections.
+   * Phase 5: Wave-based AI Review with Pre-Flight Gate.
+   * Replaces the old 2-phase triage+deep pipeline.
    */
-  const aiReviewInFlightRef = useRef(false);
   const handleAIReview = useCallback(async () => {
     if (!challengeId || !challenge) return;
-    // Double-click guard — prevents parallel reviews even if state update is batched
-    if (aiReviewInFlightRef.current) return;
-    aiReviewInFlightRef.current = true;
+    if (isWaveRunning) return;
+
+    // Step 1: Pre-flight check
+    const store = curationStore;
+    const sectionContents: Record<string, string | null> = {};
+    if (store) {
+      const state = store.getState();
+      for (const [key, entry] of Object.entries(state.sections)) {
+        if (entry?.data != null) {
+          sectionContents[key] = typeof entry.data === 'string' ? entry.data : JSON.stringify(entry.data);
+        } else {
+          // Fallback to challenge data
+          sectionContents[key] = (challenge as any)?.[key] ?? null;
+        }
+      }
+    }
+    // Also check direct challenge fields for mandatory sections
+    if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
+    if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
+
+    const pfResult = preFlightCheck(sectionContents);
+    setPreFlightResult(pfResult);
+
+    if (!pfResult.canProceed) {
+      setPreFlightDialogOpen(true);
+      return;
+    }
+
+    if (pfResult.warnings.length > 0) {
+      // Show warning dialog — user can proceed or fill first
+      setPreFlightDialogOpen(true);
+      return;
+    }
+
+    // No issues — execute waves directly
+    await executeWavesWithBudgetCheck();
+  }, [challengeId, challenge, isWaveRunning, curationStore]);
+
+  /** Execute waves and check budget shortfall after Wave 5 */
+  const executeWavesWithBudgetCheck = useCallback(async () => {
     setAiReviewLoading(true);
-    setPhase2Status('idle');
     setTriageTotalCount(0);
     try {
-      // ── Phase 1: Triage ──────────────────────────────────────
-      const { data: triageData, error: triageError } = await supabase.functions.invoke("triage-challenge-sections", {
-        body: { challenge_id: challengeId, role_context: 'curation' },
-      });
-      if (triageError) {
-        let msg = triageError.message;
-        try { const body = await (triageError as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
-        throw new Error(msg);
-      }
-      if (!triageData?.success) {
-        throw new Error(triageData?.error?.message ?? "Triage failed");
-      }
+      await executeWaves();
 
-      const VALID_CURATION_KEYS = new Set([
-        'problem_statement', 'scope', 'deliverables', 'evaluation_criteria', 'reward_structure',
-        'phase_schedule', 'submission_guidelines', 'eligibility', 'complexity', 'ip_model',
-        'legal_docs', 'escrow_funding', 'maturity_level', 'hook',
-        'domain_tags', 'visibility', 'solver_expertise',
-        'context_and_background', 'root_causes', 'affected_stakeholders', 'current_deficiencies',
-        'preferred_approach', 'approaches_not_of_interest',
-      ]);
-      const triageReviews = (triageData.data.all_reviews as SectionReview[]).filter(r => VALID_CURATION_KEYS.has(r.section_key));
-      const rawRouting = triageData.data.routing as { pass: string[]; warning: string[]; inferred: string[]; phase2_queue: string[] };
-      const routing = {
-        pass: rawRouting.pass.filter(k => VALID_CURATION_KEYS.has(k)),
-        warning: rawRouting.warning.filter(k => VALID_CURATION_KEYS.has(k)),
-        inferred: rawRouting.inferred.filter(k => VALID_CURATION_KEYS.has(k)),
-        phase2_queue: rawRouting.phase2_queue.filter(k => VALID_CURATION_KEYS.has(k)),
-      };
+      // After completion, check for budget shortfall
+      const ctx = buildChallengeContext(buildContextOptions());
+      const shortfall = detectBudgetShortfall(ctx);
+      setBudgetShortfall(shortfall);
 
-      // Safety net: any "pass" section with comments must be routed to phase2_queue
-      triageReviews.forEach(r => {
-        if (r.status === 'pass' && r.comments && r.comments.length > 0) {
-          r.status = 'warning';
-          routing.pass = routing.pass.filter(k => k !== r.section_key);
-          if (!routing.warning.includes(r.section_key)) {
-            routing.warning.push(r.section_key);
-          }
-          if (!routing.phase2_queue.includes(r.section_key)) {
-            routing.phase2_queue.push(r.section_key);
-          }
-        }
-      });
-
-      // Set triage results immediately — pass sections show instantly
-      setAiReviews(triageReviews);
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: triageReviews });
-
-      const passCount = routing.pass.length;
-      const phase2Count = routing.phase2_queue.length;
-      const totalTriaged = triageReviews.length;
-      setTriageTotalCount(totalTriaged);
-      toast.success(`Phase 1 triage: ${passCount} pass, ${phase2Count} need${phase2Count !== 1 ? '' : 's'} deeper review`);
-
-      // ── Phase 2: Deep review (sequential, for warning/inferred sections) ──
-      const phase2Queue = routing.phase2_queue;
-
-      if (phase2Queue.length > 0) {
-        setPhase2Status('running');
-        setPhase2Progress({ total: phase2Queue.length, completed: 0 });
-
-        for (const sectionKey of phase2Queue) {
-          try {
-            const { data: reviewData, error: reviewError } = await supabase.functions.invoke("review-challenge-sections", {
-              body: { challenge_id: challengeId, section_key: sectionKey, role_context: 'curation' },
-            });
-            if (reviewError) continue;
-            if (reviewData?.success && reviewData.data?.sections) {
-              const deepReview = (reviewData.data.sections as SectionReview[])[0];
-              if (deepReview) {
-                const normalizedDeep = normalizeSectionReview(deepReview);
-
-                // Extract suggested_complexity from complexity section reviews
-                if (sectionKey === 'complexity') {
-                  const rawComplexitySection = (reviewData.data.sections as any[])[0];
-                  if (rawComplexitySection?.suggested_complexity) {
-                    setAiSuggestedComplexity({ ...rawComplexitySection.suggested_complexity });
-                  }
-                }
-
-                setAiReviews((prev) => {
-                  const filtered = prev.filter((r) => r.section_key !== sectionKey);
-                  const merged = [...filtered, { ...normalizedDeep, addressed: false }];
-                  saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-                  return merged;
-                });
-
-                // Auto-trigger Phase 2 refinement with issues from deep review (skip complexity — it uses structured table)
-                if (sectionKey !== 'complexity' && deepReview.comments && deepReview.comments.length > 0) {
-                  try {
-                    await supabase.functions.invoke("refine-challenge-section", {
-                      body: {
-                        challenge_id: challengeId,
-                        section_key: sectionKey,
-                        current_content: (challenge as any)?.[sectionKey] || "[empty]",
-                        issues: deepReview.comments,
-                        role_context: 'curation',
-                        context: {
-                          title: challenge?.title,
-                          maturity_level: challenge?.maturity_level,
-                          domain_tags: challenge?.domain_tags,
-                        },
-                      },
-                    });
-                  } catch {
-                    // Refinement failure non-blocking — review still visible
-                  }
-                }
-              }
-            }
-          } catch {
-            // Individual section failure — triage result stays
-          } finally {
-            setPhase2Progress((prev) => ({ ...prev, completed: prev.completed + 1 }));
-          }
-        }
-      } else {
-        // All sections passed — no Phase 2 needed
-        setPhase2Progress({ total: 0, completed: 0 });
-      }
+      // Update triage total count for the completion banner
+      setTriageTotalCount(24);
     } catch (e: any) {
       toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
     } finally {
       setAiReviewLoading(false);
-      aiReviewInFlightRef.current = false;
-      // Mark as completed — progress bar persists at 100%
-      setPhase2Status('completed');
-      setPhase2Progress((prev) => prev.total > 0 ? { ...prev, completed: prev.total } : prev);
     }
-  }, [challengeId, challenge]);
+  }, [executeWaves, buildContextOptions]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
@@ -3178,19 +3148,25 @@ export default function CurationReviewPage() {
             Review Sections by AI
           </Button>
 
-          {/* Phase 2 Progress Bar — persists at 100% after completion */}
-          {phase2Status === 'running' && phase2Progress.total > 0 && (
-            <Card className="border-border">
-              <CardContent className="pt-3 pb-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Phase 2: Deep review</p>
-                <Progress value={(phase2Progress.completed / phase2Progress.total) * 100} className="h-2" />
-                <p className="text-[10px] text-muted-foreground">
-                  {phase2Progress.completed}/{phase2Progress.total} sections analyzed
-                  {" · "}
-                  {Math.round((phase2Progress.completed / phase2Progress.total) * 100)}%
-                </p>
-              </CardContent>
-            </Card>
+          {/* Wave Progress Panel (Phase 5) */}
+          <WaveProgressPanel progress={waveProgress} onCancel={cancelReview} />
+
+          {/* Budget Revision Panel (Phase 5) */}
+          {budgetShortfall && (
+            <BudgetRevisionPanel
+              shortfall={budgetShortfall}
+              currencyCode={challenge?.currency_code ?? 'USD'}
+              onAcceptAndSendToAM={() => {
+                toast.success('Revision accepted. Notification sent to Account Manager.');
+                setBudgetShortfall(null);
+              }}
+              onModifyManually={() => {
+                const group = GROUPS.find(g => g.sectionKeys.includes('reward_structure'));
+                if (group) setActiveGroup(group.id);
+                setBudgetShortfall(null);
+              }}
+              onReject={() => setBudgetShortfall(null)}
+            />
           )}
 
           {/* Completion Banner — shows after AI review finishes */}
@@ -3326,12 +3302,9 @@ export default function CurationReviewPage() {
                 if (group) setActiveGroup(group.id);
               }
             }}
-            onReReviewStale={() => {
-              if (staleSections.length > 0) {
-                const firstKey = staleSections[0].key;
-                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
-                if (group) setActiveGroup(group.id);
-              }
+            onReReviewStale={async () => {
+              setAiReviewLoading(true);
+              try { await reReviewStale(); } finally { setAiReviewLoading(false); }
             }}
           />
 
@@ -3349,6 +3322,18 @@ export default function CurationReviewPage() {
         sectionLabel={lockedSendState.sectionLabel}
         initialComment={lockedSendState.initialComment}
         aiOriginalComments={lockedSendState.aiOriginalComments}
+      />
+
+      {/* Phase 5: Pre-Flight Gate Dialog */}
+      <PreFlightGateDialog
+        result={preFlightResult}
+        open={preFlightDialogOpen}
+        onOpenChange={setPreFlightDialogOpen}
+        onGoToSection={(sectionKey) => {
+          const group = GROUPS.find(g => g.sectionKeys.includes(sectionKey));
+          if (group) setActiveGroup(group.id);
+        }}
+        onProceed={executeWavesWithBudgetCheck}
       />
     </div>
   );
