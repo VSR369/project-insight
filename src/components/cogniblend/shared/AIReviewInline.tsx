@@ -280,6 +280,7 @@ export function AIReviewInline({
 
   // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
   // Skip for complexity — it uses structured parameter table, not text refinement
+  // Skip if the review already includes an inline suggestion (Change 4: no redundant refine call)
   const autoRefineTriggered = React.useRef(false);
   useEffect(() => {
     if (
@@ -288,14 +289,21 @@ export function AIReviewInline({
       sectionKey !== 'complexity' &&
       review &&
       !review.addressed &&
-      (review.status === "warning" || review.status === "needs_revision") &&
+      (review.status === "warning" || review.status === "needs_revision" || review.status === "generated") &&
       review.comments && review.comments.length > 0 &&
       !refinedContent &&
       !isRefining &&
       selectedComments.size > 0
     ) {
       autoRefineTriggered.current = true;
-      // Small delay to allow UI to settle
+
+      // If the review already returned an inline suggestion, use it directly — no second LLM call
+      if (review.suggestion && typeof review.suggestion === 'string' && review.suggestion.trim().length > 0) {
+        setRefinedContent(review.suggestion);
+        return;
+      }
+
+      // No inline suggestion — fall back to separate refine call
       const timer = setTimeout(() => {
         handleRefineWithAI();
       }, 300);
