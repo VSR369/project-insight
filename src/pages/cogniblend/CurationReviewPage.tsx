@@ -1382,11 +1382,13 @@ export default function CurationReviewPage() {
     const normalized = normalizeSectionReview(review);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const merged = [...filtered, { ...normalized, addressed: false }];
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-      return merged;
+      return [...filtered, { ...normalized, addressed: false }];
     });
-  }, [saveSectionMutation]);
+    // Persist outside setState to avoid mutation-during-render cascades
+    const currentReviews = aiReviews.filter((r) => r.section_key !== sectionKey);
+    const merged = [...currentReviews, { ...normalized, addressed: false }];
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: merged });
+  }, [aiReviews]);
 
   const { executeWaves, reReviewStale, cancelReview, waveProgress, isRunning: isWaveRunning } = useWaveExecutor({
     challengeId: challengeId!,
