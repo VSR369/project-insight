@@ -29,6 +29,18 @@ import {
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 
+interface StaleSectionInfo {
+  key: string;
+  name: string;
+  causes: string[];
+  staleAt: string;
+}
+
+interface UnreviewedSectionInfo {
+  key: string;
+  name: string;
+}
+
 interface CurationActionsProps {
   challengeId: string;
   phaseStatus: string | null;
@@ -40,6 +52,10 @@ interface CurationActionsProps {
   readOnly?: boolean;
   legalEscrowBlocked?: boolean;
   blockingReason?: string;
+  staleSections?: StaleSectionInfo[];
+  unreviewedSections?: UnreviewedSectionInfo[];
+  onNavigateToStale?: () => void;
+  onReReviewStale?: () => void;
 }
 
 export default function CurationActions({
