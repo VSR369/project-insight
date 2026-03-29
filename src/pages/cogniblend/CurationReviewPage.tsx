@@ -1252,7 +1252,7 @@ export default function CurationReviewPage() {
   });
 
 
-    if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
+    useEffect(() => {
       let stored: SectionReview[] = [];
 
       if (Array.isArray(challenge.ai_section_reviews)) {
