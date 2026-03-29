@@ -114,6 +114,8 @@ export interface CuratorSectionPanelProps {
   staleBecauseOf?: string[];
   /** Staleness: when this section became stale (ISO timestamp) */
   staleAt?: string | null;
+  /** Post-LLM validation results */
+  validationResult?: ValidationResult | null;
 }
 
 // Export localStorage helpers so parent can bulk-update expand state
