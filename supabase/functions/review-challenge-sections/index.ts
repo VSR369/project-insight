@@ -335,6 +335,9 @@ CRITICAL RULES:
 - Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."
 - Today's date is {{todaysDate}}. All temporal assessments must use this as reference.`;
 
+  const todaysDate = clientContext?.todaysDate || new Date().toISOString().split('T')[0];
+  const resolvedComplexityPrompt = COMPLEXITY_SYSTEM_PROMPT.replace('{{todaysDate}}', todaysDate);
+
   const paramDescriptions = paramsData.map(
     (p: any) => `- **${p.param_key}** (${p.name}): ${p.description ?? "No description"} [weight: ${(p.weight * 100).toFixed(0)}%]`
   ).join("\n");
