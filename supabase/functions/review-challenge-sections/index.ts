@@ -801,24 +801,27 @@ serve(async (req) => {
     // Wait for complexity to finish
     await complexityPromise;
 
-    // Merge with existing reviews
-    const existingReviews: any[] = Array.isArray(challengeResult.data.ai_section_reviews)
-      ? challengeResult.data.ai_section_reviews
-      : [];
+    // Merge with existing reviews and persist (skip in preview mode)
+    let merged = allNewSections;
+    if (!isPreviewMode) {
+      const existingReviews: any[] = Array.isArray(challengeData.ai_section_reviews)
+        ? challengeData.ai_section_reviews
+        : [];
 
-    const newKeys = new Set(allNewSections.map((s: any) => s.section_key));
-    const merged = [
-      ...existingReviews.filter((r: any) => !newKeys.has(r.section_key)),
-      ...allNewSections,
-    ];
+      const newKeys = new Set(allNewSections.map((s: any) => s.section_key));
+      merged = [
+        ...existingReviews.filter((r: any) => !newKeys.has(r.section_key)),
+        ...allNewSections,
+      ];
 
-    const { error: updateError } = await adminClient
-      .from("challenges")
-      .update({ ai_section_reviews: merged })
-      .eq("id", challenge_id);
+      const { error: updateError } = await adminClient
+        .from("challenges")
+        .update({ ai_section_reviews: merged })
+        .eq("id", challenge_id);
 
-    if (updateError) {
-      console.error("Failed to persist AI reviews:", updateError);
+      if (updateError) {
+        console.error("Failed to persist AI reviews:", updateError);
+      }
     }
 
     return new Response(
