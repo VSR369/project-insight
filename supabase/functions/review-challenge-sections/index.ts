@@ -204,7 +204,7 @@ async function callAIBatch(
   systemPrompt: string,
   userPrompt: string,
   sectionKeys: string[],
-): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string }[]> {
+): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[] }[]> {
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
     headers: {
@@ -222,7 +222,7 @@ async function callAIBatch(
           type: "function",
           function: {
             name: "review_sections",
-            description: "Return per-section review results.",
+            description: "Return per-section review results with optional suggestions and cross-section issues.",
             parameters: {
               type: "object",
               properties: {
@@ -231,17 +231,47 @@ async function callAIBatch(
                   items: {
                     type: "object",
                     properties: {
-                      section_key: { type: "string" },
-                      status: { type: "string", enum: ["pass", "warning", "needs_revision"] },
-                      comments: { type: "array", items: { type: "string" } },
+                      section_key: { type: "string", description: "The section identifier" },
+                      status: {
+                        type: "string",
+                        enum: ["pass", "warning", "needs_revision", "generated"],
+                        description: "pass = content is good, warning = minor issues, needs_revision = errors found, generated = new content was created for an empty section",
+                      },
+                      comments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "Comment severity level" },
+                            field: { type: "string", description: "Specific field name or null for general comment" },
+                            comment: { type: "string", description: "Clear, specific issue description referencing challenge details" },
+                            reasoning: { type: "string", description: "Why this matters, referencing other sections" },
+                          },
+                          required: ["severity", "comment"],
+                        },
+                      },
+                      suggestion: {
+                        type: "string",
+                        description: "For 'generate' action: the full generated content for this section. For 'review' action: suggested improved content if significant changes are recommended. Null/empty if no content suggestion needed.",
+                      },
+                      cross_section_issues: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            related_section: { type: "string", description: "Section key of the conflicting section" },
+                            issue: { type: "string", description: "Description of the cross-section inconsistency" },
+                            suggested_resolution: { type: "string" },
+                          },
+                        },
+                        description: "Cross-section consistency issues found during review. Empty array if none.",
+                      },
                     },
                     required: ["section_key", "status", "comments"],
-                    additionalProperties: false,
                   },
                 },
               },
               required: ["sections"],
-              additionalProperties: false,
             },
           },
         },
@@ -259,6 +289,19 @@ async function callAIBatch(
   }
 
   const result = await response.json();
+
+  // Token usage logging (Fix 6)
+  const tokenUsage = result.usage || {};
+  console.log(JSON.stringify({
+    event: 'ai_review_tokens',
+    sectionKeys,
+    model: result.model || model || 'unknown',
+    prompt_tokens: tokenUsage.prompt_tokens || 0,
+    completion_tokens: tokenUsage.completion_tokens || 0,
+    total_tokens: tokenUsage.total_tokens || 0,
+    timestamp: new Date().toISOString(),
+  }));
+
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
 
@@ -266,12 +309,15 @@ async function callAIBatch(
   const now = new Date().toISOString();
   const sections = (parsed.sections ?? []).map((s: any) => {
     // Normalize: pass with comments → warning (prevent confusing UI)
-    const hasComments = Array.isArray(s.comments) && s.comments.length > 0;
+    const comments = Array.isArray(s.comments) ? s.comments : [];
+    const hasComments = comments.length > 0;
     const normalizedStatus = (s.status === 'pass' && hasComments) ? 'warning' : s.status;
     return {
       ...s,
       status: normalizedStatus,
-      comments: Array.isArray(s.comments) ? s.comments : [],
+      comments,
+      suggestion: s.suggestion || null,
+      cross_section_issues: Array.isArray(s.cross_section_issues) ? s.cross_section_issues : [],
       reviewed_at: now,
     };
   });
@@ -284,6 +330,8 @@ async function callAIBatch(
         section_key: key,
         status: "warning",
         comments: ["Review could not be completed for this section. Please re-review individually."],
+        suggestion: null,
+        cross_section_issues: [],
         reviewed_at: now,
       });
     }
