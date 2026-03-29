@@ -241,7 +241,7 @@ export function AIReviewInline({
   initialRefinedContent,
   complexityRatings,
 }: AIReviewInlineProps) {
-  const [editedComments, setEditedComments] = useState<string[]>([]);
+  const [editedComments, setEditedComments] = useState<SectionComment[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
   const [isRefining, setIsRefining] = useState(false);
