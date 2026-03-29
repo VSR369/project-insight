@@ -99,10 +99,14 @@ export function useAiSectionReview({
         }
       } else if (data?.success && data.data) {
         // Handle assess-complexity and other non-standard response shapes
+        const rawFallbackSuggestion = data.data.suggestion ?? data.data;
+        const parsedFallbackSuggestion = rawFallbackSuggestion && typeof rawFallbackSuggestion === 'string'
+          ? parseSuggestionForSection(sectionKey, rawFallbackSuggestion)
+          : rawFallbackSuggestion;
         store.getState().setAiReview(
           sectionKey,
           data.data.comments ?? [],
-          data.data.suggestion ?? data.data,
+          parsedFallbackSuggestion,
         );
         store.getState().clearStaleness(sectionKey);
 
