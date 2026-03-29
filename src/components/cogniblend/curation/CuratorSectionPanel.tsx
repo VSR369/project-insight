@@ -107,6 +107,10 @@ export interface CuratorSectionPanelProps {
   promptSource?: "supervisor" | "default" | null;
   /** Increment to force re-read expand state from localStorage (for expand/collapse all) */
   expandVersion?: number;
+  /** Staleness: upstream section keys that caused this section to become stale */
+  staleBecauseOf?: string[];
+  /** Staleness: when this section became stale (ISO timestamp) */
+  staleAt?: string | null;
 }
 
 // Export localStorage helpers so parent can bulk-update expand state
