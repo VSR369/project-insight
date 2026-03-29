@@ -19,7 +19,7 @@ export const DIRECT_DEPENDENCIES: Partial<Record<SectionKey, SectionKey[]>> = {
   root_causes: ['preferred_approach', 'current_deficiencies'],
   current_deficiencies: ['preferred_approach', 'deliverables'],
   preferred_approach: ['approaches_not_of_interest'],
-  deliverables: ['complexity', 'solver_expertise', 'submission_guidelines', 'evaluation_criteria', 'maturity_level'],
+  deliverables: ['complexity', 'solver_expertise', 'submission_guidelines', 'evaluation_criteria', 'maturity_level', 'data_resources_provided'],
   maturity_level: ['complexity', 'phase_schedule', 'reward_structure'],
   complexity: ['phase_schedule', 'reward_structure', 'solver_expertise', 'submission_guidelines', 'escrow_funding'],
   solver_expertise: ['eligibility'],

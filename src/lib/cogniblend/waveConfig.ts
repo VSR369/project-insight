@@ -1,7 +1,7 @@
 /**
  * Wave-based execution configuration for global AI review.
  *
- * 6 dependency-ordered waves covering all 24 curation sections.
+ * 6 dependency-ordered waves covering all 26 curation sections.
  * Each wave's sections depend only on sections from prior waves.
  */
 
