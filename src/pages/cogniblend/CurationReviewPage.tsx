@@ -832,7 +832,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["deliverables", "maturity_level", "complexity"],
+    sectionKeys: ["deliverables", "data_resources_provided", "maturity_level", "complexity"],
   },
   {
     id: "solvers_schedule",
