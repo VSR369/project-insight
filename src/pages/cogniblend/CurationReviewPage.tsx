@@ -3148,19 +3148,25 @@ export default function CurationReviewPage() {
             Review Sections by AI
           </Button>
 
-          {/* Phase 2 Progress Bar — persists at 100% after completion */}
-          {phase2Status === 'running' && phase2Progress.total > 0 && (
-            <Card className="border-border">
-              <CardContent className="pt-3 pb-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Phase 2: Deep review</p>
-                <Progress value={(phase2Progress.completed / phase2Progress.total) * 100} className="h-2" />
-                <p className="text-[10px] text-muted-foreground">
-                  {phase2Progress.completed}/{phase2Progress.total} sections analyzed
-                  {" · "}
-                  {Math.round((phase2Progress.completed / phase2Progress.total) * 100)}%
-                </p>
-              </CardContent>
-            </Card>
+          {/* Wave Progress Panel (Phase 5) */}
+          <WaveProgressPanel progress={waveProgress} onCancel={cancelReview} />
+
+          {/* Budget Revision Panel (Phase 5) */}
+          {budgetShortfall && (
+            <BudgetRevisionPanel
+              shortfall={budgetShortfall}
+              currencyCode={challenge?.currency_code ?? 'USD'}
+              onAcceptAndSendToAM={() => {
+                toast.success('Revision accepted. Notification sent to Account Manager.');
+                setBudgetShortfall(null);
+              }}
+              onModifyManually={() => {
+                const group = GROUPS.find(g => g.sectionKeys.includes('reward_structure'));
+                if (group) setActiveGroup(group.id);
+                setBudgetShortfall(null);
+              }}
+              onReject={() => setBudgetShortfall(null)}
+            />
           )}
 
           {/* Completion Banner — shows after AI review finishes */}
