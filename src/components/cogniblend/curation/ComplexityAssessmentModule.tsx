@@ -27,6 +27,8 @@ import {
 import { Save, X, Pencil, Bot, SlidersHorizontal, Zap, Check, Lock, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
+import { useComplexityDimensions } from "@/hooks/queries/useComplexityDimensions";
+import type { SolutionType } from "@/lib/cogniblend/challengeContextAssembler";
 import {
   COMPLEXITY_THRESHOLDS,
   deriveComplexityLevel,
