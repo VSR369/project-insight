@@ -50,6 +50,8 @@ import {
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
 import { getSectionDisplayName, getLockedSectionRole } from "@/lib/cogniblend/sectionDependencies";
 import { SectionEmptyState } from "@/components/cogniblend/curation/SectionEmptyState";
+import { ValidationResultsBar } from "@/components/cogniblend/curation/ValidationResultsBar";
+import type { ValidationResult } from "@/lib/cogniblend/postLlmValidation";
 
 // ---------------------------------------------------------------------------
 // Types
