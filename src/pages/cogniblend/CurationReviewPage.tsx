@@ -1426,6 +1426,10 @@ export default function CurationReviewPage() {
 
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
 
+  // Stable ref for saveSectionMutation — avoids unstable deps in effects
+  const saveSectionMutationRef = useRef(saveSectionMutation);
+  saveSectionMutationRef.current = saveSectionMutation;
+
   // ── One-time migration: repair corrupted section content ──
   const contentMigrationRanRef = useRef(false);
   useEffect(() => {
@@ -1441,9 +1445,9 @@ export default function CurationReviewPage() {
 
     const corrupted = findCorruptedFields(targets);
     corrupted.forEach(({ dbField, fixed }) => {
-      saveSectionMutation.mutate({ field: dbField, value: fixed });
+      saveSectionMutationRef.current.mutate({ field: dbField, value: fixed });
     });
-  }, [challenge, saveSectionMutation]);
+  }, [challenge]);
 
   // ══════════════════════════════════════
   // SECTION 4: Handlers
