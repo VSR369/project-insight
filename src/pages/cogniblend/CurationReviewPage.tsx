@@ -3242,6 +3242,15 @@ export default function CurationReviewPage() {
             </CardContent>
           </Card>
 
+          {/* Challenge Completeness Checklist (Phase 7) */}
+          <CompletenessChecklistCard
+            result={completenessResult}
+            checkDefs={completenessCheckDefs}
+            isRunning={completenessRunning}
+            onRun={runCompletenessCheck}
+            onNavigateToSection={handleNavigateToSection}
+          />
+
           {/* Per-section AI Review button */}
           <Button
             variant="outline"
