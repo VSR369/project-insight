@@ -4,6 +4,8 @@
  * Provides: review(), accept(), reject(), reReview()
  * Routes to the correct edge function via SECTION_REVIEW_ROUTES.
  * Never mutates section data during review — only on explicit accept().
+ *
+ * Phase 4: Passes full ChallengeContext to edge function + runs post-LLM validation.
  */
 
 import { useCallback } from 'react';
@@ -11,12 +13,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getCurationFormStore, selectIsAnyReviewPending } from '@/store/curationFormStore';
 import { getReviewRoute } from '@/lib/sectionRoutes';
+import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
+import type { ChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
 import type { SectionKey } from '@/types/sections';
 
 interface UseAiSectionReviewOptions {
   challengeId: string;
   roleContext?: 'intake' | 'spec' | 'curation';
-  challengeContext?: {
+  challengeContext?: ChallengeContext | {
     title?: string;
     maturity_level?: string | null;
     domain_tags?: string[];
@@ -76,6 +80,16 @@ export function useAiSectionReview({
           );
           // Clear staleness after successful review
           store.getState().clearStaleness(sectionKey);
+
+          // Post-LLM validation (Phase 4)
+          if (challengeContext && 'todaysDate' in challengeContext) {
+            const validationResult = validateAIOutput(
+              sectionKey,
+              reviewResult.suggestion ?? reviewResult,
+              challengeContext as ChallengeContext,
+            );
+            store.getState().setValidationResult(sectionKey, validationResult);
+          }
         }
       } else if (data?.success && data.data) {
         // Handle assess-complexity and other non-standard response shapes
@@ -85,6 +99,16 @@ export function useAiSectionReview({
           data.data.suggestion ?? data.data,
         );
         store.getState().clearStaleness(sectionKey);
+
+        // Post-LLM validation (Phase 4)
+        if (challengeContext && 'todaysDate' in challengeContext) {
+          const validationResult = validateAIOutput(
+            sectionKey,
+            data.data.suggestion ?? data.data,
+            challengeContext as ChallengeContext,
+          );
+          store.getState().setValidationResult(sectionKey, validationResult);
+        }
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response from AI review');
       }
