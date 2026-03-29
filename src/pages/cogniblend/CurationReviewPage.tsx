@@ -1187,6 +1187,19 @@ export default function CurationReviewPage() {
   // ── Store sync layer (debounced DB persistence) ──
   useCurationStoreSync({ challengeId: challengeId!, enabled: !!challengeId });
 
+  // ── Staleness tracking via Zustand store ──
+  const curationStore = challengeId ? getCurationFormStore(challengeId) : null;
+  const staleSections = curationStore ? curationStore(selectStaleSections) : [];
+
+  /** Wrapper: call markSectionSaved after any section save and toast if sections became stale */
+  const notifyStaleness = useCallback((sectionKey: string) => {
+    if (!curationStore) return;
+    const affected = curationStore.getState().markSectionSaved(sectionKey as SectionKey);
+    if (affected.length > 0) {
+      toast.warning(`${affected.length} downstream section(s) marked stale after "${getSectionDisplayName(sectionKey as SectionKey)}" was changed.`);
+    }
+  }, [curationStore]);
+
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       let stored: SectionReview[] = [];
