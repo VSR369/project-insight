@@ -78,5 +78,10 @@ export function createEmptySectionEntry(): SectionStoreEntry {
     aiSuggestion: null,
     reviewStatus: 'idle',
     addressed: false,
+    lastEditedAt: null,
+    lastReviewedAt: null,
+    isStale: false,
+    staleBecauseOf: [],
+    staleAt: null,
   };
 }
