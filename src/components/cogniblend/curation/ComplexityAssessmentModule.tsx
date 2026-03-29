@@ -382,6 +382,33 @@ export function ComplexityAssessmentModule({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ── Solution Type Reset Dialog ── */}
+      <AlertDialog open={showSolutionTypeResetDialog} onOpenChange={setShowSolutionTypeResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Solution Type Changed</AlertDialogTitle>
+            <AlertDialogDescription>
+              The solution type has changed. Complexity dimensions are different for each solution type.
+              Existing scores will be reset. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowSolutionTypeResetDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              const fresh = buildDraftFromExisting(null, effectiveParams);
+              setAiDraft(fresh);
+              setManualDraft(fresh);
+              setEditableParams(new Set());
+              setAiJustifications({});
+              setOverrideLevel(null);
+              setShowSolutionTypeResetDialog(false);
+            }}>
+              Reset Scores
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── 3-Tab Card Selector ── */}
       <div className="grid grid-cols-3 gap-2">
         <TabCard
