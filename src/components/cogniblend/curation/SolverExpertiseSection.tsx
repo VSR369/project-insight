@@ -207,7 +207,7 @@ export default function SolverExpertiseSection({
   const editing = externalEditing ?? internalEditing;
   const { data: industrySegments } = useIndustrySegments();
 
-  const effectiveSegmentId = industrySegmentId ?? localSelectedSegmentId;
+  const effectiveSegmentId = industrySegmentId;
   const industryName = industrySegments?.find(s => s.id === effectiveSegmentId)?.name;
 
   const { tree, expertiseLevels: allExpertiseLevels, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
