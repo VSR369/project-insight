@@ -1383,6 +1383,7 @@ export default function CurationReviewPage() {
         } else {
           queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
           toast.success("Complexity assessment updated");
+          notifyStaleness('complexity' as SectionKey);
         }
         setSavingSection(false);
       });
