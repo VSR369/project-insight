@@ -1,72 +1,126 @@
 
 
-# Phase 3: Staleness Tracking — Gap Analysis
+# Phase 4: Context Assembler + Validation Layer + Solution-Type Complexity
 
-## What's DONE (infrastructure is complete)
+## Current State
 
-| Component | Status |
-|-----------|--------|
-| `sectionDependencies.ts` — DIRECT_DEPENDENCIES map + BFS + display names | Done |
-| `SectionStoreEntry` — staleness fields (isStale, staleBecauseOf, staleAt, lastEditedAt, lastReviewedAt) | Done |
-| `markSectionSaved()` store action — clears own staleness, propagates to dependents | Done |
-| `clearStaleness()` store action | Done |
-| `selectStaleSections` selector | Done |
-| `CuratorSectionPanel` — "stale" status with amber border, badge, reason line | Done |
-| `CurationActions` — staleSections/unreviewedSections props, blocked banner, disabled submit | Done |
-| `useAiSectionReview` — clearStaleness on accept() and after successful review | Done |
-| `notifyStaleness()` wrapper in CurationReviewPage | Done |
-| `notifyStaleness` called in handleSaveSection, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveMaturityLevel, handleSaveExtendedBrief subsections | Done |
-| `groupProgress` — stale sections excluded from "done" count | Done |
+- **AI calls** pass a minimal `challengeContext` (`{title, maturity_level, domain_tags}`) — no section content, no rate card, no structured extracts
+- **No post-LLM validation** — AI output goes directly to the user
+- **Complexity params** are generic (`master_complexity_params` table) — no solution-type differentiation
+- **No `solution_type` column** on the `challenges` table
+- Edge function `review-challenge-sections` already fetches full challenge data server-side but doesn't structure it as a formal context object
 
-## What's NOT DONE (4 gaps)
+## Architecture
 
-### Gap 1: Panel status override for stale sections
-`panelStatus` derivation (line ~2519) does NOT check for staleness. It only checks AI review status. If a section is stale, it should override to `"stale"`. Currently the `staleKeySet` is computed but never used to override `panelStatus`.
-
-**Fix**: After the AI review status block, add: `if (staleKeySet.has(section.key)) panelStatus = "stale";`
-
-### Gap 2: staleBecauseOf/staleAt props NOT passed to CuratorSectionPanel
-Line 3082-3101: `<CuratorSectionPanel>` is rendered WITHOUT `staleBecauseOf` or `staleAt` props. The panel accepts them but never receives them, so the "Changed upstream" reason line never shows.
-
-**Fix**: Pass `staleBecauseOf` and `staleAt` from the staleSections array to each panel.
-
-### Gap 3: staleSections/unreviewedSections NOT passed to CurationActions
-Line 3273-3284: `<CurationActions>` is rendered WITHOUT `staleSections`, `unreviewedSections`, `onNavigateToStale`, or `onReReviewStale` props. The component accepts and renders them, but never receives them.
-
-**Fix**: Compute and pass `staleSections` (with display names/causes) and `unreviewedSections` to `CurationActions`. Add `onNavigateToStale` and `onReReviewStale` handlers.
-
-### Gap 4: Right sidebar missing STALE category
-Lines 3213-3270 render the AI Review Summary with Pass/Warning/Needs Revision categories but no STALE category. The spec requires a "STALE (re-review needed)" section above "Needs Revision" showing count and clickable section list.
-
-**Fix**: Add stale section count badge and clickable list above the revision/warning sections.
-
-### Gap 5: handleSaveComplexity missing notifyStaleness
-Line 1353: `handleSaveComplexity` saves complexity parameters but does NOT call `notifyStaleness('complexity')`. This is a critical dependency — complexity has 5+ downstream sections.
-
-**Fix**: Add `notifyStaleness('complexity')` after successful save.
+```text
+Client (Curation Page)
+  │
+  ├── buildChallengeContext()  ← NEW: assembles full snapshot
+  │     ├── All section content from Zustand store
+  │     ├── Rate card lookup (org type × maturity)
+  │     ├── Master data (from useCurationMasterData)
+  │     └── Fresh todaysDate
+  │
+  ├── useAiSectionReview()  ← MODIFIED: passes full context
+  │     └── Edge function receives richer context
+  │
+  └── validateAIOutput()  ← NEW: post-response checks
+        ├── Date validation (phase schedule)
+        ├── Master data enforcement
+        ├── Eval weights = 100%
+        ├── Reward rate floor check
+        └── Prize tiers ≤ total pool
+```
 
 ## Implementation Plan
 
-### Step 1: Fix panelStatus override (CurationReviewPage ~line 2526)
-Add staleness check after AI review status derivation.
+### Step 1: Migration — `complexity_dimensions` table + `solution_type` column
 
-### Step 2: Pass stale props to CuratorSectionPanel (CurationReviewPage ~line 3082)
-Look up staleness info from `staleSections` array and pass `staleBecauseOf`/`staleAt`.
+**DB Migration:**
+- Add `solution_type TEXT` column to `challenges` (nullable, CHECK constraint for 4 valid types)
+- Create `complexity_dimensions` table: `id`, `solution_type`, `dimension_name`, `dimension_key`, `display_order`, `level_1_description`, `level_3_description`, `level_5_description`, `is_active`, audit fields
+- Seed 20 rows (4 solution types × 5 dimensions each) using the exact seed data from the spec
+- RLS: authenticated read access
 
-### Step 3: Pass stale props to CurationActions (CurationReviewPage ~line 3273)
-Map `staleSections` to the `StaleSectionInfo` shape and pass with handlers.
+### Step 2: Context Assembler (`src/lib/cogniblend/challengeContextAssembler.ts`)
 
-### Step 4: Add STALE category to right sidebar (CurationReviewPage ~line 3213)
-Insert stale count badge and clickable section list before the existing summary.
+Pure function that reads from the Zustand store + passed-in challenge data:
+- Collects all section content from the store's `sections` map
+- Parses structured data (complexity, phases, eval criteria, rewards) into typed extracts
+- Looks up rate card via existing `lookupRateCard()` utility
+- Computes `todaysDate` fresh on every call
+- Returns typed `ChallengeContext` interface
 
-### Step 5: Add notifyStaleness to handleSaveComplexity (CurationReviewPage ~line 1386)
-Call after successful save.
+**Key design decision:** This runs client-side, reading from the Zustand store (already populated) rather than re-fetching from Supabase. The edge function already fetches challenge data server-side — the context assembler enriches what gets passed in the `context` field of the request body.
+
+### Step 3: Post-LLM Validation (`src/lib/cogniblend/postLlmValidation.ts`)
+
+Five validation rules as pure functions:
+1. **Date validation** — no past dates in phase schedule, end = start + duration, sequential phases
+2. **Master data enforcement** — suggested values must exist in valid options (fuzzy match for auto-fix)
+3. **Evaluation weights** — sum must equal 100% (auto-normalize if not)
+4. **Reward rate floor** — effective $/hr must meet rate card floor
+5. **Prize tiers** — sum ≤ total pool
+
+Returns `ValidationResult` with corrections array (each has field, issue, severity, autoFixed flag).
+
+### Step 4: Integration into `useAiSectionReview`
+
+- Import `buildChallengeContext` and call it before each AI invocation
+- Pass full context in the edge function request body (the `context` field already exists)
+- After AI response, call `validateAIOutput` and store corrections alongside the review result
+- Add `validationResult` to the store's section entry (new optional field on `SectionStoreEntry`)
+
+### Step 5: `ValidationResultsBar` UI component
+
+Small info bar rendered below AI review output:
+- Green checkmarks for passed checks
+- Amber warnings for auto-corrections with original → fixed values
+- Red errors for unfixable issues
+- Rendered inside `AIReviewResultPanel` or `CuratorSectionPanel` when validation results exist
+
+### Step 6: `useComplexityDimensions` hook
+
+React Query hook that fetches `complexity_dimensions` filtered by `solution_type`. Returns dimension definitions for the UI.
+
+### Step 7: Integrate into `ComplexityAssessmentModule`
+
+- Accept new `solutionType` prop
+- Use `useComplexityDimensions(solutionType)` to get dimension definitions
+- Override the generic `complexityParams` labels/descriptions with solution-type-specific ones
+- Map dimension scores to the existing 1-10 scale (dimensions use 1-5 conceptually but map to the same slider)
+- On solution_type change: reset scores with a confirmation dialog
+
+### Step 8: Update edge function context
+
+- Enrich the `review-challenge-sections` edge function to accept and use the richer context object
+- Inject rate card data and `todaysDate` into the system prompt
+- Pass solution_type to complexity assessment for dimension-aware ratings
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/lib/cogniblend/challengeContextAssembler.ts` | `ChallengeContext` interface + `buildChallengeContext()` |
+| `src/lib/cogniblend/postLlmValidation.ts` | `validateAIOutput()` + 5 validation rules + helpers |
+| `src/components/cogniblend/curation/ValidationResultsBar.tsx` | UI component for validation results display |
+| `src/hooks/queries/useComplexityDimensions.ts` | React Query hook for solution-type dimensions |
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | All 5 gaps — panelStatus override, stale props to panel, stale props to actions, sidebar STALE category, complexity save handler |
+| File | Change |
+|------|--------|
+| `src/hooks/useAiSectionReview.ts` | Call context assembler before AI, validate after |
+| `src/types/sections.ts` | Add `validationResult` field to `SectionStoreEntry` |
+| `src/store/curationFormStore.ts` | Store validation results |
+| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Accept `solutionType`, use dimension-specific labels |
+| `src/components/cogniblend/curation/CuratorSectionPanel.tsx` | Render `ValidationResultsBar` |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Pass `solutionType` to complexity module, build context for AI calls |
+| `supabase/functions/review-challenge-sections/index.ts` | Accept richer context, inject rate card + todaysDate |
 
-No new files needed. All changes are wiring in a single file.
+## Migration
+
+1. `ALTER TABLE challenges ADD COLUMN solution_type TEXT CHECK(...)` 
+2. `CREATE TABLE complexity_dimensions (...)` + seed 20 rows
+3. RLS policies for read access
 
