@@ -168,7 +168,7 @@ export function ComplexityAssessmentModule({
     const justifications: Record<string, string> = {};
     const sources: Record<string, "ai" | "curator" | "default"> = {};
 
-    complexityParams.forEach((p) => {
+    effectiveParams.forEach((p) => {
       const r = aiSuggestedRatings[p.param_key];
       if (r && typeof r.rating === "number") {
         newAiDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
