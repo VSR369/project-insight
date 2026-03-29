@@ -481,8 +481,10 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context, context: clientContext } = await req.json();
-    if (!challenge_id) {
+    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content } = await req.json();
+    const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
+
+    if (!challenge_id && !isPreviewMode) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

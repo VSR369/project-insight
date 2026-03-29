@@ -63,6 +63,7 @@ export function PreviewTestTab({ config }: PreviewTestTabProps) {
           role_context: 'curation',
           current_content: 'This is a test prompt preview. No real challenge data.',
           context: MOCK_CONTEXT,
+          preview_mode: true,
         },
       });
       if (error) throw new Error(error.message);
