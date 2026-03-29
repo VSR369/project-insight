@@ -715,11 +715,90 @@ const SECTIONS: SectionDef[] = [
     },
     render: () => null,
   },
+  // ── New Phase 7 sections ──
+  {
+    key: "data_resources_provided",
+    label: "Data & Resources Provided",
+    attribution: "by CA / Curator",
+    dbField: "data_resources_provided",
+    isFilled: (ch) => {
+      const raw = parseJson<any>((ch as any).data_resources_provided);
+      return Array.isArray(raw) && raw.length > 0;
+    },
+    render: (ch) => {
+      const raw = parseJson<any[]>((ch as any).data_resources_provided);
+      if (!raw || raw.length === 0) return <p className="text-sm text-muted-foreground">No data or resources listed.</p>;
+      return (
+        <div className="relative w-full overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Resource</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Format</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Access</TableHead>
+                <TableHead>Restrictions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {raw.map((r: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell className="text-sm font-medium">{r.resource ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.type ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.format ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.size ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.access_method ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.restrictions ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    },
+  },
+  {
+    key: "success_metrics_kpis",
+    label: "Success Metrics & KPIs",
+    attribution: "by CA / Curator",
+    dbField: "success_metrics_kpis",
+    isFilled: (ch) => {
+      const raw = parseJson<any>((ch as any).success_metrics_kpis);
+      return Array.isArray(raw) && raw.length > 0;
+    },
+    render: (ch) => {
+      const raw = parseJson<any[]>((ch as any).success_metrics_kpis);
+      if (!raw || raw.length === 0) return <p className="text-sm text-muted-foreground">No KPIs defined.</p>;
+      return (
+        <div className="relative w-full overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>KPI</TableHead>
+                <TableHead>Baseline</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Timeframe</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {raw.map((r: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell className="text-sm font-medium">{r.kpi ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.baseline ?? "N/A"}</TableCell>
+                  <TableCell className="text-sm">{r.target ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.measurement_method ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.timeframe ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    },
+  },
 ];
-
-// ---------------------------------------------------------------------------
-// Group definitions
-// ---------------------------------------------------------------------------
 
 interface GroupDef {
   id: string;
