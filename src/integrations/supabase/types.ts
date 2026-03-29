@@ -435,61 +435,100 @@ export type Database = {
       }
       ai_review_section_config: {
         Row: {
+          analyst_sources: Json | null
+          computation_rules: Json | null
+          content_templates: Json | null
+          cross_references: Json | null
           donts: string | null
           dos: string | null
           example_good: string | null
           example_poor: string | null
           importance_level: string
+          industry_frameworks: Json | null
           is_active: boolean
+          master_data_constraints: Json | null
           max_words: number
           min_words: number
+          platform_preamble: string | null
+          quality_criteria: Json | null
           required_elements: string[]
           review_instructions: string | null
           role_context: string
           section_description: string | null
           section_key: string
           section_label: string
+          supervisor_examples: Json | null
+          tab_group: string | null
           tone: string
           updated_at: string
           updated_by: string | null
+          version: number | null
+          wave_number: number | null
+          web_search_queries: Json | null
         }
         Insert: {
+          analyst_sources?: Json | null
+          computation_rules?: Json | null
+          content_templates?: Json | null
+          cross_references?: Json | null
           donts?: string | null
           dos?: string | null
           example_good?: string | null
           example_poor?: string | null
           importance_level?: string
+          industry_frameworks?: Json | null
           is_active?: boolean
+          master_data_constraints?: Json | null
           max_words?: number
           min_words?: number
+          platform_preamble?: string | null
+          quality_criteria?: Json | null
           required_elements?: string[]
           review_instructions?: string | null
           role_context: string
           section_description?: string | null
           section_key: string
           section_label: string
+          supervisor_examples?: Json | null
+          tab_group?: string | null
           tone?: string
           updated_at?: string
           updated_by?: string | null
+          version?: number | null
+          wave_number?: number | null
+          web_search_queries?: Json | null
         }
         Update: {
+          analyst_sources?: Json | null
+          computation_rules?: Json | null
+          content_templates?: Json | null
+          cross_references?: Json | null
           donts?: string | null
           dos?: string | null
           example_good?: string | null
           example_poor?: string | null
           importance_level?: string
+          industry_frameworks?: Json | null
           is_active?: boolean
+          master_data_constraints?: Json | null
           max_words?: number
           min_words?: number
+          platform_preamble?: string | null
+          quality_criteria?: Json | null
           required_elements?: string[]
           review_instructions?: string | null
           role_context?: string
           section_description?: string | null
           section_key?: string
           section_label?: string
+          supervisor_examples?: Json | null
+          tab_group?: string | null
           tone?: string
           updated_at?: string
           updated_by?: string | null
+          version?: number | null
+          wave_number?: number | null
+          web_search_queries?: Json | null
         }
         Relationships: []
       }
@@ -6114,6 +6153,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      phase_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          maturity_level: string
+          phases: Json
+          solution_type: string
+          total_range_max_weeks: number
+          total_range_min_weeks: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          maturity_level: string
+          phases?: Json
+          solution_type: string
+          total_range_max_weeks?: number
+          total_range_min_weeks?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          maturity_level?: string
+          phases?: Json
+          solution_type?: string
+          total_range_max_weeks?: number
+          total_range_min_weeks?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       platform_admin_profile_audit_log: {
         Row: {
