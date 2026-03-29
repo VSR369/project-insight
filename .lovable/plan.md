@@ -1,113 +1,96 @@
 
 
-# Gap Analysis: Remaining Issues Across 26 Active Curation Sections
+# Fix Plan: Complete Tab Data for All 26 Curation Sections
+
+## Your Assumption is Correct
+
+Not every section needs data in every tab. The 5 tabs serve different purposes, and many sections legitimately have empty sub-tabs:
+
+- **Constraints**: Only needed for sections referencing master data lookup tables (6 sections have them — all correct)
+- **Computation Rules**: Only needed for sections with mathematical validation (3 sections have them — correct)
+- **Content Templates**: Only needed for rich-text/table sections where output differs significantly by maturity level
+- **Web Search / Frameworks / Sources**: Only needed for sections where external research improves AI output quality
+- **Supervisor Examples**: Only needed for Critical/High importance sections where review calibration matters
+
+## What's Already Complete (No Action Needed)
+
+**Tab 1 — Instructions**: All 26 sections have instructions, dos, donts, example_good, example_poor, and tone. **100% complete.**
+
+**Tab 2 — Quality Criteria**: All 26 sections have at least 1 criterion (range: 1–5). **100% complete.**
+
+**Tab 5 — Preview & Test**: No stored data — this is a live tool. **N/A.**
+
+**Non-AI sections** (`legal_docs`, `escrow_funding`): These are system-managed. Empty research/templates/supervisor tabs are correct — AI does not draft or review these.
+
+---
+
+## Remaining Gaps (Tab 3 & Tab 4)
+
+### Tab 3: Constraints & Templates — 2 fixes
+
+| Section | Issue | Fix |
+|---------|-------|-----|
+| `success_metrics_kpis` (High) | Missing content_templates | Add Blueprint/POC/Pilot KPI structure guidance |
+| `hook` (Medium) | Missing content_templates | Add maturity-specific hook tone guidance |
+
+All other sections either already have templates (11 sections) or legitimately don't need them (checkbox/selection sections like maturity_level, eligibility, complexity, domain_tags, visibility, ip_model).
+
+### Tab 4: Research — 10 fixes
+
+**Missing web search queries (3 sections that should have them):**
+
+| Section | Importance | Fix |
+|---------|-----------|-----|
+| `hook` | Medium | Add `{{domain}} challenge marketing engagement hooks` |
+| `submission_guidelines` | Medium | Add `{{domain}} challenge submission best practices formats` |
+| `ip_model` | High | Add `{{domain}} intellectual property models open innovation` |
+
+**Missing industry frameworks (4 sections that should have them):**
+
+| Section | Current | Add |
+|---------|---------|-----|
+| `evaluation_criteria` | 0 | Balanced Scorecard, SMART Criteria, Rubric Design |
+| `reward_structure` | 0 | Incentive Design Theory, Prize Philanthropy |
+| `phase_schedule` | 0 | Stage-Gate, Agile Sprint Planning |
+| `solver_expertise` | 0 | Skills Taxonomy, T-Shaped Competency Model |
+
+**Missing analyst sources (0 sections have any — add to 5 Critical/High sections):**
+
+| Section | Sources to Add |
+|---------|---------------|
+| `problem_statement` | Gartner, McKinsey, HBR |
+| `deliverables` | Forrester, Deloitte, IEEE |
+| `evaluation_criteria` | NIST, ISO Standards |
+| `scope` | BCG, Accenture |
+| `context_and_background` | McKinsey, World Economic Forum |
+
+**Missing supervisor examples (8 Critical/High sections without them):**
+
+| Section | Importance | Current | Add |
+|---------|-----------|---------|-----|
+| `scope` | High | 0 | 2 (pass + fail) |
+| `complexity` | Critical | 0 | 2 |
+| `context_and_background` | High | 0 | 2 |
+| `expected_outcomes` | High | 0 | 2 |
+| `success_metrics_kpis` | High | 0 | 2 |
+| `data_resources_provided` | High | 0 | 2 |
+| `ip_model` | High | 0 | 2 |
+| `hook` | Medium | 0 | 2 |
+
+Sections already with supervisor examples: problem_statement (2), deliverables (2), phase_schedule (2), evaluation_criteria (2), reward_structure (2), maturity_level (2). These are fine.
+
+---
 
 ## Summary
 
-The structural architecture is solid (all sections have instructions, preambles, quality criteria, and cross-references). The remaining gaps are **content completeness** issues — missing examples, dos/donts, and content templates in many sections.
+| Fix Category | Count | Priority |
+|-------------|-------|----------|
+| Content templates | 2 sections | Medium |
+| Web search queries | 3 sections | Medium |
+| Industry frameworks | 4 sections | Medium |
+| Analyst sources | 5 sections | Low |
+| Supervisor examples | 8 sections | Medium |
+| **Total SQL UPDATEs** | **22** | — |
 
----
-
-## Priority 1: Data Integrity Issues (Fix Now)
-
-### 1. Success Metrics KPIs — web_search_queries use wrong key names
-The two search entries use `query` instead of `queryTemplate` and are missing the `purpose` field. Every other section uses `queryTemplate` + `purpose`. This will cause the assembler to skip these queries at runtime.
-
-**Current:** `{"query": "{{domain}} KPI benchmarks..."}`
-**Should be:** `{"purpose": "KPI benchmarks", "queryTemplate": "{{domain}} KPI benchmarks...", "when": "always"}`
-
-### 2. Data & Resources — version still 1
-All other fixed sections are at version 2. This one was missed.
-
----
-
-## Priority 2: Missing Dos/Donts (8 sections)
-
-These sections have no `dos` or `donts`, which means the AI gets instructions but no guardrails:
-
-| Section | dos | donts |
-|---------|-----|-------|
-| expected_outcomes | MISSING | MISSING |
-| success_metrics_kpis | MISSING | MISSING |
-| data_resources_provided | MISSING | MISSING |
-| solver_expertise | MISSING | MISSING |
-| approaches_not_of_interest | MISSING | — |
-| current_deficiencies | MISSING | — |
-| root_causes | MISSING | — |
-
-**Recommended action:** Add concise dos/donts for each. These are short text fields — 3-5 bullet points each.
-
----
-
-## Priority 3: Missing Examples (6 sections)
-
-These sections lack `example_good` and `example_poor`, so the AI has no reference output to calibrate quality:
-
-| Section | example_good | example_poor |
-|---------|-------------|-------------|
-| success_metrics_kpis | MISSING | MISSING |
-| approaches_not_of_interest | MISSING | MISSING |
-| current_deficiencies | MISSING | MISSING |
-| preferred_approach | MISSING | MISSING |
-| root_causes | MISSING | MISSING |
-| data_resources_provided | MISSING | MISSING |
-
-**Recommended action:** Add one good and one poor example for each section. These are the most impactful missing fields — examples anchor the AI's output quality more than any other field.
-
----
-
-## Priority 4: Missing Content Templates (Most sections)
-
-Only 5 of 26 sections have maturity-specific `content_templates` (context_and_background, expected_outcomes, problem_statement, deliverables, hook). The remaining 21 have empty `{}`.
-
-Content templates provide Blueprint/POC/Pilot-specific structural guidance. Not every section needs them — but these **should** have them:
-
-| Section | Why it needs templates |
-|---------|----------------------|
-| scope | Scope depth varies significantly by maturity |
-| evaluation_criteria | Scoring methods differ by maturity |
-| reward_structure | Prize structures differ by maturity |
-| phase_schedule | Timeline patterns differ by maturity |
-| submission_guidelines | Submission expectations differ by maturity |
-
-**Recommended action:** Add content templates for these 5 high-impact sections. The other 16 can remain empty — their quality criteria already provide sufficient guidance.
-
----
-
-## Priority 5: Missing Supervisor Examples (24 sections)
-
-Only 2 sections have `supervisor_examples` (maturity_level: 2, hook: 2). All other 24 have 0.
-
-Supervisor examples show the AI what a "pass" vs "fail" review looks like. They are optional but significantly improve review accuracy.
-
-**Recommended action:** Add 2 supervisor examples (1 pass, 1 fail) for at least the 5 Critical/High-importance sections: problem_statement, deliverables, evaluation_criteria, reward_structure, phase_schedule.
-
----
-
-## Priority 6: Cosmetic / Low Priority
-
-### Missing computation_rules
-Only phase_schedule has computation rules (6 rules). Other sections that could benefit: evaluation_criteria (weight sum validation), reward_structure (budget validation). Currently these checks are described in review_instructions text — not structured as computation rules.
-
-### No master_data_constraints on sections that use master data
-eligibility, complexity, and maturity_level each have 1 constraint. Sections like visibility, ip_model, and domain_tags reference master data tables in `curationSectionFormats.ts` but have 0 constraints in the DB config. Low impact since the format config already enforces this.
-
----
-
-## Implementation
-
-All fixes are data-only UPDATEs to `ai_review_section_config`. No code or schema changes.
-
-- **Priority 1:** 2 SQL updates (fix search query keys, bump version) — 5 minutes
-- **Priority 2:** 8 updates adding dos/donts text — 15 minutes  
-- **Priority 3:** 6 updates adding example_good/example_poor — 20 minutes
-- **Priority 4:** 5 updates adding content_templates — 15 minutes
-- **Priority 5:** 5 updates adding supervisor_examples — 15 minutes
-- **Priority 6:** Optional, defer
-
-**Total estimate: ~70 minutes for Priority 1-5**
-
-## Files Modified
-
-None — database data updates only.
+All fixes are data-only UPDATEs to `ai_review_section_config`. No code or schema changes required.
 
