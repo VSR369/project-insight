@@ -2484,7 +2484,7 @@ export default function CurationReviewPage() {
 
               {/* Industry Segment */}
               {(() => {
-                const segmentId = resolveIndustrySegmentId(challenge);
+                const segmentId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
                 const segmentName = industrySegments?.find(s => s.id === segmentId)?.name;
                 return (
                   <div>
