@@ -1,66 +1,37 @@
 
 
-# Fix: PreFlightGateDialog — Intuitive UX with Navigation
+# Fix: Industry Segment Selection Not Persisting / Pre-Flight Still Blocking
 
-## Problems Identified
+## Root Cause Analysis
 
-1. **"Fill them first" button** just closes the dialog — no navigation, user is lost
-2. **Warning items have no click-to-navigate** — user sees section names but can't act on them
-3. **No tab context** — user doesn't know which tab a section lives in
-4. **Duplicate/verbose reason text** — "Will be AI-generated" repeated, cluttering the UI
-5. **Blocking mode shows separate "Go to X" buttons per section** — doesn't scale, no visual hierarchy
+Based on network logs, **no PATCH request was made** when the user selected an industry segment. This means `handleIndustrySegmentChange` either wasn't invoked or returned early. Two issues found:
 
-## Design
+1. **Context & Background section may not be expanded/visible** when the user navigates to it from the pre-flight dialog. The `onGoToSection('context_and_background')` navigates to the correct tab, but the industry segment dropdown is rendered inside the section's case block — if the section isn't the active/visible one, the user may see the tab but not the dropdown.
 
-Redesign the dialog into a clean checklist with clickable rows:
+2. **Double-encoding risk**: `handleIndustrySegmentChange` calls `JSON.stringify(currentElig)` before passing to `.update()`. The Supabase JS client already serializes the body to JSON, so JSONB columns should receive plain objects, not pre-stringified values. This could cause the saved value to be a JSON string literal rather than a JSON object, making `parseJson` return the right result once but potentially causing issues with the fallback chain.
 
-```text
-┌─────────────────────────────────────────────────┐
-│  ✕  Cannot run AI review                        │
-│  Complete these sections before AI can proceed   │
-│─────────────────────────────────────────────────│
-│  REQUIRED — Must be filled                       │
-│  ┌─────────────────────────────────────────────┐│
-│  │ ✕ Problem Statement     Tab 1 →  [Go to]   ││
-│  │   Min 50 chars required                     ││
-│  ├─────────────────────────────────────────────┤│
-│  │ ✕ Industry Segment      Tab 1 →  [Go to]   ││
-│  │   Must be set in Context & Background       ││
-│  └─────────────────────────────────────────────┘│
-│                                                  │
-│  RECOMMENDED — Will be AI-generated              │
-│  ┌─────────────────────────────────────────────┐│
-│  │ △ Context & Background  Tab 1 →  [Go to]   ││
-│  │ △ Expected Outcomes     Tab 1 →  [Go to]   ││
-│  └─────────────────────────────────────────────┘│
-│                                                  │
-│          [Go to first required section]          │
-│    or    [Proceed — AI will generate empty ones] │
-└─────────────────────────────────────────────────┘
+3. **No visual confirmation in the dropdown itself**: After save + query invalidation + refetch, the dropdown re-renders from scratch. If the refetch is slow, the user sees the old state momentarily.
+
+## Plan (1 file, ~15 lines changed)
+
+### File: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+**Fix 1 — Remove double-encoding**: Change the save from `JSON.stringify(currentElig)` to passing the object directly:
+```typescript
+// Before (double-encodes):
+.update({ eligibility: JSON.stringify(currentElig) })
+
+// After (correct for JSONB):
+.update({ eligibility: currentElig })
 ```
 
-Key UX improvements:
-- Every row is clickable → navigates to the correct tab and closes the dialog
-- Tab name badge shown on each row (e.g. "Problem Definition") so user knows where to go
-- Compact reason text — one line, no duplication
-- Footer has a single primary CTA: "Go to first required section" (blocking) or dual buttons (warnings only)
-- Warning rows also clickable for users who want to fill them manually
+**Fix 2 — Await query refetch before proceeding**: Change `invalidateQueries` to await the refetch so the UI reflects the updated value immediately:
+```typescript
+await queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+```
 
-## Changes
+**Fix 3 — Pre-flight dialog navigation**: When `onGoToSection('context_and_background')` fires, ensure it scrolls to and highlights the industry segment field so the user knows exactly where to act. Add a small auto-scroll-to-element behavior using the existing section navigation mechanism.
 
-### File 1: `src/components/cogniblend/curation/PreFlightGateDialog.tsx` (full rewrite)
-
-- Add `tabLabel` resolution: map each `sectionId` → its parent GROUPS tab label using a static lookup
-- Render mandatory items with red styling, each as a clickable row with `→` arrow and tab badge
-- Render warning items with amber styling, same clickable pattern
-- **Blocking footer**: Single "Go to {first missing section}" button
-- **Warning footer**: "Fill them first" navigates to first warning section; "Proceed with AI generation" unchanged
-- Add `ChevronRight` icon on each row for affordance
-
-### File 2: `src/lib/cogniblend/preFlightCheck.ts` (add tab mapping)
-
-- Export a `SECTION_TO_TAB` map so the dialog can show which tab each section belongs to
-- Map: `problem_statement → Problem Definition`, `scope → Problem Definition`, `context_and_background → Problem Definition`, etc.
-
-No other files change.
-
+## Risk
+- Very low — fixes a data serialization bug and adds proper async handling
+- No behavioral change for users who already have the segment set from intake
