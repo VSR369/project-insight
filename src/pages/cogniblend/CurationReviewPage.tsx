@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { shallow } from "zustand/shallow";
 // Phase 5 imports
 import { preFlightCheck, type PreFlightResult } from "@/lib/cogniblend/preFlightCheck";
 import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
