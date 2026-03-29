@@ -373,9 +373,11 @@ export function buildConfiguredBatchPrompt(
   const parts: string[] = [];
   parts.push(`You are reviewing a ${contextLabel}.`);
   parts.push('');
-  parts.push('For each section below, provide:');
-  parts.push('- status: "pass" (ready — NO issues, comments MUST be an empty array), "warning" (functional but improvable — MUST have 1-3 comments), or "needs_revision" (has issues that must be fixed — MUST have 1-3 comments)');
-  parts.push('- comments: actionable improvement instructions. CRITICAL: For "pass" status, comments MUST be an empty array []. Any section with comments MUST use "warning" or "needs_revision" status.');
+  parts.push(`For each section below, provide:
+- status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable — include "suggestion"), or "needs_revision" (errors — include "suggestion")
+- comments: array of objects with "text" (string) and "type" (one of: "error", "warning", "suggestion", "best_practice", "strength"). For pass sections, include strength comments.
+- suggestion: improved content for warning/needs_revision sections (null for pass)
+- guidelines: 1-3 domain-specific guidelines for this section`);
   parts.push('');
 
   configs.forEach((config, i) => {
