@@ -385,18 +385,8 @@ export default function SolverExpertiseSection({
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Select the industry segment for this challenge to configure solver expertise requirements.
+          No industry segment configured. Please set it in <strong>Context &amp; Background</strong> (Tab 1) first.
         </p>
-        <Select onValueChange={(val) => setLocalSelectedSegmentId(val)}>
-          <SelectTrigger className="w-full max-w-sm">
-            <SelectValue placeholder="Select industry segment…" />
-          </SelectTrigger>
-          <SelectContent>
-            {(industrySegments ?? []).map(seg => (
-              <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={handleCancel}>
             <X className="h-3 w-3 mr-1" />Cancel
