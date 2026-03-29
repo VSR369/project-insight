@@ -1739,8 +1739,8 @@ export default function CurationReviewPage() {
     if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
     if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
 
-    // Also check industry segment is set
-    const industrySegId = resolveIndustrySegmentId(challenge);
+    // Also check industry segment is set (use optimistic value if available)
+    const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
     if (!industrySegId) {
       sectionContents['industry_segment'] = null;
     }
