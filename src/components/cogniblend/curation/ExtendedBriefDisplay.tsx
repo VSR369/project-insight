@@ -12,7 +12,9 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Plus, Trash2, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pencil, Plus, Trash2, Sparkles, AlertCircle } from "lucide-react";
+import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import {
   Table,
   TableBody,
