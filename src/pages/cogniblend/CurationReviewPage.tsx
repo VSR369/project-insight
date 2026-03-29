@@ -3003,16 +3003,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(expertiseData) => {
                                 setSavingSection(true);
-                                // If curator selected an industry segment, persist it to eligibility
-                                if (expertiseData.industry_segment_id) {
-                                  const currentElig = parseJson<any>(challenge.eligibility) ?? {};
-                                  currentElig.industry_segment_id = expertiseData.industry_segment_id;
-                                  supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId!).then(() => {
-                                    queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
-                                  });
-                                }
-                                const { industry_segment_id, ...saveData } = expertiseData;
-                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: saveData });
+                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
                                 setEditingSection(null);
                               }}
                               saving={savingSection}
