@@ -114,7 +114,7 @@ function useSectionConfigs() {
         .order('role_context')
         .order('section_key');
       if (error) throw new Error(error.message);
-      return data as SectionConfigRow[];
+      return data as unknown as SectionConfigRow[];
     },
     staleTime: 5 * 60 * 1000,
   });
