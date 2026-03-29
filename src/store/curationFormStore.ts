@@ -167,6 +167,55 @@ export function createCurationFormStore(challengeId: string) {
             },
           })),
 
+        markSectionSaved: (key) => {
+          const state = get();
+          const now = new Date().toISOString();
+          const updatedSections = { ...state.sections };
+
+          // Clear own staleness and update lastEditedAt
+          const existing = updatedSections[key] ?? createEmptySectionEntry();
+          updatedSections[key] = {
+            ...existing,
+            lastEditedAt: now,
+            isStale: false,
+            staleBecauseOf: [],
+            staleAt: null,
+          };
+
+          // Compute transitive dependents
+          const affectedKeys = getTransitiveDependents(key);
+
+          // Mark each dependent as stale (accumulate causes)
+          for (const depKey of affectedKeys) {
+            const depEntry = updatedSections[depKey as SectionKey] ?? createEmptySectionEntry();
+            const existingCauses = depEntry.staleBecauseOf ?? [];
+            const updatedCauses = [...new Set([...existingCauses, key])];
+            updatedSections[depKey as SectionKey] = {
+              ...depEntry,
+              isStale: true,
+              staleBecauseOf: updatedCauses,
+              staleAt: depEntry.staleAt ?? now,
+            };
+          }
+
+          set({ sections: updatedSections });
+          return affectedKeys as SectionKey[];
+        },
+
+        clearStaleness: (key) =>
+          set((state) => ({
+            sections: {
+              ...state.sections,
+              [key]: {
+                ...(state.sections[key] ?? createEmptySectionEntry()),
+                isStale: false,
+                staleBecauseOf: [],
+                staleAt: null,
+                lastReviewedAt: new Date().toISOString(),
+              },
+            },
+          })),
+
         hydrate: (sectionsData) =>
           set((state) => {
             const hydrated: Partial<Record<SectionKey, SectionStoreEntry>> = { ...state.sections };
