@@ -1071,13 +1071,15 @@ interface AIQualitySummary {
 // ---------------------------------------------------------------------------
 
 function resolveIndustrySegmentId(challenge: ChallengeData): string | null {
-  // 1. targeting_filters.industries[0] — set by Account Manager during intake
+  // 1. targeting_filters.industry_segment_id — canonical field (set by curator)
   const tf = parseJson<any>(challenge.targeting_filters);
+  if (tf?.industry_segment_id) return tf.industry_segment_id;
+  // 2. targeting_filters.industries[0] — set by Account Manager during intake
   if (tf?.industries?.length > 0) return tf.industries[0];
-  // 2. eligibility.industry_segment_id — set by Challenge Creator in wizard
+  // 3. eligibility.industry_segment_id — legacy: only when eligibility is an object (not array)
   const elig = parseJson<any>(challenge.eligibility);
-  if (elig?.industry_segment_id) return elig.industry_segment_id;
-  // 3. eligibility_model — fallback field
+  if (elig && !Array.isArray(elig) && elig.industry_segment_id) return elig.industry_segment_id;
+  // 4. eligibility_model — fallback field
   if (challenge.eligibility_model) return challenge.eligibility_model;
   return null;
 }
