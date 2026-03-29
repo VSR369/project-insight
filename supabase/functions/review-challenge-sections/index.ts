@@ -481,8 +481,10 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context, context: clientContext } = await req.json();
-    if (!challenge_id) {
+    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content } = await req.json();
+    const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
+
+    if (!challenge_id && !isPreviewMode) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -539,112 +541,128 @@ serve(async (req) => {
       );
     }
 
-    // ── Fetch challenge data based on context ─────────────────
-    const challengeFields = resolvedContext === "intake"
-      ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
-      : resolvedContext === "legal"
-      ? "title, ip_model, maturity_level, eligibility, ai_section_reviews"
-      : resolvedContext === "finance"
-      ? "title, reward_structure, phase_schedule, ai_section_reviews"
-      : resolvedContext === "evaluation"
-      ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
-
-    const fetchPromises: Promise<any>[] = [
-      adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
-    ];
-
-    // Context-specific data fetching
-    if (resolvedContext === "curation" || resolvedContext === "legal") {
-      fetchPromises.push(
-        adminClient
-          .from("challenge_legal_docs")
-          .select("document_type, tier, status, lc_status, lc_review_notes, document_name")
-          .eq("challenge_id", challenge_id)
-      );
-    }
-    if (resolvedContext === "curation" || resolvedContext === "finance") {
-      fetchPromises.push(
-        adminClient
-          .from("escrow_records")
-          .select("escrow_status, deposit_amount, currency, remaining_amount, rejection_fee_percentage, fc_notes, bank_name")
-          .eq("challenge_id", challenge_id)
-          .maybeSingle()
-      );
-    }
-    if (resolvedContext === "evaluation") {
-      fetchPromises.push(
-        adminClient
-          .from("evaluation_records")
-          .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
-          .eq("challenge_id", challenge_id)
-          .order("created_at", { ascending: false })
-          .limit(10),
-        adminClient
-          .from("solutions")
-          .select("id", { count: "exact", head: true })
-          .eq("challenge_id", challenge_id)
-      );
-    }
-
-    const results = await Promise.all(fetchPromises);
-    const challengeResult = results[0];
-
-    if (challengeResult.error || !challengeResult.data) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found" } }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    let challengeData = challengeResult.data;
-
-    // Extract extended_brief fields for intake/spec
-    if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
-      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
-      challengeData = {
-        ...challengeData,
-        beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
-        solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
-        expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
-      };
-    }
-
-    // For curation context: extract extended_brief subsections as individual data fields
-    if (resolvedContext === "curation" && challengeData.extended_brief) {
-      const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
-      challengeData = {
-        ...challengeData,
-        context_and_background: (eb as any).context_background ?? null,
-        root_causes: (eb as any).root_causes ?? null,
-        affected_stakeholders: (eb as any).affected_stakeholders ?? null,
-        current_deficiencies: (eb as any).current_deficiencies ?? null,
-        preferred_approach: (eb as any).preferred_approach ?? null,
-        approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
-      };
-    }
-
-    // Build context-specific data sections for user prompt
+    // ── Preview mode: skip challenge DB lookup, use mock data ──
+    let challengeData: any;
     let additionalData = "";
     let resultIdx = 1;
 
-    if (resolvedContext === "curation") {
-      const legalResult = results[resultIdx++];
-      const escrowResult = results[resultIdx++];
-      if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
-      if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
-    } else if (resolvedContext === "legal") {
-      const legalResult = results[resultIdx++];
-      if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
-    } else if (resolvedContext === "finance") {
-      const escrowResult = results[resultIdx++];
-      if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
-    } else if (resolvedContext === "evaluation") {
-      const evalResult = results[resultIdx++];
-      const solnResult = results[resultIdx++];
-      if (evalResult?.data) additionalData += `\n\nEVALUATION RECORDS: ${JSON.stringify(evalResult.data, null, 2)}`;
-      if (solnResult) additionalData += `\n\nSOLUTION COUNT: ${solnResult.count ?? 0}`;
-    }
+    if (isPreviewMode) {
+      // Build mock challenge data from client context + current_content
+      challengeData = {
+        title: "Preview Test Challenge",
+        problem_statement: current_content || "Test content for prompt preview.",
+        scope: "Preview scope",
+        ai_section_reviews: [],
+        ...(clientContext || {}),
+      };
+      if (section_key) {
+        challengeData[section_key] = current_content || "Test content for this section.";
+      }
+    } else {
+      // ── Fetch challenge data based on context ─────────────────
+      const challengeFields = resolvedContext === "intake"
+        ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
+        : resolvedContext === "legal"
+        ? "title, ip_model, maturity_level, eligibility, ai_section_reviews"
+        : resolvedContext === "finance"
+        ? "title, reward_structure, phase_schedule, ai_section_reviews"
+        : resolvedContext === "evaluation"
+        ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
+        : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
+
+      const fetchPromises: Promise<any>[] = [
+        adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
+      ];
+
+      // Context-specific data fetching
+      if (resolvedContext === "curation" || resolvedContext === "legal") {
+        fetchPromises.push(
+          adminClient
+            .from("challenge_legal_docs")
+            .select("document_type, tier, status, lc_status, lc_review_notes, document_name")
+            .eq("challenge_id", challenge_id)
+        );
+      }
+      if (resolvedContext === "curation" || resolvedContext === "finance") {
+        fetchPromises.push(
+          adminClient
+            .from("escrow_records")
+            .select("escrow_status, deposit_amount, currency, remaining_amount, rejection_fee_percentage, fc_notes, bank_name")
+            .eq("challenge_id", challenge_id)
+            .maybeSingle()
+        );
+      }
+      if (resolvedContext === "evaluation") {
+        fetchPromises.push(
+          adminClient
+            .from("evaluation_records")
+            .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
+            .eq("challenge_id", challenge_id)
+            .order("created_at", { ascending: false })
+            .limit(10),
+          adminClient
+            .from("solutions")
+            .select("id", { count: "exact", head: true })
+            .eq("challenge_id", challenge_id)
+        );
+      }
+
+      const results = await Promise.all(fetchPromises);
+      const challengeResult = results[0];
+
+      if (challengeResult.error || !challengeResult.data) {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found" } }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      challengeData = challengeResult.data;
+
+      // Extract extended_brief fields for intake/spec
+      if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
+        const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+        challengeData = {
+          ...challengeData,
+          beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
+          solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
+          expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
+        };
+      }
+
+      // For curation context: extract extended_brief subsections as individual data fields
+      if (resolvedContext === "curation" && challengeData.extended_brief) {
+        const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
+        challengeData = {
+          ...challengeData,
+          context_and_background: (eb as any).context_background ?? null,
+          root_causes: (eb as any).root_causes ?? null,
+          affected_stakeholders: (eb as any).affected_stakeholders ?? null,
+          current_deficiencies: (eb as any).current_deficiencies ?? null,
+          preferred_approach: (eb as any).preferred_approach ?? null,
+          approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
+        };
+      }
+
+      // Build context-specific data sections for user prompt
+      if (resolvedContext === "curation") {
+        const legalResult = results[resultIdx++];
+        const escrowResult = results[resultIdx++];
+        if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
+        if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
+      } else if (resolvedContext === "legal") {
+        const legalResult = results[resultIdx++];
+        if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
+      } else if (resolvedContext === "finance") {
+        const escrowResult = results[resultIdx++];
+        if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
+      } else if (resolvedContext === "evaluation") {
+        const evalResult = results[resultIdx++];
+        const solnResult = results[resultIdx++];
+        if (evalResult?.data) additionalData += `\n\nEVALUATION RECORDS: ${JSON.stringify(evalResult.data, null, 2)}`;
+        if (solnResult) additionalData += `\n\nSOLUTION COUNT: ${solnResult.count ?? 0}`;
+      }
+    } // end non-preview branch
 
     const contextLabel = resolvedContext === "intake" ? "intake brief"
       : resolvedContext === "spec" ? "specification"
@@ -783,24 +801,27 @@ serve(async (req) => {
     // Wait for complexity to finish
     await complexityPromise;
 
-    // Merge with existing reviews
-    const existingReviews: any[] = Array.isArray(challengeResult.data.ai_section_reviews)
-      ? challengeResult.data.ai_section_reviews
-      : [];
+    // Merge with existing reviews and persist (skip in preview mode)
+    let merged = allNewSections;
+    if (!isPreviewMode) {
+      const existingReviews: any[] = Array.isArray(challengeData.ai_section_reviews)
+        ? challengeData.ai_section_reviews
+        : [];
 
-    const newKeys = new Set(allNewSections.map((s: any) => s.section_key));
-    const merged = [
-      ...existingReviews.filter((r: any) => !newKeys.has(r.section_key)),
-      ...allNewSections,
-    ];
+      const newKeys = new Set(allNewSections.map((s: any) => s.section_key));
+      merged = [
+        ...existingReviews.filter((r: any) => !newKeys.has(r.section_key)),
+        ...allNewSections,
+      ];
 
-    const { error: updateError } = await adminClient
-      .from("challenges")
-      .update({ ai_section_reviews: merged })
-      .eq("id", challenge_id);
+      const { error: updateError } = await adminClient
+        .from("challenges")
+        .update({ ai_section_reviews: merged })
+        .eq("id", challenge_id);
 
-    if (updateError) {
-      console.error("Failed to persist AI reviews:", updateError);
+      if (updateError) {
+        console.error("Failed to persist AI reviews:", updateError);
+      }
     }
 
     return new Response(
