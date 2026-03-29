@@ -82,11 +82,18 @@ export function usePhaseTemplates(solutionType?: string | null, maturityLevel?: 
       if (maturityLevel) query = query.eq('maturity_level', maturityLevel);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return (data ?? []) as PhaseTemplate[];
+      return (data ?? []).map((row: any) => ({
+        id: row.id,
+        solution_type: row.solution_type,
+        maturity_level: row.maturity_level,
+        phases: Array.isArray(row.phases) ? row.phases : [],
+        total_range_min_weeks: row.total_range_min_weeks,
+        total_range_max_weeks: row.total_range_max_weeks,
+        is_active: row.is_active,
+      })) as PhaseTemplate[];
     },
     staleTime: 15 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
-    enabled: !!(solutionType || maturityLevel) || true,
   });
 }
 
