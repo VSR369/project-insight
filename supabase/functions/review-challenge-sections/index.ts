@@ -673,7 +673,7 @@ serve(async (req) => {
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
-      ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient)
+      ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient, clientContext)
           .then((result) => {
             (result as any).prompt_source = useDbConfig ? "supervisor" : "default";
             allNewSections.push(result);
