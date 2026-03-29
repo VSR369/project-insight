@@ -176,6 +176,8 @@ interface ChallengeData {
   targeting_filters: Json | null;
   eligibility_model: string | null;
   organization_id: string;
+  data_resources_provided: Json | null;
+  success_metrics_kpis: Json | null;
 }
 
 interface LegalDocSummary {
