@@ -114,6 +114,8 @@ import type { SectionKey, SectionStoreEntry } from "@/types/sections";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
+import { getCurationFormStore, selectStaleSections } from "@/store/curationFormStore";
+import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
