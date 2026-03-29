@@ -3074,6 +3074,7 @@ export default function CurationReviewPage() {
                         expandVersion={expandVersion}
                         staleBecauseOf={staleSections.find(s => s.key === section.key)?.staleBecauseOf}
                         staleAt={staleSections.find(s => s.key === section.key)?.staleAt ?? null}
+                        aiAction={storeRef.current?.getState().getSectionEntry(section.key as SectionKey)?.aiAction ?? null}
                       >
                         {sectionContent}
                       </CuratorSectionPanel>
