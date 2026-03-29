@@ -39,14 +39,26 @@ import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 export interface ReviewComment {
   text: string;
   severity?: "strength" | "warning" | "required";
+  /** New multi-tier type from LLM (preferred over inferred severity) */
+  type?: "error" | "warning" | "suggestion" | "best_practice" | "strength";
   applies_to?: string;
+  field?: string | null;
+  reasoning?: string | null;
+}
+
+export interface CrossSectionIssue {
+  related_section: string;
+  issue: string;
+  suggested_resolution?: string;
 }
 
 export interface AIReviewResult {
-  status: "pass" | "warning" | "needs_revision" | "inferred";
-  comments: string[];
+  status: "pass" | "warning" | "needs_revision" | "inferred" | "generated";
+  comments: (string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string })[];
   summary?: string;
   suggested_version?: string;
+  guidelines?: string[];
+  cross_section_issues?: CrossSectionIssue[];
 }
 
 interface MasterDataOption {
@@ -95,7 +107,24 @@ interface AIReviewResultPanelProps {
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
 }
 
-/* ── Severity helpers ──────────────────────────────────── */
+/* ── Multi-tier comment type config ─────────────────────── */
+
+const COMMENT_TYPE_CONFIG: Record<string, { label: string; icon: typeof ThumbsUp; badgeClass: string }> = {
+  error:         { label: "Error",         icon: ShieldAlert,    badgeClass: "bg-red-100 text-red-800 border-red-300" },
+  warning:       { label: "Warning",       icon: AlertTriangle,  badgeClass: "bg-amber-100 text-amber-800 border-amber-300" },
+  suggestion:    { label: "Suggestion",    icon: Sparkles,       badgeClass: "bg-blue-100 text-blue-700 border-blue-300" },
+  best_practice: { label: "Best Practice", icon: CheckCircle2,   badgeClass: "bg-purple-100 text-purple-700 border-purple-300" },
+  strength:      { label: "Strength",      icon: ThumbsUp,       badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+};
+
+/* Legacy severity → type mapping */
+const SEVERITY_TO_TYPE: Record<string, string> = {
+  required: 'error',
+  warning: 'warning',
+  strength: 'strength',
+};
+
+/* ── Severity helpers (backward compat) ────────────────── */
 
 const SEVERITY_CONFIG = {
   strength: {
@@ -145,13 +174,24 @@ function inferSeverity(comment: string): ReviewComment["severity"] {
   return "warning";
 }
 
-function parseComment(raw: string): ReviewComment {
-  let text = raw;
+function parseComment(raw: string | { text?: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string }): ReviewComment {
+  // Handle new object-format comments from multi-tier LLM output
+  if (typeof raw === 'object' && raw !== null) {
+    const text = raw.text || raw.comment || '';
+    const type = raw.type as ReviewComment['type'] || undefined;
+    const severity = type
+      ? (type === 'error' ? 'required' : type === 'best_practice' ? 'strength' : type as ReviewComment['severity'])
+      : inferSeverity(text);
+    return { text, type, severity, field: raw.field || null, reasoning: raw.reasoning || null };
+  }
+
+  // Legacy string format
+  let text = raw as string;
   let applies_to: string | undefined;
-  const appliesMatch = raw.match(/\[applies[_ ]to:\s*(.+?)\]\s*$/i);
+  const appliesMatch = text.match(/\[applies[_ ]to:\s*(.+?)\]\s*$/i);
   if (appliesMatch) {
     applies_to = appliesMatch[1];
-    text = raw.slice(0, appliesMatch.index).trim();
+    text = text.slice(0, appliesMatch.index).trim();
   }
   const severity = inferSeverity(text);
   return { text, severity, applies_to };
@@ -824,8 +864,10 @@ export function AIReviewResultPanel({
               </div>
             </div>
             {parsedComments.map((comment, i) => {
-              const sev = comment.severity ? SEVERITY_CONFIG[comment.severity] : SEVERITY_CONFIG.warning;
-              const SevIcon = sev.icon;
+              // Use new multi-tier type if available, else fall back to inferred severity
+              const commentType = comment.type || SEVERITY_TO_TYPE[comment.severity || 'warning'] || 'warning';
+              const typeConfig = COMMENT_TYPE_CONFIG[commentType] || COMMENT_TYPE_CONFIG.warning;
+              const TypeIcon = typeConfig.icon;
               const isSelected = selectedComments.has(i);
               const isExpanded = expandedComments.has(i);
               const isLong = comment.text.length > 160;
@@ -858,11 +900,16 @@ export function AIReviewResultPanel({
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2 mb-0.5">
                       <Badge
-                        className={cn("text-[11px] px-2 py-0.5 shrink-0", sev.badgeClass)}
+                        className={cn("text-[11px] px-2 py-0.5 shrink-0", typeConfig.badgeClass)}
                       >
-                        <SevIcon className="h-2.5 w-2.5 mr-0.5" />
-                        {sev.label}
+                        <TypeIcon className="h-2.5 w-2.5 mr-0.5" />
+                        {typeConfig.label}
                       </Badge>
+                      {comment.field && (
+                        <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                          {comment.field}
+                        </span>
+                      )}
                     </div>
                     <span className={cn(
                       "text-sm text-foreground leading-relaxed block",
@@ -870,6 +917,11 @@ export function AIReviewResultPanel({
                     )}>
                       {comment.text}
                     </span>
+                    {comment.reasoning && (
+                      <p className="text-xs text-muted-foreground italic mt-1">
+                        {comment.reasoning}
+                      </p>
+                    )}
                     {isLong && (
                       <button
                         type="button"
@@ -895,6 +947,32 @@ export function AIReviewResultPanel({
                 </label>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Domain Guidelines ── */}
+        {result.guidelines && result.guidelines.length > 0 && (
+          <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800/40">
+            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-1.5">Domain Guidelines</p>
+            {result.guidelines.map((g: string, gi: number) => (
+              <p key={gi} className="text-sm text-indigo-600 dark:text-indigo-400 mt-1 leading-relaxed">• {g}</p>
+            ))}
+          </div>
+        )}
+
+        {/* ── Cross-Section Issues ── */}
+        {result.cross_section_issues && result.cross_section_issues.length > 0 && (
+          <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800/40">
+            <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1.5">Cross-Section Issues</p>
+            {result.cross_section_issues.map((issue: CrossSectionIssue, ci: number) => (
+              <div key={ci} className="text-sm text-orange-600 dark:text-orange-400 mt-1 leading-relaxed">
+                <span className="font-medium">↔ {issue.related_section.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: </span>
+                {issue.issue}
+                {issue.suggested_resolution && (
+                  <span className="text-orange-500 dark:text-orange-300 ml-1">→ {issue.suggested_resolution}</span>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

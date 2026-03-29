@@ -48,11 +48,14 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
  * Build system prompt. When Phase 1 `issues` are provided, use a minimal
  * focused prompt. Otherwise fall back to the verbose role-aware prompt
  * for manual refinement calls.
+ *
+ * Change 5: If DB config is available, enrich the prompt with quality criteria,
+ * cross-references, and research directives from Prompt Studio.
  */
-function getSystemPrompt(roleContext: string, issues?: string[]): string {
+function getSystemPrompt(roleContext: string, issues?: string[], dbConfig?: any): string {
   // ── Phase 2 minimal prompt (issues supplied from triage) ──
   if (issues && issues.length > 0) {
-    return `You are fixing a specific curator section.
+    let prompt = `You are fixing a specific curator section.
 
 Return ONLY the corrected content in the same format as the input.
 - If line items: return a JSON array of strings
@@ -61,6 +64,52 @@ Return ONLY the corrected content in the same format as the input.
 - If schedule table: return JSON array of phase objects
 - If checkbox/select: return the code value(s) from allowed options only
 No explanation. No preamble. Corrected content only.`;
+
+    // Enrich with DB config if available
+    if (dbConfig) {
+      const enrichments: string[] = [];
+      if (dbConfig.quality_criteria?.length > 0) {
+        enrichments.push(`Quality criteria to satisfy:\n${dbConfig.quality_criteria.map((c: any) => `- ${c.name} (${c.severity}): ${c.description}`).join('\n')}`);
+      }
+      if (dbConfig.review_instructions) {
+        enrichments.push(`Section instructions: ${dbConfig.review_instructions}`);
+      }
+      if (dbConfig.dos) enrichments.push(`Do: ${dbConfig.dos}`);
+      if (dbConfig.donts) enrichments.push(`Don't: ${dbConfig.donts}`);
+      if (enrichments.length > 0) {
+        prompt += `\n\n${enrichments.join('\n\n')}`;
+      }
+    }
+    return prompt;
+  }
+
+  // ── Enriched prompt when DB config is available ──
+  if (dbConfig) {
+    const parts: string[] = [];
+    parts.push(dbConfig.platform_preamble?.trim() || `You are an expert innovation challenge specification writer.`);
+    parts.push(`\nYour task: Rewrite or improve the "${dbConfig.section_label || 'section'}" based on the curator's instructions.`);
+    parts.push(`\nRules:`);
+    parts.push(`- Follow the curator's instructions precisely.`);
+    parts.push(`- Maintain consistency with the challenge context.`);
+    parts.push(`- Return ONLY the refined content, nothing else.`);
+
+    if (dbConfig.quality_criteria?.length > 0) {
+      parts.push(`\nQuality criteria to satisfy:`);
+      for (const c of dbConfig.quality_criteria) {
+        parts.push(`- **${c.name}** (${c.severity}): ${c.description}`);
+      }
+    }
+    if (dbConfig.review_instructions) parts.push(`\nInstructions: ${dbConfig.review_instructions}`);
+    if (dbConfig.dos) parts.push(`Do: ${dbConfig.dos}`);
+    if (dbConfig.donts) parts.push(`Don't: ${dbConfig.donts}`);
+    parts.push(`Tone: ${dbConfig.tone || 'professional'} | Words: ${dbConfig.min_words || 50}–${dbConfig.max_words || 500}`);
+
+    const frameworks = dbConfig.industry_frameworks ?? [];
+    if (frameworks.length > 0) parts.push(`Reference frameworks: ${frameworks.join(', ')}`);
+    const sources = dbConfig.analyst_sources ?? [];
+    if (sources.length > 0) parts.push(`Analyst sources: ${sources.join(', ')}`);
+
+    return parts.join('\n');
   }
 
   // ── Legacy verbose prompts for manual refinement ──
@@ -111,6 +160,34 @@ Rules:
 - Do NOT add markdown formatting unless the input already uses it.
 - Keep the length appropriate — don't pad unnecessarily but don't over-compress either.
 - For master-data selection sections (eligibility, visibility, ip_model, maturity_level, complexity), return ONLY the code values from the provided allowed options. Never invent new codes.`;
+}
+
+/**
+ * Load section config from ai_review_section_config table.
+ * Returns null if not found or on error.
+ */
+async function loadSectionConfig(
+  supabaseClient: ReturnType<typeof createClient>,
+  sectionKey: string,
+  roleContext: string = 'curation',
+): Promise<any | null> {
+  try {
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    const { data, error } = await adminClient
+      .from('ai_review_section_config')
+      .select('*')
+      .eq('section_key', sectionKey)
+      .eq('role_context', roleContext)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -418,6 +495,9 @@ Return ONLY the JSON object. No markdown, no explanation.`,
       userPrompt += `\n\nCRITICAL FORMAT REQUIREMENT: Return ONLY a valid JSON object with keys: "proficiency_areas", "sub_domains", "specialities". Each is an array of objects with "id" and "name" keys. Only use IDs from the taxonomy below.${taxonomyContext}\n\nExample: {"proficiency_areas":[{"id":"uuid","name":"Area Name"}],"sub_domains":[{"id":"uuid","name":"SD Name"}],"specialities":[{"id":"uuid","name":"Spec Name"}]}`;
     }
 
+    // Load section config from DB for enriched prompts (Change 5)
+    const dbConfig = await loadSectionConfig(supabaseClient, section_key, resolvedRoleContext);
+
     const response = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -427,7 +507,7 @@ Return ONLY the JSON object. No markdown, no explanation.`,
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined) },
+          { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined, dbConfig) },
           { role: "user", content: userPrompt },
         ],
       }),

@@ -20,10 +20,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+/** Comment can be a plain string (legacy) or structured object (multi-tier) */
+export type SectionComment = string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string };
+
 export interface SectionReview {
   section_key: string;
-  status: "pass" | "warning" | "needs_revision";
-  comments: string[];
+  status: "pass" | "warning" | "needs_revision" | "generated";
+  comments: SectionComment[];
   reviewed_at?: string;
   addressed?: boolean;
   prompt_source?: "supervisor" | "default";
@@ -33,6 +36,12 @@ export interface SectionReview {
   phase?: "triage" | "deep";
   /** Confidence score from Phase 1 triage (0.0-1.0) */
   confidence?: number;
+  /** Inline suggestion from review (eliminates need for separate refine call) */
+  suggestion?: string | null;
+  /** Domain-specific guidelines from AI review */
+  guidelines?: string[];
+  /** Cross-section consistency issues */
+  cross_section_issues?: { related_section: string; issue: string; suggested_resolution?: string }[];
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
@@ -232,7 +241,7 @@ export function AIReviewInline({
   initialRefinedContent,
   complexityRatings,
 }: AIReviewInlineProps) {
-  const [editedComments, setEditedComments] = useState<string[]>([]);
+  const [editedComments, setEditedComments] = useState<SectionComment[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
   const [isRefining, setIsRefining] = useState(false);
@@ -274,6 +283,7 @@ export function AIReviewInline({
 
   // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
   // Skip for complexity — it uses structured parameter table, not text refinement
+  // Skip if the review already includes an inline suggestion (Change 4: no redundant refine call)
   const autoRefineTriggered = React.useRef(false);
   useEffect(() => {
     if (
@@ -282,14 +292,21 @@ export function AIReviewInline({
       sectionKey !== 'complexity' &&
       review &&
       !review.addressed &&
-      (review.status === "warning" || review.status === "needs_revision") &&
+      (review.status === "warning" || review.status === "needs_revision" || review.status === "generated") &&
       review.comments && review.comments.length > 0 &&
       !refinedContent &&
       !isRefining &&
       selectedComments.size > 0
     ) {
       autoRefineTriggered.current = true;
-      // Small delay to allow UI to settle
+
+      // If the review already returned an inline suggestion, use it directly — no second LLM call
+      if (review.suggestion && typeof review.suggestion === 'string' && review.suggestion.trim().length > 0) {
+        setRefinedContent(review.suggestion);
+        return;
+      }
+
+      // No inline suggestion — fall back to separate refine call
       const timer = setTimeout(() => {
         handleRefineWithAI();
       }, 300);

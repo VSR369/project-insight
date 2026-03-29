@@ -242,13 +242,25 @@ async function callAIBatch(
                         items: {
                           type: "object",
                           properties: {
-                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "Comment severity level" },
-                            field: { type: "string", description: "Specific field name or null for general comment" },
-                            comment: { type: "string", description: "Clear, specific issue description referencing challenge details" },
-                            reasoning: { type: "string", description: "Why this matters, referencing other sections" },
+                            text: { type: "string", description: "Clear, specific comment referencing challenge details" },
+                            type: {
+                              type: "string",
+                              enum: ["error", "warning", "suggestion", "best_practice", "strength"],
+                              description: "error = must fix, warning = should improve, suggestion = nice-to-have, best_practice = industry standard reference, strength = positive reinforcement of what works well",
+                            },
+                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "DEPRECATED — use 'type' instead. Kept for backward compatibility." },
+                            field: { type: "string", description: "Specific field name this comment applies to, or null for general" },
+                            comment: { type: "string", description: "DEPRECATED — use 'text' instead. Kept for backward compatibility." },
+                            reasoning: { type: "string", description: "Why this matters, referencing other sections for cross-consistency" },
                           },
-                          required: ["severity", "comment"],
+                          required: ["text", "type"],
                         },
+                        description: "Multi-tier feedback: errors, warnings, suggestions, best practices, AND strengths. For 'pass' sections, include 1-2 strength comments confirming what is good.",
+                      },
+                      guidelines: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "1-3 domain-specific guidelines based on challenge context and solution type. Each must reference THIS specific challenge — not generic consulting advice.",
                       },
                       suggestion: {
                         type: "string",
@@ -315,15 +327,29 @@ Null/empty if no content suggestion needed.`,
   const parsed = JSON.parse(toolCall.function.arguments);
   const now = new Date().toISOString();
   const sections = (parsed.sections ?? []).map((s: any) => {
-    // Normalize: pass with comments → warning (prevent confusing UI)
-    const comments = Array.isArray(s.comments) ? s.comments : [];
-    const hasComments = comments.length > 0;
-    const normalizedStatus = (s.status === 'pass' && hasComments) ? 'warning' : s.status;
+    // Normalize comments: handle both old (severity/comment) and new (type/text) formats
+    const rawComments = Array.isArray(s.comments) ? s.comments : [];
+    const comments = rawComments.map((c: any) => {
+      if (typeof c === 'string') return { text: c, type: 'warning' as const, field: null, reasoning: null };
+      return {
+        text: c.text || c.comment || String(c),
+        type: c.type || (c.severity === 'error' ? 'error' : c.severity === 'suggestion' ? 'suggestion' : 'warning'),
+        field: c.field || null,
+        reasoning: c.reasoning || null,
+      };
+    });
+
+    // Only downgrade pass→warning if comments contain actual errors or warnings
+    // Strength/best_practice/suggestion-only comments keep "pass" status
+    const hasHighSeverity = comments.some((c: any) => c.type === 'error' || c.type === 'warning');
+    const normalizedStatus = (s.status === 'pass' && hasHighSeverity) ? 'warning' : s.status;
+
     return {
       ...s,
       status: normalizedStatus,
       comments,
       suggestion: s.suggestion || null,
+      guidelines: Array.isArray(s.guidelines) ? s.guidelines : [],
       cross_section_issues: Array.isArray(s.cross_section_issues) ? s.cross_section_issues : [],
       reviewed_at: now,
     };
