@@ -74,6 +74,8 @@ export function useAiSectionReview({
             reviewResult.comments ?? [],
             reviewResult.suggestion ?? null,
           );
+          // Clear staleness after successful review
+          store.getState().clearStaleness(sectionKey);
         }
       } else if (data?.success && data.data) {
         // Handle assess-complexity and other non-standard response shapes
