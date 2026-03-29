@@ -37,7 +37,6 @@ export interface SolverExpertiseData {
   proficiency_areas?: SelectedItem[];
   sub_domains?: SelectedItem[];
   specialities?: SelectedItem[];
-  industry_segment_id?: string;
 }
 
 interface SolverExpertiseSectionProps {
