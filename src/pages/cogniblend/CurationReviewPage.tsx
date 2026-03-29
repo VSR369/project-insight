@@ -3302,12 +3302,9 @@ export default function CurationReviewPage() {
                 if (group) setActiveGroup(group.id);
               }
             }}
-            onReReviewStale={() => {
-              if (staleSections.length > 0) {
-                const firstKey = staleSections[0].key;
-                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
-                if (group) setActiveGroup(group.id);
-              }
+            onReReviewStale={async () => {
+              setAiReviewLoading(true);
+              try { await reReviewStale(); } finally { setAiReviewLoading(false); }
             }}
           />
 
