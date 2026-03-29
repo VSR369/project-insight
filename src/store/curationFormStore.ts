@@ -40,6 +40,8 @@ interface CurationFormState {
   clearStaleness: (key: SectionKey) => void;
   /** Store validation results for a section */
   setValidationResult: (key: SectionKey, result: ValidationResult | null) => void;
+  /** Record the AI action type from wave execution */
+  setAiAction: (key: SectionKey, action: AiActionType) => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
