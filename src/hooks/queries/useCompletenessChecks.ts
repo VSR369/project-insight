@@ -3,7 +3,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import type { CompletenessCheckDef, CompletenessResult } from '@/lib/cogniblend/completenessCheck';
@@ -52,8 +52,16 @@ export function useRunCompletenessCheck({ challengeId, challengeData }: UseRunCo
   const [result, setResult] = useState<CompletenessResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
+  // Use refs to avoid recreating `run` when query data changes
+  const checkDefsRef = useRef(checkDefs);
+  checkDefsRef.current = checkDefs;
+  const challengeDataRef = useRef(challengeData);
+  challengeDataRef.current = challengeData;
+
   const run = useCallback(() => {
-    if (!checkDefs || checkDefs.length === 0 || !challengeData) return;
+    const defs = checkDefsRef.current;
+    const cd = challengeDataRef.current;
+    if (!defs || defs.length === 0 || !cd) return;
 
     setIsRunning(true);
 
@@ -78,7 +86,7 @@ export function useRunCompletenessCheck({ challengeId, challengeData }: UseRunCo
         // Fall back to challenge data
         const ebField = EXTENDED_BRIEF_FIELD_MAP[sk];
         if (ebField) {
-          const eb = challengeData.extended_brief;
+          const eb = cd.extended_brief;
           const parsed = typeof eb === 'string' ? JSON.parse(eb) : eb;
           const val = parsed?.[ebField];
           sectionContents[sk] = val ? (typeof val === 'string' ? val : JSON.stringify(val)) : null;
@@ -108,24 +116,24 @@ export function useRunCompletenessCheck({ challengeId, challengeData }: UseRunCo
 
         const dbField = fieldMap[sk];
         if (dbField) {
-          const val = challengeData[dbField];
+          const val = cd[dbField];
           sectionContents[sk] = val ? (typeof val === 'string' ? val : JSON.stringify(val)) : null;
         }
       }
 
       // Build metadata for conditional checks
       const metadata: Record<string, unknown> = {
-        solutionType: challengeData.solution_type ?? challengeData.operating_model ?? null,
-        governanceProfile: challengeData.governance_profile ?? null,
-        maturityLevel: challengeData.maturity_level ?? null,
+        solutionType: cd.solution_type ?? cd.operating_model ?? null,
+        governanceProfile: cd.governance_profile ?? null,
+        maturityLevel: cd.maturity_level ?? null,
       };
 
-      const checkResult = runCompletenessCheck(checkDefs, sectionContents, metadata);
+      const checkResult = runCompletenessCheck(defs, sectionContents, metadata);
       setResult(checkResult);
     } finally {
       setIsRunning(false);
     }
-  }, [checkDefs, challengeId, challengeData]);
+  }, [challengeId]);
 
   return { result, run, isRunning };
 }

@@ -1403,13 +1403,15 @@ export default function CurationReviewPage() {
 
   // Auto-run completeness check after wave execution completes
   const prevWaveStatusRef = useRef<string | undefined>();
+  const runCompletenessCheckRef = useRef(runCompletenessCheck);
+  runCompletenessCheckRef.current = runCompletenessCheck;
   useEffect(() => {
     const currentStatus = waveProgress?.overallStatus;
     if (prevWaveStatusRef.current === 'running' && currentStatus === 'completed') {
-      runCompletenessCheck();
+      runCompletenessCheckRef.current();
     }
     prevWaveStatusRef.current = currentStatus;
-  }, [waveProgress?.overallStatus, runCompletenessCheck]);
+  }, [waveProgress?.overallStatus]);
 
   const handleNavigateToSection = useCallback((sectionKey: string) => {
     // Find which group contains this section
