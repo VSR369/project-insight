@@ -1,84 +1,96 @@
 
 
-# Phase 6 — Clarified: ONE Table, Enriched Columns
+# Phase 6 Remaining Work: Gap Analysis + Continuation Plan
 
-## What stays (already useful, already driving prompts)
+## Identified Gaps in Steps 1-5
 
-The existing `ai_review_section_config` fields — `review_instructions`, `dos`, `donts`, `example_good`, `example_poor`, `tone`, `min_words`, `max_words`, `required_elements`, `importance_level`, `section_description` — all remain. They are the supervisor's primary editing surface and already compose into the LLM prompt via `buildConfiguredBatchPrompt()`.
+### Gap 1: Bug in edge function — `activeConfigs` undefined
+In `supabase/functions/review-challenge-sections/index.ts` line 701, `buildSmartBatchPrompt(activeConfigs, ...)` references `activeConfigs` which is never declared. It should be the batch-filtered configs from `dbConfigMap`. This will cause a runtime error on every AI review call.
 
-## What gets added (same table, new JSONB columns)
+### Gap 2: `assemblePrompt.ts` task marked todo but already implemented
+Roadmap task `d0b155d2` ("Create assemblePrompt utility") is still `todo` but the file exists at `src/lib/cogniblend/assemblePrompt.ts` — needs status update to `done`.
 
-These columns add **structure** to what is currently unstructured or hardcoded:
+### Gap 3: `phase_templates` table migration task still `todo`
+Roadmap task `dc2a3be0` ("Create phase_templates table migration") is `todo` but the table was created in the migration. Needs `done`.
 
-| New column | Type | Purpose | Currently lives... |
-|-----------|------|---------|-------------------|
-| `quality_criteria` | JSONB | Named checks with severity + cross-section refs (e.g., "MATURITY-DURATION MATCH", error, cross-check with `maturity_level`) | Buried in free-text `review_instructions` — AI often misses them |
-| `cross_references` | JSONB | Section keys whose content gets injected into this section's prompt | Hardcoded in `sectionDependencies.ts` — not supervisor-configurable |
-| `master_data_constraints` | JSONB | Which fields must come from which lookup table, strict or soft | Hardcoded in `promptTemplate.ts` |
-| `content_templates` | JSONB | Per-maturity output templates (blueprint / POC / pilot) | Doesn't exist — AI has no maturity-specific guidance |
-| `computation_rules` | JSONB | Programmatic rules like "weights sum to 100%" | Hardcoded in `postLlmValidation.ts` |
-| `web_search_queries` | JSONB | Research directives for generation | Doesn't exist |
-| `industry_frameworks` | JSONB | Reference frameworks (TOGAF, SAFe, etc.) | Doesn't exist |
-| `platform_preamble` | TEXT | Consulting-grade persona (shared across all sections) | Currently a generic one-liner |
-| `wave_number` | INT | Which wave this section belongs to | Hardcoded in `waveConfig.ts` |
-| `supervisor_examples` | JSONB | Structured good/bad examples with explanations | Currently flat text `example_good`/`example_poor` (stays for backward compat) |
+### Gap 4: Edge function not re-deployed after the `activeConfigs` bug
+The edge function was deployed with the bug. Needs fix + redeploy.
 
-## How the prompt assembles (single flow)
+## Implementation Plan
 
-```text
-ai_review_section_config row (ALL fields)
-    │
-    ├── platform_preamble        → Layer 1: Persona + anti-hallucination rules
-    ├── section_description      → Layer 2: Role
-    ├── quality_criteria         → Layer 2: Structured checklist
-    ├── master_data_constraints  → Layer 2: Valid value injection
-    ├── content_templates        → Layer 2: Maturity-specific template
-    ├── computation_rules        → Layer 2: Programmatic rules
-    ├── web_search_queries       → Layer 3: Research directives
-    ├── industry_frameworks      → Layer 3: Framework references
-    ├── review_instructions      → Layer 4: Supervisor free-text (existing)
-    ├── dos / donts              → Layer 4: Supervisor guardrails (existing)
-    ├── example_good/poor        → Layer 4: Supervisor examples (existing)
-    ├── supervisor_examples      → Layer 4: Structured examples (new)
-    └── ChallengeContext         → Layer 5: Runtime (todaysDate, rateCard, sections)
-            │
-            └── cross_references → Injects dependent section content into prompt
+### Task 1: Fix edge function `activeConfigs` bug + redeploy
+
+**File:** `supabase/functions/review-challenge-sections/index.ts` line 701
+
+Replace `activeConfigs` with batch-scoped configs from `dbConfigMap`:
+```typescript
+const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
+systemPrompt = buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
 ```
 
-One table. One `assemblePrompt()` function. One edge function. The supervisor sees all fields in one admin page.
+Redeploy the edge function.
 
-## Implementation steps
+### Task 2: Seed 24 section prompt configs
 
-### Step 1: Migration — add columns to `ai_review_section_config`
-Add the JSONB/TEXT/INT columns listed above. All nullable with sensible defaults so existing rows work unchanged.
+Use the Supabase insert tool to UPDATE existing `ai_review_section_config` rows (role_context='curation') with the structured JSONB data from the Phase 6 spec. For each of the 24 sections:
 
-### Step 2: Migration — create `phase_templates` table
-New table for 12 solution-type x maturity phase duration ranges. This is genuinely new reference data.
+- `platform_preamble`: Shared consulting-grade preamble (same for all)
+- `quality_criteria`: Section-specific criteria with severity and cross-references
+- `cross_references`: Section keys this section depends on (from `DIRECT_DEPENDENCIES`)
+- `master_data_constraints`: For master-data-bound sections (maturity_level, complexity, eligibility, ip_model, visibility, domain_tags)
+- `content_templates`: Per-maturity templates (blueprint, poc, pilot) where specified
+- `computation_rules`: For computed sections (phase_schedule, evaluation_criteria, reward_structure)
+- `web_search_queries`: Research directives
+- `industry_frameworks`: Reference frameworks
+- `wave_number`: From EXECUTION_WAVES config
+- `tab_group`: Problem Definition, Challenge Context, Scope & Complexity, Solvers & Schedule, Evaluation & Rewards, Publish & Discover
 
-### Step 3: Seed 24 section configs with structured data
-UPDATE existing rows to populate the new columns with quality criteria, cross-references, constraints, and templates from the Phase 6 spec.
+All 24 section keys from SECTION_FORMAT_CONFIG: problem_statement, scope, deliverables, expected_outcomes, submission_guidelines, maturity_level, evaluation_criteria, reward_structure, complexity, ip_model, legal_docs, escrow_funding, eligibility, visibility, domain_tags, phase_schedule, context_and_background, root_causes, affected_stakeholders, current_deficiencies, preferred_approach, approaches_not_of_interest, hook, solver_expertise.
 
-### Step 4: `assemblePrompt()` utility
-New file: `src/lib/cogniblend/assemblePrompt.ts`. Reads ALL fields from the config row (old + new). Composes the 5-layer prompt. Injects cross-referenced section content from `ChallengeContext`.
+### Task 3: Seed 12 phase templates
 
-### Step 5: Edge function — replace `buildConfiguredBatchPrompt` with `assemblePrompt`
-When the new JSONB fields are populated, use structured assembly. When they're empty, fall back to existing flat-text assembly. Backward compatible.
+Insert 12 rows into `phase_templates` table for:
+- 4 solution types: strategy_design, technology_architecture, process_operations, product_innovation
+- 3 maturity levels: blueprint, poc, pilot
 
-### Step 6: Wire wave executor
-Load configs, pass to edge function. Each wave call uses `assemblePrompt` with fresh context.
+Each with phase structures (name, minDays, maxDays) and total duration ranges from the Phase 6 spec. For the 10 combinations not explicitly specified, derive reasonable defaults from the 2 given examples.
 
-### Step 7: Enhance admin UI
-Add tabs to the existing `AIReviewConfigPage` edit dialog: Quality Criteria CRUD, Constraints & Templates, Research, Preview & Test. Supervisor edits everything in one place.
+### Task 4: Enhance AIReviewConfigPage with structured editing tabs
 
-## Files to create
-- `src/lib/cogniblend/assemblePrompt.ts`
-- `src/hooks/queries/usePromptConfig.ts`
+Extend the existing `SectionEditor` component in `AIReviewConfigPage.tsx` to add tabbed editing for the new structured fields:
 
-## Files to modify
-- `supabase/functions/review-challenge-sections/promptTemplate.ts` (add `assemblePrompt` for Deno)
-- `supabase/functions/review-challenge-sections/index.ts` (use new assembly when available)
-- `src/hooks/useWaveExecutor.ts` (pass config)
-- `src/pages/admin/seeker-config/AIReviewConfigPage.tsx` (add structured editing tabs)
+1. **Instructions tab** (existing) — review_instructions, dos, donts, tone, word counts
+2. **Quality Criteria tab** — CRUD list; each criterion: name, description, severity dropdown (error/warning/suggestion), cross-reference multi-select (picks from other section keys)
+3. **Constraints & Templates tab** — master data constraints table, computation rules list, content templates textarea per maturity level
+4. **Research tab** — web search queries (purpose + template + when), industry frameworks tag input, analyst sources tag input
+5. **Preview & Test tab** — shows fully assembled 5-layer prompt using `assemblePrompt()`, token count estimate, test button that invokes edge function
 
-## No second table. No confusion.
+The save handler already exists — extend it to also persist the new JSONB columns.
+
+### Task 5: Wire useWaveExecutor to pass prompt configs
+
+Modify `useWaveExecutor.ts` to:
+- Import and use `useExtendedSectionConfigs` to load configs
+- Pass matched config data to the edge function call via the existing `context` body parameter
+- The edge function already reads `clientContext` — just ensure configs are available for `buildSmartBatchPrompt`
+
+This step may be minimal since the edge function already loads configs from DB directly (line 500-506). The wave executor already passes `context` which the edge function uses. The main value is ensuring the `cross_references` field drives which section content gets injected into the prompt.
+
+## Execution Order
+
+1. Fix `activeConfigs` bug + redeploy edge function (critical — current reviews are broken)
+2. Seed 24 section configs (unblocks structured prompt assembly)
+3. Seed 12 phase templates (reference data for phase schedule)
+4. Enhance AIReviewConfigPage UI (admin can manage structured fields)
+5. Wire useWaveExecutor (minimal — verify config flow)
+6. Update roadmap task statuses
+
+## Technical Details
+
+- Seeding uses Supabase insert tool with UPDATE statements (not migrations)
+- UI uses existing Tabs component from `@/components/ui/tabs`
+- Quality criteria CRUD uses inline editing pattern consistent with existing admin pages
+- Preview tab reuses `assemblePrompt()` from `src/lib/cogniblend/assemblePrompt.ts`
+- Test tab calls `supabase.functions.invoke('review-challenge-sections', ...)` with a mock/real challenge
+- All new fields are nullable with defaults, so backward compatibility is maintained
 
