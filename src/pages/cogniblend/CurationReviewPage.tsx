@@ -1723,7 +1723,24 @@ export default function CurationReviewPage() {
     if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
     if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
 
+    // Also check industry segment is set
+    const industrySegId = resolveIndustrySegmentId(challenge);
+    if (!industrySegId) {
+      sectionContents['industry_segment'] = null;
+    }
+
     const pfResult = preFlightCheck(sectionContents);
+
+    // Add industry segment as mandatory blocker if missing
+    if (!industrySegId) {
+      pfResult.missingMandatory.push({
+        sectionId: 'context_and_background' as any,
+        sectionName: 'Industry Segment',
+        reason: 'Industry segment must be set in Context & Background before AI review. It drives taxonomy cascades across all sections.',
+      });
+      pfResult.canProceed = false;
+    }
+
     setPreFlightResult(pfResult);
 
     if (!pfResult.canProceed) {
