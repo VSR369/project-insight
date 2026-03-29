@@ -1736,6 +1736,19 @@ export default function CurationReviewPage() {
         }
       }
     }
+    // Populate extended_brief subsections that aren't top-level challenge fields
+    const ebForPreFlight = jsonParse<Record<string, unknown>>(challenge.extended_brief as Json);
+    if (ebForPreFlight) {
+      for (const [subKey, jsonbField] of Object.entries(EXTENDED_BRIEF_FIELD_MAP)) {
+        if (!sectionContents[subKey]) {
+          const val = ebForPreFlight[jsonbField];
+          if (val != null) {
+            sectionContents[subKey] = typeof val === 'string' ? val : JSON.stringify(val);
+          }
+        }
+      }
+    }
+
     // Also check direct challenge fields for mandatory sections
     if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
     if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
