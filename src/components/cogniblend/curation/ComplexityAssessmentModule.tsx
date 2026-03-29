@@ -261,7 +261,7 @@ export function ComplexityAssessmentModule({
     if (pendingTab !== "quick_select") setOverrideLevel(null);
     setPendingTab(null);
     setShowConfirmDialog(false);
-  }, [pendingTab, currentParams, complexityParams]);
+  }, [pendingTab, currentParams, effectiveParams]);
 
   const handleCancelSwitch = useCallback(() => {
     setPendingTab(null);
