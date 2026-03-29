@@ -294,6 +294,7 @@ async function callComplexityAI(
   model: string,
   challengeData: any,
   adminClient: any,
+  clientContext?: any,
 ): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string; suggested_complexity: Record<string, { rating: number; justification: string; evidence_sections: string[] }> }> {
   // Fetch master complexity params
   const { data: paramsData, error: paramsError } = await adminClient
@@ -331,7 +332,11 @@ CRITICAL RULES:
 - If a section is missing or empty, factor that into your assessment (e.g., missing scope increases uncertainty).
 - Consider cross-section interactions: tight timelines + high technical novelty = amplified complexity.
 - For each rating, cite which challenge sections (e.g., problem_statement, deliverables, phase_schedule) informed your assessment.
-- Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."`;
+- Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."
+- Today's date is {{todaysDate}}. All temporal assessments must use this as reference.`;
+
+  const todaysDate = clientContext?.todaysDate || new Date().toISOString().split('T')[0];
+  const resolvedComplexityPrompt = COMPLEXITY_SYSTEM_PROMPT.replace('{{todaysDate}}', todaysDate);
 
   const paramDescriptions = paramsData.map(
     (p: any) => `- **${p.param_key}** (${p.name}): ${p.description ?? "No description"} [weight: ${(p.weight * 100).toFixed(0)}%]`
@@ -375,7 +380,7 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: COMPLEXITY_SYSTEM_PROMPT },
+        { role: "system", content: resolvedComplexityPrompt },
         { role: "user", content: userPrompt },
       ],
       tools: [
@@ -476,7 +481,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context } = await req.json();
+    const { challenge_id, section_key, role_context, context: clientContext } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
@@ -668,7 +673,7 @@ serve(async (req) => {
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
-      ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient)
+      ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient, clientContext)
           .then((result) => {
             (result as any).prompt_source = useDbConfig ? "supervisor" : "default";
             allNewSections.push(result);
@@ -711,6 +716,28 @@ serve(async (req) => {
           if (mdLines.length > 1) {
             systemPrompt += mdLines.join("\n");
           }
+        }
+      }
+
+      // Inject client-provided challenge context (todaysDate, rateCard, solutionType)
+      if (clientContext && typeof clientContext === 'object') {
+        const contextLines: string[] = ["\n\n## Challenge Context (Client-Provided)"];
+        if (clientContext.todaysDate) contextLines.push(`Today's date: ${clientContext.todaysDate}. All dates in phase schedules MUST be in the future relative to this date.`);
+        if (clientContext.solutionType) contextLines.push(`Solution type: ${clientContext.solutionType}`);
+        if (clientContext.maturityLevel) contextLines.push(`Maturity level: ${clientContext.maturityLevel}`);
+        if (clientContext.complexityLevel) contextLines.push(`Complexity level: ${clientContext.complexityLevel}`);
+        if (clientContext.seekerSegment) contextLines.push(`Seeker segment: ${clientContext.seekerSegment}`);
+        if (clientContext.rateCard) {
+          const rc = clientContext.rateCard;
+          contextLines.push(`Rate card: effort rate floor $${rc.effortRateFloor}/hr, reward floor $${rc.rewardFloorAmount}, Big4 multiplier ${rc.big4BenchmarkMultiplier}x`);
+          if (rc.rewardCeiling) contextLines.push(`Reward ceiling: $${rc.rewardCeiling}`);
+        }
+        if (clientContext.totalPrizePool) contextLines.push(`Total prize pool: $${clientContext.totalPrizePool}`);
+        if (clientContext.estimatedEffortHours) {
+          contextLines.push(`Estimated effort: ${clientContext.estimatedEffortHours.min}–${clientContext.estimatedEffortHours.max} hours`);
+        }
+        if (contextLines.length > 1) {
+          systemPrompt += contextLines.join("\n");
         }
       }
 

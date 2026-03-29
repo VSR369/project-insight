@@ -27,6 +27,8 @@ import {
 import { Save, X, Pencil, Bot, SlidersHorizontal, Zap, Check, Lock, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
+import { useComplexityDimensions } from "@/hooks/queries/useComplexityDimensions";
+import type { SolutionType } from "@/lib/cogniblend/challengeContextAssembler";
 import {
   COMPLEXITY_THRESHOLDS,
   deriveComplexityLevel,
@@ -56,6 +58,7 @@ export interface ComplexityAssessmentModuleProps {
   currentLevel: string | null;
   currentParams: { param_key?: string; key?: string; name?: string; value?: number; score?: number }[] | null;
   complexityParams: ComplexityParam[];
+  solutionType?: SolutionType | null;
   onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode) => void;
   onLock?: () => void;
   onUnlock?: () => void;
@@ -70,6 +73,7 @@ export function ComplexityAssessmentModule({
   currentLevel,
   currentParams,
   complexityParams,
+  solutionType,
   onSave,
   onLock,
   onUnlock,
@@ -118,7 +122,43 @@ export function ComplexityAssessmentModule({
     return sources;
   });
 
+  const [showSolutionTypeResetDialog, setShowSolutionTypeResetDialog] = useState(false);
+  const [prevSolutionType, setPrevSolutionType] = useState<SolutionType | null | undefined>(solutionType);
+
+  // ══════ Section 2: Custom hooks ══════
+
+  const { data: solutionDimensions } = useComplexityDimensions(solutionType ?? null);
+
+  // Build effective params: overlay solution-type dimensions onto generic params
+  const effectiveParams = useMemo<ComplexityParam[]>(() => {
+    if (!solutionDimensions || solutionDimensions.length === 0) return complexityParams;
+    return solutionDimensions.map((dim) => ({
+      id: dim.id,
+      param_key: dim.dimension_key,
+      name: dim.dimension_name,
+      weight: 1 / solutionDimensions.length,
+      description: `L1: ${dim.level_1_description} → L3: ${dim.level_3_description} → L5: ${dim.level_5_description}`,
+      display_order: dim.display_order,
+      is_active: true,
+    }));
+  }, [solutionDimensions, complexityParams]);
+
   // ══════ Section 5: useEffect hooks ══════
+
+  // Detect solutionType change → prompt reset
+  useEffect(() => {
+    if (prevSolutionType !== undefined && solutionType !== prevSolutionType) {
+      const hasScores = Object.values(aiDraft).some(v => v !== 5) || Object.values(manualDraft).some(v => v !== 5);
+      if (hasScores) {
+        setShowSolutionTypeResetDialog(true);
+      } else {
+        const fresh = buildDraftFromExisting(null, effectiveParams);
+        setAiDraft(fresh);
+        setManualDraft(fresh);
+      }
+    }
+    setPrevSolutionType(solutionType);
+  }, [solutionType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AI suggested ratings → update ONLY aiDraft, never manualDraft
   useEffect(() => {
@@ -128,7 +168,7 @@ export function ComplexityAssessmentModule({
     const justifications: Record<string, string> = {};
     const sources: Record<string, "ai" | "curator" | "default"> = {};
 
-    complexityParams.forEach((p) => {
+    effectiveParams.forEach((p) => {
       const r = aiSuggestedRatings[p.param_key];
       if (r && typeof r.rating === "number") {
         newAiDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
@@ -153,10 +193,10 @@ export function ComplexityAssessmentModule({
   const activeDraft = activeTab === "ai_review" ? aiDraft : manualDraft;
 
   const { weightedScore, derivedLevel, derivedLabel } = useMemo(() => {
-    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+    const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
     const ws =
       totalWeight > 0
-        ? complexityParams.reduce((s, p) => s + (activeDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+        ? effectiveParams.reduce((s, p) => s + (activeDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
         : 5;
     const score = Math.round(ws * 100) / 100;
     return {
@@ -164,7 +204,7 @@ export function ComplexityAssessmentModule({
       derivedLevel: deriveComplexityLevel(score),
       derivedLabel: deriveComplexityLabel(score),
     };
-  }, [activeDraft, complexityParams]);
+  }, [activeDraft, effectiveParams]);
 
   const hasDraftValues = Object.keys(activeDraft).length > 0;
   const displayScore = activeTab === "quick_select" ? 0
@@ -184,12 +224,12 @@ export function ComplexityAssessmentModule({
   const isDirty = useMemo(() => {
     if (activeTab === "ai_review") return editableParams.size > 0;
     if (activeTab === "manual_params") {
-      const original = buildDraftFromExisting(currentParams, complexityParams);
+      const original = buildDraftFromExisting(currentParams, effectiveParams);
       return Object.keys(manualDraft).some((k) => manualDraft[k] !== original[k]);
     }
     if (activeTab === "quick_select") return overrideLevel !== null;
     return false;
-  }, [activeTab, editableParams, manualDraft, currentParams, complexityParams, overrideLevel]);
+  }, [activeTab, editableParams, manualDraft, currentParams, effectiveParams, overrideLevel]);
 
   // ══════ Section 7: Event handlers ══════
 
@@ -213,7 +253,7 @@ export function ComplexityAssessmentModule({
     if (!pendingTab) return;
     setActiveTab(pendingTab);
     // Reset state for new tab — each draft is independent, just clear edit markers
-    const fresh = buildDraftFromExisting(currentParams, complexityParams);
+    const fresh = buildDraftFromExisting(currentParams, effectiveParams);
     if (pendingTab === "manual_params") {
       setManualDraft(fresh);
     }
@@ -221,7 +261,7 @@ export function ComplexityAssessmentModule({
     if (pendingTab !== "quick_select") setOverrideLevel(null);
     setPendingTab(null);
     setShowConfirmDialog(false);
-  }, [pendingTab, currentParams, complexityParams]);
+  }, [pendingTab, currentParams, effectiveParams]);
 
   const handleCancelSwitch = useCallback(() => {
     setPendingTab(null);
@@ -264,17 +304,17 @@ export function ComplexityAssessmentModule({
   }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel]);
 
   const handleCancel = useCallback(() => {
-    const fresh = buildDraftFromExisting(currentParams, complexityParams);
+    const fresh = buildDraftFromExisting(currentParams, effectiveParams);
     setAiDraft(fresh);
     setManualDraft(fresh);
     setActiveTab("ai_review");
     setOverrideLevel(null);
     setEditableParams(new Set());
     setAiJustifications({});
-  }, [currentParams, complexityParams]);
+  }, [currentParams, effectiveParams]);
 
   // ══════ Conditional returns ══════
-  if (complexityParams.length === 0) {
+  if (effectiveParams.length === 0) {
     return <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>;
   }
 
@@ -342,6 +382,33 @@ export function ComplexityAssessmentModule({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ── Solution Type Reset Dialog ── */}
+      <AlertDialog open={showSolutionTypeResetDialog} onOpenChange={setShowSolutionTypeResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Solution Type Changed</AlertDialogTitle>
+            <AlertDialogDescription>
+              The solution type has changed. Complexity dimensions are different for each solution type.
+              Existing scores will be reset. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowSolutionTypeResetDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              const fresh = buildDraftFromExisting(null, effectiveParams);
+              setAiDraft(fresh);
+              setManualDraft(fresh);
+              setEditableParams(new Set());
+              setAiJustifications({});
+              setOverrideLevel(null);
+              setShowSolutionTypeResetDialog(false);
+            }}>
+              Reset Scores
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── 3-Tab Card Selector ── */}
       <div className="grid grid-cols-3 gap-2">
         <TabCard
@@ -373,7 +440,7 @@ export function ComplexityAssessmentModule({
       {/* ── Tab Content ── */}
       {activeTab === "ai_review" && (
         <AIReviewTab
-          complexityParams={complexityParams}
+          complexityParams={effectiveParams}
           draft={aiDraft}
           paramSources={aiParamSources}
           aiJustifications={aiJustifications}
@@ -391,7 +458,7 @@ export function ComplexityAssessmentModule({
 
       {activeTab === "manual_params" && (
         <ManualParamsTab
-          complexityParams={complexityParams}
+          complexityParams={effectiveParams}
           draft={manualDraft}
           paramSources={manualParamSources}
           aiJustifications={aiJustifications}
