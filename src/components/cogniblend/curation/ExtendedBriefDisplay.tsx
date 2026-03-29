@@ -78,6 +78,12 @@ interface ExtendedBriefDisplayProps {
   onMarkAddressed: (sectionKey: string) => void;
   challengeContext?: { title?: string; maturity_level?: string | null; domain_tags?: string[] };
   expandVersion?: number;
+  /** Resolved industry segment ID (from AM/Creator or curator) */
+  industrySegmentId?: string | null;
+  /** Whether the segment was provided by AM/Creator (intake origin) */
+  industrySegmentFromIntake?: boolean;
+  /** Callback when curator selects/changes industry segment */
+  onIndustrySegmentChange?: (segmentId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
