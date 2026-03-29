@@ -1289,7 +1289,8 @@ export default function CurationReviewPage() {
     setSavingSection(true);
     syncSectionToStore(sectionKey as SectionKey, value);
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness(sectionKey);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveDeliverables = useCallback((items: string[]) => {
     setSavingSection(true);
