@@ -3157,8 +3157,44 @@ export default function CurationReviewPage() {
             <BudgetRevisionPanel
               shortfall={budgetShortfall}
               currencyCode={challenge?.currency_code ?? 'USD'}
-              onAcceptAndSendToAM={() => {
-                toast.success('Revision accepted. Notification sent to Account Manager.');
+              onAcceptAndSendToAM={async () => {
+                try {
+                  // 1. Apply revised reward to store
+                  if (curationStore && budgetShortfall) {
+                    const existingReward = curationStore.getState().getSectionEntry('reward_structure' as SectionKey);
+                    const updatedData = {
+                      ...(typeof existingReward.data === 'object' && existingReward.data ? existingReward.data : {}),
+                      _budgetRevised: true,
+                      _revisedReward: budgetShortfall.revisedReward ?? budgetShortfall.originalBudget,
+                      _revisionStrategy: budgetShortfall.strategy,
+                    };
+                    curationStore.getState().setSectionData('reward_structure' as SectionKey, updatedData as Record<string, unknown>);
+                  }
+
+                  // 2. Look up AM user for this challenge
+                  const { data: amRoles } = await supabase
+                    .from('user_challenge_roles')
+                    .select('user_id')
+                    .eq('challenge_id', challengeId!)
+                    .eq('role_code', 'AM')
+                    .limit(1);
+
+                  const amUserId = amRoles?.[0]?.user_id;
+                  if (amUserId) {
+                    // 3. Insert notification for AM
+                    await supabase.from('cogni_notifications').insert({
+                      user_id: amUserId,
+                      challenge_id: challengeId!,
+                      notification_type: 'budget_revision',
+                      title: 'Budget Revision Requires Approval',
+                      message: `Budget shortfall detected (${budgetShortfall!.gapPercentage}% gap). Strategy: ${budgetShortfall!.strategy}. Original: ${budgetShortfall!.originalBudget}, Minimum: ${budgetShortfall!.minimumViableReward}.`,
+                    });
+                  }
+
+                  toast.success('Revision accepted. Notification sent to Account Manager.');
+                } catch (err) {
+                  toast.error('Failed to send notification to Account Manager.');
+                }
                 setBudgetShortfall(null);
               }}
               onModifyManually={() => {
