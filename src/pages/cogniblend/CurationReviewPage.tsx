@@ -1687,6 +1687,16 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "domain_tags", value: updated });
   }, [challenge, saveSectionMutation]);
 
+  // ── Industry Segment change handler (persists to eligibility JSONB) ──
+  const handleIndustrySegmentChange = useCallback((segmentId: string) => {
+    if (!challengeId || !challenge) return;
+    const currentElig = parseJson<any>(challenge.eligibility) ?? {};
+    currentElig.industry_segment_id = segmentId;
+    supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+    });
+  }, [challengeId, challenge, queryClient]);
+
   /**
    * Phase 5: Wave-based AI Review with Pre-Flight Gate.
    * Replaces the old 2-phase triage+deep pipeline.
