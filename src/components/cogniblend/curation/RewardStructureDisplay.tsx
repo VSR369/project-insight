@@ -310,6 +310,62 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
     setRewardType(type);
   }, [startEditing, setRewardType]);
 
+  // ── Prize tier handlers ──
+  const currSym = CURRENCY_SYMBOLS[currency] ?? '$';
+  const cashPool = useMemo(() => {
+    return Object.values(tierStates)
+      .filter(t => t.enabled)
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [tierStates]);
+
+  const handleAddPrizeTier = useCallback(() => {
+    const nextRank = prizeTiers.length > 0 ? Math.max(...prizeTiers.map(t => t.rank)) + 1 : 1;
+    createPrizeTier.mutate({
+      challenge_id: challengeId,
+      tier_name: `Tier ${nextRank}`,
+      rank: nextRank,
+      percentage_of_pool: 0,
+      fixed_amount: null,
+      max_winners: 1,
+      description: null,
+      created_by_role: 'curator',
+      is_default: false,
+    });
+  }, [prizeTiers, challengeId, createPrizeTier]);
+
+  const handleUpdatePrizeTier = useCallback((id: string, updates: any) => {
+    updatePrizeTierMut.mutate({ id, challengeId, ...updates });
+  }, [updatePrizeTierMut, challengeId]);
+
+  const handleDeletePrizeTier = useCallback((id: string) => {
+    deletePrizeTierMut.mutate({ id, challengeId });
+  }, [deletePrizeTierMut, challengeId]);
+
+  const handleReorderPrizeTier = useCallback((id: string, direction: 'up' | 'down') => {
+    const sorted = [...prizeTiers].sort((a, b) => a.rank - b.rank);
+    const idx = sorted.findIndex(t => t.id === id);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const currentRank = sorted[idx].rank;
+    const swapRank = sorted[swapIdx].rank;
+    updatePrizeTierMut.mutate({ id: sorted[idx].id, challengeId, rank: swapRank });
+    updatePrizeTierMut.mutate({ id: sorted[swapIdx].id, challengeId, rank: currentRank });
+  }, [prizeTiers, updatePrizeTierMut, challengeId]);
+
+  // ── Incentive handlers ──
+  const handleAddIncentive = useCallback((incentiveId: string) => {
+    addIncentiveSelectionMut.mutate({ challenge_id: challengeId, incentive_id: incentiveId });
+  }, [addIncentiveSelectionMut, challengeId]);
+
+  const handleRemoveIncentive = useCallback((selectionId: string) => {
+    removeIncentiveSelectionMut.mutate({ id: selectionId, challengeId });
+  }, [removeIncentiveSelectionMut, challengeId]);
+
+  const handleUpdateCommitment = useCallback((selectionId: string, commitment: string) => {
+    updateIncentiveCommitmentMut.mutate({ id: selectionId, challengeId, seeker_commitment: commitment });
+  }, [updateIncentiveCommitmentMut, challengeId]);
+
   // ── Determine what to show ──
   const showMonetary = rewardType === 'monetary' || rewardType === 'both';
   const showNM = rewardType === 'non_monetary' || rewardType === 'both';
