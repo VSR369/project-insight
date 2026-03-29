@@ -244,6 +244,7 @@ export function CuratorSectionPanel({
   staleBecauseOf,
   staleAt,
   validationResult,
+  aiAction,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
