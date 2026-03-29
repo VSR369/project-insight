@@ -655,13 +655,14 @@ serve(async (req) => {
         if (legalResult?.data) additionalData += `\n\nLEGAL DOCS: ${JSON.stringify(legalResult.data, null, 2)}`;
       } else if (resolvedContext === "finance") {
         const escrowResult = results[resultIdx++];
-      if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
-    } else if (resolvedContext === "evaluation") {
-      const evalResult = results[resultIdx++];
-      const solnResult = results[resultIdx++];
-      if (evalResult?.data) additionalData += `\n\nEVALUATION RECORDS: ${JSON.stringify(evalResult.data, null, 2)}`;
-      if (solnResult) additionalData += `\n\nSOLUTION COUNT: ${solnResult.count ?? 0}`;
-    }
+        if (escrowResult?.data) additionalData += `\n\nESCROW: ${JSON.stringify(escrowResult.data, null, 2)}`;
+      } else if (resolvedContext === "evaluation") {
+        const evalResult = results[resultIdx++];
+        const solnResult = results[resultIdx++];
+        if (evalResult?.data) additionalData += `\n\nEVALUATION RECORDS: ${JSON.stringify(evalResult.data, null, 2)}`;
+        if (solnResult) additionalData += `\n\nSOLUTION COUNT: ${solnResult.count ?? 0}`;
+      }
+    } // end non-preview branch
 
     const contextLabel = resolvedContext === "intake" ? "intake brief"
       : resolvedContext === "spec" ? "specification"
