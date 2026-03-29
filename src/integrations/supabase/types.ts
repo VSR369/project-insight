@@ -863,6 +863,48 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_incentive_selections: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          incentive_id: string
+          seeker_commitment: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incentive_id: string
+          seeker_commitment?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incentive_id?: string
+          seeker_commitment?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_incentive_selections_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_incentive_selections_incentive_id_fkey"
+            columns: ["incentive_id"]
+            isOneToOne: false
+            referencedRelation: "non_monetary_incentives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_legal_docs: {
         Row: {
           attached_by: string | null
@@ -5048,6 +5090,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      non_monetary_incentives: {
+        Row: {
+          applicable_maturity_levels: string[]
+          cash_equivalent_max: number
+          cash_equivalent_min: number
+          created_at: string
+          created_by: string | null
+          credibility_note: string
+          description: string
+          display_order: number | null
+          id: string
+          is_active: boolean
+          minimum_complexity: string
+          name: string
+          seeker_requirement: string
+          solver_appeal: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          applicable_maturity_levels?: string[]
+          cash_equivalent_max: number
+          cash_equivalent_min: number
+          created_at?: string
+          created_by?: string | null
+          credibility_note: string
+          description: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          minimum_complexity?: string
+          name: string
+          seeker_requirement: string
+          solver_appeal: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          applicable_maturity_levels?: string[]
+          cash_equivalent_max?: number
+          cash_equivalent_min?: number
+          created_at?: string
+          created_by?: string | null
+          credibility_note?: string
+          description?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          minimum_complexity?: string
+          name?: string
+          seeker_requirement?: string
+          solver_appeal?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       notification_audit_log: {
         Row: {
