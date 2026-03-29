@@ -1213,46 +1213,8 @@ export default function CurationReviewPage() {
     }
   }, [curationStore]);
 
-  // ── Phase 5: Wave Executor ──
-  const buildContextOptions = useCallback((): BuildChallengeContextOptions => {
-    const store = challengeId ? getCurationFormStore(challengeId) : null;
-    const storeSections: BuildChallengeContextOptions['storeSections'] = {};
-    if (store) {
-      const state = store.getState();
-      for (const [key, entry] of Object.entries(state.sections)) {
-        if (entry) storeSections[key as SectionKey] = { data: entry.data };
-      }
-    }
-    return {
-      challengeId: challengeId!,
-      challengeTitle: challenge?.title ?? '',
-      solutionType: (challenge as any)?.solution_type ?? null,
-      seekerSegment: null,
-      organizationTypeId: null,
-      maturityLevelFromChallenge: challenge?.maturity_level ?? null,
-      storeSections,
-    };
-  }, [challengeId, challenge?.title, challenge?.maturity_level]);
-
-  const handleWaveSectionReviewed = useCallback((sectionKey: string, review: SectionReview) => {
-    const normalized = normalizeSectionReview(review);
-    setAiReviews((prev) => {
-      const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const merged = [...filtered, { ...normalized, addressed: false }];
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: merged });
-      return merged;
-    });
-  }, [saveSectionMutation]);
-
-  const { executeWaves, reReviewStale, cancelReview, waveProgress, isRunning: isWaveRunning } = useWaveExecutor({
-    challengeId: challengeId!,
-    buildContextOptions,
-    onSectionReviewed: handleWaveSectionReviewed,
-    onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
-  });
-
-
-    useEffect(() => {
+  useEffect(() => {
+    if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       let stored: SectionReview[] = [];
 
       if (Array.isArray(challenge.ai_section_reviews)) {
