@@ -536,7 +536,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content } = await req.json();
+    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content, wave_action } = await req.json();
     const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
 
     if (!challenge_id && !isPreviewMode) {
