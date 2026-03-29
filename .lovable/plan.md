@@ -1,102 +1,72 @@
 
 
-# Phase 3: Staleness Tracking + Mandatory Re-Review + Submission Gate
+# Phase 3: Staleness Tracking — Gap Analysis
 
-## Overview
+## What's DONE (infrastructure is complete)
 
-When a curator edits an upstream section, all downstream sections that depend on it become "stale" (amber highlighting). The submit button is blocked until every stale section is re-reviewed. This is a **client-side** feature — all staleness state lives in the existing Zustand store (persisted to localStorage). No database migration needed.
+| Component | Status |
+|-----------|--------|
+| `sectionDependencies.ts` — DIRECT_DEPENDENCIES map + BFS + display names | Done |
+| `SectionStoreEntry` — staleness fields (isStale, staleBecauseOf, staleAt, lastEditedAt, lastReviewedAt) | Done |
+| `markSectionSaved()` store action — clears own staleness, propagates to dependents | Done |
+| `clearStaleness()` store action | Done |
+| `selectStaleSections` selector | Done |
+| `CuratorSectionPanel` — "stale" status with amber border, badge, reason line | Done |
+| `CurationActions` — staleSections/unreviewedSections props, blocked banner, disabled submit | Done |
+| `useAiSectionReview` — clearStaleness on accept() and after successful review | Done |
+| `notifyStaleness()` wrapper in CurationReviewPage | Done |
+| `notifyStaleness` called in handleSaveSection, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveMaturityLevel, handleSaveExtendedBrief subsections | Done |
+| `groupProgress` — stale sections excluded from "done" count | Done |
 
-## Architecture
+## What's NOT DONE (4 gaps)
 
-The staleness system is entirely contained in the existing `curationFormStore` Zustand store, augmenting `SectionStoreEntry` with new fields. The dependency map is a static constant. Staleness propagation runs synchronously on every section save.
+### Gap 1: Panel status override for stale sections
+`panelStatus` derivation (line ~2519) does NOT check for staleness. It only checks AI review status. If a section is stale, it should override to `"stale"`. Currently the `staleKeySet` is computed but never used to override `panelStatus`.
 
-```text
-Section Save → onSectionSaved()
-  ├─ Update lastEditedAt on saved section
-  ├─ Clear own staleness (if was stale)
-  ├─ Compute transitive dependents via BFS
-  ├─ Mark each dependent as stale (accumulate causes)
-  └─ Toast: "N section(s) marked stale"
+**Fix**: After the AI review status block, add: `if (staleKeySet.has(section.key)) panelStatus = "stale";`
 
-AI Review Complete / Manual Edit → clearStaleness()
-  └─ Reset isStale, staleBecauseOf, staleAt, update lastReviewedAt
-```
+### Gap 2: staleBecauseOf/staleAt props NOT passed to CuratorSectionPanel
+Line 3082-3101: `<CuratorSectionPanel>` is rendered WITHOUT `staleBecauseOf` or `staleAt` props. The panel accepts them but never receives them, so the "Changed upstream" reason line never shows.
 
-## Files to Create
+**Fix**: Pass `staleBecauseOf` and `staleAt` from the staleSections array to each panel.
 
-| File | Purpose |
-|------|---------|
-| `src/lib/cogniblend/sectionDependencies.ts` | `DIRECT_DEPENDENCIES` map + `getTransitiveDependents()` BFS + `getSectionDisplayName()` helper |
+### Gap 3: staleSections/unreviewedSections NOT passed to CurationActions
+Line 3273-3284: `<CurationActions>` is rendered WITHOUT `staleSections`, `unreviewedSections`, `onNavigateToStale`, or `onReReviewStale` props. The component accepts and renders them, but never receives them.
+
+**Fix**: Compute and pass `staleSections` (with display names/causes) and `unreviewedSections` to `CurationActions`. Add `onNavigateToStale` and `onReReviewStale` handlers.
+
+### Gap 4: Right sidebar missing STALE category
+Lines 3213-3270 render the AI Review Summary with Pass/Warning/Needs Revision categories but no STALE category. The spec requires a "STALE (re-review needed)" section above "Needs Revision" showing count and clickable section list.
+
+**Fix**: Add stale section count badge and clickable list above the revision/warning sections.
+
+### Gap 5: handleSaveComplexity missing notifyStaleness
+Line 1353: `handleSaveComplexity` saves complexity parameters but does NOT call `notifyStaleness('complexity')`. This is a critical dependency — complexity has 5+ downstream sections.
+
+**Fix**: Add `notifyStaleness('complexity')` after successful save.
+
+## Implementation Plan
+
+### Step 1: Fix panelStatus override (CurationReviewPage ~line 2526)
+Add staleness check after AI review status derivation.
+
+### Step 2: Pass stale props to CuratorSectionPanel (CurationReviewPage ~line 3082)
+Look up staleness info from `staleSections` array and pass `staleBecauseOf`/`staleAt`.
+
+### Step 3: Pass stale props to CurationActions (CurationReviewPage ~line 3273)
+Map `staleSections` to the `StaleSectionInfo` shape and pass with handlers.
+
+### Step 4: Add STALE category to right sidebar (CurationReviewPage ~line 3213)
+Insert stale count badge and clickable section list before the existing summary.
+
+### Step 5: Add notifyStaleness to handleSaveComplexity (CurationReviewPage ~line 1386)
+Call after successful save.
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/types/sections.ts` | Add `lastEditedAt`, `lastReviewedAt`, `isStale`, `staleBecauseOf`, `staleAt` to `SectionStoreEntry` + update `createEmptySectionEntry()` |
-| `src/store/curationFormStore.ts` | Add `markSectionSaved(key)` action (triggers staleness propagation) + `clearStaleness(key)` action + `getStaleSections()` selector |
-| `src/components/cogniblend/curation/CuratorSectionPanel.tsx` | Add `"stale"` to `SectionStatus` union, render amber left border + "Stale — re-review" badge + upstream change reason line |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | (1) Derive stale status from store for each section panel, (2) call `markSectionSaved()` from every `handleSave*` callback, (3) call `clearStaleness()` on AI review accept/complete, (4) update `groupProgress` to count stale as incomplete, (5) add STALE category to right sidebar summary, (6) compute staleness gate and pass to `CurationActions` |
-| `src/components/cogniblend/curation/CurationActions.tsx` | Add `staleSections` and `unreviewedSections` props, render submission blocked banner with counts + action buttons, disable submit when stale |
-| `src/hooks/useAiSectionReview.ts` | Call `clearStaleness()` in `accept()` and after successful review |
+| File | Changes |
+|------|---------|
+| `src/pages/cogniblend/CurationReviewPage.tsx` | All 5 gaps — panelStatus override, stale props to panel, stale props to actions, sidebar STALE category, complexity save handler |
 
-## Implementation Details
-
-### 1. Dependency Map (`sectionDependencies.ts`)
-
-Static `DIRECT_DEPENDENCIES` Record mapping each section key to its direct downstream dependents (exact map from spec). `getTransitiveDependents(sectionKey)` does BFS to collect all transitively affected sections. `getSectionDisplayName(key)` returns human-readable names for UI display.
-
-Note: The spec uses `complexity_assessment` but the codebase uses `complexity` as the section key. The dependency map will use the actual codebase keys.
-
-### 2. Store Augmentation (`SectionStoreEntry`)
-
-New fields default to: `lastEditedAt: null`, `lastReviewedAt: null`, `isStale: false`, `staleBecauseOf: []`, `staleAt: null`.
-
-New action `markSectionSaved(key: SectionKey)`:
-- Sets `lastEditedAt` on the saved section, clears its own staleness
-- Calls `getTransitiveDependents(key)` to find affected sections
-- For each affected section in the store: sets `isStale: true`, appends to `staleBecauseOf` (Set-deduplicated), sets `staleAt` (keep existing if already stale)
-- Returns the list of newly staled sections for a toast
-
-New action `clearStaleness(key: SectionKey)`:
-- Sets `isStale: false`, `staleBecauseOf: []`, `staleAt: null`, updates `lastReviewedAt`
-
-New selector `getStaleSections()`:
-- Returns array of `{key, staleBecauseOf, staleAt}` for all stale sections
-
-### 3. CuratorSectionPanel Changes
-
-Add `"stale"` to `SectionStatus`. When status is `"stale"`:
-- Left border: `border-l-4 border-amber-500`
-- Badge: amber "Stale — re-review" replacing the normal status badge
-- Below attribution line: "Changed upstream: [Section Name] ([time ago])" in muted amber text
-- New optional props: `staleBecauseOf?: string[]`, `staleAt?: string | null`
-
-### 4. CurationReviewPage Integration
-
-- In the section rendering loop, derive `sectionStatus` — if store entry `isStale` is true, status becomes `"stale"` (overrides other statuses)
-- Every `handleSave*` callback additionally calls `store.getState().markSectionSaved(sectionKey)` and shows a toast if sections became stale
-- `acceptSuggestion` handler calls `clearStaleness` for the section
-- `groupProgress` computation: stale sections count as NOT done (even if `isFilled` returns true)
-- Right sidebar: add a "STALE" category card above "Needs Revision" with count and clickable section list
-
-### 5. Submission Gate
-
-`CurationActions` receives new props:
-- `staleSections: Array<{key: string, name: string, causes: string[], staleAt: string}>`
-- `unreviewedSections: Array<{key: string, name: string}>`
-
-Submit button disabled when `staleSections.length > 0` (in addition to existing `legalEscrowBlocked`).
-
-Amber banner appears above the button showing:
-- Count of stale sections with their names
-- "Re-review stale sections" button (for now: navigates to first stale section's tab)
-- "View stale sections" button (scrolls to first stale section)
-- If multiple blockers (stale + unreviewed + escrow), all shown as numbered list
-
-### 6. Edge Cases Handled
-
-- **Editing a stale section**: `markSectionSaved` clears own staleness first, then propagates to dependents
-- **Multiple upstream changes**: `staleBecauseOf` accumulates (Set-deduplied), displays all causes
-- **Locked sections (Legal/Escrow)**: When stale, show "Stale — requires FC/LC re-review" instead of generic message
-- **Clearing staleness**: Only via AI re-review completion or manual edit+save — viewing/expanding does nothing
+No new files needed. All changes are wiring in a single file.
 
