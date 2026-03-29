@@ -64,6 +64,7 @@ export function useAiSectionReview({
           role_context: roleContext,
           current_content: currentContent,
           context: challengeContext,
+          wave_action: 'review',
         },
       });
 
