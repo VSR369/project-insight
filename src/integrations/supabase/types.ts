@@ -1378,6 +1378,7 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           current_phase: number | null
+          data_resources_provided: Json | null
           deleted_at: string | null
           deleted_by: string | null
           deliverables: Json | null
@@ -1423,6 +1424,7 @@ export type Database = {
           status: string
           submission_deadline: string | null
           submission_template_url: string | null
+          success_metrics_kpis: Json | null
           targeting_filters: Json | null
           tenant_id: string
           termination_type: string | null
@@ -1449,6 +1451,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           current_phase?: number | null
+          data_resources_provided?: Json | null
           deleted_at?: string | null
           deleted_by?: string | null
           deliverables?: Json | null
@@ -1494,6 +1497,7 @@ export type Database = {
           status?: string
           submission_deadline?: string | null
           submission_template_url?: string | null
+          success_metrics_kpis?: Json | null
           targeting_filters?: Json | null
           tenant_id: string
           termination_type?: string | null
@@ -1520,6 +1524,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           current_phase?: number | null
+          data_resources_provided?: Json | null
           deleted_at?: string | null
           deleted_by?: string | null
           deliverables?: Json | null
@@ -1565,6 +1570,7 @@ export type Database = {
           status?: string
           submission_deadline?: string | null
           submission_template_url?: string | null
+          success_metrics_kpis?: Json | null
           targeting_filters?: Json | null
           tenant_id?: string
           termination_type?: string | null
@@ -1738,6 +1744,51 @@ export type Database = {
           from_role?: string
           id?: string
           to_role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      completeness_checks: {
+        Row: {
+          check_sections: Json
+          concept: string
+          condition_field: string | null
+          condition_value: string | null
+          created_at: string
+          criticality: string
+          display_order: number
+          id: string
+          is_active: boolean
+          question: string
+          remediation_hint: string
+          updated_at: string | null
+        }
+        Insert: {
+          check_sections?: Json
+          concept: string
+          condition_field?: string | null
+          condition_value?: string | null
+          created_at?: string
+          criticality: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          question: string
+          remediation_hint: string
+          updated_at?: string | null
+        }
+        Update: {
+          check_sections?: Json
+          concept?: string
+          condition_field?: string | null
+          condition_value?: string | null
+          created_at?: string
+          criticality?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          question?: string
+          remediation_hint?: string
           updated_at?: string | null
         }
         Relationships: []

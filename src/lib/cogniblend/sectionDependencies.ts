@@ -14,8 +14,8 @@ import type { SectionKey } from '@/types/sections';
 export const DIRECT_DEPENDENCIES: Partial<Record<SectionKey, SectionKey[]>> = {
   context_and_background: ['root_causes', 'affected_stakeholders', 'current_deficiencies'],
   problem_statement: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'scope', 'deliverables', 'solver_expertise', 'expected_outcomes', 'hook'],
-  scope: ['deliverables', 'solver_expertise', 'eligibility', 'submission_guidelines', 'domain_tags', 'complexity'],
-  expected_outcomes: ['evaluation_criteria', 'deliverables'],
+  scope: ['deliverables', 'solver_expertise', 'eligibility', 'submission_guidelines', 'domain_tags', 'complexity', 'data_resources_provided'],
+  expected_outcomes: ['evaluation_criteria', 'deliverables', 'success_metrics_kpis'],
   root_causes: ['preferred_approach', 'current_deficiencies'],
   current_deficiencies: ['preferred_approach', 'deliverables'],
   preferred_approach: ['approaches_not_of_interest'],
@@ -36,6 +36,8 @@ export const DIRECT_DEPENDENCIES: Partial<Record<SectionKey, SectionKey[]>> = {
   domain_tags: [],
   affected_stakeholders: [],
   approaches_not_of_interest: [],
+  data_resources_provided: ['submission_guidelines'],
+  success_metrics_kpis: ['evaluation_criteria'],
 };
 
 /* ── Transitive dependents via BFS ── */
@@ -85,6 +87,8 @@ const SECTION_DISPLAY_NAMES: Partial<Record<SectionKey, string>> = {
   preferred_approach: 'Preferred Approach',
   approaches_not_of_interest: 'Approaches NOT of Interest',
   solver_expertise: 'Solver Expertise Requirements',
+  data_resources_provided: 'Data & Resources Provided',
+  success_metrics_kpis: 'Success Metrics & KPIs',
 };
 
 export function getSectionDisplayName(key: SectionKey | string): string {

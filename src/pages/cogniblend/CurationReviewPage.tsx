@@ -130,8 +130,8 @@ import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse }
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
-
-
+import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queries/useCompletenessChecks";
+import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 
 
 
@@ -176,6 +176,8 @@ interface ChallengeData {
   targeting_filters: Json | null;
   eligibility_model: string | null;
   organization_id: string;
+  data_resources_provided: Json | null;
+  success_metrics_kpis: Json | null;
 }
 
 interface LegalDocSummary {
@@ -715,11 +717,90 @@ const SECTIONS: SectionDef[] = [
     },
     render: () => null,
   },
+  // ── New Phase 7 sections ──
+  {
+    key: "data_resources_provided",
+    label: "Data & Resources Provided",
+    attribution: "by CA / Curator",
+    dbField: "data_resources_provided",
+    isFilled: (ch) => {
+      const raw = parseJson<any>((ch as any).data_resources_provided);
+      return Array.isArray(raw) && raw.length > 0;
+    },
+    render: (ch) => {
+      const raw = parseJson<any[]>((ch as any).data_resources_provided);
+      if (!raw || raw.length === 0) return <p className="text-sm text-muted-foreground">No data or resources listed.</p>;
+      return (
+        <div className="relative w-full overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Resource</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Format</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Access</TableHead>
+                <TableHead>Restrictions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {raw.map((r: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell className="text-sm font-medium">{r.resource ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.type ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.format ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.size ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.access_method ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.restrictions ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    },
+  },
+  {
+    key: "success_metrics_kpis",
+    label: "Success Metrics & KPIs",
+    attribution: "by CA / Curator",
+    dbField: "success_metrics_kpis",
+    isFilled: (ch) => {
+      const raw = parseJson<any>((ch as any).success_metrics_kpis);
+      return Array.isArray(raw) && raw.length > 0;
+    },
+    render: (ch) => {
+      const raw = parseJson<any[]>((ch as any).success_metrics_kpis);
+      if (!raw || raw.length === 0) return <p className="text-sm text-muted-foreground">No KPIs defined.</p>;
+      return (
+        <div className="relative w-full overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>KPI</TableHead>
+                <TableHead>Baseline</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Timeframe</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {raw.map((r: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell className="text-sm font-medium">{r.kpi ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.baseline ?? "N/A"}</TableCell>
+                  <TableCell className="text-sm">{r.target ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.measurement_method ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.timeframe ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    },
+  },
 ];
-
-// ---------------------------------------------------------------------------
-// Group definitions
-// ---------------------------------------------------------------------------
 
 interface GroupDef {
   id: string;
@@ -737,7 +818,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes"],
+    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes", "success_metrics_kpis"],
   },
   {
     id: "challenge_context",
@@ -753,7 +834,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["deliverables", "maturity_level", "complexity"],
+    sectionKeys: ["deliverables", "data_resources_provided", "maturity_level", "complexity"],
   },
   {
     id: "solvers_schedule",
@@ -882,6 +963,8 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "extended_brief": return ch.extended_brief ? JSON.stringify(ch.extended_brief) : null;
     case "solver_expertise": return ch.solver_expertise_requirements ? JSON.stringify(ch.solver_expertise_requirements) : null;
     case "domain_tags": return ch.domain_tags ? JSON.stringify(ch.domain_tags) : null;
+    case "data_resources_provided": return ch.data_resources_provided ? JSON.stringify(ch.data_resources_provided) : null;
+    case "success_metrics_kpis": return ch.success_metrics_kpis ? JSON.stringify(ch.success_metrics_kpis) : null;
     case "expected_outcomes": {
       const eo = parseJson<any>(ch.expected_outcomes);
       if (!eo) return null;
@@ -1071,7 +1154,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model, organization_id")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model, organization_id, data_resources_provided, success_metrics_kpis")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1311,6 +1394,30 @@ export default function CurationReviewPage() {
     onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
   });
 
+  // ── Phase 7: Completeness check ──
+  const { data: completenessCheckDefs = [] } = useCompletenessCheckDefs();
+  const { result: completenessResult, run: runCompletenessCheck, isRunning: completenessRunning } = useRunCompletenessCheck({
+    challengeId: challengeId!,
+    challengeData: challenge as Record<string, any> | null,
+  });
+
+  // Auto-run completeness check after wave execution completes
+  const prevWaveStatusRef = useRef<string | undefined>();
+  useEffect(() => {
+    const currentStatus = waveProgress?.overallStatus;
+    if (prevWaveStatusRef.current === 'running' && currentStatus === 'completed') {
+      runCompletenessCheck();
+    }
+    prevWaveStatusRef.current = currentStatus;
+  }, [waveProgress?.overallStatus, runCompletenessCheck]);
+
+  const handleNavigateToSection = useCallback((sectionKey: string) => {
+    // Find which group contains this section
+    const group = GROUPS.find((g) => g.sectionKeys.includes(sectionKey));
+    if (group) {
+      setActiveGroup(group.id);
+    }
+  }, []);
 
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
 
@@ -3136,6 +3243,15 @@ export default function CurationReviewPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Challenge Completeness Checklist (Phase 7) */}
+          <CompletenessChecklistCard
+            result={completenessResult}
+            checkDefs={completenessCheckDefs}
+            isRunning={completenessRunning}
+            onRun={runCompletenessCheck}
+            onNavigateToSection={handleNavigateToSection}
+          />
 
           {/* Per-section AI Review button */}
           <Button
