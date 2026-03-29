@@ -22,8 +22,8 @@ import { cn } from "@/lib/utils";
 
 export interface SectionReview {
   section_key: string;
-  status: "pass" | "warning" | "needs_revision";
-  comments: string[];
+  status: "pass" | "warning" | "needs_revision" | "generated";
+  comments: (string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string })[];
   reviewed_at?: string;
   addressed?: boolean;
   prompt_source?: "supervisor" | "default";
@@ -33,6 +33,12 @@ export interface SectionReview {
   phase?: "triage" | "deep";
   /** Confidence score from Phase 1 triage (0.0-1.0) */
   confidence?: number;
+  /** Inline suggestion from review (eliminates need for separate refine call) */
+  suggestion?: string | null;
+  /** Domain-specific guidelines from AI review */
+  guidelines?: string[];
+  /** Cross-section consistency issues */
+  cross_section_issues?: { related_section: string; issue: string; suggested_resolution?: string }[];
 }
 
 export type RoleContext = "intake" | "spec" | "curation";
