@@ -1,61 +1,43 @@
 
 
-# Fix: AI Review, Re-Review, and Edit UX for All Sections
+# Fix: Pre-Flight Falsely Flags Extended Brief Subsections as Empty
 
-## Problems Identified
+## Root Cause
 
-### 1. Re-review does NOT generate AI suggested content
-**Root cause:** In `AIReviewInline.tsx` line 447-456, the `handleReReview` callback only processes `comments` from the re-review response — it completely ignores the `suggestion` field. It calls `onSingleSectionReview` which saves the review, but does NOT set `refinedContent` from `freshReview.suggestion`. The auto-refine effect (line 288-307) won't trigger because `autoRefineTriggered.current` is still `true` from the first review.
+The `handleAIReview` function (line 1725-1738) builds `sectionContents` for the pre-flight check by:
+1. Checking the Zustand store
+2. Falling back to `(challenge as any)?.[key]`
 
-**Fix:** After re-review, reset `autoRefineTriggered.current = false` and extract `freshReview.suggestion` into `refinedContent` state. This mirrors what the initial review path does.
+Step 2 fails for **all 6 extended brief subsections** (`context_and_background`, `root_causes`, `affected_stakeholders`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`) because these are stored inside the `extended_brief` JSONB column, not as top-level fields on the `challenges` table.
 
-### 2. Re-review is NOT blocked by pre-flight checks
-**Root cause:** The pre-flight check (`preFlightCheck()`) only runs when the user clicks the global "Review Sections by AI" button in `handleAIReview`. The per-section "Re-review this section" button in `AIReviewInline` calls the edge function directly without any pre-flight validation.
+The `getSectionContent` helper (line 926) already handles this correctly via `EXTENDED_BRIEF_FIELD_MAP`, but it is never called during pre-flight content assembly.
 
-**Design decision:** Re-review should NOT be blocked by pre-flight. Pre-flight gates the initial global review because the AI needs seed content to work. Re-review is per-section and already has content — blocking it would be counterproductive. This is correct behavior.
+## Fix — Single change in `CurationReviewPage.tsx`
 
-### 3. `data_resources_provided` and `success_metrics_kpis` — Edit button does nothing
-**Root cause:** Both sections fall into the `default` case of the switch statement (line 3208). The default case renders `section.render()` (read-only table view) and shows an Edit button, but when `isEditing` becomes `true`, the default case has NO editing UI — it just renders the same read-only view. There is no `TableSectionEditor` or equivalent for these table-format sections.
+### Location: Lines 1733-1738 (the fallback branch inside the `sectionContents` builder)
 
-**Fix:** Add explicit `case` handlers for both sections with a table editor UI that allows adding/removing/editing rows and saving.
+After the existing store/challenge fallback loop, add a second pass that populates any still-missing extended brief subsections from `challenge.extended_brief`:
 
-### 4. "AI Suggested Section" label wrong after re-review
-**Root cause:** Same as issue #1 — since `suggestion` is ignored during re-review, the panel shows stale or empty suggestion content. The label appears but with no actual suggested content.
+```typescript
+// After the existing loop (line 1738), add:
+// Populate extended_brief subsections that aren't top-level challenge fields
+const eb = parseJson<any>(challenge.extended_brief);
+if (eb) {
+  for (const [subKey, jsonbField] of Object.entries(EXTENDED_BRIEF_FIELD_MAP)) {
+    if (!sectionContents[subKey]) {
+      const val = eb[jsonbField];
+      if (val != null) {
+        sectionContents[subKey] = typeof val === 'string' ? val : JSON.stringify(val);
+      }
+    }
+  }
+}
+```
 
-## Plan
+This is ~8 lines. It uses the already-imported `EXTENDED_BRIEF_FIELD_MAP` and `parseJson`, so no new imports needed. It covers all 6 subsections universally — any future subsections added to the map will automatically be included.
 
-### File 1: `src/components/cogniblend/shared/AIReviewInline.tsx`
-
-**Fix re-review suggestion handling** (lines 418-465):
-- After the re-review API returns successfully and `freshReview` is extracted:
-  - Reset `autoRefineTriggered.current = false`
-  - Reset `refinedContent` to `null`
-  - Reset `editedSuggestedContent` to `null`
-  - If `freshReview.suggestion` exists and is non-empty, set `refinedContent` to it
-  - If no suggestion, let the auto-refine effect trigger naturally (since we reset the ref)
-
-### File 2: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-**Add table editor for `data_resources_provided`** — new case in the switch (before `default`):
-- When not editing: render the existing read-only table + Edit button
-- When editing: render a `TableRowEditor` component (inline) with columns: resource, type, format, size, access_method, restrictions
-- On save: call `saveSectionMutation.mutate({ field: "data_resources_provided", value: rows })`
-
-**Add table editor for `success_metrics_kpis`** — new case in the switch:
-- Same pattern with columns: kpi, baseline, target, measurement_method, timeframe
-- On save: call `saveSectionMutation.mutate({ field: "success_metrics_kpis", value: rows })`
-
-### File 3: `src/components/cogniblend/curation/renderers/TableSectionEditor.tsx` (new)
-
-**Generic table row editor component** for JSON array table sections:
-- Props: `columns: {key, label}[]`, `rows: Record<string, string>[]`, `onSave`, `onCancel`, `saving`
-- Features: add row, remove row, edit cells inline
-- Reusable for both data_resources and success_metrics sections
-
-## Technical Notes
-
-- The re-review fix is ~10 lines in `handleReReview`
-- The table editor is a new ~120-line component
-- Two new switch cases in CurationReviewPage (~40 lines each)
-- No database or edge function changes needed
+## What this fixes
+- "Context & Background" false warning disappears when content exists in `extended_brief.context_background`
+- All other extended brief subsections (`root_causes`, `affected_stakeholders`, etc.) will also be correctly detected if they are ever added to pre-flight checks
+- No changes to `preFlightCheck.ts` needed — the problem is in how data is assembled, not how it is checked
 
