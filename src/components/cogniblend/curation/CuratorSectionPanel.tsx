@@ -240,6 +240,7 @@ export function CuratorSectionPanel({
   expandVersion,
   staleBecauseOf,
   staleAt,
+  validationResult,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
