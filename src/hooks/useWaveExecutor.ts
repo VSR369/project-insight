@@ -98,17 +98,27 @@ export function useWaveExecutor({
             }
           }
 
+          // Parse suggestion into native format before storing
+          const rawSuggestion = (normalized as any).suggestion ?? null;
+          const parsedSuggestion = rawSuggestion && typeof rawSuggestion === 'string'
+            ? parseSuggestionForSection(sectionKey, rawSuggestion)
+            : rawSuggestion;
+
           store.getState().setAiReview(
             sectionKey,
             normalized.comments ?? [],
-            (normalized as any).suggestion ?? null,
+            parsedSuggestion,
           );
           store.getState().clearStaleness(sectionKey);
 
-          // Fix 3: Propagate generated content to store so next wave sees it in context
-          const suggestion = (normalized as any).suggestion;
-          if (suggestion && typeof suggestion === 'string' && suggestion.trim().length > 0) {
-            store.getState().setSectionData(sectionKey, suggestion);
+          // Propagate generated content to store so next wave sees it in context
+          if (parsedSuggestion != null) {
+            const hasContent = typeof parsedSuggestion === 'string'
+              ? parsedSuggestion.trim().length > 0
+              : true; // arrays and objects always count as content
+            if (hasContent) {
+              store.getState().setSectionData(sectionKey, parsedSuggestion);
+            }
           }
 
           // Post-LLM validation

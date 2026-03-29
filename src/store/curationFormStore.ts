@@ -125,18 +125,30 @@ export function createCurationFormStore(challengeId: string) {
               return state;
             }
 
-            const currentData = (entry.data && typeof entry.data === 'object' && !Array.isArray(entry.data))
-              ? entry.data as Record<string, unknown>
-              : {};
+            const suggestion = entry.aiSuggestion;
+            let finalData: SectionStoreEntry['data'];
 
-            const mergedData = deepMerge(currentData, entry.aiSuggestion);
+            // Only deep-merge when both current data and suggestion are plain objects.
+            // For strings, arrays, or type mismatches — replace entirely.
+            const currentIsObject = entry.data !== null && typeof entry.data === 'object' && !Array.isArray(entry.data);
+            const suggestionIsObject = suggestion !== null && typeof suggestion === 'object' && !Array.isArray(suggestion);
+
+            if (currentIsObject && suggestionIsObject) {
+              finalData = deepMerge(
+                entry.data as Record<string, unknown>,
+                suggestion as Record<string, unknown>,
+              );
+            } else {
+              // String, array, or mismatched types — suggestion replaces entirely
+              finalData = suggestion;
+            }
 
             return {
               sections: {
                 ...state.sections,
                 [key]: {
                   ...entry,
-                  data: mergedData,
+                  data: finalData,
                   aiComments: null,
                   aiSuggestion: null,
                   reviewStatus: 'reviewed' as ReviewStatus,
