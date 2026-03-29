@@ -1383,6 +1383,7 @@ export default function CurationReviewPage() {
         } else {
           queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
           toast.success("Complexity assessment updated");
+          notifyStaleness('complexity' as SectionKey);
         }
         setSavingSection(false);
       });
@@ -2524,6 +2525,8 @@ export default function CurationReviewPage() {
                     else if (aiReview.status === "warning") panelStatus = "warning";
                     else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
                   }
+                  // Override with stale status if section is stale
+                  if (staleKeySet.has(section.key)) panelStatus = "stale";
 
                   // Domain tag state
                   const currentTags = section.key === "domain_tags"
@@ -3098,6 +3101,8 @@ export default function CurationReviewPage() {
                         sectionActions={getSectionActions(section.key)}
                         promptSource={aiReview?.prompt_source ?? null}
                         expandVersion={expandVersion}
+                        staleBecauseOf={staleSections.find(s => s.key === section.key)?.staleBecauseOf}
+                        staleAt={staleSections.find(s => s.key === section.key)?.staleAt ?? null}
                       >
                         {sectionContent}
                       </CuratorSectionPanel>
@@ -3223,7 +3228,30 @@ export default function CurationReviewPage() {
                     <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
                     <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
                     <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
+                    {staleSections.length > 0 && (
+                      <Badge className="bg-amber-50 text-amber-700 border-amber-400 text-[10px]">
+                        <AlertTriangle className="h-3 w-3 mr-0.5" />
+                        {staleSections.length} Stale
+                      </Badge>
+                    )}
                   </div>
+                  {staleSections.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Stale (re-review needed)</p>
+                      {staleSections.map((s) => (
+                        <button
+                          key={s.key}
+                          className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
+                          onClick={() => {
+                            const group = GROUPS.find((g) => g.sectionKeys.includes(s.key));
+                            if (group) setActiveGroup(group.id);
+                          }}
+                        >
+                          • {getSectionDisplayName(s.key)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {revisionSections.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-[10px] font-medium text-destructive uppercase tracking-wide">Needs Revision</p>
@@ -3281,6 +3309,29 @@ export default function CurationReviewPage() {
             readOnly={isReadOnly}
             legalEscrowBlocked={legalEscrowBlocked}
             blockingReason={blockingReason}
+            staleSections={staleSections.map(s => ({
+              key: s.key,
+              name: getSectionDisplayName(s.key),
+              causes: s.staleBecauseOf.map(c => getSectionDisplayName(c)),
+              staleAt: s.staleAt ?? new Date().toISOString(),
+            }))}
+            unreviewedSections={aiReviews
+              .filter(r => r.status === 'needs_revision')
+              .map(r => ({ key: r.section_key, name: SECTION_MAP.get(r.section_key)?.label ?? r.section_key }))}
+            onNavigateToStale={() => {
+              if (staleSections.length > 0) {
+                const firstKey = staleSections[0].key;
+                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
+                if (group) setActiveGroup(group.id);
+              }
+            }}
+            onReReviewStale={() => {
+              if (staleSections.length > 0) {
+                const firstKey = staleSections[0].key;
+                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
+                if (group) setActiveGroup(group.id);
+              }
+            }}
           />
 
           {/* Modification Points Tracker */}
