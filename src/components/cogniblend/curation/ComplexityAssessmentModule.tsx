@@ -122,7 +122,43 @@ export function ComplexityAssessmentModule({
     return sources;
   });
 
+  const [showSolutionTypeResetDialog, setShowSolutionTypeResetDialog] = useState(false);
+  const [prevSolutionType, setPrevSolutionType] = useState<SolutionType | null | undefined>(solutionType);
+
+  // ══════ Section 2: Custom hooks ══════
+
+  const { data: solutionDimensions } = useComplexityDimensions(solutionType ?? null);
+
+  // Build effective params: overlay solution-type dimensions onto generic params
+  const effectiveParams = useMemo<ComplexityParam[]>(() => {
+    if (!solutionDimensions || solutionDimensions.length === 0) return complexityParams;
+    return solutionDimensions.map((dim) => ({
+      id: dim.id,
+      param_key: dim.dimension_key,
+      name: dim.dimension_name,
+      weight: 1 / solutionDimensions.length,
+      description: `L1: ${dim.level_1_description} → L3: ${dim.level_3_description} → L5: ${dim.level_5_description}`,
+      display_order: dim.display_order,
+      is_active: true,
+    }));
+  }, [solutionDimensions, complexityParams]);
+
   // ══════ Section 5: useEffect hooks ══════
+
+  // Detect solutionType change → prompt reset
+  useEffect(() => {
+    if (prevSolutionType !== undefined && solutionType !== prevSolutionType) {
+      const hasScores = Object.values(aiDraft).some(v => v !== 5) || Object.values(manualDraft).some(v => v !== 5);
+      if (hasScores) {
+        setShowSolutionTypeResetDialog(true);
+      } else {
+        const fresh = buildDraftFromExisting(null, effectiveParams);
+        setAiDraft(fresh);
+        setManualDraft(fresh);
+      }
+    }
+    setPrevSolutionType(solutionType);
+  }, [solutionType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AI suggested ratings → update ONLY aiDraft, never manualDraft
   useEffect(() => {
