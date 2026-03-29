@@ -294,6 +294,7 @@ async function callComplexityAI(
   model: string,
   challengeData: any,
   adminClient: any,
+  clientContext?: any,
 ): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string; suggested_complexity: Record<string, { rating: number; justification: string; evidence_sections: string[] }> }> {
   // Fetch master complexity params
   const { data: paramsData, error: paramsError } = await adminClient
