@@ -84,6 +84,7 @@ export function useAiSectionReview({
           data.data.comments ?? [],
           data.data.suggestion ?? data.data,
         );
+        store.getState().clearStaleness(sectionKey);
       } else {
         throw new Error(data?.error?.message ?? 'Unexpected response from AI review');
       }
