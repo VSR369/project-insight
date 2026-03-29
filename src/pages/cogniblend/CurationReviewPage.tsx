@@ -2468,8 +2468,7 @@ export default function CurationReviewPage() {
 
               {/* Industry Segment */}
               {(() => {
-                const targeting = parseJson<any>(challenge.eligibility);
-                const segmentId = targeting?.industry_segment_id;
+                const segmentId = resolveIndustrySegmentId(challenge);
                 const segmentName = industrySegments?.find(s => s.id === segmentId)?.name;
                 return (
                   <div>
@@ -2477,7 +2476,7 @@ export default function CurationReviewPage() {
                     {segmentName ? (
                       <Badge variant="outline" className="mt-1 text-xs">{segmentName}</Badge>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic mt-0.5">No industry segment specified</p>
+                      <p className="text-sm text-destructive/80 italic mt-0.5">Not set — required in Context &amp; Background</p>
                     )}
                   </div>
                 );
