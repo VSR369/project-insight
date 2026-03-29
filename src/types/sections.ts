@@ -6,6 +6,7 @@
  */
 
 import { SECTION_FORMAT_CONFIG } from '@/lib/cogniblend/curationSectionFormats';
+import type { ValidationResult } from '@/lib/cogniblend/postLlmValidation';
 
 /* ── Authoritative section key enum ── */
 
@@ -28,6 +29,8 @@ export interface SectionStoreEntry {
   reviewStatus: ReviewStatus;
   /** Whether AI suggestions have been addressed (accepted or rejected) */
   addressed: boolean;
+  /** Post-LLM validation results (null = no validation run) */
+  validationResult: ValidationResult | null;
 
   /* ── Staleness tracking (Phase 3) ── */
 
@@ -78,6 +81,7 @@ export function createEmptySectionEntry(): SectionStoreEntry {
     aiSuggestion: null,
     reviewStatus: 'idle',
     addressed: false,
+    validationResult: null,
     lastEditedAt: null,
     lastReviewedAt: null,
     isStale: false,

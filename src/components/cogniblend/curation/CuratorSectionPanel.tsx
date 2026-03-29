@@ -50,6 +50,8 @@ import {
 import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
 import { getSectionDisplayName, getLockedSectionRole } from "@/lib/cogniblend/sectionDependencies";
 import { SectionEmptyState } from "@/components/cogniblend/curation/SectionEmptyState";
+import { ValidationResultsBar } from "@/components/cogniblend/curation/ValidationResultsBar";
+import type { ValidationResult } from "@/lib/cogniblend/postLlmValidation";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,6 +114,8 @@ export interface CuratorSectionPanelProps {
   staleBecauseOf?: string[];
   /** Staleness: when this section became stale (ISO timestamp) */
   staleAt?: string | null;
+  /** Post-LLM validation results */
+  validationResult?: ValidationResult | null;
 }
 
 // Export localStorage helpers so parent can bulk-update expand state
@@ -236,6 +240,7 @@ export function CuratorSectionPanel({
   expandVersion,
   staleBecauseOf,
   staleAt,
+  validationResult,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
@@ -537,7 +542,10 @@ export function CuratorSectionPanel({
             {/* AI Review slot */}
             {aiReviewSlot}
 
-            {/* Expanded inline flags */}
+            {/* Post-LLM Validation Results */}
+            {validationResult && (validationResult.corrections.length > 0 || validationResult.passedChecks.length > 0) && (
+              <ValidationResultsBar result={validationResult} />
+            )}
             {inlineFlags && inlineFlags.length > 1 && (
               <div className="mt-2 space-y-1">
                 {inlineFlags.slice(1).map((flag, i) => (
@@ -594,6 +602,11 @@ export function CuratorSectionPanel({
             )}
 
             {aiReviewSlot}
+
+            {/* Post-LLM Validation Results (fullscreen) */}
+            {validationResult && (validationResult.corrections.length > 0 || validationResult.passedChecks.length > 0) && (
+              <ValidationResultsBar result={validationResult} />
+            )}
           </div>
         </DialogContent>
       </Dialog>
