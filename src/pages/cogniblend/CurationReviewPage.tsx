@@ -3227,7 +3227,30 @@ export default function CurationReviewPage() {
                     <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
                     <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
                     <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
+                    {staleSections.length > 0 && (
+                      <Badge className="bg-amber-50 text-amber-700 border-amber-400 text-[10px]">
+                        <AlertTriangle className="h-3 w-3 mr-0.5" />
+                        {staleSections.length} Stale
+                      </Badge>
+                    )}
                   </div>
+                  {staleSections.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Stale (re-review needed)</p>
+                      {staleSections.map((s) => (
+                        <button
+                          key={s.key}
+                          className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
+                          onClick={() => {
+                            const group = GROUPS.find((g) => g.sectionKeys.includes(s.key));
+                            if (group) setActiveGroup(group.id);
+                          }}
+                        >
+                          • {getSectionDisplayName(s.key)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {revisionSections.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-[10px] font-medium text-destructive uppercase tracking-wide">Needs Revision</p>
