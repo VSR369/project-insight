@@ -58,6 +58,7 @@ export interface ComplexityAssessmentModuleProps {
   currentLevel: string | null;
   currentParams: { param_key?: string; key?: string; name?: string; value?: number; score?: number }[] | null;
   complexityParams: ComplexityParam[];
+  solutionType?: SolutionType | null;
   onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode) => void;
   onLock?: () => void;
   onUnlock?: () => void;
