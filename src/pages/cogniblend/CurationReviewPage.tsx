@@ -3025,7 +3025,7 @@ export default function CurationReviewPage() {
 
                       // ── Solver expertise requirements ──
                       case "solver_expertise": {
-                        const industrySegId = resolveIndustrySegmentId(challenge);
+                        const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
                         return (
                           <>
                             <SolverExpertiseSection
