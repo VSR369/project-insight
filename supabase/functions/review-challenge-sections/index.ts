@@ -26,31 +26,38 @@ const MAX_BATCH_SIZE = 12;
 /* ── Hardcoded fallback section definitions ──────────────── */
 
 const CURATION_SECTIONS = [
+  // Wave 1: Foundation
   { key: "problem_statement", desc: "Clarity, specificity, context, why it matters, what has been tried" },
   { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity, no ambiguity" },
-  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
-  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
-  { key: "reward_structure", desc: "Fair, well-structured, matches challenge complexity" },
-  { key: "phase_schedule", desc: "Realistic timelines, sufficient for the scope and complexity" },
-  { key: "submission_guidelines", desc: "Clear format, content, and process requirements" },
-  { key: "eligibility", desc: "Specific qualifications, no overly broad or restrictive criteria" },
-  { key: "complexity", desc: "Properly assessed with justified parameter values" },
-  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
-  { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
-  { key: "escrow_funding", desc: "Escrow funded (if required)" },
-  { key: "maturity_level", desc: "Set and consistent with challenge depth" },
-  { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
-  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
-  { key: "visibility", desc: "Solver visibility types properly configured" },
-  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
-  // Extended Brief subsections
+  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
   { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
+  { key: "success_metrics_kpis", desc: "Quantitative KPIs aligned with expected outcomes and deliverables" },
+  // Wave 2: Enrichment
   { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
   { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
   { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
   { key: "preferred_approach", desc: "Seeker's strategic preferences — never rewrite human content" },
   { key: "approaches_not_of_interest", desc: "Human-only section — approaches to exclude" },
+  // Wave 3: Complexity
+  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
+  { key: "maturity_level", desc: "Set and consistent with challenge depth" },
+  { key: "complexity", desc: "Properly assessed with justified parameter values" },
+  { key: "data_resources_provided", desc: "Datasets, APIs, documentation, and resources available to solvers" },
+  // Wave 4: Solvers & Timeline
+  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
+  { key: "eligibility", desc: "Specific qualifications, no overly broad or restrictive criteria" },
+  { key: "phase_schedule", desc: "Realistic timelines, sufficient for the scope and complexity" },
+  { key: "submission_guidelines", desc: "Clear format, content, and process requirements" },
+  // Wave 5: Evaluation & Commercial
+  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
+  { key: "reward_structure", desc: "Fair, well-structured, matches challenge complexity" },
+  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
+  { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
+  { key: "escrow_funding", desc: "Escrow funded (if required)" },
+  // Wave 6: Presentation
+  { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
+  { key: "visibility", desc: "Solver visibility types properly configured" },
+  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
 ];
 
 const INTAKE_SECTIONS = [
