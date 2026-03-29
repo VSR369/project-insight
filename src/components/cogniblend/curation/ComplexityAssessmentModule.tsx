@@ -314,7 +314,7 @@ export function ComplexityAssessmentModule({
   }, [currentParams, effectiveParams]);
 
   // ══════ Conditional returns ══════
-  if (complexityParams.length === 0) {
+  if (effectiveParams.length === 0) {
     return <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>;
   }
 
