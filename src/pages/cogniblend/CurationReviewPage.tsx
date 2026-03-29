@@ -3326,6 +3326,18 @@ export default function CurationReviewPage() {
         initialComment={lockedSendState.initialComment}
         aiOriginalComments={lockedSendState.aiOriginalComments}
       />
+
+      {/* Phase 5: Pre-Flight Gate Dialog */}
+      <PreFlightGateDialog
+        result={preFlightResult}
+        open={preFlightDialogOpen}
+        onOpenChange={setPreFlightDialogOpen}
+        onGoToSection={(sectionKey) => {
+          const group = GROUPS.find(g => g.sectionKeys.includes(sectionKey));
+          if (group) setActiveGroup(group.id);
+        }}
+        onProceed={executeWavesWithBudgetCheck}
+      />
     </div>
   );
 }
