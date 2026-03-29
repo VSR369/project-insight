@@ -447,10 +447,26 @@ export function AIReviewInline({
       if (data?.success && data.data?.sections) {
         const freshReview = (data.data.sections as SectionReview[])[0];
         if (freshReview) {
+          // Reset all local state so fresh review renders cleanly
           setIsAddressed(false);
           setEditedComments([]);
           setSelectedComments(new Set(freshReview.comments.map((_, i) => i)));
+          setRefinedContent(null);
+          setEditedSuggestedContent(null);
+          setEditedDeliverableItems(null);
+          setSelectedItems(new Set());
+          autoRefineTriggered.current = false;
+
+          // Persist the review via parent callback
           onSingleSectionReview?.(sectionKey, freshReview);
+
+          // If the re-review returned an inline suggestion, use it immediately
+          if (freshReview.suggestion && typeof freshReview.suggestion === 'string' && freshReview.suggestion.trim().length > 0) {
+            setRefinedContent(freshReview.suggestion);
+            autoRefineTriggered.current = true; // prevent auto-refine from re-triggering
+          }
+          // Otherwise auto-refine effect will trigger naturally since we reset the ref
+
           const hasIssues = freshReview.comments.length > 0;
           toast.success(hasIssues ? "Re-review complete — see updated comments." : "Section looks good — no issues found.");
         }
