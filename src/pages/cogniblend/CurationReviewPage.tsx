@@ -1305,7 +1305,8 @@ export default function CurationReviewPage() {
     const data = { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) };
     syncSectionToStore('deliverables' as SectionKey, data);
     saveSectionMutation.mutate({ field: "deliverables", value: data });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('deliverables');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
     setSavingSection(true);
