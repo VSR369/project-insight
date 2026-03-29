@@ -8,6 +8,14 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+// Phase 5 imports
+import { preFlightCheck, type PreFlightResult } from "@/lib/cogniblend/preFlightCheck";
+import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
+import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
+import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
+import { useWaveExecutor } from "@/hooks/useWaveExecutor";
+import { detectBudgetShortfall, type BudgetShortfallResult } from "@/lib/cogniblend/budgetShortfallDetection";
+import { buildChallengeContext, type BuildChallengeContextOptions } from "@/lib/cogniblend/challengeContextAssembler";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
