@@ -380,7 +380,7 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: COMPLEXITY_SYSTEM_PROMPT },
+        { role: "system", content: resolvedComplexityPrompt },
         { role: "user", content: userPrompt },
       ],
       tools: [
