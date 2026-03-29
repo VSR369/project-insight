@@ -14,6 +14,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { deepMerge, ensureArrayItemIds } from '@/lib/deepMerge';
+import { getTransitiveDependents } from '@/lib/cogniblend/sectionDependencies';
 import type { SectionKey, SectionStoreEntry, ReviewStatus } from '@/types/sections';
 import { createEmptySectionEntry } from '@/types/sections';
 
