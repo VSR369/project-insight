@@ -1071,13 +1071,15 @@ interface AIQualitySummary {
 // ---------------------------------------------------------------------------
 
 function resolveIndustrySegmentId(challenge: ChallengeData): string | null {
-  // 1. targeting_filters.industries[0] — set by Account Manager during intake
+  // 1. targeting_filters.industry_segment_id — canonical field (set by curator)
   const tf = parseJson<any>(challenge.targeting_filters);
+  if (tf?.industry_segment_id) return tf.industry_segment_id;
+  // 2. targeting_filters.industries[0] — set by Account Manager during intake
   if (tf?.industries?.length > 0) return tf.industries[0];
-  // 2. eligibility.industry_segment_id — set by Challenge Creator in wizard
+  // 3. eligibility.industry_segment_id — legacy: only when eligibility is an object (not array)
   const elig = parseJson<any>(challenge.eligibility);
-  if (elig?.industry_segment_id) return elig.industry_segment_id;
-  // 3. eligibility_model — fallback field
+  if (elig && !Array.isArray(elig) && elig.industry_segment_id) return elig.industry_segment_id;
+  // 4. eligibility_model — fallback field
   if (challenge.eligibility_model) return challenge.eligibility_model;
   return null;
 }
@@ -1113,6 +1115,9 @@ export default function CurationReviewPage() {
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
+
+  // Optimistic industry segment — bridges the gap between save and refetch
+  const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
 
   // ── Phase 5: Pre-flight gate + budget shortfall state ──
   const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
@@ -1687,18 +1692,25 @@ export default function CurationReviewPage() {
     saveSectionMutation.mutate({ field: "domain_tags", value: updated });
   }, [challenge, saveSectionMutation]);
 
-  // ── Industry Segment change handler (persists to eligibility JSONB) ──
+  // ── Industry Segment change handler (persists to targeting_filters JSONB) ──
   const handleIndustrySegmentChange = useCallback(async (segmentId: string) => {
     if (!challengeId || !challenge) return;
-    const currentElig = parseJson<any>(challenge.eligibility) ?? {};
-    currentElig.industry_segment_id = segmentId;
-    const { error } = await supabase.from("challenges").update({ eligibility: currentElig }).eq("id", challengeId);
+    // Set optimistic value immediately so UI + pre-flight see it
+    setOptimisticIndustrySegId(segmentId);
+    // Build updated targeting_filters with both keys for compatibility
+    const currentTf = parseJson<any>(challenge.targeting_filters) ?? {};
+    currentTf.industry_segment_id = segmentId;
+    currentTf.industries = [segmentId];
+    const { error } = await supabase.from("challenges").update({ targeting_filters: currentTf }).eq("id", challengeId);
     if (error) {
       toast.error("Failed to save industry segment");
+      setOptimisticIndustrySegId(null);
       return;
     }
     toast.success("Industry segment updated");
     await queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
+    // Clear optimistic state after refetch
+    setOptimisticIndustrySegId(null);
   }, [challengeId, challenge, queryClient]);
 
   /**
@@ -1727,8 +1739,8 @@ export default function CurationReviewPage() {
     if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
     if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
 
-    // Also check industry segment is set
-    const industrySegId = resolveIndustrySegmentId(challenge);
+    // Also check industry segment is set (use optimistic value if available)
+    const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
     if (!industrySegId) {
       sectionContents['industry_segment'] = null;
     }
@@ -2472,7 +2484,7 @@ export default function CurationReviewPage() {
 
               {/* Industry Segment */}
               {(() => {
-                const segmentId = resolveIndustrySegmentId(challenge);
+                const segmentId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
                 const segmentName = industrySegments?.find(s => s.id === segmentId)?.name;
                 return (
                   <div>
@@ -3013,7 +3025,7 @@ export default function CurationReviewPage() {
 
                       // ── Solver expertise requirements ──
                       case "solver_expertise": {
-                        const industrySegId = resolveIndustrySegmentId(challenge);
+                        const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
                         return (
                           <>
                             <SolverExpertiseSection
@@ -3043,10 +3055,10 @@ export default function CurationReviewPage() {
                         const eb = parseExtendedBrief(challenge.extended_brief);
                         const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
                           ? getSubsectionValue(eb, "context_and_background") as string : "";
-                        const resolvedSegId = resolveIndustrySegmentId(challenge);
-                        // Determine if segment came from AM intake (targeting_filters)
+                        const resolvedSegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
+                        // Determine if segment came from AM intake (targeting_filters) — only if NOT overridden by curator
                         const tf = parseJson<any>(challenge.targeting_filters);
-                        const segmentFromIntake = !!(tf?.industries?.length > 0);
+                        const segmentFromIntake = !!(tf?.industries?.length > 0) && !tf?.industry_segment_id;
                         return (
                           <>
                             {/* Industry Segment — mandatory prerequisite field */}
