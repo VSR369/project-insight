@@ -204,7 +204,7 @@ export function ComplexityAssessmentModule({
       derivedLevel: deriveComplexityLevel(score),
       derivedLabel: deriveComplexityLabel(score),
     };
-  }, [activeDraft, complexityParams]);
+  }, [activeDraft, effectiveParams]);
 
   const hasDraftValues = Object.keys(activeDraft).length > 0;
   const displayScore = activeTab === "quick_select" ? 0
