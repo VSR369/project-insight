@@ -602,6 +602,11 @@ export function CuratorSectionPanel({
             )}
 
             {aiReviewSlot}
+
+            {/* Post-LLM Validation Results (fullscreen) */}
+            {validationResult && (validationResult.corrections.length > 0 || validationResult.passedChecks.length > 0) && (
+              <ValidationResultsBar result={validationResult} />
+            )}
           </div>
         </DialogContent>
       </Dialog>
