@@ -1325,7 +1325,8 @@ export default function CurationReviewPage() {
     const upper = value.toUpperCase();
     syncSectionToStore('maturity_level' as SectionKey, upper);
     saveSectionMutation.mutate({ field: "maturity_level", value: upper });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('maturity_level');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
     setSavingSection(true);
