@@ -186,9 +186,39 @@ export function buildStructuredBatchPrompt(
   // Layer 1: Platform preamble
   parts.push(firstConfig.platform_preamble?.trim() || DEFAULT_PLATFORM_PREAMBLE);
   parts.push('');
-  parts.push('For each section below, provide:');
-  parts.push('- status: "pass" (ready — NO issues, comments MUST be an empty array), "warning" (functional but improvable — MUST have 1-3 comments), or "needs_revision" (has issues that must be fixed — MUST have 1-3 comments)');
-  parts.push('- comments: actionable improvement instructions. CRITICAL: For "pass" status, comments MUST be an empty array []. Any section with comments MUST use "warning" or "needs_revision" status.');
+  parts.push(`## OUTPUT FORMAT
+For each section, return a JSON object via the review_sections function with:
+
+1. **status**: "pass" | "warning" | "needs_revision" | "generated"
+   - "pass" = content is good. STILL include 1-2 "strength" comments confirming what works well.
+   - "warning" = minor issues. Include a "suggestion" with improved content.
+   - "needs_revision" = critical errors. Include a "suggestion" with corrected content.
+   - "generated" = new content created for an empty section. MUST include "suggestion" with full content.
+
+2. **comments**: Array of objects, each with:
+   - "text": Clear, specific feedback referencing challenge details
+   - "type": One of:
+     - "error" — Must be fixed before publication. References specific quality criterion violated.
+     - "warning" — Should be improved. Explains what would make it stronger.
+     - "suggestion" — Nice-to-have enhancement. Optional improvement.
+     - "best_practice" — Industry standard, framework reference, or analyst insight. Cite the source where possible.
+     - "strength" — What is already good. Positive reinforcement with specific praise. REQUIRED for "pass" sections.
+   - "field" (optional): Specific field this comment applies to
+   - "reasoning" (optional): Why this matters, referencing other sections
+
+3. **suggestion** (optional): Improved/generated content in the section's native format.
+   - For "generated": Full content that can be directly used.
+   - For "warning"/"needs_revision": Improved version addressing all error/warning comments.
+   - For "pass": null or omit.
+
+4. **guidelines**: 1-3 domain-specific guidelines for this section.
+   - MUST reference THIS challenge's domain, maturity, and solution type.
+   - MUST NOT be generic (no "ensure quality" or "follow best practices").
+
+5. **cross_section_issues**: Array of inconsistencies found with other sections.
+   - Only include genuine conflicts.
+   - Each must specify the related_section, the issue, and a suggested_resolution.
+`);
   parts.push('');
 
   // Per-section (Layers 2-4)
