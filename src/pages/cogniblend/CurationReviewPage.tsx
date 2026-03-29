@@ -3022,8 +3022,69 @@ export default function CurationReviewPage() {
                         const eb = parseExtendedBrief(challenge.extended_brief);
                         const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
                           ? getSubsectionValue(eb, "context_and_background") as string : "";
+                        const resolvedSegId = resolveIndustrySegmentId(challenge);
+                        // Determine if segment came from AM intake (targeting_filters)
+                        const tf = parseJson<any>(challenge.targeting_filters);
+                        const segmentFromIntake = !!(tf?.industries?.length > 0);
                         return (
                           <>
+                            {/* Industry Segment — mandatory prerequisite field */}
+                            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5 mb-3">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
+                                {segmentFromIntake && resolvedSegId && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
+                                )}
+                                {!resolvedSegId && !isReadOnly && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">Required</Badge>
+                                )}
+                              </div>
+
+                              {/* Read-only: from intake or viewer mode */}
+                              {resolvedSegId && (segmentFromIntake || isReadOnly) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {industrySegments?.find(s => s.id === resolvedSegId)?.name ?? "Loading…"}
+                                </Badge>
+                              )}
+
+                              {/* Editable: curator-set, allow change */}
+                              {resolvedSegId && !segmentFromIntake && !isReadOnly && (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {industrySegments?.find(s => s.id === resolvedSegId)?.name ?? "Loading…"}
+                                  </Badge>
+                                  <Select value={resolvedSegId} onValueChange={handleIndustrySegmentChange}>
+                                    <SelectTrigger className="w-auto max-w-[220px] h-7 text-xs border-dashed">
+                                      <span className="text-muted-foreground">Change</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(industrySegments ?? []).map(seg => (
+                                        <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+
+                              {/* Not set: mandatory dropdown */}
+                              {!resolvedSegId && !isReadOnly && (
+                                <Select onValueChange={handleIndustrySegmentChange}>
+                                  <SelectTrigger className="w-full max-w-sm h-8 text-sm border-destructive/50">
+                                    <SelectValue placeholder="Select industry segment…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(industrySegments ?? []).map(seg => (
+                                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {!resolvedSegId && isReadOnly && (
+                                <p className="text-sm text-destructive italic">No industry segment specified — required before review.</p>
+                              )}
+                            </div>
+
                             <RichTextSectionRenderer
                               value={textVal}
                               readOnly={isReadOnly}
