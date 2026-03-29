@@ -476,7 +476,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context } = await req.json();
+    const { challenge_id, section_key, role_context, context: clientContext } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
