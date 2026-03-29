@@ -1065,6 +1065,28 @@ export default function CurationReviewPage() {
     enabled: !!challengeId,
   });
 
+  // ── Org type name for badge ──
+  const { data: orgTypeName } = useQuery({
+    queryKey: ["curation-org-type", challenge?.organization_id],
+    queryFn: async () => {
+      const { data: org, error: orgErr } = await supabase
+        .from("seeker_organizations")
+        .select("organization_type_id")
+        .eq("id", challenge!.organization_id)
+        .single();
+      if (orgErr || !org?.organization_type_id) return null;
+      const { data: ot, error: otErr } = await supabase
+        .from("organization_types")
+        .select("name")
+        .eq("id", org.organization_type_id)
+        .single();
+      if (otErr) return null;
+      return ot?.name ?? null;
+    },
+    enabled: !!challenge?.organization_id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: legalDocs = [] } = useQuery({
     queryKey: ["curation-legal-summary", challengeId],
     queryFn: async (): Promise<LegalDocSummary[]> => {
