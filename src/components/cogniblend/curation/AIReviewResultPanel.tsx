@@ -174,13 +174,24 @@ function inferSeverity(comment: string): ReviewComment["severity"] {
   return "warning";
 }
 
-function parseComment(raw: string): ReviewComment {
-  let text = raw;
+function parseComment(raw: string | { text?: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string }): ReviewComment {
+  // Handle new object-format comments from multi-tier LLM output
+  if (typeof raw === 'object' && raw !== null) {
+    const text = raw.text || raw.comment || '';
+    const type = raw.type as ReviewComment['type'] || undefined;
+    const severity = type
+      ? (type === 'error' ? 'required' : type === 'best_practice' ? 'strength' : type as ReviewComment['severity'])
+      : inferSeverity(text);
+    return { text, type, severity, field: raw.field || null, reasoning: raw.reasoning || null };
+  }
+
+  // Legacy string format
+  let text = raw as string;
   let applies_to: string | undefined;
-  const appliesMatch = raw.match(/\[applies[_ ]to:\s*(.+?)\]\s*$/i);
+  const appliesMatch = text.match(/\[applies[_ ]to:\s*(.+?)\]\s*$/i);
   if (appliesMatch) {
     applies_to = appliesMatch[1];
-    text = raw.slice(0, appliesMatch.index).trim();
+    text = text.slice(0, appliesMatch.index).trim();
   }
   const severity = inferSeverity(text);
   return { text, severity, applies_to };
