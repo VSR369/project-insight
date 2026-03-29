@@ -1688,13 +1688,17 @@ export default function CurationReviewPage() {
   }, [challenge, saveSectionMutation]);
 
   // ── Industry Segment change handler (persists to eligibility JSONB) ──
-  const handleIndustrySegmentChange = useCallback((segmentId: string) => {
+  const handleIndustrySegmentChange = useCallback(async (segmentId: string) => {
     if (!challengeId || !challenge) return;
     const currentElig = parseJson<any>(challenge.eligibility) ?? {};
     currentElig.industry_segment_id = segmentId;
-    supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
-    });
+    const { error } = await supabase.from("challenges").update({ eligibility: JSON.stringify(currentElig) }).eq("id", challengeId);
+    if (error) {
+      toast.error("Failed to save industry segment");
+      return;
+    }
+    toast.success("Industry segment updated");
+    queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
   }, [challengeId, challenge, queryClient]);
 
   /**
