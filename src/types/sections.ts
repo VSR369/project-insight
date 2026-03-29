@@ -6,6 +6,7 @@
  */
 
 import { SECTION_FORMAT_CONFIG } from '@/lib/cogniblend/curationSectionFormats';
+import type { ValidationResult } from '@/lib/cogniblend/postLlmValidation';
 
 /* ── Authoritative section key enum ── */
 
