@@ -253,7 +253,7 @@ export function ComplexityAssessmentModule({
     if (!pendingTab) return;
     setActiveTab(pendingTab);
     // Reset state for new tab — each draft is independent, just clear edit markers
-    const fresh = buildDraftFromExisting(currentParams, complexityParams);
+    const fresh = buildDraftFromExisting(currentParams, effectiveParams);
     if (pendingTab === "manual_params") {
       setManualDraft(fresh);
     }
