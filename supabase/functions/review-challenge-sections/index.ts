@@ -252,7 +252,14 @@ async function callAIBatch(
                       },
                       suggestion: {
                         type: "string",
-                        description: "For 'generate' action: the full generated content for this section. For 'review' action: suggested improved content if significant changes are recommended. Null/empty if no content suggestion needed.",
+                        description: `For 'generate' action: the full generated content. For 'review' action: suggested improved content. Format MUST match the section type:
+- rich_text sections (problem_statement, scope, hook, context_and_background): return HTML string
+- line_items sections (deliverables, expected_outcomes, root_causes, etc.): return a JSON array of strings, e.g. '["item1","item2"]'
+- table/schedule_table sections (evaluation_criteria, phase_schedule, affected_stakeholders, etc.): return a JSON array of row objects, e.g. '[{"col":"val"}]'
+- checkbox_single sections (maturity_level, complexity, ip_model): return a JSON object, e.g. '{"selected_id":"value"}'
+- checkbox_multi/tag_input sections (eligibility, visibility, domain_tags): return a JSON array of strings
+- custom/structured_fields sections: return a JSON object matching the section schema
+Null/empty if no content suggestion needed.`,
                       },
                       cross_section_issues: {
                         type: "array",
