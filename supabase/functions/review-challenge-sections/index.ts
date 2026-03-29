@@ -331,7 +331,8 @@ CRITICAL RULES:
 - If a section is missing or empty, factor that into your assessment (e.g., missing scope increases uncertainty).
 - Consider cross-section interactions: tight timelines + high technical novelty = amplified complexity.
 - For each rating, cite which challenge sections (e.g., problem_statement, deliverables, phase_schedule) informed your assessment.
-- Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."`;
+- Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."
+- Today's date is {{todaysDate}}. All temporal assessments must use this as reference.`;
 
   const paramDescriptions = paramsData.map(
     (p: any) => `- **${p.param_key}** (${p.name}): ${p.description ?? "No description"} [weight: ${(p.weight * 100).toFixed(0)}%]`
