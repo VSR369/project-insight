@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useShallow } from "zustand/react/shallow";
+// shallow equality removed — using JSON stabilization instead
 // Phase 5 imports
 import { preFlightCheck, type PreFlightResult } from "@/lib/cogniblend/preFlightCheck";
 import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
