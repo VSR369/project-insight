@@ -38,6 +38,8 @@ interface CurationFormState {
   markSectionSaved: (key: SectionKey) => SectionKey[];
   /** Clear staleness for a section (after AI re-review or manual edit+save) */
   clearStaleness: (key: SectionKey) => void;
+  /** Store validation results for a section */
+  setValidationResult: (key: SectionKey, result: ValidationResult | null) => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
