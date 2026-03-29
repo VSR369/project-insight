@@ -26,7 +26,7 @@ export interface SectionStoreEntry {
   /** AI review comments — null means no review or cleared after accept */
   aiComments: string[] | null;
   /** AI-suggested replacement data — null means no suggestion pending */
-  aiSuggestion: SectionStoreEntry['data'] | null;
+  aiSuggestion: Record<string, unknown> | string | string[] | null;
   /** Current review lifecycle status */
   reviewStatus: ReviewStatus;
   /** Whether AI suggestions have been addressed (accepted or rejected) */
