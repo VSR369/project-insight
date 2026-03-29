@@ -354,8 +354,8 @@ For each section, return a JSON object via the review_sections function with:
     }
   }
 
-  parts.push('Every comment MUST be phrased as an actionable improvement instruction.');
-  parts.push('CRITICAL: Each distinct issue or suggestion MUST be a separate comment in the array. Do NOT combine multiple issues into one comment.');
+  parts.push('Every comment MUST use the {text, type} object format. Each distinct issue MUST be a separate comment.');
+  parts.push('For "pass" sections: include 1-2 "strength" type comments — never return empty comments. Curators need confirmation the AI reviewed the section.');
   parts.push('Your suggested content for each section MUST match the prescribed format — never write prose paragraphs for line_items, table, or checkbox sections.');
   parts.push('For master-data-backed sections, your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
