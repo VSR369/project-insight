@@ -2220,7 +2220,9 @@ export default function CurationReviewPage() {
           </Badge>
         )}
         <GovernanceProfileBadge profile={challenge.governance_profile} compact />
-
+        {orgTypeName && (
+          <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
+        )}
         {user?.id && !isReadOnly && (
           <HoldResumeActions
             challengeId={challengeId!}
