@@ -224,7 +224,7 @@ export function ComplexityAssessmentModule({
   const isDirty = useMemo(() => {
     if (activeTab === "ai_review") return editableParams.size > 0;
     if (activeTab === "manual_params") {
-      const original = buildDraftFromExisting(currentParams, complexityParams);
+      const original = buildDraftFromExisting(currentParams, effectiveParams);
       return Object.keys(manualDraft).some((k) => manualDraft[k] !== original[k]);
     }
     if (activeTab === "quick_select") return overrideLevel !== null;
