@@ -1030,6 +1030,11 @@ export default function CurationReviewPage() {
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
 
+  // ── Phase 5: Pre-flight gate + budget shortfall state ──
+  const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
+  const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
+  const [budgetShortfall, setBudgetShortfall] = useState<BudgetShortfallResult | null>(null);
+
   // Expand / collapse all sections in the active group
   const handleExpandCollapseAll = useCallback((expand: boolean) => {
     const groupDef = GROUPS.find((g) => g.id === activeGroup);
