@@ -327,15 +327,29 @@ Null/empty if no content suggestion needed.`,
   const parsed = JSON.parse(toolCall.function.arguments);
   const now = new Date().toISOString();
   const sections = (parsed.sections ?? []).map((s: any) => {
-    // Normalize: pass with comments → warning (prevent confusing UI)
-    const comments = Array.isArray(s.comments) ? s.comments : [];
-    const hasComments = comments.length > 0;
-    const normalizedStatus = (s.status === 'pass' && hasComments) ? 'warning' : s.status;
+    // Normalize comments: handle both old (severity/comment) and new (type/text) formats
+    const rawComments = Array.isArray(s.comments) ? s.comments : [];
+    const comments = rawComments.map((c: any) => {
+      if (typeof c === 'string') return { text: c, type: 'warning' as const, field: null, reasoning: null };
+      return {
+        text: c.text || c.comment || String(c),
+        type: c.type || (c.severity === 'error' ? 'error' : c.severity === 'suggestion' ? 'suggestion' : 'warning'),
+        field: c.field || null,
+        reasoning: c.reasoning || null,
+      };
+    });
+
+    // Only downgrade pass→warning if comments contain actual errors or warnings
+    // Strength/best_practice/suggestion-only comments keep "pass" status
+    const hasHighSeverity = comments.some((c: any) => c.type === 'error' || c.type === 'warning');
+    const normalizedStatus = (s.status === 'pass' && hasHighSeverity) ? 'warning' : s.status;
+
     return {
       ...s,
       status: normalizedStatus,
       comments,
       suggestion: s.suggestion || null,
+      guidelines: Array.isArray(s.guidelines) ? s.guidelines : [],
       cross_section_issues: Array.isArray(s.cross_section_issues) ? s.cross_section_issues : [],
       reviewed_at: now,
     };
