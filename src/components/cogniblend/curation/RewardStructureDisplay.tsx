@@ -637,7 +637,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       )}
 
       {/* ── Prize Tier Editor (shown when reward type includes monetary) ── */}
-      {rewardType && (showMonetary || rewardType === 'both') && prizeTiers.length > 0 && (
+      {rewardType && showMonetary && prizeTiers.length > 0 && (
         <div className="border-t border-border pt-4">
           <h4 className="text-sm font-semibold text-foreground mb-3">Prize Tier Breakdown</h4>
           <PrizeTierEditor
