@@ -566,7 +566,7 @@ export function AIReviewResultPanel({
   // Parse date from AI suggestion for date-format sections
   const parsedDate = useMemo(() => parseDateFromSuggestion(sectionKey, result.suggested_version), [sectionKey, result.suggested_version]);
 
-  const statusBadge = STATUS_BADGE[result.status];
+  const statusBadge = STATUS_BADGE[result.status] ?? STATUS_BADGE.warning;
   const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
 
   // For reward_structure, parse structured { type, monetary, nonMonetary } object
