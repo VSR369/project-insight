@@ -36,6 +36,8 @@ export const DIRECT_DEPENDENCIES: Partial<Record<SectionKey, SectionKey[]>> = {
   domain_tags: [],
   affected_stakeholders: [],
   approaches_not_of_interest: [],
+  data_resources_provided: ['submission_guidelines'],
+  success_metrics_kpis: ['evaluation_criteria'],
 };
 
 /* ── Transitive dependents via BFS ── */
