@@ -82,7 +82,8 @@ function validatePhaseScheduleDates(
   corrections: ValidationCorrection[],
   passedChecks: string[],
 ): void {
-  const suggestedPhases = (aiOutput.suggestedPhases ?? aiOutput.suggestion?.phases ?? aiOutput.phases) as any[] | undefined;
+  const suggestion = aiOutput.suggestion as Record<string, unknown> | undefined;
+  const suggestedPhases = (aiOutput.suggestedPhases ?? suggestion?.phases ?? aiOutput.phases) as any[] | undefined;
   if (!Array.isArray(suggestedPhases) || suggestedPhases.length === 0) return;
 
   const today = new Date(context.todaysDate);
