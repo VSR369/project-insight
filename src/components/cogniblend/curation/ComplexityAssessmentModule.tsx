@@ -304,14 +304,14 @@ export function ComplexityAssessmentModule({
   }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel]);
 
   const handleCancel = useCallback(() => {
-    const fresh = buildDraftFromExisting(currentParams, complexityParams);
+    const fresh = buildDraftFromExisting(currentParams, effectiveParams);
     setAiDraft(fresh);
     setManualDraft(fresh);
     setActiveTab("ai_review");
     setOverrideLevel(null);
     setEditableParams(new Set());
     setAiJustifications({});
-  }, [currentParams, complexityParams]);
+  }, [currentParams, effectiveParams]);
 
   // ══════ Conditional returns ══════
   if (complexityParams.length === 0) {
