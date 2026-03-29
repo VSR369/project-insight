@@ -39,14 +39,26 @@ import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 export interface ReviewComment {
   text: string;
   severity?: "strength" | "warning" | "required";
+  /** New multi-tier type from LLM (preferred over inferred severity) */
+  type?: "error" | "warning" | "suggestion" | "best_practice" | "strength";
   applies_to?: string;
+  field?: string | null;
+  reasoning?: string | null;
+}
+
+export interface CrossSectionIssue {
+  related_section: string;
+  issue: string;
+  suggested_resolution?: string;
 }
 
 export interface AIReviewResult {
-  status: "pass" | "warning" | "needs_revision" | "inferred";
-  comments: string[];
+  status: "pass" | "warning" | "needs_revision" | "inferred" | "generated";
+  comments: (string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string })[];
   summary?: string;
   suggested_version?: string;
+  guidelines?: string[];
+  cross_section_issues?: CrossSectionIssue[];
 }
 
 interface MasterDataOption {
