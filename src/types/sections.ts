@@ -86,6 +86,7 @@ export function createEmptySectionEntry(): SectionStoreEntry {
     reviewStatus: 'idle',
     addressed: false,
     validationResult: null,
+    aiAction: null,
     lastEditedAt: null,
     lastReviewedAt: null,
     isStale: false,
