@@ -3595,6 +3595,11 @@ export default function CurationReviewPage() {
         onGoToSection={(sectionKey) => {
           const group = GROUPS.find(g => g.sectionKeys.includes(sectionKey));
           if (group) setActiveGroup(group.id);
+          // Auto-scroll to the section after a short delay for tab switch
+          setTimeout(() => {
+            const el = document.getElementById(`section-${sectionKey}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 300);
         }}
         onProceed={executeWavesWithBudgetCheck}
       />
