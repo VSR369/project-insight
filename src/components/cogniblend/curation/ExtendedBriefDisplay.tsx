@@ -289,6 +289,9 @@ export default function ExtendedBriefDisplay({
   onMarkAddressed,
   challengeContext,
   expandVersion,
+  industrySegmentId,
+  industrySegmentFromIntake,
+  onIndustrySegmentChange,
 }: ExtendedBriefDisplayProps) {
   const brief = parseExtendedBrief(data);
   const [editingKey, setEditingKey] = useState<string | null>(null);
