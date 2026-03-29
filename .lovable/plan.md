@@ -1,53 +1,74 @@
 
 
-# Plan: Format-Aware AI Suggestion Parsing
+# Plan: Consolidated AI Review Enrichment — Remaining Changes
 
-## Problem
-The LLM tool schema defines `suggestion` as `type: "string"`. For rich_text sections this works. For structured sections (line_items, table, schedule_table, checkbox, tag_input), the LLM returns stringified JSON (e.g. `'["item1","item2"]'`). Two breakages occur:
+## Already Implemented (No Action Needed)
+From the diagnostic audit, these are already in the codebase:
+- **Tool schema**: `suggestion`, `cross_section_issues`, `"generated"` status — ✅ done (lines 227-282)
+- **wave_action reading**: destructured at line 546, used in prompts at lines 777-784 — ✅ done
+- **Content propagation**: `parseSuggestionForSection` + `setSectionData` in useWaveExecutor lines 101-121 — ✅ done
+- **analyst_sources injection**: promptTemplate.ts lines 265-269 — ✅ done
+- **Fallback CURATION_SECTIONS**: all 26 sections, no duplicates (lines 28-61) — ✅ done
+- **Token logging**: lines 300-310 — ✅ done
+- **Format-aware suggestion parsing**: `parseSuggestion.ts` utility — ✅ done
 
-1. **Store type mismatch**: `setAiReview` accepts `Record<string, unknown> | null` for suggestion — strings/arrays are silently dropped or mistyped
-2. **Accept corruption**: `acceptAiSuggestion` calls `deepMerge(currentData, suggestion)` which expects two objects — a string or array causes silent failure or corrupt data
+## What Still Needs to Change (5 items)
 
-Rich text sections work by accident because the existing `AIReviewInline` auto-refine path bypasses the store's `acceptAiSuggestion` and writes directly. But the new wave-executor path (Fix 3) writes raw strings for ALL section types.
+### Change 1: Add multi-tier comment types to tool schema
+**File:** `supabase/functions/review-challenge-sections/index.ts` (lines 244-250)
 
-## Changes (4 files, ~60 lines total)
+Currently the comment schema uses `severity` with enum `["error","warning","suggestion"]`. Update to add `type` field with the 5-tier enum while keeping `severity` for backward compatibility, and add `guidelines` to the section item.
 
-### 1. New utility: `src/lib/cogniblend/parseSuggestion.ts`
-~35 lines. Takes `(sectionKey: string, rawSuggestion: string)` → returns parsed native type.
+- Add `type` property: `enum: ["error","warning","suggestion","best_practice","strength"]`
+- Add `guidelines` array field to the section-level properties
+- In the response parser (line 319-321), fix normalization: only downgrade `pass→warning` if comments contain `error` or `warning` type — not for `strength`/`best_practice` comments
 
-- Looks up format from `SECTION_FORMAT_CONFIG`
-- `rich_text` → return string as-is
-- `line_items`, `checkbox_multi`, `tag_input` → `JSON.parse()` → expect `string[]`
-- `table`, `schedule_table` → `JSON.parse()` → expect `Record<string, unknown>[]`
-- `checkbox_single` → `JSON.parse()` → expect object with selection
-- `custom`, `structured_fields` → `JSON.parse()` → expect object
-- All parsing wrapped in try/catch — falls back to raw string on failure
+### Change 2: Add output format instructions to system prompt
+**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts` (lines 189-192)
 
-### 2. Update `src/hooks/useWaveExecutor.ts` (lines 100-111)
-- Import `parseSuggestionForSection`
-- Parse suggestion before writing to store (line 110): `store.getState().setSectionData(sectionKey, parseSuggestionForSection(sectionKey, suggestion))`
-- Parse suggestion before passing to `setAiReview` (line 103): pass parsed value instead of raw string
+Replace the terse status/comments instructions in `buildStructuredBatchPrompt` with detailed multi-tier output instructions explaining the 5 comment types, guidelines, cross_section_issues, and when to include suggestions. Also update the final lines (327-330) to reference the new types.
 
-### 3. Update `src/store/curationFormStore.ts`
-- **Type signature** (line 32): Change `suggestion` param from `Record<string, unknown> | null` to `SectionStoreEntry['data'] | null`
-- **`acceptAiSuggestion`** (lines 120-147): Add guard — if `aiSuggestion` is a string or array, replace `data` entirely instead of calling `deepMerge`. Only `deepMerge` when both current data and suggestion are plain objects.
+Same update in `buildConfiguredBatchPrompt` (lines 347-349).
 
-### 4. Update edge function suggestion description
-**File:** `supabase/functions/review-challenge-sections/index.ts` (lines 253-256)
+### Change 3: Update UI to render multi-tier comments + guidelines
+**File:** `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
 
-Update the `suggestion` field description to instruct the LLM on format expectations per section type:
-- rich_text → HTML string
-- line_items → JSON array of strings
-- table/schedule_table → JSON array of row objects
-- checkbox → JSON object
+- Update comment parsing to handle objects with `{text, type}` in addition to plain strings (backward compatible)
+- Group and color-code comments: red (error), amber (warning), blue (suggestion), purple (best_practice), green (strength)
+- Add guidelines rendering section (indigo)
+- Add cross_section_issues rendering section (orange)
+- Update `AIReviewResult` interface to include optional `guidelines` and `cross_section_issues`
+
+**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
+- Pass `guidelines` and `cross_section_issues` through from review data to the result panel
+
+### Change 4: Skip auto-refine when inline suggestion available
+**File:** `src/components/cogniblend/shared/AIReviewInline.tsx` (lines 278-297)
+
+Add a condition: if the review already has a `suggestion` from the review tool call, set `refinedContent` directly and skip the separate `refine-challenge-section` LLM call. This eliminates the redundant second API call.
+
+### Change 5: Enrich refine-challenge-section with DB config
+**File:** `supabase/functions/refine-challenge-section/index.ts`
+
+Load the section's config from `ai_review_section_config` table. If structured data exists (quality_criteria, cross_references), build a richer system prompt including those fields. Cannot import from sibling edge function, so inline the config loading logic. Fall back to existing prompts if no config found.
+
+---
 
 ## Implementation Order
-1. Create `parseSuggestion.ts` (no dependencies)
-2. Update `curationFormStore.ts` type + accept logic
-3. Update `useWaveExecutor.ts` to use parser
-4. Update edge function description
+1. Change 1 + Change 2 (tool schema + prompt instructions) — edge function, deploy together
+2. Change 5 (refine enrichment) — edge function, deploy together with above
+3. Change 3 (UI multi-tier rendering) — client
+4. Change 4 (skip auto-refine) — client
+
+## Files Modified
+- `supabase/functions/review-challenge-sections/index.ts` — Change 1
+- `supabase/functions/review-challenge-sections/promptTemplate.ts` — Change 2
+- `supabase/functions/refine-challenge-section/index.ts` — Change 5
+- `src/components/cogniblend/curation/AIReviewResultPanel.tsx` — Change 3
+- `src/components/cogniblend/shared/AIReviewInline.tsx` — Changes 3, 4
 
 ## Risk
-- Low: try/catch fallback ensures no regression — if parsing fails, raw string behavior is preserved
-- Existing `normalizeAiContentForEditor` and `challengeFieldNormalizer` run post-acceptance, so this fix ensures data arrives in correct shape before those normalizers run
+- All changes are additive with backward compatibility (handle both old `severity`/`comment` and new `type`/`text` formats)
+- Auto-refine skip (Change 4) preserves fallback path — if no inline suggestion, the refine call still fires
+- UI changes are rendering-only — no store or data flow changes
 
