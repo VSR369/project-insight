@@ -165,6 +165,7 @@ interface ChallengeData {
   solver_expertise_requirements: Json | null;
   targeting_filters: Json | null;
   eligibility_model: string | null;
+  organization_id: string;
 }
 
 interface LegalDocSummary {
