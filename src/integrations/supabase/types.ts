@@ -8428,6 +8428,62 @@ export type Database = {
           },
         ]
       }
+      rate_cards: {
+        Row: {
+          big4_benchmark_multiplier: number
+          created_at: string
+          created_by: string | null
+          effort_rate_floor: number
+          id: string
+          is_active: boolean
+          maturity_level: string
+          non_monetary_weight: number
+          organization_type_id: string
+          reward_ceiling: number | null
+          reward_floor_amount: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          big4_benchmark_multiplier: number
+          created_at?: string
+          created_by?: string | null
+          effort_rate_floor: number
+          id?: string
+          is_active?: boolean
+          maturity_level: string
+          non_monetary_weight: number
+          organization_type_id: string
+          reward_ceiling?: number | null
+          reward_floor_amount: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          big4_benchmark_multiplier?: number
+          created_at?: string
+          created_by?: string | null
+          effort_rate_floor?: number
+          id?: string
+          is_active?: boolean
+          maturity_level?: string
+          non_monetary_weight?: number
+          organization_type_id?: string
+          reward_ceiling?: number | null
+          reward_floor_amount?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_cards_organization_type_id_fkey"
+            columns: ["organization_type_id"]
+            isOneToOne: false
+            referencedRelation: "organization_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rating_records: {
         Row: {
           challenge_id: string
