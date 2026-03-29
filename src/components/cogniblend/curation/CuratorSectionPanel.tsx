@@ -117,6 +117,8 @@ export interface CuratorSectionPanelProps {
   staleAt?: string | null;
   /** Post-LLM validation results */
   validationResult?: ValidationResult | null;
+  /** AI wave action for this section (generate vs review) */
+  aiAction?: AiActionType;
 }
 
 // Export localStorage helpers so parent can bulk-update expand state
