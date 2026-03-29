@@ -1317,7 +1317,8 @@ export default function CurationReviewPage() {
     const data = { criteria: normalized };
     syncSectionToStore('evaluation_criteria' as SectionKey, data);
     saveSectionMutation.mutate({ field: "evaluation_criteria", value: data });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('evaluation_criteria');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveMaturityLevel = useCallback((value: string) => {
     setSavingSection(true);
