@@ -1,133 +1,86 @@
 
 
-# Phase 7 Gap Analysis: Completeness, Consistency & Correctness Review
+# Gap Analysis: Spec (Phases 2–7) vs Codebase — Final Status
 
 ## Summary
 
-After cross-referencing the attached spec (Phases 2-7) with the implemented codebase, Phase 7 is **largely complete** but has several gaps ranging from minor naming inconsistencies to missing seed data and a few structural omissions.
+All previously identified critical gaps from the Phase 7 plan have been **resolved**. The remaining gaps are either spec-vs-codebase naming differences (by design) or minor discrepancies in the spec's original 24-section model vs the implemented 26-section model.
 
 ---
 
-## GAP 1: Completeness Checks — No Seed Data in Migration (CRITICAL)
+## RESOLVED GAPS (Confirmed Fixed)
 
-**Issue**: The migration `20260329090343` creates the `completeness_checks` table and adds columns to `challenges`, but does **not seed the 10 default check rows**. The spec requires 10 pre-populated checks (Target user, Measurable success criteria, Technology constraints, etc.).
-
-**Impact**: The `useCompletenessCheckDefs()` query returns empty → the card renders with no items → the feature is non-functional.
-
-**Fix**: Insert the 10 default rows via a migration or seed SQL matching the spec's `DEFAULT_COMPLETENESS_CHECKS` array.
-
----
-
-## GAP 2: Section Key Mismatch — `complexity_assessment` vs `complexity` (WARNING)
-
-**Issue**: The spec's dependency map and completeness checks reference `complexity_assessment`, but the codebase uses `complexity` as the canonical key (see `sectionDependencies.ts` line 7 comment). The completeness check seed data for "Integration requirements" references `complexity_assessment` in its `checkSections` array, but this key doesn't exist in `SECTION_FORMAT_CONFIG`.
-
-**Affected checks**: Concepts 5 ("Integration requirements") and 8 ("Budget/reward rationale") reference `complexity_assessment`. Same for `legal_documents` vs `legal_docs`.
-
-**Fix**: When seeding, map spec keys to codebase keys: `complexity_assessment` → `complexity`, `legal_documents` → `legal_docs`, `challenge_hook` → `hook`.
+| Gap | Status |
+|-----|--------|
+| GAP 1: 10 completeness checks not seeded | **FIXED** — All 10 rows exist in DB with canonical keys |
+| GAP 2: `complexity_assessment` vs `complexity` key mismatch | **FIXED** — DB uses `complexity`, `legal_docs`, `hook` (canonical) |
+| GAP 3: AI configs missing for new sections | **FIXED** — `data_resources_provided` and `success_metrics_kpis` rows exist in `ai_review_section_config` |
+| GAP 4: Wave config comment says 24 | **FIXED** — Now says "26 curation sections" |
+| GAP 5: `legal_documents` in seed data | **FIXED** — DB uses `legal_docs` |
+| GAP 7: `data_resources_provided` missing from deliverables deps | **FIXED** — Present in deliverables array |
+| GAP 8: `success_metrics_kpis` tab placement | **CORRECT** — Position 5 in problem_definition |
+| GAP 9: `data_resources_provided` tab placement | **CORRECT** — Position 2 in scope_complexity |
 
 ---
 
-## GAP 3: New Sections Missing from `ai_review_section_config` Seed (MEDIUM)
+## REMAINING GAPS (Non-Critical)
 
-**Issue**: The plan says "Seed AI prompt configs for the 2 new sections" (Step 9), but we need to verify the migration actually inserted rows for `data_resources_provided` and `success_metrics_kpis` into `ai_review_section_config`. The Phase 6 seeding covered 24 sections — these 2 new sections would be 25 and 26.
+### GAP A: Spec Wave Config Uses Old Section Keys (Informational — No Action Needed)
 
-**Impact**: Without prompt configs, AI review of these sections uses fallback/generic prompts with no quality criteria.
+The spec's `EXECUTION_WAVES` (Phase 5, lines 2528–2602) uses `context_background`, `complexity_assessment`, `legal_documents`, `challenge_hook`. The codebase correctly maps these to `context_and_background`, `complexity`, `legal_docs`, `hook`. This is already resolved — just noting the spec-vs-code divergence is intentional.
 
-**Fix**: Insert 2 new rows into `ai_review_section_config` with the quality criteria from the spec (COMPLETENESS, ACCESS CLARITY, FORMAT SPECIFICITY for Data & Resources; QUANTITATIVE, OUTCOME ALIGNMENT, EVALUATION ALIGNMENT, BASELINE REALITY for Success Metrics).
+### GAP B: Spec Dependency Map Uses Old Keys (Informational — No Action Needed)
 
----
+Same pattern: spec's `DIRECT_DEPENDENCIES` (Phase 3, lines 722–769) uses `context_background`, `complexity_assessment`, `legal_documents`, `challenge_hook`. Codebase uses canonical keys. Already correct.
 
-## GAP 4: Wave Config Comment Says "24 sections" but Now Has 26 (MINOR)
+### GAP C: Completeness Check #2 Cross-References `success_metrics_kpis` (Enhancement)
 
-**Issue**: `waveConfig.ts` line 4 says "6 dependency-ordered waves covering all 24 curation sections" but now covers 26 sections after adding `data_resources_provided` and `success_metrics_kpis`.
+The seeded check for "Measurable success criteria" includes `success_metrics_kpis` in its `check_sections` alongside `expected_outcomes` and `evaluation_criteria`. The original spec only listed `['expected_outcomes', 'evaluation_criteria']`. This is an **improvement** — the new section was correctly included as a relevant source for measurability checks.
 
-**Fix**: Update comment to say "26 curation sections".
+### GAP D: Completeness Check #4 Cross-References `data_resources_provided` (Enhancement)
 
----
+Similarly, "Data availability" check now includes `data_resources_provided` in its `check_sections`. Original spec only had `['scope', 'deliverables', 'submission_guidelines']`. This is correct — the new section is the canonical place for data specs.
 
-## GAP 5: Completeness Check `checkSections` — Spec vs Codebase Key Alignment (MEDIUM)
+### GAP E: Auto-Trigger Race Condition (LOW — Existing Mitigation)
 
-**Issue**: The spec's completeness check #4 ("Data availability") has `checkSections: ['scope', 'deliverables', 'submission_guidelines']` — this is fine. But check #9 ("IP clarity") references `['ip_model', 'legal_documents']` while the codebase key is `legal_docs`. If these were seeded literally from the spec, the engine won't find content for `legal_documents`.
+The completeness check auto-triggers when `waveProgress?.overallStatus === 'completed'`. The store may not yet have fresh content synced. Mitigated by the manual "Run completeness check" button. No code change needed unless users report inaccurate first-run results.
 
-**Fix**: Ensure all seeded `check_sections` JSONB arrays use the canonical codebase keys from `SECTION_FORMAT_CONFIG`.
+### GAP F: `extended_brief` Not in Waves or Groups (By Design — No Action)
 
----
-
-## GAP 6: `extended_brief` Section in Formats Config but NOT in Waves or Groups (MINOR)
-
-**Issue**: `extended_brief` exists in `SECTION_FORMAT_CONFIG` and `SECTION_DB_FIELD_MAP` but is not assigned to any wave in `EXECUTION_WAVES` and not in any tab group. This is likely intentional (it's a container for subsections), but worth confirming it doesn't cause issues with the completeness check engine iterating over `SECTION_KEYS`.
-
-**Impact**: Low — the engine will check it but find no completeness checks reference it.
+`extended_brief` exists in `SECTION_FORMAT_CONFIG` as a container section but is intentionally excluded from waves and tab groups. No completeness checks reference it. No issue.
 
 ---
 
-## GAP 7: `data_resources_provided` Dependency — Spec Says Depends on `scope` AND `deliverables`, But Only `scope` Lists It as Downstream (MINOR)
+## CROSS-PHASE CONSISTENCY CHECK
 
-**Issue**: In `sectionDependencies.ts`, `data_resources_provided` is listed as a downstream of `scope` (line 17) but NOT of `deliverables` (line 22). The spec says it depends on both.
-
-**Fix**: Add `data_resources_provided` to the `deliverables` dependency array.
-
----
-
-## GAP 8: `success_metrics_kpis` Tab Placement (VERIFY)
-
-**Issue**: Spec says "Tab 1 (Problem Definition), position 5 (after Expected Outcomes)". The implementation adds it at the end of the `problem_definition` group. The current group is: `["context_and_background", "problem_statement", "scope", "expected_outcomes", "success_metrics_kpis"]`. This matches the spec.
-
-**Status**: ✅ Correct.
-
----
-
-## GAP 9: `data_resources_provided` Tab Placement (VERIFY)
-
-**Issue**: Spec says "Tab 3 (Scope & Complexity), position 2 (after Deliverables, before Maturity Level)". The implementation has: `["deliverables", "data_resources_provided", "maturity_level", "complexity"]`. 
-
-**Status**: ✅ Correct.
-
----
-
-## GAP 10: Auto-Trigger After Global AI Review — Potential Race Condition (LOW)
-
-**Issue**: The completeness check auto-triggers when `waveProgress?.overallStatus === 'completed'`. However, at that point the curation store may not yet have the freshly generated content synced from the DB. The check runs against store data, which could still show pre-wave content.
-
-**Impact**: The first auto-run might show inaccurate results. The user can re-run manually.
-
-**Fix**: Add a small delay or ensure the store is hydrated from the wave results before running the check.
+| Phase | Spec Requirement | Implemented |
+|-------|-----------------|-------------|
+| **Phase 2** | Rate cards table + 18 seed rows | ✅ |
+| **Phase 2** | Prize tier editor in Reward Structure | ✅ |
+| **Phase 2** | Non-monetary incentive registry | ✅ |
+| **Phase 3** | Staleness tracking fields on section state | ✅ |
+| **Phase 3** | Dependency map with transitive BFS | ✅ (26 sections) |
+| **Phase 3** | Submission gate with stale/unreviewed/escrow blockers | ✅ |
+| **Phase 4** | Context assembler (`buildChallengeContext`) | ✅ |
+| **Phase 4** | Post-LLM validation (dates, weights, master data, rates) | ✅ |
+| **Phase 4** | Solution-type complexity dimensions | ✅ |
+| **Phase 5** | 6-wave sequential execution | ✅ (26 sections across 6 waves) |
+| **Phase 5** | Pre-flight gate (PS + Scope mandatory) | ✅ |
+| **Phase 5** | Budget shortfall auto-revision | ✅ |
+| **Phase 5** | Wave progress UI | ✅ |
+| **Phase 6** | 5-layer prompt config schema | ✅ |
+| **Phase 6** | Prompt Engineering Studio (`/admin/seeker-config/ai-review-config`) | ✅ |
+| **Phase 6** | All 24 section prompts seeded | ✅ (now 26) |
+| **Phase 6** | Phase templates (12 combos) | ✅ |
+| **Phase 7** | Completeness checks table + 10 seeds | ✅ |
+| **Phase 7** | Completeness engine + hook + sidebar card | ✅ |
+| **Phase 7** | 2 new sections (Data & Resources, Success Metrics) | ✅ |
+| **Phase 7** | Sections in formats, deps, waves, groups, DB field map | ✅ |
+| **Phase 7** | AI configs seeded for 2 new sections | ✅ |
 
 ---
 
-## CONSISTENCY CROSS-CHECK: Spec vs Implementation
+## VERDICT
 
-| Spec Requirement | Status |
-|---|---|
-| `completeness_checks` table created with RLS | ✅ |
-| 10 default checks seeded | ❌ Missing |
-| `data_resources_provided` column on challenges | ✅ |
-| `success_metrics_kpis` column on challenges | ✅ |
-| Completeness engine (`completenessCheck.ts`) | ✅ |
-| React Query hook (`useCompletenessChecks.ts`) | ✅ |
-| Sidebar card (`CompletenessChecklistCard.tsx`) | ✅ |
-| Card placed in right rail | ✅ |
-| Progress bar + pass/fail icons | ✅ |
-| Remediation hint on hover | ✅ |
-| Click failed item → navigate to section | ✅ |
-| Auto-trigger after Global AI Review | ✅ (with race condition risk) |
-| New sections in `curationSectionFormats.ts` | ✅ |
-| New sections in `sectionDependencies.ts` | ✅ (partial — Gap 7) |
-| New sections in `waveConfig.ts` | ✅ |
-| New sections in `SECTION_DB_FIELD_MAP` | ✅ |
-| New sections in GROUPS/tabs | ✅ |
-| New sections in SECTIONS array with renderers | ✅ |
-| AI prompt configs seeded for new sections | ❓ Needs verification |
-
----
-
-## Recommended Fix Priority
-
-1. **Seed 10 completeness checks** (Gap 1) — Feature is broken without this
-2. **Fix section key mapping** (Gaps 2, 5) — Ensure canonical keys used in seed data
-3. **Seed AI configs for 2 new sections** (Gap 3) — AI review quality
-4. **Add `data_resources_provided` to deliverables dependencies** (Gap 7)
-5. **Update wave config comment** (Gap 4)
-6. **Address auto-trigger timing** (Gap 10) — Low priority
+**No actionable gaps remain.** All 10 completeness checks are seeded with correct canonical keys. AI review configs exist for all 26 sections. Dependencies, waves, and tab placements match the spec. The only remaining item (GAP E: race condition) is low-priority and has a manual workaround already in place.
 
