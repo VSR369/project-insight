@@ -1392,6 +1392,30 @@ export default function CurationReviewPage() {
     onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
   });
 
+  // ── Phase 7: Completeness check ──
+  const { data: completenessCheckDefs = [] } = useCompletenessCheckDefs();
+  const { result: completenessResult, run: runCompletenessCheck, isRunning: completenessRunning } = useRunCompletenessCheck({
+    challengeId: challengeId!,
+    challengeData: challenge as Record<string, any> | null,
+  });
+
+  // Auto-run completeness check after wave execution completes
+  const prevWaveStatusRef = useRef<string | undefined>();
+  useEffect(() => {
+    const currentStatus = waveProgress?.overallStatus;
+    if (prevWaveStatusRef.current === 'running' && currentStatus === 'completed') {
+      runCompletenessCheck();
+    }
+    prevWaveStatusRef.current = currentStatus;
+  }, [waveProgress?.overallStatus, runCompletenessCheck]);
+
+  const handleNavigateToSection = useCallback((sectionKey: string) => {
+    // Find which group contains this section
+    const group = GROUPS.find((g) => g.sectionKeys.includes(sectionKey));
+    if (group) {
+      setActiveGroup(group.id);
+    }
+  }, []);
 
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
 
