@@ -1297,7 +1297,8 @@ export default function CurationReviewPage() {
     const data = { items };
     syncSectionToStore('deliverables' as SectionKey, data);
     saveSectionMutation.mutate({ field: "deliverables", value: data });
-  }, [saveSectionMutation, syncSectionToStore]);
+    notifyStaleness('deliverables');
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveStructuredDeliverables = useCallback((items: DeliverableItem[]) => {
     setSavingSection(true);
