@@ -1337,16 +1337,18 @@ export default function CurationReviewPage() {
 
   const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
     setSavingSection(true);
-    // Map dbField back to section key for store sync
     const fieldToSection: Record<string, string> = {
       ip_model: 'ip_model',
       solver_eligibility_types: 'eligibility', solver_visibility_types: 'visibility',
       solver_expertise_requirements: 'solver_expertise',
     };
     const sectionKey = fieldToSection[dbField];
-    if (sectionKey) syncSectionToStore(sectionKey as SectionKey, value as SectionStoreEntry['data']);
+    if (sectionKey) {
+      syncSectionToStore(sectionKey as SectionKey, value as SectionStoreEntry['data']);
+      notifyStaleness(sectionKey);
+    }
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation, syncSectionToStore]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveComplexity = useCallback((
     paramValues: Record<string, number>,
