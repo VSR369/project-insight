@@ -196,6 +196,10 @@ export function useWaveExecutor({
       // Process all sections in this wave
       const sectionResults: WaveResult['sections'] = [];
       for (const sa of sectionActions) {
+        // Record the AI action type in the store
+        const store = getCurationFormStore(challengeId);
+        store.getState().setAiAction(sa.sectionId, sa.action);
+
         const result = await reviewSingleSection(sa.sectionId, sa.action, context);
         sectionResults.push({
           sectionId: sa.sectionId,

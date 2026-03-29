@@ -15,7 +15,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { deepMerge, ensureArrayItemIds } from '@/lib/deepMerge';
 import { getTransitiveDependents } from '@/lib/cogniblend/sectionDependencies';
-import type { SectionKey, SectionStoreEntry, ReviewStatus } from '@/types/sections';
+import type { SectionKey, SectionStoreEntry, ReviewStatus, AiActionType } from '@/types/sections';
 import type { ValidationResult } from '@/lib/cogniblend/postLlmValidation';
 import { createEmptySectionEntry } from '@/types/sections';
 
@@ -40,6 +40,8 @@ interface CurationFormState {
   clearStaleness: (key: SectionKey) => void;
   /** Store validation results for a section */
   setValidationResult: (key: SectionKey, result: ValidationResult | null) => void;
+  /** Record the AI action type from wave execution */
+  setAiAction: (key: SectionKey, action: AiActionType) => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
@@ -226,6 +228,17 @@ export function createCurationFormStore(challengeId: string) {
               [key]: {
                 ...(state.sections[key] ?? createEmptySectionEntry()),
                 validationResult: result,
+              },
+            },
+          })),
+
+        setAiAction: (key, action) =>
+          set((state) => ({
+            sections: {
+              ...state.sections,
+              [key]: {
+                ...(state.sections[key] ?? createEmptySectionEntry()),
+                aiAction: action,
               },
             },
           })),

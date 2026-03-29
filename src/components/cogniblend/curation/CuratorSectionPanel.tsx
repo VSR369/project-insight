@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import type { AiActionType } from "@/types/sections";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,8 @@ export interface CuratorSectionPanelProps {
   staleAt?: string | null;
   /** Post-LLM validation results */
   validationResult?: ValidationResult | null;
+  /** AI wave action for this section (generate vs review) */
+  aiAction?: AiActionType;
 }
 
 // Export localStorage helpers so parent can bulk-update expand state
@@ -241,6 +244,7 @@ export function CuratorSectionPanel({
   staleBecauseOf,
   staleAt,
   validationResult,
+  aiAction,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
@@ -409,6 +413,14 @@ export function CuratorSectionPanel({
 
               {/* Status badge */}
               <StatusBadge status={effectiveStatus} />
+
+              {/* AI Generated badge — distinct from reviewed */}
+              {aiAction === 'generate' && (
+                <Badge className="gap-1 text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border-transparent">
+                  <Sparkles className="h-3 w-3" />
+                  AI Generated
+                </Badge>
+              )}
 
               {/* Fullscreen expand button */}
               <div

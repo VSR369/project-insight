@@ -18,6 +18,8 @@ export type SectionKey = keyof typeof SECTION_FORMAT_CONFIG;
 
 export type ReviewStatus = 'idle' | 'pending' | 'reviewed' | 'error';
 
+export type AiActionType = 'review' | 'generate' | 'skip' | null;
+
 export interface SectionStoreEntry {
   /** Section data — shape varies by section type */
   data: Record<string, unknown> | string | string[] | null;
@@ -31,6 +33,8 @@ export interface SectionStoreEntry {
   addressed: boolean;
   /** Post-LLM validation results (null = no validation run) */
   validationResult: ValidationResult | null;
+  /** What the wave executor did for this section (null = no wave run yet) */
+  aiAction: AiActionType;
 
   /* ── Staleness tracking (Phase 3) ── */
 
@@ -82,6 +86,7 @@ export function createEmptySectionEntry(): SectionStoreEntry {
     reviewStatus: 'idle',
     addressed: false,
     validationResult: null,
+    aiAction: null,
     lastEditedAt: null,
     lastReviewedAt: null,
     isStale: false,
