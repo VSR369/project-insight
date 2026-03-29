@@ -541,65 +541,83 @@ serve(async (req) => {
       );
     }
 
-    // ── Fetch challenge data based on context ─────────────────
-    const challengeFields = resolvedContext === "intake"
-      ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
-      : resolvedContext === "legal"
-      ? "title, ip_model, maturity_level, eligibility, ai_section_reviews"
-      : resolvedContext === "finance"
-      ? "title, reward_structure, phase_schedule, ai_section_reviews"
-      : resolvedContext === "evaluation"
-      ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-      : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
+    // ── Preview mode: skip challenge DB lookup, use mock data ──
+    let challengeData: any;
+    let additionalData = "";
+    let resultIdx = 1;
 
-    const fetchPromises: Promise<any>[] = [
-      adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
-    ];
+    if (isPreviewMode) {
+      // Build mock challenge data from client context + current_content
+      challengeData = {
+        title: "Preview Test Challenge",
+        problem_statement: current_content || "Test content for prompt preview.",
+        scope: "Preview scope",
+        ai_section_reviews: [],
+        ...(clientContext || {}),
+      };
+      if (section_key) {
+        challengeData[section_key] = current_content || "Test content for this section.";
+      }
+    } else {
+      // ── Fetch challenge data based on context ─────────────────
+      const challengeFields = resolvedContext === "intake"
+        ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
+        : resolvedContext === "legal"
+        ? "title, ip_model, maturity_level, eligibility, ai_section_reviews"
+        : resolvedContext === "finance"
+        ? "title, reward_structure, phase_schedule, ai_section_reviews"
+        : resolvedContext === "evaluation"
+        ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
+        : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
 
-    // Context-specific data fetching
-    if (resolvedContext === "curation" || resolvedContext === "legal") {
-      fetchPromises.push(
-        adminClient
-          .from("challenge_legal_docs")
-          .select("document_type, tier, status, lc_status, lc_review_notes, document_name")
-          .eq("challenge_id", challenge_id)
-      );
-    }
-    if (resolvedContext === "curation" || resolvedContext === "finance") {
-      fetchPromises.push(
-        adminClient
-          .from("escrow_records")
-          .select("escrow_status, deposit_amount, currency, remaining_amount, rejection_fee_percentage, fc_notes, bank_name")
-          .eq("challenge_id", challenge_id)
-          .maybeSingle()
-      );
-    }
-    if (resolvedContext === "evaluation") {
-      fetchPromises.push(
-        adminClient
-          .from("evaluation_records")
-          .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
-          .eq("challenge_id", challenge_id)
-          .order("created_at", { ascending: false })
-          .limit(10),
-        adminClient
-          .from("solutions")
-          .select("id", { count: "exact", head: true })
-          .eq("challenge_id", challenge_id)
-      );
-    }
+      const fetchPromises: Promise<any>[] = [
+        adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
+      ];
 
-    const results = await Promise.all(fetchPromises);
-    const challengeResult = results[0];
+      // Context-specific data fetching
+      if (resolvedContext === "curation" || resolvedContext === "legal") {
+        fetchPromises.push(
+          adminClient
+            .from("challenge_legal_docs")
+            .select("document_type, tier, status, lc_status, lc_review_notes, document_name")
+            .eq("challenge_id", challenge_id)
+        );
+      }
+      if (resolvedContext === "curation" || resolvedContext === "finance") {
+        fetchPromises.push(
+          adminClient
+            .from("escrow_records")
+            .select("escrow_status, deposit_amount, currency, remaining_amount, rejection_fee_percentage, fc_notes, bank_name")
+            .eq("challenge_id", challenge_id)
+            .maybeSingle()
+        );
+      }
+      if (resolvedContext === "evaluation") {
+        fetchPromises.push(
+          adminClient
+            .from("evaluation_records")
+            .select("rubric_scores, commentary, individual_score, conflict_declared, conflict_action")
+            .eq("challenge_id", challenge_id)
+            .order("created_at", { ascending: false })
+            .limit(10),
+          adminClient
+            .from("solutions")
+            .select("id", { count: "exact", head: true })
+            .eq("challenge_id", challenge_id)
+        );
+      }
 
-    if (challengeResult.error || !challengeResult.data) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found" } }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      const results = await Promise.all(fetchPromises);
+      const challengeResult = results[0];
 
-    let challengeData = challengeResult.data;
+      if (challengeResult.error || !challengeResult.data) {
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found" } }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      challengeData = challengeResult.data;
 
     // Extract extended_brief fields for intake/spec
     if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
