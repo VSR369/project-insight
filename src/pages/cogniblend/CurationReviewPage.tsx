@@ -1116,6 +1116,9 @@ export default function CurationReviewPage() {
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
 
+  // Optimistic industry segment — bridges the gap between save and refetch
+  const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
+
   // ── Phase 5: Pre-flight gate + budget shortfall state ──
   const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
   const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
