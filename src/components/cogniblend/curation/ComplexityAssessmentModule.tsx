@@ -193,10 +193,10 @@ export function ComplexityAssessmentModule({
   const activeDraft = activeTab === "ai_review" ? aiDraft : manualDraft;
 
   const { weightedScore, derivedLevel, derivedLabel } = useMemo(() => {
-    const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
+    const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
     const ws =
       totalWeight > 0
-        ? complexityParams.reduce((s, p) => s + (activeDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+        ? effectiveParams.reduce((s, p) => s + (activeDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
         : 5;
     const score = Math.round(ws * 100) / 100;
     return {
