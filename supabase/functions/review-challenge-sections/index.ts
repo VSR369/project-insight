@@ -714,6 +714,28 @@ serve(async (req) => {
         }
       }
 
+      // Inject client-provided challenge context (todaysDate, rateCard, solutionType)
+      if (clientContext && typeof clientContext === 'object') {
+        const contextLines: string[] = ["\n\n## Challenge Context (Client-Provided)"];
+        if (clientContext.todaysDate) contextLines.push(`Today's date: ${clientContext.todaysDate}. All dates in phase schedules MUST be in the future relative to this date.`);
+        if (clientContext.solutionType) contextLines.push(`Solution type: ${clientContext.solutionType}`);
+        if (clientContext.maturityLevel) contextLines.push(`Maturity level: ${clientContext.maturityLevel}`);
+        if (clientContext.complexityLevel) contextLines.push(`Complexity level: ${clientContext.complexityLevel}`);
+        if (clientContext.seekerSegment) contextLines.push(`Seeker segment: ${clientContext.seekerSegment}`);
+        if (clientContext.rateCard) {
+          const rc = clientContext.rateCard;
+          contextLines.push(`Rate card: effort rate floor $${rc.effortRateFloor}/hr, reward floor $${rc.rewardFloorAmount}, Big4 multiplier ${rc.big4BenchmarkMultiplier}x`);
+          if (rc.rewardCeiling) contextLines.push(`Reward ceiling: $${rc.rewardCeiling}`);
+        }
+        if (clientContext.totalPrizePool) contextLines.push(`Total prize pool: $${clientContext.totalPrizePool}`);
+        if (clientContext.estimatedEffortHours) {
+          contextLines.push(`Estimated effort: ${clientContext.estimatedEffortHours.min}–${clientContext.estimatedEffortHours.max} hours`);
+        }
+        if (contextLines.length > 1) {
+          systemPrompt += contextLines.join("\n");
+        }
+      }
+
       const promptSource = useDbConfig ? "supervisor" : "default";
       try {
         const batchResults = await callAIBatch(
