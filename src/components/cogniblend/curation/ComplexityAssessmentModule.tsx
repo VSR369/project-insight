@@ -229,7 +229,7 @@ export function ComplexityAssessmentModule({
     }
     if (activeTab === "quick_select") return overrideLevel !== null;
     return false;
-  }, [activeTab, editableParams, manualDraft, currentParams, complexityParams, overrideLevel]);
+  }, [activeTab, editableParams, manualDraft, currentParams, effectiveParams, overrideLevel]);
 
   // ══════ Section 7: Event handlers ══════
 
