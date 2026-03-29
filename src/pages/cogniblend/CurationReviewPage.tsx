@@ -2062,13 +2062,15 @@ export default function CurationReviewPage() {
       method: item.autoChecked ? "auto" : "manual",
     })), [checklistItems]);
 
-  // Group progress computation
+  // Group progress computation — stale sections count as NOT done
+  const staleKeySet = useMemo(() => new Set(staleSections.map(s => s.key)), [staleSections]);
+
   const groupProgress = useMemo(() => {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
     GROUPS.forEach((g) => {
       const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
-      const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
+      const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord) && !staleKeySet.has(s.key)).length;
       const hasAIFlag = aiQuality?.gaps?.some((gap) => {
         const mapped = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
         return g.sectionKeys.includes(mapped);
@@ -2076,7 +2078,7 @@ export default function CurationReviewPage() {
       result[g.id] = { done, total: secs.length, hasAIFlag };
     });
     return result;
-  }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality]);
+  }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality, staleKeySet]);
 
   // Inline AI flags per section from quality gaps
   const sectionAIFlags = useMemo(() => {
