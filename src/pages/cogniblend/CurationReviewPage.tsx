@@ -2065,14 +2065,16 @@ export default function CurationReviewPage() {
   /** Persist "addressed" flag when a refinement is accepted */
   const handleMarkAddressed = useCallback((sectionKey: string) => {
     setAiReviews((prev) => {
-      const updated = prev.map((r) =>
+      return prev.map((r) =>
         r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
       );
-      // Persist to DB so state survives navigation
-      saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
-      return updated;
     });
-  }, [saveSectionMutation]);
+    // Persist outside setState to avoid mutation-during-render cascades
+    const updated = aiReviews.map((r) =>
+      r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
+    );
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: updated });
+  }, [aiReviews]);
 
 
   const toggleSectionApproval = useCallback((key: string) => {
