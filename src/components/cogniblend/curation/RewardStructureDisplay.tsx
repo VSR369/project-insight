@@ -45,8 +45,13 @@ interface RewardStructureDisplayProps {
   operatingModel?: string | null;
   challengeTitle?: string;
   amPayload?: AMRewardPayload | null;
-  
+  maturityLevel?: string | null;
+  complexityLevel?: string | null;
 }
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', INR: '₹', AED: 'د.إ', SGD: 'S$', AUD: 'A$',
+};
 
 const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardStructureDisplayProps>(({
   rewardStructure,
@@ -56,6 +61,8 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   operatingModel,
   challengeTitle,
   amPayload,
+  maturityLevel,
+  complexityLevel,
 }, ref) => {
   const queryClient = useQueryClient();
 
