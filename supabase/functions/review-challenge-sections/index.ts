@@ -698,10 +698,7 @@ serve(async (req) => {
 
       let systemPrompt: string;
       if (useDbConfig && dbConfigMap) {
-        const activeConfigs = batch
-          .map(s => dbConfigMap!.get(s.key))
-          .filter((c): c is SectionConfig => !!c);
-        systemPrompt = buildConfiguredBatchPrompt(activeConfigs, resolvedContext, masterDataOptions);
+        systemPrompt = buildSmartBatchPrompt(activeConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
       } else {
         systemPrompt = buildFallbackSystemPrompt(batch, resolvedContext);
         // Append master data constraints for fallback mode too
