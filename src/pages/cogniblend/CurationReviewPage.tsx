@@ -1286,7 +1286,7 @@ export default function CurationReviewPage() {
 
   // ── Staleness tracking via Zustand store ──
   const curationStore = challengeId ? getCurationFormStore(challengeId) : null;
-  const staleSections = curationStore ? curationStore(selectStaleSections) : [];
+  const staleSections = curationStore ? curationStore(selectStaleSections, shallow) : [];
 
   /** Wrapper: call markSectionSaved after any section save and toast if sections became stale */
   const notifyStaleness = useCallback((sectionKey: string) => {
