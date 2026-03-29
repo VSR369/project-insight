@@ -223,7 +223,8 @@ function validateEvaluationWeights(
   corrections: ValidationCorrection[],
   passedChecks: string[],
 ): void {
-  const criteria = (aiOutput.suggestedCriteria ?? aiOutput.suggestion?.rows ?? aiOutput.rows) as any[] | undefined;
+  const evalSuggestion = aiOutput.suggestion as Record<string, unknown> | undefined;
+  const criteria = (aiOutput.suggestedCriteria ?? evalSuggestion?.rows ?? aiOutput.rows) as any[] | undefined;
   if (!Array.isArray(criteria) || criteria.length === 0) return;
 
   const totalWeight = criteria.reduce(
