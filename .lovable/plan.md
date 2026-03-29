@@ -1,96 +1,72 @@
 
 
-# Fix Plan: Complete Tab Data for All 26 Curation Sections
+# Fix: Maximum Update Depth Exceeded on Curation Review Page
 
-## Your Assumption is Correct
+## Root Cause
 
-Not every section needs data in every tab. The 5 tabs serve different purposes, and many sections legitimately have empty sub-tabs:
+After extensive analysis of the 3495-line `CurationReviewPage.tsx` and its hooks, three interacting issues create the infinite update loop:
 
-- **Constraints**: Only needed for sections referencing master data lookup tables (6 sections have them — all correct)
-- **Computation Rules**: Only needed for sections with mathematical validation (3 sections have them — correct)
-- **Content Templates**: Only needed for rich-text/table sections where output differs significantly by maturity level
-- **Web Search / Frameworks / Sources**: Only needed for sections where external research improves AI output quality
-- **Supervisor Examples**: Only needed for Critical/High importance sections where review calibration matters
+### 1. Zustand selector creates new array references on every store change (PRIMARY)
+Line 1288: `curationStore(selectStaleSections)` uses Zustand's default `Object.is` equality. The `selectStaleSections` selector uses `.filter().map()` which always returns a NEW array — even when empty. Every store mutation (from hydration, sync, AI review) triggers a re-render because `[] !== []`.
 
-## What's Already Complete (No Action Needed)
+### 2. Side effects inside setState updaters
+Lines 1385, 1953, 1999, 2063: `saveSectionMutation.mutate()` is called INSIDE `setAiReviews()` updater callbacks. This triggers async mutations during state transitions, which on success invalidate queries, which change `challenge`, which triggers effects that update the store, which triggers the selector issue above.
 
-**Tab 1 — Instructions**: All 26 sections have instructions, dos, donts, example_good, example_poor, and tone. **100% complete.**
+### 3. Unstable dependency in content migration effect
+Line 1443: `saveSectionMutation` (from `useMutation`) is in the dependency array. TanStack Query returns a new object reference each render, so this effect re-registers every render. Combined with issues 1 and 2, this amplifies the cascade.
 
-**Tab 2 — Quality Criteria**: All 26 sections have at least 1 criterion (range: 1–5). **100% complete.**
+## Fix Plan
 
-**Tab 5 — Preview & Test**: No stored data — this is a live tool. **N/A.**
+### Fix 1: Add shallow equality to Zustand selector (stops the re-render cascade)
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Import `useShallow` from `zustand/react/shallow`
+- Change line 1288 from:
+  `const staleSections = curationStore ? curationStore(selectStaleSections) : [];`
+  to:
+  `const staleSections = curationStore ? curationStore(useShallow(selectStaleSections)) : [];`
 
-**Non-AI sections** (`legal_docs`, `escrow_funding`): These are system-managed. Empty research/templates/supervisor tabs are correct — AI does not draft or review these.
+  Note: Since `useShallow` is a hook and can't be called conditionally, restructure to always call it or use the `shallow` comparator function directly:
+  `const staleSections = curationStore ? curationStore(selectStaleSections, shallow) : [];`
 
----
+### Fix 2: Move mutation calls out of setState updaters (4 locations)
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
 
-## Remaining Gaps (Tab 3 & Tab 4)
+For `handleWaveSectionReviewed` (line 1380), `handleSingleSectionReview` (line 1947), `handleComplexityReReview` (line 1996), and `handleMarkAddressed` (line 2057):
 
-### Tab 3: Constraints & Templates — 2 fixes
+Pattern change from:
+```ts
+setAiReviews((prev) => {
+  const updated = ...;
+  saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
+  return updated;
+});
+```
+To:
+```ts
+const updated = aiReviews.filter(...); // compute outside setter
+setAiReviews(updated);
+saveSectionMutation.mutate({ field: "ai_section_reviews", value: updated });
+```
 
-| Section | Issue | Fix |
-|---------|-------|-----|
-| `success_metrics_kpis` (High) | Missing content_templates | Add Blueprint/POC/Pilot KPI structure guidance |
-| `hook` (Medium) | Missing content_templates | Add maturity-specific hook tone guidance |
+### Fix 3: Remove unstable dependency from content migration effect
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
 
-All other sections either already have templates (11 sections) or legitimately don't need them (checkbox/selection sections like maturity_level, eligibility, complexity, domain_tags, visibility, ip_model).
+Line 1443: Change `[challenge, saveSectionMutation]` to `[challenge]` and use a ref for the mutation:
+```ts
+const saveSectionMutationRef = useRef(saveSectionMutation);
+saveSectionMutationRef.current = saveSectionMutation;
 
-### Tab 4: Research — 10 fixes
+useEffect(() => {
+  if (!challenge || contentMigrationRanRef.current) return;
+  contentMigrationRanRef.current = true;
+  // ... use saveSectionMutationRef.current.mutate()
+}, [challenge]);
+```
 
-**Missing web search queries (3 sections that should have them):**
+## Files Modified
+- `src/pages/cogniblend/CurationReviewPage.tsx` — all 3 fixes
 
-| Section | Importance | Fix |
-|---------|-----------|-----|
-| `hook` | Medium | Add `{{domain}} challenge marketing engagement hooks` |
-| `submission_guidelines` | Medium | Add `{{domain}} challenge submission best practices formats` |
-| `ip_model` | High | Add `{{domain}} intellectual property models open innovation` |
-
-**Missing industry frameworks (4 sections that should have them):**
-
-| Section | Current | Add |
-|---------|---------|-----|
-| `evaluation_criteria` | 0 | Balanced Scorecard, SMART Criteria, Rubric Design |
-| `reward_structure` | 0 | Incentive Design Theory, Prize Philanthropy |
-| `phase_schedule` | 0 | Stage-Gate, Agile Sprint Planning |
-| `solver_expertise` | 0 | Skills Taxonomy, T-Shaped Competency Model |
-
-**Missing analyst sources (0 sections have any — add to 5 Critical/High sections):**
-
-| Section | Sources to Add |
-|---------|---------------|
-| `problem_statement` | Gartner, McKinsey, HBR |
-| `deliverables` | Forrester, Deloitte, IEEE |
-| `evaluation_criteria` | NIST, ISO Standards |
-| `scope` | BCG, Accenture |
-| `context_and_background` | McKinsey, World Economic Forum |
-
-**Missing supervisor examples (8 Critical/High sections without them):**
-
-| Section | Importance | Current | Add |
-|---------|-----------|---------|-----|
-| `scope` | High | 0 | 2 (pass + fail) |
-| `complexity` | Critical | 0 | 2 |
-| `context_and_background` | High | 0 | 2 |
-| `expected_outcomes` | High | 0 | 2 |
-| `success_metrics_kpis` | High | 0 | 2 |
-| `data_resources_provided` | High | 0 | 2 |
-| `ip_model` | High | 0 | 2 |
-| `hook` | Medium | 0 | 2 |
-
-Sections already with supervisor examples: problem_statement (2), deliverables (2), phase_schedule (2), evaluation_criteria (2), reward_structure (2), maturity_level (2). These are fine.
-
----
-
-## Summary
-
-| Fix Category | Count | Priority |
-|-------------|-------|----------|
-| Content templates | 2 sections | Medium |
-| Web search queries | 3 sections | Medium |
-| Industry frameworks | 4 sections | Medium |
-| Analyst sources | 5 sections | Low |
-| Supervisor examples | 8 sections | Medium |
-| **Total SQL UPDATEs** | **22** | — |
-
-All fixes are data-only UPDATEs to `ai_review_section_config`. No code or schema changes required.
+## Risk
+- Low risk: all changes preserve existing behavior while eliminating the re-render cascade
+- Fix 1 alone likely resolves the crash; Fixes 2-3 are defense-in-depth
 
