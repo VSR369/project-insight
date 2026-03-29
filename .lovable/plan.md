@@ -1,145 +1,104 @@
 
 
-# Phase 2 — Revised: Rate Card + Prize Tiers + Non-Monetary Incentives
+# Phase 2 Gap Analysis & Remaining Implementation Plan
 
-## Key Design Decision: Org Types ARE the Segments
+## What's DONE
 
-No `segment_category` column needed. The `organization_types` table itself will contain entries that directly map to rate card rows. The `rate_cards` table FKs to `organization_type_id` — one rate card row per org type × maturity level.
+| Item | Status |
+|------|--------|
+| Organization types updated (LARGE/MEDIUM/SMALL/MICRO_ENTERPRISE, STARTUP, ACADEMIC, NGO, GOVT, INTDEPT) | Done |
+| `rate_cards` table created + 27 rows seeded (matching spec values exactly) | Done |
+| `non_monetary_incentives` table + 6 defaults seeded | Done |
+| `challenge_incentive_selections` join table created | Done |
+| `useRateCards.ts` hook (CRUD) | Done |
+| `useNonMonetaryIncentives.ts` hook (CRUD) | Done |
+| `lookupRateCard.ts` utility | Done |
+| Rate Cards admin page at `/admin/seeker-config/rate-cards` | Done |
+| Incentives admin page at `/admin/seeker-config/incentives` | Done |
+| Routes + sidebar entries for both admin pages | Done |
 
----
+## What's NOT YET BUILT
 
-## Part 1: Update Organization Types Seed Data
+### 1. `challenge_prize_tiers` table (Migration needed)
+- Table does not exist in the database
+- No migration has been run
+- No auto-seed trigger for default 4 tiers (Platinum 55%, Gold 23%, Silver 13%, Honorable Mention 9%)
 
-Replace MSME with granular enterprise sizes. Keep other types. New set:
+### 2. `useChallengePrizeTiers.ts` hook
+- Does not exist — needed for CRUD on prize tiers per challenge
 
-| Code | Name | Description | Order |
-|------|------|-------------|-------|
-| `LARGE_ENTERPRISE` | Large Enterprise | 250+ employees | 1 |
-| `MEDIUM_ENTERPRISE` | Medium Enterprise | 50–249 employees | 2 |
-| `SMALL_ENTERPRISE` | Small Enterprise | 10–49 employees | 3 |
-| `MICRO_ENTERPRISE` | Micro Enterprise | Fewer than 10 employees | 4 |
-| `STARTUP` | Start-up | Funded early-stage company | 5 |
-| `ACADEMIC` | Academic Institution | Universities, colleges, schools | 6 |
-| `NGO` | NGO / Non-Profit | Non-governmental and non-profit organizations | 7 |
-| `GOVT` | Government Entity | Government departments and public sector | 8 |
-| `INTDEPT` | Internal Department | Internal organizational department | 9 |
+### 3. `useChallengeIncentiveSelections.ts` hook
+- Does not exist — needed for linking incentives to challenges with seeker commitment
 
-**Migration approach:**
-- Rename CORPORATE → LARGE_ENTERPRISE (update code, name, description)
-- Replace MSME with three new rows: MEDIUM_ENTERPRISE, SMALL_ENTERPRISE, MICRO_ENTERPRISE
-- Merge COLLEGE + SCHOOL into existing ACADEMIC (deactivate COLLEGE, SCHOOL, UNI if separate)
-- Keep STARTUP, NGO, GOVT, INTDEPT as-is (update descriptions)
-- Update `org_type_seeker_rules` for new/changed org type IDs
-- Update any `solution_provider_organizations` rows that reference old org_type_ids
+### 4. `PrizeTierEditor` component
+- Does NOT exist as described in spec. The existing `PrizeTierCard.tsx` is a simpler toggle/amount card (Platinum/Gold/Silver only) — not the flexible, add/delete/reorder table the spec requires
+- Missing: inline editing table, custom tier names, % of pool with running total, drag-to-reorder, "Add Tier" button, percentage validation, warning for Platinum < 40%
 
-**Files modified:**
-- New SQL migration (data update via insert tool, not schema migration)
-- `src/hooks/queries/useOrganizationTypes.ts` — no changes needed (already dynamic)
+### 5. `IncentiveSelector` component
+- Does not exist — card-based selector filtered by maturity + complexity
+- Missing: seeker commitment input, credibility tooltip, effective solver value summary
 
----
+### 6. Org type badge in curation header
+- Not implemented — should show org type name as badge alongside challenge title
 
-## Part 2: Rate Cards Table + Admin
-
-### Migration — `rate_cards` table
-
-```text
-rate_cards
-├── id UUID PK
-├── organization_type_id UUID FK → organization_types
-├── maturity_level TEXT CHECK ('blueprint','poc','pilot')
-├── effort_rate_floor NUMERIC (>0)
-├── reward_floor_amount NUMERIC (>0)
-├── reward_ceiling NUMERIC (nullable, >floor if set)
-├── big4_benchmark_multiplier NUMERIC (0.01–1.0)
-├── non_monetary_weight NUMERIC (0.0–1.0)
-├── is_active BOOLEAN DEFAULT true
-├── tenant_id UUID (nullable = platform default)
-├── created_at, updated_at, created_by, updated_by
-└── UNIQUE(organization_type_id, maturity_level) WHERE is_active
-```
-
-Seed: 9 org types × 3 maturity levels = 27 default rows. Values based on the spec defaults mapped by org type:
-- LARGE_ENTERPRISE → large_enterprise rates
-- MEDIUM_ENTERPRISE → medium_enterprise rates
-- SMALL_ENTERPRISE → small_enterprise rates
-- MICRO_ENTERPRISE → micro_enterprise rates
-- STARTUP → startup rates
-- ACADEMIC, NGO → academic_ngo rates
-- GOVT → medium_enterprise rates (reasonable default)
-- INTDEPT → large_enterprise rates (internal dept of large org)
-
-### Admin Page — `/admin/seeker-config/rate-cards`
-
-- Matrix table following existing admin patterns (DataTable + MasterDataForm)
-- Inline editing, validation, "Reset to Defaults", CSV import/export
-- Route in `App.tsx`, sidebar entry in `AdminSidebar.tsx`
-
-### Utility — `lookupRateCard(orgTypeId, maturityLevel)`
-
-### Hook — `useRateCards.ts` (standard CRUD)
+### 7. Effective solver value display
+- Not implemented — "Cash + ~Non-monetary = ~Total" summary
 
 ---
 
-## Part 3: Flexible Prize Tiers
+## Implementation Plan
 
-### Migration — `challenge_prize_tiers` table
+### Step 1: Migration — `challenge_prize_tiers` table + auto-seed trigger
+Create the table with: `challenge_id`, `tier_name`, `rank`, `percentage_of_pool`, `fixed_amount`, `max_winners`, `description`, `created_by_role`, `is_default`, audit fields. Add a trigger function that auto-inserts the 4 default tiers when a new challenge is created.
 
-Standard schema: `challenge_id`, `tier_name`, `rank`, `percentage_of_pool`, `fixed_amount`, `max_winners`, `description`, `created_by_role`, `is_default`. Auto-seed trigger for 4 defaults (Platinum 55%, Gold 23%, Silver 13%, Honorable Mention 9%).
+### Step 2: `useChallengePrizeTiers.ts` hook
+Standard React Query CRUD hook following existing patterns. Query by `challenge_id`, support create/update/delete/reorder.
 
-### Component — `PrizeTierEditor.tsx`
+### Step 3: `useChallengeIncentiveSelections.ts` hook
+CRUD hook for the join table. Query selections by `challenge_id`, join with `non_monetary_incentives` for display data.
 
-Inline-editable table inside Reward Structure section. Add/delete/reorder. Running total footer. Validation (total ≤ 100%, warning if Platinum < 40%).
+### Step 4: `PrizeTierEditor` component
+Replace or augment the current simple `PrizeTierCard` approach with a full inline-editable table:
+- Columns: Tier Name | % of Pool | Amount ($) | Max Winners | Description | Actions
+- "Add Tier" button, delete per row, drag-to-reorder via rank
+- Running total footer: "Allocated: X% of $Y = $Z | Remaining: $R (N%)"
+- Validation: total ≤ 100%, each tier > 0%
+- Warning banner if top tier < 40%
+
+### Step 5: `IncentiveSelector` component
+Card-based selector inside the Reward Structure section:
+- Shows available incentives filtered by challenge maturity + complexity
+- Click to add, fill seeker commitment field
+- Credibility note as tooltip
+- Summary list of selected incentives below prize tiers
+
+### Step 6: Org type badge in curation header
+In `CurationReviewPage.tsx`, derive org type from `challenge.organization_id → seeker_organizations.organization_type_id → organization_types.name` and display as a badge.
+
+### Step 7: Effective solver value display
+Below the prize tiers + incentive selections: "Effective solver value: $X cash + ~$Y non-monetary = ~$Z total"
+
+### Step 8: Integration
+- Wire PrizeTierEditor + IncentiveSelector into the Reward Structure curation section
+- Ensure existing PrizeTierCard (simple toggle) coexists or is replaced by the new editor
 
 ---
 
-## Part 4: Non-Monetary Incentive Registry
-
-### Migrations
-
-- `non_monetary_incentives` table + seed 6 defaults
-- `challenge_incentive_selections` join table
-
-### Admin — `/admin/seeker-config/incentives`
-
-Standard CRUD page.
-
-### Component — `IncentiveSelector.tsx`
-
-Card selector filtered by maturity + complexity. Seeker commitment input. Effective solver value summary.
-
----
-
-## Files Created/Modified
-
-### New Files (~12)
+## Files to Create
 | File | Purpose |
 |------|---------|
-| `src/pages/admin/rate-cards/RateCardsPage.tsx` | Rate card admin |
-| `src/pages/admin/incentives/IncentivesPage.tsx` | Incentive admin |
-| `src/hooks/queries/useRateCards.ts` | Rate card CRUD |
-| `src/hooks/queries/useChallengePrizeTiers.ts` | Prize tier CRUD |
-| `src/hooks/queries/useNonMonetaryIncentives.ts` | Incentive hooks |
-| `src/hooks/queries/useChallengeIncentiveSelections.ts` | Join table hooks |
-| `src/components/cogniblend/curation/rewards/PrizeTierEditor.tsx` | Prize tier editor |
-| `src/components/cogniblend/curation/rewards/IncentiveSelector.tsx` | Incentive selector |
-| `src/lib/lookupRateCard.ts` | Rate card lookup |
+| `src/hooks/queries/useChallengePrizeTiers.ts` | Prize tier CRUD per challenge |
+| `src/hooks/queries/useChallengeIncentiveSelections.ts` | Incentive selection CRUD |
+| `src/components/cogniblend/curation/rewards/PrizeTierEditor.tsx` | Full prize tier editor |
+| `src/components/cogniblend/curation/rewards/IncentiveSelector.tsx` | Incentive card selector |
+| `src/components/cogniblend/curation/rewards/EffectiveSolverValue.tsx` | Value summary display |
 
-### Modified Files
+## Files to Modify
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Routes for rate-cards, incentives admin |
-| `src/components/admin/AdminSidebar.tsx` | Sidebar entries |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Org type badge, PrizeTierEditor + IncentiveSelector in Reward Structure |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Org type badge |
+| Reward Structure section component | Integrate PrizeTierEditor + IncentiveSelector |
 
-### Migrations (4)
-1. Update org types seed data (deactivate old, insert new, update rules)
-2. Create `rate_cards` table + seed 27 rows
-3. Create `challenge_prize_tiers` table + auto-seed trigger
-4. Create `non_monetary_incentives` + `challenge_incentive_selections` + seed 6 defaults
-
-### Implementation Order
-1. Org types data update
-2. Rate cards table + seed + admin page
-3. Prize tiers table + editor component
-4. Incentive tables + admin + selector component
+## Migrations
+1. `challenge_prize_tiers` table + auto-seed trigger + RLS
 
