@@ -32,8 +32,10 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Save, Settings2, Bot } from 'lucide-react';
+import { Save, Settings2, Bot, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { buildConfiguredSectionPrompt, type SectionConfig } from '@/lib/aiReviewPromptTemplate';
+import { scoreAllConfigs, type ConfigScore, type AggregateConfigHealth } from '@/utils/promptConfigValidator';
 import { QualityCriteriaTab } from '@/components/admin/prompt-studio/QualityCriteriaTab';
 import { ConstraintsTemplatesTab } from '@/components/admin/prompt-studio/ConstraintsTemplatesTab';
 import { ResearchTab } from '@/components/admin/prompt-studio/ResearchTab';
@@ -83,6 +85,7 @@ interface GlobalConfig {
   id: number;
   default_model: string;
   batch_split_threshold: number;
+  critical_model?: string | null;
   updated_at: string;
   updated_by: string | null;
 }
@@ -509,12 +512,14 @@ export default function AIReviewConfigPage() {
   const queryClient = useQueryClient();
 
   const [globalModel, setGlobalModel] = useState('');
+  const [criticalModel, setCriticalModel] = useState('');
   const [batchThreshold, setBatchThreshold] = useState(15);
   const [globalSaving, setGlobalSaving] = useState(false);
 
   useEffect(() => {
     if (globalConfig) {
       setGlobalModel(globalConfig.default_model);
+      setCriticalModel(globalConfig.critical_model ?? '');
       setBatchThreshold(globalConfig.batch_split_threshold);
     }
   }, [globalConfig]);
@@ -527,6 +532,7 @@ export default function AIReviewConfigPage() {
         .from('ai_review_global_config')
         .update({
           default_model: globalModel,
+          critical_model: criticalModel.trim() || null,
           batch_split_threshold: batchThreshold,
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
