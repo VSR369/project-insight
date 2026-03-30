@@ -1481,9 +1481,27 @@ serve(async (req) => {
       } else if (wave_action === 'review_and_enhance') {
         userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. Provide detailed comments on what needs improvement. Focus on thorough analysis — content improvement will happen in a separate step.`;
       } else if (section_key) {
-        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
+        userPromptInstruction = `You are re-reviewing the "${section_key}" section of this challenge.
+
+BEFORE REVIEWING, THINK:
+1. What WAVE does this section belong to? What sections were established before it? What depends on it?
+2. What ARCHETYPE is this challenge? (Data/ML, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX, Cybersecurity)
+3. What would a TOP SOLVER need from this section to produce an excellent submission?
+4. What is the BIGGEST RISK if this section is wrong or incomplete?
+
+Then review for quality, consistency, correctness, and completeness — through the lens of "will this produce a winning challenge?"`;
       } else {
-        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments for each section. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
+        userPromptInstruction = `You are performing a comprehensive review of this challenge for publication readiness.
+
+BEFORE REVIEWING INDIVIDUAL SECTIONS, BUILD YOUR MENTAL MODEL:
+1. **CHALLENGE ARCHETYPE**: What type of challenge is this? (Data/ML Pipeline, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX Innovation, Cybersecurity Assessment)
+2. **MATURITY-COMPLEXITY PROFILE**: ${challengeData.maturity_level || 'unknown'} maturity at ${challengeData.complexity_level || 'unknown'} complexity → what does "good" look like for this profile?
+3. **TARGET SOLVER**: Who would solve this? Individual expert? Small team? Organization? What domain expertise? What geography?
+4. **STRATEGIC NARRATIVE**: Does the challenge tell a coherent story? Problem → Cause → Scope → Deliverables → Evaluation → Reward
+5. **COMPETITIVE POSITION**: Would a top solver choose THIS challenge over alternatives on InnoCentive/HeroX/Kaggle?
+6. **PUBLICATION RISK**: What is the single biggest risk to this challenge's success?
+
+Carry these answers through every section review. Each comment should reflect your understanding of the whole, not just the part.`;
       }
 
       // FIX 3: Curated challenge data — strip irrelevant fields, structure clearly
