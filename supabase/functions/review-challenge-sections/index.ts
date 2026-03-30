@@ -430,7 +430,8 @@ async function callAIPass2Rewrite(
     );
     // Include sections that: have actionable comments, need generation, need revision,
     // OR are in a 'warning'/'pass' state but have no current content (empty sections needing generation)
-    const sectionContent = challengeData[r.section_key];
+    const aliasedField = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
+    const sectionContent = challengeData[aliasedField] ?? challengeData[r.section_key];
     const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
     return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || r.status === 'warning' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
   });
