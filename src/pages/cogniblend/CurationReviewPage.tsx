@@ -378,18 +378,23 @@ const SECTIONS: SectionDef[] = [
     key: "solution_type",
     label: "Solution Type",
     attribution: "by Curator",
-    dbField: "solution_type",
-    isFilled: (ch) => !!(ch as any).solution_type,
+    dbField: "solution_types",
+    isFilled: (ch) => {
+      const st = (ch as any).solution_types;
+      return Array.isArray(st) && st.length > 0;
+    },
     render: (ch) => {
-      const st = (ch as any).solution_type;
-      if (!st) return <p className="text-sm text-muted-foreground italic">Not set</p>;
-      const LABELS: Record<string, string> = {
-        strategy_design: 'Future & Business Blueprint',
-        process_operations: 'Business & Operational Excellence',
-        technology_architecture: 'Digital & Technology Blueprint',
-        product_innovation: 'Product & Service Innovation',
-      };
-      return <Badge variant="secondary">{LABELS[st] ?? st}</Badge>;
+      const st = (ch as any).solution_types;
+      if (!Array.isArray(st) || st.length === 0) return <p className="text-sm text-muted-foreground italic">Not set</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {st.map((code: string) => (
+            <Badge key={code} variant="secondary" className="capitalize text-xs">
+              {code.replace(/_/g, ' ')}
+            </Badge>
+          ))}
+        </div>
+      );
     },
   },
   {
