@@ -1606,14 +1606,24 @@ export default function CurationReviewPage() {
     score: number,
     level: string,
     assessmentMode?: string,
+    resolvedParams?: { param_key: string; name: string; value: number; weight: number }[],
   ) => {
     setSavingSection(true);
-    const params: any[] = complexityParams.map((p) => ({
-      param_key: p.param_key,
-      name: p.name,
-      value: paramValues[p.param_key] ?? 5,
-      weight: p.weight,
-    }));
+    // Use resolvedParams from module (correct solution-type dimensions) if provided,
+    // otherwise fall back to generic complexityParams
+    const params: any[] = resolvedParams
+      ? resolvedParams.map((p) => ({
+          param_key: p.param_key,
+          name: p.name,
+          value: p.value,
+          weight: p.weight,
+        }))
+      : complexityParams.map((p) => ({
+          param_key: p.param_key,
+          name: p.name,
+          value: paramValues[p.param_key] ?? 5,
+          weight: p.weight,
+        }));
     // Persist assessment mode as metadata entry
     if (assessmentMode) {
       params.push({ _meta: { mode: assessmentMode } });
