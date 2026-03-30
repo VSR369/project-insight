@@ -424,7 +424,7 @@ async function callAIPass2Rewrite(
     // OR are in a 'warning'/'pass' state but have no current content (empty sections needing generation)
     const sectionContent = challengeData[r.section_key];
     const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
-    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
+    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || r.status === 'warning' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
   });
 
   if (sectionsNeedingSuggestion.length === 0) {

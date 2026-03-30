@@ -1932,6 +1932,30 @@ export default function CurationReviewPage() {
       } catch { /* not JSON array, fall through */ }
     }
 
+    // ── Submission guidelines: always save as structured JSON ──
+    if (sectionKey === "submission_guidelines") {
+      let items: any[];
+      try {
+        const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+        items = Array.isArray(parsed) ? parsed : (parsed?.items ?? [parsed]);
+      } catch {
+        // Not JSON — split by newlines
+        items = newContent.split('\n')
+          .map(l => l.replace(/^[\d.)\-*•]\s*/, '').trim())
+          .filter(l => l.length > 0);
+      }
+      const structured = items.map((item: any) => {
+        if (typeof item === 'string') return { name: item, description: '' };
+        return { name: item.name ?? item.title ?? String(item), description: item.description ?? '' };
+      });
+      setSavingSection(true);
+      const value = { items: structured };
+      syncSectionToStore(sectionKey as SectionKey, value);
+      saveSectionMutation.mutate({ field: "description", value });
+      return;
+    }
+
     // ── Single-code master-data sections: validate and save directly ──
     const SINGLE_CODE_MAP: Record<string, { field: string; options: typeof masterData.ipModelOptions }> = {
       ip_model: { field: "ip_model", options: masterData.ipModelOptions },
@@ -1941,7 +1965,14 @@ export default function CurationReviewPage() {
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
     if (singleCodeCfg) {
-      const code = newContent.trim().replace(/^["']|["']$/g, '');
+      let code = newContent.trim().replace(/^["']|["']$/g, '');
+      // Handle JSON object format from LLM: { selected_id: "CODE", rationale: "..." }
+      try {
+        const parsed = JSON.parse(code);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          code = String(parsed.selected_id ?? parsed.code ?? parsed.value ?? code);
+        }
+      } catch { /* not JSON — use raw code */ }
       const validCodes = new Set(singleCodeCfg.options.map(o => o.value));
       // Try case-insensitive match
       const matched = singleCodeCfg.options.find(o => o.value.toLowerCase() === code.toLowerCase());
