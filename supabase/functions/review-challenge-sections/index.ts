@@ -701,7 +701,12 @@ async function callAIPass2Rewrite(
       : '';
 
     return `### Section: ${r.section_key}
-${r.status === 'generated' ? 'ACTION: Generate new content from scratch based on challenge context.' : 'ACTION: Revise the existing content to address all issues below.'}
+${r.status === 'generated' ? `ACTION: Generate new content from scratch. Follow this generation strategy:
+1. DERIVE from upstream sections: Extract relevant details from problem_statement, scope, deliverables, and other established sections listed in RELATED SECTIONS below.
+2. APPLY DOMAIN EXPERTISE: What would a ${challengeData.maturity_level || 'POC'}-level challenge in this domain typically include for this section? Use industry standards and your consulting experience.
+3. REFERENCE ATTACHED MATERIALS: If reference materials (files/URLs) are provided for this section, extract specific data points and incorporate them.
+4. QUANTIFY: Include specific numbers, metrics, ranges, and benchmarks — not vague qualifiers.
+5. STRUCTURE: Follow the exact format instruction below. Every field must be populated with meaningful content, not placeholders.` : 'ACTION: Revise the existing content to address all issues below while preserving identified strengths.'}
 ${waveBlock}
 
 FORMAT: ${formatType}. ${formatInstruction}
