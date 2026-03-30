@@ -1264,6 +1264,7 @@ export default function CurationReviewPage() {
       return data as ChallengeData;
     },
     enabled: !!challengeId,
+    placeholderData: (previousData: ChallengeData | undefined) => previousData,
   });
 
   // ── Org type name for badge ──

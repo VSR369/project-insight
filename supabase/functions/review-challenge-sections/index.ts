@@ -255,6 +255,7 @@ async function callAIPass1Analyze(
     },
     body: JSON.stringify({
       model,
+      temperature: 0.2,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -537,6 +538,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     },
     body: JSON.stringify({
       model,
+      temperature: 0.2,
       messages: [
         { role: "system", content: pass2SystemPrompt },
         { role: "user", content: pass2UserPrompt },
@@ -769,23 +771,91 @@ async function executeComplexityAssessment(
     `- ${d.dimension_key} (${d.dimension_name}): Level 1 = "${d.level_1_description}", Level 3 = "${d.level_3_description}", Level 5 = "${d.level_5_description}"`
   ).join('\n');
 
-  const systemPrompt = `You are an expert challenge complexity assessor. Analyze the challenge data and rate each complexity dimension on a scale of 1-10 based on the provided level descriptions. Level 1 description maps to scores 1-2, Level 3 maps to scores 5-6, Level 5 maps to scores 9-10.
+  const dimHints: Record<string, string> = {
+    technical_novelty: 'Focus on: problem_statement, deliverables. Look for: novel algorithms, cutting-edge tech, research requirements.',
+    solution_maturity: 'Focus on: maturity_level, deliverables, phase_schedule. Look for: POC vs production, prototype complexity.',
+    domain_breadth: 'Focus on: domain_tags, solver_expertise_requirements, scope. Look for: multi-domain, cross-functional.',
+    evaluation_complexity: 'Focus on: evaluation_criteria, deliverables. Look for: subjective criteria, multi-dimensional scoring.',
+    ip_sensitivity: 'Focus on: ip_model, deliverables. Look for: proprietary IP, patents, data sensitivity.',
+    timeline_urgency: 'Focus on: phase_schedule, deliverables. Look for: compressed timelines, hard deadlines.',
+    data_complexity: 'Focus on: data_resources_provided, success_metrics_kpis. Look for: data volume, quality issues.',
+    integration_depth: 'Focus on: deliverables, scope. Look for: API integrations, system dependencies.',
+    stakeholder_complexity: 'Focus on: affected_stakeholders, evaluation_criteria. Look for: conflicting interests.',
+    regulatory_compliance: 'Focus on: deliverables, ip_model. Look for: HIPAA, GDPR, SOX, audit needs.',
+    scalability_requirements: 'Focus on: expected_outcomes, success_metrics_kpis. Look for: performance targets.',
+    innovation_level: 'Focus on: problem_statement, root_causes, current_deficiencies. Look for: novelty of problem.',
+  };
+
+  const dimGuidance = dimensions.map((d: any) =>
+    `- ${d.dimension_key}: ${dimHints[d.dimension_key] || 'Analyze all relevant sections holistically.'}`
+  ).join('\n');
+
+  const systemPrompt = `You are an expert challenge complexity assessor for an enterprise open innovation platform.
 
 COMPLEXITY DIMENSIONS:
 ${paramDescriptions}
 
+WHICH SECTIONS TO ANALYZE FOR EACH DIMENSION:
+${dimGuidance}
+
 RATING RULES:
-- Rate each dimension independently based on the challenge content.
-- Provide a specific justification referencing actual challenge details for each rating.
-- Consider the solution type, deliverables, scope, and maturity level.
-- Be precise: don't default to middle values without justification.`;
+- Rate each dimension 1-10. Use the full range — do NOT cluster around 5.
+  1-2 = Trivial, off-the-shelf. 3-4 = Standard. 5-6 = Moderate. 7-8 = High, specialized. 9-10 = Extreme, research-grade.
+- Justification MUST reference SPECIFIC challenge content — quote values, cite numbers, name sections.
+- If a relevant section is empty, state that and rate conservatively (lower, not default 5).
+- DIFFERENTIATE ratings — dimensions should differ unless the challenge is truly uniform.
+- Consider MATURITY: Blueprint = more uncertainty/innovation. Pilot = more integration/scalability.`;
 
-  const userPrompt = `Assess the complexity of this challenge:
+  const strip = (s: any): string => {
+    if (!s) return '(empty)';
+    const t = typeof s === 'string' ? s : JSON.stringify(s, null, 2);
+    return t.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 2000) || '(empty)';
+  };
+  const eb = typeof challengeData.extended_brief === 'object' ? (challengeData.extended_brief ?? {}) : {};
 
-${JSON.stringify(challengeData, null, 2)}
+  const userPrompt = `Assess the complexity of this challenge.
 
-${clientContext?.maturityLevel ? `Maturity level: ${clientContext.maturityLevel}` : ''}
-${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` : ''}`;
+TITLE: ${challengeData.title || '(untitled)'}
+SOLUTION TYPE: ${clientContext?.solutionType || challengeData.solution_type || '(not set)'}
+MATURITY LEVEL: ${clientContext?.maturityLevel || challengeData.maturity_level || '(not set)'}
+
+PROBLEM STATEMENT:
+${strip(challengeData.problem_statement)}
+
+SCOPE:
+${strip(challengeData.scope)}
+
+DELIVERABLES:
+${strip(challengeData.deliverables)}
+
+EXPECTED OUTCOMES:
+${strip(challengeData.expected_outcomes)}
+
+EVALUATION CRITERIA:
+${strip(challengeData.evaluation_criteria)}
+
+PHASE SCHEDULE:
+${strip(challengeData.phase_schedule)}
+
+IP MODEL: ${challengeData.ip_model || '(not set)'}
+
+DATA & RESOURCES:
+${strip(challengeData.data_resources_provided)}
+
+SUCCESS METRICS:
+${strip(challengeData.success_metrics_kpis)}
+
+SOLVER EXPERTISE REQUIRED:
+${strip(challengeData.solver_expertise_requirements)}
+
+DOMAIN TAGS: ${strip(challengeData.domain_tags)}
+
+CONTEXT & BACKGROUND:
+${strip(eb.context_background || challengeData.context_and_background)}
+
+ROOT CAUSES:
+${strip(eb.root_causes || challengeData.root_causes)}
+`;
 
   const paramProperties: Record<string, any> = {};
   for (const d of dimensions) {
@@ -807,6 +877,7 @@ ${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` :
     },
     body: JSON.stringify({
       model,
+      temperature: 0,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

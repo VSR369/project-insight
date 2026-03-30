@@ -464,12 +464,17 @@ export function useRewardStructureState(
         const next = { ...prev };
         for (const [rank, amount] of Object.entries(data.monetary!.tiers!)) {
           if (rank in next) {
-            next[rank] = { enabled: true, amount, amountSrc: { src: 'ai' } };
+            next[rank] = { enabled: true, amount: Number(amount) || 0, amountSrc: { src: 'ai' } };
           }
         }
         return next;
       });
       if (data.monetary.currency) setCurrencyState(data.monetary.currency);
+      // Compute totalPool from tier amounts
+      const tierTotal = Object.values(data.monetary.tiers).reduce(
+        (sum: number, amt: any) => sum + (Number(amt) || 0), 0
+      );
+      if (tierTotal > 0) setTotalPoolState(tierTotal);
     }
 
     if (data.nonMonetary?.items) {
@@ -482,9 +487,19 @@ export function useRewardStructureState(
       setNMItems(aiItems);
     }
 
-    if (data.type === 'both' || data.type === 'monetary' || data.type === 'non_monetary') {
-      setRewardTypeState(data.type as RewardType);
-    }
+    // Normalize type — LLM may return "Monetary", "Both", "non-monetary", etc.
+    const normalizedType = (() => {
+      const t = String(data.type || '').toLowerCase().trim();
+      if (t === 'monetary' || t === 'cash') return 'monetary' as RewardType;
+      if (t === 'non_monetary' || t === 'non-monetary' || t === 'nonmonetary') return 'non_monetary' as RewardType;
+      if (t === 'both' || t === 'mixed') return 'both' as RewardType;
+      // Infer from data shape if type string is missing/unrecognized
+      if (data.monetary?.tiers && data.nonMonetary?.items?.length) return 'both' as RewardType;
+      if (data.monetary?.tiers) return 'monetary' as RewardType;
+      if (data.nonMonetary?.items?.length) return 'non_monetary' as RewardType;
+      return null;
+    })();
+    if (normalizedType) setRewardTypeState(normalizedType);
 
     setSectionState('curator_editing');
   }, []);
