@@ -745,6 +745,9 @@ function ManualParamsTab({
   saving,
   readOnly,
   onSliderChange,
+  aiScoreRef,
+  aiLevelRef,
+  aiLabelRef,
 }: {
   complexityParams: ComplexityParam[];
   draft: Record<string, number>;
@@ -757,6 +760,9 @@ function ManualParamsTab({
   saving: boolean;
   readOnly?: boolean;
   onSliderChange: (key: string, val: number) => void;
+  aiScoreRef?: number | null;
+  aiLevelRef?: string | null;
+  aiLabelRef?: string | null;
 }) {
   return (
     <div className="space-y-4">
