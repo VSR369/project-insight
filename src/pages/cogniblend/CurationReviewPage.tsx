@@ -2098,13 +2098,31 @@ export default function CurationReviewPage() {
       return;
     }
 
+    // ── Solution type multi-select: parse AI suggestion as array of codes ──
+    if (sectionKey === 'solution_type') {
+      let codes: string[] = [];
+      try {
+        const parsed = JSON.parse(newContent);
+        codes = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+      } catch {
+        codes = newContent.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      const validCodes = new Set(solutionTypesData.map(t => t.code));
+      const matched = codes.filter(c => validCodes.has(c));
+      if (matched.length === 0) {
+        toast.error(`No valid solution type codes found. Valid: ${Array.from(validCodes).join(", ")}`);
+        return;
+      }
+      handleSaveSolutionTypes(matched);
+      return;
+    }
+
     // ── Single-code master-data sections: validate and save directly ──
     const solutionTypeOptions = solutionTypeMap.map(m => ({ value: m.solution_type_code, label: m.proficiency_area_name }));
     const SINGLE_CODE_MAP: Record<string, { field: string; options: typeof masterData.ipModelOptions }> = {
       ip_model: { field: "ip_model", options: masterData.ipModelOptions },
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
-      solution_type: { field: "solution_type", options: solutionTypeOptions },
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
     if (singleCodeCfg) {
