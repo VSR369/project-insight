@@ -262,18 +262,14 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
   const aiLabelRef_ = aiScoreRef_ != null ? deriveComplexityLabel(aiScoreRef_) : null;
   const hasAiRatings = !!aiSuggestedRatings && Object.keys(aiSuggestedRatings).length > 0;
 
-  const hasDraftValues = Object.keys(activeDraft).length > 0;
-  const displayScore = activeTab === "quick_select" ? 0
-    : hasDraftValues ? weightedScore
-    : (currentScore ?? weightedScore);
+  // Display values: use active draft score for AI/Manual tabs, override for Quick Select
+  const displayScore = activeTab === "quick_select" ? 0 : weightedScore;
   const displayLevel = activeTab === "quick_select" && overrideLevel
     ? overrideLevel
-    : hasDraftValues ? derivedLevel
-    : (currentLevel ?? derivedLevel);
+    : derivedLevel;
   const displayLabel = activeTab === "quick_select" && overrideLevel
     ? getLabelForLevel(overrideLevel)
-    : hasDraftValues ? derivedLabel
-    : deriveComplexityLabel(currentScore ?? weightedScore);
+    : derivedLabel;
   const levelColor = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L3;
 
   // Dirty state
