@@ -372,27 +372,7 @@ export function AssignRoleSheet({
                   )}
                 />
 
-                {/* Department selector — shown only for R10_CR */}
-                {isR10CR && (
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Department / Functional Area *</label>
-                    <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(departmentsList ?? []).map((dept: { id: string; name: string }) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Which department or unit is this requestor from?
-                    </p>
-                  </div>
-                )}
+
 
                 {/* Collapsible Domain Taxonomy */}
                 <Collapsible open={taxonomyOpen} onOpenChange={setTaxonomyOpen}>
