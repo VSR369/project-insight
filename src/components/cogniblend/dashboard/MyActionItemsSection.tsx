@@ -125,7 +125,7 @@ export function MyActionItemsSection() {
     staleTime: 10_000,
   });
 
-  const isLoading = chLoading || reqLoading || isRolesLoading || (isSpecRole && notifLoading);
+  const isLoading = chLoading || isRolesLoading || (isSpecRole && notifLoading);
 
   const challengeItems = challengesData?.items ?? [];
   const allSRRows = useMemo(
