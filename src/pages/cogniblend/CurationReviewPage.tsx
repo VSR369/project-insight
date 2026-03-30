@@ -141,7 +141,7 @@ import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queri
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { OrgContextPanel } from "@/components/cogniblend/curation/OrgContextPanel";
+import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
 
 
 
@@ -905,6 +905,16 @@ interface GroupDef {
 
 const GROUPS: GroupDef[] = [
   {
+    id: "organization",
+    label: "0. Organization",
+    icon: "🏢",
+    colorDone: "bg-purple-100 text-purple-800 border-purple-300",
+    colorActive: "bg-purple-50 border-purple-400",
+    colorBorder: "border-purple-200",
+    sectionKeys: [],
+    prerequisiteGroups: [],
+  },
+  {
     id: "foundation",
     label: "1. Foundation",
     icon: "🏗️",
@@ -1215,7 +1225,7 @@ export default function CurationReviewPage() {
   const { data: solutionTypesData = [] } = useSolutionTypes();
   const solutionTypeGroups = useMemo(() => groupSolutionTypes(solutionTypesData), [solutionTypesData]);
 
-  const [activeGroup, setActiveGroup] = useState<string>("foundation");
+  const [activeGroup, setActiveGroup] = useState<string>("organization");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
@@ -2578,6 +2588,11 @@ export default function CurationReviewPage() {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
     GROUPS.forEach((g) => {
+      if (g.id === 'organization') {
+        // Organization tab: 1 item, done if org has name + one enrichment
+        result[g.id] = { done: 0, total: 1, hasAIFlag: false };
+        return;
+      }
       const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
       const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord) && !staleKeySet.has(s.key)).length;
       const hasAIFlag = aiQuality?.gaps?.some((gap) => {
@@ -2898,13 +2913,7 @@ export default function CurationReviewPage() {
         </div>
       )}
 
-      {/* ═══ ORGANIZATION CONTEXT PANEL ═══ */}
-      {challenge.organization_id && (
-        <OrgContextPanel
-          challengeId={challenge.id}
-          organizationId={challenge.organization_id}
-        />
-      )}
+      {/* Organization Context Panel moved to Tab 0 in progress strip */}
 
       {/* ═══ ORIGINAL BRIEF (Seeding Data) ═══ */}
       {challenge.problem_statement && (
@@ -3035,7 +3044,7 @@ export default function CurationReviewPage() {
       )}
 
       {/* ═══ PROGRESS STRIP ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
         {GROUPS.map((group) => {
           const progress = groupProgress[group.id];
           const done = progress?.done ?? 0;
@@ -3135,6 +3144,17 @@ export default function CurationReviewPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
+              {/* ═══ ORGANIZATION TAB — custom panel ═══ */}
+              {activeGroup === 'organization' && challenge.organization_id ? (
+                <OrgContextPanel
+                  challengeId={challenge.id}
+                  organizationId={challenge.organization_id}
+                  isReadOnly={isReadOnly}
+                />
+              ) : activeGroup === 'organization' ? (
+                <p className="text-sm text-muted-foreground italic py-4">No organization linked to this challenge.</p>
+              ) : (
+                <>
               {/* Prerequisite guidance banner */}
               {groupReadiness[activeGroupDef.id] && !groupReadiness[activeGroupDef.id].ready && !dismissedPrereqBanner.has(activeGroupDef.id) && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3 mb-4">
@@ -3967,6 +3987,8 @@ export default function CurationReviewPage() {
                   </div>
                 )}
               </div>
+              </>
+              )}
             </CardContent>
           </Card>
         </div>
