@@ -1471,6 +1471,15 @@ serve(async (req) => {
 
       const userPrompt = `${userPromptInstruction}
 
+BEFORE REVIEWING INDIVIDUAL SECTIONS, scan the entire challenge and answer these internally:
+1. What ARCHETYPE is this challenge? (Data/ML, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX, Cybersecurity, Other)
+2. What is the MATURITY-COMPLEXITY profile? (e.g., "POC at L3 complexity" → expect working prototypes, moderate timeline, mid-range rewards)
+3. Who is the TARGET SOLVER? (Individual expert? Small team? Organization? What domain expertise?)
+4. What is the STRATEGIC STORY? (Problem → Cause → Solution approach → Deliverables → Measurement → Reward)
+5. Where are the BIGGEST RISKS to challenge success? (Scope creep? Unclear evaluation? Insufficient data? Unrealistic timeline?)
+
+Use these answers to inform the DEPTH and FOCUS of your section-by-section review.
+
 CHALLENGE DATA:
 Title: ${relevantData.title || '(untitled)'}
 Solution Type: ${relevantData.solution_type || '(not set)'}
