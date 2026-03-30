@@ -19,8 +19,8 @@ function buildSteps(engagementModel?: string, governanceMode?: GovernanceMode): 
   const mode = governanceMode ?? 'STRUCTURED';
 
   // Step 1 adapts to engagement model
-  const step1Role = isMP ? 'AM / CR' : 'RQ / CR';
-  const step1AiNote = isMP ? 'AM submits problem brief' : 'RQ shares idea';
+  const step1Role = 'CR';
+  const step1AiNote = isMP ? 'Creator submits problem brief' : 'Creator shares idea';
   const step1ManualNote = isMP ? '6-field problem brief' : '3-field idea form';
 
   // Step 4 (Curation) adapts to governance mode
