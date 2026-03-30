@@ -905,6 +905,65 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_attachments: {
+        Row: {
+          challenge_id: string
+          created_at: string | null
+          extracted_text: string | null
+          extraction_error: string | null
+          extraction_method: string | null
+          extraction_status: string | null
+          file_name: string
+          file_size: number | null
+          id: string
+          mime_type: string
+          section_key: string
+          storage_path: string
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string | null
+          extracted_text?: string | null
+          extraction_error?: string | null
+          extraction_method?: string | null
+          extraction_status?: string | null
+          file_name: string
+          file_size?: number | null
+          id?: string
+          mime_type: string
+          section_key: string
+          storage_path: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string | null
+          extracted_text?: string | null
+          extraction_error?: string | null
+          extraction_method?: string | null
+          extraction_status?: string | null
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string
+          section_key?: string
+          storage_path?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_attachments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_incentive_selections: {
         Row: {
           challenge_id: string
@@ -1394,10 +1453,12 @@ export type Database = {
           evaluation_criteria: Json | null
           expected_outcomes: Json | null
           extended_brief: Json | null
+          functional_area: string | null
           governance_mode_override: string | null
           governance_profile: string | null
           hook: string | null
           id: string
+          industry_segment_id: string | null
           ip_model: string | null
           is_active: boolean
           is_deleted: boolean
@@ -1430,6 +1491,7 @@ export type Database = {
           submission_guidelines: Json | null
           submission_template_url: string | null
           success_metrics_kpis: Json | null
+          target_geography: string | null
           targeting_filters: Json | null
           tenant_id: string
           termination_type: string | null
@@ -1469,10 +1531,12 @@ export type Database = {
           evaluation_criteria?: Json | null
           expected_outcomes?: Json | null
           extended_brief?: Json | null
+          functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
           hook?: string | null
           id?: string
+          industry_segment_id?: string | null
           ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
@@ -1505,6 +1569,7 @@ export type Database = {
           submission_guidelines?: Json | null
           submission_template_url?: string | null
           success_metrics_kpis?: Json | null
+          target_geography?: string | null
           targeting_filters?: Json | null
           tenant_id: string
           termination_type?: string | null
@@ -1544,10 +1609,12 @@ export type Database = {
           evaluation_criteria?: Json | null
           expected_outcomes?: Json | null
           extended_brief?: Json | null
+          functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
           hook?: string | null
           id?: string
+          industry_segment_id?: string | null
           ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
@@ -1580,6 +1647,7 @@ export type Database = {
           submission_guidelines?: Json | null
           submission_template_url?: string | null
           success_metrics_kpis?: Json | null
+          target_geography?: string | null
           targeting_filters?: Json | null
           tenant_id?: string
           termination_type?: string | null
@@ -1602,6 +1670,13 @@ export type Database = {
             columns: ["engagement_model_id"]
             isOneToOne: false
             referencedRelation: "md_engagement_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
             referencedColumns: ["id"]
           },
           {
@@ -10641,6 +10716,7 @@ export type Database = {
           deleted_by: string | null
           employee_count_range: string | null
           founding_year: number | null
+          functional_areas: string[] | null
           governance_profile: string
           hq_address_line1: string | null
           hq_address_line2: string | null
@@ -10654,6 +10730,7 @@ export type Database = {
           is_enterprise: boolean
           lc_review_required: boolean
           legal_entity_name: string | null
+          linkedin_url: string | null
           logo_url: string | null
           max_concurrent_active: number
           max_cumulative_quota: number
@@ -10675,16 +10752,19 @@ export type Database = {
           registration_number: string | null
           registration_step: number
           rejection_reason: string | null
+          social_links: Json | null
           subscription_tier: string | null
           subsidized_discount_pct: number
           suspended_at: string | null
           suspended_by: string | null
           suspension_reason: string | null
+          tagline: string | null
           tax_id: string | null
           tc_version_accepted: string | null
           tenant_id: string
           timezone: string | null
           trade_brand_name: string | null
+          twitter_url: string | null
           updated_at: string | null
           updated_by: string | null
           verification_checklist_results: Json | null
@@ -10708,6 +10788,7 @@ export type Database = {
           deleted_by?: string | null
           employee_count_range?: string | null
           founding_year?: number | null
+          functional_areas?: string[] | null
           governance_profile?: string
           hq_address_line1?: string | null
           hq_address_line2?: string | null
@@ -10721,6 +10802,7 @@ export type Database = {
           is_enterprise?: boolean
           lc_review_required?: boolean
           legal_entity_name?: string | null
+          linkedin_url?: string | null
           logo_url?: string | null
           max_concurrent_active?: number
           max_cumulative_quota?: number
@@ -10742,16 +10824,19 @@ export type Database = {
           registration_number?: string | null
           registration_step?: number
           rejection_reason?: string | null
+          social_links?: Json | null
           subscription_tier?: string | null
           subsidized_discount_pct?: number
           suspended_at?: string | null
           suspended_by?: string | null
           suspension_reason?: string | null
+          tagline?: string | null
           tax_id?: string | null
           tc_version_accepted?: string | null
           tenant_id: string
           timezone?: string | null
           trade_brand_name?: string | null
+          twitter_url?: string | null
           updated_at?: string | null
           updated_by?: string | null
           verification_checklist_results?: Json | null
@@ -10775,6 +10860,7 @@ export type Database = {
           deleted_by?: string | null
           employee_count_range?: string | null
           founding_year?: number | null
+          functional_areas?: string[] | null
           governance_profile?: string
           hq_address_line1?: string | null
           hq_address_line2?: string | null
@@ -10788,6 +10874,7 @@ export type Database = {
           is_enterprise?: boolean
           lc_review_required?: boolean
           legal_entity_name?: string | null
+          linkedin_url?: string | null
           logo_url?: string | null
           max_concurrent_active?: number
           max_cumulative_quota?: number
@@ -10809,16 +10896,19 @@ export type Database = {
           registration_number?: string | null
           registration_step?: number
           rejection_reason?: string | null
+          social_links?: Json | null
           subscription_tier?: string | null
           subsidized_discount_pct?: number
           suspended_at?: string | null
           suspended_by?: string | null
           suspension_reason?: string | null
+          tagline?: string | null
           tax_id?: string | null
           tc_version_accepted?: string | null
           tenant_id?: string
           timezone?: string | null
           trade_brand_name?: string | null
+          twitter_url?: string | null
           updated_at?: string | null
           updated_by?: string | null
           verification_checklist_results?: Json | null

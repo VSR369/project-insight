@@ -685,6 +685,12 @@ FORMAT: ${formatType}. ${formatInstruction}
 ORIGINAL CONTENT:
 ${contentStr}
 ${depBlock}
+${(() => {
+      const sectionAtts = attachmentsBySection[r.section_key] || [];
+      return sectionAtts.length > 0
+        ? `\nATTACHED DOCUMENTS for this section:\n${sectionAtts.map((a: any) => `--- ${a.fileName} ---\n${a.content}`).join('\n')}\nUse these documents to inform your rewrite.\n`
+        : '';
+    })()}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
 ${actionableComments || '(No specific issues — generate fresh content based on challenge context)'}
 
