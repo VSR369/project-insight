@@ -640,6 +640,28 @@ async function callAIPass2Rewrite(
       .map((c: any) => `- ${c.text}`)
       .join('\n');
 
+    // Gap 3: Preserve strengths — tell LLM what to keep
+    const strengths = r.comments
+      .filter((c: any) => c.type === 'strength')
+      .map((c: any) => `- ✅ ${c.text}`)
+      .join('\n');
+    const strengthBlock = strengths
+      ? `\nSTRENGTHS TO PRESERVE (these are GOOD — keep them intact while improving other areas):\n${strengths}\n`
+      : '';
+
+    // Gap 2: Feed cross-section issues into Pass 2
+    const crossIssues = pass1Results
+      .flatMap((p1: any) => (p1.cross_section_issues || []))
+      .filter((issue: any) =>
+        issue.related_section === r.section_key ||
+        issue.source_section === r.section_key
+      )
+      .map((issue: any, i: number) => `${i + 1}. [CROSS-SECTION] ${issue.issue}${issue.suggested_resolution ? ` → Resolution: ${issue.suggested_resolution}` : ''}`)
+      .join('\n');
+    const crossIssueBlock = crossIssues
+      ? `\nCROSS-SECTION ISSUES INVOLVING THIS SECTION (from analysis — MUST be addressed in your rewrite):\n${crossIssues}\n`
+      : '';
+
     const formatInstruction = getSuggestionFormatInstruction(r.section_key);
     const formatType = getSectionFormatType(r.section_key);
 
