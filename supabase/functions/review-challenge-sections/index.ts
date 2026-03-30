@@ -210,21 +210,23 @@ async function fetchMasterDataOptions(
   // Fetch solver eligibility tiers
   const { data: eligibilityData } = await adminClient
     .from("md_solver_eligibility")
-    .select("code, name")
+    .select("code, label")
     .eq("is_active", true)
     .order("display_order");
   if (eligibilityData?.length) {
-    result.eligibility = eligibilityData.map((r: any) => ({ code: r.code, label: r.name }));
+    result.eligibility = eligibilityData.map((r: any) => ({ code: r.code, label: r.label }));
+    // Visibility uses the same solver tier codes as eligibility
+    result.visibility = result.eligibility;
   }
 
   // Fetch complexity levels
   const { data: complexityData } = await adminClient
     .from("md_challenge_complexity")
-    .select("code, name")
+    .select("complexity_code, complexity_label")
     .eq("is_active", true)
     .order("display_order");
   if (complexityData?.length) {
-    result.complexity = complexityData.map((r: any) => ({ code: r.code, label: r.name }));
+    result.complexity = complexityData.map((r: any) => ({ code: r.complexity_code, label: r.complexity_label }));
   }
 
   return result;
