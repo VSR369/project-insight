@@ -2076,11 +2076,12 @@ export default function CurationReviewPage() {
     }
 
     // ── Single-code master-data sections: validate and save directly ──
+    const solutionTypeOptions = solutionTypeMap.map(m => ({ value: m.solution_type_code, label: m.proficiency_area_name }));
     const SINGLE_CODE_MAP: Record<string, { field: string; options: typeof masterData.ipModelOptions }> = {
       ip_model: { field: "ip_model", options: masterData.ipModelOptions },
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
-      
+      solution_type: { field: "solution_type", options: solutionTypeOptions },
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
     if (singleCodeCfg) {
