@@ -937,6 +937,7 @@ async function callComplexityAI(
   challengeData: any,
   adminClient: any,
   clientContext?: any,
+  orgContext?: any,
 ): Promise<any> {
   // Resolve solution type — REQUIRE explicit type, no arbitrary fallback
   const solutionType = challengeData.solution_type || clientContext?.solutionType || null;
