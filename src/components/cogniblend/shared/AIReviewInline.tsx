@@ -468,10 +468,21 @@ export function AIReviewInline({
           // Persist the review via parent callback
           onSingleSectionReview?.(sectionKey, freshReview);
 
+          // Update signature immediately so the reset effect doesn't overwrite refinedContent
+          const freshHash = freshReview.comments.map((c: any) =>
+            typeof c === 'string' ? c : c.text
+          ).join('\x1f');
+          prevReviewSignature.current = `${freshReview.reviewed_at}|${freshReview.status}|${freshHash}`;
+
           // If the re-review returned an inline suggestion, use it immediately
-          if (freshReview.suggestion && typeof freshReview.suggestion === 'string' && freshReview.suggestion.trim().length > 0) {
-            setRefinedContent(freshReview.suggestion);
-            autoRefineTriggered.current = true; // prevent auto-refine from re-triggering
+          if (freshReview.suggestion != null) {
+            const suggestionStr = typeof freshReview.suggestion === 'string'
+              ? freshReview.suggestion
+              : JSON.stringify(freshReview.suggestion);
+            if (suggestionStr.trim().length > 0) {
+              setRefinedContent(suggestionStr);
+              autoRefineTriggered.current = true; // prevent auto-refine from re-triggering
+            }
           }
           // Otherwise auto-refine effect will trigger naturally since we reset the ref
 
