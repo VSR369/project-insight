@@ -1142,6 +1142,12 @@ Do NOT include a "suggestion" field. Focus entirely on thorough, specific analys
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
+    // Wave context injection (legacy path)
+    const waveCtx = SECTION_WAVE_CONTEXT[config.section_key];
+    if (waveCtx) {
+      parts.push(`POSITION: Wave ${waveCtx.wave} (${waveCtx.waveName}). STRATEGIC ROLE: ${waveCtx.strategicRole}`);
+    }
+
     // FIX 5: Inject default quality criteria for legacy path too
     const criteria = getEffectiveQualityCriteria(config);
     if (criteria.length > 0) {
