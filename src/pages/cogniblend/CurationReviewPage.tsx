@@ -141,6 +141,7 @@ import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queri
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { OrgContextPanel } from "@/components/cogniblend/curation/OrgContextPanel";
 
 
 
@@ -2895,6 +2896,14 @@ export default function CurationReviewPage() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* ═══ ORGANIZATION CONTEXT PANEL ═══ */}
+      {challenge.organization_id && (
+        <OrgContextPanel
+          challengeId={challenge.id}
+          organizationId={challenge.organization_id}
+        />
       )}
 
       {/* ═══ ORIGINAL BRIEF (Seeding Data) ═══ */}
