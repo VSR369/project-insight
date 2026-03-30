@@ -538,6 +538,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     },
     body: JSON.stringify({
       model,
+      temperature: 0.2,
       messages: [
         { role: "system", content: pass2SystemPrompt },
         { role: "user", content: pass2UserPrompt },
