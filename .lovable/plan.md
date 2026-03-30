@@ -1,214 +1,195 @@
 
 
-# Comprehensive Fix: All Table-Format Sections — End-to-End Audit & One-Time Fix
+# Refined Implementation Plan: Challenge Curator AI Pipeline — 15 Fixes
 
-## Root Cause Analysis (5 interconnected issues)
-
-### Issue 1: Wave executor overwrites content before Accept
-**File:** `src/hooks/useWaveExecutor.ts` line 120  
-`setSectionData(sectionKey, parsedSuggestion)` writes AI suggestions directly into the store during global review. For table-format sections, if the AI returns prose (despite prompting), the store gets corrupted prose data. This affects ALL sections during "Review with AI" global flow.
-
-### Issue 2: AI still returns prose for table sections
-The LLM tool schema types `suggestion` as `string` — the LLM can return anything. Despite prompt instructions, Gemini sometimes returns markdown prose instead of JSON arrays for `success_metrics_kpis`, `affected_stakeholders`, and `data_resources_provided`. The `parseTableRows` fallback regex extraction helps but doesn't handle all cases (e.g., when the AI returns numbered lists or tables in markdown).
-
-### Issue 3: Extended brief subsections lack normalization in accept path
-`handleAcceptExtendedBriefRefinement` (line 2110-2157) correctly parses JSON for table-format subsections but has **no field alias normalization** for `affected_stakeholders`. The AI may return `{stakeholder: "...", impact: "..."}` instead of `{stakeholder_name: "...", impact_description: "..."}`, and the data gets saved with wrong keys, rendering as empty in the table view.
-
-### Issue 4: `handleAccept` in `AIReviewInline` doesn't handle table-format correctly when `isStructured = false`
-After the previous fix that made `isStructuredSection` return `false` for `table` format, the accept path now falls through to either `hasEdits` (if user saw table UI) or `else` (raw `refinedContent` string). When `editedSuggestedContent` is set by `onSuggestedVersionChange`, it works. But when `tableRows` parsing fails (AI returned prose) and it renders as rich text, the `editedSuggestedContent` is set to the prose string via the rich_text `useEffect` — and the accept saves corrupt prose.
-
-### Issue 5: Missing server-side sanitization of AI suggestion output
-The edge function returns the raw LLM suggestion string without any server-side validation. For table-format sections, the function should attempt to extract/validate JSON before returning to the client, providing defense-in-depth.
+All 12 bugs from the external audit + 3 additional bugs from Lovable's audit, with **3 refinements** applied as requested.
 
 ---
 
-## Solution: 6 Changes
+## File 1: `src/components/cogniblend/shared/AIReviewInline.tsx`
 
-### Change 1: Stop wave executor from mutating section data
-**File:** `src/hooks/useWaveExecutor.ts`
+### Fix 1 (BUG 1 + C8): Re-review passes full context
+**Refinement applied:** Widen `challengeContext` type from `{ title?; maturity_level?; domain_tags? }` to `Record<string, any>` in `AIReviewInlineProps` (line 89-93). The parent (`CurationReviewPage.tsx` line 3353) already passes a richer object — the narrow type was silently discarding fields.
 
-Remove the `setSectionData` call (lines 114-122). AI suggestions should stay in the review/suggestion state only. The store's `setAiReview` already stores the suggestion — the `setSectionData` write is redundant and destructive.
-
-Replace lines 114-122 with a comment explaining why we don't write to section data:
+At line 89-93, replace the type:
 ```typescript
-// AI suggestions are stored in review state (setAiReview above).
-// We do NOT write to setSectionData — that requires explicit Accept action.
-// Writing here would corrupt table sections if AI returns prose.
+challengeContext: Record<string, any>;
 ```
 
-This preserves the cross-wave context via the `setAiReview` call (line 107-111) which stores the suggestion for subsequent waves to reference, without corrupting the actual section content.
-
-### Change 2: Add server-side JSON extraction for table sections
-**File:** `supabase/functions/review-challenge-sections/index.ts` (~line 582-589)
-
-After parsing the tool call arguments and before building the suggestion map, add a sanitization step for table-format sections:
-
+At line 454-456, update the invoke body:
 ```typescript
-for (const s of sections) {
-  if (s.section_key && s.suggestion) {
-    const fmt = getSectionFormatType(s.section_key);
-    if (fmt === 'table' || fmt === 'schedule_table') {
-      // Attempt to extract JSON array from prose/markdown if needed
-      const sanitized = sanitizeTableSuggestion(s.suggestion);
-      suggestionMap.set(s.section_key, sanitized);
-    } else {
-      suggestionMap.set(s.section_key, s.suggestion);
-    }
-  }
+body: {
+  challenge_id: challengeId,
+  section_key: sectionKey,
+  role_context: roleContext,
+  wave_action: currentContent?.trim()?.length > 30 ? 'review' : 'generate',
+  current_content: currentContent,
+  context: challengeContext ? {
+    ...challengeContext,
+    maturityLevel: challengeContext.maturity_level,
+    todaysDate: new Date().toISOString().split('T')[0],
+  } : undefined,
+},
+```
+
+### Fix 2 (C10): Preserve comment metadata on edit
+At line 399-404, update `handleCommentChange` to preserve structured comment objects:
+```typescript
+const handleCommentChange = useCallback((index: number, value: string) => {
+  setEditedComments((prev) => {
+    const updated = [...prev];
+    const original = prev[index] ?? (review?.comments?.[index]);
+    updated[index] = (original && typeof original === 'object')
+      ? { ...original, text: value }
+      : value;
+    return updated;
+  });
+}, [review?.comments]);
+```
+
+---
+
+## File 2: `src/hooks/useWaveExecutor.ts`
+
+### Fix 3 (BUG 3): Conditional write for generated content
+After line 116, add:
+```typescript
+// For GENERATED sections (empty → AI created content), write to section data
+// so downstream waves can reference it. Safe: no human content to corrupt.
+if ((normalized as any).status === 'generated' && parsedSuggestion != null) {
+  store.getState().setSectionData(sectionKey, parsedSuggestion);
 }
 ```
 
-Add the `sanitizeTableSuggestion` helper function in `promptTemplate.ts`:
+### Fix 4 (BUG 12): Wave error status
+Line 223: change to `? 'error' : 'completed'`.
+
+---
+
+## File 3: `supabase/functions/review-challenge-sections/index.ts`
+
+### Fix 5 (BUG 2): Per-batch model selection
+**Refinement applied:** Keep a `defaultModel` variable for the complexity call, then compute per-batch model inside the loop.
+
+At line 1073, rename to:
 ```typescript
-export function sanitizeTableSuggestion(raw: string): string {
-  const cleaned = raw.trim()
-    .replace(/^```(?:json)?\s*\n?/i, '')
-    .replace(/\n?```\s*$/i, '').trim();
-  
-  // Direct parse
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed)) return JSON.stringify(parsed);
-    if (parsed?.items) return JSON.stringify(parsed.items);
-    if (parsed?.rows) return JSON.stringify(parsed.rows);
-    if (parsed?.criteria) return JSON.stringify(parsed.criteria);
-  } catch {}
-  
-  // Regex extract
-  const match = cleaned.match(/\[[\s\S]*\]/);
-  if (match) {
-    try {
-      const parsed = JSON.parse(match[0]);
-      if (Array.isArray(parsed)) return JSON.stringify(parsed);
-    } catch {
-      // Attempt repair: fix trailing commas and unbalanced brackets
-      let repaired = match[0]
-        .replace(/,\s*]/g, ']')
-        .replace(/,\s*}/g, '}');
-      const open = (repaired.match(/\[/g) || []).length;
-      const close = (repaired.match(/\]/g) || []).length;
-      for (let i = close; i < open; i++) repaired += ']';
-      try { JSON.parse(repaired); return repaired; } catch {}
-    }
-  }
-  
-  // Return raw if extraction fails — frontend will handle fallback
-  return raw;
-}
+const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
 ```
 
-### Change 3: Add stakeholder normalization in `handleAcceptExtendedBriefRefinement`
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx` (~line 2135)
-
-After the JSON parsing and wrapper unwrapping for table-format extended brief subsections, add normalization for `affected_stakeholders`:
-
+At line 1077, use `defaultModel` (or inline `getModelForRequest(['complexity'], globalConfig)`):
 ```typescript
-// ── Affected stakeholders: normalize AI field names to canonical columns ──
-if (subsectionKey === 'affected_stakeholders' && Array.isArray(valueToSave)) {
-  valueToSave = (valueToSave as any[]).map((row: any) => ({
-    stakeholder_name: row.stakeholder_name ?? row.stakeholder ?? row.name ?? row.Stakeholder ?? "",
-    role: row.role ?? row.Role ?? "",
-    impact_description: row.impact_description ?? row.impact ?? row.Impact ?? "",
-    adoption_challenge: row.adoption_challenge ?? row.challenge ?? row.Challenge ?? "",
+? callComplexityAI(LOVABLE_API_KEY, getModelForRequest(['complexity'], globalConfig), challengeData, adminClient, clientContext)
+```
+
+Inside the batch loop (line 1095), before `callAIBatchTwoPass`:
+```typescript
+const batchKeys = batch.map(b => b.key);
+const modelToUse = getModelForRequest(batchKeys, globalConfig);
+```
+
+---
+
+## File 4: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+### Fix 6 (BUG 4): Robust JSON extraction before accept
+Before the `jsonMatch` regex (~line 1958), add pre-processing:
+- Strip leading prose before first `[` or `{`
+- Strip trailing prose after last `]` or `}`
+- Attempt repair (trailing commas)
+- Double try-catch with repaired version
+
+### Fix 7 (BUG 5): Evaluation criteria — add missing aliases
+At the normalizer (~line 2003), add: `c.parameter`, `c.weight_percent`, `c.scoring_type`, `c.evaluator_role` as alias sources. Add `scoring_method` and `evaluator_role` output fields.
+
+### Fix 8 (A2): `data_resources_provided` field normalization
+After the KPI normalizer, add canonical mapping:
+```typescript
+if (dbField === 'data_resources_provided' && Array.isArray(rawArr)) {
+  valueToSave = rawArr.map((row: any) => ({
+    resource: row.resource ?? row.name ?? row.resource_name ?? "",
+    type: row.type ?? row.data_type ?? row.resource_type ?? "",
+    format: row.format ?? "",
+    size: row.size ?? "",
+    access_method: row.access_method ?? row.access ?? "",
+    restrictions: row.restrictions ?? row.restriction ?? "",
   }));
 }
 ```
 
-### Change 4: Add fallback table rendering when `parseTableRows` fails
-**File:** `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+### Fix 9 (BUG 8): Extended brief — direct parse before regex
+In `handleAcceptExtendedBriefRefinement` (~line 2124), try `JSON.parse(cleaned)` directly before the regex extraction fallback.
 
-Currently when `parseTableRows` returns null for a table-format section, it falls through to `rich_text` rendering, showing raw `###` prose. Add a format-aware fallback: if the section is a table format but parsing failed, render a warning message instead of raw prose.
+### Fix 10 (BUG 9): Reward structure — robust tier extraction
+Handle `tier`/`prize_tier`/`tier_name` keys and string amounts like `"$75,000"` via `Number(rawAmount.replace(/[$,]/g, ''))`.
 
-In the `suggestedFormat` useMemo, add a `table_fallback` case:
+### Fix 11 (BUG 10): Solver expertise — array handling
+If AI returns an array, wrap in `{ expertise_areas: [...] }`.
 
+### Fix 12 (BUG 11): Domain tags — basic validation
+Filter to strings-only, reject empty arrays with toast.
+
+### Fix 13 (B6): Derive HTML_TEXT_FIELDS from config
+Replace hardcoded `['problem_statement', 'scope', 'hook']` with:
 ```typescript
-const suggestedFormat = useMemo(() => {
-  if (isMasterData) return "master_data";
-  if (rewardData) return "reward_custom";
-  if (solverExpertiseData) return "solver_expertise";
-  if (scheduleRows) return "schedule_table";
-  if (tableRows) return "table";
-  // If section IS table format but parse failed, show fallback instead of raw prose
-  const sectionFmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
-  if ((sectionFmt === 'table' || sectionFmt === 'schedule_table') && result.suggested_version) {
-    return "table_fallback";
-  }
-  if (isStructured && structuredItems && structuredItems.length > 0) {
-    const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
-    if (fmt === "line_items") return "line_items";
-  }
-  if (parsedDate) return "date";
-  if (result.suggested_version) return "rich_text";
-  return null;
-}, [/* deps */]);
+const HTML_TEXT_FIELDS = Object.entries(SECTION_FORMAT_CONFIG)
+  .filter(([, cfg]) => cfg.format === 'rich_text')
+  .map(([key]) => key);
 ```
-
-In the render section, handle `table_fallback`:
-```tsx
-{suggestedFormat === "table_fallback" && (
-  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
-    <p className="text-xs text-amber-800 font-medium">
-      AI returned unstructured text instead of table data. Click "Re-review" to regenerate in the correct format.
-    </p>
-    <div className="text-xs text-muted-foreground max-h-32 overflow-y-auto">
-      <AiContentRenderer content={result.suggested_version!} compact />
-    </div>
-  </div>
-)}
-```
-
-Disable the Accept button when format is `table_fallback`:
-```tsx
-// In the accept button's disabled condition, add:
-disabled={isRefining || suggestedFormat === "table_fallback"}
-```
-
-### Change 5: Fix `handleAccept` to handle table sections correctly via `editedSuggestedContent`
-**File:** `src/components/cogniblend/shared/AIReviewInline.tsx`
-
-The current flow for table sections when `isStructured = false`:
-- If `editedSuggestedContent != null` (set by `onSuggestedVersionChange` from `AIReviewResultPanel`), it uses `hasEdits` branch
-- For table rows, `editedSuggestedContent` is the array of row objects — this is correct
-- It gets `JSON.stringify`'d and passed to `onAcceptRefinement` — this is correct
-
-But when the accept has `editedSuggestedContent` as a string (from rich_text fallback for a table section), it would save prose. Add a guard:
-
-In `handleAccept`, after `hasEdits` check (line 645), add:
-```typescript
-} else if (hasEdits) {
-  // Guard: if this is a table section but editedSuggestedContent is a string (prose fallback),
-  // block the accept to prevent saving corrupt data
-  const editFmt = getSectionFormatType(sectionKey);
-  if ((editFmt === 'table' || editFmt === 'schedule_table') && typeof editedSuggestedContent === 'string') {
-    toast.error("AI returned text instead of table data. Please re-review this section.");
-    return;
-  }
-  // ... rest of existing hasEdits logic
-```
-
-### Change 6: Deploy edge function
-Redeploy `review-challenge-sections` with the server-side sanitization from Change 2.
 
 ---
 
-## Files Changed
+## File 5: `supabase/functions/review-challenge-sections/promptTemplate.ts`
 
-1. `src/hooks/useWaveExecutor.ts` — Remove `setSectionData` during review (prevents data corruption)
-2. `supabase/functions/review-challenge-sections/index.ts` — Add server-side JSON extraction for table sections
-3. `supabase/functions/review-challenge-sections/promptTemplate.ts` — Add `sanitizeTableSuggestion` helper
-4. `src/pages/cogniblend/CurationReviewPage.tsx` — Add stakeholder normalization in extended brief accept
-5. `src/components/cogniblend/curation/AIReviewResultPanel.tsx` — Add `table_fallback` format and disable Accept for malformed data
-6. `src/components/cogniblend/shared/AIReviewInline.tsx` — Guard accept for table sections receiving prose
+### Fix 14 (D1): Per-section format instructions in Pass 2
+**Refinement applied:** Exact code specified. After the per-section enrichment block (after line 622, before the TABLE FORMAT RULE), inject per-section format instruction using the existing `getSuggestionFormatInstruction` helper:
 
-## Impact Matrix
+```typescript
+// Per-section format instruction (ensures Pass 2 knows exact output shape)
+const formatRule = getSuggestionFormatInstruction(config.section_key);
+if (formatRule) {
+  prompt += `\nOUTPUT FORMAT: ${formatRule}\n`;
+}
+```
 
-| Action | Before | After |
-|--------|--------|-------|
-| Global Review | Overwrites section data with AI prose | Only stores in review state; requires Accept |
-| Re-review | Can corrupt existing data | Existing data preserved; only suggestion changes |
-| AI table format | Shows `###` prose as rich text | Either parsed table OR clear "re-review" message |
-| Accept KPIs | Saves corrupt string | Saves normalized JSON array with canonical keys |
-| Accept Stakeholders | Saves with wrong field names | Saves with canonical `stakeholder_name`, `role`, etc. |
-| Accept prose for table | Silently saves garbage | Blocked with clear error message |
-| Edge function output | Raw LLM string | Sanitized JSON for table sections |
+This ensures:
+- `root_causes` → "JSON array of short phrase strings, max 8 items"
+- `affected_stakeholders` → "JSON array of row objects with keys stakeholder_name, role, impact_description, adoption_challenge"
+- `evaluation_criteria` → "JSON array of row objects using exact column keys"
+- All other sections get their generic format instruction from `FORMAT_INSTRUCTIONS`
+
+---
+
+## File 6: `src/lib/cogniblend/curationSectionFormats.ts`
+
+### Fix 15 (BUG 5 alignment): Evaluation criteria columns
+Update columns to match canonical schema:
+```typescript
+columns: ['criterion_name', 'weight_percentage', 'description', 'scoring_method', 'evaluator_role'],
+```
+
+---
+
+## Post-Implementation
+
+- Redeploy edge function `review-challenge-sections`
+- Run verification matrix (12 tests from plan)
+
+---
+
+## Verification Matrix
+
+| Test | Validates |
+|---|---|
+| Re-review on empty section → generates content | Fix 1, 3 |
+| Re-review on filled section → reviews with full context | Fix 1 |
+| Global review → critical sections use premium model | Fix 5 |
+| Accept evaluation_criteria → canonical fields saved | Fix 7, 15 |
+| Accept data_resources_provided → canonical fields saved | Fix 8 |
+| Accept affected_stakeholders → canonical fields saved | Already done |
+| Accept reward_structure with "$75,000" string amounts | Fix 10 |
+| Accept solver_expertise when AI returns array | Fix 11 |
+| Accept domain_tags → only valid strings saved | Fix 12 |
+| Wave with errors shows amber/error status | Fix 4 |
+| Empty challenge → Wave 2 sees Wave 1 generated content | Fix 3 |
+| Table section re-review → correct format in Pass 2 | Fix 14 |
 
