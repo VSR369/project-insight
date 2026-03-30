@@ -22,7 +22,7 @@ export function useMsmeConfig(orgId?: string) {
       if (!orgId) return null;
       const { data, error } = await supabase
         .from("md_rbac_msme_config")
-        .select("org_id, is_enabled, enabled_by, enabled_at, challenge_requestor_enabled")
+        .select("org_id, is_enabled, enabled_by, enabled_at")
         .eq("org_id", orgId)
         .maybeSingle();
       if (error) throw new Error(error.message);
