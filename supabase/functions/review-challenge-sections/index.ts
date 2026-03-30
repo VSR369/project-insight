@@ -405,6 +405,7 @@ const SECTION_FIELD_ALIASES: Record<string, string> = {
   eligibility: 'solver_eligibility_types',
   visibility: 'solver_visibility_types',
   submission_guidelines: 'description',
+  solution_type: 'solution_types',
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -1175,6 +1176,9 @@ serve(async (req) => {
       }
       if (!challengeData.submission_guidelines) {
         challengeData.submission_guidelines = challengeData.description ?? null;
+      }
+      if (challengeData.solution_types && !Array.isArray(challengeData.solution_type)) {
+        challengeData.solution_type = challengeData.solution_types;
       }
 
       // If re-review sends current_content for a specific section, overlay onto challengeData

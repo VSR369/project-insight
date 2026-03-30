@@ -2623,6 +2623,7 @@ export default function CurationReviewPage() {
       maturity_level: challenge?.maturity_level,
       domain_tags: domainTags,
       complexity: challenge?.complexity_level ?? undefined,
+      complexity_level: challenge?.complexity_level ?? undefined,
       solution_type: challenge?.solution_type ?? undefined,
       operating_model: challenge?.operating_model ?? undefined,
       scope: challenge?.scope ? (typeof challenge.scope === 'string' ? challenge.scope.slice(0, 500) : undefined) : undefined,
