@@ -1,56 +1,54 @@
 
 
-# Complexity Prompt Quality + Reward Structure Persistence Fixes
+# Fix: Eligibility & Visibility AI Generating Invalid Codes
 
-## Overview
-Six changes across 4 files: 3 complexity prompt improvements in the edge function, and 5 reward structure persistence/quality fixes across frontend hooks, components, prompt templates, and the query layer.
+## Root Cause (3 bugs)
+
+### Bug 1: Wrong Column Names in Master Data Fetch (CRITICAL)
+**File:** `supabase/functions/review-challenge-sections/index.ts`, lines 216-223
+
+`fetchMasterDataOptions()` queries `md_solver_eligibility` with `SELECT code, name` — but the table has no `name` column, only `label`. The query returns `null` for the label field, so the AI prompt receives codes with `null` labels like `"certified_expert (null)"`. Without meaningful labels, the AI ignores the allowed list and invents codes like "registered_companies", "sap_certified_partners", etc.
+
+Same issue for `md_challenge_complexity` — queries `code, name` but columns are `complexity_code, complexity_label`.
+
+**Fix:** Change the queries:
+- `md_solver_eligibility`: `SELECT code, label` → map `r.label`
+- `md_challenge_complexity`: `SELECT complexity_code, complexity_label` → map as `{ code: r.complexity_code, label: r.complexity_label }`
+
+### Bug 2: Visibility Uses Wrong Master Data (HIGH)
+**File:** `supabase/functions/review-challenge-sections/index.ts`, lines 181-185
+
+`STATIC_MASTER_DATA.visibility` is set to `["anonymous", "named", "verified"]` — these are **challenge visibility** codes (public/private). But the `visibility` section in curation review is a `checkbox_multi` for **solver visibility tiers** which should use the same `md_solver_eligibility` codes (certified_basic, registered, open_community, etc.).
+
+**Fix:** Remove the static visibility entry and populate `result.visibility` from the same `md_solver_eligibility` fetch (or a copy of it), since solver eligibility and visibility use the same tier codes.
+
+### Bug 3: Pass 2 (Rewrite) Has No Master Data Injection (HIGH)
+**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts`, lines 562-677
+
+`buildPass2SystemPrompt()` injects templates, quality criteria, frameworks — but **never injects the allowed values list**. So even though Pass 1 might see the valid codes, Pass 2 (which generates the actual suggestion array) operates unconstrained and invents free-text codes.
+
+**Fix:** Accept `masterDataOptions` as a parameter in `buildPass2SystemPrompt()` and inject allowed values per section, with a strict enforcement instruction.
 
 ## Changes
 
-### A1: Add `temperature` for Deterministic AI Outputs
-**File:** `supabase/functions/review-challenge-sections/index.ts`
-- `executeComplexityAssessment` (line ~808): Add `temperature: 0` to the `body` JSON alongside `model`
-- `callAIPass1Analyze` (line ~256): Add `temperature: 0.2` to the `body` JSON
-- `callAIPass2Rewrite` (line ~538): Add `temperature: 0.2` to the `body` JSON
+### File 1: `supabase/functions/review-challenge-sections/index.ts`
+- Fix `fetchMasterDataOptions()`:
+  - Change eligibility query to `SELECT code, label` and map `r.label`
+  - Change complexity query to `SELECT complexity_code, complexity_label` and map correctly
+  - Add `result.visibility = result.eligibility` (same tier codes)
+- Remove stale `STATIC_MASTER_DATA.visibility` entry (keep `challenge_visibility` as-is)
+- Pass `masterDataOptions` to `buildPass2SystemPrompt()` calls
 
-### A2: Curated Challenge Summary for Complexity Prompt
-**File:** `supabase/functions/review-challenge-sections/index.ts`
-- Replace the `userPrompt` in `executeComplexityAssessment` (lines ~783-788) with a structured, section-by-section summary (title, solution type, maturity, problem statement, scope, deliverables, expected outcomes, evaluation criteria, phase schedule, IP model, data resources, success metrics, solver expertise, domain tags, context/background, root causes). Includes a `strip()` helper to clean HTML and truncate to 2000 chars.
+### File 2: `supabase/functions/review-challenge-sections/promptTemplate.ts`
+- Update `buildPass2SystemPrompt()` signature to accept `masterDataOptions`
+- Inject allowed values for each section in the per-section enrichment loop
+- Add strict enforcement: "You MUST only output codes from this list. Do NOT invent new codes."
 
-### A3: Section-to-Dimension Mapping in System Prompt
-**File:** `supabase/functions/review-challenge-sections/index.ts`
-- Replace the `systemPrompt` in `executeComplexityAssessment` (lines ~772-781) with an enriched version that includes:
-  - A `dimHints` mapping telling the AI which challenge sections to focus on for each complexity dimension
-  - Explicit rating scale guidance (1-2 = Trivial, 3-4 = Standard, etc.)
-  - Rules requiring specific content citations, differentiated ratings, and conservative scoring for empty sections
+### Deployment
+- Redeploy `review-challenge-sections` edge function
 
-### B1: Auto-Save to DB After AI Accept (Critical)
-**File:** `src/components/cogniblend/curation/RewardStructureDisplay.tsx`
-- Modify `handleApplyAIReviewResult` (lines ~161-165) to auto-save to the `challenges` table after a 300ms delay, invalidate the query cache, update the saved snapshot, and show appropriate toast messages. Prevents data loss when users accept AI suggestions and navigate away without clicking Save.
-
-### B2: Set `totalPool` in `applyAIReviewResult`
-**File:** `src/hooks/useRewardStructureState.ts`
-- After applying monetary tiers (line ~472), compute the sum of all tier amounts and call `setTotalPoolState(tierTotal)` if > 0. Also ensure `Number(amount)` coercion on tier values.
-
-### B3: Normalize Reward Type String
-**File:** `src/hooks/useRewardStructureState.ts`
-- Replace the strict equality check (lines ~485-487) with a normalizer that handles case variations ("Monetary", "Both"), hyphens ("non-monetary"), and aliases ("cash", "mixed"). Falls back to inferring type from data shape if the type string is unrecognized.
-
-### B4: Enrich Reward Prompt with Budget Rules
-**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts`
-- Replace the `reward_structure` entry in `EXTENDED_BRIEF_FORMAT_INSTRUCTIONS` (line ~105) with enriched rules covering budget constraints, maturity-based estimation, mandatory "both" type, tier count guidance, and non-monetary item examples. Reinforces that tiers must be an object (not array).
-
-### B5: Prevent Data Loss on React Query Refetch
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Add `placeholderData: (previousData) => previousData` to the `useQuery` at line ~1255. Prevents UI flicker and component remount (which would reset reward editor state) during background refetches.
-
-## Deployment
-- Edge function `review-challenge-sections` will need redeployment after A1-A3 and B4 changes.
-
-## Files Modified
-1. `supabase/functions/review-challenge-sections/index.ts` — A1, A2, A3
-2. `supabase/functions/review-challenge-sections/promptTemplate.ts` — B4
-3. `src/hooks/useRewardStructureState.ts` — B2, B3
-4. `src/components/cogniblend/curation/RewardStructureDisplay.tsx` — B1
-5. `src/pages/cogniblend/CurationReviewPage.tsx` — B5
+## Impact
+- Eligibility AI suggestions will only contain valid codes: certified_basic, certified_competent, certified_expert, registered, expert_invitee, signed_in, open_community, hybrid
+- Visibility AI suggestions will use the same valid tier codes
+- Complexity master data will also be correctly labeled
 
