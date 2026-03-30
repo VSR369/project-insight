@@ -75,7 +75,7 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
   },
   evaluation_criteria: {
     format: 'table',
-    columns: ['parameter', 'weight_percent', 'scoring_type', 'evaluator_role'],
+    columns: ['criterion_name', 'weight_percentage', 'description', 'scoring_method', 'evaluator_role'],
     aiCanDraft: true,
     aiReviewEnabled: true,
     curatorCanEdit: true,

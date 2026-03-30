@@ -226,7 +226,7 @@ export function useWaveExecutor({
       }
 
       // Update wave result
-      const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'completed' : 'completed';
+      const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
       setWaveProgress((prev) => ({
         ...prev,
         waves: prev.waves.map((w) =>

@@ -453,7 +453,18 @@ export function AIReviewInline({
       }
 
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
-        body: { challenge_id: challengeId, section_key: sectionKey, role_context: roleContext },
+        body: {
+          challenge_id: challengeId,
+          section_key: sectionKey,
+          role_context: roleContext,
+          wave_action: currentContent?.trim()?.length && currentContent.trim().length > 30 ? 'review' : 'generate',
+          current_content: currentContent,
+          context: challengeContext ? {
+            ...challengeContext,
+            maturityLevel: challengeContext.maturity_level,
+            todaysDate: new Date().toISOString().split('T')[0],
+          } : undefined,
+        },
       });
 
       if (error) {
