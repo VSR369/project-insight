@@ -360,7 +360,7 @@ export function migrateRawReward(raw: any): {
 
 /* ── Source resolver ── */
 
-const MARKETPLACE_PRIORITY: SourceRole[] = ['AM', 'CA'];
+// Legacy: MARKETPLACE_PRIORITY removed — source is always CR or CURATOR
 
 /**
  * Resolve the reward data source from the challenge's reward_structure JSONB.
