@@ -1475,13 +1475,19 @@ serve(async (req) => {
       masterDataOptions = await fetchMasterDataOptions(adminClient);
     }
 
-    // ── Fetch extracted attachment content ────────────────
-    let attachmentsBySection: Record<string, { fileName: string; content: string }[]> = {};
+    // ── Fetch extracted attachment content (files + URLs) ────────────────
+    let attachmentsBySection: Record<string, {
+      name: string;
+      sourceType: 'file' | 'url';
+      sourceUrl?: string;
+      content: string;
+      sharedWithSolver: boolean;
+    }[]> = {};
     if (resolvedContext === "curation") {
       try {
         const { data: attachments } = await adminClient
           .from('challenge_attachments')
-          .select('section_key, file_name, mime_type, extracted_text')
+          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extraction_status, shared_with_solver')
           .eq('challenge_id', challenge_id)
           .eq('extraction_status', 'completed');
 
@@ -1490,8 +1496,13 @@ serve(async (req) => {
             if (!att.extracted_text) continue;
             if (!attachmentsBySection[att.section_key]) attachmentsBySection[att.section_key] = [];
             attachmentsBySection[att.section_key].push({
-              fileName: att.file_name,
+              name: att.source_type === 'url'
+                ? (att.url_title || att.source_url || 'Web link')
+                : att.file_name,
+              sourceType: att.source_type || 'file',
+              sourceUrl: att.source_url ?? undefined,
               content: att.extracted_text.substring(0, 5000),
+              sharedWithSolver: att.shared_with_solver ?? false,
             });
           }
         }
