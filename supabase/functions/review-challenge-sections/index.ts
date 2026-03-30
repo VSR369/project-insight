@@ -178,11 +178,6 @@ const MASTER_DATA_SECTION_TABLES: Record<string, string> = {
 
 /** Static master data for sections that don't have DB tables */
 const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
-  visibility: [
-    { code: "anonymous", label: "Anonymous" },
-    { code: "named", label: "Named" },
-    { code: "verified", label: "Verified" },
-  ],
   ip_model: [
     { code: "IP-EA", label: "Full IP Transfer (Exclusive Assignment)" },
     { code: "IP-NEL", label: "Non-Exclusive License" },
@@ -215,21 +210,23 @@ async function fetchMasterDataOptions(
   // Fetch solver eligibility tiers
   const { data: eligibilityData } = await adminClient
     .from("md_solver_eligibility")
-    .select("code, name")
+    .select("code, label")
     .eq("is_active", true)
     .order("display_order");
   if (eligibilityData?.length) {
-    result.eligibility = eligibilityData.map((r: any) => ({ code: r.code, label: r.name }));
+    result.eligibility = eligibilityData.map((r: any) => ({ code: r.code, label: r.label }));
+    // Visibility uses the same solver tier codes as eligibility
+    result.visibility = result.eligibility;
   }
 
   // Fetch complexity levels
   const { data: complexityData } = await adminClient
     .from("md_challenge_complexity")
-    .select("code, name")
+    .select("complexity_code, complexity_label")
     .eq("is_active", true)
     .order("display_order");
   if (complexityData?.length) {
-    result.complexity = complexityData.map((r: any) => ({ code: r.code, label: r.name }));
+    result.complexity = complexityData.map((r: any) => ({ code: r.complexity_code, label: r.complexity_label }));
   }
 
   return result;
@@ -523,11 +520,11 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     };
 
     pass2SystemPrompt = pass2Configs.length > 0
-      ? buildPass2SystemPrompt(pass2Configs, enrichedContext)
-      : buildPass2SystemPrompt([], enrichedContext);
+      ? buildPass2SystemPrompt(pass2Configs, enrichedContext, masterDataOptions)
+      : buildPass2SystemPrompt([], enrichedContext, masterDataOptions);
   } else {
     // Fallback to inline prompt when no configs available
-    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext);
+    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext, masterDataOptions);
   }
 
   const response = await fetch(AI_GATEWAY_URL, {

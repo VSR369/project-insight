@@ -562,6 +562,7 @@ export function getSectionFormatType(sectionKey: string): string {
 export function buildPass2SystemPrompt(
   sectionConfigs: SectionConfig[],
   challengeContext: any,
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): string {
   let prompt = `You are a senior management consultant rewriting challenge section content. Your output must meet KPMG/PwC/EY/Deloitte quality — specific, measurable, actionable, grounded in domain expertise.
 
@@ -641,6 +642,12 @@ CHALLENGE CONTEXT:
     const formatRule = ebInstr || fmtInstr;
     if (formatRule) {
       prompt += `\nOUTPUT FORMAT: ${formatRule}\n`;
+    }
+
+    // Inject master data allowed values for this section (CRITICAL for eligibility, visibility, etc.)
+    const sectionOpts = masterDataOptions?.[config.section_key];
+    if (sectionOpts?.length) {
+      prompt += `\nALLOWED VALUES for ${config.section_key}: [${sectionOpts.map((o: any) => `"${o.code}" (${o.label})`).join(', ')}]\nYou MUST only output codes from this list. Do NOT invent new codes.\n`;
     }
   }
 
