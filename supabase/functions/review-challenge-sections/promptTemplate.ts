@@ -145,10 +145,7 @@ GUARDRAILS:
 - THE TEST: "Would a Deloitte senior consultant know this from experience?" Yes → include. Requires insider knowledge → don't.
 `;
 
-/** Get the format type for a section key from SECTION_FORMAT_MAP */
-export function getSectionFormatType(key: string): string | null {
-  return SECTION_FORMAT_MAP[key] ?? null;
-}
+
 
 /**
  * Sanitize AI suggestion for table-format sections.
