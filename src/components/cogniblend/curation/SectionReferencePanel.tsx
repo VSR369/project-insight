@@ -46,7 +46,6 @@ interface AttachmentRow {
 
 export function SectionReferencePanel({ challengeId, sectionKey, disabled = false }: SectionReferencePanelProps) {
   const config = SECTION_UPLOAD_CONFIG[sectionKey];
-  if (!config?.enabled) return null;
 
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
