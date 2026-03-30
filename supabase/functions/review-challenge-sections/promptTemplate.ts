@@ -548,9 +548,13 @@ export function buildStructuredBatchPrompt(
   parts.push(INTELLIGENCE_DIRECTIVE);
   parts.push('');
 
-  // FIX 6: Domain-specific framework injection
-  if (challengeSections?.domain_tags) {
-    const frameworks = detectDomainFrameworks(challengeSections.domain_tags);
+  // FIX 6 + GAP 3: Domain-specific framework injection (scans tags, problem_statement, scope)
+  {
+    const frameworks = detectDomainFrameworks(
+      challengeSections?.domain_tags,
+      challengeSections?.problem_statement,
+      challengeSections?.scope,
+    );
     if (frameworks.length > 0) {
       parts.push(`## DOMAIN-SPECIFIC FRAMEWORKS FOR THIS CHALLENGE`);
       parts.push(`Based on the challenge domain, reference these frameworks in your comments and suggestions where applicable:`);
