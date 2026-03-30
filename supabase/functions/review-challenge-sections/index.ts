@@ -413,6 +413,7 @@ async function callAIPass2Rewrite(
   waveAction: string,
   clientContext?: any,
   sectionConfigs?: SectionConfig[],
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
@@ -646,6 +647,7 @@ async function callAIBatchTwoPass(
   sectionConfigs?: SectionConfig[],
   skipAnalysis?: boolean,
   providedComments?: any[],
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
@@ -662,7 +664,7 @@ async function callAIBatchTwoPass(
   // ═══ PASS 2: Rewrite (conditional) ═══
   let suggestionMap: Map<string, string>;
   try {
-    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs);
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions);
   } catch (err: any) {
     // Pass 2 failure is non-fatal — return Pass 1 results without suggestions
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
@@ -1302,6 +1304,7 @@ serve(async (req) => {
           batchSectionConfigs,
           skip_analysis === true,
           provided_comments,
+          masterDataOptions,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {
