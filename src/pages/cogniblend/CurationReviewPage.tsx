@@ -892,60 +892,74 @@ const SECTIONS: SectionDef[] = [
 interface GroupDef {
   id: string;
   label: string;
+  icon: string;
   colorDone: string;
   colorActive: string;
   colorBorder: string;
   sectionKeys: string[];
+  prerequisiteGroups: string[];
 }
 
 const GROUPS: GroupDef[] = [
   {
-    id: "problem_definition",
-    label: "Problem Definition",
+    id: "foundation",
+    label: "1. Foundation",
+    icon: "🏗️",
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes", "success_metrics_kpis"],
+    sectionKeys: ["problem_statement", "scope", "expected_outcomes", "context_and_background"],
+    prerequisiteGroups: [],
   },
   {
-    id: "challenge_context",
-    label: "Challenge Context",
+    id: "analysis",
+    label: "2. Analysis",
+    icon: "🔍",
     colorDone: "bg-teal-100 text-teal-800 border-teal-300",
     colorActive: "bg-teal-50 border-teal-400",
     colorBorder: "border-teal-200",
     sectionKeys: ["root_causes", "affected_stakeholders", "current_deficiencies", "preferred_approach", "approaches_not_of_interest"],
+    prerequisiteGroups: ["foundation"],
   },
   {
-    id: "scope_complexity",
-    label: "Scope & Complexity",
+    id: "specification",
+    label: "3. Specification",
+    icon: "📋",
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["solution_type", "deliverables", "data_resources_provided", "maturity_level", "complexity"],
+    sectionKeys: ["solution_type", "deliverables", "maturity_level", "data_resources_provided", "success_metrics_kpis"],
+    prerequisiteGroups: ["foundation"],
   },
   {
-    id: "solvers_schedule",
-    label: "Solvers & Schedule",
+    id: "assessment",
+    label: "4. Assessment",
+    icon: "⚖️",
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["solver_expertise", "eligibility", "phase_schedule", "submission_guidelines"],
+    sectionKeys: ["complexity", "solver_expertise", "eligibility"],
+    prerequisiteGroups: ["specification"],
   },
   {
-    id: "evaluation_rewards",
-    label: "Evaluation & Rewards",
+    id: "execution",
+    label: "5. Execution",
+    icon: "⚡",
     colorDone: "bg-amber-100 text-amber-800 border-amber-300",
     colorActive: "bg-amber-50 border-amber-400",
     colorBorder: "border-amber-200",
-    sectionKeys: ["evaluation_criteria", "reward_structure", "ip_model", "escrow_funding", "legal_docs"],
+    sectionKeys: ["phase_schedule", "evaluation_criteria", "submission_guidelines", "reward_structure", "ip_model"],
+    prerequisiteGroups: ["specification", "assessment"],
   },
   {
-    id: "publish_discover",
-    label: "Publish & Discover",
+    id: "presentation",
+    label: "6. Publish",
+    icon: "🚀",
     colorDone: "bg-violet-100 text-violet-800 border-violet-300",
     colorActive: "bg-violet-50 border-violet-400",
     colorBorder: "border-violet-200",
-    sectionKeys: ["hook", "visibility", "domain_tags"],
+    sectionKeys: ["hook", "visibility", "domain_tags", "legal_docs", "escrow_funding"],
+    prerequisiteGroups: ["execution"],
   },
 ];
 
