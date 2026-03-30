@@ -1304,6 +1304,7 @@ serve(async (req) => {
           batchSectionConfigs,
           skip_analysis === true,
           provided_comments,
+          masterDataOptions,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {
