@@ -307,7 +307,8 @@ export function ComplexityAssessmentModule({
 
   const handleCancel = useCallback(() => {
     const fresh = buildDraftFromExisting(currentParams, effectiveParams);
-    setAiDraft(fresh);
+    // Restore AI draft from preserved ref (AI-suggested values), NOT from currentParams (which may have manual values)
+    setAiDraft(aiDraftRef.current ?? fresh);
     setManualDraft(fresh);
     setActiveTab("ai_review");
     setOverrideLevel(null);
