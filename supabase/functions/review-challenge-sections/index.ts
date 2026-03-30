@@ -1585,9 +1585,11 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 ${additionalData}`;
 
       let systemPrompt: string;
+      // Build context intelligence preamble
+      const contextIntel = buildContextIntelligence(challengeData, clientContext, (challengeData as any)._orgContext);
       if (useDbConfig && dbConfigMap) {
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
-        systemPrompt = buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
+        systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
       } else {
         systemPrompt = buildFallbackSystemPrompt(batch, resolvedContext);
         // Append master data constraints for fallback mode too
