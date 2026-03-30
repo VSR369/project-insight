@@ -413,6 +413,7 @@ async function callAIPass2Rewrite(
   waveAction: string,
   clientContext?: any,
   sectionConfigs?: SectionConfig[],
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
