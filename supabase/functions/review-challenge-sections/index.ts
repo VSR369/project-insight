@@ -1469,6 +1469,29 @@ serve(async (req) => {
       masterDataOptions = await fetchMasterDataOptions(adminClient);
     }
 
+    // ── Fetch extracted attachment content ────────────────
+    let attachmentsBySection: Record<string, { fileName: string; content: string }[]> = {};
+    if (resolvedContext === "curation") {
+      try {
+        const { data: attachments } = await adminClient
+          .from('challenge_attachments')
+          .select('section_key, file_name, mime_type, extracted_text')
+          .eq('challenge_id', challenge_id)
+          .eq('extraction_status', 'completed');
+
+        if (attachments?.length) {
+          for (const att of attachments) {
+            if (!att.extracted_text) continue;
+            if (!attachmentsBySection[att.section_key]) attachmentsBySection[att.section_key] = [];
+            attachmentsBySection[att.section_key].push({
+              fileName: att.file_name,
+              content: att.extracted_text.substring(0, 5000),
+            });
+          }
+        }
+      } catch { /* attachments are optional — graceful fallback */ }
+    }
+
     // ── Separate complexity from standard batch ─────────────
     const complexitySection = sectionsToReview.find(s => s.key === 'complexity');
     const standardSections = sectionsToReview.filter(s => s.key !== 'complexity');
