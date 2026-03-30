@@ -86,7 +86,7 @@ import {
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useSolutionTypeMap, SOLUTION_TYPE_TO_PROFICIENCY_AREA } from "@/hooks/queries/useSolutionTypeMap";
+import { useSolutionTypes, groupSolutionTypes, derivePrimaryGroup, getSelectedGroups, useSolutionTypeMap, SOLUTION_TYPE_TO_PROFICIENCY_AREA } from "@/hooks/queries/useSolutionTypeMap";
 
 import RewardStructureDisplay, { type RewardStructureDisplayHandle } from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
