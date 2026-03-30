@@ -1,46 +1,56 @@
 
 
-# Final 3 Bugs Fix Plan
+# Complexity Assessment — 4 Bugs Fix Plan
 
-## Bug 1 (HIGH): Reward Structure — Tiers Array vs Record Mismatch
+## Summary
 
-**Problem:** The prompt tells the LLM to return `tiers` as an array of objects, but `applyAIReviewResult` expects a `Record<string, number>`. When the LLM returns an array, `Object.entries()` yields index keys ("0", "1") which don't match valid tier names.
+The Accept button in the AI review panel computes its own score (wrong weights, wrong params) instead of delegating to the module. This causes score mismatches between what the module displays and what gets saved. Additionally, the Manual tab lacks an AI score reference.
 
-**Fix (2 changes):**
+## Changes
 
-1. **`promptTemplate.ts` line 104** — Change the reward_structure format instruction to tell the LLM to return tiers as an object `{"platinum": 75000, "gold": 25000, "silver": 10000}` instead of an array.
+### File 1: `ComplexityAssessmentModule.tsx`
 
-2. **`CurationReviewPage.tsx` ~line 2052** — Add defensive array-to-record conversion for `monetary.tiers` before calling `applyAIReviewResult`. This handles cases where the LLM ignores the instruction and returns an array anyway.
+**A. Convert to `forwardRef` + `useImperativeHandle`**
+- Wrap the component with `forwardRef` to expose a `saveAiDraft()` method
+- `saveAiDraft()` computes the weighted score using `effectiveParams` (correct weights) and `aiDraft`, then calls `onSave(aiDraft, score, level, "AI_AUTO", resolvedParams)`
 
-## Bug 2 (MEDIUM): Submission Guidelines — Column Collision with `description`
+**B. Expand `onSave` signature to include resolved params**
+- Add optional 5th param: `resolvedParams?: { param_key: string; name: string; value: number; weight: number }[]`
+- In `handleSave`, build `paramsToSave` from `effectiveParams` and pass it to `onSave`
 
-**Problem:** `submission_guidelines` uses `dbField: "description"`, which is the challenge's main description field. This causes data collision and garbled display when the description contains plain text.
+**C. Compute AI score independently for reference**
+- Add `aiScore` / `aiLevel` memos computed from `aiDraft` + `effectiveParams`
+- Pass to `ManualParamsTab` as optional `aiScoreRef` / `aiLevelRef` props
 
-**Fix (migration + code changes):**
+**D. Add AI reference badge in `ManualParamsTab`**
+- Before the "Weighted Score" display, show a small Bot icon + "AI recommended: X.XX (LN)" when available
 
-1. **DB Migration** — `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS submission_guidelines JSONB`
+### File 2: `CurationReviewPage.tsx`
 
-2. **`CurationReviewPage.tsx`:**
-   - Line 299: Change `dbField: "description"` → `dbField: "submission_guidelines"`
-   - Line 300-304: Update `isFilled` to read from `ch.submission_guidelines`
-   - Lines 2874-2877: Update render case to read from `challenge.submission_guidelines`
-   - Lines 2887, 2895: Update save mutations from `field: "description"` → `field: "submission_guidelines"`
-   - Update the dedicated Accept handler (Fix H) to use `submission_guidelines` field
+**E. Add `complexityModuleRef`**
+- `const complexityModuleRef = useRef<{ saveAiDraft: () => void }>(null);`
+- Pass `ref={complexityModuleRef}` to `ComplexityAssessmentModule` in the JSX (line ~3146)
 
-3. **Edge function `index.ts`** — Add `submission_guidelines` to the SELECT query
+**F. Replace complexity Accept handler**
+- Replace the score computation block (lines 1908-1923) with:
+  ```
+  complexityModuleRef.current?.saveAiDraft();
+  return;
+  ```
 
-## Bug 3 (LOW): Extended Brief Subsections Show Empty in Collapsed View
+**G. Update `handleSaveComplexity` to accept resolved params**
+- Add optional `resolvedParams` parameter
+- If provided, use it instead of iterating `complexityParams` (generic params)
+- This ensures solution-type-specific dimension keys and weights are saved to DB
 
-**Problem:** 6 extended brief subsections + hook + complexity have `render: () => null`, showing empty bodies in collapsed cards.
+## Technical Details
 
-**Fix:** Add inline preview renderers for each subsection that reads from `ch.extended_brief` and shows a brief summary (badge chips for line items, count for tables, truncated text for rich text). Complexity and hook already have dedicated modules/renderers — only the 6 extended brief subsections need render functions.
+- `forwardRef` + `useImperativeHandle` is the standard React pattern for parent-triggered child actions
+- The module already has the correct scoring logic (`effectiveParams` with equal `1/n` weights from `complexity_dimensions`)
+- The `resolvedParams` flow ensures DB gets solution-type dimension keys, not generic `master_complexity_params` keys
+- Bug 3 (module ignores saved score) resolves naturally because the module's own `weightedScore` IS the correct score when Accept delegates to it
 
 ## Files Modified
-
-1. `supabase/functions/review-challenge-sections/promptTemplate.ts` — Bug 1 (format instruction)
-2. `supabase/functions/review-challenge-sections/index.ts` — Bug 2 (add submission_guidelines to SELECT)
-3. `src/pages/cogniblend/CurationReviewPage.tsx` — Bugs 1, 2, 3 (defensive conversion, dbField change, render functions)
-4. **DB Migration** — Bug 2 (add submission_guidelines column)
-
-Edge function redeployment required after changes.
+1. `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` — forwardRef, saveAiDraft, resolved params, AI reference badge
+2. `src/pages/cogniblend/CurationReviewPage.tsx` — ref, delegate Accept, updated handleSaveComplexity
 
