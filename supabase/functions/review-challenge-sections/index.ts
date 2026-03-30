@@ -19,11 +19,15 @@
  * - Change 2: getModelForRequest routes critical sections to critical_model
  * - Change 3: skip_analysis + provided_comments for re-refine (Pass 2 only)
  * - Change 4: cleanAIOutput sanitizes literal \n in LLM output
+ * - FIX 1: Cross-section dependency injection in Pass 2
+ * - FIX 3: Curated Pass 1 user prompt (no raw JSON dump)
+ * - FIX 4: Enriched Pass 2 context header
+ * - FIX 8: Batch size optimization with solo sections
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, type SectionConfig } from "./promptTemplate.ts";
+import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +36,12 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MAX_BATCH_SIZE = 12;
+
+/* ── FIX 8: Reduced batch size + solo sections ── */
+const MAX_BATCH_SIZE = 6;
+const SOLO_SECTIONS = new Set([
+  'evaluation_criteria', 'reward_structure', 'deliverables', 'solver_expertise',
+]);
 
 /* ── Change 2: Critical sections for model routing ── */
 const CRITICAL_SECTIONS = new Set([
@@ -59,6 +68,50 @@ function cleanAIOutput(text: string | null | undefined): string | null {
     .replace(/\\\\/g, '\\')
     .trim();
 }
+
+/* ── FIX 3: Helper functions for curated prompts ── */
+
+function stripHtml(s: any): string {
+  if (!s) return '(empty)';
+  const t = String(s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return t.substring(0, 3000) || '(empty)';
+}
+
+function jsonBrief(v: any): string {
+  if (!v) return '(empty)';
+  if (typeof v === 'string' && v.trim().length === 0) return '(empty)';
+  const s = typeof v === 'string' ? v : JSON.stringify(v, null, 2);
+  return s.substring(0, 2000) || '(empty)';
+}
+
+/* ── FIX 1: Cross-section dependency map ── */
+
+const SECTION_DEPENDENCIES: Record<string, string[]> = {
+  evaluation_criteria: ['deliverables', 'expected_outcomes', 'scope'],
+  reward_structure: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule'],
+  solver_expertise: ['solution_type', 'deliverables', 'scope', 'domain_tags'],
+  eligibility: ['solver_expertise', 'maturity_level'],
+  phase_schedule: ['deliverables', 'maturity_level', 'complexity'],
+  submission_guidelines: ['deliverables', 'evaluation_criteria', 'phase_schedule'],
+  complexity: ['solution_type', 'deliverables', 'scope', 'maturity_level', 'data_resources_provided'],
+  deliverables: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
+  hook: ['problem_statement', 'scope', 'deliverables', 'reward_structure'],
+  visibility: ['solver_expertise', 'eligibility'],
+  domain_tags: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
+  success_metrics_kpis: ['expected_outcomes', 'deliverables'],
+  data_resources_provided: ['deliverables', 'scope'],
+  scope: ['problem_statement'],
+  expected_outcomes: ['problem_statement', 'scope'],
+  root_causes: ['problem_statement', 'context_and_background'],
+  affected_stakeholders: ['problem_statement', 'scope'],
+  current_deficiencies: ['problem_statement', 'root_causes'],
+  preferred_approach: ['problem_statement', 'root_causes', 'deliverables'],
+  approaches_not_of_interest: ['preferred_approach'],
+  ip_model: ['deliverables', 'maturity_level', 'reward_structure'],
+  maturity_level: ['deliverables', 'scope'],
+  context_and_background: ['problem_statement'],
+  solution_type: ['problem_statement', 'scope', 'deliverables'],
+};
 
 /* ── Hardcoded fallback section definitions ──────────────── */
 
@@ -227,6 +280,16 @@ async function fetchMasterDataOptions(
     .order("display_order");
   if (complexityData?.length) {
     result.complexity = complexityData.map((r: any) => ({ code: r.complexity_code, label: r.complexity_label }));
+  }
+
+  // Fetch solution types for domain_tags and solution_type sections
+  const { data: solutionTypeData } = await adminClient
+    .from("md_solution_types")
+    .select("code, label")
+    .eq("is_active", true)
+    .order("display_order");
+  if (solutionTypeData?.length) {
+    result.solution_type = solutionTypeData.map((r: any) => ({ code: r.code, label: r.label }));
   }
 
   return result;
@@ -412,6 +475,8 @@ const SECTION_FIELD_ALIASES: Record<string, string> = {
  * PASS 2: REWRITE — Generate suggestions for sections that need them.
  * Receives Pass 1 comments as explicit input. LLM focuses 100% on rewriting.
  * Now uses enriched buildPass2SystemPrompt with section-specific config (Change 1).
+ * FIX 1: Injects cross-section dependency content per section.
+ * FIX 4: Enriched context header replaces raw JSON dump.
  * ══════════════════════════════════════════════════════════════ */
 
 async function callAIPass2Rewrite(
@@ -429,8 +494,6 @@ async function callAIPass2Rewrite(
     const hasActionableComments = r.comments.some(
       (c: any) => c.type === 'error' || c.type === 'warning' || c.type === 'suggestion'
     );
-    // Include sections that: have actionable comments, need generation, need revision,
-    // OR are in a 'warning'/'pass' state but have no current content (empty sections needing generation)
     const aliasedField = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
     const sectionContent = challengeData[aliasedField] ?? challengeData[r.section_key];
     const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
@@ -486,6 +549,33 @@ async function callAIPass2Rewrite(
     const formatInstruction = getSuggestionFormatInstruction(r.section_key);
     const formatType = getSectionFormatType(r.section_key);
 
+    // FIX 1: Inject dependent section content for cross-section consistency
+    const deps = SECTION_DEPENDENCIES[r.section_key] || [];
+    const depParts: string[] = [];
+    for (const depKey of deps) {
+      const af = SECTION_FIELD_ALIASES[depKey] || depKey;
+      let content = challengeData[af] ?? challengeData[depKey];
+      // Also check extended_brief for EB subsections
+      if (!content && EXTENDED_BRIEF_KEYS.has(depKey) && challengeData.extended_brief) {
+        try {
+          const ebField = EB_FIELD_MAP[depKey] || depKey;
+          const eb = typeof challengeData.extended_brief === 'string'
+            ? JSON.parse(challengeData.extended_brief)
+            : challengeData.extended_brief;
+          content = eb?.[ebField];
+        } catch { /* ignore */ }
+      }
+      if (!content) continue;
+      const str = typeof content === 'string' ? content : JSON.stringify(content);
+      if (str.length < 5) continue;
+      // Strip HTML for readability, truncate
+      const cleaned = str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      depParts.push(`${depKey}: ${cleaned.substring(0, 1500)}`);
+    }
+    const depBlock = depParts.length > 0
+      ? `\nRELATED SECTIONS (your output MUST align with these):\n${depParts.join('\n')}\n`
+      : '';
+
     return `### Section: ${r.section_key}
 ${r.status === 'generated' ? 'ACTION: Generate new content from scratch based on challenge context.' : 'ACTION: Revise the existing content to address all issues below.'}
 
@@ -493,7 +583,7 @@ FORMAT: ${formatType}. ${formatInstruction}
 
 ORIGINAL CONTENT:
 ${contentStr}
-
+${depBlock}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
 ${actionableComments || '(No specific issues — generate fresh content based on challenge context)'}
 
@@ -504,14 +594,21 @@ ${r.guidelines?.length > 0 ? `GUIDELINES:\n- ${r.guidelines.join('\n- ')}` : ''}
 Produce the REVISED/GENERATED content now. Return it in the "suggestion" field for this section_key.`;
   });
 
+  // FIX 4: Enriched Pass 2 context header
   const pass2UserPrompt = `Rewrite/generate content for the following ${sectionPrompts.length} section(s).
 
 CHALLENGE CONTEXT:
-${JSON.stringify(challengeData, null, 2)}
+Title: ${challengeData.title || '(untitled)'}
+Solution Type: ${clientContext?.solutionType || challengeData.solution_type || 'not set'}
+Maturity Level: ${clientContext?.maturityLevel || challengeData.maturity_level || 'not set'}
+Complexity: ${clientContext?.complexityLevel || challengeData.complexity_level || 'not set'} (Score: ${challengeData.complexity_score || 'N/A'})
+Operating Model: ${challengeData.operating_model || 'marketplace'}
+Currency: ${challengeData.currency_code || 'USD'}
+${clientContext?.rateCard ? `Rate Card: Floor $${clientContext.rateCard.effortRateFloor}/hr, Reward floor $${clientContext.rateCard.rewardFloorAmount}` : ''}
+Today's Date: ${clientContext?.todaysDate || new Date().toISOString().split('T')[0]}
 
-${clientContext?.todaysDate ? `Today's date: ${clientContext.todaysDate}. All dates must be in the future relative to this date.` : ''}
-${clientContext?.maturityLevel ? `Maturity level: ${clientContext.maturityLevel}` : ''}
-${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` : ''}
+FULL CHALLENGE DATA:
+${JSON.stringify(challengeData, null, 2)}
 
 SECTIONS TO REWRITE:
 ${sectionPrompts.join('\n\n---\n\n')}`;
@@ -619,9 +716,9 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   const parsed = JSON.parse(toolCall.function.arguments);
   const suggestionMap = new Map<string, string>();
 
-  const sections = parsed.sections ?? parsed;
-  if (Array.isArray(sections)) {
-    for (const s of sections) {
+  const resultSections = parsed.sections ?? parsed;
+  if (Array.isArray(resultSections)) {
+    for (const s of resultSections) {
       if (s.section_key && s.suggestion) {
         const fmt = getSectionFormatType(s.section_key);
         if (fmt === 'table' || fmt === 'schedule_table') {
@@ -726,7 +823,6 @@ async function callComplexityAI(
   const solutionType = challengeData.solution_type || clientContext?.solutionType || null;
 
   if (!solutionType) {
-    // Return a structured error result instead of scoring with wrong dimensions
     console.warn("Complexity assessment skipped: no solution_type set on challenge");
     const now = new Date().toISOString();
     return {
@@ -1088,7 +1184,7 @@ serve(async (req) => {
         ? "title, reward_structure, phase_schedule, ai_section_reviews"
         : resolvedContext === "evaluation"
         ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id, submission_guidelines";
+        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id, submission_guidelines, operating_model";
 
       const fetchPromises: Promise<any>[] = [
         adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
@@ -1225,10 +1321,18 @@ serve(async (req) => {
     const complexitySection = sectionsToReview.find(s => s.key === 'complexity');
     const standardSections = sectionsToReview.filter(s => s.key !== 'complexity');
 
-    // ── Batch-split standard sections for AI calls ───────────
+    // ── FIX 8: Smart batching — solo sections get their own batch ──
     const batches: { key: string; desc: string }[][] = [];
-    for (let i = 0; i < standardSections.length; i += MAX_BATCH_SIZE) {
-      batches.push(standardSections.slice(i, i + MAX_BATCH_SIZE));
+    const soloSections = standardSections.filter(s => SOLO_SECTIONS.has(s.key));
+    const regularSections = standardSections.filter(s => !SOLO_SECTIONS.has(s.key));
+
+    // Solo sections get individual batches
+    for (const solo of soloSections) {
+      batches.push([solo]);
+    }
+    // Regular sections batched normally
+    for (let i = 0; i < regularSections.length; i += MAX_BATCH_SIZE) {
+      batches.push(regularSections.slice(i, i + MAX_BATCH_SIZE));
     }
 
     const allNewSections: any[] = [];
@@ -1260,7 +1364,8 @@ serve(async (req) => {
       // Per-batch model selection: critical sections get premium model
       const batchKeys = batch.map(b => b.key);
       const modelToUse = getModelForRequest(batchKeys, globalConfig);
-      // Build action-aware user prompt instruction for Pass 1 (analysis only)
+
+      // FIX 3: Build curated user prompt instead of raw JSON dump
       let userPromptInstruction: string;
       if (wave_action === 'generate') {
         userPromptInstruction = `The following section(s) are EMPTY. Analyze what content should be generated for each based on the challenge context. Set status to "generated" and provide specific comments about what the generated content should include. Focus on thorough analysis — the actual content generation will happen in a separate step.`;
@@ -1272,7 +1377,69 @@ serve(async (req) => {
         userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments for each section. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
       }
 
-      const userPrompt = `${userPromptInstruction}\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
+      // FIX 3: Curated challenge data — strip irrelevant fields, structure clearly
+      const { ai_section_reviews, targeting_filters, lc_review_required, ...relevantData } = challengeData;
+
+      const eb = relevantData.extended_brief && typeof relevantData.extended_brief === 'object' ? relevantData.extended_brief : {};
+
+      const userPrompt = `${userPromptInstruction}
+
+CHALLENGE DATA:
+Title: ${relevantData.title || '(untitled)'}
+Solution Type: ${relevantData.solution_type || '(not set)'}
+Maturity Level: ${relevantData.maturity_level || '(not set)'}
+Complexity: ${relevantData.complexity_level || '(not set)'} (Score: ${relevantData.complexity_score ?? 'N/A'})
+
+Problem Statement:
+${stripHtml(relevantData.problem_statement)}
+
+Scope:
+${stripHtml(relevantData.scope)}
+
+Deliverables:
+${jsonBrief(relevantData.deliverables)}
+
+Expected Outcomes:
+${jsonBrief(relevantData.expected_outcomes)}
+
+Evaluation Criteria:
+${jsonBrief(relevantData.evaluation_criteria)}
+
+Phase Schedule:
+${jsonBrief(relevantData.phase_schedule)}
+
+Reward Structure:
+${jsonBrief(relevantData.reward_structure)}
+
+IP Model: ${relevantData.ip_model || '(not set)'}
+
+Solver Expertise Requirements:
+${jsonBrief(relevantData.solver_expertise || relevantData.solver_expertise_requirements)}
+
+Eligibility: ${jsonBrief(relevantData.eligibility || relevantData.solver_eligibility_types)}
+Visibility: ${jsonBrief(relevantData.visibility || relevantData.solver_visibility_types)}
+
+Success Metrics & KPIs:
+${jsonBrief(relevantData.success_metrics_kpis)}
+
+Data & Resources:
+${jsonBrief(relevantData.data_resources_provided)}
+
+Domain Tags: ${jsonBrief(relevantData.domain_tags)}
+Challenge Hook: ${stripHtml(relevantData.hook)}
+
+Context & Background:
+${stripHtml(relevantData.context_and_background || (eb as any).context_background)}
+
+Root Causes: ${jsonBrief(relevantData.root_causes || (eb as any).root_causes)}
+Affected Stakeholders: ${jsonBrief(relevantData.affected_stakeholders || (eb as any).affected_stakeholders)}
+Current Deficiencies: ${jsonBrief(relevantData.current_deficiencies || (eb as any).current_deficiencies)}
+Preferred Approach: ${jsonBrief(relevantData.preferred_approach || (eb as any).preferred_approach)}
+Approaches NOT of Interest: ${jsonBrief(relevantData.approaches_not_of_interest || (eb as any).approaches_not_of_interest)}
+Submission Guidelines: ${jsonBrief(relevantData.submission_guidelines)}
+Solution Type: ${jsonBrief(relevantData.solution_type)}
+
+${additionalData}`;
 
       let systemPrompt: string;
       if (useDbConfig && dbConfigMap) {
@@ -1325,8 +1492,6 @@ serve(async (req) => {
       const promptSource = useDbConfig ? "supervisor" : "default";
       try {
         // ═══ TWO-PASS: Pass 1 (Analyze) + Pass 2 (Rewrite) ═══
-        // Change 1: Pass sectionConfigs for enriched Pass 2
-        // Change 3: Pass skip_analysis and provided_comments
         const batchResults = await callAIBatchTwoPass(
           LOVABLE_API_KEY,
           modelToUse,
