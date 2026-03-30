@@ -27,7 +27,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, type SectionConfig } from "./promptTemplate.ts";
+import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, buildContextIntelligence, SECTION_WAVE_CONTEXT, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -663,8 +663,15 @@ async function callAIPass2Rewrite(
       ? `\nRELATED SECTIONS — CHECK EACH FOR THE STATED REASON:\n${depParts.join('\n\n')}\n`
       : '';
 
+    // Wave context injection for Pass 2
+    const waveCtx = SECTION_WAVE_CONTEXT[r.section_key];
+    const waveBlock = waveCtx
+      ? `\nWAVE POSITION: ${waveCtx.wave} (${waveCtx.waveName}). ${waveCtx.strategicRole}\n${waveCtx.downstreamSections.length > 0 ? `Your output will affect: ${waveCtx.downstreamSections.join(', ')}. Ensure consistency.\n` : ''}`
+      : '';
+
     return `### Section: ${r.section_key}
 ${r.status === 'generated' ? 'ACTION: Generate new content from scratch based on challenge context.' : 'ACTION: Revise the existing content to address all issues below.'}
+${waveBlock}
 
 FORMAT: ${formatType}. ${formatInstruction}
 
@@ -1322,6 +1329,28 @@ serve(async (req) => {
 
       challengeData = challengeResult.data;
 
+      // ── Fetch organization context for intelligence layer ──
+      let orgContext: { orgType?: string; orgName?: string } = {};
+      if (challengeData.organization_id) {
+        try {
+          const { data: org } = await adminClient
+            .from('seeker_organizations')
+            .select('name, organization_type_id')
+            .eq('id', challengeData.organization_id)
+            .single();
+          if (org?.organization_type_id) {
+            const { data: ot } = await adminClient
+              .from('organization_types')
+              .select('name')
+              .eq('id', org.organization_type_id)
+              .single();
+            orgContext = { orgType: ot?.name ?? undefined, orgName: org?.name ?? undefined };
+          } else if (org?.name) {
+            orgContext = { orgName: org.name };
+          }
+        } catch { /* org context is optional — graceful fallback */ }
+      }
+
       // Extract extended_brief fields for intake/spec
       if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
         const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
@@ -1459,9 +1488,27 @@ serve(async (req) => {
       } else if (wave_action === 'review_and_enhance') {
         userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. Provide detailed comments on what needs improvement. Focus on thorough analysis — content improvement will happen in a separate step.`;
       } else if (section_key) {
-        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
+        userPromptInstruction = `You are re-reviewing the "${section_key}" section of this challenge.
+
+BEFORE REVIEWING, THINK:
+1. What WAVE does this section belong to? What sections were established before it? What depends on it?
+2. What ARCHETYPE is this challenge? (Data/ML, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX, Cybersecurity)
+3. What would a TOP SOLVER need from this section to produce an excellent submission?
+4. What is the BIGGEST RISK if this section is wrong or incomplete?
+
+Then review for quality, consistency, correctness, and completeness — through the lens of "will this produce a winning challenge?"`;
       } else {
-        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments for each section. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
+        userPromptInstruction = `You are performing a comprehensive review of this challenge for publication readiness.
+
+BEFORE REVIEWING INDIVIDUAL SECTIONS, BUILD YOUR MENTAL MODEL:
+1. **CHALLENGE ARCHETYPE**: What type of challenge is this? (Data/ML Pipeline, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX Innovation, Cybersecurity Assessment)
+2. **MATURITY-COMPLEXITY PROFILE**: ${challengeData.maturity_level || 'unknown'} maturity at ${challengeData.complexity_level || 'unknown'} complexity → what does "good" look like for this profile?
+3. **TARGET SOLVER**: Who would solve this? Individual expert? Small team? Organization? What domain expertise? What geography?
+4. **STRATEGIC NARRATIVE**: Does the challenge tell a coherent story? Problem → Cause → Scope → Deliverables → Evaluation → Reward
+5. **COMPETITIVE POSITION**: Would a top solver choose THIS challenge over alternatives on InnoCentive/HeroX/Kaggle?
+6. **PUBLICATION RISK**: What is the single biggest risk to this challenge's success?
+
+Carry these answers through every section review. Each comment should reflect your understanding of the whole, not just the part.`;
       }
 
       // FIX 3: Curated challenge data — strip irrelevant fields, structure clearly
@@ -1538,11 +1585,13 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 ${additionalData}`;
 
       let systemPrompt: string;
+      // Build context intelligence preamble
+      const contextIntel = buildContextIntelligence(challengeData, clientContext, (challengeData as any)._orgContext);
       if (useDbConfig && dbConfigMap) {
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
-        systemPrompt = buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
+        systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
       } else {
-        systemPrompt = buildFallbackSystemPrompt(batch, resolvedContext);
+        systemPrompt = contextIntel + '\n\n' + buildFallbackSystemPrompt(batch, resolvedContext);
         // Append master data constraints for fallback mode too
         if (Object.keys(masterDataOptions).length > 0) {
           const mdLines: string[] = ["\n\n## Master Data Constraints"];

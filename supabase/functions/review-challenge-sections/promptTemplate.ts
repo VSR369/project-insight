@@ -400,55 +400,365 @@ ANTI-HALLUCINATION RULES:
 - If you lack context, say exactly what information is needed and from which section.
 - NEVER generate generic consulting boilerplate. Every sentence must reference THIS specific challenge.`;
 
-/* ── Intelligence Directive (Change 6) ── */
+/* ── Intelligence Directive — Domain Expert Consultant (replaces checklist-style directive) ── */
 
 const INTELLIGENCE_DIRECTIVE = `
-## USE YOUR DOMAIN EXPERTISE
+## YOUR ROLE: DOMAIN EXPERT CONSULTANT (NOT TEMPLATE AUDITOR)
 
-You are NOT a passive checklist auditor. You are a principal consultant who KNOWS this domain deeply.
+You are a PRINCIPAL CONSULTANT who has spent 15+ years in this domain. You have:
+- Delivered 200+ similar engagements across multiple geographies
+- Published industry benchmarks and best practice guides
+- Advised C-suite executives on exactly this type of challenge
+- Seen what works, what fails, and why — from direct experience
 
-1. DOMAIN BEST PRACTICES: You KNOW standard KPIs, typical benchmarks, common pitfalls. When reviewing a supply chain challenge, reference MTBF/MTTR. When reviewing cybersecurity, reference NIST CSF 2.0. USE this knowledge in best_practice comments.
+### PRIMARY MODE: THINK, THEN CHECK
 
-2. INDUSTRY BENCHMARKS: You KNOW that similar challenges on InnoCentive/HeroX typically offer $X-$Y rewards, take 8-14 weeks for POCs, and produce 15-40 submissions. CITE these in context.
+Do NOT start by checking format rules and word counts. START by understanding the challenge:
 
-3. COMMON PITFALLS: WARN about domain-specific risks. Enterprise integration POCs fail 40% of the time due to auth gaps. ML challenges fail when training data doesn't match production distribution. Be specific.
+1. **COMPREHEND**: Read the entire challenge. What is this organization trying to achieve? What are the real constraints (stated and unstated)? What does success look like?
 
-4. FRAMEWORK APPLICATION: Don't just NAME frameworks. APPLY them. If TOGAF is relevant, check whether deliverables follow ADM phases. If Design Thinking applies, check whether the problem statement is user-centered.
+2. **CONTEXTUALIZE**: How does this compare to similar challenges you've seen? What worked? What failed? What were the non-obvious risks? What did the best solutions look like?
 
-5. CHALLENGE ARCHETYPE RECOGNITION: Before reviewing any section, identify which archetype this challenge fits:
-   - **Data/ML Pipeline**: Needs training data specification, model evaluation metrics, MLOps deployment plan, bias/fairness considerations
-   - **Enterprise Integration**: Needs system landscape, API contracts, auth requirements, rollback plan, performance SLAs
-   - **Process Redesign**: Needs current-state process map reference, change management stakeholders, adoption metrics, quick-win vs long-term phases
-   - **Strategic Advisory**: Needs executive audience framing, decision framework, implementation roadmap with governance gates
-   - **Product/UX Innovation**: Needs user persona reference, journey mapping, prototype fidelity definition, user testing protocol
-   - **Cybersecurity Assessment**: Needs threat model scope, compliance mapping, risk quantification method, remediation prioritization
+3. **THEN CRITIQUE**: Now check quality, completeness, consistency — but through the lens of "would this challenge attract a winning solution from a top solver?" Not "does this meet a checklist."
 
-   Your comments MUST reflect the archetype. For a Data/ML challenge, flag missing training data specs as an ERROR, not a suggestion. For Strategic Advisory, flag missing governance framework as an ERROR.
+### WHAT YOU KNOW — AND MUST USE:
 
-6. MATURITY-APPROPRIATE DEPTH:
-   - **Blueprint reviews**: Focus on strategic framing, stakeholder alignment, feasibility assessment. Flag overly technical deliverables as errors.
-   - **POC reviews**: Focus on technical feasibility, data availability, integration points, demo-readiness. Flag missing test criteria as errors.
-   - **Pilot reviews**: Focus on production readiness, scalability, security, operations handover, training plan. Flag missing SLAs as errors.
+**From your training on consulting engagements:**
+- Standard project structures for this type of work (what deliverables are typically expected)
+- Typical timelines and budget ranges for similar scope
+- Common failure modes and how to prevent them
+- Industry-specific regulatory and compliance requirements
+- Framework applicability (not just naming TOGAF — knowing WHEN and HOW it applies)
 
-   The SAME deliverable phrased differently is appropriate at different maturity levels:
-   - Blueprint: "Architecture recommendation document covering data flow, component selection rationale, and estimated infrastructure costs"
-   - POC: "Working data pipeline processing 1000 records/minute with <500ms latency, deployed on Docker, with automated test suite achieving >80% coverage"
-   - Pilot: "Production-grade data pipeline processing 50K records/minute with <100ms P99 latency, deployed on Kubernetes with auto-scaling, monitoring dashboard, runbook, and SLA of 99.9% uptime"
+**From your training on open innovation platforms:**
+- What makes a challenge attractive to top solvers (specificity, fairness, interesting problem)
+- What makes solvers SKIP a challenge (vague scope, unfair IP terms, unrealistic timeline, low reward-to-effort ratio)
+- Typical submission quality distribution (expect 5-10% excellent, 20-30% good, rest mediocre)
+- How challenge design affects submission count and quality
 
-7. SOLVER-PERSPECTIVE THINKING: Before concluding your review of any section, mentally become a solver:
-   - "Would I understand this problem well enough to propose a solution?"
-   - "Do I know exactly what to deliver, in what format, by when?"
-   - "Is the reward worth the effort for this complexity level?"
-   - "What risks do I face (IP, scope creep, unclear acceptance criteria)?"
-   
-   Flag every uncertainty a solver would have as a [SOLVER VIEW] warning.
+**From your training on industry data:**
+- Benchmarks: cost structures, KPIs, performance metrics for this industry
+- Technology maturity: what's proven vs experimental in this domain
+- Market dynamics: competitive landscape, vendor ecosystem, talent availability
+- Regulatory: compliance requirements by geography and industry
 
-GUARDRAILS:
-- NEVER invent specific numbers, costs, system names, or specs not in the challenge context.
-- NEVER fabricate analyst quotes or regulatory citations.
-- Domain knowledge adds CONTEXT and DEPTH — not fabricated specifics about THIS organization.
-- THE TEST: "Would a Deloitte principal consultant know this from experience?" Yes → include. Requires insider knowledge → don't.
+### HOW TO EXPRESS THIS KNOWLEDGE:
+
+In EVERY comment, ground your observation in domain experience:
+- BAD: "The problem statement could be more specific."
+- GOOD: "In predictive maintenance challenges, the #1 reason for poor submissions is that the problem statement doesn't specify the failure mode taxonomy. Solvers need to know whether they're detecting bearing wear, thermal anomalies, vibration patterns, or electrical faults — each requires different sensor data and different ML approaches. This problem statement should specify which failure modes are in scope."
+
+- BAD: "Consider adding more evaluation criteria."
+- GOOD: "For a POC-level AI/ML challenge, the standard evaluation framework includes: (1) Model accuracy on held-out test set (30-40% weight), (2) Inference latency under production load (15-20%), (3) Data preprocessing robustness (10-15%), (4) Documentation and reproducibility (10-15%), (5) Scalability assessment (10-15%). This challenge only has 2 criteria covering (1) and (5). Adding the others would dramatically improve submission quality and evaluation fairness."
+
+### CHALLENGE ARCHETYPE RECOGNITION:
+
+Before reviewing any section, identify which archetype this challenge fits:
+- **Data/ML Pipeline**: Needs training data specification, model evaluation metrics, MLOps deployment plan, bias/fairness considerations
+- **Enterprise Integration**: Needs system landscape, API contracts, auth requirements, rollback plan, performance SLAs
+- **Process Redesign**: Needs current-state process map reference, change management stakeholders, adoption metrics, quick-win vs long-term phases
+- **Strategic Advisory**: Needs executive audience framing, decision framework, implementation roadmap with governance gates
+- **Product/UX Innovation**: Needs user persona reference, journey mapping, prototype fidelity definition, user testing protocol
+- **Cybersecurity Assessment**: Needs threat model scope, compliance mapping, risk quantification method, remediation prioritization
+
+Your comments MUST reflect the archetype. For a Data/ML challenge, flag missing training data specs as an ERROR, not a suggestion. For Strategic Advisory, flag missing governance framework as an ERROR.
+
+### MATURITY-APPROPRIATE DEPTH:
+
+- **Blueprint reviews**: Focus on strategic framing, stakeholder alignment, feasibility assessment. Flag overly technical deliverables as errors.
+- **POC reviews**: Focus on technical feasibility, data availability, integration points, demo-readiness. Flag missing test criteria as errors.
+- **Pilot reviews**: Focus on production readiness, scalability, security, operations handover, training plan. Flag missing SLAs as errors.
+
+The SAME deliverable phrased differently is appropriate at different maturity levels:
+- Blueprint: "Architecture recommendation document covering data flow, component selection rationale, and estimated infrastructure costs"
+- POC: "Working data pipeline processing 1000 records/minute with <500ms latency, deployed on Docker, with automated test suite achieving >80% coverage"
+- Pilot: "Production-grade data pipeline processing 50K records/minute with <100ms P99 latency, deployed on Kubernetes with auto-scaling, monitoring dashboard, runbook, and SLA of 99.9% uptime"
+
+### SOLVER-PERSPECTIVE THINKING:
+
+Before concluding your review of any section, mentally become a solver:
+- "Would I understand this problem well enough to propose a solution?"
+- "Do I know exactly what to deliver, in what format, by when?"
+- "Is the reward worth the effort for this complexity level?"
+- "What risks do I face (IP, scope creep, unclear acceptance criteria)?"
+
+Flag every uncertainty a solver would have as a [SOLVER VIEW] warning.
+
+### GUARDRAILS (still apply):
+- Use domain knowledge for CONTEXT and BENCHMARKS — never for fabricated specifics about THIS organization
+- Never invent system names, cost figures, regulatory citations you're not confident about
+- If unsure about a domain-specific claim, say "in my experience" rather than stating as fact
+- THE TEST: "Would a Deloitte principal consultant with 15 years in this domain say this from experience?" Yes → include.
 `;
+
+/* ── SECTION_WAVE_CONTEXT: Strategic role and lifecycle position for each section ── */
+
+export const SECTION_WAVE_CONTEXT: Record<string, {
+  wave: number;
+  waveName: string;
+  strategicRole: string;
+  upstreamSections: string[];
+  downstreamSections: string[];
+}> = {
+  problem_statement: {
+    wave: 1, waveName: 'Foundation',
+    strategicRole: 'THE ANCHOR — everything flows from this. If the problem is vague, every downstream section will be misaligned. This must be crystal clear to a solver who has never heard of this organization.',
+    upstreamSections: [],
+    downstreamSections: ['scope', 'deliverables', 'expected_outcomes', 'root_causes', 'hook', 'solver_expertise', 'solution_type'],
+  },
+  scope: {
+    wave: 1, waveName: 'Foundation',
+    strategicRole: 'THE BOUNDARY — defines what solvers should and should NOT address. Every downstream section must fit within scope. If scope is ambiguous, solvers waste effort on out-of-scope work.',
+    upstreamSections: ['problem_statement'],
+    downstreamSections: ['deliverables', 'solver_expertise', 'eligibility', 'submission_guidelines', 'domain_tags', 'complexity'],
+  },
+  expected_outcomes: {
+    wave: 1, waveName: 'Foundation',
+    strategicRole: 'THE MEASURE OF SUCCESS — these are what the seeker will use to judge whether the challenge was worth it. Must be SMART. Directly drives evaluation_criteria and success_metrics_kpis.',
+    upstreamSections: ['problem_statement', 'scope'],
+    downstreamSections: ['evaluation_criteria', 'deliverables', 'success_metrics_kpis'],
+  },
+  context_and_background: {
+    wave: 1, waveName: 'Foundation',
+    strategicRole: 'THE EQUALIZER — gives external solvers the same contextual understanding that internal teams have. Without this, solvers from outside the organization are at a massive disadvantage.',
+    upstreamSections: ['problem_statement'],
+    downstreamSections: ['root_causes', 'affected_stakeholders', 'current_deficiencies'],
+  },
+  success_metrics_kpis: {
+    wave: 1, waveName: 'Foundation',
+    strategicRole: 'THE SCORECARD — quantitative measures that make outcomes tangible and verifiable. These become the basis for evaluation criteria.',
+    upstreamSections: ['expected_outcomes', 'deliverables'],
+    downstreamSections: ['evaluation_criteria'],
+  },
+  solution_type: {
+    wave: 2, waveName: 'Enrichment',
+    strategicRole: 'THE SOLVER FILTER — determines which solver pool this challenge reaches. Wrong type = wrong solvers = poor submissions.',
+    upstreamSections: ['problem_statement', 'scope', 'deliverables'],
+    downstreamSections: ['complexity', 'solver_expertise', 'domain_tags', 'deliverables'],
+  },
+  root_causes: {
+    wave: 2, waveName: 'Enrichment',
+    strategicRole: 'THE DIAGNOSTIC — tells solvers WHY the problem exists so they can address causes not symptoms.',
+    upstreamSections: ['problem_statement', 'context_and_background'],
+    downstreamSections: ['preferred_approach', 'current_deficiencies', 'deliverables'],
+  },
+  affected_stakeholders: {
+    wave: 2, waveName: 'Enrichment',
+    strategicRole: 'THE ADOPTION MAP — tells solvers who will use their solution and what resistance to expect. Adoption challenges are the #1 reason innovation projects fail post-delivery.',
+    upstreamSections: ['problem_statement', 'scope'],
+    downstreamSections: [],
+  },
+  current_deficiencies: {
+    wave: 2, waveName: 'Enrichment',
+    strategicRole: 'THE BASELINE — establishes the measurable current state so solvers know what "improvement" means and can quantify their impact.',
+    upstreamSections: ['problem_statement', 'root_causes'],
+    downstreamSections: ['deliverables', 'preferred_approach'],
+  },
+  preferred_approach: {
+    wave: 2, waveName: 'Enrichment',
+    strategicRole: 'THE SEEKER VOICE — human-authored strategic direction. AI must NEVER override this. It represents organizational knowledge the AI cannot have.',
+    upstreamSections: ['problem_statement', 'root_causes', 'deliverables'],
+    downstreamSections: ['approaches_not_of_interest'],
+  },
+  approaches_not_of_interest: {
+    wave: 2, waveName: 'Enrichment',
+    strategicRole: 'THE GUARDRAIL — prevents solvers from wasting time on approaches the seeker has already rejected or that violate organizational constraints.',
+    upstreamSections: ['preferred_approach'],
+    downstreamSections: [],
+  },
+  deliverables: {
+    wave: 3, waveName: 'Complexity',
+    strategicRole: 'THE CONTRACT — the most important section after problem_statement. This is what solvers COMMIT to produce. Vague deliverables = disputes, scope creep, and failed evaluations.',
+    upstreamSections: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
+    downstreamSections: ['complexity', 'solver_expertise', 'submission_guidelines', 'evaluation_criteria', 'maturity_level', 'data_resources_provided'],
+  },
+  maturity_level: {
+    wave: 3, waveName: 'Complexity',
+    strategicRole: 'THE CALIBRATOR — sets the depth expectation. Blueprint solvers write documents. POC solvers build prototypes. Pilot solvers deploy systems. Mismatched maturity = wrong deliverable quality.',
+    upstreamSections: ['deliverables', 'scope'],
+    downstreamSections: ['complexity', 'phase_schedule', 'reward_structure'],
+  },
+  complexity: {
+    wave: 3, waveName: 'Complexity',
+    strategicRole: 'THE PRICE SETTER — complexity directly determines appropriate reward, timeline, and solver tier. Underestimated complexity = underfunded challenge = no quality submissions.',
+    upstreamSections: ['solution_type', 'deliverables', 'scope', 'maturity_level', 'data_resources_provided'],
+    downstreamSections: ['phase_schedule', 'reward_structure', 'solver_expertise'],
+  },
+  data_resources_provided: {
+    wave: 3, waveName: 'Complexity',
+    strategicRole: 'THE ENABLER — solvers cannot produce deliverables without access to required data, APIs, and documentation. Missing resources = blocked solvers = failed challenge.',
+    upstreamSections: ['deliverables', 'scope'],
+    downstreamSections: ['submission_guidelines'],
+  },
+  solver_expertise: {
+    wave: 4, waveName: 'Solvers & Timeline',
+    strategicRole: 'THE TALENT SPECIFICATION — defines who can solve this. Too narrow = no submissions. Too broad = poor quality. Must precisely match deliverable requirements.',
+    upstreamSections: ['solution_type', 'deliverables', 'scope', 'domain_tags'],
+    downstreamSections: ['eligibility'],
+  },
+  eligibility: {
+    wave: 4, waveName: 'Solvers & Timeline',
+    strategicRole: 'THE ACCESS GATE — controls which solver tiers can participate. Blueprint challenges can accept individuals. Pilot challenges often need organizations with infrastructure.',
+    upstreamSections: ['solver_expertise', 'maturity_level'],
+    downstreamSections: [],
+  },
+  phase_schedule: {
+    wave: 4, waveName: 'Solvers & Timeline',
+    strategicRole: 'THE TIMELINE — must be realistic for the complexity and maturity level. Compressed timelines discourage top solvers. Overlong timelines lose urgency.',
+    upstreamSections: ['deliverables', 'maturity_level', 'complexity'],
+    downstreamSections: ['submission_guidelines', 'evaluation_criteria'],
+  },
+  submission_guidelines: {
+    wave: 4, waveName: 'Solvers & Timeline',
+    strategicRole: 'THE BRIDGE — connects what solvers produce (deliverables) with how they are assessed (evaluation_criteria). Every deliverable needs a submission format. Every criterion needs an assessable artifact.',
+    upstreamSections: ['deliverables', 'evaluation_criteria', 'phase_schedule'],
+    downstreamSections: [],
+  },
+  evaluation_criteria: {
+    wave: 5, waveName: 'Evaluation & Commercial',
+    strategicRole: 'THE JUDGE — weights must sum to 100%. Each criterion must map to at least one deliverable. Each deliverable must be assessed by at least one criterion. Poorly designed criteria = disputed results.',
+    upstreamSections: ['deliverables', 'expected_outcomes', 'scope'],
+    downstreamSections: [],
+  },
+  reward_structure: {
+    wave: 5, waveName: 'Evaluation & Commercial',
+    strategicRole: 'THE MOTIVATOR — must be proportional to complexity, competitive in the market, and fair given the IP model. Low rewards for high complexity = no top-tier submissions.',
+    upstreamSections: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule'],
+    downstreamSections: [],
+  },
+  ip_model: {
+    wave: 5, waveName: 'Evaluation & Commercial',
+    strategicRole: 'THE VALUE EXCHANGE — defines who owns what. Stronger IP transfer demands higher rewards. Must match deliverable nature (can\'t transfer IP that doesn\'t exist in a Blueprint).',
+    upstreamSections: ['deliverables', 'maturity_level', 'reward_structure'],
+    downstreamSections: [],
+  },
+  hook: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE FIRST IMPRESSION — solvers see this first. 3 seconds to decide if they read further. Must communicate the "so what" — why THIS challenge is worth their time over alternatives.',
+    upstreamSections: ['problem_statement', 'scope', 'deliverables', 'reward_structure'],
+    downstreamSections: [],
+  },
+  visibility: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE FAIRNESS SETTING — anonymous evaluation reduces bias but prevents team assessment. Named visibility enables credential review but introduces institutional bias.',
+    upstreamSections: ['solver_expertise', 'eligibility'],
+    downstreamSections: [],
+  },
+  domain_tags: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE DISCOVERY ENGINE — how solvers find this challenge. Wrong tags = invisible to the right solvers. Generic tags = drowned in noise.',
+    upstreamSections: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
+    downstreamSections: [],
+  },
+};
+
+/* ── CURRENCY_TO_GEOGRAPHY: Infer geography from currency ── */
+
+const CURRENCY_TO_GEOGRAPHY: Record<string, string> = {
+  USD: 'North America (United States)',
+  EUR: 'European Union',
+  GBP: 'United Kingdom',
+  INR: 'India',
+  AED: 'United Arab Emirates / Gulf Region',
+  SGD: 'Singapore / Southeast Asia',
+  AUD: 'Australia / Oceania',
+  CAD: 'Canada',
+  JPY: 'Japan',
+  CNY: 'China',
+  BRL: 'Brazil / Latin America',
+  ZAR: 'South Africa',
+  CHF: 'Switzerland',
+  SEK: 'Scandinavia',
+  KRW: 'South Korea',
+};
+
+/**
+ * Build the Context Intelligence block that activates LLM's trained knowledge.
+ * This is NOT about rules — it's about UNLOCKING what the LLM already knows.
+ */
+export function buildContextIntelligence(
+  challengeData: any,
+  clientContext: any,
+  orgContext?: { orgType?: string; orgName?: string },
+): string {
+  const parts: string[] = [];
+
+  const currency = challengeData.currency_code || clientContext?.currency || 'USD';
+  const geography = CURRENCY_TO_GEOGRAPHY[currency] || 'Global';
+
+  const domainTags = Array.isArray(challengeData.domain_tags) ? challengeData.domain_tags : [];
+
+  const opModel = challengeData.operating_model || 'marketplace';
+  const opModelDesc = opModel === 'aggregator'
+    ? 'AGGREGATOR model — Curated solver pool, collaborative engagement. Challenge Creator (internal) defines the challenge. Reward and scope may be more flexible.'
+    : 'MARKETPLACE model — Open solver pool, competitive submissions. Account Manager and Challenge Architect may have pre-defined budget constraints and requirements.';
+
+  const orgType = orgContext?.orgType || 'Enterprise';
+  const maturity = clientContext?.maturityLevel || challengeData.maturity_level || 'not set';
+  const complexity = clientContext?.complexityLevel || challengeData.complexity_level || 'not set';
+  const solutionType = clientContext?.solutionType || challengeData.solution_type || 'not set';
+
+  parts.push(`
+## CONTEXT INTELLIGENCE — ACTIVATE YOUR DOMAIN KNOWLEDGE
+
+You are reviewing a challenge with this profile:
+- **Seeker**: ${orgType} organization${orgContext?.orgName ? ` (${orgContext.orgName})` : ''}
+- **Geography**: ${geography} (currency: ${currency})
+- **Operating Model**: ${opModelDesc}
+- **Domain**: ${domainTags.length > 0 ? domainTags.join(', ') : 'Infer from problem statement'}
+- **Solution Type**: ${solutionType}
+- **Maturity**: ${maturity}
+- **Complexity**: ${complexity}
+
+### WHAT YOU KNOW (from your training — USE IT):
+
+**INDUSTRY KNOWLEDGE**: You have been trained on millions of consulting engagements, industry reports (Gartner, Forrester, McKinsey, BCG), regulatory documents, and technology white papers. For this challenge's domain, you KNOW:
+- Standard KPIs and benchmarks for this industry
+- Common failure modes for this type of project
+- Regulatory requirements in ${geography}
+- Technology maturity and adoption patterns in this sector
+- Typical project timelines, budgets, and team compositions
+- What "good" looks like vs "typical" vs "problematic"
+
+**GEOGRAPHIC KNOWLEDGE**: For ${geography}, you KNOW:
+- Regulatory landscape (data privacy, industry-specific regulations)
+- Business culture norms that affect challenge design
+- Technology infrastructure maturity and constraints
+- Labor market for specialized solvers
+- Currency-appropriate reward benchmarking
+
+**COMPETITIVE INTELLIGENCE**: You KNOW what similar challenges look like on:
+- InnoCentive/Wazoku (enterprise innovation challenges)
+- HeroX (technology challenges)
+- Kaggle (data science challenges)
+- TopCoder (software development challenges)
+Use this knowledge to benchmark whether THIS challenge's scope, timeline, reward, and deliverables are competitive.
+
+**OPERATING MODEL IMPLICATIONS (${opModel.toUpperCase()})**:
+${opModel === 'aggregator'
+    ? `- The Challenge Creator is internal — they have organizational context but may use jargon
+- Reward structure may be more flexible — budget may not be fixed yet
+- Solvers may be pre-qualified — eligibility can be more selective
+- Collaboration and iteration are possible — deliverables can be refined`
+    : `- An Account Manager and/or Challenge Architect have pre-defined parameters
+- Budget constraints from AM/CA MUST be respected — the curator cannot exceed them
+- Solver pool is open and competitive — challenge must be self-contained
+- One-shot submissions — deliverables must be unambiguous on first read`
+  }
+
+### HOW TO APPLY THIS KNOWLEDGE:
+
+1. **In COMMENTS**: When you identify an issue, don't just say "this needs improvement." Say WHY it's a problem using your domain knowledge. Example: "In ${geography}'s ${domainTags[0] || 'enterprise'} sector, [specific regulatory requirement] means this deliverable needs [specific addition]."
+
+2. **In BEST PRACTICES**: Don't cite generic frameworks. Apply them to THIS challenge. Example: "For a ${maturity}-level ${solutionType} challenge in ${domainTags[0] || 'this domain'}, the standard approach is [specific methodology]. This challenge's deliverables should include [specific artifact from that methodology]."
+
+3. **In SUGGESTIONS**: Recommend improvements that a principal consultant in this domain would make. Not "add more detail" but "add a data quality assessment framework covering completeness, accuracy, and timeliness metrics — standard for ${domainTags[0] || 'data-intensive'} challenges in ${geography}."
+
+4. **In WARNINGS**: Flag domain-specific risks. "In my experience with ${maturity} ${domainTags[0] || 'technology'} challenges, the #1 failure mode is [specific risk]. This challenge should address it by [specific mitigation]."
+`);
+
+  return parts.join('');
+}
 
 
 
@@ -641,6 +951,19 @@ Focus 100% of your attention on producing the most accurate, specific, and actio
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
+    // Wave context injection
+    const waveCtx = SECTION_WAVE_CONTEXT[config.section_key];
+    if (waveCtx) {
+      parts.push(`POSITION: Wave ${waveCtx.wave} (${waveCtx.waveName}).`);
+      parts.push(`STRATEGIC ROLE: ${waveCtx.strategicRole}`);
+      if (waveCtx.upstreamSections.length > 0) {
+        parts.push(`ESTABLISHED BY EARLIER SECTIONS (rely on these): ${waveCtx.upstreamSections.join(', ')}`);
+      }
+      if (waveCtx.downstreamSections.length > 0) {
+        parts.push(`SECTIONS THAT DEPEND ON THIS (changes here cascade to): ${waveCtx.downstreamSections.join(', ')}`);
+      }
+    }
+
     // FIX 5: Quality criteria — use effective (DB or default fallback)
     const criteria = getEffectiveQualityCriteria(config);
     if (criteria.length > 0) {
@@ -819,6 +1142,12 @@ Do NOT include a "suggestion" field. Focus entirely on thorough, specific analys
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
+    // Wave context injection (legacy path)
+    const waveCtx = SECTION_WAVE_CONTEXT[config.section_key];
+    if (waveCtx) {
+      parts.push(`POSITION: Wave ${waveCtx.wave} (${waveCtx.waveName}). STRATEGIC ROLE: ${waveCtx.strategicRole}`);
+    }
+
     // FIX 5: Inject default quality criteria for legacy path too
     const criteria = getEffectiveQualityCriteria(config);
     if (criteria.length > 0) {
@@ -919,20 +1248,23 @@ export function buildPass2SystemPrompt(
   challengeContext: any,
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): string {
-  let prompt = `You are a principal management consultant at a Big4 firm, rewriting challenge content to publication standard. Your output will be published to attract globally distributed expert solvers.
+  let prompt = `You are a principal consultant at a Big4 firm rewriting challenge content to publication standard. You have 15+ years of experience in this challenge's domain.
 
-REWRITE PHILOSOPHY:
-You are NOT just fixing issues. You are ELEVATING content to the level a Deloitte/McKinsey partner would approve for client-facing publication.
+YOUR REWRITE PHILOSOPHY:
+You are not fixing text. You are CRAFTING a challenge specification that will attract the best solvers in the world to produce excellent solutions. Every sentence must earn its place.
+
+THINK LIKE THREE PEOPLE SIMULTANEOUSLY:
+1. **THE SEEKER**: "Will this challenge get me the solution I need? Are my requirements clearly expressed? Will evaluators be able to identify the best submission?"
+2. **THE SOLVER**: "Do I understand what's expected? Do I have enough context to start? Is the reward worth my time? Are the deliverables specific enough that I won't face scope disputes?"
+3. **THE EVALUATOR**: "Can I score submissions objectively? Do criteria map to deliverables? Is the scoring method feasible? Will I know a good submission when I see one?"
 
 REWRITE RULES:
-1. ADDRESS every error, warning, and suggestion from the review. Each issue = a visible, specific change.
-2. ELEVATE beyond just fixing: Add domain-specific depth, industry benchmarks, standard framework references that a principal consultant would naturally include.
-3. PRESERVE the seeker's intent and any human-authored content not flagged in comments. Never delete content that wasn't criticized.
-4. THINK LIKE A SOLVER: Every sentence must pass the test "Does this help a solver understand what to do, how to do it, and how they'll be judged?"
-5. BE SPECIFIC: Replace every vague statement with a concrete one. "Improve performance" → "Reduce API response time from current 2.3s to under 500ms at P95 under 1000 concurrent requests."
-6. MATCH FORMAT exactly: HTML sections → HTML. JSON arrays → JSON arrays. Don't convert formats.
-7. PRODUCTION-READY: Output is directly publishable. No placeholders, no "TBD", no "[insert here]".
-8. CLEAN TEXT: Use actual newlines. No literal \\n. No escaped quotes. No markdown in HTML sections.
+1. ADDRESS every flagged issue. Each issue = a visible, specific improvement.
+2. ELEVATE beyond fixing: Add domain-specific depth that a principal consultant would naturally include. Benchmarks, frameworks, standard methodologies — applied to THIS challenge, not generic.
+3. PRESERVE seeker intent. Human-authored content that wasn't flagged must remain untouched.
+4. BE CONCRETE: Replace every vague statement with a specific one backed by your domain knowledge.
+5. MATCH FORMAT exactly. HTML → HTML. JSON → JSON. Don't convert.
+6. PRODUCTION-READY: Directly publishable. No "[TBD]", no "as appropriate", no "etc."
 
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
@@ -943,13 +1275,19 @@ QUALITY BAR EXAMPLES (the standard to aim for):
 
 INTELLIGENCE DIRECTIVE (CRITICAL):
 You are NOT a text editor applying find-and-replace. You are a principal consultant who KNOWS this domain.
-- APPLY domain expertise: If this is supply chain predictive maintenance, you KNOW vibration analysis needs baseline data, MTBF/MTTR are standard KPIs, edge deployment has latency constraints. USE that knowledge to make content richer.
-- ADD industry-specific details a principal consultant would include: standard frameworks, typical benchmarks, common pitfalls, regulatory considerations — but ONLY for THIS challenge's domain.
+- APPLY domain expertise: standard frameworks, typical benchmarks, common pitfalls, regulatory considerations — but ONLY for THIS challenge's domain.
 - CITE analyst references where configured below.
 - NEVER invent specific numbers, dates, system names, or specs not in the challenge context.
 - NEVER add content about domains unrelated to this challenge.
-- THE TEST: "Would a principal Deloitte consultant in this domain know this from experience?" If yes, include. If it requires insider knowledge of this specific org, don't.
 
+CHALLENGE CONTEXT:
+- Maturity: ${challengeContext?.maturityLevel || 'not set'}
+- Solution type: ${challengeContext?.solutionType || 'not set'}
+- Seeker: ${challengeContext?.seekerSegment || 'not set'}
+- Complexity: ${challengeContext?.complexityLevel || 'not set'}
+- Operating Model: ${challengeContext?.operatingModel || 'marketplace'}
+- Currency: ${challengeContext?.currency || 'USD'}
+- Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
 CHALLENGE CONTEXT:
 - Maturity: ${challengeContext?.maturityLevel || 'not set'}
 - Solution type: ${challengeContext?.solutionType || 'not set'}
