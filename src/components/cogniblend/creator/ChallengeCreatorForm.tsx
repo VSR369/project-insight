@@ -2,7 +2,6 @@
  * ChallengeCreatorForm — 2-tab challenge creation form.
  * Tab 1 (Essential Details): mandatory fields.
  * Tab 2 (Additional Context): optional fields feeding the AI pipeline.
- * Supports Save Draft + Submit to Curator.
  */
 
 import { useState, useCallback } from 'react';
@@ -20,6 +19,7 @@ import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSu
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
+import { supabase } from '@/integrations/supabase/client';
 
 import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
@@ -125,14 +125,12 @@ export function ChallengeCreatorForm({ engagementModel }: ChallengeCreatorFormPr
       expectedTimeline: data.expected_timeline || '8w',
       domainTags: data.domain_tags,
       urgency: 'standard',
-      // Extended brief fields (Tab 2) — stored in extended_brief JSON
       beneficiariesMapping: data.affected_stakeholders || undefined,
     };
   }, [currentOrg, user, engagementModel]);
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    // Tier limit check
-    if (tierLimit && !tierLimit.canCreate) {
+    if (tierLimit && !tierLimit.allowed) {
       setShowTierModal(true);
       return;
     }
@@ -140,9 +138,8 @@ export function ChallengeCreatorForm({ engagementModel }: ChallengeCreatorFormPr
       const payload = buildPayload(data);
       const result = await submitMutation.mutateAsync(payload);
 
-      // Store extended_brief fields separately via update
+      // Store extended_brief + maturity_level + ip_model
       if (result.challengeId) {
-        const { supabase } = await import('@/integrations/supabase/client');
         await supabase
           .from('challenges')
           .update({
@@ -170,7 +167,7 @@ export function ChallengeCreatorForm({ engagementModel }: ChallengeCreatorFormPr
     if (!currentOrg?.organizationId || !user?.id) return;
 
     try {
-      const payload = {
+      await draftMutation.mutateAsync({
         orgId: currentOrg.organizationId,
         creatorId: user.id,
         operatingModel: engagementModel,
@@ -183,8 +180,7 @@ export function ChallengeCreatorForm({ engagementModel }: ChallengeCreatorFormPr
         expectedTimeline: data.expected_timeline || '8w',
         domainTags: data.domain_tags || [],
         urgency: 'standard',
-      };
-      await draftMutation.mutateAsync(payload);
+      });
       navigate('/cogni/my-challenges');
     } catch {
       // Error handled by mutation onError
@@ -218,12 +214,7 @@ export function ChallengeCreatorForm({ engagementModel }: ChallengeCreatorFormPr
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSaveDraft}
-            disabled={isBusy}
-          >
+          <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={isBusy}>
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
             Save Draft
           </Button>
@@ -236,11 +227,11 @@ export function ChallengeCreatorForm({ engagementModel }: ChallengeCreatorFormPr
 
       {showTierModal && tierLimit && (
         <TierLimitModal
-          open={showTierModal}
-          onOpenChange={setShowTierModal}
-          tierCode={tierLimit.tierCode ?? ''}
-          currentCount={tierLimit.currentCount ?? 0}
-          maxAllowed={tierLimit.maxAllowed ?? 0}
+          isOpen={showTierModal}
+          onClose={() => setShowTierModal(false)}
+          tierName={tierLimit.tier_name}
+          maxAllowed={tierLimit.max_allowed}
+          currentActive={tierLimit.current_active}
         />
       )}
     </FormProvider>

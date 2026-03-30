@@ -23,38 +23,13 @@ const TIMELINE_OPTIONS = [
   { value: '32w', label: '32 weeks' },
 ] as const;
 
-/** Each optional context field with label, placeholder, and extended_brief key */
 const CONTEXT_FIELDS = [
-  {
-    key: 'context_background' as const,
-    label: 'Context & Background',
-    placeholder: 'Tell us about your situation, what led to this challenge, any prior attempts',
-  },
-  {
-    key: 'preferred_approach' as const,
-    label: 'Preferred Approach',
-    placeholder: 'Any preferred technology or methodology?',
-  },
-  {
-    key: 'approaches_not_of_interest' as const,
-    label: 'Approaches NOT of Interest',
-    placeholder: "Anything you've tried or don't want?",
-  },
-  {
-    key: 'affected_stakeholders' as const,
-    label: 'Affected Stakeholders',
-    placeholder: 'Who uses or is affected by this solution?',
-  },
-  {
-    key: 'current_deficiencies' as const,
-    label: 'Current Deficiencies',
-    placeholder: "What's broken or missing today?",
-  },
-  {
-    key: 'root_causes' as const,
-    label: 'Root Causes',
-    placeholder: 'Why does this problem exist?',
-  },
+  { key: 'context_background' as const, label: 'Context & Background', placeholder: 'Tell us about your situation, what led to this challenge, any prior attempts' },
+  { key: 'preferred_approach' as const, label: 'Preferred Approach', placeholder: 'Any preferred technology or methodology?' },
+  { key: 'approaches_not_of_interest' as const, label: 'Approaches NOT of Interest', placeholder: "Anything you've tried or don't want?" },
+  { key: 'affected_stakeholders' as const, label: 'Affected Stakeholders', placeholder: 'Who uses or is affected by this solution?' },
+  { key: 'current_deficiencies' as const, label: 'Current Deficiencies', placeholder: "What's broken or missing today?" },
+  { key: 'root_causes' as const, label: 'Root Causes', placeholder: 'Why does this problem exist?' },
 ] as const;
 
 export function AdditionalContextTab() {
@@ -70,26 +45,23 @@ export function AdditionalContextTab() {
         </p>
       </div>
 
-      {/* Rich text context fields */}
-      {CONTEXT_FIELDS.map((field) => (
-        <div key={field.key} className="space-y-2">
-          <Label className="text-sm font-medium">{field.label}</Label>
+      {CONTEXT_FIELDS.map((cf) => (
+        <div key={cf.key} className="space-y-2">
+          <Label className="text-sm font-medium">{cf.label}</Label>
           <Controller
-            name={field.key}
+            name={cf.key}
             control={control}
-            render={({ fieldProps }) => (
+            render={({ field }) => (
               <RichTextEditor
-                content={fieldProps?.value ?? ''}
-                onChange={fieldProps?.onChange ?? (() => {})}
-                placeholder={field.placeholder}
-                minHeight="100px"
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder={cf.placeholder}
               />
             )}
           />
         </div>
       ))}
 
-      {/* Target Timeline */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Target Timeline</Label>
         <Controller

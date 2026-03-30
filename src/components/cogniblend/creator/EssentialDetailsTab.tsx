@@ -1,7 +1,6 @@
 /**
  * EssentialDetailsTab — Tab 1 of Challenge Creator Form.
  * All mandatory fields for challenge creation.
- * Field names map directly to curator section keys.
  */
 
 import { Controller, useFormContext } from 'react-hook-form';
@@ -18,8 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Info } from 'lucide-react';
 import type { CreatorFormValues } from './ChallengeCreatorForm';
-
-/* ── Constants ── */
+import type { TaxonomySegment } from '@/hooks/queries/useTaxonomySelectors';
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -43,13 +41,12 @@ const MATURITY_OPTIONS = [
 
 interface EssentialDetailsTabProps {
   engagementModel: string;
-  industrySegments: Array<{ value: string; label: string }>;
+  industrySegments: TaxonomySegment[];
 }
 
 export function EssentialDetailsTab({ engagementModel, industrySegments }: EssentialDetailsTabProps) {
   const { control, register, formState: { errors }, watch } = useFormContext<CreatorFormValues>();
   const isMPBudgetRequired = engagementModel === 'MP';
-  const selectedDomains = watch('domain_tags') ?? [];
 
   return (
     <div className="space-y-6">
@@ -80,10 +77,9 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
           control={control}
           render={({ field }) => (
             <RichTextEditor
-              content={field.value}
+              value={field.value}
               onChange={field.onChange}
               placeholder="Describe the problem clearly..."
-              minHeight="160px"
             />
           )}
         />
@@ -103,17 +99,16 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
           control={control}
           render={({ field }) => (
             <RichTextEditor
-              content={field.value}
+              value={field.value}
               onChange={field.onChange}
               placeholder="Define the boundaries of this challenge..."
-              minHeight="120px"
             />
           )}
         />
         {errors.scope && <p className="text-xs text-destructive">{errors.scope.message}</p>}
       </div>
 
-      {/* Solution Depth (maturity_level) */}
+      {/* Solution Depth */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">
           What kind of solution do you need? <span className="text-destructive">*</span>
@@ -146,37 +141,33 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
         <Label className="text-sm font-medium">
           Industry Domain <span className="text-destructive">*</span>
         </Label>
-        <p className="text-xs text-muted-foreground">Select 1–3 industry segments relevant to this challenge.</p>
+        <p className="text-xs text-muted-foreground">Select 1–3 industry segments.</p>
         <Controller
           name="domain_tags"
           control={control}
           render={({ field }) => (
             <div className="flex flex-wrap gap-2">
               {industrySegments.map((seg) => {
-                const isSelected = (field.value ?? []).includes(seg.value);
+                const isSelected = (field.value ?? []).includes(seg.id);
                 const atMax = (field.value ?? []).length >= 3 && !isSelected;
                 return (
                   <button
-                    key={seg.value}
+                    key={seg.id}
                     type="button"
                     disabled={atMax}
                     onClick={() => {
                       const current = field.value ?? [];
                       field.onChange(
-                        isSelected
-                          ? current.filter((v: string) => v !== seg.value)
-                          : [...current, seg.value],
+                        isSelected ? current.filter((v: string) => v !== seg.id) : [...current, seg.id],
                       );
                     }}
                     className={`
                       px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-                      ${isSelected
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background text-foreground border-border hover:border-primary/40'}
+                      ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:border-primary/40'}
                       ${atMax ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                     `}
                   >
-                    {seg.label}
+                    {seg.name}
                   </button>
                 );
               })}
@@ -194,21 +185,11 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Min</span>
-            <Input
-              type="number"
-              placeholder="0"
-              className="w-32 text-base"
-              {...register('budget_min', { valueAsNumber: true })}
-            />
+            <Input type="number" placeholder="0" className="w-32 text-base" {...register('budget_min', { valueAsNumber: true })} />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Max</span>
-            <Input
-              type="number"
-              placeholder="0"
-              className="w-32 text-base"
-              {...register('budget_max', { valueAsNumber: true })}
-            />
+            <Input type="number" placeholder="0" className="w-32 text-base" {...register('budget_max', { valueAsNumber: true })} />
           </div>
           <Controller
             name="currency"
@@ -277,10 +258,9 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
           control={control}
           render={({ field }) => (
             <RichTextEditor
-              content={field.value}
+              value={field.value}
               onChange={field.onChange}
               placeholder="Describe the expected outcomes..."
-              minHeight="120px"
             />
           )}
         />
