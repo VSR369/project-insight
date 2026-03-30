@@ -447,6 +447,17 @@ export function AIReviewInline({
 
   const handleReReview = useCallback(async () => {
     if (!challengeId) return;
+    // Soft prereq warning — first click warns, second click proceeds
+    if (prerequisitesReady === false && !prereqWarningShown) {
+      const names = missingPrerequisites?.slice(0, 3).join(', ') ?? 'prerequisite sections';
+      toast.warning(
+        `For best results, complete ${names} first. Click Re-review again to proceed anyway.`,
+        { duration: 5000 }
+      );
+      setPrereqWarningShown(true);
+      return;
+    }
+    setPrereqWarningShown(false);
     setIsReReviewing(true);
     try {
       // Delegate to custom re-review handler if provided (e.g. complexity uses assess-complexity)
