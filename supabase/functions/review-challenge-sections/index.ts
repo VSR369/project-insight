@@ -1591,7 +1591,7 @@ ${additionalData}`;
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
         systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
       } else {
-        systemPrompt = buildFallbackSystemPrompt(batch, resolvedContext);
+        systemPrompt = contextIntel + '\n\n' + buildFallbackSystemPrompt(batch, resolvedContext);
         // Append master data constraints for fallback mode too
         if (Object.keys(masterDataOptions).length > 0) {
           const mdLines: string[] = ["\n\n## Master Data Constraints"];
