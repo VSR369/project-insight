@@ -1,195 +1,128 @@
 
 
-# Refined Implementation Plan: Challenge Curator AI Pipeline — 15 Fixes
+# Section-by-Section Bug Fix Plan: Challenge Curator AI Pipeline
 
-All 12 bugs from the external audit + 3 additional bugs from Lovable's audit, with **3 refinements** applied as requested.
+## Bug Analysis by Section
 
----
+### 1. Maturity Level — CRITICAL
+**Screenshot confirms:** AI returns `{"selected_id":"PILOT","rationale":"..."}` but `parseMasterDataCodes()` (AIReviewInline.tsx line 196) cannot handle JSON objects — it only handles arrays, single bare codes, and comma-separated values. The object falls through all checks, returns `null`, and the suggestion gets routed to the `structuredItems` path (line_items parser), which splits JSON fragments into broken display items.
 
-## File 1: `src/components/cogniblend/shared/AIReviewInline.tsx`
-
-### Fix 1 (BUG 1 + C8): Re-review passes full context
-**Refinement applied:** Widen `challengeContext` type from `{ title?; maturity_level?; domain_tags? }` to `Record<string, any>` in `AIReviewInlineProps` (line 89-93). The parent (`CurationReviewPage.tsx` line 3353) already passes a richer object — the narrow type was silently discarding fields.
-
-At line 89-93, replace the type:
+**Fix (AIReviewInline.tsx `parseMasterDataCodes`):** Add JSON object handling for `checkbox_single` format:
 ```typescript
-challengeContext: Record<string, any>;
-```
-
-At line 454-456, update the invoke body:
-```typescript
-body: {
-  challenge_id: challengeId,
-  section_key: sectionKey,
-  role_context: roleContext,
-  wave_action: currentContent?.trim()?.length > 30 ? 'review' : 'generate',
-  current_content: currentContent,
-  context: challengeContext ? {
-    ...challengeContext,
-    maturityLevel: challengeContext.maturity_level,
-    todaysDate: new Date().toISOString().split('T')[0],
-  } : undefined,
-},
-```
-
-### Fix 2 (C10): Preserve comment metadata on edit
-At line 399-404, update `handleCommentChange` to preserve structured comment objects:
-```typescript
-const handleCommentChange = useCallback((index: number, value: string) => {
-  setEditedComments((prev) => {
-    const updated = [...prev];
-    const original = prev[index] ?? (review?.comments?.[index]);
-    updated[index] = (original && typeof original === 'object')
-      ? { ...original, text: value }
-      : value;
-    return updated;
-  });
-}, [review?.comments]);
-```
-
----
-
-## File 2: `src/hooks/useWaveExecutor.ts`
-
-### Fix 3 (BUG 3): Conditional write for generated content
-After line 116, add:
-```typescript
-// For GENERATED sections (empty → AI created content), write to section data
-// so downstream waves can reference it. Safe: no human content to corrupt.
-if ((normalized as any).status === 'generated' && parsedSuggestion != null) {
-  store.getState().setSectionData(sectionKey, parsedSuggestion);
+// After JSON array check (line 201), add:
+if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+  // checkbox_single returns {"selected_id":"PILOT","rationale":"..."}
+  const code = parsed.selected_id ?? parsed.id ?? parsed.code ?? parsed.value;
+  if (code && typeof code === 'string') return [code];
 }
 ```
 
-### Fix 4 (BUG 12): Wave error status
-Line 223: change to `? 'error' : 'completed'`.
+### 2. Success Metrics KPI — CRITICAL (No AI suggested content generated)
+**Root cause:** Pass 2 (`callAIPass2Rewrite`) filters sections needing suggestions at line 419-424. If Pass 1 returns only `strength` or `best_practice` comments (no `error`/`warning`/`suggestion`), the section is excluded from Pass 2 entirely — no suggestion generated. Also, for table sections the `cleanAIOutput` at line 664 may strip `\n` inside JSON strings, corrupting the JSON.
 
----
+**Fix (index.ts line 419-424):** Also include sections where `waveAction === 'generate'` OR where `status !== 'pass'` (already done) OR where `status === 'warning'` but the section has no current content (empty section that needs generation).
 
-## File 3: `supabase/functions/review-challenge-sections/index.ts`
-
-### Fix 5 (BUG 2): Per-batch model selection
-**Refinement applied:** Keep a `defaultModel` variable for the complexity call, then compute per-batch model inside the loop.
-
-At line 1073, rename to:
+**Fix (index.ts line 664):** Skip `cleanAIOutput` for table-format suggestions — they already go through `sanitizeTableSuggestion`:
 ```typescript
-const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
+const fmt = getSectionFormatType(r.section_key);
+const cleanedSuggestion = (fmt === 'table' || fmt === 'schedule_table')
+  ? suggestion  // already sanitized
+  : cleanAIOutput(suggestion);
 ```
 
-At line 1077, use `defaultModel` (or inline `getModelForRequest(['complexity'], globalConfig)`):
+### 3. Affected Stakeholders — CRITICAL (Same as Success Metrics)
+Same Pass 2 filtering issue. Additionally, the `affected_stakeholders` section is an extended_brief subsection — `callAIPass2Rewrite` reads `challengeData[r.section_key]` (line 432) but the actual data is inside `challengeData.extended_brief.affected_stakeholders`, not at the top level.
+
+**Fix (index.ts `callAIPass2Rewrite` line 430-435):** For extended brief subsections, look up content from `challengeData.extended_brief[fieldName]`:
 ```typescript
-? callComplexityAI(LOVABLE_API_KEY, getModelForRequest(['complexity'], globalConfig), challengeData, adminClient, clientContext)
-```
+const EXTENDED_BRIEF_KEYS = new Set(['context_and_background','root_causes','affected_stakeholders','current_deficiencies','preferred_approach','approaches_not_of_interest']);
+const EB_FIELD_MAP = { affected_stakeholders: 'affected_stakeholders', root_causes: 'root_causes', ... };
 
-Inside the batch loop (line 1095), before `callAIBatchTwoPass`:
-```typescript
-const batchKeys = batch.map(b => b.key);
-const modelToUse = getModelForRequest(batchKeys, globalConfig);
-```
-
----
-
-## File 4: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-### Fix 6 (BUG 4): Robust JSON extraction before accept
-Before the `jsonMatch` regex (~line 1958), add pre-processing:
-- Strip leading prose before first `[` or `{`
-- Strip trailing prose after last `]` or `}`
-- Attempt repair (trailing commas)
-- Double try-catch with repaired version
-
-### Fix 7 (BUG 5): Evaluation criteria — add missing aliases
-At the normalizer (~line 2003), add: `c.parameter`, `c.weight_percent`, `c.scoring_type`, `c.evaluator_role` as alias sources. Add `scoring_method` and `evaluator_role` output fields.
-
-### Fix 8 (A2): `data_resources_provided` field normalization
-After the KPI normalizer, add canonical mapping:
-```typescript
-if (dbField === 'data_resources_provided' && Array.isArray(rawArr)) {
-  valueToSave = rawArr.map((row: any) => ({
-    resource: row.resource ?? row.name ?? row.resource_name ?? "",
-    type: row.type ?? row.data_type ?? row.resource_type ?? "",
-    format: row.format ?? "",
-    size: row.size ?? "",
-    access_method: row.access_method ?? row.access ?? "",
-    restrictions: row.restrictions ?? row.restriction ?? "",
-  }));
+let originalContent = challengeData[r.section_key];
+if (!originalContent && EXTENDED_BRIEF_KEYS.has(r.section_key) && challengeData.extended_brief) {
+  const ebField = EB_FIELD_MAP[r.section_key] || r.section_key;
+  const eb = typeof challengeData.extended_brief === 'string'
+    ? JSON.parse(challengeData.extended_brief)
+    : challengeData.extended_brief;
+  originalContent = eb?.[ebField];
 }
 ```
 
-### Fix 9 (BUG 8): Extended brief — direct parse before regex
-In `handleAcceptExtendedBriefRefinement` (~line 2124), try `JSON.parse(cleaned)` directly before the regex extraction fallback.
+### 4. Data & Resources Provided — HIGH (Partial content, missing columns)
+Same extended_brief content lookup issue. Also, the `data_resources_provided` is at challenge top-level, but if the AI returns a structure missing `resource`, `type`, `format` keys (using aliases), the table renderer shows empty cells.
 
-### Fix 10 (BUG 9): Reward structure — robust tier extraction
-Handle `tier`/`prize_tier`/`tier_name` keys and string amounts like `"$75,000"` via `Number(rawAmount.replace(/[$,]/g, ''))`.
+**Fix:** Already handled by the normalizer at CurationReviewPage.tsx line 2067-2080. The issue is that the AI may not receive the current content during Pass 2 (same root cause as #3 — wrong content lookup). Fix #3 resolves this.
 
-### Fix 11 (BUG 10): Solver expertise — array handling
-If AI returns an array, wrap in `{ expertise_areas: [...] }`.
+### 5. Complexity Assessment — HIGH (Score mismatch + manual change bug)
+**Bug A:** AI returns complexity with `suggested_complexity` ratings (e.g., average 4.3/5 on 1-5 scale) but the section displays a different value (7.6) because the complexity scoring function maps 1-5 AI ratings to the L1-L5 weighted score on a 1-10 scale. The AI's `4.3/5` on a 5-point scale translates to a different weighted score depending on dimension weights.
 
-### Fix 12 (BUG 11): Domain tags — basic validation
-Filter to strings-only, reject empty arrays with toast.
+**Bug B:** When manual params are changed in the "Manual Params" tab, the AI Review tab also changes because both share the same `complexityParams` state. The AI-suggested ratings (`aiSuggestedComplexity`) should be displayed independently and not re-computed from the manual params.
 
-### Fix 13 (B6): Derive HTML_TEXT_FIELDS from config
-Replace hardcoded `['problem_statement', 'scope', 'hook']` with:
+**Fix (CurationReviewPage.tsx):** The `complexityRatings` passed to `AIReviewResultPanel` must come from `aiSuggestedComplexity` state (the AI's raw ratings), NOT from the computed score. Verify that the `ComplexityAssessmentModule` keeps AI ratings and manual ratings separate. Also ensure the `ComplexityParameterTable` in `AIReviewResultPanel` displays the AI's raw ratings without mixing in manual values.
+
+### 6. Submission Guidelines — HIGH (Distorted after accept)
+After accepting AI-generated submission guidelines, the content is saved but rendered poorly. The issue is in the Accept handler: `submission_guidelines` maps to `dbField = 'description'` which is in `JSON_FIELDS`. The AI suggestion gets parsed as JSON (e.g., `{items: ["guideline 1", ..."]}`), saved correctly, but the renderer may not correctly unwrap the `{items: [...]}` wrapper.
+
+**Fix:** Verify that `getSubmissionGuidelineObjects()` (line 903) correctly handles both `{items: [...]}` and flat array formats. Also ensure the render path for submission_guidelines uses the `DeliverableCardRenderer` consistently.
+
+### 7. Evaluation Criteria — MEDIUM (Verify format)
+The normalizer (line 2034-2051) now handles aliases. Verify the render path in `EvalCriteriaEditor` handles the canonical schema. The column alignment fix (Fix 15 from previous plan) was applied.
+
+### 8. Reward Structure — HIGH (Junk/distorted display)
+**Root cause:** The AI returns reward structure through the `checkbox_single` format instruction (`FORMAT_INSTRUCTIONS['custom']` = "Output: structured JSON appropriate to the section context") which is too vague. The `rewardData` parser in `AIReviewResultPanel` (line 592-601) only recognizes objects with `type`, `monetary`, or `nonMonetary` keys. If the AI returns a flat array of prize tiers or a table format, it falls through and gets rendered as raw text.
+
+**Fix (promptTemplate.ts):** Add explicit reward_structure format instruction:
 ```typescript
-const HTML_TEXT_FIELDS = Object.entries(SECTION_FORMAT_CONFIG)
-  .filter(([, cfg]) => cfg.format === 'rich_text')
-  .map(([key]) => key);
+reward_structure: 'Output: JSON object with keys: type ("monetary"|"non_monetary"|"both"), monetary: {tiers: {platinum: number, gold: number, silver: number}, currency: "USD", justification: string}, nonMonetary: {items: ["item1","item2"]}. Do NOT output a table or flat array.',
 ```
 
----
+Also update `SECTION_FORMAT_MAP` to map `reward_structure` to `'custom'` (not `'table'`) so it doesn't get the table format instruction.
 
-## File 5: `supabase/functions/review-challenge-sections/promptTemplate.ts`
+### 9. Global Review — Some sections get no AI suggested content
+**Root cause:** Multiple:
+1. Pass 2 filtering excludes sections with only `strength`/`best_practice` comments
+2. Extended brief subsection content not found (fix #3)
+3. Pass 2 tool call may truncate if too many sections in one batch
+4. `cleanAIOutput` corrupts table JSON
 
-### Fix 14 (D1): Per-section format instructions in Pass 2
-**Refinement applied:** Exact code specified. After the per-section enrichment block (after line 622, before the TABLE FORMAT RULE), inject per-section format instruction using the existing `getSuggestionFormatInstruction` helper:
-
-```typescript
-// Per-section format instruction (ensures Pass 2 knows exact output shape)
-const formatRule = getSuggestionFormatInstruction(config.section_key);
-if (formatRule) {
-  prompt += `\nOUTPUT FORMAT: ${formatRule}\n`;
-}
-```
-
-This ensures:
-- `root_causes` → "JSON array of short phrase strings, max 8 items"
-- `affected_stakeholders` → "JSON array of row objects with keys stakeholder_name, role, impact_description, adoption_challenge"
-- `evaluation_criteria` → "JSON array of row objects using exact column keys"
-- All other sections get their generic format instruction from `FORMAT_INSTRUCTIONS`
+**Fix:** All addressed by fixes #2, #3 above. Additionally, increase `MAX_BATCH_SIZE` awareness — if a batch has 12 sections, the LLM may truncate suggestions for later sections.
 
 ---
 
-## File 6: `src/lib/cogniblend/curationSectionFormats.ts`
+## Implementation Plan — 8 Fixes in 4 Files
 
-### Fix 15 (BUG 5 alignment): Evaluation criteria columns
-Update columns to match canonical schema:
-```typescript
-columns: ['criterion_name', 'weight_percentage', 'description', 'scoring_method', 'evaluator_role'],
-```
+### File 1: `src/components/cogniblend/shared/AIReviewInline.tsx`
+1. **Fix `parseMasterDataCodes`** (line 196-220): Handle JSON objects from `checkbox_single` format — extract `selected_id` or `id` or `code` key
+2. **Fix `parseMasterDataCodes`**: Also handle the case where the AI wraps the code in an object with `rationale` — the rationale should be displayed but only the code used for accept
+
+### File 2: `supabase/functions/review-challenge-sections/index.ts`
+3. **Fix Pass 2 content lookup** (line 430-435): For extended brief subsections (`affected_stakeholders`, `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`, `context_and_background`), look up content from `challengeData.extended_brief[fieldName]` instead of `challengeData[section_key]`
+4. **Fix `cleanAIOutput` for table suggestions** (line 664): Skip `cleanAIOutput` for table/schedule_table format sections since they already go through `sanitizeTableSuggestion`
+5. **Fix Pass 2 filtering** (line 419-424): Include sections that have empty content AND `waveAction === 'generate'` even if comments are only informational
+
+### File 3: `supabase/functions/review-challenge-sections/promptTemplate.ts`
+6. **Add reward_structure format instruction**: Add explicit `reward_structure` entry to `EXTENDED_BRIEF_FORMAT_INSTRUCTIONS` or create a `SECTION_SPECIFIC_FORMAT_INSTRUCTIONS` map with the exact JSON schema for reward structure output
+7. **Fix `SECTION_FORMAT_MAP`**: Change `reward_structure` from `'table'` to `'custom'` so it gets the custom format instruction instead of table format
+
+### File 4: `src/pages/cogniblend/CurationReviewPage.tsx`
+8. **Verify complexity isolation**: Ensure `aiSuggestedComplexity` state is used for AI review display and is NOT re-derived from manual `complexityParams` changes. The `handleComplexityReReview` already stores AI ratings separately — verify the `complexityRatings` prop passed to `AIReviewInline` comes from `aiSuggestedComplexity`, not from the computed score
 
 ---
 
-## Post-Implementation
+## Post-Implementation: Edge Function Redeployment Required
+After changes to `index.ts` and `promptTemplate.ts`, the `review-challenge-sections` edge function must be redeployed.
 
-- Redeploy edge function `review-challenge-sections`
-- Run verification matrix (12 tests from plan)
+## Section-by-Section Verification Matrix
 
----
-
-## Verification Matrix
-
-| Test | Validates |
-|---|---|
-| Re-review on empty section → generates content | Fix 1, 3 |
-| Re-review on filled section → reviews with full context | Fix 1 |
-| Global review → critical sections use premium model | Fix 5 |
-| Accept evaluation_criteria → canonical fields saved | Fix 7, 15 |
-| Accept data_resources_provided → canonical fields saved | Fix 8 |
-| Accept affected_stakeholders → canonical fields saved | Already done |
-| Accept reward_structure with "$75,000" string amounts | Fix 10 |
-| Accept solver_expertise when AI returns array | Fix 11 |
-| Accept domain_tags → only valid strings saved | Fix 12 |
-| Wave with errors shows amber/error status | Fix 4 |
-| Empty challenge → Wave 2 sees Wave 1 generated content | Fix 3 |
-| Table section re-review → correct format in Pass 2 | Fix 14 |
+| Section | AI Review | Re-review | Format | Accept | Status |
+|---|---|---|---|---|---|
+| Success Metrics KPI | Fix 4,5 | Fix 5 | Table JSON | Already normalized | Should work after fix |
+| Affected Stakeholders | Fix 3,4 | Fix 3 | Table JSON | Already normalized | Should work after fix |
+| Data & Resources | Fix 3 | Fix 3 | Table JSON | Already normalized | Should work after fix |
+| Maturity Level | Fix 1 | Fix 1 | `selected_id` extraction | Already handled | Broken → Fixed |
+| Complexity Assessment | Fix 8 | Fix 8 | AI ratings separate | Already handled | Verify isolation |
+| Submission Guidelines | Verify | Verify | line_items | Already handled | Verify render |
+| Evaluation Criteria | Verify | Verify | Table JSON | Normalized | Already fixed |
+| Reward Structure | Fix 6,7 | Fix 6,7 | Custom JSON schema | Already normalized | Broken → Fixed |
+| Global Review (all) | Fix 3,4,5 | Fix 3 | Mixed | Mixed | Partial failures → Fixed |
 
