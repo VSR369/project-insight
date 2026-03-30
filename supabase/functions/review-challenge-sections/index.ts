@@ -1622,7 +1622,7 @@ ${additionalData}`;
 
       let systemPrompt: string;
       // Build context intelligence preamble
-      const contextIntel = buildContextIntelligence(challengeData, clientContext, (challengeData as any)._orgContext);
+      const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
       if (useDbConfig && dbConfigMap) {
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
         systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
