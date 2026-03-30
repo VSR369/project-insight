@@ -736,7 +736,20 @@ const SECTIONS: SectionDef[] = [
       if (typeof val === "string") return val.trim().length > 0;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.preferred_approach;
+      const items = Array.isArray(val) ? val : (typeof val === 'string' && val.trim() ? [val] : []);
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not specified yet.</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {items.slice(0, 4).map((item: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs">{typeof item === 'string' ? item : item?.name ?? '—'}</Badge>
+          ))}
+          {items.length > 4 && <Badge variant="secondary" className="text-xs">+{items.length - 4} more</Badge>}
+        </div>
+      );
+    },
   },
   {
     key: "approaches_not_of_interest",
