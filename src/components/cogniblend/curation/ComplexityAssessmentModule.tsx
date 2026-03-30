@@ -10,7 +10,7 @@
  * Lock mechanism: Once locked, all tabs become read-only.
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -52,6 +52,17 @@ const TAB_TO_MODE: Record<ActiveTab, AssessmentMode> = {
 
 /* ─── Props ─── */
 
+export interface ResolvedParam {
+  param_key: string;
+  name: string;
+  value: number;
+  weight: number;
+}
+
+export interface ComplexityModuleHandle {
+  saveAiDraft: () => void;
+}
+
 export interface ComplexityAssessmentModuleProps {
   challengeId: string;
   currentScore: number | null;
@@ -59,7 +70,7 @@ export interface ComplexityAssessmentModuleProps {
   currentParams: { param_key?: string; key?: string; name?: string; value?: number; score?: number }[] | null;
   complexityParams: ComplexityParam[];
   solutionType?: SolutionType | null;
-  onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode) => void;
+  onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode, resolvedParams?: ResolvedParam[]) => void;
   onLock?: () => void;
   onUnlock?: () => void;
   isLocked?: boolean;
@@ -67,7 +78,7 @@ export interface ComplexityAssessmentModuleProps {
   aiSuggestedRatings?: Record<string, { rating: number; justification: string }> | null;
 }
 
-export function ComplexityAssessmentModule({
+export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, ComplexityAssessmentModuleProps>(function ComplexityAssessmentModule({
   challengeId,
   currentScore,
   currentLevel,
@@ -80,7 +91,7 @@ export function ComplexityAssessmentModule({
   isLocked = false,
   saving,
   aiSuggestedRatings,
-}: ComplexityAssessmentModuleProps) {
+}, ref) {
   // ══════ Section 1: useState hooks ══════
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
@@ -208,6 +219,18 @@ export function ComplexityAssessmentModule({
     };
   }, [activeDraft, effectiveParams]);
 
+  // AI score computed independently for reference on Manual tab
+  const aiScoreRef_ = useMemo(() => {
+    if (Object.keys(aiDraft).length === 0) return null;
+    const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
+    if (totalWeight === 0) return null;
+    const ws = effectiveParams.reduce((s, p) => s + (aiDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
+    return Math.round(ws * 100) / 100;
+  }, [aiDraft, effectiveParams]);
+  const aiLevelRef_ = aiScoreRef_ != null ? deriveComplexityLevel(aiScoreRef_) : null;
+  const aiLabelRef_ = aiScoreRef_ != null ? deriveComplexityLabel(aiScoreRef_) : null;
+  const hasAiRatings = !!aiSuggestedRatings && Object.keys(aiSuggestedRatings).length > 0;
+
   const hasDraftValues = Object.keys(activeDraft).length > 0;
   const displayScore = activeTab === "quick_select" ? 0
     : hasDraftValues ? weightedScore
@@ -300,10 +323,36 @@ export function ComplexityAssessmentModule({
     const finalLevel = activeTab === "quick_select" && overrideLevel ? overrideLevel : derivedLevel;
     const finalScore = activeTab === "quick_select" ? 0 : weightedScore;
     const draftToSave = activeTab === "ai_review" ? aiDraft : manualDraft;
-    onSave(draftToSave, finalScore, finalLevel, mode);
+    // Build resolvedParams from effectiveParams so the save handler gets correct dimension keys/weights
+    const resolvedParams: ResolvedParam[] = effectiveParams.map((p) => ({
+      param_key: p.param_key,
+      name: p.name,
+      value: draftToSave[p.param_key] ?? 5,
+      weight: p.weight,
+    }));
+    onSave(draftToSave, finalScore, finalLevel, mode, resolvedParams);
     setAiJustifications({});
     setEditableParams(new Set());
-  }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel]);
+  }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel, effectiveParams]);
+
+  // ══════ Imperative handle: expose saveAiDraft for external Accept trigger ══════
+  useImperativeHandle(ref, () => ({
+    saveAiDraft: () => {
+      const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
+      const ws = totalWeight > 0
+        ? effectiveParams.reduce((s, p) => s + (aiDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+        : 5;
+      const score = Math.round(ws * 100) / 100;
+      const level = deriveComplexityLevel(score);
+      const resolvedParams: ResolvedParam[] = effectiveParams.map((p) => ({
+        param_key: p.param_key,
+        name: p.name,
+        value: aiDraft[p.param_key] ?? 5,
+        weight: p.weight,
+      }));
+      onSave(aiDraft, score, level, "AI_AUTO", resolvedParams);
+    },
+  }), [aiDraft, effectiveParams, onSave]);
 
   const handleCancel = useCallback(() => {
     const fresh = buildDraftFromExisting(currentParams, effectiveParams);
@@ -472,6 +521,9 @@ export function ComplexityAssessmentModule({
           saving={saving}
           readOnly={isLocked}
           onSliderChange={handleManualSliderChange}
+          aiScoreRef={hasAiRatings ? aiScoreRef_ : null}
+          aiLevelRef={hasAiRatings ? aiLevelRef_ : null}
+          aiLabelRef={hasAiRatings ? aiLabelRef_ : null}
         />
       )}
 
@@ -512,7 +564,7 @@ export function ComplexityAssessmentModule({
       )}
     </div>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════
    Sub-components
@@ -693,6 +745,9 @@ function ManualParamsTab({
   saving,
   readOnly,
   onSliderChange,
+  aiScoreRef,
+  aiLevelRef,
+  aiLabelRef,
 }: {
   complexityParams: ComplexityParam[];
   draft: Record<string, number>;
@@ -705,9 +760,19 @@ function ManualParamsTab({
   saving: boolean;
   readOnly?: boolean;
   onSliderChange: (key: string, val: number) => void;
+  aiScoreRef?: number | null;
+  aiLevelRef?: string | null;
+  aiLabelRef?: string | null;
 }) {
   return (
     <div className="space-y-4">
+      {/* AI score reference */}
+      {aiScoreRef != null && aiLevelRef && aiLabelRef && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Bot className="h-3 w-3" />
+          <span>AI recommended: {aiScoreRef.toFixed(2)} ({aiLevelRef} — {aiLabelRef})</span>
+        </div>
+      )}
       {/* Live score */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm font-medium text-foreground">Weighted Score:</span>

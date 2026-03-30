@@ -37,7 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { ComplexityAssessmentModule } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
+import { ComplexityAssessmentModule, type ComplexityModuleHandle } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import {
@@ -1509,6 +1509,7 @@ export default function CurationReviewPage() {
   }, []);
 
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
+  const complexityModuleRef = useRef<ComplexityModuleHandle>(null);
 
   // Stable ref for saveSectionMutation — avoids unstable deps in effects
   const saveSectionMutationRef = useRef(saveSectionMutation);
@@ -1606,14 +1607,24 @@ export default function CurationReviewPage() {
     score: number,
     level: string,
     assessmentMode?: string,
+    resolvedParams?: { param_key: string; name: string; value: number; weight: number }[],
   ) => {
     setSavingSection(true);
-    const params: any[] = complexityParams.map((p) => ({
-      param_key: p.param_key,
-      name: p.name,
-      value: paramValues[p.param_key] ?? 5,
-      weight: p.weight,
-    }));
+    // Use resolvedParams from module (correct solution-type dimensions) if provided,
+    // otherwise fall back to generic complexityParams
+    const params: any[] = resolvedParams
+      ? resolvedParams.map((p) => ({
+          param_key: p.param_key,
+          name: p.name,
+          value: p.value,
+          weight: p.weight,
+        }))
+      : complexityParams.map((p) => ({
+          param_key: p.param_key,
+          name: p.name,
+          value: paramValues[p.param_key] ?? 5,
+          weight: p.weight,
+        }));
     // Persist assessment mode as metadata entry
     if (assessmentMode) {
       params.push({ _meta: { mode: assessmentMode } });
@@ -1906,20 +1917,8 @@ export default function CurationReviewPage() {
     // ── Complexity: apply AI-suggested ratings via dedicated handler ──
     // Use AI rating keys with equal weights (matching effectiveParams in ComplexityAssessmentModule)
     if (sectionKey === "complexity") {
-      if (aiSuggestedComplexity) {
-        const ratingKeys = Object.keys(aiSuggestedComplexity);
-        const paramValues: Record<string, number> = {};
-        ratingKeys.forEach((key) => {
-          const r = aiSuggestedComplexity[key];
-          paramValues[key] = r ? Math.max(1, Math.min(10, Math.round(r.rating))) : 5;
-        });
-        // Equal weights — same logic as effectiveParams (1/n per dimension)
-        const count = ratingKeys.length || 1;
-        const ws = ratingKeys.reduce((s, k) => s + (paramValues[k] ?? 5), 0) / count;
-        const score = Math.round(ws * 100) / 100;
-        const level = deriveComplexityLevel(score);
-        handleSaveComplexity(paramValues, score, level);
-      }
+      // Delegate to the module's own save logic which uses correct effectiveParams weights
+      complexityModuleRef.current?.saveAiDraft();
       return;
     }
 
@@ -3144,6 +3143,7 @@ export default function CurationReviewPage() {
                       case "complexity":
                         return (
                           <ComplexityAssessmentModule
+                            ref={complexityModuleRef}
                             challengeId={challengeId!}
                             currentScore={challenge.complexity_score ?? null}
                             currentLevel={challenge.complexity_level ?? null}
