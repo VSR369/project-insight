@@ -3143,6 +3143,7 @@ export default function CurationReviewPage() {
                       case "complexity":
                         return (
                           <ComplexityAssessmentModule
+                            ref={complexityModuleRef}
                             challengeId={challengeId!}
                             currentScore={challenge.complexity_score ?? null}
                             currentLevel={challenge.complexity_level ?? null}
