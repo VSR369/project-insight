@@ -1643,6 +1643,18 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 
 ${additionalData}`;
 
+      // Append attachment content to user prompt
+      if (Object.keys(attachmentsBySection).length > 0) {
+        let attachmentBlock = '\n\nATTACHED DOCUMENTS (uploaded by the seeking organization — use to enrich your review):\n';
+        for (const [sk, files] of Object.entries(attachmentsBySection)) {
+          for (const f of files) {
+            attachmentBlock += `\n--- ${f.fileName} (${sk}) ---\n${f.content}\n`;
+          }
+        }
+        userPrompt += attachmentBlock;
+      }
+
+
       let systemPrompt: string;
       // Build context intelligence preamble
       const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
