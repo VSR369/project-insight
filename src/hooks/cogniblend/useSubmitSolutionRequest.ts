@@ -1,7 +1,7 @@
 /**
- * useSubmitSolutionRequest — Orchestrates challenge creation from
- * the Solution Request form: initialize_challenge → update fields →
- * assign CR role (MP) → complete_phase.
+ * useSubmitSolutionRequest — Orchestrates challenge creation.
+ * Role Architecture v2: CR creates challenge → moves to curation-ready (phase 2).
+ * No CA assignment. Source role always 'CR'.
  *
  * useSaveDraft — Saves challenge in Phase 1 without advancing.
  */
@@ -10,8 +10,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
-import { withCreatedBy } from '@/lib/auditFields';
-import { autoAssignChallengeRole } from './useAutoAssignChallengeRoles';
 
 interface SubmitPayload {
   orgId: string;
@@ -31,7 +29,6 @@ interface SubmitPayload {
   subDomainIds?: string[];
   specialtyTags?: string[];
   beneficiariesMapping?: string;
-  amApprovalRequired?: boolean;
   templateId?: string;
 }
 
@@ -60,16 +57,15 @@ export function useSubmitSolutionRequest() {
       if (initError) throw new Error(initError.message);
       if (!challengeId) throw new Error('Failed to create challenge');
 
-      // 2. Update challenge with form fields
-      const sourceRole = payload.operatingModel === 'MP' ? 'AM' : 'CR';
+      // 2. Update challenge with form fields — source role always 'CR'
       const rewardStructure = {
         currency: payload.currency,
         budget_min: payload.budgetMin,
         budget_max: payload.budgetMax,
-        source_role: sourceRole,
+        source_role: 'CR',
         source_date: new Date().toISOString(),
         upstream_source: {
-          role: sourceRole,
+          role: 'CR',
           date: new Date().toISOString(),
           budget_min: payload.budgetMin,
           budget_max: payload.budgetMax,
@@ -98,7 +94,6 @@ export function useSubmitSolutionRequest() {
           }),
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
-            ...(payload.amApprovalRequired !== undefined ? { am_approval_required: payload.amApprovalRequired } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
           },
         } as any)
@@ -106,21 +101,8 @@ export function useSubmitSolutionRequest() {
 
       if (updateError) throw new Error(updateError.message);
 
-      // 3. Auto-assign Challenge Creator (AGG) or Architect (MP) from pool
-      if (payload.industrySegmentId) {
-        const specRoleCode = payload.operatingModel === 'MP' ? 'CA' : 'CR';
-        await autoAssignChallengeRole({
-          challengeId,
-          roleCode: specRoleCode,
-          industrySegmentId: payload.industrySegmentId,
-          subDomainIds: payload.subDomainIds,
-          specialityIds: payload.specialtyTags,
-          assignedBy: payload.creatorId,
-        });
-      }
-
-      // 4. Complete phase to advance from Phase 1 → Phase 2
-      const { data: phaseResult, error: phaseError } = await supabase.rpc(
+      // 3. Complete phase to advance from Phase 1 → Phase 2 (curation-ready)
+      const { error: phaseError } = await supabase.rpc(
         'complete_phase',
         {
           p_challenge_id: challengeId,
@@ -132,11 +114,8 @@ export function useSubmitSolutionRequest() {
 
       return { challengeId };
     },
-    onSuccess: (_data, variables) => {
-      const role = variables.operatingModel === 'MP'
-        ? 'Challenge Architect'
-        : 'Challenge Creator';
-      toast.success(`Solution Request submitted — sent to ${role} for Spec Review`);
+    onSuccess: () => {
+      toast.success('Challenge submitted — sent to Curator for review');
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
@@ -201,10 +180,10 @@ export function useSaveDraft() {
             currency: payload.currency,
             budget_min: payload.budgetMin,
             budget_max: payload.budgetMax,
-            source_role: payload.operatingModel === 'MP' ? 'AM' : 'CR',
+            source_role: 'CR',
             source_date: new Date().toISOString(),
             upstream_source: {
-              role: payload.operatingModel === 'MP' ? 'AM' : 'CR',
+              role: 'CR',
               date: new Date().toISOString(),
               budget_min: payload.budgetMin,
               budget_max: payload.budgetMax,
