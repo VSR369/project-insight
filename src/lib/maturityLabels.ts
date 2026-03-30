@@ -22,5 +22,5 @@ export const MATURITY_DESCRIPTIONS: Record<string, string> = {
 /** Resolve a DB maturity_level value to its user-facing label */
 export function getMaturityLabel(level: string | null | undefined): string {
   if (!level) return '—';
-  return MATURITY_LABELS[level] ?? level;
+  return MATURITY_LABELS[level] ?? MATURITY_LABELS[level.toLowerCase()] ?? level;
 }
