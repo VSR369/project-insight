@@ -102,7 +102,7 @@ export function MyActionItemsSection() {
   const queryClient = useQueryClient();
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
-  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
+  
 
   const { isSpecRole } = useCogniPermissions();
 
