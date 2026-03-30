@@ -177,12 +177,15 @@ function inferSeverity(comment: string): ReviewComment["severity"] {
 function parseComment(raw: string | { text?: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string }): ReviewComment {
   // Handle new object-format comments from multi-tier LLM output
   if (typeof raw === 'object' && raw !== null) {
-    const text = raw.text || raw.comment || '';
+    const rawText = raw.text || raw.comment || '';
+    const text = typeof rawText === 'string' ? rawText : JSON.stringify(rawText);
     const type = raw.type as ReviewComment['type'] || undefined;
     const severity = type
       ? (type === 'error' ? 'required' : type === 'best_practice' ? 'strength' : type as ReviewComment['severity'])
       : inferSeverity(text);
-    return { text, type, severity, field: raw.field || null, reasoning: raw.reasoning || null };
+    const rawReasoning = raw.reasoning || null;
+    const reasoning = rawReasoning && typeof rawReasoning !== 'string' ? JSON.stringify(rawReasoning) : rawReasoning;
+    return { text, type, severity, field: typeof raw.field === 'string' ? raw.field : (raw.field ? JSON.stringify(raw.field) : null), reasoning };
   }
 
   // Legacy string format
