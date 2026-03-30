@@ -191,7 +191,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegmentOptions();
-  const { data: architects = [] } = useChallengeArchitects();
+  // useChallengeArchitects removed — CA role deprecated
 
   // ═══════ Hooks — edit mode data ═══════
   const { data: existingChallenge, isLoading: editLoading } = useExistingChallenge(isEditMode ? challengeId : undefined);
