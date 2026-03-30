@@ -951,6 +951,19 @@ Focus 100% of your attention on producing the most accurate, specific, and actio
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
+    // Wave context injection
+    const waveCtx = SECTION_WAVE_CONTEXT[config.section_key];
+    if (waveCtx) {
+      parts.push(`POSITION: Wave ${waveCtx.wave} (${waveCtx.waveName}).`);
+      parts.push(`STRATEGIC ROLE: ${waveCtx.strategicRole}`);
+      if (waveCtx.upstreamSections.length > 0) {
+        parts.push(`ESTABLISHED BY EARLIER SECTIONS (rely on these): ${waveCtx.upstreamSections.join(', ')}`);
+      }
+      if (waveCtx.downstreamSections.length > 0) {
+        parts.push(`SECTIONS THAT DEPEND ON THIS (changes here cascade to): ${waveCtx.downstreamSections.join(', ')}`);
+      }
+    }
+
     // FIX 5: Quality criteria — use effective (DB or default fallback)
     const criteria = getEffectiveQualityCriteria(config);
     if (criteria.length > 0) {
