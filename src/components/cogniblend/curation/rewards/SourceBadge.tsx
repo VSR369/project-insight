@@ -11,7 +11,7 @@
 import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type FieldSourceType = 'am' | 'ai' | 'curator';
+export type FieldSourceType = 'am' | 'ai' | 'curator' | 'creator';
 
 export interface FieldSource {
   src: FieldSourceType;
