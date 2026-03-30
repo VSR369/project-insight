@@ -2135,7 +2135,18 @@ export default function CurationReviewPage() {
       if (valueToSave && typeof valueToSave === 'object' && !Array.isArray(valueToSave)) {
         if (Array.isArray((valueToSave as any).items)) {
           valueToSave = (valueToSave as any).items;
+        } else if (Array.isArray((valueToSave as any).rows)) {
+          valueToSave = (valueToSave as any).rows;
         }
+      }
+      // ── Affected stakeholders: normalize AI field names to canonical columns ──
+      if (subsectionKey === 'affected_stakeholders' && Array.isArray(valueToSave)) {
+        valueToSave = (valueToSave as any[]).map((row: any) => ({
+          stakeholder_name: row.stakeholder_name ?? row.stakeholder ?? row.name ?? row.Stakeholder ?? "",
+          role: row.role ?? row.Role ?? "",
+          impact_description: row.impact_description ?? row.impact ?? row.Impact ?? "",
+          adoption_challenge: row.adoption_challenge ?? row.challenge ?? row.Challenge ?? "",
+        }));
       }
       // Fallback for line_items: if still a plain string, split into array items
       if (config.format === 'line_items' && typeof valueToSave === 'string') {

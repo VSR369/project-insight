@@ -111,15 +111,9 @@ export function useWaveExecutor({
           );
           store.getState().clearStaleness(sectionKey);
 
-          // Propagate generated content to store so next wave sees it in context
-          if (parsedSuggestion != null) {
-            const hasContent = typeof parsedSuggestion === 'string'
-              ? parsedSuggestion.trim().length > 0
-              : true; // arrays and objects always count as content
-            if (hasContent) {
-              store.getState().setSectionData(sectionKey, parsedSuggestion);
-            }
-          }
+          // AI suggestions are stored in review state (setAiReview above).
+          // We do NOT write to setSectionData — that requires explicit Accept action.
+          // Writing here would corrupt table sections if AI returns prose.
 
           // Post-LLM validation
           if (context.todaysDate) {

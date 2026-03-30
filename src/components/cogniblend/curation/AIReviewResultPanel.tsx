@@ -1281,7 +1281,7 @@ export function AIReviewResultPanel({
             size="sm"
             className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5"
             onClick={onAccept}
-            disabled={isRefining}
+            disabled={isRefining || suggestedFormat === "table_fallback"}
           >
             <Check className="h-4 w-4 mr-1.5" />
             {complexityRatings && Object.keys(complexityRatings).length > 0

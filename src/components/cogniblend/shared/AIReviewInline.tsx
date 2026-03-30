@@ -643,6 +643,13 @@ export function AIReviewInline({
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
     } else if (hasEdits) {
+      // Guard: if this is a table section but editedSuggestedContent is a string (prose fallback),
+      // block the accept to prevent saving corrupt data
+      const editFmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
+      if ((editFmt === 'table' || editFmt === 'schedule_table') && typeof editedSuggestedContent === 'string') {
+        toast.error("AI returned text instead of table data. Please re-review this section.");
+        return;
+      }
       // User manually edited the suggestion — use edited content
       if (typeof editedSuggestedContent === "string") {
         onAcceptRefinement(sectionKey, editedSuggestedContent);
