@@ -2908,13 +2908,7 @@ export default function CurationReviewPage() {
         </div>
       )}
 
-      {/* ═══ ORGANIZATION CONTEXT PANEL ═══ */}
-      {challenge.organization_id && (
-        <OrgContextPanel
-          challengeId={challenge.id}
-          organizationId={challenge.organization_id}
-        />
-      )}
+      {/* Organization Context Panel moved to Tab 0 in progress strip */}
 
       {/* ═══ ORIGINAL BRIEF (Seeding Data) ═══ */}
       {challenge.problem_statement && (
