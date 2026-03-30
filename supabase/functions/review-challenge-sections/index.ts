@@ -685,10 +685,14 @@ FORMAT: ${formatType}. ${formatInstruction}
 ORIGINAL CONTENT:
 ${contentStr}
 ${depBlock}
-${(() => {
+    ${(() => {
       const sectionAtts = attachmentsBySection[r.section_key] || [];
       return sectionAtts.length > 0
-        ? `\nATTACHED DOCUMENTS for this section:\n${sectionAtts.map((a: any) => `--- ${a.fileName} ---\n${a.content}`).join('\n')}\nUse these documents to inform your rewrite.\n`
+        ? `\nREFERENCE MATERIALS for this section:\n${sectionAtts.map((a: any) => {
+            const typeTag = a.sourceType === 'url' ? 'WEB' : 'DOC';
+            const shareTag = a.sharedWithSolver ? 'SHARED' : 'AI-ONLY';
+            return `--- [${typeTag}] ${a.name} [${shareTag}] ---\n${a.sourceUrl ? `Source: ${a.sourceUrl}\n` : ''}${a.content}`;
+          }).join('\n')}\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.\n`
         : '';
     })()}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
