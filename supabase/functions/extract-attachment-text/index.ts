@@ -1,6 +1,6 @@
 /**
- * extract-attachment-text — Extracts text content from uploaded challenge attachments.
- * Supports: PDF (text decode), images (Claude Vision), with fallback for unsupported types.
+ * extract-attachment-text — Extracts text content from uploaded challenge attachments and URLs.
+ * Supports: PDF (text decode), images (Gemini Vision), URLs (HTML strip), with fallback for unsupported types.
  * Updates challenge_attachments with extracted text and status.
  */
 
@@ -52,91 +52,133 @@ serve(async (req) => {
       .update({ extraction_status: "processing", updated_at: new Date().toISOString() })
       .eq("id", attachment_id);
 
-    // Download file from storage
-    const { data: fileData, error: dlErr } = await adminClient.storage
-      .from("challenge-attachments")
-      .download(att.storage_path);
-
-    if (dlErr || !fileData) {
-      await adminClient.from("challenge_attachments").update({
-        extraction_status: "failed",
-        extraction_error: dlErr?.message || "File not found in storage",
-        updated_at: new Date().toISOString(),
-      }).eq("id", attachment_id);
-
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "STORAGE_ERROR", message: "File not found in storage" } }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const buffer = await fileData.arrayBuffer();
     let extractedText = "";
     let method = "unknown";
 
-    if (att.mime_type === "application/pdf") {
-      // PDF: extract raw text content
-      const textDecoder = new TextDecoder();
-      const rawText = textDecoder.decode(buffer);
-      // Extract readable text between stream markers or just use raw text
-      extractedText = rawText
-        .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .substring(0, 50000);
-      method = "pdf_text";
-    } else if (att.mime_type.includes("spreadsheet") || att.mime_type.includes("excel") || att.mime_type.includes("csv")) {
-      const textDecoder = new TextDecoder();
-      extractedText = textDecoder.decode(buffer).substring(0, 50000);
-      method = "tabular_text";
-    } else if (att.mime_type.includes("wordprocessing") || att.mime_type.includes("document") || att.mime_type === "text/plain") {
-      const textDecoder = new TextDecoder();
-      extractedText = textDecoder.decode(buffer).substring(0, 50000);
-      method = "docx_text";
-    } else if (att.mime_type.startsWith("image/")) {
-      // Use Lovable AI Gateway for image description
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) {
-        extractedText = "[Image description unavailable — no API key configured]";
-        method = "image_skipped";
-      } else {
-        try {
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-          const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              max_tokens: 2000,
-              messages: [{
-                role: "user",
-                content: [
-                  {
-                    type: "image_url",
-                    image_url: { url: `data:${att.mime_type};base64,${base64}` },
-                  },
-                  {
-                    type: "text",
-                    text: "Describe this image in detail. Extract any text, data tables, diagrams, or process flows visible. This is an attachment to a business challenge specification.",
-                  },
-                ],
-              }],
-            }),
-          });
-          const result = await resp.json();
-          extractedText = result.choices?.[0]?.message?.content || "[Image description failed]";
-          method = "image_description";
-        } catch (imgErr: any) {
-          extractedText = `[Image extraction failed: ${imgErr.message}]`;
-          method = "image_error";
+    if (att.source_type === "url" && att.source_url) {
+      // ── URL EXTRACTION ──
+      try {
+        const urlResp = await fetch(att.source_url, {
+          headers: { "User-Agent": "CogniBlend-Curator/1.0" },
+          redirect: "follow",
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!urlResp.ok) throw new Error(`HTTP ${urlResp.status}: ${urlResp.statusText}`);
+        const contentType = urlResp.headers.get("content-type") || "";
+        const rawText = await urlResp.text();
+
+        if (contentType.includes("application/pdf")) {
+          extractedText = "[PDF URL — content available at: " + att.source_url + "]";
+          method = "url_pdf";
+        } else {
+          // HTML — strip tags, extract main content
+          extractedText = rawText
+            .replace(/<script[\s\S]*?<\/script>/gi, "")
+            .replace(/<style[\s\S]*?<\/style>/gi, "")
+            .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+            .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+            .replace(/<header[\s\S]*?<\/header>/gi, "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+            .replace(/\s+/g, " ").trim().substring(0, 50000);
+          method = "url_html";
         }
+
+        // Auto-populate url_title from page <title>
+        if (!att.url_title) {
+          const titleMatch = rawText.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+          if (titleMatch?.[1]) {
+            await adminClient.from("challenge_attachments").update({
+              url_title: titleMatch[1].trim().substring(0, 500),
+            }).eq("id", attachment_id);
+          }
+        }
+      } catch (fetchUrlErr: any) {
+        extractedText = `[Failed to fetch URL: ${fetchUrlErr.message}]`;
+        method = "url_error";
       }
     } else {
-      extractedText = `[Unsupported file type: ${att.mime_type}]`;
-      method = "unsupported";
+      // ── FILE EXTRACTION (existing logic) ──
+      const { data: fileData, error: dlErr } = await adminClient.storage
+        .from("challenge-attachments")
+        .download(att.storage_path);
+
+      if (dlErr || !fileData) {
+        await adminClient.from("challenge_attachments").update({
+          extraction_status: "failed",
+          extraction_error: dlErr?.message || "File not found in storage",
+          updated_at: new Date().toISOString(),
+        }).eq("id", attachment_id);
+
+        return new Response(
+          JSON.stringify({ success: false, error: { code: "STORAGE_ERROR", message: "File not found in storage" } }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const buffer = await fileData.arrayBuffer();
+
+      if (att.mime_type === "application/pdf") {
+        const textDecoder = new TextDecoder();
+        const rawText = textDecoder.decode(buffer);
+        extractedText = rawText
+          .replace(/[^\x20-\x7E\n\r\t]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .substring(0, 50000);
+        method = "pdf_text";
+      } else if (att.mime_type?.includes("spreadsheet") || att.mime_type?.includes("excel") || att.mime_type?.includes("csv")) {
+        const textDecoder = new TextDecoder();
+        extractedText = textDecoder.decode(buffer).substring(0, 50000);
+        method = "tabular_text";
+      } else if (att.mime_type?.includes("wordprocessing") || att.mime_type?.includes("document") || att.mime_type === "text/plain") {
+        const textDecoder = new TextDecoder();
+        extractedText = textDecoder.decode(buffer).substring(0, 50000);
+        method = "docx_text";
+      } else if (att.mime_type?.startsWith("image/")) {
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        if (!LOVABLE_API_KEY) {
+          extractedText = "[Image description unavailable — no API key configured]";
+          method = "image_skipped";
+        } else {
+          try {
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-3-flash-preview",
+                max_tokens: 2000,
+                messages: [{
+                  role: "user",
+                  content: [
+                    {
+                      type: "image_url",
+                      image_url: { url: `data:${att.mime_type};base64,${base64}` },
+                    },
+                    {
+                      type: "text",
+                      text: "Describe this image in detail. Extract any text, data tables, diagrams, or process flows visible. This is an attachment to a business challenge specification.",
+                    },
+                  ],
+                }],
+              }),
+            });
+            const result = await resp.json();
+            extractedText = result.choices?.[0]?.message?.content || "[Image description failed]";
+            method = "image_description";
+          } catch (imgErr: any) {
+            extractedText = `[Image extraction failed: ${imgErr.message}]`;
+            method = "image_error";
+          }
+        }
+      } else {
+        extractedText = `[Unsupported file type: ${att.mime_type}]`;
+        method = "unsupported";
+      }
     }
 
     // Save extracted text
@@ -154,7 +196,6 @@ serve(async (req) => {
   } catch (err: any) {
     console.error("extract-attachment-text error:", err);
 
-    // Try to mark as failed if we have the attachment_id
     try {
       const body = await req.clone().json().catch(() => ({}));
       if (body.attachment_id) {
