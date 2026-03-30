@@ -1772,6 +1772,8 @@ REFERENCE MATERIAL USAGE RULES:
           skip_analysis === true,
           provided_comments,
           masterDataOptions,
+          orgContext,
+          attachmentsBySection,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {
