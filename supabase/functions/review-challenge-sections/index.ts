@@ -960,6 +960,13 @@ serve(async (req) => {
       sectionsToReview = section_key
         ? allKeys.filter(s => s.key === section_key)
         : allKeys;
+
+      // Fallback: if a specific section_key was requested but not found in DB config,
+      // check the hardcoded fallback list before returning an error
+      if (section_key && sectionsToReview.length === 0) {
+        const fallback = getFallbackSections(resolvedContext);
+        sectionsToReview = fallback.filter(s => s.key === section_key);
+      }
     } else {
       const fallback = getFallbackSections(resolvedContext);
       sectionsToReview = section_key
