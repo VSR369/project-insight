@@ -2040,9 +2040,11 @@ export default function CurationReviewPage() {
       if (rawArr) {
         valueToSave = {
           criteria: rawArr.map((c: any) => ({
-            criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
-            weight_percentage: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
-            description: c.description ?? c.details ?? "",
+            criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.parameter ?? c.title ?? "",
+            weight_percentage: Number(c.weight_percentage ?? c.weight ?? c.percentage ?? c.weight_percent ?? 0),
+            description: c.description ?? c.details ?? c.scoring_type ?? "",
+            scoring_method: c.scoring_method ?? c.scoring_type ?? "",
+            evaluator_role: c.evaluator_role ?? c.evaluator ?? "",
           }))
         };
       }
