@@ -1707,7 +1707,8 @@ REFERENCE MATERIAL USAGE RULES:
 
       let systemPrompt: string;
       // Build context intelligence preamble
-      const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
+      // Bug 7: contextIntel is now built once before the batch loop (see below line ~1559)
+      // It is still used here per-batch for system prompt construction
       if (useDbConfig && dbConfigMap) {
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
         systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
