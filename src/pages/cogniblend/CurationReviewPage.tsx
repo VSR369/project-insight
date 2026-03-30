@@ -1212,6 +1212,7 @@ export default function CurationReviewPage() {
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
+  const [showOnlyStale, setShowOnlyStale] = useState(false);
 
   // Optimistic industry segment — bridges the gap between save and refetch
   const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
@@ -2538,6 +2539,22 @@ export default function CurationReviewPage() {
   // Group progress computation — stale sections count as NOT done
   const staleKeySet = useMemo(() => new Set(staleSections.map(s => s.key)), [staleSections]);
 
+  // Stale count per group for badge display
+  const staleCountByGroup = useMemo(() => {
+    const counts: Record<string, number> = {};
+    GROUPS.forEach((g) => {
+      counts[g.id] = g.sectionKeys.filter((k) => staleKeySet.has(k)).length;
+    });
+    return counts;
+  }, [staleKeySet]);
+
+  // Auto-disable stale filter when no stale sections remain
+  useEffect(() => {
+    if (staleSections.length === 0 && showOnlyStale) {
+      setShowOnlyStale(false);
+    }
+  }, [staleSections.length, showOnlyStale]);
+
   const groupProgress = useMemo(() => {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
@@ -2933,7 +2950,14 @@ export default function CurationReviewPage() {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">{group.label}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold">{group.label}</span>
+                  {staleCountByGroup[group.id] > 0 && (
+                    <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
+                      {staleCountByGroup[group.id]}
+                    </span>
+                  )}
+                </div>
                 {allDone && <CheckCircle2 className="h-4 w-4" />}
                 {hasFlag && !allDone && <AlertTriangle className="h-4 w-4" />}
               </div>
@@ -2973,12 +2997,30 @@ export default function CurationReviewPage() {
                     <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
                     Collapse All
                   </Button>
+                  {staleSections.length > 0 && (
+                    <Button
+                      variant={showOnlyStale ? "default" : "outline"}
+                      size="sm"
+                      className={cn(
+                        "h-7 px-2.5 text-xs",
+                        showOnlyStale
+                          ? "bg-amber-500 hover:bg-amber-600 text-white"
+                          : "text-amber-700 border-amber-300 hover:bg-amber-50"
+                      )}
+                      onClick={() => setShowOnlyStale(!showOnlyStale)}
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                      {showOnlyStale ? "Show All Sections" : `Show Only Stale (${staleSections.length})`}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
-                {activeGroupDef.sectionKeys.map((sectionKey) => {
+                {activeGroupDef.sectionKeys
+                  .filter((sectionKey) => !showOnlyStale || staleKeySet.has(sectionKey))
+                  .map((sectionKey) => {
                   const section = SECTION_MAP.get(sectionKey);
                   if (!section) return null;
 
@@ -3747,6 +3789,20 @@ export default function CurationReviewPage() {
                     </div>
                   );
                 })}
+                {showOnlyStale && staleCountByGroup[activeGroupDef.id] === 0 && (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
+                    <p className="text-sm font-medium text-muted-foreground">No stale sections in this tab</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 text-xs"
+                      onClick={() => setShowOnlyStale(false)}
+                    >
+                      Show All Sections
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -3932,6 +3988,7 @@ export default function CurationReviewPage() {
                           key={s.key}
                           className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
                           onClick={() => {
+                            setShowOnlyStale(true);
                             const group = GROUPS.find((g) => g.sectionKeys.includes(s.key));
                             if (group) setActiveGroup(group.id);
                           }}
@@ -4009,6 +4066,7 @@ export default function CurationReviewPage() {
               .map(r => ({ key: r.section_key, name: SECTION_MAP.get(r.section_key)?.label ?? r.section_key }))}
             onNavigateToStale={() => {
               if (staleSections.length > 0) {
+                setShowOnlyStale(true);
                 const firstKey = staleSections[0].key;
                 const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
                 if (group) setActiveGroup(group.id);
