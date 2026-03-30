@@ -640,6 +640,28 @@ async function callAIPass2Rewrite(
       .map((c: any) => `- ${c.text}`)
       .join('\n');
 
+    // Gap 3: Preserve strengths — tell LLM what to keep
+    const strengths = r.comments
+      .filter((c: any) => c.type === 'strength')
+      .map((c: any) => `- ✅ ${c.text}`)
+      .join('\n');
+    const strengthBlock = strengths
+      ? `\nSTRENGTHS TO PRESERVE (these are GOOD — keep them intact while improving other areas):\n${strengths}\n`
+      : '';
+
+    // Gap 2: Feed cross-section issues into Pass 2
+    const crossIssues = pass1Results
+      .flatMap((p1: any) => (p1.cross_section_issues || []))
+      .filter((issue: any) =>
+        issue.related_section === r.section_key ||
+        issue.source_section === r.section_key
+      )
+      .map((issue: any, i: number) => `${i + 1}. [CROSS-SECTION] ${issue.issue}${issue.suggested_resolution ? ` → Resolution: ${issue.suggested_resolution}` : ''}`)
+      .join('\n');
+    const crossIssueBlock = crossIssues
+      ? `\nCROSS-SECTION ISSUES INVOLVING THIS SECTION (from analysis — MUST be addressed in your rewrite):\n${crossIssues}\n`
+      : '';
+
     const formatInstruction = getSuggestionFormatInstruction(r.section_key);
     const formatType = getSectionFormatType(r.section_key);
 
@@ -679,7 +701,12 @@ async function callAIPass2Rewrite(
       : '';
 
     return `### Section: ${r.section_key}
-${r.status === 'generated' ? 'ACTION: Generate new content from scratch based on challenge context.' : 'ACTION: Revise the existing content to address all issues below.'}
+${r.status === 'generated' ? `ACTION: Generate new content from scratch. Follow this generation strategy:
+1. DERIVE from upstream sections: Extract relevant details from problem_statement, scope, deliverables, and other established sections listed in RELATED SECTIONS below.
+2. APPLY DOMAIN EXPERTISE: What would a ${challengeData.maturity_level || 'POC'}-level challenge in this domain typically include for this section? Use industry standards and your consulting experience.
+3. REFERENCE ATTACHED MATERIALS: If reference materials (files/URLs) are provided for this section, extract specific data points and incorporate them.
+4. QUANTIFY: Include specific numbers, metrics, ranges, and benchmarks — not vague qualifiers.
+5. STRUCTURE: Follow the exact format instruction below. Every field must be populated with meaningful content, not placeholders.` : 'ACTION: Revise the existing content to address all issues below while preserving identified strengths.'}
 ${waveBlock}
 
 FORMAT: ${formatType}. ${formatInstruction}
@@ -697,9 +724,10 @@ ${depBlock}
           }).join('\n')}\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.\n`
         : '';
     })()}
+${strengthBlock}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
 ${actionableComments || '(No specific issues — generate fresh content based on challenge context)'}
-
+${crossIssueBlock}
 ${bestPractices ? `BEST PRACTICES TO INCORPORATE:\n${bestPractices}` : ''}
 
 ${r.guidelines?.length > 0 ? `GUIDELINES:\n- ${r.guidelines.join('\n- ')}` : ''}
@@ -720,8 +748,12 @@ Currency: ${challengeData.currency_code || 'USD'}
 ${clientContext?.rateCard ? `Rate Card: Floor $${clientContext.rateCard.effortRateFloor}/hr, Reward floor $${clientContext.rateCard.rewardFloorAmount}` : ''}
 Today's Date: ${clientContext?.todaysDate || new Date().toISOString().split('T')[0]}
 
-FULL CHALLENGE DATA:
-${JSON.stringify(challengeData, null, 2)}
+CHALLENGE SUMMARY (for cross-referencing — detailed per-section content is provided below):
+Problem: ${(challengeData.problem_statement || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300)}...
+Scope: ${(challengeData.scope || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300)}...
+Domain Tags: ${JSON.stringify(challengeData.domain_tags || [])}
+Deliverable Count: ${Array.isArray(challengeData.deliverables) ? challengeData.deliverables.length : 'N/A'}
+IP Model: ${challengeData.ip_model || 'not set'}
 
 SECTIONS TO REWRITE:
 ${sectionPrompts.join('\n\n---\n\n')}`;

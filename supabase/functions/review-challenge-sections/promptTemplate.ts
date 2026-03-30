@@ -63,6 +63,30 @@ const FORMAT_INSTRUCTIONS: Record<string, string> = {
   complexity_assessment: 'Output: Use the assess_complexity tool to return per-parameter ratings with justifications. Do NOT use the review_sections tool for this section.',
 };
 
+/** Gap 5: Section-specific quality bar exemplars as fallback when DB example_good is null */
+const SECTION_QUALITY_EXEMPLARS: Partial<Record<string, string>> = {
+  scope: `IN SCOPE:
+- Demand forecasting for 847 SKUs across our 12 North American distribution centers
+- Integration with SAP ERP (S/4HANA) for real-time inventory feeds
+- Model training on 36 months of historical order data (provided)
+- Automated weekly retraining pipeline
+
+OUT OF SCOPE:
+- Supply-side forecasting (vendor lead times, procurement optimization)
+- International distribution centers (EU/APAC expansion planned for Phase 2)
+- Real-time pricing adjustments (separate initiative in Q3)`,
+
+  evaluation_criteria: `[{"criterion_name":"Forecast Accuracy","weight_percentage":35,"description":"Mean Absolute Percentage Error (MAPE) on held-out test set of 12 weeks. Must demonstrate improvement over our current 23% MAPE baseline.","scoring_method":"Automated: compute MAPE on provided test dataset. Threshold: <15% = full marks, 15-20% = partial, >20% = fail.","evaluator_role":"Data Science Lead"},{"criterion_name":"System Integration","weight_percentage":25,"description":"API successfully connects to SAP S/4HANA sandbox, processes real inventory feeds, and returns forecasts within SLA.","scoring_method":"Live demo: evaluator triggers 3 forecast runs via API. All must complete within 60-second SLA.","evaluator_role":"Enterprise Architect"}]`,
+
+  success_metrics_kpis: `[{"kpi":"Forecast MAPE","baseline":"23% (current Excel model)","target":"<15%","measurement_method":"Automated MAPE computation on 12-week holdout set","timeframe":"8 weeks from project start"},{"kpi":"Stockout Reduction","baseline":"340 events/quarter","target":"<170 events/quarter (50% reduction)","measurement_method":"Monthly stockout count from SAP inventory reports","timeframe":"First quarter post-deployment"}]`,
+
+  hook: `Can your AI outpredict our 18-month-old Excel forecasts? We need to cut our 23% forecast error rate in half across 847 SKUs and 12 distribution centers — and we are offering $75,000 to the solver who can prove it with a working API.`,
+
+  solver_expertise: `{"expertise_areas":[{"area":"Machine Learning / Time Series","sub_areas":["demand forecasting","ARIMA/Prophet/LSTM","feature engineering for retail"],"level":"required"},{"area":"Enterprise Integration","sub_areas":["SAP S/4HANA","REST API development","ETL pipelines"],"level":"required"},{"area":"MLOps","sub_areas":["model monitoring","automated retraining","drift detection"],"level":"preferred"}],"certifications":["AWS ML Specialty or equivalent cloud ML cert"],"experience_years":5,"domain_knowledge":["retail/CPG supply chain","inventory optimization"]}`,
+
+  reward_structure: `Monetary: 3-tier competitive structure. 1st place: $45,000, 2nd place: $20,000, 3rd place: $10,000. Total pool: $75,000 USD. Non-monetary: Featured case study on our innovation portal, letter of recommendation from our VP Supply Chain, priority consideration for Phase 2 pilot engagement.`,
+};
+
 /** Map section keys to their format type for prompt enrichment */
 const SECTION_FORMAT_MAP: Record<string, string> = {
   problem_statement: 'rich_text',
@@ -1273,6 +1297,33 @@ REWRITE RULES:
 
 VOICE RULE: All rewritten content uses first-person plural ("we", "our") from the seeker's perspective. Exception: evaluation_criteria and submission_guidelines use neutral procedural voice. NEVER write "the organization" or "the seeker" in challenge content.
 
+QUANTIFICATION MANDATE:
+Every claim MUST include a number, metric, or specific reference. If the seeker provided data, use it. If not, use your domain knowledge for typical industry ranges.
+
+- WRONG: "This will improve efficiency."
+- RIGHT: "We expect this to reduce processing time from 48 hours to under 4 hours (90%+ improvement)."
+
+- WRONG: "The solution should handle high volumes."
+- RIGHT: "The solution must process 10,000 transactions per second at P99 latency under 200ms."
+
+- WRONG: "Experienced professionals required."
+- RIGHT: "Minimum 5 years of experience in enterprise data engineering, with proven delivery of ETL pipelines processing 1TB+ daily volumes."
+
+If you cannot find or infer a specific number, use a benchmarked range: "Industry benchmarks suggest 8-12 weeks for POC-level implementations of this complexity."
+
+SELF-VALIDATION (apply before returning EACH section):
+Before returning your rewritten content, mentally verify:
+1. ✅ Did I address EVERY error, warning, and suggestion? (Re-read the issues list)
+2. ✅ Did I preserve all identified strengths?
+3. ✅ Did I resolve all cross-section issues involving this section?
+4. ✅ Does the content use "we/our" voice? (except evaluation_criteria/submission_guidelines)
+5. ✅ Would a solver from outside this industry understand every sentence on first read?
+6. ✅ Does the format EXACTLY match the required output (HTML/JSON/plain text)?
+7. ✅ Are there any vague statements I can make more specific with domain knowledge?
+8. ✅ For AI-ONLY reference materials — did I embed the data directly (not reference the document)?
+
+If ANY check fails, revise before returning.
+
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
 - Good problem statement: "Our supply chain planning team makes demand forecasts using 18-month-old statistical models in Excel, resulting in 23% forecast error (vs. industry benchmark of 12-15%). This drives $4.2M in annual excess inventory costs and 340 stockout events per quarter across our 12 distribution centers."
@@ -1342,9 +1393,11 @@ CHALLENGE CONTEXT:
       prompt += `\nANALYST SOURCES to cite: ${(sources as string[]).join(', ')}\n`;
     }
 
-    // Good example (calibration target)
+    // Good example (calibration target) — Gap 5: fallback to SECTION_QUALITY_EXEMPLARS
     if (config.example_good) {
       prompt += `\nEXCELLENT EXAMPLE (aim for this quality):\n${config.example_good}\n`;
+    } else if (SECTION_QUALITY_EXEMPLARS[config.section_key]) {
+      prompt += `\nEXCELLENT EXAMPLE (aim for this quality):\n${SECTION_QUALITY_EXEMPLARS[config.section_key]}\n`;
     }
 
     // Supervisor DOs
