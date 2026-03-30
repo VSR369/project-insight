@@ -1611,44 +1611,58 @@ export default function CurationReviewPage() {
     notifyStaleness('maturity_level');
   }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
-  /** Save solution type and auto-populate solver expertise */
-  const handleSaveSolutionType = useCallback(async (solutionTypeCode: string) => {
+  /** Save solution types (multi-select) and auto-populate solver expertise */
+  const handleSaveSolutionTypes = useCallback(async (selectedCodes: string[]) => {
     setSavingSection(true);
-    syncSectionToStore('solution_type' as SectionKey, solutionTypeCode);
-    saveSectionMutation.mutate({ field: "solution_type", value: solutionTypeCode });
+    syncSectionToStore('solution_type' as SectionKey, selectedCodes);
+    saveSectionMutation.mutate({ field: "solution_types", value: selectedCodes });
+
+    // Derive primary proficiency group for backward compat with complexity dimensions
+    const allSolTypes = solutionTypesData ?? [];
+    const primaryGroup = derivePrimaryGroup(selectedCodes, allSolTypes);
+    if (primaryGroup && primaryGroup !== challenge?.solution_type) {
+      saveSectionMutation.mutate({ field: "solution_type", value: primaryGroup });
+    }
+
     notifyStaleness('solution_type');
 
-    // Auto-populate solver expertise with matching proficiency area
-    const proficiencyAreaName = SOLUTION_TYPE_TO_PROFICIENCY_AREA[solutionTypeCode];
-    if (proficiencyAreaName && challengeId) {
+    // Auto-populate solver expertise with matching proficiency areas
+    if (challengeId && selectedCodes.length > 0) {
       try {
-        const { data: paRows } = await supabase
-          .from('proficiency_areas')
-          .select('id, name')
-          .eq('is_active', true)
-          .eq('name', proficiencyAreaName);
+        const groups = getSelectedGroups(selectedCodes, allSolTypes);
+        const groupLabels = groups.map(g => {
+          const t = allSolTypes.find(st => st.proficiency_group === g);
+          return t?.proficiency_group_label;
+        }).filter(Boolean) as string[];
 
-        if (paRows && paRows.length > 0) {
-          const paIds = paRows.map((r: any) => r.id);
-          // Merge with existing solver_expertise_requirements
-          const existing = challenge?.solver_expertise_requirements
-            ? (typeof challenge.solver_expertise_requirements === 'string'
-              ? JSON.parse(challenge.solver_expertise_requirements)
-              : challenge.solver_expertise_requirements) as Record<string, any>
-            : {};
-          const updated = {
-            ...existing,
-            proficiency_areas: paIds,
-          };
-          syncSectionToStore('solver_expertise' as SectionKey, updated);
-          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: updated });
-          toast.success(`Solver Expertise auto-updated to match "${proficiencyAreaName}"`);
+        if (groupLabels.length > 0) {
+          const { data: paRows } = await supabase
+            .from('proficiency_areas')
+            .select('id, name')
+            .eq('is_active', true)
+            .in('name', groupLabels);
+
+          if (paRows && paRows.length > 0) {
+            const paIds = paRows.map((r: any) => r.id);
+            const existing = challenge?.solver_expertise_requirements
+              ? (typeof challenge.solver_expertise_requirements === 'string'
+                ? JSON.parse(challenge.solver_expertise_requirements)
+                : challenge.solver_expertise_requirements) as Record<string, any>
+              : {};
+            const updated = {
+              ...existing,
+              proficiency_areas: paIds,
+            };
+            syncSectionToStore('solver_expertise' as SectionKey, updated);
+            saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: updated });
+            toast.success(`Solver Expertise auto-updated for ${groupLabels.length} proficiency area(s)`);
+          }
         }
       } catch (err) {
-        console.error('[SolutionType] Failed to auto-populate solver expertise:', err);
+        console.error('[SolutionTypes] Failed to auto-populate solver expertise:', err);
       }
     }
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements, challenge?.solution_type, solutionTypesData]);
 
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
     setSavingSection(true);
