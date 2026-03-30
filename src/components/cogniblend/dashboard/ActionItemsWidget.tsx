@@ -28,10 +28,6 @@ export function ActionItemsWidget() {
 
   const isLoading = chLoading || isRolesLoading;
 
-  const allSRRows = useMemo(
-    () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
-    [requestsData],
-  );
   const challengeItems = challengesData?.items ?? [];
 
   const filteredChallengeItems = useMemo(() => {
