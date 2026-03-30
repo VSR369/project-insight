@@ -578,6 +578,12 @@ CHALLENGE CONTEXT:
     }
   }
 
+  // Table-format output reinforcement
+  prompt += `\n========== TABLE FORMAT RULE ==========
+For sections with table format (evaluation_criteria, success_metrics_kpis, data_resources_provided, affected_stakeholders, legal_docs), output a JSON ARRAY of objects using the exact column keys.
+Example for success_metrics_kpis: [{"kpi":"Model Accuracy","baseline":"N/A","target":"F1 > 0.85","measurement_method":"Cross-validation","timeframe":"8 weeks"}]
+Do NOT output markdown tables or prose for table-format sections. Only valid JSON arrays.\n`;
+
   // Cross-referenced section content
   const allCrossRefs = new Set<string>();
   for (const config of sectionConfigs) {
