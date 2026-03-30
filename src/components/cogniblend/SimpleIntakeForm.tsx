@@ -40,7 +40,7 @@ import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { CHALLENGE_TEMPLATES, type ChallengeTemplate } from '@/lib/challengeTemplates';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
+import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';

@@ -12,7 +12,20 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import type { RequestRow } from '@/hooks/queries/useMyRequests';
+
+/** Lightweight row shape for journey display (previously from useMyRequests) */
+export interface RequestRow {
+  id: string;
+  title: string;
+  master_status: string;
+  operating_model: string | null;
+  current_phase: number | null;
+  phase_status: string | null;
+  created_at: string;
+  updated_at: string | null;
+  urgency: string;
+  architect_name: string | null;
+}
 
 /* ── Phase constants ──────────────────────────────── */
 
