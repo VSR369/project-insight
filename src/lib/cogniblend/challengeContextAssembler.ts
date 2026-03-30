@@ -34,6 +34,7 @@ export interface ChallengeContext {
   challengeId: string;
   challengeTitle: string;
   solutionType: SolutionType | null;
+  solutionTypes: string[];
   seekerSegment: string | null;
   todaysDate: string;
 
