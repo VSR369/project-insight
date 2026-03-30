@@ -3246,48 +3246,39 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Solution Type (radio selector from proficiency areas) ──
-                      case "solution_type":
+                      // ── Solution Type (grouped multi-select checkboxes) ──
+                      case "solution_type": {
+                        const currentSolutionTypes: string[] = Array.isArray(challenge.solution_types) ? (challenge.solution_types as string[]) : [];
                         return (
                           <>
                             {isEditing && !isReadOnly ? (
-                              <div className="space-y-3">
-                                <RadioGroup
-                                  value={challenge.solution_type ?? ''}
-                                  onValueChange={(val) => {
-                                    handleSaveSolutionType(val);
-                                    setEditingSection(null);
-                                  }}
-                                >
-                                  {solutionTypeMap.map((m) => (
-                                    <div key={m.solution_type_code} className="flex items-start space-x-3 p-3 rounded-md border border-border hover:bg-muted/50 transition-colors">
-                                      <RadioGroupItem value={m.solution_type_code} id={`st-${m.solution_type_code}`} className="mt-0.5" />
-                                      <Label htmlFor={`st-${m.solution_type_code}`} className="cursor-pointer space-y-1 flex-1">
-                                        <span className="text-sm font-medium text-foreground">{m.proficiency_area_name}</span>
-                                        {m.description && (
-                                          <p className="text-xs text-muted-foreground">{m.description}</p>
-                                        )}
-                                      </Label>
-                                    </div>
-                                  ))}
-                                </RadioGroup>
-                                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditingSection(null)}>
-                                  <X className="h-3 w-3 mr-1" />Cancel
-                                </Button>
-                              </div>
+                              <SolutionTypesEditor
+                                groups={solutionTypeGroups}
+                                selectedCodes={currentSolutionTypes}
+                                onSave={(codes) => {
+                                  handleSaveSolutionTypes(codes);
+                                  setEditingSection(null);
+                                }}
+                                onCancel={cancelEdit}
+                                saving={savingSection}
+                              />
                             ) : (
                               <>
-                                {challenge.solution_type ? (
-                                  <div className="space-y-1">
-                                    <Badge variant="secondary">
-                                      {solutionTypeMap.find(m => m.solution_type_code === challenge.solution_type)?.proficiency_area_name ?? challenge.solution_type}
-                                    </Badge>
-                                    <p className="text-xs text-muted-foreground">
-                                      {solutionTypeMap.find(m => m.solution_type_code === challenge.solution_type)?.description}
-                                    </p>
+                                {currentSolutionTypes.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {solutionTypeGroups.filter(g => g.types.some(t => currentSolutionTypes.includes(t.code))).map(g => (
+                                      <div key={g.groupCode}>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">{g.groupLabel}</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {g.types.filter(t => currentSolutionTypes.includes(t.code)).map(t => (
+                                            <Badge key={t.code} variant="secondary" className="text-xs">{t.label}</Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
                                 ) : (
-                                  <p className="text-sm text-muted-foreground italic">Not set — select a proficiency area to drive complexity dimensions</p>
+                                  <p className="text-sm text-muted-foreground italic">Not set — select solution types to drive deliverables and complexity</p>
                                 )}
                                 {canEdit && (
                                   <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
@@ -3298,6 +3289,7 @@ export default function CurationReviewPage() {
                             )}
                           </>
                         );
+                      }
 
                       // ── Maturity level (checkbox single / select) ──
                       case "maturity_level":
