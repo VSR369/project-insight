@@ -45,9 +45,7 @@ export function ActionItemsWidget() {
 
   const pendingActions = filteredChallengeItems.filter(
     (c) => c.master_status === 'DRAFT' || c.master_status === 'RETURNED'
-  ).length + (isBusinessOwner
-    ? allSRRows.filter((r) => r.master_status === 'DRAFT').length
-    : 0);
+  ).length;
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
   const modelLabel = orgContext?.operatingModel === 'MP' ? 'Marketplace' : 'Aggregator';

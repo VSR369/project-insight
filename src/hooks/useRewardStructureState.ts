@@ -209,9 +209,9 @@ export function useRewardStructureState(
     [rewardStructureRaw, operatingModel],
   );
 
-  // Determine initial source type for badges
+  // Determine initial source type for badges — legacy AM/CA treated as CR
   const initialSrc: FieldSource['src'] = resolved.isAutoPopulated
-    ? (resolved.sourceRole === 'AM' ? 'am' : 'curator')
+    ? 'curator'
     : 'curator';
 
   // Determine initial section state

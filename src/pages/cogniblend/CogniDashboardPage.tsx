@@ -1,7 +1,6 @@
 /**
  * CogniBlend Dashboard — Role-adaptive layout.
- * AM/RQ: My Requests → Action Items → Request Journey
- * CA/CR: Incoming Requests → Action Items → Request Journey
+ * CR: My Challenges → Action Items → Challenge Journey
  * Route: /cogni/dashboard
  */
 
@@ -10,9 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
 import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
-import { MyRequestsTracker } from '@/components/cogniblend/dashboard/MyRequestsTracker';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
-import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { Zap } from 'lucide-react';
@@ -21,22 +18,12 @@ import type { RequestRow } from '@/hooks/queries/useMyRequests';
 export default function CogniDashboardPage() {
   const { user } = useAuth();
   const { data: orgContext } = useOrgModelContext();
-  const { isBusinessOwner, isSpecRole } = useCogniPermissions();
+  const { isSpecRole } = useCogniPermissions();
 
-  const isAmRq = isBusinessOwner;
-  const isCaCr = isSpecRole;
-
-  // AM-scoped requests for the journey section (only needed for AM/RQ)
-  const { data: requestsData } = useMyRequests('all', '', 'mine');
-  const allMyRequests = useMemo(
-    () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
-    [requestsData],
-  );
-
-  // CA/CR challenges mapped to RequestRow shape for journey section
+  // CR challenges mapped to RequestRow shape for journey section
   const { data: challengesData } = useMyChallenges(user?.id);
-  const caCrJourneyRequests = useMemo<RequestRow[]>(() => {
-    if (!isCaCr || !challengesData?.items) return [];
+  const journeyRequests = useMemo<RequestRow[]>(() => {
+    if (!isSpecRole || !challengesData?.items) return [];
     return challengesData.items
       .filter((ch) => ch.master_status !== 'DRAFT')
       .map((ch) => ({
@@ -51,9 +38,7 @@ export default function CogniDashboardPage() {
         urgency: 'NORMAL',
         architect_name: null,
       }));
-  }, [isCaCr, challengesData]);
-
-  const journeyRequests = isAmRq ? allMyRequests : caCrJourneyRequests;
+  }, [isSpecRole, challengesData]);
 
   const showBypassBanner = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
@@ -75,13 +60,10 @@ export default function CogniDashboardPage() {
         </div>
       )}
 
-      {/* ── Section 1: Requests (role-adaptive) ──────── */}
-      <MyRequestsTracker />
-
-      {/* ── Section 2: My Action Items ────────────────── */}
+      {/* ── Section 1: My Action Items ────────────────── */}
       <MyActionItemsSection />
 
-      {/* ── Section 3: Request Lifecycle Journey (all roles) ── */}
+      {/* ── Section 2: Challenge Lifecycle Journey ── */}
       <RequestJourneySection requests={journeyRequests} />
     </>
   );
