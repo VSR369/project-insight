@@ -797,7 +797,7 @@ export function ConversationalIntakeContent({
         if (val?.trim()) extendedBrief[key] = val.trim();
       }
 
-      const sourceRole = engagementModel === 'MP' ? 'AM' : 'CR';
+      const sourceRole = 'CR';
       const rewardStructure: Record<string, unknown> = {
         budget_max: data.prize_amount,
         currency: data.currency_code,
