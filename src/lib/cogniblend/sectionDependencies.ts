@@ -12,33 +12,39 @@ import type { SectionKey } from '@/types/sections';
 /* ── Direct dependency map ── */
 
 export const DIRECT_DEPENDENCIES: Partial<Record<SectionKey, SectionKey[]>> = {
+  // Wave 1: Foundation — no upstream deps
   context_and_background: ['root_causes', 'affected_stakeholders', 'current_deficiencies'],
-  problem_statement: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'scope', 'deliverables', 'solver_expertise', 'expected_outcomes', 'hook', 'solution_type'],
-  scope: ['deliverables', 'solver_expertise', 'eligibility', 'submission_guidelines', 'domain_tags', 'complexity', 'data_resources_provided', 'solution_type'],
-  solution_type: ['deliverables', 'complexity', 'solver_expertise', 'evaluation_criteria', 'submission_guidelines', 'domain_tags'],
+  problem_statement: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'scope', 'deliverables', 'solver_expertise', 'expected_outcomes', 'hook', 'solution_type', 'domain_tags'],
+  scope: ['deliverables', 'solver_expertise', 'eligibility', 'domain_tags', 'complexity', 'data_resources_provided'],
   expected_outcomes: ['evaluation_criteria', 'deliverables', 'success_metrics_kpis'],
+  // Wave 2: Analysis
   root_causes: ['preferred_approach', 'current_deficiencies'],
-  current_deficiencies: ['preferred_approach', 'deliverables'],
+  current_deficiencies: ['preferred_approach'],
   preferred_approach: ['approaches_not_of_interest'],
+  affected_stakeholders: [],
+  approaches_not_of_interest: [],
+  // Wave 3: Specification
+  solution_type: ['deliverables', 'complexity', 'solver_expertise', 'domain_tags'],
   deliverables: ['complexity', 'solver_expertise', 'submission_guidelines', 'evaluation_criteria', 'maturity_level', 'data_resources_provided'],
   maturity_level: ['complexity', 'phase_schedule', 'reward_structure'],
-  complexity: ['phase_schedule', 'reward_structure', 'solver_expertise', 'submission_guidelines', 'escrow_funding'],
+  data_resources_provided: ['submission_guidelines'],
+  success_metrics_kpis: ['evaluation_criteria'],
+  // Wave 4: Assessment
+  complexity: ['phase_schedule', 'reward_structure', 'solver_expertise', 'escrow_funding'],
   solver_expertise: ['eligibility'],
   eligibility: [],
-  phase_schedule: ['submission_guidelines', 'escrow_funding', 'evaluation_criteria'],
+  // Wave 5: Execution
+  phase_schedule: ['submission_guidelines', 'escrow_funding'],
+  evaluation_criteria: ['submission_guidelines'],
   submission_guidelines: [],
-  evaluation_criteria: [],
   reward_structure: ['escrow_funding'],
   ip_model: ['legal_docs'],
-  escrow_funding: [],
-  legal_docs: [],
+  // Wave 6: Presentation & Compliance
   hook: [],
   visibility: [],
   domain_tags: [],
-  affected_stakeholders: [],
-  approaches_not_of_interest: [],
-  data_resources_provided: ['submission_guidelines'],
-  success_metrics_kpis: ['evaluation_criteria'],
+  escrow_funding: [],
+  legal_docs: [],
 };
 
 /* ── Transitive dependents via BFS ── */
