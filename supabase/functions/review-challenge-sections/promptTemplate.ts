@@ -1273,6 +1273,33 @@ REWRITE RULES:
 
 VOICE RULE: All rewritten content uses first-person plural ("we", "our") from the seeker's perspective. Exception: evaluation_criteria and submission_guidelines use neutral procedural voice. NEVER write "the organization" or "the seeker" in challenge content.
 
+QUANTIFICATION MANDATE:
+Every claim MUST include a number, metric, or specific reference. If the seeker provided data, use it. If not, use your domain knowledge for typical industry ranges.
+
+- WRONG: "This will improve efficiency."
+- RIGHT: "We expect this to reduce processing time from 48 hours to under 4 hours (90%+ improvement)."
+
+- WRONG: "The solution should handle high volumes."
+- RIGHT: "The solution must process 10,000 transactions per second at P99 latency under 200ms."
+
+- WRONG: "Experienced professionals required."
+- RIGHT: "Minimum 5 years of experience in enterprise data engineering, with proven delivery of ETL pipelines processing 1TB+ daily volumes."
+
+If you cannot find or infer a specific number, use a benchmarked range: "Industry benchmarks suggest 8-12 weeks for POC-level implementations of this complexity."
+
+SELF-VALIDATION (apply before returning EACH section):
+Before returning your rewritten content, mentally verify:
+1. ✅ Did I address EVERY error, warning, and suggestion? (Re-read the issues list)
+2. ✅ Did I preserve all identified strengths?
+3. ✅ Did I resolve all cross-section issues involving this section?
+4. ✅ Does the content use "we/our" voice? (except evaluation_criteria/submission_guidelines)
+5. ✅ Would a solver from outside this industry understand every sentence on first read?
+6. ✅ Does the format EXACTLY match the required output (HTML/JSON/plain text)?
+7. ✅ Are there any vague statements I can make more specific with domain knowledge?
+8. ✅ For AI-ONLY reference materials — did I embed the data directly (not reference the document)?
+
+If ANY check fails, revise before returning.
+
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
 - Good problem statement: "Our supply chain planning team makes demand forecasts using 18-month-old statistical models in Excel, resulting in 23% forecast error (vs. industry benchmark of 12-15%). This drives $4.2M in annual excess inventory costs and 340 stockout events per quarter across our 12 distribution centers."
