@@ -4066,6 +4066,7 @@ export default function CurationReviewPage() {
               .map(r => ({ key: r.section_key, name: SECTION_MAP.get(r.section_key)?.label ?? r.section_key }))}
             onNavigateToStale={() => {
               if (staleSections.length > 0) {
+                setShowOnlyStale(true);
                 const firstKey = staleSections[0].key;
                 const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
                 if (group) setActiveGroup(group.id);
