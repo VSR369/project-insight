@@ -95,8 +95,9 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   solution_type: 'checkbox_multi',
 };
 
-/** Extended Brief subsection-specific format instructions */
+/** Extended Brief subsection-specific format instructions — FIX 2: ALL 26 sections covered */
 const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
+  // ── Sections that already had instructions ──
   root_causes: 'Output: JSON array of short phrase strings only. No sentences. No explanations. Each item is a cause label, not a description. Max 8 items.',
   affected_stakeholders: 'Output: JSON array of row objects with keys stakeholder_name, role, impact_description (max 100 chars), adoption_challenge (max 100 chars). Always populate adoption_challenge — this is the most valuable field.',
   current_deficiencies: 'Output: JSON array of current-state observation phrases. Max 10 items. Each item must be a factual observation about current state, not a wish or solution hint.',
@@ -114,7 +115,136 @@ const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
   data_resources_provided: 'Output: JSON array of objects with keys: resource (string — name of dataset/API/document), type (string — Dataset/API/Document/Tool), format (string — CSV/JSON/PDF/REST API), size (string — estimated size), access_method (string — how solver gets access), restrictions (string — any usage limitations). Example: [{"resource":"Historical sales data","type":"Dataset","format":"CSV","size":"2.3 GB","access_method":"Secure FTP after NDA","restrictions":"No redistribution"}]',
   evaluation_criteria: 'Output: JSON array of objects with keys: criterion_name (string), weight_percentage (number 0-100, all must sum to 100), description (string), scoring_method (string), evaluator_role (string). Example: [{"criterion_name":"Technical Feasibility","weight_percentage":30,"description":"Solution demonstrates technical viability","scoring_method":"Expert panel review","evaluator_role":"CTO"}]',
   solver_expertise: 'Output: JSON object: { "expertise_areas": [{ "area": "string", "sub_areas": ["string"], "level": "required"|"preferred"|"nice_to_have" }], "certifications": ["string"], "experience_years": number, "domain_knowledge": ["string"] }',
+
+  // ── FIX 2: NEW section-specific instructions for previously uncovered sections ──
+  problem_statement: 'Output: Rich HTML with clear structure. MUST include: (1) Business context — what the organization does and its operating environment, (2) The specific problem — measurable gap or challenge with quantified impact, (3) Impact — what happens if unsolved (cost, risk, opportunity loss), (4) Constraints — boundaries solvers must respect (technical, regulatory, timeline). Length: 200-400 words. Avoid jargon without definition. A solver from outside this industry should understand the problem after reading this section alone.',
+
+  scope: 'Output: Rich HTML with two clear sections: (1) IN SCOPE — specific items, deliverables, and boundaries solvers should address. Each must be testable and unambiguous. (2) OUT OF SCOPE — explicit exclusions to prevent scope creep. Avoid vague boundaries like "as needed" or "where appropriate". Each scope item should be directly traceable to the problem statement.',
+
+  hook: 'Output: A compelling 2-3 sentence hook (50-100 words) that: (1) Grabs solver attention with a provocative question or bold statement, (2) Hints at the opportunity/impact with a specific number or outcome, (3) Motivates action with urgency or uniqueness. Think "TED talk opening" — not "corporate memo". Reference the reward structure or unique solver benefit if available.',
+
+  deliverables: 'Output: JSON array of objects: [{ "name": "Deliverable name", "description": "What it includes and how it will be used", "acceptance_criteria": "Specific testable criteria for completion", "format": "PDF/Code/Dataset/API/Presentation" }]. Each deliverable must be independently assessable by an evaluator. MUST align with maturity level: Blueprint = documents/frameworks/recommendations. POC = working code/prototype with demo. Pilot = production-ready system with documentation.',
+
+  expected_outcomes: 'Output: JSON array of SMART outcome strings. Each MUST specify: what changes, by how much, measured how, by when. Bad: "Improved efficiency". Good: "Reduce processing time from 48hrs to <4hrs for 95% of transactions, measured via system logs within 6 months of implementation". Include both primary outcomes (directly from deliverables) and secondary outcomes (downstream business impact).',
+
+  submission_guidelines: 'Output: JSON array of guideline objects with name and description. MUST include: (1) Submission format — exact file types, naming conventions (PDF, code repo, video demo), (2) Required sections/structure — what the submission document must contain, (3) Page/size limits — maximum pages or file sizes, (4) Evaluation-ready requirements — demo instructions, test data inclusion, environment setup. Align with evaluation_criteria — every criterion must be assessable from the submission format.',
+
+  phase_schedule: 'Output: JSON array of phase objects with keys: phase_name, duration_days, start_date (ISO YYYY-MM-DD), end_date (ISO YYYY-MM-DD). Standard phases: Registration → Submission → Evaluation → Winner Announcement. Duration MUST align with challenge complexity and maturity: Blueprint = 4-8 weeks total, POC = 8-16 weeks, Pilot = 16-32 weeks. All dates MUST be in the future relative to today\'s date. Include buffer between phases for administrative processing.',
+
+  maturity_level: 'Output: { "selected_id": "BLUEPRINT"|"POC"|"PROTOTYPE"|"PILOT"|"PRODUCTION", "rationale": "2-3 sentences explaining why this level fits" }. Decision guide: BLUEPRINT = strategic recommendations, frameworks, analysis documents (no working code). POC = working prototype demonstrating technical feasibility (functional but not production-ready). PILOT = production-ready system deployable in real environment. Assess based on deliverables — if deliverables include working code/prototype, it is NOT a blueprint. MUST use codes from the allowed values list only.',
+
+  eligibility: 'Output: JSON array of tier codes from the allowed values list ONLY. Selection guide: TIER_1 (individual experts) = suitable for Blueprint challenges or specialized analysis. TIER_2 (small teams 2-5) = suitable for POC challenges requiring diverse skills. TIER_3 (organizations/firms) = suitable for Pilot challenges needing infrastructure and support. Consider solver_expertise requirements and challenge complexity when selecting. Multiple tiers can be selected to widen the solver pool.',
+
+  visibility: 'Output: JSON array of visibility codes from the allowed values list ONLY. "anonymous" = solver identity hidden during evaluation — reduces bias, recommended for most challenges especially those with objective evaluation criteria. "named" = solver identity visible — needed for team-based challenges, relationship-dependent work, or when evaluator needs to assess team composition. Default to anonymous unless the challenge specifically requires team assessment.',
+
+  domain_tags: 'Output: JSON array of 3-8 tag strings. Tags MUST be: (1) Specific enough to attract the right solvers — not "technology" but "predictive maintenance" or "NLP for healthcare", (2) Include both domain tags (industry vertical) AND capability tags (technology/methodology), (3) Match the platform\'s 17 solution domains where applicable (Digital Strategy, AI/ML Solutions, Cybersecurity & Trust, etc.). Derive from problem_statement, scope, and deliverables. Avoid generic tags like "innovation" or "digital".',
+
+  solution_type: 'Output: JSON array of solution type codes from the allowed values list ONLY. Select types that match the challenge\'s deliverables and required approach. A challenge may span multiple types (e.g., a data analytics challenge needing ML and visualization). Select 1-3 most relevant types. Cross-reference with problem_statement and scope to ensure alignment.',
+
+  context_and_background: 'Output: Rich HTML providing comprehensive context for external solvers who have NO internal organizational knowledge. MUST include: (1) Organization/industry context — what the org does, market position, (2) Operational setting — systems, processes, scale of operations, (3) Prior attempts — what has been tried and why it failed or was insufficient, (4) Triggering event — why this challenge is being launched now. Length: 150-300 words.',
+
+  ip_model: 'Output: { "selected_id": "IP-EA"|"IP-NEL"|"IP-EL"|"IP-JO"|"IP-SR", "rationale": "..." }. Selection guide: IP-EA (Full Transfer) = when seeker will commercialize exclusively (proprietary algorithms, patents). IP-NEL (Non-Exclusive License) = when solution has broad applicability, seeker only needs usage rights. IP-EL (Exclusive License) = seeker needs exclusive usage but solver retains ownership. IP-JO (Joint Ownership) = collaborative R&D with shared contributions. IP-SR (Solver Retains) = advisory/consulting with no tangible IP created. Analyze deliverables, maturity level, and reward to justify recommendation.',
 };
+
+/* ── FIX 5: Default quality criteria as code constants ── */
+
+export const DEFAULT_QUALITY_CRITERIA: Record<string, any[]> = {
+  problem_statement: [
+    { name: 'Specificity', severity: 'error', description: 'Must state a concrete, bounded problem — not a general wish. Bad: "Improve customer experience". Good: "Reduce cart abandonment rate from 73% to below 40% on mobile checkout".' },
+    { name: 'Solver Comprehension', severity: 'warning', description: 'A solver with NO internal context should understand the problem after reading this section alone. No undefined acronyms, no assumed knowledge.' },
+    { name: 'Impact Quantification', severity: 'suggestion', description: 'Should include at least one quantified impact (cost, time, revenue, risk).' },
+  ],
+  deliverables: [
+    { name: 'Acceptance Criteria', severity: 'error', description: 'Each deliverable MUST have testable acceptance criteria. Bad: "Working prototype". Good: "REST API accepting JSON input, returning predictions within 200ms, documented with OpenAPI 3.0 spec".', crossReferences: ['evaluation_criteria'] },
+    { name: 'Evaluation Alignment', severity: 'warning', description: 'Every evaluation criterion must map to at least one deliverable. Every deliverable must be assessable.', crossReferences: ['evaluation_criteria'] },
+    { name: 'Maturity Match', severity: 'error', description: 'Deliverables must match maturity level. Blueprint = documents/frameworks. POC = working code/prototype. Pilot = production system.', crossReferences: ['maturity_level'] },
+  ],
+  evaluation_criteria: [
+    { name: 'Weight Sum', severity: 'error', description: 'Criterion weights MUST sum to exactly 100%. If they do not, flag as error and normalize.' },
+    { name: 'Deliverable Coverage', severity: 'warning', description: 'Each criterion should map to specific deliverables. Criteria without clear deliverable linkage are unassessable.', crossReferences: ['deliverables'] },
+    { name: 'Evaluator Feasibility', severity: 'suggestion', description: 'Scoring methods must be practical. "Expert panel" needs available experts. "Automated testing" needs test infrastructure.' },
+  ],
+  phase_schedule: [
+    { name: 'Date Validity', severity: 'error', description: 'All start dates must be in the future relative to today. End dates must be after start dates. No overlapping phases.' },
+    { name: 'Duration Alignment', severity: 'warning', description: 'Total duration must align with complexity: Blueprint 4-8 weeks, POC 8-16 weeks, Pilot 16-32 weeks. Flag significant deviations.', crossReferences: ['complexity', 'maturity_level'] },
+  ],
+  reward_structure: [
+    { name: 'Budget Alignment', severity: 'error', description: 'If budget_min/budget_max are set, total tier amounts must fall within that range. Never exceed budget_max.' },
+    { name: 'Tier Rationale', severity: 'warning', description: 'Reward amounts should align with complexity and maturity: Blueprint $5K-$25K, POC $25K-$100K, Pilot $100K-$500K.', crossReferences: ['complexity', 'maturity_level'] },
+    { name: 'Non-Monetary Items', severity: 'suggestion', description: 'Should include 3-5 relevant non-monetary incentives that motivate the target solver profile.' },
+  ],
+  solver_expertise: [
+    { name: 'Solution Type Alignment', severity: 'warning', description: 'Required expertise areas must match the solution type(s) and deliverable requirements.', crossReferences: ['solution_type', 'deliverables'] },
+    { name: 'Specificity', severity: 'suggestion', description: 'Expertise requirements should be specific enough to filter solvers but not so narrow that they exclude qualified candidates.' },
+  ],
+  submission_guidelines: [
+    { name: 'Deliverable Coverage', severity: 'warning', description: 'Every deliverable must have a corresponding submission format requirement. Evaluators need to know what to expect.', crossReferences: ['deliverables', 'evaluation_criteria'] },
+    { name: 'Evaluation Feasibility', severity: 'suggestion', description: 'Submission format must enable all evaluation criteria to be assessed. If a criterion requires a demo, submission guidelines must request demo instructions.' },
+  ],
+  scope: [
+    { name: 'Boundary Clarity', severity: 'warning', description: 'Must explicitly state what is IN scope and OUT of scope. Ambiguous scope leads to misaligned submissions.' },
+    { name: 'Problem Alignment', severity: 'suggestion', description: 'Scope items should directly trace to the problem statement. No scope items that address unrelated issues.', crossReferences: ['problem_statement'] },
+  ],
+  expected_outcomes: [
+    { name: 'SMART Format', severity: 'warning', description: 'Each outcome must be Specific, Measurable, Achievable, Relevant, and Time-bound. Generic outcomes like "improved efficiency" are insufficient.' },
+    { name: 'Deliverable Traceability', severity: 'suggestion', description: 'Each outcome should be achievable through the defined deliverables.', crossReferences: ['deliverables'] },
+  ],
+  hook: [
+    { name: 'Solver Motivation', severity: 'warning', description: 'Must create urgency or highlight unique opportunity. Should reference specific reward or impact.' },
+    { name: 'Length', severity: 'suggestion', description: 'Should be 50-100 words. Too short lacks impact; too long loses attention.' },
+  ],
+  domain_tags: [
+    { name: 'Specificity', severity: 'warning', description: 'Tags must be specific enough to attract right solvers. "Technology" is too broad; "Predictive Maintenance for Wind Turbines" is ideal.' },
+    { name: 'Coverage', severity: 'suggestion', description: 'Should include 3-8 tags covering both industry domain and technical capability.' },
+  ],
+  success_metrics_kpis: [
+    { name: 'Outcome Alignment', severity: 'warning', description: 'Each KPI must map to an expected outcome. KPIs without corresponding outcomes are orphaned.', crossReferences: ['expected_outcomes'] },
+    { name: 'Measurability', severity: 'error', description: 'Each KPI must include a specific measurement method and baseline/target values.' },
+  ],
+};
+
+/* ── FIX 6: Domain-to-framework mapping ── */
+
+export const DOMAIN_FRAMEWORKS: Record<string, string[]> = {
+  supply_chain: ['SCOR Model', 'APICS CPIM', 'Lean Six Sigma', 'S&OP', 'Demand-Driven MRP'],
+  cybersecurity: ['NIST CSF 2.0', 'ISO 27001', 'MITRE ATT&CK', 'Zero Trust Architecture', 'CIS Controls'],
+  ai_ml: ['CRISP-DM', 'ML Ops Maturity Model', 'Responsible AI Framework', 'Model Cards', 'AI Ethics Guidelines'],
+  machine_learning: ['CRISP-DM', 'ML Ops Maturity Model', 'Feature Store patterns', 'Model monitoring'],
+  data_analytics: ['DAMA-DMBOK', 'Data Mesh', 'Medallion Architecture', 'DataOps', 'FAIR Data Principles'],
+  digital_transformation: ['McKinsey 7S', 'Kotter 8-Step Change Model', 'SAFe', 'TOGAF ADM', 'Prosci ADKAR'],
+  cloud: ['AWS Well-Architected Framework', 'Azure CAF', 'GCP Architecture Framework', '12-Factor App', 'FinOps'],
+  process_automation: ['RPA CoE Model', 'Process Mining (Celonis)', 'BPMN 2.0', 'Intelligent Automation maturity'],
+  product_innovation: ['Jobs-to-be-Done (JTBD)', 'Design Thinking (d.school)', 'Lean Startup', 'OKR Framework'],
+  iot: ['IoT Reference Architecture (ISO/IEC 30141)', 'Edge Computing patterns', 'MQTT/OPC-UA protocols'],
+  blockchain: ['Token Economics', 'Consensus Mechanism selection', 'Smart Contract audit standards'],
+  healthcare: ['HL7 FHIR', 'HIPAA compliance', 'Clinical Decision Support standards', 'FDA SaMD guidelines'],
+  finance: ['Basel III/IV', 'PSD2/Open Banking', 'Anti-Money Laundering (AML)', 'SOX compliance'],
+  sustainability: ['GRI Standards', 'TCFD Framework', 'Science-Based Targets (SBTi)', 'ESG Reporting'],
+  enterprise_architecture: ['TOGAF', 'Zachman Framework', 'ArchiMate', 'Business Capability Modeling'],
+  predictive_maintenance: ['Predictive Maintenance maturity model', 'Vibration analysis', 'MTBF/MTTR', 'CBM standards'],
+  nlp: ['Transformer architectures', 'BLEU/ROUGE evaluation', 'Named Entity Recognition', 'LLM fine-tuning patterns'],
+  computer_vision: ['COCO evaluation metrics', 'mAP scoring', 'Edge deployment optimization', 'Data augmentation strategies'],
+  api_strategy: ['API-first design', 'OpenAPI 3.0', 'API Gateway patterns', 'Developer Experience (DX) design'],
+  workforce: ['Skills-based organization', 'Digital fluency assessment', 'Change saturation management'],
+};
+
+/**
+ * Detect domain frameworks from challenge domain tags.
+ * Returns a deduplicated list of relevant frameworks.
+ */
+export function detectDomainFrameworks(domainTags: any): string[] {
+  if (!domainTags || !Array.isArray(domainTags)) return [];
+  const relevant = new Set<string>();
+  for (const tag of domainTags) {
+    const tagLower = String(tag).toLowerCase().replace(/[\s\-]+/g, '_');
+    for (const [domain, frameworks] of Object.entries(DOMAIN_FRAMEWORKS)) {
+      if (tagLower.includes(domain) || domain.includes(tagLower)) {
+        frameworks.forEach(f => relevant.add(f));
+      }
+    }
+  }
+  return [...relevant];
+}
 
 /* ── Default platform preamble ── */
 
@@ -227,6 +357,9 @@ const SECTION_DISPLAY_NAMES: Record<string, string> = {
   preferred_approach: 'Preferred Approach',
   approaches_not_of_interest: 'Approaches NOT of Interest',
   solver_expertise: 'Solver Expertise Requirements',
+  data_resources_provided: 'Data & Resources Provided',
+  success_metrics_kpis: 'Success Metrics & KPIs',
+  solution_type: 'Solution Type',
 };
 
 function getSectionName(key: string): string {
@@ -244,6 +377,15 @@ function hasStructuredData(config: SectionConfig): boolean {
     (Array.isArray(cr) && cr.length > 0) ||
     (Array.isArray(mdc) && mdc.length > 0)
   );
+}
+
+/**
+ * Get effective quality criteria for a section — DB config or fallback defaults.
+ */
+function getEffectiveQualityCriteria(config: SectionConfig): any[] {
+  const dbCriteria = config.quality_criteria;
+  if (Array.isArray(dbCriteria) && dbCriteria.length > 0) return dbCriteria;
+  return DEFAULT_QUALITY_CRITERIA[config.section_key] ?? [];
 }
 
 /* ── Structured batch prompt (Phase 6) — Pass 1: Analysis Only ── */
@@ -271,6 +413,17 @@ export function buildStructuredBatchPrompt(
   // Intelligence Directive (Change 6) — injected after preamble, before output format
   parts.push(INTELLIGENCE_DIRECTIVE);
   parts.push('');
+
+  // FIX 6: Domain-specific framework injection
+  if (challengeSections?.domain_tags) {
+    const frameworks = detectDomainFrameworks(challengeSections.domain_tags);
+    if (frameworks.length > 0) {
+      parts.push(`## DOMAIN-SPECIFIC FRAMEWORKS FOR THIS CHALLENGE`);
+      parts.push(`Based on the challenge domain, reference these frameworks in your comments and suggestions where applicable:`);
+      parts.push(frameworks.join(', '));
+      parts.push('');
+    }
+  }
 
   parts.push(`## OUTPUT FORMAT (PASS 1 — ANALYSIS ONLY)
 For each section, return a JSON object via the review_sections function with:
@@ -314,9 +467,10 @@ Focus 100% of your attention on producing the most accurate, specific, and actio
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
-    // Quality criteria (Layer 2)
-    const criteria = config.quality_criteria ?? [];
+    // FIX 5: Quality criteria — use effective (DB or default fallback)
+    const criteria = getEffectiveQualityCriteria(config);
     if (criteria.length > 0) {
+      parts.push('Quality criteria to assess:');
       for (const c of criteria as any[]) {
         let line = `- **${c.name}** (${c.severity}): ${c.description}`;
         if (c.crossReferences?.length > 0) {
@@ -477,6 +631,19 @@ Do NOT include a "suggestion" field. Focus entirely on thorough, specific analys
     parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
+    // FIX 5: Inject default quality criteria for legacy path too
+    const criteria = getEffectiveQualityCriteria(config);
+    if (criteria.length > 0) {
+      parts.push('Quality criteria:');
+      for (const c of criteria as any[]) {
+        let line = `- **${c.name}** (${c.severity}): ${c.description}`;
+        if (c.crossReferences?.length > 0) {
+          line += ` Cross-check: ${c.crossReferences.map((k: string) => getSectionName(k)).join(', ')}.`;
+        }
+        parts.push(line);
+      }
+    }
+
     // Inject master data allowed values
     const opts = masterDataOptions?.[config.section_key];
     if (opts?.length) {
@@ -591,6 +758,13 @@ CHALLENGE CONTEXT:
 - Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
 `;
 
+  // FIX 6: Domain framework injection for Pass 2
+  const domainTags = challengeContext?.sections?.domain_tags || challengeContext?.domain_tags;
+  const domainFrameworks = detectDomainFrameworks(domainTags);
+  if (domainFrameworks.length > 0) {
+    prompt += `\nDOMAIN-SPECIFIC FRAMEWORKS for this challenge: ${domainFrameworks.join(', ')}. Reference these in your rewrites where applicable.\n`;
+  }
+
   // Per-section enrichment
   for (const config of sectionConfigs) {
     if (!config) continue;
@@ -606,9 +780,9 @@ CHALLENGE CONTEXT:
       }
     }
 
-    // Quality criteria
-    const criteria = config.quality_criteria;
-    if (criteria && Array.isArray(criteria) && criteria.length > 0) {
+    // FIX 5: Quality criteria — use effective (DB or default fallback)
+    const criteria = getEffectiveQualityCriteria(config);
+    if (criteria.length > 0) {
       prompt += `\nQUALITY STANDARDS:\n`;
       for (const c of criteria as any[]) {
         prompt += `- ${c.name} (${c.severity}): ${c.description}\n`;
@@ -657,7 +831,7 @@ For sections with table format (evaluation_criteria, success_metrics_kpis, data_
 Example for success_metrics_kpis: [{"kpi":"Model Accuracy","baseline":"N/A","target":"F1 > 0.85","measurement_method":"Cross-validation","timeframe":"8 weeks"}]
 Do NOT output markdown tables or prose for table-format sections. Only valid JSON arrays.\n`;
 
-  // Cross-referenced section content
+  // Cross-referenced section content — now uses SECTION_DEPENDENCIES from index.ts injected via challengeContext.sections
   const allCrossRefs = new Set<string>();
   for (const config of sectionConfigs) {
     if (!config) continue;
