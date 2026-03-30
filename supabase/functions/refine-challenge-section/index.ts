@@ -37,7 +37,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   evaluation_criteria: 'table', reward_structure: 'table', affected_stakeholders: 'table',
   phase_schedule: 'schedule_table',
   complexity: 'checkbox_single', ip_model: 'checkbox_single', maturity_level: 'checkbox_single',
-  eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
+  eligibility: 'checkbox_multi', visibility: 'checkbox_multi', solution_type: 'checkbox_multi',
   domain_tags: 'tag_input', solver_expertise: 'custom',
   context_and_background: 'rich_text', root_causes: 'line_items',
   current_deficiencies: 'line_items',
