@@ -1952,7 +1952,7 @@ export default function CurationReviewPage() {
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
-    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags'];
+    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags', 'success_metrics_kpis', 'data_resources_provided'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);

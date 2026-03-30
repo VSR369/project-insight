@@ -646,16 +646,17 @@ export function AIReviewResultPanel({
   );
 
   // Determine which format this suggestion is in
+  // Priority: table/schedule_table BEFORE line_items to prevent fallback parser hijacking
   const suggestedFormat = useMemo(() => {
     if (isMasterData) return "master_data";
     if (rewardData) return "reward_custom";
     if (solverExpertiseData) return "solver_expertise";
+    if (scheduleRows) return "schedule_table";
+    if (tableRows) return "table";
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
     }
-    if (scheduleRows) return "schedule_table";
-    if (tableRows) return "table";
     if (parsedDate) return "date";
     if (result.suggested_version) return "rich_text";
     return null;

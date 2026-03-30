@@ -55,11 +55,12 @@ function getDeliverableBadgePrefix(sectionKey: string): string {
   return 'D';
 }
 
-/** Determine if a section returns structured JSON arrays from AI refinement */
+/** Determine if a section returns structured JSON arrays from AI refinement.
+ *  table/schedule_table are excluded — they have dedicated parsers in AIReviewResultPanel. */
 function isStructuredSection(sectionKey: string): boolean {
   const fmt = SECTION_FORMAT_CONFIG[sectionKey];
   if (!fmt) return false;
-  return ['line_items', 'table', 'schedule_table'].includes(fmt.format);
+  return fmt.format === 'line_items';
 }
 
 /** Determine the format type of a section */
