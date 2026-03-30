@@ -1384,6 +1384,9 @@ serve(async (req) => {
             orgContext.employeeCount = org.employee_count_range ?? undefined;
             orgContext.foundingYear = org.founding_year ?? undefined;
             orgContext.isEnterprise = org.is_enterprise;
+            orgContext.twitterUrl = org.twitter_url ?? undefined;
+            orgContext.tagline = org.tagline ?? undefined;
+            orgContext.functionalAreas = org.functional_areas ?? [];
 
             if (org.hq_country_id) {
               const { data: ctry } = await adminClient.from('countries').select('name').eq('id', org.hq_country_id).single();
