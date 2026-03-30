@@ -206,10 +206,11 @@ For each section, return a JSON object via the review_sections function with:
    - "field" (optional): Specific field this comment applies to
    - "reasoning" (optional): Why this matters, referencing other sections
 
-3. **suggestion** (optional): Improved/generated content in the section's native format.
-   - For "generated": Full content that can be directly used.
-   - For "warning"/"needs_revision": Improved version addressing all error/warning comments.
-   - For "pass": null or omit.
+3. **suggestion**: Improved/generated content in the section's native format.
+   - For "generated": Full content that can be directly used. REQUIRED.
+   - For "warning"/"needs_revision": Improved version addressing all error/warning/suggestion comments. REQUIRED.
+   - For "pass" with ONLY strength/best_practice comments: null or omit (content is already good).
+   - For "pass" with ANY error/warning/suggestion comments: MUST include improved content addressing those comments.
 
 4. **guidelines**: 1-3 domain-specific guidelines for this section.
    - MUST reference THIS challenge's domain, maturity, and solution type.
