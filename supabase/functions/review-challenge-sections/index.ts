@@ -634,8 +634,9 @@ async function callAIPass2Rewrite(
     const formatInstruction = getSuggestionFormatInstruction(r.section_key);
     const formatType = getSectionFormatType(r.section_key);
 
-    // FIX 1: Inject dependent section content for cross-section consistency
+    // FIX 1 + Improvement 2: Inject dependent section content with DIRECTED reasoning
     const deps = SECTION_DEPENDENCIES[r.section_key] || [];
+    const reasoningMap = DEPENDENCY_REASONING[r.section_key] || {};
     const depParts: string[] = [];
     for (const depKey of deps) {
       const af = SECTION_FIELD_ALIASES[depKey] || depKey;
@@ -655,10 +656,11 @@ async function callAIPass2Rewrite(
       if (str.length < 5) continue;
       // Strip HTML for readability, truncate
       const cleaned = str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      depParts.push(`${depKey}: ${cleaned.substring(0, 1500)}`);
+      const reasoning = reasoningMap[depKey] || 'REVIEW for consistency and alignment.';
+      depParts.push(`${depKey} [${reasoning}]:\n${cleaned.substring(0, 1500)}`);
     }
     const depBlock = depParts.length > 0
-      ? `\nRELATED SECTIONS (your output MUST align with these):\n${depParts.join('\n')}\n`
+      ? `\nRELATED SECTIONS — CHECK EACH FOR THE STATED REASON:\n${depParts.join('\n\n')}\n`
       : '';
 
     return `### Section: ${r.section_key}
