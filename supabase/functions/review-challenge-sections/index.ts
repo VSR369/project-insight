@@ -1269,6 +1269,12 @@ serve(async (req) => {
     let challengeData: any;
     let additionalData = "";
     let resultIdx = 1;
+    let orgContext: {
+      orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
+      websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
+      annualRevenue?: string; employeeCount?: string; foundingYear?: number;
+      isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
+    } = {};
 
     if (isPreviewMode) {
       challengeData = {
@@ -1343,12 +1349,6 @@ serve(async (req) => {
       challengeData = challengeResult.data;
 
       // ── Fetch organization context for intelligence layer ──
-      let orgContext: {
-        orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
-        websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
-        annualRevenue?: string; employeeCount?: string; foundingYear?: number;
-        isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
-      } = {};
       if (challengeData.organization_id) {
         try {
           const { data: org } = await adminClient
