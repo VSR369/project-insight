@@ -247,6 +247,8 @@ export function AIReviewInline({
   onReReview,
   initialRefinedContent,
   complexityRatings,
+  prerequisitesReady,
+  missingPrerequisites,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<SectionComment[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
