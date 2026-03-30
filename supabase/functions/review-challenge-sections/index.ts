@@ -399,6 +399,14 @@ async function callAIPass1Analyze(
   return sections;
 }
 
+/** Section keys that don't match their DB column names */
+const SECTION_FIELD_ALIASES: Record<string, string> = {
+  solver_expertise: 'solver_expertise_requirements',
+  eligibility: 'solver_eligibility_types',
+  visibility: 'solver_visibility_types',
+  submission_guidelines: 'description',
+};
+
 /* ══════════════════════════════════════════════════════════════
  * PASS 2: REWRITE — Generate suggestions for sections that need them.
  * Receives Pass 1 comments as explicit input. LLM focuses 100% on rewriting.
@@ -422,7 +430,8 @@ async function callAIPass2Rewrite(
     );
     // Include sections that: have actionable comments, need generation, need revision,
     // OR are in a 'warning'/'pass' state but have no current content (empty sections needing generation)
-    const sectionContent = challengeData[r.section_key];
+    const aliasedField = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
+    const sectionContent = challengeData[aliasedField] ?? challengeData[r.section_key];
     const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
     return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || r.status === 'warning' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
   });
@@ -448,7 +457,8 @@ async function callAIPass2Rewrite(
   // Build per-section rewrite instructions
   const sectionPrompts = sectionsNeedingSuggestion.map((r: any) => {
     // Look up content — for extended brief subsections, check inside challengeData.extended_brief
-    let originalContent = challengeData[r.section_key];
+    const aliasedFieldLookup = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
+    let originalContent = challengeData[aliasedFieldLookup] ?? challengeData[r.section_key];
     if (!originalContent && EXTENDED_BRIEF_KEYS.has(r.section_key) && challengeData.extended_brief) {
       try {
         const ebField = EB_FIELD_MAP[r.section_key] || r.section_key;
@@ -1151,6 +1161,27 @@ serve(async (req) => {
           preferred_approach: (eb as any).preferred_approach ?? null,
           approaches_not_of_interest: (eb as any).approaches_not_of_interest ?? null,
         };
+      }
+
+      // Alias section keys to their actual DB field values for Pass 1 JSON dump
+      if (!challengeData.solver_expertise && challengeData.solver_expertise_requirements) {
+        challengeData.solver_expertise = challengeData.solver_expertise_requirements;
+      }
+      if (!challengeData.eligibility || challengeData.eligibility === '') {
+        challengeData.eligibility = challengeData.solver_eligibility_types ?? null;
+      }
+      if (!challengeData.visibility || challengeData.visibility === '') {
+        challengeData.visibility = challengeData.solver_visibility_types ?? null;
+      }
+      if (!challengeData.submission_guidelines) {
+        challengeData.submission_guidelines = challengeData.description ?? null;
+      }
+
+      // If re-review sends current_content for a specific section, overlay onto challengeData
+      if (section_key && current_content != null) {
+        challengeData[section_key] = current_content;
+        const alias = SECTION_FIELD_ALIASES[section_key];
+        if (alias) challengeData[alias] = current_content;
       }
 
       // Build context-specific data sections for user prompt
