@@ -1,49 +1,58 @@
 
 
-# Remaining Gaps — 2 Small Fixes
+# Stale Section Filter for Curation Review Page
 
-## What's Already Done (verified in code)
-All 5 previously-planned fixes were implemented in prior commits. The SECTION_FIELD_ALIASES map, Pass 2 alias lookups, current_content injection, handleReReview closure fix, challengeCtx enrichment, and reward auto-save are all present and correct.
+## What This Does
+Adds a "Show Only Stale" toggle filter to the curation review page so curators can quickly find and address stale sections without scrolling through all 26 sections across 6 tabs.
 
-## What's Still Missing
+## Changes
 
-### Fix 1: Add `solution_type` to SECTION_FIELD_ALIASES
-**File:** `supabase/functions/review-challenge-sections/index.ts`
-
-The alias map at line 402-408 is missing `solution_type: 'solution_types'`. This means Pass 2 reads `challengeData["solution_type"]` which may be the string label, not the actual `solution_types` array from DB.
-
-**Change:** Add to SECTION_FIELD_ALIASES:
-```typescript
-const SECTION_FIELD_ALIASES: Record<string, string> = {
-  solver_expertise: 'solver_expertise_requirements',
-  eligibility: 'solver_eligibility_types',
-  visibility: 'solver_visibility_types',
-  submission_guidelines: 'description',
-  solution_type: 'solution_types',  // ADD
-};
-```
-
-Also add to the curation aliasing block (after line 1178):
-```typescript
-if (challengeData.solution_types && !Array.isArray(challengeData.solution_type)) {
-  challengeData.solution_type = challengeData.solution_types;
-}
-```
-
-### Fix 2: Add `complexityLevel` to challengeCtx
+### 1. Add `showOnlyStale` state and stale-per-group counts
 **File:** `src/pages/cogniblend/CurationReviewPage.tsx`
 
-The challengeCtx return object (line 2621) already has `complexity` but the edge function's clientContext expects `complexityLevel` as well.
+- Add `const [showOnlyStale, setShowOnlyStale] = useState(false);` (near line 1201 with other state)
+- Compute `staleCountByGroup` — a map of group ID → count of stale sections in that group (derived from `staleKeySet` and `GROUPS`)
 
-**Change:** Add to the return object:
+### 2. Stale indicator badges on progress strip tabs
+In the progress strip (line ~2911), add an amber badge showing stale count per group when > 0. This tells the curator which tabs have stale sections at a glance.
+
+### 3. Filter toggle in the group card header
+In the active group card header (line ~2954), add a toggle button:
+```
+[⚠ Show Only Stale (3)] / [Show All Sections]
+```
+- Only visible when `staleSections.length > 0`
+- Toggles `showOnlyStale` state
+- Uses amber styling when active
+
+### 4. Filter the rendered sections
+In the section rendering loop (line ~2981), wrap with the stale filter:
 ```typescript
-complexity_level: challenge?.complexity_level ?? undefined,
+{activeGroupDef.sectionKeys
+  .filter(sectionKey => !showOnlyStale || staleKeySet.has(sectionKey))
+  .map((sectionKey) => { ... })}
+```
+When `showOnlyStale` is true, only stale sections in the current tab render.
+
+### 5. Clickable stale list in right rail navigates + enables filter
+In the existing stale sections list in the right rail (line ~3927), update the click handler to also enable the stale filter:
+```typescript
+onClick={() => {
+  setShowOnlyStale(true);
+  const group = GROUPS.find(g => g.sectionKeys.includes(s.key));
+  if (group) setActiveGroup(group.id);
+}}
 ```
 
-### Deployment
-- Redeploy `review-challenge-sections` edge function after Fix 1.
+### 6. Auto-disable filter when no stale sections remain
+Add a `useEffect` that clears `showOnlyStale` when `staleSections.length === 0`.
 
-## Files Modified
-1. `supabase/functions/review-challenge-sections/index.ts` — Fix 1
-2. `src/pages/cogniblend/CurationReviewPage.tsx` — Fix 2
+### 7. Empty state when filter active but no stale in current tab
+When `showOnlyStale` is on but the current group has no stale sections, show a message: "No stale sections in this tab" with a button to show all.
+
+## Technical Details
+- Single file change: `src/pages/cogniblend/CurationReviewPage.tsx`
+- No new components needed — uses existing Badge, Button primitives
+- State is local (`useState`) — resets on page navigation, which is correct behavior
+- Filter persists across tab switches so the user can click through tabs seeing only stale items
 
