@@ -61,6 +61,34 @@ export function getTransitiveDependents(changedSectionKey: SectionKey): SectionK
   return Array.from(stale);
 }
 
+/* ── Upstream dependencies (inverse of DIRECT_DEPENDENCIES) ── */
+
+/**
+ * Returns the set of section keys that the given section depends on
+ * (i.e., sections whose content should exist before this one).
+ * This is the inverse of DIRECT_DEPENDENCIES.
+ */
+let _upstreamCache: Map<string, SectionKey[]> | null = null;
+
+function buildUpstreamMap(): Map<string, SectionKey[]> {
+  if (_upstreamCache) return _upstreamCache;
+  const map = new Map<string, SectionKey[]>();
+  for (const [parent, children] of Object.entries(DIRECT_DEPENDENCIES)) {
+    for (const child of children ?? []) {
+      const existing = map.get(child) ?? [];
+      existing.push(parent as SectionKey);
+      map.set(child, existing);
+    }
+  }
+  _upstreamCache = map;
+  return map;
+}
+
+export function getUpstreamDependencies(sectionKey: SectionKey | string): SectionKey[] {
+  const map = buildUpstreamMap();
+  return map.get(sectionKey) ?? [];
+}
+
 /* ── Human-readable display names ── */
 
 const SECTION_DISPLAY_NAMES: Partial<Record<SectionKey, string>> = {
