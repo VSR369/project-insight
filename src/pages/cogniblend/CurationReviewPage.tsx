@@ -701,7 +701,12 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.affected_stakeholders;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const rows = Array.isArray(eb?.affected_stakeholders) ? eb.affected_stakeholders : [];
+      if (rows.length === 0) return <p className="text-sm text-muted-foreground">Not inferred yet.</p>;
+      return <p className="text-sm text-muted-foreground">{rows.length} stakeholder(s) identified</p>;
+    },
   },
   {
     key: "current_deficiencies",
