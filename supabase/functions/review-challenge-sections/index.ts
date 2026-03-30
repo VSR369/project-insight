@@ -431,9 +431,33 @@ async function callAIPass2Rewrite(
     return new Map();
   }
 
+  // Extended brief subsection keys and field map for nested content lookup
+  const EXTENDED_BRIEF_KEYS = new Set([
+    'context_and_background', 'root_causes', 'affected_stakeholders',
+    'current_deficiencies', 'preferred_approach', 'approaches_not_of_interest',
+  ]);
+  const EB_FIELD_MAP: Record<string, string> = {
+    context_and_background: 'context_background',
+    root_causes: 'root_causes',
+    affected_stakeholders: 'affected_stakeholders',
+    current_deficiencies: 'current_deficiencies',
+    preferred_approach: 'preferred_approach',
+    approaches_not_of_interest: 'approaches_not_of_interest',
+  };
+
   // Build per-section rewrite instructions
   const sectionPrompts = sectionsNeedingSuggestion.map((r: any) => {
-    const originalContent = challengeData[r.section_key];
+    // Look up content — for extended brief subsections, check inside challengeData.extended_brief
+    let originalContent = challengeData[r.section_key];
+    if (!originalContent && EXTENDED_BRIEF_KEYS.has(r.section_key) && challengeData.extended_brief) {
+      try {
+        const ebField = EB_FIELD_MAP[r.section_key] || r.section_key;
+        const eb = typeof challengeData.extended_brief === 'string'
+          ? JSON.parse(challengeData.extended_brief)
+          : challengeData.extended_brief;
+        originalContent = eb?.[ebField];
+      } catch { /* ignore parse errors */ }
+    }
     const contentStr = originalContent
       ? (typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent, null, 2))
       : '(EMPTY — generate from scratch based on challenge context)';
