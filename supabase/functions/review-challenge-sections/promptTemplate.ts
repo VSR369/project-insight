@@ -619,6 +619,14 @@ For each section, return a JSON object via the review_sections function with:
    - Only include genuine conflicts.
    - Each must specify the related_section, the issue, and a suggested_resolution.
 
+5. **solver_perspective_issues**: For each section, consider: "If I am a globally distributed solver seeing this challenge for the first time, with NO internal context about the seeker organization..."
+   - What information is missing that I would need to decide whether to participate?
+   - What terms or references are unclear or assume insider knowledge?
+   - What is the risk/reward ratio from the solver's perspective — is this worth my time?
+   - Where would I get stuck during execution because a requirement is ambiguous?
+   
+   Express these as comments with type "warning" and prefix the text with "[SOLVER VIEW]". These are among the most valuable comments — they catch problems that insiders are blind to.
+
 IMPORTANT: Do NOT include a "suggestion" field. Your ONLY job in this pass is to provide thorough, specific analysis. Improved content will be generated in a separate step based on your comments.
 Focus 100% of your attention on producing the most accurate, specific, and actionable analysis possible.
 `);
