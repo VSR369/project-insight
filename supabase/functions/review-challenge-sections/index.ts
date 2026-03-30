@@ -399,6 +399,14 @@ async function callAIPass1Analyze(
   return sections;
 }
 
+/** Section keys that don't match their DB column names */
+const SECTION_FIELD_ALIASES: Record<string, string> = {
+  solver_expertise: 'solver_expertise_requirements',
+  eligibility: 'solver_eligibility_types',
+  visibility: 'solver_visibility_types',
+  submission_guidelines: 'description',
+};
+
 /* ══════════════════════════════════════════════════════════════
  * PASS 2: REWRITE — Generate suggestions for sections that need them.
  * Receives Pass 1 comments as explicit input. LLM focuses 100% on rewriting.
