@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useMyRequests } from '@/hooks/queries/useMyRequests';
+
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { ROLE_DISPLAY } from '@/types/cogniRoles';
