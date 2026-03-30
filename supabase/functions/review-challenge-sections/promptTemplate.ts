@@ -562,6 +562,7 @@ export function getSectionFormatType(sectionKey: string): string {
 export function buildPass2SystemPrompt(
   sectionConfigs: SectionConfig[],
   challengeContext: any,
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): string {
   let prompt = `You are a senior management consultant rewriting challenge section content. Your output must meet KPMG/PwC/EY/Deloitte quality — specific, measurable, actionable, grounded in domain expertise.
 

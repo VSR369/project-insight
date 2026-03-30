@@ -520,11 +520,11 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     };
 
     pass2SystemPrompt = pass2Configs.length > 0
-      ? buildPass2SystemPrompt(pass2Configs, enrichedContext)
-      : buildPass2SystemPrompt([], enrichedContext);
+      ? buildPass2SystemPrompt(pass2Configs, enrichedContext, masterDataOptions)
+      : buildPass2SystemPrompt([], enrichedContext, masterDataOptions);
   } else {
     // Fallback to inline prompt when no configs available
-    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext);
+    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext, masterDataOptions);
   }
 
   const response = await fetch(AI_GATEWAY_URL, {
