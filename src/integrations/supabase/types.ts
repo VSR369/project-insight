@@ -6589,6 +6589,36 @@ export type Database = {
         }
         Relationships: []
       }
+      proficiency_area_solution_type_map: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          proficiency_area_name: string
+          solution_type_code: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          proficiency_area_name: string
+          solution_type_code: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          proficiency_area_name?: string
+          solution_type_code?: string
+        }
+        Relationships: []
+      }
       proficiency_areas: {
         Row: {
           created_at: string
