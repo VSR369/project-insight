@@ -14,14 +14,10 @@ import { createElement } from 'react';
 
 const ROLE_NAV_MAP: Record<string, { label: string; path: string }> = {
   CR: { label: 'Challenge Creator', path: '/cogni/my-challenges' },
-  CA: { label: 'Challenge Architect', path: '/cogni/my-challenges' },
   CU: { label: 'Curator', path: '/cogni/curation' },
-  ID: { label: 'Innovation Director', path: '/cogni/approval' },
   ER: { label: 'Evaluation Reviewer', path: '/cogni/review' },
   LC: { label: 'Legal Counsel', path: '/cogni/legal' },
   FC: { label: 'Finance Controller', path: '/cogni/escrow' },
-  AM: { label: 'Account Manager', path: '/cogni/my-requests' },
-  RQ: { label: 'Challenge Requestor', path: '/cogni/my-requests' },
 };
 
 /* ── Response shape from complete_phase ───────────────────── */

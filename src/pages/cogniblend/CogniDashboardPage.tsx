@@ -13,7 +13,7 @@ import { RequestJourneySection } from '@/components/cogniblend/dashboard/Request
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { Zap } from 'lucide-react';
-import type { RequestRow } from '@/hooks/queries/useMyRequests';
+import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourneySection';
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();

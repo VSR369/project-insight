@@ -53,11 +53,10 @@ export default function RoleManagementDashboard() {
   // SECTION 4a: Derived state (needed before useEffect)
   // ══════════════════════════════════════
   const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
-  const challengeRequestorEnabled = msmeConfig?.challenge_requestor_enabled ?? false;
-
-  // Filter R10_CR out of core roles when Challenge Requestor toggle is off
+  // Filter out deprecated roles (AM, RQ, CA, ID, R10_CR)
+  const DEPRECATED_ROLE_CODES = new Set(['R10_CR', 'AM', 'RQ', 'CA', 'ID']);
   const filteredCoreRoles = orgCoreRoles?.filter(
-    (r) => r.code !== "R10_CR" || challengeRequestorEnabled
+    (r) => !DEPRECATED_ROLE_CODES.has(r.code)
   ) ?? [];
 
   // ══════════════════════════════════════

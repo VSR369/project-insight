@@ -1,13 +1,9 @@
 /**
- * ChallengeCreatePage — Role-aware landing page for challenge creation.
+ * ChallengeCreatePage — Challenge creation landing page.
  * Route: /cogni/challenges/create
  *
- * Auto-routes by active role:
- * - AM/RQ → SimpleIntakeForm (5-field lightweight form)
- * - CR/CA → 2 cards: "Describe Your Problem" (AI) + "Build Spec Manually" (Editor)
- *
- * Governance Mode and Engagement Model are selected here (top-level)
- * and passed down to both AI-Assisted and Manual Editor paths.
+ * CR role: 3 tracks — AI-Assisted, Manual Editor, or Simple 2-Tab Form.
+ * Governance Mode and Engagement Model selected at top level.
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
@@ -293,8 +289,8 @@ function GovernanceEngagementSelector({
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground">
             {engagementModel === 'AGG'
-              ? 'Aggregator model: solvers are curated and invited. An Account Manager (AM) role is not required.'
-              : 'Marketplace model: solvers discover and apply. An Account Manager (AM) role manages the process.'}
+              ? 'Aggregator model: solvers are curated and invited. Creator submits directly to Curator.'
+              : 'Marketplace model: solvers discover and apply. Creator submits to platform Curator.'}
           </p>
         </div>
       </div>

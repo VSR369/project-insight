@@ -40,7 +40,7 @@ import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { CHALLENGE_TEMPLATES, type ChallengeTemplate } from '@/lib/challengeTemplates';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
+import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
@@ -191,7 +191,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegmentOptions();
-  const { data: architects = [] } = useChallengeArchitects();
+  // useChallengeArchitects removed — CA role deprecated
 
   // ═══════ Hooks — edit mode data ═══════
   const { data: existingChallenge, isLoading: editLoading } = useExistingChallenge(isEditMode ? challengeId : undefined);

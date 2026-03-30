@@ -51,41 +51,16 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
   const isMP = engagementModel === 'MP';
 
   return [
-    // Step 1 actor: AM for Marketplace, RQ for Aggregator
-    isMP
-      ? {
-          email: 'nh-am@testsetup.dev',
-          displayName: 'Alex Morgan',
-          roles: ['AM'],
-          aiDescription: 'Submits a problem brief for AI-driven challenge generation',
-          manualDescription: 'Submits solution requests via the 8-step editor wizard',
-          aiDestination: '/cogni/challenges/create?tab=ai',
-          manualDestination: '/cogni/challenges/create?tab=editor',
-          stepLabel: 'Step 1',
-        }
-      : {
-          email: 'nh-rq@testsetup.dev',
-          displayName: 'Alex Morgan',
-          roles: ['RQ'],
-          aiDescription: 'Shares a problem idea for AI-driven challenge generation',
-          manualDescription: 'Submits innovation requests via the 8-step editor wizard',
-          aiDestination: '/cogni/challenges/create?tab=ai',
-          manualDestination: '/cogni/challenges/create?tab=editor',
-          stepLabel: 'Step 1',
-        },
+    // Step 1: Challenge Creator
     {
       email: 'nh-cr@testsetup.dev',
       displayName: 'Chris Rivera',
-      roles: [isMP ? 'CA' : 'CR'],
-      aiDescription: isMP
-        ? 'Receives AM brief, triggers AI to generate full challenge spec, then reviews each section'
-        : 'Triggers AI to generate full challenge spec, then reviews each section',
-      manualDescription: isMP
-        ? 'Receives AM brief, builds challenge spec manually using the 8-step wizard'
-        : 'Builds challenge spec manually using the 8-step wizard',
-      aiDestination: '/cogni/dashboard',
-      manualDestination: '/cogni/dashboard',
-      stepLabel: 'Step 1–2',
+      roles: ['CR'],
+      aiDescription: 'Creates challenge via AI-assisted intake, then submits to Curator',
+      manualDescription: 'Creates challenge spec manually using the editor wizard',
+      aiDestination: '/cogni/challenges/create?tab=ai',
+      manualDestination: '/cogni/challenges/create?tab=editor',
+      stepLabel: 'Step 1',
     },
     {
       email: 'nh-lc@testsetup.dev',
@@ -95,7 +70,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
       manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
       aiDestination: '/cogni/lc-queue',
       manualDestination: '/cogni/lc-queue',
-      stepLabel: 'Step 3',
+      stepLabel: 'Step 2',
     },
     {
       email: 'nh-cu@testsetup.dev',
@@ -105,17 +80,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
       manualDescription: 'Reviews challenge quality via 14-point checklist',
       aiDestination: '/cogni/curation',
       manualDestination: '/cogni/curation',
-      stepLabel: 'Step 4',
-    },
-    {
-      email: 'nh-id@testsetup.dev',
-      displayName: 'Dana Irving',
-      roles: ['ID'],
-      aiDescription: 'Final approval of AI-curated challenge package before publication',
-      manualDescription: 'Final approval of challenge before publication',
-      aiDestination: '/cogni/approval',
-      manualDestination: '/cogni/approval',
-      stepLabel: 'Step 5',
+      stepLabel: 'Step 3',
     },
     {
       email: 'nh-er1@testsetup.dev',
@@ -125,7 +90,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
       manualDescription: 'Evaluates submitted solutions against criteria',
       aiDestination: '/cogni/review',
       manualDestination: '/cogni/review',
-      stepLabel: 'Step 6',
+      stepLabel: 'Step 4',
     },
     {
       email: 'nh-er2@testsetup.dev',
@@ -150,7 +115,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
     {
       email: 'nh-solo@testsetup.dev',
       displayName: 'Sam Solo',
-      roles: isMP ? ['AM', 'CA', 'CU', 'ID', 'ER', 'FC'] : ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
+      roles: ['CR', 'CU', 'ER', 'LC', 'FC'],
       aiDescription: 'Solo operator — walks through all AI-assisted steps sequentially',
       manualDescription: 'Solo operator — holds all roles for full wizard walkthrough',
       aiDestination: '/cogni/challenges/create?tab=ai',
