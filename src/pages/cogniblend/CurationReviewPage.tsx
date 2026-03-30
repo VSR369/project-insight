@@ -182,6 +182,7 @@ interface ChallengeData {
   eligibility_model: string | null;
   organization_id: string;
   solution_type: string | null;
+  solution_types: Json | null;
   data_resources_provided: Json | null;
   success_metrics_kpis: Json | null;
 }
