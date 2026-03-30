@@ -172,6 +172,23 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     setPrevSolutionType(solutionType);
   }, [solutionType]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rehydrate drafts from DB values when currentParams/currentScore change after save
+  const prevCurrentParamsRef = useRef(currentParams);
+  useEffect(() => {
+    // Only rehydrate when currentParams actually changes (post-mutation refetch)
+    if (currentParams === prevCurrentParamsRef.current) return;
+    prevCurrentParamsRef.current = currentParams;
+
+    // Don't overwrite if user has pending AI ratings that haven't been saved yet
+    if (aiDraftRef.current && Object.keys(aiDraftRef.current).length > 0) {
+      // AI draft is preserved from AI suggestions — don't overwrite
+    }
+
+    // Rehydrate manualDraft from DB values
+    const freshManual = buildDraftFromExisting(currentParams, effectiveParams);
+    setManualDraft(freshManual);
+  }, [currentParams, effectiveParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // AI suggested ratings → update ONLY aiDraft, never manualDraft
   useEffect(() => {
     if (!aiSuggestedRatings || Object.keys(aiSuggestedRatings).length === 0) return;
@@ -179,6 +196,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     const newAiDraft: Record<string, number> = {};
     const justifications: Record<string, string> = {};
     const sources: Record<string, "ai" | "curator" | "default"> = {};
+    let matchedKeys = 0;
 
     effectiveParams.forEach((p) => {
       const r = aiSuggestedRatings[p.param_key];
@@ -186,11 +204,24 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         newAiDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
         if (r.justification) justifications[p.param_key] = r.justification;
         sources[p.param_key] = "ai";
+        matchedKeys++;
       } else {
         newAiDraft[p.param_key] = aiDraft[p.param_key] ?? 5;
         sources[p.param_key] = aiParamSources[p.param_key] ?? "default";
       }
     });
+
+    // Log key alignment for debugging
+    const aiKeys = Object.keys(aiSuggestedRatings);
+    const effectiveKeys = effectiveParams.map(p => p.param_key);
+    const unmatchedAiKeys = aiKeys.filter(k => !effectiveKeys.includes(k));
+    if (unmatchedAiKeys.length > 0) {
+      console.warn(
+        `[ComplexityModule] AI returned ${unmatchedAiKeys.length} unmatched keys:`,
+        unmatchedAiKeys,
+        'Expected:', effectiveKeys
+      );
+    }
 
     setAiDraft(newAiDraft);
     aiDraftRef.current = newAiDraft;
