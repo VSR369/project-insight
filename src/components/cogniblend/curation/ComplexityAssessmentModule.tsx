@@ -182,6 +182,7 @@ export function ComplexityAssessmentModule({
     });
 
     setAiDraft(newAiDraft);
+    aiDraftRef.current = newAiDraft;
     setAiJustifications(justifications);
     setAiParamSources(sources);
     setActiveTab("ai_review");
