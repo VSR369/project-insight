@@ -992,6 +992,7 @@ async function executeComplexityAssessment(
   challengeData: any,
   dimensions: any[],
   clientContext?: any,
+  orgContext?: any,
 ): Promise<any> {
   const paramDescriptions = dimensions.map((d: any) =>
     `- ${d.dimension_key} (${d.dimension_name}): Level 1 = "${d.level_1_description}", Level 3 = "${d.level_3_description}", Level 5 = "${d.level_5_description}"`
