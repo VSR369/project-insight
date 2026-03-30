@@ -195,6 +195,14 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: [],
   },
+  solution_type: {
+    format: 'radio',
+    masterDataTable: 'proficiency_area_solution_type_map',
+    aiCanDraft: true,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['scope', 'deliverables', 'problem_statement'],
+  },
   // ── Extra sections (not in original 16-section spec but exist in app) ──
   hook: {
     format: 'rich_text',
