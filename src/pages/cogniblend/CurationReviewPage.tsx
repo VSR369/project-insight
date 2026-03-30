@@ -2089,7 +2089,10 @@ export default function CurationReviewPage() {
     }
 
     // ── Text fields: normalize markdown → sanitized HTML ──
-    const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
+    // Derive dynamically from SECTION_FORMAT_CONFIG to avoid hardcoding
+    const HTML_TEXT_FIELDS = Object.entries(SECTION_FORMAT_CONFIG)
+      .filter(([, cfg]) => cfg.format === 'rich_text')
+      .map(([key]) => key);
     if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
       const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
       valueToSave = normalizeAiContentForEditor(valueToSave);
