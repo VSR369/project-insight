@@ -2950,7 +2950,14 @@ export default function CurationReviewPage() {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">{group.label}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold">{group.label}</span>
+                  {staleCountByGroup[group.id] > 0 && (
+                    <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
+                      {staleCountByGroup[group.id]}
+                    </span>
+                  )}
+                </div>
                 {allDone && <CheckCircle2 className="h-4 w-4" />}
                 {hasFlag && !allDone && <AlertTriangle className="h-4 w-4" />}
               </div>
