@@ -2833,6 +2833,16 @@ export default function CurationReviewPage() {
         {orgTypeName && (
           <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
         )}
+        {/* Guided mode toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Switch
+            checked={guidedMode}
+            onCheckedChange={setGuidedMode}
+          />
+          <span className="text-xs text-muted-foreground">
+            {guidedMode ? 'Guided' : 'Free browse'}
+          </span>
+        </div>
         {user?.id && !isReadOnly && (
           <HoldResumeActions
             challengeId={challengeId!}
