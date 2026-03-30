@@ -718,7 +718,12 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.current_deficiencies;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const items = Array.isArray(eb?.current_deficiencies) ? eb.current_deficiencies : [];
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not inferred yet.</p>;
+      return <p className="text-sm text-muted-foreground">{items.length} deficiency observation(s)</p>;
+    },
   },
   {
     key: "preferred_approach",
