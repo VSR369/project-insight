@@ -780,10 +780,13 @@ export function AIReviewInline({
                     variant="outline"
                     className="w-full text-xs h-7"
                     onClick={() => {
+                      const toText = (c: SectionComment): string =>
+                        typeof c === 'string' ? c : (c.text ?? c.comment ?? JSON.stringify(c));
                       const selectedText = comments
                         .filter((_, i) => selectedComments.has(i))
+                        .map(toText)
                         .join("\n\n");
-                      onSendToCoordinator(selectedText || comments.join("\n\n"));
+                      onSendToCoordinator(selectedText || comments.map(toText).join("\n\n"));
                     }}
                     disabled={selectedComments.size === 0}
                   >

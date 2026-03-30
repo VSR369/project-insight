@@ -3368,7 +3368,7 @@ export default function CurationReviewPage() {
                       complexityRatings={section.key === 'complexity' ? (aiSuggestedComplexity ?? undefined) : undefined}
                       onSendToCoordinator={isLocked ? (editedComments: string) => {
                         // Store original AI comments for audit
-                        const originalAiComments = aiReview?.comments?.join("\n\n") ?? "";
+                        const originalAiComments = (aiReview?.comments ?? []).map((c: any) => typeof c === 'string' ? c : c?.text ?? JSON.stringify(c)).join("\n\n");
                         setLockedSendState({
                           open: true,
                           sectionKey: section.key,
