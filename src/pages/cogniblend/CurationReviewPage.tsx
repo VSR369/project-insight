@@ -1485,6 +1485,7 @@ export default function CurationReviewPage() {
       challengeId: challengeId!,
       challengeTitle: challenge?.title ?? '',
       solutionType: (challenge?.solution_type as any) ?? null,
+      solutionTypes: Array.isArray(challenge?.solution_types) ? (challenge.solution_types as string[]) : [],
       seekerSegment: null,
       organizationTypeId: null,
       maturityLevelFromChallenge: challenge?.maturity_level ?? null,
