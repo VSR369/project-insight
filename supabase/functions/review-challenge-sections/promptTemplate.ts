@@ -63,6 +63,30 @@ const FORMAT_INSTRUCTIONS: Record<string, string> = {
   complexity_assessment: 'Output: Use the assess_complexity tool to return per-parameter ratings with justifications. Do NOT use the review_sections tool for this section.',
 };
 
+/** Gap 5: Section-specific quality bar exemplars as fallback when DB example_good is null */
+const SECTION_QUALITY_EXEMPLARS: Partial<Record<string, string>> = {
+  scope: `IN SCOPE:
+- Demand forecasting for 847 SKUs across our 12 North American distribution centers
+- Integration with SAP ERP (S/4HANA) for real-time inventory feeds
+- Model training on 36 months of historical order data (provided)
+- Automated weekly retraining pipeline
+
+OUT OF SCOPE:
+- Supply-side forecasting (vendor lead times, procurement optimization)
+- International distribution centers (EU/APAC expansion planned for Phase 2)
+- Real-time pricing adjustments (separate initiative in Q3)`,
+
+  evaluation_criteria: `[{"criterion_name":"Forecast Accuracy","weight_percentage":35,"description":"Mean Absolute Percentage Error (MAPE) on held-out test set of 12 weeks. Must demonstrate improvement over our current 23% MAPE baseline.","scoring_method":"Automated: compute MAPE on provided test dataset. Threshold: <15% = full marks, 15-20% = partial, >20% = fail.","evaluator_role":"Data Science Lead"},{"criterion_name":"System Integration","weight_percentage":25,"description":"API successfully connects to SAP S/4HANA sandbox, processes real inventory feeds, and returns forecasts within SLA.","scoring_method":"Live demo: evaluator triggers 3 forecast runs via API. All must complete within 60-second SLA.","evaluator_role":"Enterprise Architect"}]`,
+
+  success_metrics_kpis: `[{"kpi":"Forecast MAPE","baseline":"23% (current Excel model)","target":"<15%","measurement_method":"Automated MAPE computation on 12-week holdout set","timeframe":"8 weeks from project start"},{"kpi":"Stockout Reduction","baseline":"340 events/quarter","target":"<170 events/quarter (50% reduction)","measurement_method":"Monthly stockout count from SAP inventory reports","timeframe":"First quarter post-deployment"}]`,
+
+  hook: `Can your AI outpredict our 18-month-old Excel forecasts? We need to cut our 23% forecast error rate in half across 847 SKUs and 12 distribution centers — and we are offering $75,000 to the solver who can prove it with a working API.`,
+
+  solver_expertise: `{"expertise_areas":[{"area":"Machine Learning / Time Series","sub_areas":["demand forecasting","ARIMA/Prophet/LSTM","feature engineering for retail"],"level":"required"},{"area":"Enterprise Integration","sub_areas":["SAP S/4HANA","REST API development","ETL pipelines"],"level":"required"},{"area":"MLOps","sub_areas":["model monitoring","automated retraining","drift detection"],"level":"preferred"}],"certifications":["AWS ML Specialty or equivalent cloud ML cert"],"experience_years":5,"domain_knowledge":["retail/CPG supply chain","inventory optimization"]}`,
+
+  reward_structure: `Monetary: 3-tier competitive structure. 1st place: $45,000, 2nd place: $20,000, 3rd place: $10,000. Total pool: $75,000 USD. Non-monetary: Featured case study on our innovation portal, letter of recommendation from our VP Supply Chain, priority consideration for Phase 2 pilot engagement.`,
+};
+
 /** Map section keys to their format type for prompt enrichment */
 const SECTION_FORMAT_MAP: Record<string, string> = {
   problem_statement: 'rich_text',
