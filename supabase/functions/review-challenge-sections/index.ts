@@ -685,10 +685,14 @@ FORMAT: ${formatType}. ${formatInstruction}
 ORIGINAL CONTENT:
 ${contentStr}
 ${depBlock}
-${(() => {
+    ${(() => {
       const sectionAtts = attachmentsBySection[r.section_key] || [];
       return sectionAtts.length > 0
-        ? `\nATTACHED DOCUMENTS for this section:\n${sectionAtts.map((a: any) => `--- ${a.fileName} ---\n${a.content}`).join('\n')}\nUse these documents to inform your rewrite.\n`
+        ? `\nREFERENCE MATERIALS for this section:\n${sectionAtts.map((a: any) => {
+            const typeTag = a.sourceType === 'url' ? 'WEB' : 'DOC';
+            const shareTag = a.sharedWithSolver ? 'SHARED' : 'AI-ONLY';
+            return `--- [${typeTag}] ${a.name} [${shareTag}] ---\n${a.sourceUrl ? `Source: ${a.sourceUrl}\n` : ''}${a.content}`;
+          }).join('\n')}\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.\n`
         : '';
     })()}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
@@ -1475,13 +1479,19 @@ serve(async (req) => {
       masterDataOptions = await fetchMasterDataOptions(adminClient);
     }
 
-    // ── Fetch extracted attachment content ────────────────
-    let attachmentsBySection: Record<string, { fileName: string; content: string }[]> = {};
+    // ── Fetch extracted attachment content (files + URLs) ────────────────
+    let attachmentsBySection: Record<string, {
+      name: string;
+      sourceType: 'file' | 'url';
+      sourceUrl?: string;
+      content: string;
+      sharedWithSolver: boolean;
+    }[]> = {};
     if (resolvedContext === "curation") {
       try {
         const { data: attachments } = await adminClient
           .from('challenge_attachments')
-          .select('section_key, file_name, mime_type, extracted_text')
+          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extraction_status, shared_with_solver')
           .eq('challenge_id', challenge_id)
           .eq('extraction_status', 'completed');
 
@@ -1490,8 +1500,13 @@ serve(async (req) => {
             if (!att.extracted_text) continue;
             if (!attachmentsBySection[att.section_key]) attachmentsBySection[att.section_key] = [];
             attachmentsBySection[att.section_key].push({
-              fileName: att.file_name,
+              name: att.source_type === 'url'
+                ? (att.url_title || att.source_url || 'Web link')
+                : att.file_name,
+              sourceType: att.source_type || 'file',
+              sourceUrl: att.source_url ?? undefined,
               content: att.extracted_text.substring(0, 5000),
+              sharedWithSolver: att.shared_with_solver ?? false,
             });
           }
         }
@@ -1649,14 +1664,27 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 
 ${additionalData}`;
 
-      // Append attachment content to user prompt
+      // Append reference materials (files + URLs) to user prompt
       if (Object.keys(attachmentsBySection).length > 0) {
-        let attachmentBlock = '\n\nATTACHED DOCUMENTS (uploaded by the seeking organization — use to enrich your review):\n';
-        for (const [sk, files] of Object.entries(attachmentsBySection)) {
-          for (const f of files) {
-            attachmentBlock += `\n--- ${f.fileName} (${sk}) ---\n${f.content}\n`;
+        let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
+        for (const [sk, refs] of Object.entries(attachmentsBySection)) {
+          for (const ref of refs) {
+            const typeTag = ref.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
+            const shareTag = ref.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY (solvers cannot see this)';
+            attachmentBlock += `\n--- [${typeTag}] ${ref.name} [${sk}] [${shareTag}] ---\n`;
+            if (ref.sourceType === 'url' && ref.sourceUrl) {
+              attachmentBlock += `Source: ${ref.sourceUrl}\n`;
+            }
+            attachmentBlock += ref.content + '\n';
           }
         }
+        attachmentBlock += `
+REFERENCE MATERIAL USAGE RULES:
+- Use ALL materials (files, web pages, shared and private) to inform your review and suggestions.
+- SHARED materials: Solvers will also see these. You may reference them directly in section content ("As detailed in the attached architecture diagram..." or "Refer to our API docs at [url]...").
+- AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself. Write "Our current defect rate is 4.2%" — NOT "Per the attached audit report..." The information must stand alone in the section.
+- WEB PAGES: These represent the org's public presence, industry context, or technical documentation. Use them to validate challenge content against actual capabilities.
+`;
         userPrompt += attachmentBlock;
       }
 

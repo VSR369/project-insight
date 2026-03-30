@@ -909,50 +909,71 @@ export type Database = {
         Row: {
           challenge_id: string
           created_at: string | null
+          description: string | null
+          display_name: string | null
+          display_order: number | null
           extracted_text: string | null
           extraction_error: string | null
           extraction_method: string | null
           extraction_status: string | null
-          file_name: string
+          file_name: string | null
           file_size: number | null
           id: string
-          mime_type: string
+          mime_type: string | null
           section_key: string
-          storage_path: string
+          shared_with_solver: boolean
+          source_type: string
+          source_url: string | null
+          storage_path: string | null
           updated_at: string | null
           uploaded_by: string | null
+          url_title: string | null
         }
         Insert: {
           challenge_id: string
           created_at?: string | null
+          description?: string | null
+          display_name?: string | null
+          display_order?: number | null
           extracted_text?: string | null
           extraction_error?: string | null
           extraction_method?: string | null
           extraction_status?: string | null
-          file_name: string
+          file_name?: string | null
           file_size?: number | null
           id?: string
-          mime_type: string
+          mime_type?: string | null
           section_key: string
-          storage_path: string
+          shared_with_solver?: boolean
+          source_type?: string
+          source_url?: string | null
+          storage_path?: string | null
           updated_at?: string | null
           uploaded_by?: string | null
+          url_title?: string | null
         }
         Update: {
           challenge_id?: string
           created_at?: string | null
+          description?: string | null
+          display_name?: string | null
+          display_order?: number | null
           extracted_text?: string | null
           extraction_error?: string | null
           extraction_method?: string | null
           extraction_status?: string | null
-          file_name?: string
+          file_name?: string | null
           file_size?: number | null
           id?: string
-          mime_type?: string
+          mime_type?: string | null
           section_key?: string
-          storage_path?: string
+          shared_with_solver?: boolean
+          source_type?: string
+          source_url?: string | null
+          storage_path?: string | null
           updated_at?: string | null
           uploaded_by?: string | null
+          url_title?: string | null
         }
         Relationships: [
           {
