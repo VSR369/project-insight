@@ -663,8 +663,15 @@ async function callAIPass2Rewrite(
       ? `\nRELATED SECTIONS — CHECK EACH FOR THE STATED REASON:\n${depParts.join('\n\n')}\n`
       : '';
 
+    // Wave context injection for Pass 2
+    const waveCtx = SECTION_WAVE_CONTEXT[r.section_key];
+    const waveBlock = waveCtx
+      ? `\nWAVE POSITION: ${waveCtx.wave} (${waveCtx.waveName}). ${waveCtx.strategicRole}\n${waveCtx.downstreamSections.length > 0 ? `Your output will affect: ${waveCtx.downstreamSections.join(', ')}. Ensure consistency.\n` : ''}`
+      : '';
+
     return `### Section: ${r.section_key}
 ${r.status === 'generated' ? 'ACTION: Generate new content from scratch based on challenge context.' : 'ACTION: Revise the existing content to address all issues below.'}
+${waveBlock}
 
 FORMAT: ${formatType}. ${formatInstruction}
 
