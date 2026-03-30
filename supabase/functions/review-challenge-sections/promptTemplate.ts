@@ -898,7 +898,11 @@ CHALLENGE CONTEXT:
 
   // FIX 6: Domain framework injection for Pass 2
   const domainTags = challengeContext?.sections?.domain_tags || challengeContext?.domain_tags;
-  const domainFrameworks = detectDomainFrameworks(domainTags);
+  const domainFrameworks = detectDomainFrameworks(
+    domainTags,
+    challengeContext?.problem_statement || challengeContext?.sections?.problem_statement,
+    challengeContext?.scope || challengeContext?.sections?.scope,
+  );
   if (domainFrameworks.length > 0) {
     prompt += `\nDOMAIN-SPECIFIC FRAMEWORKS for this challenge: ${domainFrameworks.join(', ')}. Reference these in your rewrites where applicable.\n`;
   }
