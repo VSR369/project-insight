@@ -2049,6 +2049,24 @@ export default function CurationReviewPage() {
         const currency = (valueToSave as any[])[0]?.currency || 'USD';
         valueToSave = { type: 'monetary', monetary: { tiers, currency } };
       }
+      // Defensive: if monetary.tiers is an array (LLM may return [{tier_name, amount}] despite instructions),
+      // convert to Record<string, number> expected by applyAIReviewResult
+      if (valueToSave?.monetary?.tiers && Array.isArray(valueToSave.monetary.tiers)) {
+        const tierRecord: Record<string, number> = {};
+        const defaultNames = ['platinum', 'gold', 'silver', 'honorable_mention'];
+        (valueToSave.monetary.tiers as any[]).forEach((t: any, i: number) => {
+          const name = (t.tier_name || t.name || t.tier || defaultNames[i] || `tier_${i}`)
+            .toLowerCase().replace(/\s+/g, '_');
+          const amount = typeof t.amount === 'string'
+            ? Number(t.amount.replace(/[$,\s]/g, '')) || 0
+            : Number(t.amount ?? t.prize ?? t.value ?? 0) || 0;
+          tierRecord[name] = amount;
+        });
+        valueToSave = {
+          ...valueToSave,
+          monetary: { ...valueToSave.monetary, tiers: tierRecord },
+        };
+      }
       // Apply to component state — this triggers pendingSave inside RewardStructureDisplay
       rewardStructureRef.current?.applyAIReviewResult(valueToSave);
       // Do NOT save raw AI object to DB here; the component's auto-save
