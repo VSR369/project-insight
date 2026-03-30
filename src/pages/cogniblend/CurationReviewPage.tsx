@@ -1229,6 +1229,8 @@ export default function CurationReviewPage() {
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
   const [showOnlyStale, setShowOnlyStale] = useState(false);
+  const [guidedMode, setGuidedMode] = useState(false);
+  const [dismissedPrereqBanner, setDismissedPrereqBanner] = useState<Set<string>>(new Set());
 
   // Optimistic industry segment — bridges the gap between save and refetch
   const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
