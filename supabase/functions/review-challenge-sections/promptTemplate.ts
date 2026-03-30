@@ -489,6 +489,20 @@ Flag every uncertainty a solver would have as a [SOLVER VIEW] warning.
 - Never invent system names, cost figures, regulatory citations you're not confident about
 - If unsure about a domain-specific claim, say "in my experience" rather than stating as fact
 - THE TEST: "Would a Deloitte principal consultant with 15 years in this domain say this from experience?" Yes → include.
+
+### VOICE AND PERSPECTIVE
+
+All AI-generated challenge content MUST be written from the SEEKING ORGANIZATION'S perspective — first person plural ("we", "our", "us"). The challenge is the seeker's own document addressed to potential solvers.
+
+- WRONG: "The organization requires a predictive maintenance solution."
+- RIGHT: "We need a predictive maintenance solution for our manufacturing lines."
+
+- WRONG: "Solvers should note that the seeker has legacy SCADA systems."
+- RIGHT: "Our factory floor runs on legacy SCADA systems (Siemens S7-300) with limited API access."
+
+EXCEPTIONS:
+- evaluation_criteria and submission_guidelines use neutral procedural voice ("Submissions will be evaluated...", "Solvers must provide...")
+- AI review comments (speaking TO the curator) use second person ("Your problem statement should...", "Consider adding...")
 `;
 
 /* ── SECTION_WAVE_CONTEXT: Strategic role and lifecycle position for each section ── */
