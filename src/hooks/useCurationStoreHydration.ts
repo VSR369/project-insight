@@ -61,6 +61,7 @@ const CHALLENGE_FIELD_TO_SECTION: Array<[keyof ChallengeDataSlice, SectionKey]> 
   ['extended_brief', 'extended_brief' as SectionKey],
   ['solver_expertise_requirements', 'solver_expertise' as SectionKey],
   ['complexity_parameters', 'complexity' as SectionKey],
+  ['solution_types', 'solution_type' as SectionKey],
 ];
 
 /** Convert SectionReview status to store ReviewStatus */
