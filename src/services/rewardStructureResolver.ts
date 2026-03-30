@@ -8,7 +8,13 @@
  */
 
 export type ChallengeModel = 'marketplace' | 'aggregator';
-export type SourceRole = 'AM' | 'CA' | 'CR' | 'CURATOR';
+export type SourceRole = 'CR' | 'CURATOR';
+
+/** Legacy source roles that map to CR for backward compatibility */
+const LEGACY_SOURCE_ROLES: Record<string, SourceRole> = {
+  AM: 'CR',
+  CA: 'CR',
+};
 export type RewardType = 'monetary' | 'non_monetary' | 'both' | null;
 
 export interface PrizeTier {
