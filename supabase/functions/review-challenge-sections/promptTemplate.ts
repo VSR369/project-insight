@@ -643,6 +643,12 @@ CHALLENGE CONTEXT:
     if (formatRule) {
       prompt += `\nOUTPUT FORMAT: ${formatRule}\n`;
     }
+
+    // Inject master data allowed values for this section (CRITICAL for eligibility, visibility, etc.)
+    const sectionOpts = masterDataOptions?.[config.section_key];
+    if (sectionOpts?.length) {
+      prompt += `\nALLOWED VALUES for ${config.section_key}: [${sectionOpts.map((o: any) => `"${o.code}" (${o.label})`).join(', ')}]\nYou MUST only output codes from this list. Do NOT invent new codes.\n`;
+    }
   }
 
   // Table-format output reinforcement
