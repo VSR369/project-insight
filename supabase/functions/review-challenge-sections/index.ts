@@ -420,7 +420,11 @@ async function callAIPass2Rewrite(
     const hasActionableComments = r.comments.some(
       (c: any) => c.type === 'error' || c.type === 'warning' || c.type === 'suggestion'
     );
-    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || waveAction === 'generate';
+    // Include sections that: have actionable comments, need generation, need revision,
+    // OR are in a 'warning'/'pass' state but have no current content (empty sections needing generation)
+    const sectionContent = challengeData[r.section_key];
+    const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
+    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
   });
 
   if (sectionsNeedingSuggestion.length === 0) {
