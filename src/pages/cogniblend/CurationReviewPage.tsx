@@ -3974,6 +3974,7 @@ export default function CurationReviewPage() {
                           key={s.key}
                           className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
                           onClick={() => {
+                            setShowOnlyStale(true);
                             const group = GROUPS.find((g) => g.sectionKeys.includes(s.key));
                             if (group) setActiveGroup(group.id);
                           }}
