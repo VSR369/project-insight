@@ -92,6 +92,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   approaches_not_of_interest: 'line_items',
   success_metrics_kpis: 'table',
   data_resources_provided: 'table',
+  solution_type: 'checkbox_multi',
 };
 
 /** Extended Brief subsection-specific format instructions */

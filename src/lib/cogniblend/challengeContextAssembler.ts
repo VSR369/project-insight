@@ -34,6 +34,7 @@ export interface ChallengeContext {
   challengeId: string;
   challengeTitle: string;
   solutionType: SolutionType | null;
+  solutionTypes: string[];
   seekerSegment: string | null;
   todaysDate: string;
 
@@ -162,6 +163,7 @@ export interface BuildChallengeContextOptions {
   challengeId: string;
   challengeTitle: string;
   solutionType?: SolutionType | null;
+  solutionTypes?: string[];
   seekerSegment?: string | null;
   organizationTypeId?: string | null;
   maturityLevelFromChallenge?: string | null;
@@ -219,6 +221,7 @@ export function buildChallengeContext(opts: BuildChallengeContextOptions): Chall
     challengeId: opts.challengeId,
     challengeTitle: opts.challengeTitle,
     solutionType: opts.solutionType ?? null,
+    solutionTypes: opts.solutionTypes ?? [],
     seekerSegment: opts.seekerSegment ?? null,
     todaysDate,
     sections,

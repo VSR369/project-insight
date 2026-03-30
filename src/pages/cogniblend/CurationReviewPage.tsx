@@ -86,7 +86,8 @@ import {
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useSolutionTypeMap, SOLUTION_TYPE_TO_PROFICIENCY_AREA } from "@/hooks/queries/useSolutionTypeMap";
+import { useSolutionTypes, groupSolutionTypes, derivePrimaryGroup, getSelectedGroups, useSolutionTypeMap, SOLUTION_TYPE_TO_PROFICIENCY_AREA } from "@/hooks/queries/useSolutionTypeMap";
+import { SolutionTypesEditor } from "@/components/cogniblend/curation/renderers/SolutionTypesEditor";
 
 import RewardStructureDisplay, { type RewardStructureDisplayHandle } from "@/components/cogniblend/curation/RewardStructureDisplay";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
@@ -182,6 +183,7 @@ interface ChallengeData {
   eligibility_model: string | null;
   organization_id: string;
   solution_type: string | null;
+  solution_types: Json | null;
   data_resources_provided: Json | null;
   success_metrics_kpis: Json | null;
 }
@@ -377,18 +379,23 @@ const SECTIONS: SectionDef[] = [
     key: "solution_type",
     label: "Solution Type",
     attribution: "by Curator",
-    dbField: "solution_type",
-    isFilled: (ch) => !!(ch as any).solution_type,
+    dbField: "solution_types",
+    isFilled: (ch) => {
+      const st = (ch as any).solution_types;
+      return Array.isArray(st) && st.length > 0;
+    },
     render: (ch) => {
-      const st = (ch as any).solution_type;
-      if (!st) return <p className="text-sm text-muted-foreground italic">Not set</p>;
-      const LABELS: Record<string, string> = {
-        strategy_design: 'Future & Business Blueprint',
-        process_operations: 'Business & Operational Excellence',
-        technology_architecture: 'Digital & Technology Blueprint',
-        product_innovation: 'Product & Service Innovation',
-      };
-      return <Badge variant="secondary">{LABELS[st] ?? st}</Badge>;
+      const st = (ch as any).solution_types;
+      if (!Array.isArray(st) || st.length === 0) return <p className="text-sm text-muted-foreground italic">Not set</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {st.map((code: string) => (
+            <Badge key={code} variant="secondary" className="capitalize text-xs">
+              {code.replace(/_/g, ' ')}
+            </Badge>
+          ))}
+        </div>
+      );
     },
   },
   {
@@ -914,7 +921,7 @@ const GROUPS: GroupDef[] = [
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["deliverables", "data_resources_provided", "maturity_level", "solution_type", "complexity"],
+    sectionKeys: ["solution_type", "deliverables", "data_resources_provided", "maturity_level", "complexity"],
   },
   {
     id: "solvers_schedule",
@@ -1044,7 +1051,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
     case "phase_schedule": return ch.phase_schedule ? JSON.stringify(ch.phase_schedule) : null;
     case "maturity_level": return ch.maturity_level;
-    case "solution_type": return ch.solution_type;
+    case "solution_type": return ch.solution_types ? JSON.stringify(ch.solution_types) : null;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
     case "hook": return ch.hook;
     
@@ -1188,6 +1195,8 @@ export default function CurationReviewPage() {
   const { data: complexityParams = [] } = useComplexityParams();
   const { data: industrySegments } = useIndustrySegments();
   const { data: solutionTypeMap = [] } = useSolutionTypeMap();
+  const { data: solutionTypesData = [] } = useSolutionTypes();
+  const solutionTypeGroups = useMemo(() => groupSolutionTypes(solutionTypesData), [solutionTypesData]);
 
   const [activeGroup, setActiveGroup] = useState<string>("problem_definition");
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -1248,7 +1257,7 @@ export default function CurationReviewPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model, organization_id, solution_type, data_resources_provided, success_metrics_kpis")
+        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model, organization_id, solution_type, solution_types, data_resources_provided, success_metrics_kpis")
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
@@ -1479,6 +1488,7 @@ export default function CurationReviewPage() {
       challengeId: challengeId!,
       challengeTitle: challenge?.title ?? '',
       solutionType: (challenge?.solution_type as any) ?? null,
+      solutionTypes: Array.isArray(challenge?.solution_types) ? (challenge.solution_types as string[]) : [],
       seekerSegment: null,
       organizationTypeId: null,
       maturityLevelFromChallenge: challenge?.maturity_level ?? null,
@@ -1604,44 +1614,58 @@ export default function CurationReviewPage() {
     notifyStaleness('maturity_level');
   }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
-  /** Save solution type and auto-populate solver expertise */
-  const handleSaveSolutionType = useCallback(async (solutionTypeCode: string) => {
+  /** Save solution types (multi-select) and auto-populate solver expertise */
+  const handleSaveSolutionTypes = useCallback(async (selectedCodes: string[]) => {
     setSavingSection(true);
-    syncSectionToStore('solution_type' as SectionKey, solutionTypeCode);
-    saveSectionMutation.mutate({ field: "solution_type", value: solutionTypeCode });
+    syncSectionToStore('solution_type' as SectionKey, selectedCodes);
+    saveSectionMutation.mutate({ field: "solution_types", value: selectedCodes });
+
+    // Derive primary proficiency group for backward compat with complexity dimensions
+    const allSolTypes = solutionTypesData ?? [];
+    const primaryGroup = derivePrimaryGroup(selectedCodes, allSolTypes);
+    if (primaryGroup && primaryGroup !== challenge?.solution_type) {
+      saveSectionMutation.mutate({ field: "solution_type", value: primaryGroup });
+    }
+
     notifyStaleness('solution_type');
 
-    // Auto-populate solver expertise with matching proficiency area
-    const proficiencyAreaName = SOLUTION_TYPE_TO_PROFICIENCY_AREA[solutionTypeCode];
-    if (proficiencyAreaName && challengeId) {
+    // Auto-populate solver expertise with matching proficiency areas
+    if (challengeId && selectedCodes.length > 0) {
       try {
-        const { data: paRows } = await supabase
-          .from('proficiency_areas')
-          .select('id, name')
-          .eq('is_active', true)
-          .eq('name', proficiencyAreaName);
+        const groups = getSelectedGroups(selectedCodes, allSolTypes);
+        const groupLabels = groups.map(g => {
+          const t = allSolTypes.find(st => st.proficiency_group === g);
+          return t?.proficiency_group_label;
+        }).filter(Boolean) as string[];
 
-        if (paRows && paRows.length > 0) {
-          const paIds = paRows.map((r: any) => r.id);
-          // Merge with existing solver_expertise_requirements
-          const existing = challenge?.solver_expertise_requirements
-            ? (typeof challenge.solver_expertise_requirements === 'string'
-              ? JSON.parse(challenge.solver_expertise_requirements)
-              : challenge.solver_expertise_requirements) as Record<string, any>
-            : {};
-          const updated = {
-            ...existing,
-            proficiency_areas: paIds,
-          };
-          syncSectionToStore('solver_expertise' as SectionKey, updated);
-          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: updated });
-          toast.success(`Solver Expertise auto-updated to match "${proficiencyAreaName}"`);
+        if (groupLabels.length > 0) {
+          const { data: paRows } = await supabase
+            .from('proficiency_areas')
+            .select('id, name')
+            .eq('is_active', true)
+            .in('name', groupLabels);
+
+          if (paRows && paRows.length > 0) {
+            const paIds = paRows.map((r: any) => r.id);
+            const existing = challenge?.solver_expertise_requirements
+              ? (typeof challenge.solver_expertise_requirements === 'string'
+                ? JSON.parse(challenge.solver_expertise_requirements)
+                : challenge.solver_expertise_requirements) as Record<string, any>
+              : {};
+            const updated = {
+              ...existing,
+              proficiency_areas: paIds,
+            };
+            syncSectionToStore('solver_expertise' as SectionKey, updated);
+            saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: updated });
+            toast.success(`Solver Expertise auto-updated for ${groupLabels.length} proficiency area(s)`);
+          }
         }
       } catch (err) {
-        console.error('[SolutionType] Failed to auto-populate solver expertise:', err);
+        console.error('[SolutionTypes] Failed to auto-populate solver expertise:', err);
       }
     }
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements, challenge?.solution_type, solutionTypesData]);
 
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
     setSavingSection(true);
@@ -2075,13 +2099,31 @@ export default function CurationReviewPage() {
       return;
     }
 
+    // ── Solution type multi-select: parse AI suggestion as array of codes ──
+    if (sectionKey === 'solution_type') {
+      let codes: string[] = [];
+      try {
+        const parsed = JSON.parse(newContent);
+        codes = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+      } catch {
+        codes = newContent.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      const validCodes = new Set(solutionTypesData.map(t => t.code));
+      const matched = codes.filter(c => validCodes.has(c));
+      if (matched.length === 0) {
+        toast.error(`No valid solution type codes found. Valid: ${Array.from(validCodes).join(", ")}`);
+        return;
+      }
+      handleSaveSolutionTypes(matched);
+      return;
+    }
+
     // ── Single-code master-data sections: validate and save directly ──
     const solutionTypeOptions = solutionTypeMap.map(m => ({ value: m.solution_type_code, label: m.proficiency_area_name }));
     const SINGLE_CODE_MAP: Record<string, { field: string; options: typeof masterData.ipModelOptions }> = {
       ip_model: { field: "ip_model", options: masterData.ipModelOptions },
       maturity_level: { field: "maturity_level", options: masterData.maturityOptions },
       complexity: { field: "complexity_level", options: masterData.complexityOptions },
-      solution_type: { field: "solution_type", options: solutionTypeOptions },
     };
     const singleCodeCfg = SINGLE_CODE_MAP[sectionKey];
     if (singleCodeCfg) {
@@ -3223,48 +3265,39 @@ export default function CurationReviewPage() {
                           />
                         );
 
-                      // ── Solution Type (radio selector from proficiency areas) ──
-                      case "solution_type":
+                      // ── Solution Type (grouped multi-select checkboxes) ──
+                      case "solution_type": {
+                        const currentSolutionTypes: string[] = Array.isArray(challenge.solution_types) ? (challenge.solution_types as string[]) : [];
                         return (
                           <>
                             {isEditing && !isReadOnly ? (
-                              <div className="space-y-3">
-                                <RadioGroup
-                                  value={challenge.solution_type ?? ''}
-                                  onValueChange={(val) => {
-                                    handleSaveSolutionType(val);
-                                    setEditingSection(null);
-                                  }}
-                                >
-                                  {solutionTypeMap.map((m) => (
-                                    <div key={m.solution_type_code} className="flex items-start space-x-3 p-3 rounded-md border border-border hover:bg-muted/50 transition-colors">
-                                      <RadioGroupItem value={m.solution_type_code} id={`st-${m.solution_type_code}`} className="mt-0.5" />
-                                      <Label htmlFor={`st-${m.solution_type_code}`} className="cursor-pointer space-y-1 flex-1">
-                                        <span className="text-sm font-medium text-foreground">{m.proficiency_area_name}</span>
-                                        {m.description && (
-                                          <p className="text-xs text-muted-foreground">{m.description}</p>
-                                        )}
-                                      </Label>
-                                    </div>
-                                  ))}
-                                </RadioGroup>
-                                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditingSection(null)}>
-                                  <X className="h-3 w-3 mr-1" />Cancel
-                                </Button>
-                              </div>
+                              <SolutionTypesEditor
+                                groups={solutionTypeGroups}
+                                selectedCodes={currentSolutionTypes}
+                                onSave={(codes) => {
+                                  handleSaveSolutionTypes(codes);
+                                  setEditingSection(null);
+                                }}
+                                onCancel={cancelEdit}
+                                saving={savingSection}
+                              />
                             ) : (
                               <>
-                                {challenge.solution_type ? (
-                                  <div className="space-y-1">
-                                    <Badge variant="secondary">
-                                      {solutionTypeMap.find(m => m.solution_type_code === challenge.solution_type)?.proficiency_area_name ?? challenge.solution_type}
-                                    </Badge>
-                                    <p className="text-xs text-muted-foreground">
-                                      {solutionTypeMap.find(m => m.solution_type_code === challenge.solution_type)?.description}
-                                    </p>
+                                {currentSolutionTypes.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {solutionTypeGroups.filter(g => g.types.some(t => currentSolutionTypes.includes(t.code))).map(g => (
+                                      <div key={g.groupCode}>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">{g.groupLabel}</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {g.types.filter(t => currentSolutionTypes.includes(t.code)).map(t => (
+                                            <Badge key={t.code} variant="secondary" className="text-xs">{t.label}</Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
                                 ) : (
-                                  <p className="text-sm text-muted-foreground italic">Not set — select a proficiency area to drive complexity dimensions</p>
+                                  <p className="text-sm text-muted-foreground italic">Not set — select solution types to drive deliverables and complexity</p>
                                 )}
                                 {canEdit && (
                                   <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
@@ -3275,6 +3308,7 @@ export default function CurationReviewPage() {
                             )}
                           </>
                         );
+                      }
 
                       // ── Maturity level (checkbox single / select) ──
                       case "maturity_level":

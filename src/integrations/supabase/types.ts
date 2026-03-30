@@ -1419,6 +1419,7 @@ export type Database = {
           scope: string | null
           shadow_fee_amount: number | null
           solution_type: string | null
+          solution_types: Json | null
           solutions_awarded: number
           solver_eligibility_id: string | null
           solver_eligibility_types: Json | null
@@ -1493,6 +1494,7 @@ export type Database = {
           scope?: string | null
           shadow_fee_amount?: number | null
           solution_type?: string | null
+          solution_types?: Json | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
@@ -1567,6 +1569,7 @@ export type Database = {
           scope?: string | null
           shadow_fee_amount?: number | null
           solution_type?: string | null
+          solution_types?: Json | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
@@ -4781,6 +4784,51 @@ export type Database = {
           is_core?: boolean
           min_required?: number
           model_applicability?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      md_solution_types: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          label: string
+          proficiency_group: string
+          proficiency_group_label: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          proficiency_group: string
+          proficiency_group_label: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          proficiency_group?: string
+          proficiency_group_label?: string
           updated_at?: string | null
           updated_by?: string | null
         }
