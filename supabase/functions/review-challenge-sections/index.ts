@@ -424,7 +424,7 @@ async function callAIPass2Rewrite(
     // OR are in a 'warning'/'pass' state but have no current content (empty sections needing generation)
     const sectionContent = challengeData[r.section_key];
     const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
-    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
+    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || r.status === 'warning' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
   });
 
   if (sectionsNeedingSuggestion.length === 0) {
@@ -748,7 +748,7 @@ async function executeComplexityAssessment(
     `- ${d.dimension_key} (${d.dimension_name}): Level 1 = "${d.level_1_description}", Level 3 = "${d.level_3_description}", Level 5 = "${d.level_5_description}"`
   ).join('\n');
 
-  const systemPrompt = `You are an expert challenge complexity assessor. Analyze the challenge data and rate each complexity dimension on a scale of 1-5 based on the provided level descriptions.
+  const systemPrompt = `You are an expert challenge complexity assessor. Analyze the challenge data and rate each complexity dimension on a scale of 1-10 based on the provided level descriptions. Level 1 description maps to scores 1-2, Level 3 maps to scores 5-6, Level 5 maps to scores 9-10.
 
 COMPLEXITY DIMENSIONS:
 ${paramDescriptions}
@@ -771,7 +771,7 @@ ${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` :
     paramProperties[d.dimension_key] = {
       type: "object",
       properties: {
-        rating: { type: "number", minimum: 1, maximum: 5, description: `Rating for ${d.dimension_name} (1-5)` },
+        rating: { type: "number", minimum: 1, maximum: 10, description: `Rating for ${d.dimension_name} (1-10). Level 1 description = score 1-2, Level 3 = score 5-6, Level 5 = score 9-10.` },
         justification: { type: "string", description: `Why this rating was chosen, referencing specific challenge details` },
       },
       required: ["rating", "justification"],
@@ -979,7 +979,7 @@ serve(async (req) => {
         ? "title, reward_structure, phase_schedule, ai_section_reviews"
         : resolvedContext === "evaluation"
         ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-        : "title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types";
+        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id";
 
       const fetchPromises: Promise<any>[] = [
         adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
