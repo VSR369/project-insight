@@ -206,10 +206,11 @@ For each section, return a JSON object via the review_sections function with:
    - "field" (optional): Specific field this comment applies to
    - "reasoning" (optional): Why this matters, referencing other sections
 
-3. **suggestion** (optional): Improved/generated content in the section's native format.
-   - For "generated": Full content that can be directly used.
-   - For "warning"/"needs_revision": Improved version addressing all error/warning comments.
-   - For "pass": null or omit.
+3. **suggestion**: Improved/generated content in the section's native format.
+   - For "generated": Full content that can be directly used. REQUIRED.
+   - For "warning"/"needs_revision": Improved version addressing all error/warning/suggestion comments. REQUIRED.
+   - For "pass" with ONLY strength/best_practice comments: null or omit (content is already good).
+   - For "pass" with ANY error/warning/suggestion comments: MUST include improved content addressing those comments.
 
 4. **guidelines**: 1-3 domain-specific guidelines for this section.
    - MUST reference THIS challenge's domain, maturity, and solution type.
@@ -376,7 +377,7 @@ export function buildConfiguredBatchPrompt(
   parts.push(`For each section below, provide:
 - status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable — include "suggestion"), or "needs_revision" (errors — include "suggestion")
 - comments: array of objects with "text" (string) and "type" (one of: "error", "warning", "suggestion", "best_practice", "strength"). For pass sections, include strength comments.
-- suggestion: improved content for warning/needs_revision sections (null for pass)
+- suggestion: improved content addressing error/warning/suggestion comments. REQUIRED for warning/needs_revision/generated status. For pass sections, include suggestion ONLY if comments contain error, warning, or suggestion types; omit if all comments are strength/best_practice only.
 - guidelines: 1-3 domain-specific guidelines for this section`);
   parts.push('');
 
