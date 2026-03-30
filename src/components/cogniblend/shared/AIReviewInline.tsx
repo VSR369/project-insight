@@ -511,8 +511,11 @@ export function AIReviewInline({
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;
 
+    const commentToText = (c: SectionComment): string =>
+      typeof c === 'string' ? c : (c.text ?? c.comment ?? JSON.stringify(c));
     const selectedInstructions = comments
       .filter((_, i) => selectedComments.has(i))
+      .map(commentToText)
       .join("\n\n");
 
     if (!selectedInstructions.trim()) {
@@ -527,12 +530,15 @@ export function AIReviewInline({
       // Change 3: Call review-challenge-sections with skip_analysis instead of refine-challenge-section
       const selectedCommentObjects = comments
         .filter((_, i) => selectedComments.has(i))
-        .map(text => ({
-          text,
-          type: 'warning' as const,
-          field: null,
-          reasoning: null,
-        }));
+        .map(c => {
+          if (typeof c === 'object' && c !== null && 'text' in c) return c;
+          return {
+            text: typeof c === 'string' ? c : String(c),
+            type: 'warning' as const,
+            field: null,
+            reasoning: null,
+          };
+        });
 
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
         body: {
@@ -774,10 +780,13 @@ export function AIReviewInline({
                     variant="outline"
                     className="w-full text-xs h-7"
                     onClick={() => {
+                      const toText = (c: SectionComment): string =>
+                        typeof c === 'string' ? c : (c.text ?? c.comment ?? JSON.stringify(c));
                       const selectedText = comments
                         .filter((_, i) => selectedComments.has(i))
+                        .map(toText)
                         .join("\n\n");
-                      onSendToCoordinator(selectedText || comments.join("\n\n"));
+                      onSendToCoordinator(selectedText || comments.map(toText).join("\n\n"));
                     }}
                     disabled={selectedComments.size === 0}
                   >
