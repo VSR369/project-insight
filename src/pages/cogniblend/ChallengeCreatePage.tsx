@@ -485,7 +485,7 @@ export default function ChallengeCreatePage() {
     );
   }
 
-  // ═══════ Landing View (CR/CA cards) ═══════
+  // ═══════ Landing View (CR cards) ═══════
   return (
     <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
       {/* Context Bar */}
