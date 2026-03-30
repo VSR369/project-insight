@@ -1,60 +1,60 @@
 
 
-# Data & Resources Provided: Two Distinct Bugs
+# Remaining Fixes Plan (6 items — skipping already-fixed bugs)
 
-## Problem Analysis
-
-**Bug A — Display table shows blanks (image-518):**
-The rendered table at lines 749-757 reads `r.resource`, `r.type`, `r.format` — but the AI generated data using different field names (e.g., `name`, `data_type`, `resource_name`). The normalizer at line 2067-2080 only runs during **Accept**, not during initial render. So either:
-1. The data was accepted before the normalizer was added and saved with wrong keys, OR
-2. The render path itself needs to also check aliases as a fallback.
-
-**Bug B — AI Suggested Version uses wrong editor (image-519):**
-The `EditableTableRows` component (line 327-380) is **hardcoded for evaluation_criteria** — it renders "Criterion name..." placeholder, a weight number input, and a description field. But this same component is used for ALL `table`-format sections, including `data_resources_provided` and `success_metrics_kpis`. So the AI suggestion for data resources shows eval-criteria-style inputs instead of Resource/Type/Format/Size/Access/Restrictions fields.
-
-The root cause is that `EditableTableRows` is not column-aware. It needs to read the section's column config from `SECTION_FORMAT_CONFIG` and render dynamic fields.
+## Already Fixed (confirmed in code)
+- **parseMasterDataCodes** JSON object handling ✅
+- **reward_structure** → `'custom'` in SECTION_FORMAT_MAP ✅
+- **reward_structure** format instruction ✅
+- **Extended brief** content lookup in Pass 2 ✅
+- **cleanAIOutput** skip for table sections ✅
+- **Pass 2 filter** for empty sections ✅
 
 ---
 
-## Fix Plan
+## Remaining Fixes
 
-### Fix 1: Make `EditableTableRows` column-aware (AIReviewResultPanel.tsx)
+### Fix A — Add missing fields to edge function SELECT
+**File:** `supabase/functions/review-challenge-sections/index.ts` line 982
 
-**Current:** Hardcoded `name`/`weight`/`description` fields with "Criterion name..." placeholder.
+Add `expected_outcomes, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id` to the SELECT string. Without these, the AI can't see existing data for these sections.
 
-**Change:** Accept `sectionKey` prop, read `SECTION_FORMAT_CONFIG[sectionKey].columns`, and render one input per column dynamically. For eval_criteria, keep the weight as a number input. For all other table sections, render text inputs with proper labels derived from column keys.
+### Fix B — Add 4 missing format instructions
+**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts` (EXTENDED_BRIEF_FORMAT_INSTRUCTIONS)
 
-Pass `sectionKey` from the render site at line 1207:
-```tsx
-<EditableTableRows sectionKey={sectionKey} rows={...} onChange={...} />
-```
+Add explicit column schemas for:
+- `success_metrics_kpis` → kpi, baseline, target, measurement_method, timeframe
+- `data_resources_provided` → resource, type, format, size, access_method, restrictions
+- `evaluation_criteria` → criterion_name, weight_percentage, description, scoring_method, evaluator_role
+- `solver_expertise` → expertise_areas, certifications, experience_years, domain_knowledge
 
-### Fix 2: Add alias fallbacks in display render (CurationReviewPage.tsx lines 749-757)
+### Fix D — SINGLE_CODE_MAP Accept handler
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx` line 1944
 
-Add fallback field lookups so the display table also handles non-canonical keys:
-```tsx
-<TableCell>{r.resource ?? r.name ?? r.resource_name ?? "—"}</TableCell>
-<TableCell>{r.type ?? r.data_type ?? r.resource_type ?? "—"}</TableCell>
-<TableCell>{r.format ?? r.data_format ?? "—"}</TableCell>
-<TableCell>{r.access_method ?? r.access ?? "—"}</TableCell>
-<TableCell>{r.restrictions ?? r.restriction ?? "—"}</TableCell>
-```
+Before `const code = newContent.trim()...`, add JSON object extraction so `{"selected_id":"PILOT","rationale":"..."}` correctly extracts just `"PILOT"`.
 
-### Fix 3: Add `handleAdd` column-awareness (AIReviewResultPanel.tsx line 340)
+### Fix F — Complexity scale 1-5 → 1-10
+**File:** `supabase/functions/review-challenge-sections/index.ts`
 
-**Current:** `handleAdd` creates `{ name: "", weight: 0, description: "" }` — wrong for non-eval sections.
+- Line 751: Change system prompt from "scale of 1-5" to "scale of 1-10" with level anchors
+- Line 774: Change `maximum: 5` to `maximum: 10`, update description
 
-**Change:** Create empty row using `SECTION_FORMAT_CONFIG[sectionKey].columns` to generate correct keys:
-```tsx
-const handleAdd = () => {
-  const cols = SECTION_FORMAT_CONFIG[sectionKey]?.columns ?? ['name', 'description'];
-  const emptyRow: Record<string, unknown> = {};
-  cols.forEach(c => { emptyRow[c] = ''; });
-  onChange([...rows, emptyRow]);
-};
-```
+### Fix G — Add `r.status === 'warning'` to Pass 2 filter
+**File:** `supabase/functions/review-challenge-sections/index.ts` line 427
 
-### Files Modified
-1. `src/components/cogniblend/curation/AIReviewResultPanel.tsx` — Make `EditableTableRows` dynamic
-2. `src/pages/cogniblend/CurationReviewPage.tsx` — Add alias fallbacks in display render
+Add `|| r.status === 'warning'` to ensure warning-status sections always get suggestions.
+
+### Fix H — Submission guidelines structured save
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+
+Add a specific handler for `submission_guidelines` before the SINGLE_CODE_MAP block that always saves as `{ items: [{ name, description }] }` format, parsing from JSON array, `{items:[...]}` wrapper, or newline-delimited text.
+
+---
+
+## Files Modified
+1. `supabase/functions/review-challenge-sections/index.ts` — Fixes A, F, G
+2. `supabase/functions/review-challenge-sections/promptTemplate.ts` — Fix B
+3. `src/pages/cogniblend/CurationReviewPage.tsx` — Fixes D, H
+
+Edge function redeployment required after changes.
 
