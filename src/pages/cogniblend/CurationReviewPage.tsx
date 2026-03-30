@@ -2890,10 +2890,10 @@ export default function CurationReviewPage() {
 
                       // ── Submission guidelines (structured cards) ──
                       case "submission_guidelines": {
-                        const raw = parseJson<any>(challenge.description);
+                        const raw = parseJson<any>((challenge as any).submission_guidelines);
                         const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
                         const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
-                        const finalItems = lineItems.length > 0 ? lineItems : (challenge.description?.trim() ? [challenge.description] : []);
+                        const finalItems = lineItems.length > 0 ? lineItems : ((challenge as any).submission_guidelines ? [] : (challenge.description?.trim() ? [challenge.description] : []));
                         const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
                         return (
                           <>
