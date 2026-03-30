@@ -3144,6 +3144,17 @@ export default function CurationReviewPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
+              {/* ═══ ORGANIZATION TAB — custom panel ═══ */}
+              {activeGroup === 'organization' && challenge.organization_id ? (
+                <OrgContextPanel
+                  challengeId={challenge.id}
+                  organizationId={challenge.organization_id}
+                  isReadOnly={isReadOnly}
+                />
+              ) : activeGroup === 'organization' ? (
+                <p className="text-sm text-muted-foreground italic py-4">No organization linked to this challenge.</p>
+              ) : (
+                <>
               {/* Prerequisite guidance banner */}
               {groupReadiness[activeGroupDef.id] && !groupReadiness[activeGroupDef.id].ready && !dismissedPrereqBanner.has(activeGroupDef.id) && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3 mb-4">
