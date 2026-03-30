@@ -292,7 +292,7 @@ export function AIReviewInline({
       sectionKey !== 'complexity' &&
       review &&
       !review.addressed &&
-      (review.status === "warning" || review.status === "needs_revision" || review.status === "generated") &&
+      (review.status === "pass" || review.status === "warning" || review.status === "needs_revision" || review.status === "generated") &&
       review.comments && review.comments.length > 0 &&
       !refinedContent &&
       !isRefining &&
@@ -301,10 +301,18 @@ export function AIReviewInline({
       autoRefineTriggered.current = true;
 
       // If the review already returned an inline suggestion, use it directly — no second LLM call
-      if (review.suggestion && typeof review.suggestion === 'string' && review.suggestion.trim().length > 0) {
-        setRefinedContent(review.suggestion);
-        return;
+      if (review.suggestion != null) {
+        const suggestionStr = typeof review.suggestion === 'string'
+          ? review.suggestion
+          : JSON.stringify(review.suggestion);
+        if (suggestionStr.trim().length > 0) {
+          setRefinedContent(suggestionStr);
+          return;
+        }
       }
+
+      // For pass sections, don't trigger separate refine — only use inline suggestions
+      if (review.status === 'pass') return;
 
       // No inline suggestion — fall back to separate refine call
       const timer = setTimeout(() => {
@@ -460,10 +468,21 @@ export function AIReviewInline({
           // Persist the review via parent callback
           onSingleSectionReview?.(sectionKey, freshReview);
 
+          // Update signature immediately so the reset effect doesn't overwrite refinedContent
+          const freshHash = freshReview.comments.map((c: any) =>
+            typeof c === 'string' ? c : c.text
+          ).join('\x1f');
+          prevReviewSignature.current = `${freshReview.reviewed_at}|${freshReview.status}|${freshHash}`;
+
           // If the re-review returned an inline suggestion, use it immediately
-          if (freshReview.suggestion && typeof freshReview.suggestion === 'string' && freshReview.suggestion.trim().length > 0) {
-            setRefinedContent(freshReview.suggestion);
-            autoRefineTriggered.current = true; // prevent auto-refine from re-triggering
+          if (freshReview.suggestion != null) {
+            const suggestionStr = typeof freshReview.suggestion === 'string'
+              ? freshReview.suggestion
+              : JSON.stringify(freshReview.suggestion);
+            if (suggestionStr.trim().length > 0) {
+              setRefinedContent(suggestionStr);
+              autoRefineTriggered.current = true; // prevent auto-refine from re-triggering
+            }
           }
           // Otherwise auto-refine effect will trigger naturally since we reset the ref
 
