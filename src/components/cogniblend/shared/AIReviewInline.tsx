@@ -551,7 +551,7 @@ export function AIReviewInline({
           context: {
             title: challengeContext.title,
             maturityLevel: challengeContext.maturity_level,
-            solutionType: challengeContext.solution_type,
+            solutionType: (challengeContext as any).solution_type,
             domain_tags: challengeContext.domain_tags,
             todaysDate: new Date().toISOString().split('T')[0],
           },
