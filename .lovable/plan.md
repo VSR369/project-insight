@@ -1,93 +1,64 @@
 
 
-# Fix: AI Suggestions Not Showing After Re-Review
+# Fix: Accept Suggestion Not Working Consistently
 
-## Root Cause
+## Root Cause Analysis
 
-There are **two** interacting bugs preventing AI suggestions from appearing after "Re-review this section":
+Three interacting bugs cause Accept to silently fail:
 
-### Bug 1: Race condition — signature-reset effect overwrites inline suggestion
+### Bug 1: Signature hash mismatch → race condition clears suggestion
 
-In `AIReviewInline.tsx`, the re-review handler (`handleReReview`, line 418) does this sequence:
-1. Gets `freshReview` from the edge function
-2. Calls `onSingleSectionReview()` → updates the parent `review` prop
-3. Sets `refinedContent` to `freshReview.suggestion` (line 465)
-4. Sets `autoRefineTriggered.current = true`
+**Line 329** computes the comment hash using `.join('\x1f')` on the raw comments array. When comments are objects (e.g. `{text: "...", type: "warning"}`), `.join()` produces `[object Object]` for each.
 
-But on the **next render**, the signature-reset effect (line 320) detects the `review` prop changed and:
-- Resets `refinedContent = null` (line 326)
-- Resets `autoRefineTriggered.current = false` (line 325)
+But **line 472-474** (in `handleReReview`) correctly extracts `.text` from object comments before joining.
 
-This **overwrites** the suggestion that was just set in step 3.
+Result: After re-review, the signature-reset effect (line 328-339) computes a **different** hash than what `handleReReview` set → detects a "change" → clears `refinedContent` to null → Accept finds nothing to save.
 
-### Bug 2: Auto-refine only fires for warning/needs_revision/generated — not pass
+### Bug 2: Silent early return when refinedContent is null
 
-The auto-refine effect (line 288) has a condition at line 295:
-```
-review.status === "warning" || review.status === "needs_revision" || review.status === "generated"
-```
+**Line 568**: `if (!refinedContent) return;` — if the suggestion was lost to the race condition above, or auto-refine hasn't completed, clicking Accept does absolutely nothing. No toast, no feedback. The user thinks the system is broken.
 
-If re-review returns `pass`, no auto-refine triggers, so no suggestion is ever shown — even if the edge function returned one.
+### Bug 3: Pass status sections never get refinedContent
 
-Additionally, the LLM prompt itself says `suggestion: null for pass` (promptTemplate.ts line 379), so pass sections typically have no suggestion to show anyway.
+For sections returning `pass` with no inline suggestion, auto-refine skips (line 315: `if (review.status === 'pass') return;`), so `refinedContent` stays null permanently. Accept always silently fails for these sections.
 
-## Fix — Two changes in `AIReviewInline.tsx`
+## Fix — 2 changes in `AIReviewInline.tsx`
 
-### Change 1: Prevent signature-reset from overwriting re-review suggestion
+### Change 1: Fix signature hash to handle object comments consistently
 
-In the `handleReReview` callback, **update the signature ref immediately** so the reset effect doesn't fire after re-review:
+**Line 329** — normalize comments the same way as `handleReReview`:
 
 ```typescript
-// After line 461 (onSingleSectionReview call), add:
-// Update signature immediately so the reset effect doesn't overwrite
-const freshHash = freshReview.comments.map(c => 
-  typeof c === 'string' ? c : c.text
+const commentHash = (review?.comments ?? []).map((c: any) =>
+  typeof c === 'string' ? c : c.text ?? JSON.stringify(c)
 ).join('\x1f');
-prevReviewSignature.current = `${freshReview.reviewed_at}|${freshReview.status}|${freshHash}`;
 ```
 
-This ensures the signature-reset effect sees no change and doesn't clear `refinedContent`.
+This eliminates the race condition — the reset effect will compute the same hash as `handleReReview` set, so it won't clear `refinedContent`.
 
-### Change 2: Handle non-string suggestions from re-review
+### Change 2: Show feedback when Accept has nothing to apply
 
-Line 464 checks `typeof freshReview.suggestion === 'string'`, but for structured sections (line_items, tables), suggestions may need to be stringified. Broaden the check:
+**Line 568** — instead of silent return, inform the user:
 
 ```typescript
-// Line 463-467: Handle both string and object/array suggestions
-if (freshReview.suggestion != null) {
-  const suggestionStr = typeof freshReview.suggestion === 'string' 
-    ? freshReview.suggestion 
-    : JSON.stringify(freshReview.suggestion);
-  if (suggestionStr.trim().length > 0) {
-    setRefinedContent(suggestionStr);
-    autoRefineTriggered.current = true;
+if (!refinedContent) {
+  // For pass sections with no suggestion, accept is a no-op — just mark addressed
+  if (review?.status === 'pass') {
+    setIsAddressed(true);
+    setIsOpen(false);
+    onMarkAddressed?.(sectionKey);
+    return;
   }
+  toast.error("No AI suggestion available to accept. Try re-reviewing the section first.");
+  return;
 }
 ```
 
-### Change 3: Include `pass` status in auto-refine inline-suggestion check
-
-The auto-refine effect should also check for inline suggestions when status is `pass` — the LLM sometimes returns suggestions even for pass (strength improvements). Update line 295:
-
-```typescript
-(review.status === "pass" || review.status === "warning" || 
- review.status === "needs_revision" || review.status === "generated") &&
-```
-
-And add an early exit: if status is `pass` and there's no inline suggestion, skip the separate refine call (don't call `handleRefineWithAI` for pass sections):
-
-```typescript
-// After the inline suggestion check (line 304-306):
-// For pass sections, don't trigger separate refine — only use inline suggestions
-if (review.status === 'pass') return;
-```
-
 ## Files Changed
-- `src/components/cogniblend/shared/AIReviewInline.tsx` — 3 targeted edits (~15 lines total)
+- `src/components/cogniblend/shared/AIReviewInline.tsx` — 2 targeted edits
 
 ## Impact
-- Suggestions will now correctly appear after re-review for all section types
-- No change to edge function or prompt behavior
-- Pass sections show inline suggestions when the LLM provides them
-- Warning/needs_revision sections no longer lose their suggestion to the race condition
+- Accept now works consistently because the suggestion is no longer lost to the race condition
+- Pass sections gracefully mark as addressed instead of silently failing
+- Non-pass sections with missing suggestions give clear user feedback
 
