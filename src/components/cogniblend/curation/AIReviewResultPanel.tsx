@@ -604,7 +604,8 @@ export function AIReviewResultPanel({
 
   // For table sections (eval_criteria), try parsing as row objects
   const tableRows = useMemo(() => {
-    if (sectionKey === "evaluation_criteria" && result.suggested_version) {
+    const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
+    if (fmt === 'table' && result.suggested_version) {
       return parseTableRows(result.suggested_version);
     }
     return null;
