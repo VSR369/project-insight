@@ -23,7 +23,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, type SectionConfig } from "./promptTemplate.ts";
+import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -583,7 +583,14 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   if (Array.isArray(sections)) {
     for (const s of sections) {
       if (s.section_key && s.suggestion) {
-        suggestionMap.set(s.section_key, s.suggestion);
+        const fmt = getSectionFormatType(s.section_key);
+        if (fmt === 'table' || fmt === 'schedule_table') {
+          // Sanitize table suggestions: extract JSON array from prose if needed
+          const sanitized = sanitizeTableSuggestion(s.suggestion);
+          suggestionMap.set(s.section_key, sanitized);
+        } else {
+          suggestionMap.set(s.section_key, s.suggestion);
+        }
       }
     }
   }

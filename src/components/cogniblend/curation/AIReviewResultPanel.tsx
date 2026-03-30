@@ -669,6 +669,11 @@ export function AIReviewResultPanel({
     if (solverExpertiseData) return "solver_expertise";
     if (scheduleRows) return "schedule_table";
     if (tableRows) return "table";
+    // If section IS table format but parse failed, show fallback instead of raw prose
+    const sectionFmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
+    if ((sectionFmt === 'table' || sectionFmt === 'schedule_table') && result.suggested_version) {
+      return "table_fallback";
+    }
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
@@ -1216,6 +1221,18 @@ export function AIReviewResultPanel({
                 />
               </div>
             </div>
+          ) : suggestedFormat === "table_fallback" && result.suggested_version ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 mx-4 mb-3 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                  AI returned unstructured text instead of table data. Click "Re-review" to regenerate in the correct format.
+                </p>
+              </div>
+              <div className="text-xs text-muted-foreground max-h-32 overflow-y-auto rounded border border-border/50 bg-background/50 p-2">
+                <AiContentRenderer content={result.suggested_version} compact />
+              </div>
+            </div>
           ) : result.suggested_version ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm text-sm leading-relaxed min-h-[160px]">
               <EditableRichText
@@ -1264,7 +1281,7 @@ export function AIReviewResultPanel({
             size="sm"
             className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5"
             onClick={onAccept}
-            disabled={isRefining}
+            disabled={isRefining || suggestedFormat === "table_fallback"}
           >
             <Check className="h-4 w-4 mr-1.5" />
             {complexityRatings && Object.keys(complexityRatings).length > 0
