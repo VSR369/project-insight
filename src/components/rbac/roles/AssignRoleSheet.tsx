@@ -588,27 +588,7 @@ export function AssignRoleSheet({
                     )}
                   </div>
 
-                  {/* Department selector for R10_CR in existing member tab */}
-                  {isExistingR10CR && (
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Department / Functional Area *</label>
-                      <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(departmentsList ?? []).map((dept: { id: string; name: string }) => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                              {dept.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Which department or unit is this requestor from?
-                      </p>
-                    </div>
-                  )}
+
 
                   <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                     <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />

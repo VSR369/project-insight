@@ -4105,7 +4105,7 @@ export default function CurationReviewPage() {
                    if (crUserId) {
                      // 3. Insert notification for CR
                     await supabase.from('cogni_notifications').insert({
-                      user_id: amUserId,
+                      user_id: crUserId,
                       challenge_id: challengeId!,
                       notification_type: 'budget_revision',
                       title: 'Budget Revision Requires Approval',
