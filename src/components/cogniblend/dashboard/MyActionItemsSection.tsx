@@ -128,10 +128,6 @@ export function MyActionItemsSection() {
   const isLoading = chLoading || isRolesLoading || (isSpecRole && notifLoading);
 
   const challengeItems = challengesData?.items ?? [];
-  const allSRRows = useMemo(
-    () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
-    [requestsData],
-  );
 
   // Mark notification as read + navigate
   const handleNotificationAction = useCallback(
