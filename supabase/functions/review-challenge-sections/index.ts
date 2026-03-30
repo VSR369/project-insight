@@ -1518,7 +1518,7 @@ serve(async (req) => {
             attachmentsBySection[att.section_key].push({
               name: att.source_type === 'url'
                 ? (att.url_title || att.source_url || 'Web link')
-                : att.file_name,
+                : (att.file_name || 'Unnamed file'),
               sourceType: att.source_type || 'file',
               sourceUrl: att.source_url ?? undefined,
               content: att.extracted_text.substring(0, 5000),
