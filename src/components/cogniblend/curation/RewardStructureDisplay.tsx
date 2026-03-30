@@ -158,11 +158,36 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
   }, []);
 
   // ── Expose AI review result handler to parent ──
-  const handleApplyAIReviewResult = useCallback((data: any) => {
+  const handleApplyAIReviewResult = useCallback(async (data: any) => {
     applyAIReviewResult(data);
     setHasBeenReviewed(true);
-    // State-driven sync effect will handle store persistence
-  }, [applyAIReviewResult]);
+
+    // Auto-save to DB after AI Accept — don't rely on manual Save click
+    setTimeout(async () => {
+      try {
+        const serialized = getSerializedDataRef.current();
+        if (!serialized || !serialized.type) {
+          console.warn('Reward AI Accept: no type set, skipping auto-save');
+          return;
+        }
+        storeRef.current.getState().setSectionData('reward_structure', serialized);
+        const { error } = await supabase
+          .from('challenges')
+          .update({ reward_structure: serialized as unknown as Json })
+          .eq('id', challengeId);
+        if (error) {
+          toast.error('AI suggestion applied but save failed. Click Save manually.');
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+        savedSnapshotRef.current = JSON.stringify(serialized);
+        markSaved();
+        toast.success('Reward structure updated with AI suggestion');
+      } catch (err: any) {
+        toast.error(`Auto-save failed: ${err.message}`);
+      }
+    }, 300);
+  }, [applyAIReviewResult, challengeId, queryClient, markSaved]);
 
   useImperativeHandle(ref, () => ({
     applyAIReviewResult: handleApplyAIReviewResult,

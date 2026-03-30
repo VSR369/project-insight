@@ -877,6 +877,7 @@ ${strip(eb.root_causes || challengeData.root_causes)}
     },
     body: JSON.stringify({
       model,
+      temperature: 0,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
