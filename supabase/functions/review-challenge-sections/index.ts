@@ -255,6 +255,7 @@ async function callAIPass1Analyze(
     },
     body: JSON.stringify({
       model,
+      temperature: 0.2,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
