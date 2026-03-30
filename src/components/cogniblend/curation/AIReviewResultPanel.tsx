@@ -1256,7 +1256,7 @@ export function AIReviewResultPanel({
             })()
           ) : tableRows ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
-              <EditableTableRows rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
+              <EditableTableRows sectionKey={sectionKey} rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={handleTableRowsChange} />
             </div>
           ) : parsedDate ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm">
