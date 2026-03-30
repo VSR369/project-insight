@@ -983,7 +983,7 @@ async function callComplexityAI(
     };
   }
 
-  return await executeComplexityAssessment(apiKey, model, challengeData, dimensions, clientContext);
+  return await executeComplexityAssessment(apiKey, model, challengeData, dimensions, clientContext, orgContext);
 }
 
 async function executeComplexityAssessment(
