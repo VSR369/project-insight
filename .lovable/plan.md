@@ -1,124 +1,56 @@
 
 
-# Organization Context Panel for Curation Review
+# Organization Details as Tab 0 in Progress Strip
 
 ## Summary
 
-Add an "Organization Details" section at the top of the Curation Review page that:
-1. Auto-populates org name, website, social media, and description from `seeker_organizations` (set by AM/CA/CR during challenge creation)
-2. Allows the Curator to fill in missing fields (website, LinkedIn, Twitter, description) if AM/CA/CR didn't provide them
-3. Supports uploading organization profile documents (using existing `challenge_attachments` table with `section_key = 'org_profile'`)
-4. Saves curator-entered org context back to `seeker_organizations` and triggers text extraction for uploaded docs
+Move the `OrgContextPanel` from its current inline accordion position into the wave-based tab system as **Tab 0 ("Organization")** — the first tab in the progress strip, before Foundation. On page load, it defaults as the active tab. Clicking "Next" or any other tab navigates normally.
 
-## Architecture
+## Changes
 
-```text
-┌─────────────────────────────────────────────────────┐
-│  CurationReviewPage.tsx                             │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  OrgContextPanel (new component)              │  │
-│  │  - Auto-loaded from seeker_organizations      │  │
-│  │  - Editable fields: website, LinkedIn,        │  │
-│  │    Twitter, description, tagline              │  │
-│  │  - File upload for org profile docs           │  │
-│  │  - Saves back to seeker_organizations         │  │
-│  └───────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  Original Brief accordion (existing)          │  │
-│  └───────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  Progress Strip + Sections (existing)         │  │
-│  └───────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+### 1. Modify `GROUPS` array in `CurationReviewPage.tsx`
+
+Add a new group at index 0:
+
+```typescript
+{
+  id: "organization",
+  label: "0. Organization",
+  icon: "🏢",
+  colorDone: "bg-purple-100 text-purple-800 border-purple-300",
+  colorActive: "bg-purple-50 border-purple-400",
+  colorBorder: "border-purple-200",
+  sectionKeys: [],  // No curation sections — uses custom panel
+  prerequisiteGroups: [],
+}
 ```
 
-## Files to Create/Modify
+### 2. Update Progress Strip grid
 
-### 1. New Component: `src/components/cogniblend/curation/OrgContextPanel.tsx`
+Change from `lg:grid-cols-6` to `lg:grid-cols-7` to accommodate the new tab.
 
-A collapsible accordion panel showing organization details with inline editing capability:
+### 3. Render OrgContextPanel when `activeGroup === "organization"`
 
-- **Read-only fields** (always shown): Organization Name, Org Type
-- **Editable fields** (pre-populated if AM/CA/CR provided, otherwise empty for curator to fill): Website URL, LinkedIn URL, Twitter URL, Organization Description, Tagline
-- **File upload zone**: Uses existing `FileUploadZone` component for org profile documents (PDF, DOCX, images). Uploads to `challenge-attachments` storage bucket with `section_key = 'org_profile'`. Triggers `extract-attachment-text` edge function after upload.
-- **Visual cue**: Shows a small amber indicator "AI uses this context" to convey importance
-- Fetches org data via a dedicated query on `seeker_organizations` using `challenge.organization_id`
-- Saves edits back to `seeker_organizations` via mutation
-- Lists existing org profile attachments with delete capability
+In the main content area (left 3/4 panel), when the organization tab is active, render the `OrgContextPanel` component instead of the section accordion. The right rail can show a simplified info card explaining why org context matters for AI quality.
 
-**Key props**: `challengeId`, `organizationId`, `isReadOnly`
+### 4. Handle progress for the organization tab
 
-### 2. Modify: `src/pages/cogniblend/CurationReviewPage.tsx`
+Since this tab has no curation sections, compute its "done" status based on whether the org has at least a name + one enrichment field filled (website, description, or an uploaded doc). Show 0/1 or 1/1 progress.
 
-- Add a new query to fetch org details (website, LinkedIn, Twitter, description, tagline, org type name) — expand the existing `curation-org-type` query to return all needed fields in one call
-- Render `OrgContextPanel` between the header and the "Original Brief" accordion
-- Pass `challengeId` and `challenge.organization_id` to the panel
+### 5. Remove inline OrgContextPanel
 
-### 3. Storage Bucket Migration
+Remove the current inline rendering of `OrgContextPanel` between the header and Original Brief accordion (lines ~2901-2907).
 
-Create a migration to ensure the `challenge-attachments` storage bucket exists (the edge function already references it but the bucket may not be created yet):
+### 6. Default active tab
 
-```sql
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('challenge-attachments', 'challenge-attachments', false)
-ON CONFLICT (id) DO NOTHING;
+Change the initial `activeGroup` state from `"foundation"` to `"organization"` so the curator lands on org context first.
 
--- RLS: authenticated users can upload/read
-CREATE POLICY "Authenticated users can upload challenge attachments"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'challenge-attachments');
+### 7. Adjust `OrgContextPanel` layout
 
-CREATE POLICY "Authenticated users can read challenge attachments"
-ON storage.objects FOR SELECT TO authenticated
-USING (bucket_id = 'challenge-attachments');
+Remove the accordion wrapper inside the component — since it now occupies the full content area, it should render as a flat card layout matching the visual style of other wave tabs.
 
-CREATE POLICY "Authenticated users can delete own challenge attachments"
-ON storage.objects FOR DELETE TO authenticated
-USING (bucket_id = 'challenge-attachments');
-```
+## Files Modified
 
-### 4. Modify Edge Function Context
-
-The `review-challenge-sections/index.ts` already fetches org context (website, LinkedIn, description, etc.) and passes it to `buildContextIntelligence`. It also already fetches `challenge_attachments` with `extraction_status = 'completed'` and injects them into prompts. No changes needed to the edge function -- org profile docs uploaded with `section_key = 'org_profile'` will automatically be included in the `ATTACHED DOCUMENTS` block sent to the AI.
-
-## Component Design: OrgContextPanel
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ 🏢 Organization Context          ⚡ AI uses this context│
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Organization: Acme Corp         Type: Enterprise       │
-│                                                         │
-│  Website:    [https://acme.com        ] ← editable     │
-│  LinkedIn:   [https://linkedin.com/... ] ← editable     │
-│  Twitter:    [https://twitter.com/...  ] ← editable     │
-│  Description: [Multi-line textarea...  ] ← editable     │
-│                                                         │
-│  ┌─ Organization Profile Documents ─────────────────┐  │
-│  │  📄 Company_Profile.pdf   120 KB  [✓ Extracted] ✕ │  │
-│  │                                                   │  │
-│  │  [Drag & drop or click to upload]                 │  │
-│  │  PDF, DOCX, PNG, JPG · Max 10 MB                  │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-│                              [Save Organization Details] │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Data Flow
-
-1. AM/CA/CR selects org → `challenges.organization_id` is set
-2. When curator opens curation page, `OrgContextPanel` fetches org from `seeker_organizations` (website, LinkedIn, etc.)
-3. If fields are populated → shown as pre-filled, curator can verify
-4. If fields are empty → curator can enter them (important for AI quality)
-5. Curator uploads org profile docs → stored in `challenge-attachments` bucket with `section_key = 'org_profile'`
-6. Upload triggers `extract-attachment-text` → text extracted and stored in `challenge_attachments.extracted_text`
-7. When AI review runs → `buildContextIntelligence` uses org fields, and attachment text is injected into prompts
-
-## Implementation Order
-
-1. Create storage bucket migration for `challenge-attachments`
-2. Create `OrgContextPanel` component
-3. Integrate into `CurationReviewPage` (expand org query + render panel)
+- `src/pages/cogniblend/CurationReviewPage.tsx` — Add org group, update grid, conditional rendering, default tab, remove inline panel
+- `src/components/cogniblend/curation/OrgContextPanel.tsx` — Remove accordion wrapper, render as flat card content
 
