@@ -34,20 +34,18 @@ interface QuickUser {
 }
 
 const MP_QUICK_USERS: QuickUser[] = [
-  { email: 'mp-solo@cognitest.dev',      label: 'Solo Founder',  roles: ['AM','CR','CU','ID','ER','LC','FC'] },
-  { email: 'mp-architect@cognitest.dev',  label: 'Architect',     roles: ['CR'] },
+  { email: 'mp-solo@cognitest.dev',      label: 'Solo Founder',  roles: ['CR','CU','ER','LC','FC'] },
+  { email: 'mp-architect@cognitest.dev',  label: 'Creator',      roles: ['CR'] },
   { email: 'mp-curator@cognitest.dev',    label: 'Curator',       roles: ['CU'] },
-  { email: 'mp-director@cognitest.dev',   label: 'Director',      roles: ['ID'] },
   { email: 'mp-reviewer@cognitest.dev',   label: 'Reviewer',      roles: ['ER'] },
   { email: 'mp-finance@cognitest.dev',    label: 'Finance',       roles: ['FC'] },
   { email: 'mp-legal@cognitest.dev',      label: 'Legal',         roles: ['LC'] },
 ];
 
 const AGG_QUICK_USERS: QuickUser[] = [
-  { email: 'agg-solo@cognitest.dev',     label: 'Solo Founder',  roles: ['RQ','CR','CU','ID','ER','LC','FC'] },
+  { email: 'agg-solo@cognitest.dev',     label: 'Solo Founder',  roles: ['CR','CU','ER','LC','FC'] },
   { email: 'agg-creator@cognitest.dev',  label: 'Creator',       roles: ['CR'] },
   { email: 'agg-curator@cognitest.dev',  label: 'Curator',       roles: ['CU'] },
-  { email: 'agg-director@cognitest.dev', label: 'Director',      roles: ['ID'] },
   { email: 'agg-reviewer@cognitest.dev', label: 'Reviewer',      roles: ['ER'] },
   { email: 'agg-finance@cognitest.dev',  label: 'Finance',       roles: ['FC'] },
   { email: 'agg-legal@cognitest.dev',    label: 'Legal',         roles: ['LC'] },

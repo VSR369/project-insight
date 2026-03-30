@@ -447,10 +447,10 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       currency: data.currency,
       budget_min: data.budget_min ?? 0,
       budget_max: data.budget_max ?? 0,
-      source_role: isMP ? 'AM' : 'CR',
+      source_role: 'CR',
       source_date: new Date().toISOString(),
       upstream_source: {
-        role: isMP ? 'AM' : 'CR',
+        role: 'CR',
         date: new Date().toISOString(),
         budget_min: data.budget_min ?? 0,
         budget_max: data.budget_max ?? 0,

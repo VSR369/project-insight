@@ -312,7 +312,7 @@ export default function LcLegalWorkspacePage() {
 
   // ── Derived state ──
   const isLC = roles?.includes('LC');
-  const hasAccess = isLC || roles?.includes('CR') || roles?.includes('RQ');
+  const hasAccess = isLC || roles?.includes('CR');
 
   // ── Generate handler (calls edge function via mutation) ──
   const handleGenerate = async () => {

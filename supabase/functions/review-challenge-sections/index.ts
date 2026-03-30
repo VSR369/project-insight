@@ -260,19 +260,7 @@ function getFallbackSections(roleContext: RoleContext) {
 function buildFallbackSystemPrompt(sections: { key: string; desc: string }[], roleContext: RoleContext): string {
   const sectionList = sections.map((s, i) => `${i + 1}. ${s.key} - ${s.desc}`).join("\n");
 
-  const roleGuidance = roleContext === "intake"
-    ? `You are reviewing an intake brief submitted by an Account Manager or Challenge Requestor.
-Focus on:
-- **Clarity for downstream creators**: Will a Challenge Creator/Architect understand the problem well enough to draft a full specification?
-- **Completeness**: Are the key business parameters (problem, expectations, budget, stakeholders) adequately described?
-- **Actionability**: Can the next team member start working without needing clarification?`
-    : roleContext === "spec"
-    ? `You are reviewing an AI-generated challenge specification from the Creator/Architect perspective.
-Focus on:
-- **Solver readiness**: Would a solver clearly understand what is expected?
-- **Technical accuracy**: Are deliverables, evaluation criteria, and scope well-defined?
-- **Consistency**: Do sections align with each other (deliverables match criteria, scope matches problem)?`
-    : `You are an expert innovation challenge quality reviewer performing a deep, contextual review.
+  const roleGuidance = `You are an expert innovation challenge quality reviewer performing a deep, contextual review.
 For each section, assess:
 - **Content quality**: Is the language clear, specific, unambiguous?
 - **Completeness**: Are all required aspects covered?

@@ -158,8 +158,6 @@ export function AssignRoleSheet({
   const selectedRole = availableRoles.find((r) => r.code === effectiveRoleCode);
   const roleTitle = selectedRole?.display_name ?? "Role";
   const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
-  const isR10CR = false; // R10_CR role deprecated
-  const isExistingR10CR = false; // R10_CR role deprecated
 
   const existingMembers = deduplicateMembers(existingAssignments);
 
@@ -240,7 +238,6 @@ export function AssignRoleSheet({
       user_name: data.user_name,
       domain_tags: (data.domain_tags as Json) ?? undefined,
       model_applicability: data.model_applicability,
-      department_id: isR10CR && selectedDepartmentId ? selectedDepartmentId : undefined,
     });
     form.reset();
     setManualRoleCode("");
@@ -258,7 +255,6 @@ export function AssignRoleSheet({
       user_email: member.email,
       user_name: member.name ?? undefined,
       model_applicability: fullRoleCatalog.find((r) => r.code === existingMemberRoleCode)?.model_applicability ?? "both",
-      department_id: isExistingR10CR && selectedDepartmentId ? selectedDepartmentId : undefined,
     });
     setSelectedMemberEmail("");
     setExistingMemberRoleCode("");
@@ -376,27 +372,7 @@ export function AssignRoleSheet({
                   )}
                 />
 
-                {/* Department selector — shown only for R10_CR */}
-                {isR10CR && (
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Department / Functional Area *</label>
-                    <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(departmentsList ?? []).map((dept: { id: string; name: string }) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Which department or unit is this requestor from?
-                    </p>
-                  </div>
-                )}
+
 
                 {/* Collapsible Domain Taxonomy */}
                 <Collapsible open={taxonomyOpen} onOpenChange={setTaxonomyOpen}>
@@ -612,27 +588,7 @@ export function AssignRoleSheet({
                     )}
                   </div>
 
-                  {/* Department selector for R10_CR in existing member tab */}
-                  {isExistingR10CR && (
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Department / Functional Area *</label>
-                      <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(departmentsList ?? []).map((dept: { id: string; name: string }) => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                              {dept.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Which department or unit is this requestor from?
-                      </p>
-                    </div>
-                  )}
+
 
                   <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                     <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -657,7 +613,7 @@ export function AssignRoleSheet({
             <Button
               type="submit"
               form="assign-role-form"
-              disabled={isMutating || !effectiveRoleCode || (isR10CR && !selectedDepartmentId)}
+              disabled={isMutating || !effectiveRoleCode}
             >
               {isMutating
                 ? "Processing..."
@@ -670,7 +626,7 @@ export function AssignRoleSheet({
             <Button
               type="button"
               onClick={onSubmitExisting}
-              disabled={isMutating || !existingMemberRoleCode || !selectedMemberEmail || (isExistingR10CR && !selectedDepartmentId)}
+              disabled={isMutating || !existingMemberRoleCode || !selectedMemberEmail}
             >
               {isMutating
                 ? "Processing..."

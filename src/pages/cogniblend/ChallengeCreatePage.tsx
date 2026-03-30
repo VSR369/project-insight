@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
-import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
+import { ChallengeCreatorForm } from '@/components/cogniblend/creator/ChallengeCreatorForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
@@ -485,7 +485,7 @@ export default function ChallengeCreatePage() {
     );
   }
 
-  // ═══════ Landing View (CR/CA cards) ═══════
+  // ═══════ Landing View (CR cards) ═══════
   return (
     <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
       {/* Context Bar */}
@@ -502,7 +502,7 @@ export default function ChallengeCreatePage() {
       {/* Governance & Engagement Selectors */}
       <GovernanceEngagementSelector {...selectorProps} />
 
-      {/* Track Cards — CR/CA see 2 cards, filtered by demo path */}
+      {/* Track Cards — CR see 2 cards, filtered by demo path */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {demoPath !== 'manual' && (
           <TrackCard
