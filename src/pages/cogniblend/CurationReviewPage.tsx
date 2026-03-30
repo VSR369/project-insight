@@ -371,6 +371,24 @@ const SECTIONS: SectionDef[] = [
     },
   },
   {
+    key: "solution_type",
+    label: "Solution Type",
+    attribution: "by Curator",
+    dbField: "solution_type",
+    isFilled: (ch) => !!(ch as any).solution_type,
+    render: (ch) => {
+      const st = (ch as any).solution_type;
+      if (!st) return <p className="text-sm text-muted-foreground italic">Not set</p>;
+      const LABELS: Record<string, string> = {
+        strategy_design: 'Future & Business Blueprint',
+        process_operations: 'Business & Operational Excellence',
+        technology_architecture: 'Digital & Technology Blueprint',
+        product_innovation: 'Product & Service Innovation',
+      };
+      return <Badge variant="secondary">{LABELS[st] ?? st}</Badge>;
+    },
+  },
+  {
     key: "complexity",
     label: "Complexity Assessment",
     attribution: "by Curator",
