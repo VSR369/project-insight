@@ -82,6 +82,7 @@ import {
   Tag,
   ChevronsDownUp,
   ChevronsUpDown,
+  ArrowRight,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
