@@ -2997,12 +2997,30 @@ export default function CurationReviewPage() {
                     <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
                     Collapse All
                   </Button>
+                  {staleSections.length > 0 && (
+                    <Button
+                      variant={showOnlyStale ? "default" : "outline"}
+                      size="sm"
+                      className={cn(
+                        "h-7 px-2.5 text-xs",
+                        showOnlyStale
+                          ? "bg-amber-500 hover:bg-amber-600 text-white"
+                          : "text-amber-700 border-amber-300 hover:bg-amber-50"
+                      )}
+                      onClick={() => setShowOnlyStale(!showOnlyStale)}
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                      {showOnlyStale ? "Show All Sections" : `Show Only Stale (${staleSections.length})`}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-3">
-                {activeGroupDef.sectionKeys.map((sectionKey) => {
+                {activeGroupDef.sectionKeys
+                  .filter((sectionKey) => !showOnlyStale || staleKeySet.has(sectionKey))
+                  .map((sectionKey) => {
                   const section = SECTION_MAP.get(sectionKey);
                   if (!section) return null;
 
