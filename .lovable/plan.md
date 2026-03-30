@@ -1,152 +1,124 @@
 
 
-# Role Architecture Redesign — 5 Roles to 2+3 (CR, CU + ER, LC, FC)
+# Role Architecture Redesign — Gap Analysis
 
-## Overview
+## Phases 1–4: COMPLETED ✅
 
-Remove AM, RQ, CA, ID roles. Retain CR (Challenge Creator), CU (Challenge Curator), and support roles ER, LC, FC. Simplify the challenge lifecycle from `intake → spec → curation → approval → publish` to `draft → curation → publish`.
+**Layer 1 (Role Definitions):** `cogniRoles.ts`, `useCogniPermissions.ts`, `rewardStructureResolver.ts` — all updated. AM/RQ/CA/ID removed. Legacy aliases in place. ✅
 
-**55 files affected. 13 files deleted. ~25 files modified. 3 new files created.**
+**Layer 2 (Navigation):** `CogniSidebarNav.tsx` — clean. No AM/RQ/CA/ID references. ✅
 
----
+**Layer 3 (File Deletions):** All 13 files deleted. No dangling imports for deleted pages. ✅
 
-## Phase 1: Role Definitions & Permissions (Foundation)
+**Layer 4 (Marketplace Assignment):** `useAutoAssignChallengeRoles.ts` — CU only. `AssignMemberModal` — imports `useSolutionRequests` (still exists, functioning). ✅
 
-No files deleted. 3 files updated. This is the safest starting point — changes constants and permission flags only.
+**Layer 7 (Dashboard):** `NeedsActionSection`, `WaitingForSection`, `MyChallengesSection` — updated. ✅
 
-**Files:**
-
-| File | Change |
-|------|--------|
-| `src/types/cogniRoles.ts` | Remove AM, RQ, CA, ID from ROLE_PRIORITY, ROLE_DISPLAY, ROLE_COLORS, ROLE_PRIMARY_ACTION, ROLE_NAV_RELEVANCE. Keep CR, CU, ER, LC, FC. |
-| `src/hooks/cogniblend/useCogniPermissions.ts` | Remove `canSeeRequests`, `canSubmitRequest`, `canSeeApprovalQueue`, `canApprove`, `isBusinessOwner`, `hasConflictingIntent`. Change `canCreateChallenge`/`canEditSpec` to `can(['CR'])`. Add `canSeeCreatorDashboard: sees(['CR'])`. |
-| `src/services/rewardStructureResolver.ts` | Change `SourceRole` to `'CR' \| 'CURATOR'`. Remove AM/CA from ROLE_DISPLAY_NAMES. Treat legacy 'AM'/'CA' source_role values as 'CR' for backward compat. |
+**Layer 9 (Routes):** Deleted page routes removed from `App.tsx`. ✅
 
 ---
 
-## Phase 2: Remove Request & Approval Flows (Biggest cleanup)
+## REMAINING GAPS (14 issues across Phases 5–6 + residual cleanup)
 
-Delete 13 files. Update routes in App.tsx. Remove dead imports.
+### GAP 1: `useSolutionRequestContext.ts` — `useChallengeArchitects` NOT removed
+**File:** `src/hooks/queries/useSolutionRequestContext.ts` (line 56)
+**Issue:** `useChallengeArchitects()` export still exists. Only consumer is `SimpleIntakeForm.tsx` (also not yet replaced).
+**Fix:** Remove `useChallengeArchitects` function from the file.
 
-**Files to DELETE:**
+### GAP 2: `useMyRequests.ts` — NOT deleted
+**File:** `src/hooks/queries/useMyRequests.ts`
+**Issue:** File still exists. Not imported anywhere critical but should be deleted per plan.
+**Fix:** Delete the file.
 
-| File | Lines | Reason |
-|------|-------|--------|
-| `src/pages/cogniblend/CogniSubmitRequestPage.tsx` | ~1059 | AM submit-request flow |
-| `src/pages/requests/NewSolutionRequestPage.tsx` | — | Duplicate request form |
-| `src/pages/requests/SolutionRequestsListPage.tsx` | — | AM "My Requests" list |
-| `src/pages/cogniblend/CogniMyRequestsPage.tsx` | — | AM/RQ requests page |
-| `src/pages/cogniblend/AMChallengeReviewPage.tsx` | ~457 | AM review page |
-| `src/pages/cogniblend/AMRequestViewPage.tsx` | ~111 | AM request view |
-| `src/pages/cogniblend/ApprovalQueuePage.tsx` | ~364 | ID approval queue |
-| `src/pages/cogniblend/ApprovalReviewPage.tsx` | — | ID review page |
-| `src/hooks/queries/useSolutionRequests.ts` | — | Request queue hook |
-| `src/hooks/queries/useMyRequests.ts` | — | My requests hook |
-| `src/components/cogniblend/dashboard/MyRequestsTracker.tsx` | — | AM request tracker widget |
-| `src/components/rbac/ChallengeRequestorToggle.tsx` | — | R10_CR toggle |
-| `src/components/admin/marketplace/PreviousTeamSuggestion.tsx` | — | 4-role team suggestion |
+### GAP 3: `SimpleIntakeForm.tsx` — NOT replaced (Phase 6)
+**File:** `src/components/cogniblend/SimpleIntakeForm.tsx` (1,151 lines)
+**Issue:** Still exists with AM/RQ-focused logic. Still imported in `ChallengeCreatePage.tsx`. The new 2-tab Creator form (`src/components/cogniblend/creator/`) does not exist.
+**Fix:** Phase 6 — create `ChallengeCreatorForm.tsx`, `EssentialDetailsTab.tsx`, `AdditionalContextTab.tsx`. Update `ChallengeCreatePage.tsx` to use the new form.
 
-**Files to UPDATE:**
+### GAP 4: `ChallengeCreatePage.tsx` — still references old form
+**File:** `src/pages/cogniblend/ChallengeCreatePage.tsx` (line 31)
+**Issue:** Still imports `SimpleIntakeForm`. Still references AM/RQ in comments.
+**Fix:** Part of Phase 6 — rewrite to use new Creator form.
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Remove lazy imports + routes for all 8 deleted pages. Remove `/cogni/submit-request`, `/cogni/my-requests/*`, `/cogni/approval`, `/cogni/approval/:id`, `/requests/new`, `/requests`. |
-| `src/components/cogniblend/shell/CogniSidebarNav.tsx` | Remove AM, RQ, CA, ID from `SEEKING_ORG_ROLES`. Remove Approval Queue nav item. Remove `approvalQueue` badge. Update "New Challenge" visibility to `p.canSeeChallengePage` only (remove `canSeeRequests`). Remove `canSeeApprovalQueue` references from Evaluation/Selection items. |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Rewrite: remove CA/AM assignment logic. Challenge goes to `current_phase=2` (curation-ready). Source role always 'CR'. Remove `autoAssignChallengeRole` for CA. |
-| `src/hooks/queries/useSolutionRequestContext.ts` | Remove `useChallengeArchitects` export. |
-| `src/hooks/cogniblend/useApprovalActions.ts` | Keep file but mark as legacy — existing challenges may still reference it. |
+### GAP 5: `useMsmeConfig.ts` — `challenge_requestor_enabled` NOT removed (Phase 5)
+**File:** `src/hooks/queries/useMsmeConfig.ts`
+**Issue:** Still has `challenge_requestor_enabled` field in interface, query, and `useToggleChallengeRequestor` hook.
+**Fix:** Remove the field and hook.
 
----
+### GAP 6: `RoleManagementDashboard.tsx` — still uses `challenge_requestor_enabled` (Phase 5)
+**File:** `src/pages/rbac/RoleManagementDashboard.tsx` (line 56-61)
+**Issue:** Still reads `msmeConfig?.challenge_requestor_enabled` and filters R10_CR roles based on it.
+**Fix:** Remove the toggle logic. Filter AM/CA/ID/RQ from role display entirely.
 
-## Phase 3: Dashboard & Navigation Cleanup
+### GAP 7: `AssignRoleSheet.tsx` — R10_CR special handling NOT removed (Phase 5)
+**File:** `src/components/rbac/roles/AssignRoleSheet.tsx` (lines 161, 380, 616)
+**Issue:** Still has `isR10CR` checks and department selector for R10_CR.
+**Fix:** Remove R10_CR special handling.
 
-**Files to UPDATE:**
+### GAP 8: `CogniShell.tsx` — dead route titles
+**File:** `src/components/cogniblend/shell/CogniShell.tsx` (lines 21, 24)
+**Issue:** `ROUTE_TITLES` still has `'/cogni/submit-request': 'Submit Request'` and `'/cogni/approval': 'Approval Queue'`.
+**Fix:** Remove these entries.
 
-| File | Change |
-|------|--------|
-| `src/components/cogniblend/dashboard/NeedsActionSection.tsx` | Update `PHASE_ROLE_MAP`: Phase 1→CR, Phase 2→CR, Phase 4/5/6/9→remove (no ID). Phase 13→CR only. Remove AM, CA, ID references. |
-| `src/components/cogniblend/dashboard/WaitingForSection.tsx` | Same `PHASE_ROLE_MAP` updates as above. |
-| `src/components/cogniblend/dashboard/MyChallengesSection.tsx` | Remove AM, RQ, CA, ID from `TAB_ELIGIBLE_ROLES` and `TAB_LABELS`. Keep CR, CU, ER, LC, FC. |
-| `src/pages/cogniblend/CogniDashboardPage.tsx` | Remove MyRequestsTracker import/usage. Remove approval-related dashboard sections. |
+### GAP 9: `useCompletePhase.ts` — legacy role nav entries
+**File:** `src/hooks/cogniblend/useCompletePhase.ts` (lines 17-24)
+**Issue:** `ROLE_NAV_MAP` still has CA, ID, AM, RQ entries pointing to deleted routes (`/cogni/approval`, `/cogni/my-requests`).
+**Fix:** Remove CA, ID, AM, RQ entries. Keep CR, CU, ER, LC, FC only.
 
----
+### GAP 10: `MyActionItemsSection.tsx` — references deleted routes
+**File:** `src/components/cogniblend/dashboard/MyActionItemsSection.tsx` (lines 78-96)
+**Issue:** `getActionRoute()` returns `/cogni/my-requests/...` routes (deleted). AM_APPROVAL_PENDING status handling.
+**Fix:** Replace with `/cogni/my-challenges/...` routes. Remove AM-specific status handling.
 
-## Phase 4: Marketplace Assignment Simplification
+### GAP 11: `DemoLoginPage.tsx` — ID role login card
+**File:** `src/pages/cogniblend/DemoLoginPage.tsx` (lines 111-118)
+**Issue:** Still has ID (Dana Irving) login card pointing to `/cogni/approval`.
+**Fix:** Remove the ID login card. (Or repurpose if the test user is remapped.)
 
-**Files to UPDATE:**
+### GAP 12: `ChallengeWizardPage.tsx` — references `/cogni/my-requests`
+**File:** `src/pages/cogniblend/ChallengeWizardPage.tsx` (line 702)
+**Issue:** "View Original Request" button navigates to `/cogni/my-requests`.
+**Fix:** Remove or redirect to `/cogni/my-challenges`.
 
-| File | Change |
-|------|--------|
-| `src/components/admin/marketplace/ChallengeAssignmentPanel.tsx` | Show only CU slot (CR as read-only info). Remove AM/CA/ID slots. |
-| `src/components/admin/marketplace/AssignMemberModal.tsx` | Only CU role assignable from pool. |
-| `src/components/admin/marketplace/ReassignmentModal.tsx` | Only CU reassignment. |
-| `src/components/admin/marketplace/TeamCompletionBanner.tsx` | Complete = CU assigned. |
-| `src/components/admin/marketplace/TeamCompletionReminder.tsx` | Remind only for CU. |
-| `src/components/admin/marketplace/RoleBadge.tsx` | Remove AM, CA, ID badge configs. |
-| `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` | Only auto-assign CU (remove CA, ID logic). |
-| `src/hooks/cogniblend/useRoleReadinessGate.ts` | Readiness = CU available. Simplify missing roles check. |
+### GAP 13: Edge function — `intake` and `spec` still in VALID_CONTEXTS (Phase 6)
+**File:** `supabase/functions/review-challenge-sections/index.ts` (line 267)
+**Issue:** `VALID_CONTEXTS` still includes `"intake"` and `"spec"`. Comment on line 5 still mentions them.
+**Fix:** Remove from array. Keep fallback to `"curation"` (already works via line 1259).
 
----
-
-## Phase 5: RBAC & Admin Cleanup
-
-**Files to UPDATE:**
-
-| File | Change |
-|------|--------|
-| `src/pages/rbac/RoleManagementDashboard.tsx` | Remove ChallengeRequestorToggle import/usage. Filter AM/CA/ID/RQ from role display. |
-| `src/components/rbac/roles/AssignRoleSheet.tsx` | Remove R10_CR special handling. |
-| `src/pages/admin/knowledge-centre/SeekerConfigKCPage.tsx` | Remove challenge_requestor_enabled toggle. |
-| `src/hooks/queries/useMsmeConfig.ts` | Remove `challenge_requestor_enabled` field and `useToggleChallengeRequestor` hook. |
-
-**Database migration:**
-```sql
--- Soft-disable removed roles
-UPDATE platform_roles SET is_active = false, updated_at = NOW()
-WHERE code IN ('AM', 'RQ', 'CA', 'ID');
-
--- Auto-grant CR to users who had AM or CA
--- Auto-grant CU to users who had ID
--- (Data migration via insert tool, not schema change)
-```
+### GAP 14: `ApprovalActionBar.tsx` and approval components — NOT deleted
+**File:** `src/components/cogniblend/approval/ApprovalActionBar.tsx` (and related `ApprovalReturnModal.tsx`, `ApprovalRejectModal.tsx`)
+**Issue:** These approval UI components still exist and import `useApprovalActions`. Pages are deleted but components remain.
+**Fix:** Delete or mark as legacy. They're not route-reachable but add dead code.
 
 ---
 
-## Phase 6: New Challenge Creator Form
+## Implementation Plan
 
-Replace `SimpleIntakeForm.tsx` (1151 lines, AM/RQ-focused) with a new 2-tab Creator form.
+### Batch 1: Phase 5 — RBAC & Admin Cleanup (5 files)
+1. Remove `challenge_requestor_enabled` and `useToggleChallengeRequestor` from `useMsmeConfig.ts`
+2. Remove R10_CR filtering from `RoleManagementDashboard.tsx`
+3. Remove R10_CR special handling from `AssignRoleSheet.tsx`
+4. Delete `useMyRequests.ts`
+5. Remove `useChallengeArchitects` from `useSolutionRequestContext.ts`
 
-**New files:**
+### Batch 2: Residual cleanup (5 files)
+1. Remove dead route titles from `CogniShell.tsx`
+2. Clean `useCompletePhase.ts` — remove CA/ID/AM/RQ from ROLE_NAV_MAP
+3. Fix `MyActionItemsSection.tsx` — remove AM routes, update to `/cogni/my-challenges`
+4. Fix `ChallengeWizardPage.tsx` — remove `/cogni/my-requests` reference
+5. Remove ID login card from `DemoLoginPage.tsx`
 
-| File | Purpose |
-|------|---------|
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Main form with engagement model toggle + 2 tabs |
-| `src/components/cogniblend/creator/EssentialDetailsTab.tsx` | Tab 1: Title, Problem, Scope, Solution Depth, Domain, Budget, IP, Expected Results |
-| `src/components/cogniblend/creator/AdditionalContextTab.tsx` | Tab 2: Context, Approach, Exclusions, Stakeholders, Deficiencies, Root Causes, Timeline, File uploads, URLs |
+### Batch 3: Edge function cleanup (1 file)
+1. Remove `intake` and `spec` from VALID_CONTEXTS in edge function
 
-**Files to UPDATE:**
+### Batch 4: Phase 6 — New Challenge Creator Form (4 new files + 2 updates)
+1. Create `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
+2. Create `src/components/cogniblend/creator/EssentialDetailsTab.tsx`
+3. Create `src/components/cogniblend/creator/AdditionalContextTab.tsx`
+4. Update `ChallengeCreatePage.tsx` to use new form
+5. Delete `SimpleIntakeForm.tsx`
+6. Final rewrite of `useSubmitSolutionRequest.ts` for direct create flow
 
-| File | Change |
-|------|--------|
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Point to new `ChallengeCreatorForm` instead of `SimpleIntakeForm` |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Final rewrite: create challenge with `current_phase=2`, source_role='CR', no CA assignment, auto-assign CU for MP |
-| `supabase/functions/review-challenge-sections/index.ts` | Remove 'intake'/'spec' contexts. source_role always 'CR'. |
-
-**Key behaviors:**
-- Engagement model toggle (MP/AGG) at top
-- MP: budget mandatory. AGG: budget optional
-- "Solution depth" maps to maturity_level (Blueprint/POC/Pilot)
-- Tab 2 fields map to same `extended_brief` keys the Curator AI reads
-- File/URL uploads go to `challenge_attachments`
-- Submit → `current_phase=2` (ready for curation)
-- MP: auto-assign CU from platform pool
-- AGG: creator selects CU from org or self-curates
-
----
-
-## Implementation Strategy
-
-Phases 1-3 first (foundation + cleanup) — these are safe refactors that remove dead code and update constants. Phase 4-5 next (marketplace + RBAC). Phase 6 last (new form — highest risk, most new code).
-
-Each phase is independently deployable and testable. Backward compatibility maintained for existing challenges via legacy role aliases in the resolver.
+### Batch 5: Dead code cleanup (optional)
+1. Delete approval UI components (`ApprovalActionBar.tsx`, modals) or mark legacy
 
