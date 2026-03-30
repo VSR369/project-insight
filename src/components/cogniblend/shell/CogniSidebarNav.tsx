@@ -37,7 +37,7 @@ interface NavSection {
 /* ------------------------------------------------------------------ */
 
 /** Seeking-org role codes — users with ONLY these roles should not see solver items */
-const SEEKING_ORG_ROLES = new Set(['AM', 'CR', 'CA', 'RQ', 'CU', 'ID', 'ER', 'LC', 'FC']);
+const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
 
 const SECTIONS: NavSection[] = [
   {
