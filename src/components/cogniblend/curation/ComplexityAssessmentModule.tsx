@@ -521,6 +521,9 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
           saving={saving}
           readOnly={isLocked}
           onSliderChange={handleManualSliderChange}
+          aiScoreRef={hasAiRatings ? aiScoreRef_ : null}
+          aiLevelRef={hasAiRatings ? aiLevelRef_ : null}
+          aiLabelRef={hasAiRatings ? aiLabelRef_ : null}
         />
       )}
 
