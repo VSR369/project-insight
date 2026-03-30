@@ -567,7 +567,17 @@ export function AIReviewInline({
       return;
     }
 
-    if (!refinedContent) return;
+    if (!refinedContent) {
+      // For pass sections with no suggestion, accept is a no-op — just mark addressed
+      if (review?.status === 'pass') {
+        setIsAddressed(true);
+        setIsOpen(false);
+        onMarkAddressed?.(sectionKey);
+        return;
+      }
+      toast.error("No AI suggestion available to accept. Try re-reviewing the section first.");
+      return;
+    }
 
     // If user edited the suggestion, use the edited version
     const hasEdits = editedSuggestedContent != null;
