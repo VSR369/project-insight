@@ -1,69 +1,152 @@
 
 
-# Fix 7 Pass 2 Gaps — Elevate to Principal Consultant Level
+# Role Architecture Redesign — 5 Roles to 2+3 (CR, CU + ER, LC, FC)
 
-## Summary
+## Overview
 
-Fix 7 gaps in the Pass 2 rewrite pipeline across two files. All changes are in edge function code only — no migrations, no UI changes.
+Remove AM, RQ, CA, ID roles. Retain CR (Challenge Creator), CU (Challenge Curator), and support roles ER, LC, FC. Simplify the challenge lifecycle from `intake → spec → curation → approval → publish` to `draft → curation → publish`.
 
-## Files Modified
+**55 files affected. 13 files deleted. ~25 files modified. 3 new files created.**
 
-| File | Gaps Fixed |
-|------|-----------|
-| `supabase/functions/review-challenge-sections/index.ts` | 1, 2, 3, 7 |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | 4, 5, 6 |
+---
 
-## Changes
+## Phase 1: Role Definitions & Permissions (Foundation)
 
-### Gap 1: Replace raw JSON dump with compact summary
-**File:** `index.ts`, lines 722-724
+No files deleted. 3 files updated. This is the safest starting point — changes constants and permission flags only.
 
-Replace `FULL CHALLENGE DATA:\n${JSON.stringify(challengeData, null, 2)}` with a compact reference block showing only Title, Problem (300 chars), Scope (300 chars), Maturity, Complexity, Domain Tags, Solution Type, Deliverable Count, IP Model, and Currency. Saves ~5,000-10,000 tokens per Pass 2 call.
+**Files:**
 
-### Gap 2: Feed cross-section issues into Pass 2
-**File:** `index.ts`, inside `sectionPrompts` builder (~line 616-707)
+| File | Change |
+|------|--------|
+| `src/types/cogniRoles.ts` | Remove AM, RQ, CA, ID from ROLE_PRIORITY, ROLE_DISPLAY, ROLE_COLORS, ROLE_PRIMARY_ACTION, ROLE_NAV_RELEVANCE. Keep CR, CU, ER, LC, FC. |
+| `src/hooks/cogniblend/useCogniPermissions.ts` | Remove `canSeeRequests`, `canSubmitRequest`, `canSeeApprovalQueue`, `canApprove`, `isBusinessOwner`, `hasConflictingIntent`. Change `canCreateChallenge`/`canEditSpec` to `can(['CR'])`. Add `canSeeCreatorDashboard: sees(['CR'])`. |
+| `src/services/rewardStructureResolver.ts` | Change `SourceRole` to `'CR' \| 'CURATOR'`. Remove AM/CA from ROLE_DISPLAY_NAMES. Treat legacy 'AM'/'CA' source_role values as 'CR' for backward compat. |
 
-After the `bestPractices` block (line 639-641), extract `cross_section_issues` from `pass1Results` that reference the current section key. Build a `crossIssueBlock` string and inject it into the per-section template after ISSUES TO ADDRESS.
+---
 
-### Gap 3: Preserve strengths in Pass 2
-**File:** `index.ts`, inside `sectionPrompts` builder
+## Phase 2: Remove Request & Approval Flows (Biggest cleanup)
 
-Filter `r.comments` for `type === 'strength'` entries. Build a `strengthBlock` string and inject before ISSUES TO ADDRESS so the LLM knows what to keep.
+Delete 13 files. Update routes in App.tsx. Remove dead imports.
 
-### Gap 4: Add self-validation instruction
-**File:** `promptTemplate.ts`, in `buildPass2SystemPrompt` (after REWRITE RULES, ~line 1273)
+**Files to DELETE:**
 
-Append an 8-point self-validation checklist (address every issue, preserve strengths, resolve cross-section issues, seeker voice, solver comprehension, format match, specificity, AI-ONLY embedding).
+| File | Lines | Reason |
+|------|-------|--------|
+| `src/pages/cogniblend/CogniSubmitRequestPage.tsx` | ~1059 | AM submit-request flow |
+| `src/pages/requests/NewSolutionRequestPage.tsx` | — | Duplicate request form |
+| `src/pages/requests/SolutionRequestsListPage.tsx` | — | AM "My Requests" list |
+| `src/pages/cogniblend/CogniMyRequestsPage.tsx` | — | AM/RQ requests page |
+| `src/pages/cogniblend/AMChallengeReviewPage.tsx` | ~457 | AM review page |
+| `src/pages/cogniblend/AMRequestViewPage.tsx` | ~111 | AM request view |
+| `src/pages/cogniblend/ApprovalQueuePage.tsx` | ~364 | ID approval queue |
+| `src/pages/cogniblend/ApprovalReviewPage.tsx` | — | ID review page |
+| `src/hooks/queries/useSolutionRequests.ts` | — | Request queue hook |
+| `src/hooks/queries/useMyRequests.ts` | — | My requests hook |
+| `src/components/cogniblend/dashboard/MyRequestsTracker.tsx` | — | AM request tracker widget |
+| `src/components/rbac/ChallengeRequestorToggle.tsx` | — | R10_CR toggle |
+| `src/components/admin/marketplace/PreviousTeamSuggestion.tsx` | — | 4-role team suggestion |
 
-### Gap 5: Section-specific quality bar exemplars
-**File:** `promptTemplate.ts`
+**Files to UPDATE:**
 
-Add a `SECTION_QUALITY_EXEMPLARS` constant with fallback examples for `scope`, `evaluation_criteria`, `success_metrics_kpis`, `hook`, `solver_expertise`, and `reward_structure`. In the per-section enrichment loop (line 1346-1348), add an `else if` branch using these when `config.example_good` is null.
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Remove lazy imports + routes for all 8 deleted pages. Remove `/cogni/submit-request`, `/cogni/my-requests/*`, `/cogni/approval`, `/cogni/approval/:id`, `/requests/new`, `/requests`. |
+| `src/components/cogniblend/shell/CogniSidebarNav.tsx` | Remove AM, RQ, CA, ID from `SEEKING_ORG_ROLES`. Remove Approval Queue nav item. Remove `approvalQueue` badge. Update "New Challenge" visibility to `p.canSeeChallengePage` only (remove `canSeeRequests`). Remove `canSeeApprovalQueue` references from Evaluation/Selection items. |
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Rewrite: remove CA/AM assignment logic. Challenge goes to `current_phase=2` (curation-ready). Source role always 'CR'. Remove `autoAssignChallengeRole` for CA. |
+| `src/hooks/queries/useSolutionRequestContext.ts` | Remove `useChallengeArchitects` export. |
+| `src/hooks/cogniblend/useApprovalActions.ts` | Keep file but mark as legacy — existing challenges may still reference it. |
 
-### Gap 6: Quantification mandate
-**File:** `promptTemplate.ts`, in `buildPass2SystemPrompt` (after REWRITE RULES)
+---
 
-Append a QUANTIFICATION MANDATE block with 3 wrong/right pairs and a fallback instruction for benchmarked ranges.
+## Phase 3: Dashboard & Navigation Cleanup
 
-### Gap 7: Generation strategy for empty sections
-**File:** `index.ts`, line 682
+**Files to UPDATE:**
 
-Replace the generic `'ACTION: Generate new content from scratch based on challenge context.'` with a 5-step generation strategy: derive from upstream, apply domain expertise for the maturity level, reference attached materials, quantify, and follow exact format.
+| File | Change |
+|------|--------|
+| `src/components/cogniblend/dashboard/NeedsActionSection.tsx` | Update `PHASE_ROLE_MAP`: Phase 1→CR, Phase 2→CR, Phase 4/5/6/9→remove (no ID). Phase 13→CR only. Remove AM, CA, ID references. |
+| `src/components/cogniblend/dashboard/WaitingForSection.tsx` | Same `PHASE_ROLE_MAP` updates as above. |
+| `src/components/cogniblend/dashboard/MyChallengesSection.tsx` | Remove AM, RQ, CA, ID from `TAB_ELIGIBLE_ROLES` and `TAB_LABELS`. Keep CR, CU, ER, LC, FC. |
+| `src/pages/cogniblend/CogniDashboardPage.tsx` | Remove MyRequestsTracker import/usage. Remove approval-related dashboard sections. |
 
-## Implementation Order
+---
 
-1. Gap 1 (index.ts — replace JSON dump)
-2. Gaps 2 + 3 (index.ts — cross-section issues + strengths in sectionPrompts builder)
-3. Gap 7 (index.ts — generation strategy)
-4. Gaps 4 + 6 (promptTemplate.ts — self-validation + quantification mandate)
-5. Gap 5 (promptTemplate.ts — quality exemplars)
-6. Deploy edge function
+## Phase 4: Marketplace Assignment Simplification
 
-## Technical Notes
+**Files to UPDATE:**
 
-- All changes are within the `review-challenge-sections` edge function
-- No database migrations required
-- No frontend changes required
-- Token savings from Gap 1 offset any token increase from Gaps 2-6
-- Net effect: better quality output at similar or lower token cost
+| File | Change |
+|------|--------|
+| `src/components/admin/marketplace/ChallengeAssignmentPanel.tsx` | Show only CU slot (CR as read-only info). Remove AM/CA/ID slots. |
+| `src/components/admin/marketplace/AssignMemberModal.tsx` | Only CU role assignable from pool. |
+| `src/components/admin/marketplace/ReassignmentModal.tsx` | Only CU reassignment. |
+| `src/components/admin/marketplace/TeamCompletionBanner.tsx` | Complete = CU assigned. |
+| `src/components/admin/marketplace/TeamCompletionReminder.tsx` | Remind only for CU. |
+| `src/components/admin/marketplace/RoleBadge.tsx` | Remove AM, CA, ID badge configs. |
+| `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` | Only auto-assign CU (remove CA, ID logic). |
+| `src/hooks/cogniblend/useRoleReadinessGate.ts` | Readiness = CU available. Simplify missing roles check. |
+
+---
+
+## Phase 5: RBAC & Admin Cleanup
+
+**Files to UPDATE:**
+
+| File | Change |
+|------|--------|
+| `src/pages/rbac/RoleManagementDashboard.tsx` | Remove ChallengeRequestorToggle import/usage. Filter AM/CA/ID/RQ from role display. |
+| `src/components/rbac/roles/AssignRoleSheet.tsx` | Remove R10_CR special handling. |
+| `src/pages/admin/knowledge-centre/SeekerConfigKCPage.tsx` | Remove challenge_requestor_enabled toggle. |
+| `src/hooks/queries/useMsmeConfig.ts` | Remove `challenge_requestor_enabled` field and `useToggleChallengeRequestor` hook. |
+
+**Database migration:**
+```sql
+-- Soft-disable removed roles
+UPDATE platform_roles SET is_active = false, updated_at = NOW()
+WHERE code IN ('AM', 'RQ', 'CA', 'ID');
+
+-- Auto-grant CR to users who had AM or CA
+-- Auto-grant CU to users who had ID
+-- (Data migration via insert tool, not schema change)
+```
+
+---
+
+## Phase 6: New Challenge Creator Form
+
+Replace `SimpleIntakeForm.tsx` (1151 lines, AM/RQ-focused) with a new 2-tab Creator form.
+
+**New files:**
+
+| File | Purpose |
+|------|---------|
+| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Main form with engagement model toggle + 2 tabs |
+| `src/components/cogniblend/creator/EssentialDetailsTab.tsx` | Tab 1: Title, Problem, Scope, Solution Depth, Domain, Budget, IP, Expected Results |
+| `src/components/cogniblend/creator/AdditionalContextTab.tsx` | Tab 2: Context, Approach, Exclusions, Stakeholders, Deficiencies, Root Causes, Timeline, File uploads, URLs |
+
+**Files to UPDATE:**
+
+| File | Change |
+|------|--------|
+| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Point to new `ChallengeCreatorForm` instead of `SimpleIntakeForm` |
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Final rewrite: create challenge with `current_phase=2`, source_role='CR', no CA assignment, auto-assign CU for MP |
+| `supabase/functions/review-challenge-sections/index.ts` | Remove 'intake'/'spec' contexts. source_role always 'CR'. |
+
+**Key behaviors:**
+- Engagement model toggle (MP/AGG) at top
+- MP: budget mandatory. AGG: budget optional
+- "Solution depth" maps to maturity_level (Blueprint/POC/Pilot)
+- Tab 2 fields map to same `extended_brief` keys the Curator AI reads
+- File/URL uploads go to `challenge_attachments`
+- Submit → `current_phase=2` (ready for curation)
+- MP: auto-assign CU from platform pool
+- AGG: creator selects CU from org or self-curates
+
+---
+
+## Implementation Strategy
+
+Phases 1-3 first (foundation + cleanup) — these are safe refactors that remove dead code and update constants. Phase 4-5 next (marketplace + RBAC). Phase 6 last (new form — highest risk, most new code).
+
+Each phase is independently deployable and testable. Backward compatibility maintained for existing challenges via legacy role aliases in the resolver.
 
