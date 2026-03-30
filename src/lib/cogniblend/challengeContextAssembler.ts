@@ -221,6 +221,7 @@ export function buildChallengeContext(opts: BuildChallengeContextOptions): Chall
     challengeId: opts.challengeId,
     challengeTitle: opts.challengeTitle,
     solutionType: opts.solutionType ?? null,
+    solutionTypes: opts.solutionTypes ?? [],
     seekerSegment: opts.seekerSegment ?? null,
     todaysDate,
     sections,
