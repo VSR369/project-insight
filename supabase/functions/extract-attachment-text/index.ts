@@ -82,6 +82,12 @@ serve(async (req) => {
             .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
             .replace(/\s+/g, " ").trim().substring(0, 50000);
           method = "url_html";
+
+          // Bug 8: Check for sparse content from JS-rendered or auth-protected pages
+          if (extractedText.trim().length < 100) {
+            extractedText = `[URL content is sparse or inaccessible (${extractedText.trim().length} chars extracted). The page may require authentication, use JavaScript rendering, or block automated access. Source: ${att.source_url}]`;
+            method = "url_html_sparse";
+          }
         }
 
         // Auto-populate url_title from page <title>
