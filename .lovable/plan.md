@@ -1,96 +1,80 @@
 
 
-# Fix: AI Must Always Return Suggestions When Comments Require Action
+# Two-Pass AI Review Architecture: Analyze Then Rewrite
 
 ## Problem
+The LLM generates good review comments but suggestions often mirror original content unchanged. Single-pass review+rewrite creates a cognitive budget problem — the model exhausts attention on analysis and produces shallow suggestions.
 
-The LLM prompt explicitly instructs `suggestion: null for pass`, and uses weak language ("optionally a suggestion") for single-section reviews. This means even when AI comments contain actionable warnings, suggestions, or errors, the suggested improved content is often missing — leaving users with feedback but no revised version.
+## Solution
+Split `callAIBatch` into two sequential LLM calls within the same edge function invocation. Users still click one button; internally the edge function makes two calls:
 
-## Design Rule
-
-| Comment Types Present | Suggestion Required? |
-|---|---|
-| Only `strength`, `best_practice` | No — skip suggestion |
-| Any `error`, `warning`, `suggestion` | Yes — must return improved content |
-| Status `generated` | Yes — always (new content) |
-| Status `needs_revision` | Yes — always |
-
-## Changes
-
-### 1. Edge Function Prompt — Structured prompt (Line 209-212)
-
-**File:** `supabase/functions/review-challenge-sections/promptTemplate.ts`
-
-Update the suggestion instruction in the structured prompt from:
-
-```
-- For "pass": null or omit.
-```
-
-To:
-
-```
-- For "pass" with ONLY strength/best_practice comments: null or omit.
-- For "pass" with any error/warning/suggestion comments: MUST include improved content addressing those comments.
-```
-
-### 2. Edge Function Prompt — Legacy prompt (Line 377-379)
-
-Same file, update legacy prompt from:
-
-```
-suggestion: improved content for warning/needs_revision sections (null for pass)
-```
-
-To:
-
-```
-suggestion: improved content addressing error/warning/suggestion comments. Required for warning/needs_revision/generated. For pass sections, include suggestion ONLY if comments contain error, warning, or suggestion types; omit if only strength/best_practice.
-```
-
-### 3. Edge Function — Single-section re-review prompt (Line 808)
-
-**File:** `supabase/functions/review-challenge-sections/index.ts`
-
-Change the weak "optionally a suggestion" to explicit:
-
-```
-Review ONLY the "{section_key}" section... For each section, return: status, specific comments with severity. If ANY comment has type error, warning, or suggestion, you MUST also return a "suggestion" field with improved content that addresses all those comments. Only omit suggestion when all comments are strength or best_practice type.
-```
-
-### 4. Edge Function — Global review prompt (Line 810)
-
-Same file, apply the same instruction to the batch review prompt.
-
-### 5. Frontend — Auto-refine fallback for pass sections with actionable comments
-
-**File:** `src/components/cogniblend/shared/AIReviewInline.tsx` (Line 314-315)
-
-Currently `if (review.status === 'pass') return;` blocks the refine fallback. Update to only skip when no actionable comments exist:
-
-```typescript
-if (review.status === 'pass') {
-  // Only skip refine if all comments are strength/best_practice (no action needed)
-  const hasActionable = review.comments?.some((c: any) => {
-    const type = typeof c === 'string' ? 'warning' : (c.type || c.severity || 'warning');
-    return type === 'error' || type === 'warning' || type === 'suggestion';
-  });
-  if (!hasActionable) return;
-}
-```
-
-This ensures that if the LLM still returns `pass` but with actionable comments and no inline suggestion, the separate refine call fires as a fallback.
+- **Pass 1 (Analyze)**: Generate comments, status, guidelines, cross-section issues. No suggestion field.
+- **Pass 2 (Rewrite)**: Receive Pass 1 comments as input. Generate ONLY improved content. Skipped entirely when all sections pass with only strength/best_practice comments.
 
 ## Files Changed
 
-- `supabase/functions/review-challenge-sections/promptTemplate.ts` — 2 prompt edits
-- `supabase/functions/review-challenge-sections/index.ts` — 2 prompt edits
-- `src/components/cogniblend/shared/AIReviewInline.tsx` — 1 logic edit
+### 1. `supabase/functions/review-challenge-sections/index.ts`
 
-## When AI Suggestions Are Skipped (Clear Summary)
+**Refactor `callAIBatch` into two-pass architecture:**
 
-- Status `pass` + only `strength`/`best_practice` comments → No suggestion (content is good)
-- Status `pass` + any `error`/`warning`/`suggestion` comment → Suggestion required
-- Status `warning` or `needs_revision` → Suggestion always required
-- Status `generated` → Suggestion always required (it IS the content)
+- **New `callAIPass1Analyze`** (~lines 201-374): Clone current `callAIBatch` but remove `suggestion` from the tool schema entirely. The LLM focuses 100% on analysis. Keep comments, status, guidelines, cross_section_issues.
+
+- **New `callAIPass2Rewrite`**: New function that:
+  - Receives Pass 1 results + original section content + challenge context
+  - Filters to only sections needing suggestions (has actionable comments OR status=generated OR wave_action=generate)
+  - Uses a focused rewrite system prompt: "You receive ORIGINAL CONTENT and REVIEW COMMENTS. Produce revised content addressing EVERY error/warning/suggestion comment."
+  - Tool schema has only `section_key` and `suggestion` (both required)
+  - Returns suggestion map
+
+- **New `callAIBatchTwoPass`**: Orchestrator that calls Pass 1, filters, conditionally calls Pass 2, merges results. Replaces `callAIBatch` at the call site (~line 860).
+
+- **Pass 2 skip logic**: If no sections have actionable comments (all pass with only strength/best_practice), skip Pass 2 entirely — zero extra latency/cost.
+
+- **Token logging**: Log both passes separately (`pass1_analyze`, `pass2_rewrite`) for cost tracking.
+
+### 2. `supabase/functions/review-challenge-sections/promptTemplate.ts`
+
+- Remove suggestion-related instructions from the OUTPUT FORMAT section (~lines 209-214) — Pass 1 no longer generates suggestions. Keep the format instructions available for Pass 2 via a new exported helper `getSuggestionFormatInstruction(sectionKey)` that Pass 2 can call.
+
+### 3. `src/components/cogniblend/shared/AIReviewInline.tsx`
+
+- No changes needed — the frontend already handles the response shape (comments + suggestion). The two-pass architecture is transparent to the frontend since the edge function returns the same merged response format.
+
+## Latency & Cost Impact
+
+| Scenario | Before | After |
+|---|---|---|
+| All sections pass (clean) | ~3s, 1 call | ~3s, 1 call (Pass 2 skipped) |
+| 3 warning sections in batch of 12 | ~3s, 1 call | ~5s, 2 calls (Pass 2 for 3 sections only) |
+| All empty (generate all) | ~3s, 1 call | ~7s, 2 calls |
+
+Token cost increases ~30-50% for sections needing suggestions but suggestion quality improves dramatically since the model's entire Pass 2 attention is on rewriting with explicit comment inputs.
+
+## Technical Details
+
+**Pass 2 System Prompt** (new, hardcoded in edge function):
+- Senior consultant rewrite persona
+- Explicit rules: address EVERY actionable comment, maintain original format, production-ready output
+- Anti-hallucination: don't add unsupported content, don't remove unflagged content
+
+**Pass 2 User Prompt Construction** (per section needing suggestion):
+- Original content (or "(EMPTY — generate from scratch)" for generate action)
+- Numbered actionable comments from Pass 1
+- Best practices from Pass 1
+- Guidelines from Pass 1
+- Challenge context (same as Pass 1)
+- Format instruction for the section type
+
+**Pass 2 Tool Schema**:
+```
+suggest_content → { sections: [{ section_key, suggestion }] }
+```
+Both fields required — the LLM cannot skip the suggestion.
+
+## What Stays the Same
+- Complexity assessment (separate `callComplexityAI`) — unchanged
+- Prompt template loading from DB configs — unchanged
+- Frontend accept/reject/re-review flow — unchanged
+- Response shape to frontend — unchanged
+- Wave execution engine — unchanged
 
