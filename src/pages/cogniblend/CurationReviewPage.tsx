@@ -1212,6 +1212,7 @@ export default function CurationReviewPage() {
   const [manualOverrides, setManualOverrides] = useState<Record<number, boolean>>({});
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
+  const [showOnlyStale, setShowOnlyStale] = useState(false);
 
   // Optimistic industry segment — bridges the gap between save and refetch
   const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
