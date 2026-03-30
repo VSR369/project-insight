@@ -2,7 +2,7 @@
  * review-challenge-sections — Role-aware per-section AI review.
  * Returns granular pass/warning/needs_revision per section with comments.
  * Supports single-section mode via optional `section_key` parameter.
- * Supports role contexts: 'intake', 'spec', 'curation', 'legal', 'finance', 'evaluation'.
+ * Supports role contexts: 'curation', 'legal', 'finance', 'evaluation'.
  * Loads config from ai_review_section_config DB table; falls back to hardcoded defaults.
  * Persists results to challenges.ai_section_reviews.
  *
