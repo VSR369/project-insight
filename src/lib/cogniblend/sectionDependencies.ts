@@ -13,8 +13,9 @@ import type { SectionKey } from '@/types/sections';
 
 export const DIRECT_DEPENDENCIES: Partial<Record<SectionKey, SectionKey[]>> = {
   context_and_background: ['root_causes', 'affected_stakeholders', 'current_deficiencies'],
-  problem_statement: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'scope', 'deliverables', 'solver_expertise', 'expected_outcomes', 'hook'],
-  scope: ['deliverables', 'solver_expertise', 'eligibility', 'submission_guidelines', 'domain_tags', 'complexity', 'data_resources_provided'],
+  problem_statement: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'scope', 'deliverables', 'solver_expertise', 'expected_outcomes', 'hook', 'solution_type'],
+  scope: ['deliverables', 'solver_expertise', 'eligibility', 'submission_guidelines', 'domain_tags', 'complexity', 'data_resources_provided', 'solution_type'],
+  solution_type: ['deliverables', 'complexity', 'solver_expertise', 'evaluation_criteria', 'submission_guidelines', 'domain_tags'],
   expected_outcomes: ['evaluation_criteria', 'deliverables', 'success_metrics_kpis'],
   root_causes: ['preferred_approach', 'current_deficiencies'],
   current_deficiencies: ['preferred_approach', 'deliverables'],
