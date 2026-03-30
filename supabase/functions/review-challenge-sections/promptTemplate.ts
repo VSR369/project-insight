@@ -71,7 +71,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   expected_outcomes: 'line_items',
   submission_guidelines: 'line_items',
   evaluation_criteria: 'table',
-  reward_structure: 'table',
+  reward_structure: 'custom',
   phase_schedule: 'schedule_table',
   complexity: 'complexity_assessment',
   ip_model: 'checkbox_single',
