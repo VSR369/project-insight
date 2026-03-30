@@ -688,7 +688,7 @@ ORIGINAL CONTENT:
 ${contentStr}
 ${depBlock}
     ${(() => {
-      const sectionAtts = attachmentsBySection[r.section_key] || [];
+      const sectionAtts = (attachmentsBySection || {})[r.section_key] || [];
       return sectionAtts.length > 0
         ? `\nREFERENCE MATERIALS for this section:\n${sectionAtts.map((a: any) => {
             const typeTag = a.sourceType === 'url' ? 'WEB' : 'DOC';
