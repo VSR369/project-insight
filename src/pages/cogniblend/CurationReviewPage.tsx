@@ -990,7 +990,7 @@ const GAP_FIELD_TO_SECTION: Record<string, string> = {
   ip_model: "ip_model",
   eligibility: "eligibility",
   visibility: "visibility",
-  description: "submission_guidelines",
+  submission_guidelines: "submission_guidelines",
   maturity_level: "maturity_level",
   legal: "legal_docs",
   escrow: "escrow_funding",
