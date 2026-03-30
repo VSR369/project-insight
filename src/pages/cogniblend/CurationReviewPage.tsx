@@ -900,8 +900,15 @@ function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(outcomes, 'O');
 }
 
-/** Returns submission guideline objects from description column */
+/** Returns submission guideline objects from submission_guidelines column (fallback: description) */
 function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
+  // Try new dedicated column first
+  const sgRaw = parseJson<any>((ch as any).submission_guidelines);
+  if (sgRaw) {
+    const sgItems = Array.isArray(sgRaw) ? sgRaw : (sgRaw?.items ?? []);
+    if (sgItems.length > 0) return parseDeliverables(sgItems, 'S');
+  }
+  // Fallback to legacy description column
   const raw = parseJson<any>(ch.description);
   const items = Array.isArray(raw) ? raw : (raw?.items ?? []);
   return parseDeliverables(items, 'S');
