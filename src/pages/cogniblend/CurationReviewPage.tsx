@@ -1870,17 +1870,34 @@ export default function CurationReviewPage() {
     if (sectionKey === "solver_expertise") {
       try {
         const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-        const jsonMatch = cleaned.match(/(\{[\s\S]*\})/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[1]);
-          setSavingSection(true);
-          syncSectionToStore(sectionKey as SectionKey, parsed);
-          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
-          return;
+        let parsed: any;
+
+        // Try direct parse first
+        try { parsed = JSON.parse(cleaned); } catch {
+          const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+          if (jsonMatch) parsed = JSON.parse(jsonMatch[1]);
         }
-      } catch { /* fall through */ }
-      toast.error("AI returned invalid expertise data. Please try again.");
-      return;
+
+        if (!parsed) throw new Error('No valid JSON found');
+
+        // Normalize: if array, wrap in expected shape
+        if (Array.isArray(parsed)) {
+          parsed = {
+            expertise_areas: parsed.map((item: any) =>
+              typeof item === 'string' ? { area: item, level: 'required' } : item
+            )
+          };
+        }
+
+        setSavingSection(true);
+        syncSectionToStore(sectionKey as SectionKey, parsed);
+        saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
+        return;
+      } catch (e) {
+        toast.error("AI returned invalid expertise data. Please try re-reviewing.");
+        console.error("Solver expertise parse error:", e);
+        return;
+      }
     }
 
     // ── Master-data multi-select sections: save to solver_*_types as {code, label}[] ──
