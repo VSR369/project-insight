@@ -2181,13 +2181,19 @@ export default function CurationReviewPage() {
     const config = SECTION_FORMAT_CONFIG[subsectionKey];
     if (config && (config.format === 'line_items' || config.format === 'table')) {
       const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-      if (jsonMatch) {
-        try {
-          valueToSave = JSON.parse(jsonMatch[1]);
-        } catch {
-          toast.error(`AI returned invalid JSON for ${subsectionKey}. Please try again.`);
-          return;
+      // Try direct JSON.parse first to avoid double-serialization issues
+      try {
+        valueToSave = JSON.parse(cleaned);
+      } catch {
+        // Fallback: regex extraction
+        const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+        if (jsonMatch) {
+          try {
+            valueToSave = JSON.parse(jsonMatch[1]);
+          } catch {
+            toast.error(`AI returned invalid JSON for ${subsectionKey}. Please try again.`);
+            return;
+          }
         }
       }
       // Unwrap { items: [...] } wrapper — extended_brief subsections expect flat arrays
