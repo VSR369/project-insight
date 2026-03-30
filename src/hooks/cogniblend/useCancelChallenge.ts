@@ -65,7 +65,7 @@ export function canCancelChallenge(
   userRoleCodes: string[],
 ): boolean {
   if (currentPhase === 1) {
-    return userRoleCodes.some((r) => r === 'AM' || r === 'RQ');
+    return userRoleCodes.some((r) => r === 'CR');
   }
   if (currentPhase === 2) {
     return userRoleCodes.includes('CR');
