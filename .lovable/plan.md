@@ -1,109 +1,98 @@
 
-Goal: deliver a full bug audit + concrete fix plan for complexity score instability, accept-not-reflecting behavior, and AI/manual override confusion.
 
-What I found (fixed vs not fixed)
+# Link Proficiency Areas to Solution Types
 
-1) Bug-1 (Accept computes wrong score) — Fixed
-- CurationReviewPage now delegates complexity accept to module ref:
-  `complexityModuleRef.current?.saveAiDraft();`
-- Old simple-average path is removed.
+## Summary
 
-2) Bug-2 (save uses wrong param set) — Fixed
-- Module passes `resolvedParams` (effective dimensions + weights).
-- `handleSaveComplexity` now prioritizes `resolvedParams` over generic `complexityParams`.
+Replace the hardcoded 4 solution types with the existing Proficiency Area taxonomy. The curator selects a Proficiency Area (e.g., "Future & Business Blueprint") as the Solution Type. This selection drives complexity dimensions and auto-populates the Solver Expertise section.
 
-3) Bug-4 (manual tab lacks AI reference) — Fixed
-- Manual tab now shows AI reference badge (AI recommended score/level).
+## Current State
 
-4) Bug-3 (display fallback logic) — Still logically weak
-- `hasDraftValues` is always true, so fallback to `currentScore` is dead code.
-- Not always user-visible now, but still an architectural defect.
+- **4 hardcoded solution types**: `strategy_design`, `process_operations`, `technology_architecture`, `product_innovation`
+- **4 Proficiency Areas** (distinct names): Future & Business Blueprint, Business & Operational Excellence, Digital & Technology Blueprint, Product & Service Innovation
+- **`complexity_dimensions` table**: keyed by `solution_type` string
+- **No mapping** exists between proficiency areas and solution types
 
-New root-cause bugs still open (critical)
+## Natural Mapping
 
-A) CRITICAL: `solution_type` is null for this challenge, so AI and UI use different dimension systems
-- DB confirms challenge has `solution_type = null`.
-- Edge function complexity path defaults to `'ideation'` when solution_type missing.
-- No `'ideation'` rows exist in `complexity_dimensions`, so it falls back to arbitrary active dimensions.
-- UI module uses generic params when `solutionType` is null.
-- Result: AI ratings keys and UI/save keys can mismatch; accept may appear to “not update” or update incorrectly.
+```text
+Proficiency Area                    → solution_type code
+─────────────────────────────────── ─────────────────────────
+Future & Business Blueprint         → strategy_design
+Business & Operational Excellence   → process_operations
+Digital & Technology Blueprint      → technology_architecture
+Product & Service Innovation        → product_innovation
+```
 
-B) CRITICAL: Non-deterministic fallback dimensions in edge function
-- Fallback query uses active dimensions with `limit(10)` and no strict solution-type enforcement.
-- This can mix domains and produce unstable scoring behavior run-to-run.
+## Changes
 
-C) HIGH: AI rating import silently drops unmatched keys
-- In `ComplexityAssessmentModule`, AI ratings are only applied for keys in `effectiveParams`.
-- When keys mismatch, draft keeps old/default values (often 5), causing “AI accepted but nothing changed”.
+### 1. Create mapping table (DB migration)
 
-D) HIGH: Drafts do not rehydrate from new DB values after mutation/refetch
-- `aiDraft`/`manualDraft` are initialized once from props; there is no robust re-sync when `currentParams/currentScore` changes after save.
-- Creates stale UI perception and mismatch confusion.
+New table `proficiency_area_solution_type_map` linking proficiency area names to solution type codes:
 
-E) MEDIUM: AI complexity panel in review uses simple average for display
-- `AIReviewResultPanel` “AI Complexity Assessment” badge uses unweighted average.
-- Module uses weighted score; user sees two different numbers.
+```sql
+CREATE TABLE public.proficiency_area_solution_type_map (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  proficiency_area_name TEXT NOT NULL,
+  solution_type_code TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
 
-F) MEDIUM (separate regression): Submission guidelines mapping still points to `description` in store sync/hydration hooks
-- `useCurationStoreSync` and `useCurationStoreHydration` still map submission_guidelines ↔ description.
-- This can reintroduce content collisions and noisy context.
+Seed with the 4 mappings. This makes the relationship data-driven rather than hardcoded.
 
-G) LOW: Complexity comment text says `/5` while scale is `/10`
-- Cosmetic but misleading in review comments.
+### 2. Add Solution Type section to Tab 3 (Scope & Complexity)
 
-H) LOW: Ref warnings in console remain
-- Runtime warnings indicate refs passed to non-forwardRef components in curation render paths.
+**File**: `CurationReviewPage.tsx`
 
-Why AI score changes run-to-run (direct answer)
-- Current complexity call sends broad challenge JSON and uses a stochastic model without strict deterministic controls.
-- Because solution_type is null, dimension resolution falls into fallback behavior, so rating basis itself can drift.
-- Therefore variability is expected with current implementation (not just “LLM quality”).
+- Add a new section entry `solution_type` in the Tab 3 section list, placed before `complexity`
+- Renderer: radio group showing the 4 Proficiency Area names (fetched from DB via the mapping table)
+- On selection, save the `solution_type_code` to `challenges.solution_type`
+- Show the selected Proficiency Area name as the label, not the code
 
-What context the LLM currently uses for complexity
-- Edge function passes full `challengeData` JSON (curation fields: problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, maturity_level, eligibility, visibility, hook, extended_brief extracts, domain_tags, etc., plus ai_section_reviews and other fetched context blocks).
-- It also appends maturity/solution type from client context when present.
-- So it is not using only one section; it uses broad multi-section context.
+### 3. Update section format config
 
-Implementation plan (in order)
+**File**: `curationSectionFormats.ts`
 
-Phase 1 — Stabilize dimension source (must-do)
-1. Enforce explicit `solution_type` for complexity assessment.
-2. Remove “arbitrary fallback dimensions” behavior in edge function.
-3. If solution_type missing, return structured warning/error requiring curator selection (do not score).
-4. Add clear UI guard in complexity section: “Select solution type before AI assessment.”
+Add `solution_type` entry with format `radio`, marking it as curator-editable and AI-draftable.
 
-Phase 2 — Unify scoring source of truth
-1. Keep Accept delegation to `saveAiDraft`.
-2. Add key-alignment validation before save:
-   - if AI keys don’t match effective dimension keys, block save + show actionable toast.
-3. Rehydrate drafts on authoritative prop changes (`currentParams/currentScore/effectiveParams`) with dirty-state safeguards.
+### 4. Auto-populate Solver Expertise on Solution Type change
 
-Phase 3 — Remove score display mismatches
-1. Replace simple-average display in `AIReviewResultPanel` for complexity with weighted score using same weights used by module.
-2. Keep AI reference badge in manual tab.
-3. Remove dead `hasDraftValues` fallback branch and simplify display logic.
+**File**: `CurationReviewPage.tsx`
 
-Phase 4 — Fix related data consistency regressions
-1. Update store sync/hydration mappings for submission guidelines (stop using description mapping).
-2. Fix complexity comment scale label from `/5` to `/10`.
-3. Resolve ref warnings by ensuring components receiving refs use `forwardRef` or remove ref passing.
+When `solution_type` is saved:
+1. Look up the corresponding Proficiency Area name from the mapping
+2. Find all proficiency_area IDs matching that name (across expertise levels) for the challenge's industry segment
+3. Auto-set those IDs in `solver_expertise_requirements.proficiency_areas`
+4. Save to DB and show toast: "Solver Expertise auto-updated to match Solution Type"
 
-Files to update
-- `supabase/functions/review-challenge-sections/index.ts` (solution_type enforcement + deterministic dimensions)
-- `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` (key validation, rehydration, display logic cleanup)
-- `src/components/cogniblend/curation/AIReviewResultPanel.tsx` (weighted complexity display)
-- `src/pages/cogniblend/CurationReviewPage.tsx` (solution_type guard UX, keep accept delegation)
-- `src/hooks/useCurationStoreSync.ts` + `src/hooks/useCurationStoreHydration.ts` (submission_guidelines mapping correction)
+### 5. Update complexity module dependency
 
-Verification (must pass)
-1. Re-run complexity AI 3 times on unchanged challenge:
-   - same dimension set each run
-   - score variation only minor/model-noise (not structural jumps due wrong dimensions).
-2. Click Accept from AI panel:
-   - saved score/level/params exactly match module AI tab score and keys.
-3. Switch to Manual tab and edit:
-   - AI reference remains visible and unchanged until manual save.
-4. Refetch page:
-   - module rehydrates from DB correctly; no stale score illusion.
-5. Console:
-   - no “Function components cannot be given refs” warnings in curation flow.
+When `solution_type` changes:
+- If complexity was previously scored, show confirmation dialog (existing behavior)
+- The `useComplexityDimensions` hook already filters by `solutionType` — no change needed there
+
+### 6. Update `challengeContextAssembler.ts`
+
+- Keep `SOLUTION_TYPE_LABELS` but derive from the mapping table or update labels to match Proficiency Area names
+- Add `PROFICIENCY_AREA_TO_SOLUTION_TYPE` constant as a client-side fallback
+
+### 7. Add to DB SELECT in challenge fetch
+
+`solution_type` is already in the SELECT query — no change needed.
+
+## Technical Details
+
+- The mapping table is lightweight (4 rows) and avoids hardcoding the relationship
+- The `complexity_dimensions.solution_type` column values remain unchanged — no data migration needed
+- The radio selector shows Proficiency Area names with descriptions from the DB
+- Auto-population of Solver Expertise is additive (doesn't clear existing sub-domain/speciality selections)
+- The mapping is 1:1 today but the table structure supports future N:1 if needed
+
+## Files Modified
+
+1. **DB migration** — create `proficiency_area_solution_type_map` + seed data
+2. `src/lib/cogniblend/curationSectionFormats.ts` — add `solution_type` section config
+3. `src/pages/cogniblend/CurationReviewPage.tsx` — add section entry, renderer, save handler, auto-populate logic
+4. `src/lib/cogniblend/challengeContextAssembler.ts` — update labels to match Proficiency Area names
+
