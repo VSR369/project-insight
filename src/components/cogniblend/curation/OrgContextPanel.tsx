@@ -1,8 +1,9 @@
 /**
  * OrgContextPanel — Organization Context for Curation Review
  *
- * Collapsible accordion showing org details (auto-populated from seeker_organizations)
+ * Flat card content showing org details (auto-populated from seeker_organizations)
  * with editable fields for curator enrichment and file upload for org profile docs.
+ * Rendered as Tab 0 in the wave progress strip.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -10,14 +11,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Building2, Globe, Linkedin, Twitter, Zap, Save, Loader2, FileText, X, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
-import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +64,17 @@ const ORG_DOC_CONFIG = {
   allowedExtensions: ['.pdf', '.docx', '.png', '.jpg', '.webp'] as const,
   label: 'Organization Profile Document',
 };
+
+// ---------------------------------------------------------------------------
+// Helper: check if org tab is "complete" (name + at least one enrichment)
+// ---------------------------------------------------------------------------
+
+export function isOrgTabComplete(orgData: OrgData | undefined, attachmentCount: number): boolean {
+  if (!orgData?.organization_name) return false;
+  const hasField = [orgData.website_url, orgData.linkedin_url, orgData.twitter_url, orgData.organization_description]
+    .some(v => v && v.trim().length > 0);
+  return hasField || attachmentCount > 0;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -170,7 +180,6 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
   const handleFileUpload = useCallback(async (file: File) => {
     const storagePath = `${organizationId}/org_profile/${crypto.randomUUID()}_${file.name}`;
 
-    // 1. Upload to storage
     const { error: uploadErr } = await supabase.storage
       .from('challenge-attachments')
       .upload(storagePath, file);
@@ -179,7 +188,6 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
       return;
     }
 
-    // 2. Insert attachment record
     const { data: att, error: insertErr } = await supabase
       .from('challenge_attachments')
       .insert({
@@ -198,7 +206,6 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
       return;
     }
 
-    // 3. Trigger text extraction
     if (att?.id) {
       supabase.functions
         .invoke('extract-attachment-text', { body: { attachment_id: att.id } })
@@ -214,9 +221,7 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
 
   // ── Delete attachment handler ──
   const deleteAttachment = useCallback(async (att: OrgAttachment) => {
-    // Delete from storage
     await supabase.storage.from('challenge-attachments').remove([att.storage_path]);
-    // Delete record
     await supabase.from('challenge_attachments').delete().eq('id', att.id);
     queryClient.invalidateQueries({ queryKey: ['org-profile-attachments', challengeId] });
     toast.success('Document removed');
@@ -232,8 +237,10 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
 
   if (orgLoading) {
     return (
-      <div className="border border-border rounded-lg p-4 animate-pulse bg-muted/20">
+      <div className="space-y-4 animate-pulse">
         <div className="h-5 w-48 bg-muted rounded" />
+        <div className="h-9 w-full bg-muted rounded" />
+        <div className="h-9 w-full bg-muted rounded" />
       </div>
     );
   }
@@ -241,189 +248,182 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
   const filledCount = [websiteUrl, linkedinUrl, twitterUrl, description].filter(v => v.trim()).length;
 
   return (
-    <Accordion type="single" collapsible defaultValue="org-context" className="w-full">
-      <AccordionItem value="org-context" className="border border-border rounded-lg">
-        <AccordionTrigger className="px-4 py-2.5 text-sm font-semibold hover:no-underline gap-2">
-          <div className="flex items-center gap-2 flex-1 text-left">
-            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span>Organization Context</span>
-            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 ml-1">
-              <Zap className="h-2.5 w-2.5 mr-0.5" />AI uses this
-            </Badge>
-            {filledCount < 3 && (
-              <Badge variant="outline" className="text-[10px] text-muted-foreground ml-auto mr-2">
-                {filledCount}/4 fields filled
-              </Badge>
-            )}
+    <div className="space-y-5">
+      {/* AI context notice */}
+      <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+        <Zap className="h-4 w-4 text-amber-600 shrink-0" />
+        <p className="text-xs text-amber-700">
+          <strong>AI uses this context</strong> — Providing organization details helps the AI produce more relevant and contextually accurate challenge content.
+        </p>
+        {filledCount < 3 && (
+          <Badge variant="outline" className="text-[10px] text-muted-foreground ml-auto shrink-0">
+            {filledCount}/4 fields filled
+          </Badge>
+        )}
+      </div>
+
+      {/* Read-only org info */}
+      <div className="flex items-center gap-6 flex-wrap">
+        <div>
+          <p className="text-xs text-muted-foreground">Organization</p>
+          <p className="text-sm font-semibold">{orgData?.organization_name || '—'}</p>
+        </div>
+        {orgData?.orgTypeName && (
+          <div>
+            <p className="text-xs text-muted-foreground">Type</p>
+            <Badge variant="secondary" className="text-xs">{orgData.orgTypeName}</Badge>
           </div>
-        </AccordionTrigger>
-        <AccordionContent className="px-4 pb-4">
-          <div className="space-y-4">
-            {/* Read-only org info */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <div>
-                <p className="text-xs text-muted-foreground">Organization</p>
-                <p className="text-sm font-medium">{orgData?.organization_name || '—'}</p>
-              </div>
-              {orgData?.orgTypeName && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Type</p>
-                  <Badge variant="secondary" className="text-xs">{orgData.orgTypeName}</Badge>
-                </div>
-              )}
-            </div>
+        )}
+      </div>
 
-            {/* Editable fields */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Globe className="h-3 w-3" />Website
-                </Label>
-                <Input
-                  placeholder="https://example.com"
-                  value={websiteUrl}
-                  onChange={handleFieldChange(setWebsiteUrl)}
-                  disabled={isReadOnly}
-                  className="text-sm h-9"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Linkedin className="h-3 w-3" />LinkedIn
-                </Label>
-                <Input
-                  placeholder="https://linkedin.com/company/..."
-                  value={linkedinUrl}
-                  onChange={handleFieldChange(setLinkedinUrl)}
-                  disabled={isReadOnly}
-                  className="text-sm h-9"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Twitter className="h-3 w-3" />Twitter / X
-                </Label>
-                <Input
-                  placeholder="https://x.com/..."
-                  value={twitterUrl}
-                  onChange={handleFieldChange(setTwitterUrl)}
-                  disabled={isReadOnly}
-                  className="text-sm h-9"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tagline</Label>
-                <Input
-                  placeholder="Brief tagline or motto"
-                  value={tagline}
-                  onChange={handleFieldChange(setTagline)}
-                  disabled={isReadOnly}
-                  className="text-sm h-9"
-                />
-              </div>
-            </div>
+      {/* Editable fields */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs flex items-center gap-1.5">
+            <Globe className="h-3 w-3" />Website
+          </Label>
+          <Input
+            placeholder="https://example.com"
+            value={websiteUrl}
+            onChange={handleFieldChange(setWebsiteUrl)}
+            disabled={isReadOnly}
+            className="text-sm h-9"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs flex items-center gap-1.5">
+            <Linkedin className="h-3 w-3" />LinkedIn
+          </Label>
+          <Input
+            placeholder="https://linkedin.com/company/..."
+            value={linkedinUrl}
+            onChange={handleFieldChange(setLinkedinUrl)}
+            disabled={isReadOnly}
+            className="text-sm h-9"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs flex items-center gap-1.5">
+            <Twitter className="h-3 w-3" />Twitter / X
+          </Label>
+          <Input
+            placeholder="https://x.com/..."
+            value={twitterUrl}
+            onChange={handleFieldChange(setTwitterUrl)}
+            disabled={isReadOnly}
+            className="text-sm h-9"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Tagline</Label>
+          <Input
+            placeholder="Brief tagline or motto"
+            value={tagline}
+            onChange={handleFieldChange(setTagline)}
+            disabled={isReadOnly}
+            className="text-sm h-9"
+          />
+        </div>
+      </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Organization Description</Label>
-              <Textarea
-                placeholder="Describe the organization — industry, products/services, size, market position..."
-                value={description}
-                onChange={handleFieldChange(setDescription)}
-                disabled={isReadOnly}
-                rows={3}
-                className="text-sm resize-none"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Providing a rich description helps the AI produce more contextually relevant challenge content.
-              </p>
-            </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Organization Description</Label>
+        <Textarea
+          placeholder="Describe the organization — industry, products/services, size, market position..."
+          value={description}
+          onChange={handleFieldChange(setDescription)}
+          disabled={isReadOnly}
+          rows={3}
+          className="text-sm resize-none"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Providing a rich description helps the AI produce more contextually relevant challenge content.
+        </p>
+      </div>
 
-            {/* Save button */}
-            {!isReadOnly && isDirty && (
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
-                >
-                  {saveMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  Save Organization Details
-                </Button>
-              </div>
+      {/* Save button */}
+      {!isReadOnly && isDirty && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+            ) : (
+              <Save className="h-3.5 w-3.5 mr-1" />
             )}
+            Save Organization Details
+          </Button>
+        </div>
+      )}
 
-            {/* Org profile documents */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <FileText className="h-3 w-3" />
-                Organization Profile Documents
-              </Label>
+      {/* Org profile documents */}
+      <div className="space-y-2 pt-3 border-t border-border">
+        <Label className="text-xs font-medium flex items-center gap-1.5">
+          <FileText className="h-3 w-3" />
+          Organization Profile Documents
+        </Label>
 
-              {/* Existing attachments */}
-              {attachments.length > 0 && (
-                <div className="space-y-1.5">
-                  {attachments.map((att) => (
-                    <div
-                      key={att.id}
-                      className="border rounded-md p-2 flex items-center gap-2 bg-muted/30 text-sm"
-                    >
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-xs">{att.file_name}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {att.file_size ? `${(att.file_size / 1024).toFixed(1)} KB` : ''}
-                        </p>
-                      </div>
-                      {att.extraction_status === 'completed' && (
-                        <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-200 shrink-0">
-                          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Extracted
-                        </Badge>
-                      )}
-                      {att.extraction_status === 'pending' && (
-                        <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-200 shrink-0">
-                          <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />Processing
-                        </Badge>
-                      )}
-                      {att.extraction_status === 'failed' && (
-                        <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 shrink-0">
-                          <AlertCircle className="h-2.5 w-2.5 mr-0.5" />Failed
-                        </Badge>
-                      )}
-                      {!isReadOnly && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={() => deleteAttachment(att)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+        {/* Existing attachments */}
+        {attachments.length > 0 && (
+          <div className="space-y-1.5">
+            {attachments.map((att) => (
+              <div
+                key={att.id}
+                className="border rounded-md p-2 flex items-center gap-2 bg-muted/30 text-sm"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium text-xs">{att.file_name}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {att.file_size ? `${(att.file_size / 1024).toFixed(1)} KB` : ''}
+                  </p>
                 </div>
-              )}
-
-              {/* Upload zone */}
-              {!isReadOnly && (
-                <FileUploadZone
-                  config={ORG_DOC_CONFIG}
-                  multiple
-                  files={[]}
-                  onFilesChange={(files) => {
-                    files.forEach(handleFileUpload);
-                  }}
-                  onChange={() => {}}
-                />
-              )}
-            </div>
+                {att.extraction_status === 'completed' && (
+                  <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-200 shrink-0">
+                    <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Extracted
+                  </Badge>
+                )}
+                {att.extraction_status === 'pending' && (
+                  <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-200 shrink-0">
+                    <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />Processing
+                  </Badge>
+                )}
+                {att.extraction_status === 'failed' && (
+                  <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 shrink-0">
+                    <AlertCircle className="h-2.5 w-2.5 mr-0.5" />Failed
+                  </Badge>
+                )}
+                {!isReadOnly && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 shrink-0"
+                    onClick={() => deleteAttachment(att)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+        )}
+
+        {/* Upload zone */}
+        {!isReadOnly && (
+          <FileUploadZone
+            config={ORG_DOC_CONFIG}
+            multiple
+            files={[]}
+            onFilesChange={(files) => {
+              files.forEach(handleFileUpload);
+            }}
+            onChange={() => {}}
+          />
+        )}
+      </div>
+    </div>
   );
 }
