@@ -3870,6 +3870,7 @@ export default function CurationReviewPage() {
                   );
 
                   // Build AI review slot
+                  const secReadiness = sectionReadiness[section.key];
                   const aiReviewContent = (
                     <CurationAIReviewInline
                       sectionKey={section.key}
@@ -3887,8 +3888,9 @@ export default function CurationReviewPage() {
                       hasSentBefore={hasSentBefore}
                       onReReview={section.key === 'complexity' ? handleComplexityReReview : undefined}
                       complexityRatings={section.key === 'complexity' ? (aiSuggestedComplexity ?? undefined) : undefined}
+                      prerequisitesReady={secReadiness?.ready ?? true}
+                      missingPrerequisites={secReadiness?.missing}
                       onSendToCoordinator={isLocked ? (editedComments: string) => {
-                        // Store original AI comments for audit
                         const originalAiComments = (aiReview?.comments ?? []).map((c: any) => typeof c === 'string' ? c : c?.text ?? JSON.stringify(c)).join("\n\n");
                         setLockedSendState({
                           open: true,
