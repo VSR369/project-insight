@@ -196,16 +196,7 @@ export function AssignMemberModal({
               )}
             </div>
 
-            {/* Previous team suggestion (BR-ASSIGN-002) */}
-            {selectedRole && orgId && (
-              <PreviousTeamSuggestion
-                challengeId={challengeId}
-                orgId={orgId}
-                roleCode={selectedRole}
-                excludeMemberIds={existingMemberIdsForRole}
-                onSelect={handlePreviousTeamSelect}
-              />
-            )}
+            {/* Previous team suggestion removed — simplified role architecture */}
 
             {/* Member selector */}
             {selectedRole && (
