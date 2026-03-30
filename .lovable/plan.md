@@ -1,56 +1,85 @@
 
 
-# Organization Details as Tab 0 in Progress Strip
+# Reference Materials System — Files, URLs, Solver Sharing, Per-Section Matrix
 
 ## Summary
 
-Move the `OrgContextPanel` from its current inline accordion position into the wave-based tab system as **Tab 0 ("Organization")** — the first tab in the progress strip, before Foundation. On page load, it defaults as the active tab. Clicking "Next" or any other tab navigates normally.
+Implement a comprehensive reference materials system that extends the existing `challenge_attachments` infrastructure with URL support, solver sharing controls, and per-section upload configuration. This spans a DB migration, edge function updates (extraction + AI prompts), a new UI component, and a solver-facing reference panel.
 
-## Changes
+## 4 Items, 6 Implementation Steps
 
-### 1. Modify `GROUPS` array in `CurationReviewPage.tsx`
+### Step 1: Migration — Extend `challenge_attachments`
 
-Add a new group at index 0:
+Add 7 new columns: `source_type`, `source_url`, `url_title`, `shared_with_solver`, `display_name`, `description`, `display_order`. Make `storage_path` and `mime_type` nullable for URL rows. Add CHECK constraints for source type validation.
 
-```typescript
-{
-  id: "organization",
-  label: "0. Organization",
-  icon: "🏢",
-  colorDone: "bg-purple-100 text-purple-800 border-purple-300",
-  colorActive: "bg-purple-50 border-purple-400",
-  colorBorder: "border-purple-200",
-  sectionKeys: [],  // No curation sections — uses custom panel
-  prerequisiteGroups: [],
-}
-```
+**File:** New SQL migration
 
-### 2. Update Progress Strip grid
+### Step 2: Edge Function — URL Extraction Branch
 
-Change from `lg:grid-cols-6` to `lg:grid-cols-7` to accommodate the new tab.
+**File:** `supabase/functions/extract-attachment-text/index.ts`
 
-### 3. Render OrgContextPanel when `activeGroup === "organization"`
+Add a top-level branch before the existing file extraction logic:
+- When `att.source_type === 'url'`: fetch the page with 15s timeout, strip HTML tags/scripts/nav/footer, store cleaned text
+- Auto-populate `url_title` from `<title>` tag if missing
+- Handle PDF URLs gracefully (placeholder message)
+- Keep all existing file extraction code in an `else` block unchanged
 
-In the main content area (left 3/4 panel), when the organization tab is active, render the `OrgContextPanel` component instead of the section accordion. The right rail can show a simplified info card explaining why org context matters for AI quality.
+### Step 3: Edge Function — Unified Prompt Injection
 
-### 4. Handle progress for the organization tab
+**File:** `supabase/functions/review-challenge-sections/index.ts`
 
-Since this tab has no curation sections, compute its "done" status based on whether the org has at least a name + one enrichment field filled (website, description, or an uploaded doc). Show 0/1 or 1/1 progress.
+Three changes to existing attachment handling code:
 
-### 5. Remove inline OrgContextPanel
+**3a. Fetch query** (lines ~1478-1498): Expand `select()` to include `source_type`, `source_url`, `url_title`, `shared_with_solver`. Change the type from `{ fileName, content }[]` to include `sourceType`, `sourceUrl`, `sharedWithSolver`.
 
-Remove the current inline rendering of `OrgContextPanel` between the header and Original Brief accordion (lines ~2901-2907).
+**3b. Pass 1 attachment block** (lines ~1652-1661): Replace the simple `ATTACHED DOCUMENTS` block with the unified version that tags each reference as `[WEB PAGE]` or `[DOCUMENT]` and `[SHARED WITH SOLVERS]` or `[AI-ONLY]`. Append the `REFERENCE MATERIAL USAGE RULES` block.
 
-### 6. Default active tab
+**3c. Pass 2 per-section block** (lines ~688-693): Update to use the new type tags and sharing status.
 
-Change the initial `activeGroup` state from `"foundation"` to `"organization"` so the curator lands on org context first.
+### Step 4: Constants — Section Upload Config + Sharing Guidance
 
-### 7. Adjust `OrgContextPanel` layout
+**File:** `src/lib/cogniblend/sectionUploadConfig.ts` (new)
 
-Remove the accordion wrapper inside the component — since it now occupies the full content area, it should render as a flat card layout matching the visual style of other wave tabs.
+Export `SECTION_UPLOAD_CONFIG` (all 27 sections: 18 enabled, 9 disabled) and `SHARING_GUIDANCE` (context-sensitive help text per section). Directly from the user's spec.
 
-## Files Modified
+### Step 5: UI Component — `SectionReferencePanel`
 
-- `src/pages/cogniblend/CurationReviewPage.tsx` — Add org group, update grid, conditional rendering, default tab, remove inline panel
-- `src/components/cogniblend/curation/OrgContextPanel.tsx` — Remove accordion wrapper, render as flat card content
+**File:** `src/components/cogniblend/curation/SectionReferencePanel.tsx` (new)
+
+A collapsible panel rendered inside each `CuratorSectionPanel` for upload-enabled sections:
+
+- Collapsed by default, shows item count badge "📎 Reference Materials (3)"
+- Two action buttons: "Upload File" (filtered by `acceptedFormats`) and "Add Web Link" (inline URL input)
+- Per-item card showing: type icon, name, size/URL, extraction status, sharing toggle, display_name + description fields (visible when sharing ON), section-specific `SHARING_GUIDANCE` text
+- Remove button per item
+- Max count enforcement (files and URLs counted independently)
+- File upload: creates `challenge_attachments` row with `source_type='file'`, uploads to storage, triggers `extract-attachment-text`
+- URL add: creates row with `source_type='url'`, triggers `extract-attachment-text`
+- Uses React Query for fetching/mutating attachments
+
+**Integration into `CurationReviewPage.tsx`:** Render `<SectionReferencePanel>` inside each section's content area (within the `CuratorSectionPanel` children), checking `SECTION_UPLOAD_CONFIG[sectionKey].enabled`.
+
+### Step 6: Solver Reference Panel
+
+**File:** `src/components/cogniblend/curation/SolverReferencePanel.tsx` (new)
+
+Read-only panel for published challenge view:
+- Queries `challenge_attachments` where `shared_with_solver = true`
+- Groups by section, displays `display_name`, `description`, file size/type
+- Files: Download button via signed URL
+- URLs: "Open Link" button linking to `source_url`
+
+**Integration:** This needs to be placed in the published challenge detail page. Will identify the correct page component and add it.
+
+## Files Modified/Created
+
+| File | Action |
+|------|--------|
+| New SQL migration | Create — extend `challenge_attachments` |
+| `supabase/functions/extract-attachment-text/index.ts` | Modify — add URL branch |
+| `supabase/functions/review-challenge-sections/index.ts` | Modify — unified attachment fetch + prompt injection |
+| `src/lib/cogniblend/sectionUploadConfig.ts` | Create — config + sharing guidance |
+| `src/components/cogniblend/curation/SectionReferencePanel.tsx` | Create — curator UI |
+| `src/components/cogniblend/curation/SolverReferencePanel.tsx` | Create — solver view |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Modify — render SectionReferencePanel per section |
 
