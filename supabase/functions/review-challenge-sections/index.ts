@@ -771,7 +771,7 @@ ${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` :
     paramProperties[d.dimension_key] = {
       type: "object",
       properties: {
-        rating: { type: "number", minimum: 1, maximum: 5, description: `Rating for ${d.dimension_name} (1-5)` },
+        rating: { type: "number", minimum: 1, maximum: 10, description: `Rating for ${d.dimension_name} (1-10). Level 1 description = score 1-2, Level 3 = score 5-6, Level 5 = score 9-10.` },
         justification: { type: "string", description: `Why this rating was chosen, referencing specific challenge details` },
       },
       required: ["rating", "justification"],
