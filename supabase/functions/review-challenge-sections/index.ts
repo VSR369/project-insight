@@ -243,33 +243,15 @@ const CURATION_SECTIONS = [
   { key: "domain_tags", desc: "Tags that help the right solvers discover our challenge on the platform" },
 ];
 
-const INTAKE_SECTIONS = [
-  { key: "problem_statement", desc: "Clarity of the business problem: is it specific, well-bounded, and understandable?" },
-  { key: "scope", desc: "Solution expectations: are the desired outcomes clearly described?" },
-  { key: "beneficiaries_mapping", desc: "Stakeholder mapping: are affected parties and expected benefits identified?" },
-  { key: "budget_reasonableness", desc: "Budget range: is it reasonable for the described problem scope?" },
-];
+// INTAKE_SECTIONS and SPEC_SECTIONS removed — deprecated role contexts
+// Legacy challenges with 'intake'/'spec' context fall back to 'curation' via resolvedContext
 
-const SPEC_SECTIONS = [
-  { key: "problem_statement", desc: "Clarity, specificity, solver-readiness — would a solver understand the problem?" },
-  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
-  { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity for solvers" },
-  { key: "beneficiaries_mapping", desc: "Stakeholders and beneficiaries clearly identified" },
-  { key: "description", desc: "Detailed enough for solvers to understand context and constraints" },
-  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
-  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
-  { key: "hook", desc: "Engaging, concise, motivating for potential solvers" },
-  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
-];
+type RoleContext = "curation" | "legal" | "finance" | "evaluation";
 
-type RoleContext = "intake" | "spec" | "curation" | "legal" | "finance" | "evaluation";
-
-const VALID_CONTEXTS: RoleContext[] = ["intake", "spec", "curation", "legal", "finance", "evaluation"];
+const VALID_CONTEXTS: RoleContext[] = ["curation", "legal", "finance", "evaluation"];
 
 function getFallbackSections(roleContext: RoleContext) {
   switch (roleContext) {
-    case "intake": return INTAKE_SECTIONS;
-    case "spec": return SPEC_SECTIONS;
     case "curation": return CURATION_SECTIONS;
     default: return [];
   }
