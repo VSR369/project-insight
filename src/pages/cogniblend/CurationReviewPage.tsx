@@ -657,7 +657,15 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.context_background;
       return typeof val === "string" && val.trim().length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.context_background;
+      if (typeof val === 'string' && val.trim().length > 0) {
+        const truncated = val.length > 150 ? val.substring(0, 150) + '…' : val;
+        return <p className="text-sm text-muted-foreground line-clamp-3">{truncated}</p>;
+      }
+      return <p className="text-sm text-muted-foreground">Not available yet.</p>;
+    },
   },
   {
     key: "root_causes",
