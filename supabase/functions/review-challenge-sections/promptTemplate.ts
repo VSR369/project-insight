@@ -309,20 +309,74 @@ export const DOMAIN_FRAMEWORKS: Record<string, string[]> = {
 };
 
 /**
- * Detect domain frameworks from challenge domain tags.
+ * Detect domain frameworks from challenge domain tags, problem statement, and scope.
  * Returns a deduplicated list of relevant frameworks.
+ *
+ * Scanning strategy:
+ * 1. Direct match on domain_tags (highest confidence)
+ * 2. Keyword scan on problem_statement and scope (broader catch, only if tags yield nothing)
  */
-export function detectDomainFrameworks(domainTags: any): string[] {
-  if (!domainTags || !Array.isArray(domainTags)) return [];
+export function detectDomainFrameworks(
+  domainTags: any,
+  problemStatement?: string | null,
+  scope?: string | null,
+): string[] {
   const relevant = new Set<string>();
-  for (const tag of domainTags) {
-    const tagLower = String(tag).toLowerCase().replace(/[\s\-]+/g, '_');
-    for (const [domain, frameworks] of Object.entries(DOMAIN_FRAMEWORKS)) {
-      if (tagLower.includes(domain) || domain.includes(tagLower)) {
-        frameworks.forEach(f => relevant.add(f));
+
+  // Strategy 1: Match against domain_tags (existing logic)
+  if (domainTags && Array.isArray(domainTags)) {
+    for (const tag of domainTags) {
+      const tagLower = String(tag).toLowerCase().replace(/[\s\-]+/g, '_');
+      for (const [domain, frameworks] of Object.entries(DOMAIN_FRAMEWORKS)) {
+        if (tagLower.includes(domain) || domain.includes(tagLower)) {
+          frameworks.forEach(f => relevant.add(f));
+        }
       }
     }
   }
+
+  // Strategy 2: Keyword scan on problem_statement and scope (only if tags yielded nothing)
+  if (relevant.size === 0 && (problemStatement || scope)) {
+    const textToScan = [
+      problemStatement || '',
+      scope || '',
+    ].join(' ').toLowerCase().replace(/<[^>]*>/g, ' ');
+
+    const DOMAIN_KEYWORDS: Record<string, string[]> = {
+      supply_chain: ['supply chain', 'logistics', 'procurement', 'warehouse', 'inventory', 'demand forecast', 'scm'],
+      cybersecurity: ['cybersecurity', 'cyber security', 'information security', 'threat', 'vulnerability', 'penetration test', 'soc ', 'siem'],
+      ai_ml: ['machine learning', 'artificial intelligence', ' ai ', ' ml ', 'deep learning', 'neural network', 'model training', 'llm', 'generative ai'],
+      data_analytics: ['data analytics', 'data warehouse', 'business intelligence', ' bi ', 'data lake', 'data pipeline', 'etl', 'dashboard'],
+      cloud: ['cloud migration', 'cloud native', 'aws', 'azure', 'gcp', 'kubernetes', 'containeriz', 'microservice', 'serverless'],
+      digital_transformation: ['digital transformation', 'change management', 'organizational change', 'digital maturity', 'agile transformation'],
+      process_automation: ['process automation', ' rpa ', 'robotic process', 'workflow automation', 'bpm', 'process mining', 'intelligent automation'],
+      product_innovation: ['product innovation', 'product design', 'user experience', ' ux ', 'design thinking', 'customer journey', 'mvp'],
+      iot: ['internet of things', ' iot ', 'sensor', 'edge computing', 'connected device', 'telemetry', 'scada'],
+      blockchain: ['blockchain', 'distributed ledger', 'smart contract', 'token', 'web3', 'defi'],
+      healthcare: ['healthcare', 'clinical', 'patient', 'medical', 'pharmaceutical', 'ehr', 'fhir', 'hipaa'],
+      finance: ['financial', 'banking', 'fintech', 'payment', 'lending', 'insurance', 'aml', 'kyc', 'compliance'],
+      sustainability: ['sustainability', 'esg', 'carbon', 'emissions', 'climate', 'renewable', 'circular economy'],
+      enterprise_architecture: ['enterprise architecture', 'togaf', 'archimate', 'capability model', 'technology landscape'],
+      predictive_maintenance: ['predictive maintenance', 'condition monitoring', 'vibration analysis', 'equipment failure', 'asset management'],
+      nlp: ['natural language', ' nlp ', 'text mining', 'sentiment analysis', 'chatbot', 'language model', 'text classification'],
+      computer_vision: ['computer vision', 'image recognition', 'object detection', 'video analytics', 'ocr'],
+      api_strategy: ['api strategy', 'api gateway', 'api management', 'openapi', 'developer portal', 'api-first'],
+      workforce: ['workforce', 'talent management', 'skills gap', 'reskilling', 'upskilling', 'employee experience', 'hr tech'],
+    };
+
+    for (const [domain, keywords] of Object.entries(DOMAIN_KEYWORDS)) {
+      for (const keyword of keywords) {
+        if (textToScan.includes(keyword)) {
+          const frameworks = DOMAIN_FRAMEWORKS[domain];
+          if (frameworks) {
+            frameworks.forEach(f => relevant.add(f));
+          }
+          break; // One keyword match per domain is enough
+        }
+      }
+    }
+  }
+
   return [...relevant];
 }
 
