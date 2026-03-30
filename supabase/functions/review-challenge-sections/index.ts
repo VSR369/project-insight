@@ -689,7 +689,11 @@ async function callAIBatchTwoPass(
       ...r,
       comments: cleanedComments,
       guidelines: cleanedGuidelines,
-      suggestion: cleanAIOutput(suggestion),
+      // Skip cleanAIOutput for table/schedule_table sections — they use sanitizeTableSuggestion
+      suggestion: (() => {
+        const fmt = getSectionFormatType(r.section_key);
+        return (fmt === 'table' || fmt === 'schedule_table') ? suggestion : cleanAIOutput(suggestion);
+      })(),
     };
   });
 }
