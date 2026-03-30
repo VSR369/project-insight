@@ -110,6 +110,10 @@ interface AIReviewInlineProps {
   initialRefinedContent?: string | null;
   /** Structured complexity ratings from AI — renders parameter table instead of text suggestion */
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
+  /** Whether upstream prerequisite sections are filled (soft guidance) */
+  prerequisitesReady?: boolean;
+  /** Labels of missing prerequisite sections (for warning toast) */
+  missingPrerequisites?: string[];
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
