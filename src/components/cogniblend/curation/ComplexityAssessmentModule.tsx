@@ -564,7 +564,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
       )}
     </div>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════
    Sub-components
