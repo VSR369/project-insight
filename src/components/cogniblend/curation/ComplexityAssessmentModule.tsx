@@ -10,7 +10,7 @@
  * Lock mechanism: Once locked, all tabs become read-only.
  */
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -110,6 +110,7 @@ export function ComplexityAssessmentModule({
   });
 
   const [editableParams, setEditableParams] = useState<Set<string>>(new Set());
+  const aiDraftRef = useRef<Record<string, number> | null>(null);
   const [aiJustifications, setAiJustifications] = useState<Record<string, string>>({});
   const [aiParamSources, setAiParamSources] = useState<Record<string, "ai" | "curator" | "default">>(() => {
     const sources: Record<string, "ai" | "curator" | "default"> = {};
@@ -181,6 +182,7 @@ export function ComplexityAssessmentModule({
     });
 
     setAiDraft(newAiDraft);
+    aiDraftRef.current = newAiDraft;
     setAiJustifications(justifications);
     setAiParamSources(sources);
     setActiveTab("ai_review");
@@ -252,9 +254,9 @@ export function ComplexityAssessmentModule({
   const handleConfirmSwitch = useCallback(() => {
     if (!pendingTab) return;
     setActiveTab(pendingTab);
-    // Reset state for new tab — each draft is independent, just clear edit markers
-    const fresh = buildDraftFromExisting(currentParams, effectiveParams);
+    // Reset only the draft for the tab being switched TO; preserve AI draft independently
     if (pendingTab === "manual_params") {
+      const fresh = buildDraftFromExisting(currentParams, effectiveParams);
       setManualDraft(fresh);
     }
     setEditableParams(new Set());
@@ -305,7 +307,8 @@ export function ComplexityAssessmentModule({
 
   const handleCancel = useCallback(() => {
     const fresh = buildDraftFromExisting(currentParams, effectiveParams);
-    setAiDraft(fresh);
+    // Restore AI draft from preserved ref (AI-suggested values), NOT from currentParams (which may have manual values)
+    setAiDraft(aiDraftRef.current ?? fresh);
     setManualDraft(fresh);
     setActiveTab("ai_review");
     setOverrideLevel(null);
