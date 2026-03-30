@@ -178,11 +178,6 @@ const MASTER_DATA_SECTION_TABLES: Record<string, string> = {
 
 /** Static master data for sections that don't have DB tables */
 const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
-  visibility: [
-    { code: "anonymous", label: "Anonymous" },
-    { code: "named", label: "Named" },
-    { code: "verified", label: "Verified" },
-  ],
   ip_model: [
     { code: "IP-EA", label: "Full IP Transfer (Exclusive Assignment)" },
     { code: "IP-NEL", label: "Non-Exclusive License" },
