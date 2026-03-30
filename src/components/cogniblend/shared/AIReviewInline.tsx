@@ -258,6 +258,7 @@ export function AIReviewInline({
   const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
+  const [prereqWarningShown, setPrereqWarningShown] = useState(false);
 
   // Structured items state (for deliverables, eval criteria, line_items)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
