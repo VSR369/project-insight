@@ -86,11 +86,8 @@ interface AIReviewInlineProps {
   review: SectionReview | undefined;
   currentContent: string | null;
   challengeId: string;
-  challengeContext: {
-    title?: string;
-    maturity_level?: string | null;
-    domain_tags?: string[];
-  };
+  /** Full challenge context — forwarded to edge function for re-review */
+  challengeContext: Record<string, any>;
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
   onSingleSectionReview?: (sectionKey: string, review: SectionReview) => void;
   onMarkAddressed?: (sectionKey: string) => void;
