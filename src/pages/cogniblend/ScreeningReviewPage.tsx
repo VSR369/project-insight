@@ -417,7 +417,7 @@ export default function ScreeningReviewPage() {
   const rejectedCount = data?.abstracts.filter(a => a.selectionStatus === 'REJECTED').length ?? 0;
   const pendingCount = data?.abstracts.filter(a => a.selectionStatus === 'PENDING').length ?? 0;
 
-  const canApproveShortlist = (isEnterprise ? hasIDRole : true) && pendingCount === 0 && shortlistedCount > 0 && !data?.shortlistApproved;
+  const canApproveShortlist = (isEnterprise ? hasCURole : true) && pendingCount === 0 && shortlistedCount > 0 && !data?.shortlistApproved;
 
   // ═══ SECTION 5: Conditional returns ═══
   if (isLoading) {

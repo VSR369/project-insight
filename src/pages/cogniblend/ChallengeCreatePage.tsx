@@ -502,7 +502,7 @@ export default function ChallengeCreatePage() {
       {/* Governance & Engagement Selectors */}
       <GovernanceEngagementSelector {...selectorProps} />
 
-      {/* Track Cards — CR/CA see 2 cards, filtered by demo path */}
+      {/* Track Cards — CR see 2 cards, filtered by demo path */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {demoPath !== 'manual' && (
           <TrackCard

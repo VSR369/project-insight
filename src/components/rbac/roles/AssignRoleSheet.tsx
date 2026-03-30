@@ -666,7 +666,7 @@ export function AssignRoleSheet({
             <Button
               type="button"
               onClick={onSubmitExisting}
-              disabled={isMutating || !existingMemberRoleCode || !selectedMemberEmail || (isExistingR10CR && !selectedDepartmentId)}
+              disabled={isMutating || !existingMemberRoleCode || !selectedMemberEmail}
             >
               {isMutating
                 ? "Processing..."

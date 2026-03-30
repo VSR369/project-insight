@@ -25,7 +25,11 @@ interface SourceBadgeProps {
 
 const SOURCE_CONFIG: Record<FieldSourceType, { label: string; classes: string }> = {
   am: {
-    label: 'AM',
+    label: 'Creator',
+    classes: 'bg-amber-50 text-amber-700 border-amber-200',
+  },
+  creator: {
+    label: 'Creator',
     classes: 'bg-amber-50 text-amber-700 border-amber-200',
   },
   ai: {

@@ -44,7 +44,6 @@ function buildSteps(engagementModel?: string, governanceMode?: GovernanceMode): 
     { label: 'Spec Review', role: 'CR', aiNote: 'Review AI output', manualNote: 'Review wizard data' },
     { label: 'Legal Docs', role: 'LC', aiNote: 'AI suggests docs, LC reviews', manualNote: 'Upload documents' },
     { label: 'Curation', role: 'CU', aiNote: step4AiNote, manualNote: step4ManualNote },
-    { label: 'Approval', role: 'ID', aiNote: step5AiNote, manualNote: 'Approve package' },
     { label: 'Publication', role: 'System', aiNote: 'Go live', manualNote: 'Go live' },
   ];
 }

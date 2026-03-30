@@ -4093,17 +4093,17 @@ export default function CurationReviewPage() {
                     curationStore.getState().setSectionData('reward_structure' as SectionKey, updatedData as Record<string, unknown>);
                   }
 
-                  // 2. Look up AM user for this challenge
-                  const { data: amRoles } = await supabase
-                    .from('user_challenge_roles')
-                    .select('user_id')
-                    .eq('challenge_id', challengeId!)
-                    .eq('role_code', 'AM')
-                    .limit(1);
+                   // 2. Look up CR user for this challenge
+                   const { data: crRoles } = await supabase
+                     .from('user_challenge_roles')
+                     .select('user_id')
+                     .eq('challenge_id', challengeId!)
+                     .eq('role_code', 'CR')
+                     .limit(1);
 
-                  const amUserId = amRoles?.[0]?.user_id;
-                  if (amUserId) {
-                    // 3. Insert notification for AM
+                   const crUserId = crRoles?.[0]?.user_id;
+                   if (crUserId) {
+                     // 3. Insert notification for CR
                     await supabase.from('cogni_notifications').insert({
                       user_id: amUserId,
                       challenge_id: challengeId!,

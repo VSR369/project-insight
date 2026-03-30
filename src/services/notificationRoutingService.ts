@@ -119,7 +119,7 @@ async function resolveRoleUsers(
 
   // Also check challenge_role_assignments for pool-based roles
   // Pool members have a user_id via platform_provider_pool
-  if (userIdSet.size === 0 || roles.some((r) => !['AM', 'CR'].includes(r))) {
+  if (userIdSet.size === 0 || roles.some((r) => !['CR'].includes(r))) {
     const { data: cra } = await supabase
       .from('challenge_role_assignments')
       .select('pool_member_id, role_code, platform_provider_pool!challenge_role_assignments_pool_member_id_fkey(user_id)')
