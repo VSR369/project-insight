@@ -86,11 +86,8 @@ interface AIReviewInlineProps {
   review: SectionReview | undefined;
   currentContent: string | null;
   challengeId: string;
-  challengeContext: {
-    title?: string;
-    maturity_level?: string | null;
-    domain_tags?: string[];
-  };
+  /** Full challenge context — forwarded to edge function for re-review */
+  challengeContext: Record<string, any>;
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
   onSingleSectionReview?: (sectionKey: string, review: SectionReview) => void;
   onMarkAddressed?: (sectionKey: string) => void;
@@ -399,10 +396,14 @@ export function AIReviewInline({
   const handleCommentChange = useCallback((index: number, value: string) => {
     setEditedComments((prev) => {
       const updated = [...prev];
-      updated[index] = value;
+      const original = prev[index] ?? (review?.comments?.[index]);
+      // Preserve structured comment metadata (type, field, reasoning) when only editing text
+      updated[index] = (original && typeof original === 'object')
+        ? { ...original, text: value }
+        : value;
       return updated;
     });
-  }, []);
+  }, [review?.comments]);
 
   const handleSaveComment = useCallback(() => {
     setEditingIndex(null);
@@ -452,7 +453,18 @@ export function AIReviewInline({
       }
 
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
-        body: { challenge_id: challengeId, section_key: sectionKey, role_context: roleContext },
+        body: {
+          challenge_id: challengeId,
+          section_key: sectionKey,
+          role_context: roleContext,
+          wave_action: currentContent?.trim()?.length && currentContent.trim().length > 30 ? 'review' : 'generate',
+          current_content: currentContent,
+          context: challengeContext ? {
+            ...challengeContext,
+            maturityLevel: challengeContext.maturity_level,
+            todaysDate: new Date().toISOString().split('T')[0],
+          } : undefined,
+        },
       });
 
       if (error) {

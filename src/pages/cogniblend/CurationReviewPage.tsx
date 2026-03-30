@@ -1870,17 +1870,34 @@ export default function CurationReviewPage() {
     if (sectionKey === "solver_expertise") {
       try {
         const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-        const jsonMatch = cleaned.match(/(\{[\s\S]*\})/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[1]);
-          setSavingSection(true);
-          syncSectionToStore(sectionKey as SectionKey, parsed);
-          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
-          return;
+        let parsed: any;
+
+        // Try direct parse first
+        try { parsed = JSON.parse(cleaned); } catch {
+          const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+          if (jsonMatch) parsed = JSON.parse(jsonMatch[1]);
         }
-      } catch { /* fall through */ }
-      toast.error("AI returned invalid expertise data. Please try again.");
-      return;
+
+        if (!parsed) throw new Error('No valid JSON found');
+
+        // Normalize: if array, wrap in expected shape
+        if (Array.isArray(parsed)) {
+          parsed = {
+            expertise_areas: parsed.map((item: any) =>
+              typeof item === 'string' ? { area: item, level: 'required' } : item
+            )
+          };
+        }
+
+        setSavingSection(true);
+        syncSectionToStore(sectionKey as SectionKey, parsed);
+        saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: parsed });
+        return;
+      } catch (e) {
+        toast.error("AI returned invalid expertise data. Please try re-reviewing.");
+        console.error("Solver expertise parse error:", e);
+        return;
+      }
     }
 
     // ── Master-data multi-select sections: save to solver_*_types as {code, label}[] ──
@@ -1955,17 +1972,32 @@ export default function CurationReviewPage() {
     const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags', 'success_metrics_kpis', 'data_resources_provided'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-      if (jsonMatch) {
+
+      // Pre-processing: strip leading prose before first JSON delimiter
+      const jsonStartIndex = cleaned.search(/[\[{]/);
+      if (jsonStartIndex > 0) {
+        cleaned = cleaned.substring(jsonStartIndex);
+      }
+      // Strip trailing prose after last JSON delimiter
+      const jsonEndBracket = cleaned.lastIndexOf(']');
+      const jsonEndBrace = cleaned.lastIndexOf('}');
+      const jsonEnd = Math.max(jsonEndBracket, jsonEndBrace);
+      if (jsonEnd > 0 && jsonEnd < cleaned.length - 1) {
+        cleaned = cleaned.substring(0, jsonEnd + 1);
+      }
+
+      try {
+        valueToSave = JSON.parse(cleaned);
+      } catch {
+        // Attempt repair: fix trailing commas
+        const repaired = cleaned.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}');
         try {
-          valueToSave = JSON.parse(jsonMatch[1]);
+          valueToSave = JSON.parse(repaired);
         } catch {
-          toast.error(`AI returned invalid structured data for ${dbField}. Please try again.`);
+          toast.error(`AI returned invalid structured data for ${dbField}. Please re-review this section.`);
+          console.error(`JSON parse failed for ${dbField}:`, cleaned.substring(0, 200));
           return;
         }
-      } else {
-        toast.error(`AI did not return structured JSON for ${dbField}. Please try again.`);
-        return;
       }
     }
 
@@ -1978,10 +2010,16 @@ export default function CurationReviewPage() {
       // Backward compat: if AI returned old flat array format, wrap it
       if (Array.isArray(valueToSave)) {
         const tiers: Record<string, number> = {};
-        const tierNames = ['platinum', 'gold', 'silver'];
+        const tierNames = ['platinum', 'gold', 'silver', 'honorable_mention'];
         (valueToSave as any[]).forEach((row: any, i: number) => {
-          const key = tierNames[i] || `tier_${i}`;
-          tiers[key] = Number(row.amount) || 0;
+          // Use the tier name from the row if available, otherwise use position
+          const key = (row.tier || row.prize_tier || row.tier_name || tierNames[i] || `tier_${i}`)
+            .toLowerCase().replace(/\s+/g, '_');
+          // Handle string amounts like "$75,000"
+          const rawAmount = row.amount ?? row.prize ?? row.value ?? 0;
+          tiers[key] = typeof rawAmount === 'string'
+            ? Number(rawAmount.replace(/[$,]/g, ''))
+            : Number(rawAmount) || 0;
         });
         const currency = (valueToSave as any[])[0]?.currency || 'USD';
         valueToSave = { type: 'monetary', monetary: { tiers, currency } };
@@ -2002,9 +2040,11 @@ export default function CurationReviewPage() {
       if (rawArr) {
         valueToSave = {
           criteria: rawArr.map((c: any) => ({
-            criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.title ?? "",
-            weight_percentage: c.weight_percentage ?? c.weight ?? c.percentage ?? 0,
-            description: c.description ?? c.details ?? "",
+            criterion_name: c.criterion_name ?? c.name ?? c.criterion ?? c.parameter ?? c.title ?? "",
+            weight_percentage: Number(c.weight_percentage ?? c.weight ?? c.percentage ?? c.weight_percent ?? 0),
+            description: c.description ?? c.details ?? c.scoring_type ?? "",
+            scoring_method: c.scoring_method ?? c.scoring_type ?? "",
+            evaluator_role: c.evaluator_role ?? c.evaluator ?? "",
           }))
         };
       }
@@ -2024,16 +2064,35 @@ export default function CurationReviewPage() {
       }
     }
 
-    // ── Data Resources Provided: unwrap from wrapper if needed ──
+    // ── Data Resources Provided: normalize AI field aliases to canonical columns ──
     if (dbField === 'data_resources_provided' && valueToSave && typeof valueToSave === 'object') {
       const rawArr = Array.isArray(valueToSave) ? valueToSave : (valueToSave?.items ?? null);
       if (rawArr && Array.isArray(rawArr)) {
-        valueToSave = rawArr;
+        valueToSave = rawArr.map((row: any) => ({
+          resource: row.resource ?? row.name ?? row.resource_name ?? "",
+          type: row.type ?? row.data_type ?? row.resource_type ?? "",
+          format: row.format ?? "",
+          size: row.size ?? "",
+          access_method: row.access_method ?? row.access ?? "",
+          restrictions: row.restrictions ?? row.restriction ?? "",
+        }));
+      }
+    }
+
+    // ── Domain tags: validate as string array ──
+    if (dbField === 'domain_tags' && Array.isArray(valueToSave)) {
+      valueToSave = valueToSave.filter((t: any) => typeof t === 'string' && t.trim().length > 0);
+      if (valueToSave.length === 0) {
+        toast.error("AI suggested no valid domain tags. Please add tags manually.");
+        return;
       }
     }
 
     // ── Text fields: normalize markdown → sanitized HTML ──
-    const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
+    // Derive dynamically from SECTION_FORMAT_CONFIG to avoid hardcoding
+    const HTML_TEXT_FIELDS = Object.entries(SECTION_FORMAT_CONFIG)
+      .filter(([, cfg]) => cfg.format === 'rich_text')
+      .map(([key]) => key);
     if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
       const { normalizeAiContentForEditor } = await import('@/lib/aiContentFormatter');
       valueToSave = normalizeAiContentForEditor(valueToSave);
@@ -2122,13 +2181,19 @@ export default function CurationReviewPage() {
     const config = SECTION_FORMAT_CONFIG[subsectionKey];
     if (config && (config.format === 'line_items' || config.format === 'table')) {
       const cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-      if (jsonMatch) {
-        try {
-          valueToSave = JSON.parse(jsonMatch[1]);
-        } catch {
-          toast.error(`AI returned invalid JSON for ${subsectionKey}. Please try again.`);
-          return;
+      // Try direct JSON.parse first to avoid double-serialization issues
+      try {
+        valueToSave = JSON.parse(cleaned);
+      } catch {
+        // Fallback: regex extraction
+        const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+        if (jsonMatch) {
+          try {
+            valueToSave = JSON.parse(jsonMatch[1]);
+          } catch {
+            toast.error(`AI returned invalid JSON for ${subsectionKey}. Please try again.`);
+            return;
+          }
         }
       }
       // Unwrap { items: [...] } wrapper — extended_brief subsections expect flat arrays

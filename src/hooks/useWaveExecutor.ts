@@ -114,6 +114,12 @@ export function useWaveExecutor({
           // AI suggestions are stored in review state (setAiReview above).
           // We do NOT write to setSectionData — that requires explicit Accept action.
           // Writing here would corrupt table sections if AI returns prose.
+          //
+          // EXCEPTION: For GENERATED sections (empty → AI created content), write to section data
+          // so downstream waves can reference it. Safe: no human content to corrupt.
+          if ((normalized as any).status === 'generated' && parsedSuggestion != null) {
+            store.getState().setSectionData(sectionKey, parsedSuggestion);
+          }
 
           // Post-LLM validation
           if (context.todaysDate) {
@@ -220,7 +226,7 @@ export function useWaveExecutor({
       }
 
       // Update wave result
-      const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'completed' : 'completed';
+      const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
       setWaveProgress((prev) => ({
         ...prev,
         waves: prev.waves.map((w) =>

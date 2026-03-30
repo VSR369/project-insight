@@ -1068,13 +1068,12 @@ serve(async (req) => {
 
     const allNewSections: any[] = [];
 
-    // Change 2: Use getModelForRequest for model selection
-    const allSectionKeys = sectionsToReview.map(s => s.key);
-    const modelToUse = getModelForRequest(allSectionKeys, globalConfig);
+    // Change 2: Keep default model for complexity; compute per-batch model inside loop
+    const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
-      ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient, clientContext)
+      ? callComplexityAI(LOVABLE_API_KEY, getModelForRequest(['complexity'], globalConfig), challengeData, adminClient, clientContext)
           .then((result) => {
             (result as any).prompt_source = useDbConfig ? "supervisor" : "default";
             allNewSections.push(result);
@@ -1093,6 +1092,9 @@ serve(async (req) => {
       : Promise.resolve();
 
     for (const batch of batches) {
+      // Per-batch model selection: critical sections get premium model
+      const batchKeys = batch.map(b => b.key);
+      const modelToUse = getModelForRequest(batchKeys, globalConfig);
       // Build action-aware user prompt instruction for Pass 1 (analysis only)
       let userPromptInstruction: string;
       if (wave_action === 'generate') {
