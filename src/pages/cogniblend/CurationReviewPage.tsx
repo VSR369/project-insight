@@ -2623,6 +2623,8 @@ export default function CurationReviewPage() {
       maturity_level: challenge?.maturity_level,
       domain_tags: domainTags,
       complexity: challenge?.complexity_level ?? undefined,
+      solution_type: challenge?.solution_type ?? undefined,
+      operating_model: challenge?.operating_model ?? undefined,
       scope: challenge?.scope ? (typeof challenge.scope === 'string' ? challenge.scope.slice(0, 500) : undefined) : undefined,
       deliverables: deliverableNames.length > 0 ? deliverableNames : undefined,
       evaluation_criteria: evalCriteriaNames.length > 0 ? evalCriteriaNames : undefined,
@@ -2637,6 +2639,7 @@ export default function CurationReviewPage() {
     challenge?.complexity_level, challenge?.scope, challenge?.deliverables,
     challenge?.evaluation_criteria, challenge?.currency_code,
     challenge?.problem_statement, challenge?.reward_structure,
+    challenge?.solution_type, challenge?.operating_model,
   ]);
 
   // ══════════════════════════════════════

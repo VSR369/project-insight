@@ -523,7 +523,7 @@ export function AIReviewInline({
     } finally {
       setIsReReviewing(false);
     }
-  }, [challengeId, sectionKey, roleContext, onSingleSectionReview, onReReview]);
+  }, [challengeId, sectionKey, roleContext, currentContent, challengeContext, onSingleSectionReview, onReReview]);
 
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;

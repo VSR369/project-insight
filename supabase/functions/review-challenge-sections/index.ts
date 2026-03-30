@@ -1163,6 +1163,27 @@ serve(async (req) => {
         };
       }
 
+      // Alias section keys to their actual DB field values for Pass 1 JSON dump
+      if (!challengeData.solver_expertise && challengeData.solver_expertise_requirements) {
+        challengeData.solver_expertise = challengeData.solver_expertise_requirements;
+      }
+      if (!challengeData.eligibility || challengeData.eligibility === '') {
+        challengeData.eligibility = challengeData.solver_eligibility_types ?? null;
+      }
+      if (!challengeData.visibility || challengeData.visibility === '') {
+        challengeData.visibility = challengeData.solver_visibility_types ?? null;
+      }
+      if (!challengeData.submission_guidelines) {
+        challengeData.submission_guidelines = challengeData.description ?? null;
+      }
+
+      // If re-review sends current_content for a specific section, overlay onto challengeData
+      if (section_key && current_content != null) {
+        challengeData[section_key] = current_content;
+        const alias = SECTION_FIELD_ALIASES[section_key];
+        if (alias) challengeData[alias] = current_content;
+      }
+
       // Build context-specific data sections for user prompt
       if (resolvedContext === "curation") {
         const legalResult = results[resultIdx++];
