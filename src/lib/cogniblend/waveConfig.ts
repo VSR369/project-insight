@@ -54,7 +54,7 @@ export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 2,
     name: 'Enrichment',
-    sectionIds: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'preferred_approach', 'approaches_not_of_interest'],
+    sectionIds: ['solution_type', 'root_causes', 'affected_stakeholders', 'current_deficiencies', 'preferred_approach', 'approaches_not_of_interest'],
     prerequisiteSections: ['problem_statement', 'scope'],
   },
   {

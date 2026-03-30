@@ -196,12 +196,12 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     aiUsesContext: [],
   },
   solution_type: {
-    format: 'radio',
-    masterDataTable: 'proficiency_area_solution_type_map',
+    format: 'checkbox_multi',
+    masterDataTable: 'md_solution_types',
     aiCanDraft: true,
     aiReviewEnabled: true,
     curatorCanEdit: true,
-    aiUsesContext: ['scope', 'deliverables', 'problem_statement'],
+    aiUsesContext: ['problem_statement', 'scope', 'deliverables', 'context_and_background'],
   },
   // ── Extra sections (not in original 16-section spec but exist in app) ──
   hook: {

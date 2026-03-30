@@ -90,6 +90,7 @@ const SECTION_DISPLAY_NAMES: Partial<Record<SectionKey, string>> = {
   solver_expertise: 'Solver Expertise Requirements',
   data_resources_provided: 'Data & Resources Provided',
   success_metrics_kpis: 'Success Metrics & KPIs',
+  solution_type: 'Solution Type',
 };
 
 export function getSectionDisplayName(key: SectionKey | string): string {
