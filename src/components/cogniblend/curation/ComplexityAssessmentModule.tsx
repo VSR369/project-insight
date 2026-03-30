@@ -52,6 +52,17 @@ const TAB_TO_MODE: Record<ActiveTab, AssessmentMode> = {
 
 /* ─── Props ─── */
 
+export interface ResolvedParam {
+  param_key: string;
+  name: string;
+  value: number;
+  weight: number;
+}
+
+export interface ComplexityModuleHandle {
+  saveAiDraft: () => void;
+}
+
 export interface ComplexityAssessmentModuleProps {
   challengeId: string;
   currentScore: number | null;
@@ -59,7 +70,7 @@ export interface ComplexityAssessmentModuleProps {
   currentParams: { param_key?: string; key?: string; name?: string; value?: number; score?: number }[] | null;
   complexityParams: ComplexityParam[];
   solutionType?: SolutionType | null;
-  onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode) => void;
+  onSave: (params: Record<string, number>, score: number, level: string, mode?: AssessmentMode, resolvedParams?: ResolvedParam[]) => void;
   onLock?: () => void;
   onUnlock?: () => void;
   isLocked?: boolean;
