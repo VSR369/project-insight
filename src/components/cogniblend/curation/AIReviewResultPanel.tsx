@@ -199,17 +199,33 @@ function parseComment(raw: string | { text?: string; type?: string; severity?: s
 
 function parseTableRows(content: string): Record<string, unknown>[] | null {
   const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object") {
-      return parsed;
+  
+  const tryExtract = (text: string): Record<string, unknown>[] | null => {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object") {
+        return parsed;
+      }
+      if (parsed?.criteria && Array.isArray(parsed.criteria)) return parsed.criteria;
+      if (parsed?.rows && Array.isArray(parsed.rows)) return parsed.rows;
+      if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
+    } catch {
+      // not valid JSON
     }
-    if (parsed?.criteria && Array.isArray(parsed.criteria)) return parsed.criteria;
-    if (parsed?.rows && Array.isArray(parsed.rows)) return parsed.rows;
-    if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
-  } catch {
-    // not JSON
+    return null;
+  };
+
+  // Attempt 1: direct parse on cleaned string
+  const direct = tryExtract(cleaned);
+  if (direct) return direct;
+
+  // Attempt 2: regex extract first JSON array from prose/markdown
+  const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    const extracted = tryExtract(arrayMatch[0]);
+    if (extracted) return extracted;
   }
+
   return null;
 }
 

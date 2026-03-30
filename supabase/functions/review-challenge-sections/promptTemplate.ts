@@ -90,6 +90,8 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   current_deficiencies: 'line_items',
   preferred_approach: 'line_items',
   approaches_not_of_interest: 'line_items',
+  success_metrics_kpis: 'table',
+  data_resources_provided: 'table',
 };
 
 /** Extended Brief subsection-specific format instructions */
