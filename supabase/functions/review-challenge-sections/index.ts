@@ -580,6 +580,8 @@ async function callAIPass2Rewrite(
   clientContext?: any,
   sectionConfigs?: SectionConfig[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
+  orgContext?: any,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; sharedWithSolver: boolean }[]>,
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
@@ -686,7 +688,7 @@ ORIGINAL CONTENT:
 ${contentStr}
 ${depBlock}
     ${(() => {
-      const sectionAtts = attachmentsBySection[r.section_key] || [];
+      const sectionAtts = (attachmentsBySection || {})[r.section_key] || [];
       return sectionAtts.length > 0
         ? `\nREFERENCE MATERIALS for this section:\n${sectionAtts.map((a: any) => {
             const typeTag = a.sourceType === 'url' ? 'WEB' : 'DOC';
@@ -746,6 +748,10 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     // Fallback to inline prompt when no configs available
     pass2SystemPrompt = buildPass2SystemPrompt([], clientContext, masterDataOptions);
   }
+
+  // Bug 1: Prepend context intelligence for org/geography/industry awareness in Pass 2
+  const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
+  pass2SystemPrompt = contextIntel + '\n\n' + pass2SystemPrompt;
 
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
@@ -867,6 +873,8 @@ async function callAIBatchTwoPass(
   skipAnalysis?: boolean,
   providedComments?: any[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
+  orgContext?: any,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; sharedWithSolver: boolean }[]>,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
@@ -883,7 +891,7 @@ async function callAIBatchTwoPass(
   // ═══ PASS 2: Rewrite (conditional) ═══
   let suggestionMap: Map<string, string>;
   try {
-    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions);
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection);
   } catch (err: any) {
     // Pass 2 failure is non-fatal — return Pass 1 results without suggestions
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
@@ -929,6 +937,7 @@ async function callComplexityAI(
   challengeData: any,
   adminClient: any,
   clientContext?: any,
+  orgContext?: any,
 ): Promise<any> {
   // Resolve solution type — REQUIRE explicit type, no arbitrary fallback
   const solutionType = challengeData.solution_type || clientContext?.solutionType || null;
@@ -974,7 +983,7 @@ async function callComplexityAI(
     };
   }
 
-  return await executeComplexityAssessment(apiKey, model, challengeData, dimensions, clientContext);
+  return await executeComplexityAssessment(apiKey, model, challengeData, dimensions, clientContext, orgContext);
 }
 
 async function executeComplexityAssessment(
@@ -983,6 +992,7 @@ async function executeComplexityAssessment(
   challengeData: any,
   dimensions: any[],
   clientContext?: any,
+  orgContext?: any,
 ): Promise<any> {
   const paramDescriptions = dimensions.map((d: any) =>
     `- ${d.dimension_key} (${d.dimension_name}): Level 1 = "${d.level_1_description}", Level 3 = "${d.level_3_description}", Level 5 = "${d.level_5_description}"`
@@ -1021,7 +1031,8 @@ RATING RULES:
 - Justification MUST reference SPECIFIC challenge content — quote values, cite numbers, name sections.
 - If a relevant section is empty, state that and rate conservatively (lower, not default 5).
 - DIFFERENTIATE ratings — dimensions should differ unless the challenge is truly uniform.
-- Consider MATURITY: Blueprint = more uncertainty/innovation. Pilot = more integration/scalability.`;
+- Consider MATURITY: Blueprint = more uncertainty/innovation. Pilot = more integration/scalability.
+${orgContext?.orgName ? `\nORGANIZATION CONTEXT: This challenge is from ${orgContext.orgName}${orgContext.hqCountry ? ` (${orgContext.hqCountry})` : ''}${orgContext.industries?.[0]?.name ? ` in ${orgContext.industries[0].name}` : ''}. Calibrate complexity ratings for this industry and geography.\n` : ''}`;
 
   const strip = (s: any): string => {
     if (!s) return '(empty)';
@@ -1275,9 +1286,11 @@ serve(async (req) => {
     let resultIdx = 1;
     let orgContext: {
       orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
-      websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
+      websiteUrl?: string; linkedinUrl?: string; twitterUrl?: string; tagline?: string;
+      hqCountry?: string; hqCity?: string;
       annualRevenue?: string; employeeCount?: string; foundingYear?: number;
-      isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
+      isEnterprise?: boolean; functionalAreas?: string[];
+      industries?: { name: string; isPrimary: boolean }[];
     } = {};
 
     if (isPreviewMode) {
@@ -1357,7 +1370,7 @@ serve(async (req) => {
         try {
           const { data: org } = await adminClient
             .from('seeker_organizations')
-            .select('organization_name, trade_brand_name, organization_description, website_url, linkedin_url, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id')
+            .select('organization_name, trade_brand_name, organization_description, website_url, linkedin_url, twitter_url, tagline, functional_areas, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id')
             .eq('id', challengeData.organization_id)
             .single();
           if (org) {
@@ -1371,6 +1384,9 @@ serve(async (req) => {
             orgContext.employeeCount = org.employee_count_range ?? undefined;
             orgContext.foundingYear = org.founding_year ?? undefined;
             orgContext.isEnterprise = org.is_enterprise;
+            orgContext.twitterUrl = org.twitter_url ?? undefined;
+            orgContext.tagline = org.tagline ?? undefined;
+            orgContext.functionalAreas = org.functional_areas ?? [];
 
             if (org.hq_country_id) {
               const { data: ctry } = await adminClient.from('countries').select('name').eq('id', org.hq_country_id).single();
@@ -1502,7 +1518,7 @@ serve(async (req) => {
             attachmentsBySection[att.section_key].push({
               name: att.source_type === 'url'
                 ? (att.url_title || att.source_url || 'Web link')
-                : att.file_name,
+                : (att.file_name || 'Unnamed file'),
               sourceType: att.source_type || 'file',
               sourceUrl: att.source_url ?? undefined,
               content: att.extracted_text.substring(0, 5000),
@@ -1538,7 +1554,7 @@ serve(async (req) => {
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
-      ? callComplexityAI(LOVABLE_API_KEY, getModelForRequest(['complexity'], globalConfig), challengeData, adminClient, clientContext)
+      ? callComplexityAI(LOVABLE_API_KEY, getModelForRequest(['complexity'], globalConfig), challengeData, adminClient, clientContext, orgContext)
           .then((result) => {
             (result as any).prompt_source = useDbConfig ? "supervisor" : "default";
             allNewSections.push(result);
@@ -1555,6 +1571,9 @@ serve(async (req) => {
             console.error("Complexity AI call failed:", err);
           })
       : Promise.resolve();
+
+    // Bug 7: Build context intelligence ONCE before the batch loop
+    const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
 
     for (const batch of batches) {
       // Per-batch model selection: critical sections get premium model
@@ -1691,7 +1710,8 @@ REFERENCE MATERIAL USAGE RULES:
 
       let systemPrompt: string;
       // Build context intelligence preamble
-      const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
+      // Bug 7: contextIntel is now built once before the batch loop (see below line ~1559)
+      // It is still used here per-batch for system prompt construction
       if (useDbConfig && dbConfigMap) {
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
         systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);
@@ -1755,6 +1775,8 @@ REFERENCE MATERIAL USAGE RULES:
           skip_analysis === true,
           provided_comments,
           masterDataOptions,
+          orgContext,
+          attachmentsBySection,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {

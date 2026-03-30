@@ -82,6 +82,12 @@ serve(async (req) => {
             .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
             .replace(/\s+/g, " ").trim().substring(0, 50000);
           method = "url_html";
+
+          // Bug 8: Check for sparse content from JS-rendered or auth-protected pages
+          if (extractedText.trim().length < 100) {
+            extractedText = `[URL content is sparse or inaccessible (${extractedText.trim().length} chars extracted). The page may require authentication, use JavaScript rendering, or block automated access. Source: ${att.source_url}]`;
+            method = "url_html_sparse";
+          }
         }
 
         // Auto-populate url_title from page <title>
@@ -121,20 +127,55 @@ serve(async (req) => {
       if (att.mime_type === "application/pdf") {
         const textDecoder = new TextDecoder();
         const rawText = textDecoder.decode(buffer);
-        extractedText = rawText
+        const cleaned = rawText
           .replace(/[^\x20-\x7E\n\r\t]/g, " ")
           .replace(/\s+/g, " ")
           .trim()
           .substring(0, 50000);
-        method = "pdf_text";
+
+        // Bug 4: Quality check — if <20% printable ASCII, extraction is garbage
+        const printableRatio = cleaned.replace(/\s/g, '').length / Math.max(cleaned.length, 1);
+        if (printableRatio < 0.2 || cleaned.length < 50) {
+          extractedText = `[PDF content could not be extracted as text. File: ${att.file_name || 'unnamed'}. This PDF may be image-based or encrypted. Consider uploading a text-based version or pasting key content directly into the section.]`;
+          method = "pdf_binary_fallback";
+        } else {
+          extractedText = cleaned;
+          method = "pdf_text";
+        }
       } else if (att.mime_type?.includes("spreadsheet") || att.mime_type?.includes("excel") || att.mime_type?.includes("csv")) {
         const textDecoder = new TextDecoder();
-        extractedText = textDecoder.decode(buffer).substring(0, 50000);
-        method = "tabular_text";
+        const raw = textDecoder.decode(buffer);
+        // Bug 9: CSV is plaintext; XLSX is ZIP archive
+        if (att.mime_type?.includes("csv") || att.file_name?.endsWith('.csv')) {
+          extractedText = raw.substring(0, 50000);
+          method = "csv_text";
+        } else {
+          const printableRatio = raw.replace(/[^\x20-\x7E]/g, '').length / Math.max(raw.length, 1);
+          if (printableRatio < 0.3) {
+            extractedText = `[Excel file could not be extracted as text. File: ${att.file_name || 'unnamed'}. Consider exporting key data as CSV and uploading that instead.]`;
+            method = "xlsx_binary_fallback";
+          } else {
+            extractedText = raw.substring(0, 50000);
+            method = "tabular_text";
+          }
+        }
       } else if (att.mime_type?.includes("wordprocessing") || att.mime_type?.includes("document") || att.mime_type === "text/plain") {
         const textDecoder = new TextDecoder();
-        extractedText = textDecoder.decode(buffer).substring(0, 50000);
-        method = "docx_text";
+        const raw = textDecoder.decode(buffer);
+        // Bug 9: text/plain is actual text; DOCX is ZIP archive
+        if (att.mime_type === "text/plain") {
+          extractedText = raw.substring(0, 50000);
+          method = "plain_text";
+        } else {
+          const printableRatio = raw.replace(/[^\x20-\x7E]/g, '').length / Math.max(raw.length, 1);
+          if (printableRatio < 0.3) {
+            extractedText = `[Word document could not be extracted as text. File: ${att.file_name || 'unnamed'}. Consider pasting key content directly into the section or saving as PDF.]`;
+            method = "docx_binary_fallback";
+          } else {
+            extractedText = raw.substring(0, 50000);
+            method = "docx_text";
+          }
+        }
       } else if (att.mime_type?.startsWith("image/")) {
         const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
         if (!LOVABLE_API_KEY) {
