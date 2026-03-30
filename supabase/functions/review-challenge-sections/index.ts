@@ -1370,7 +1370,7 @@ serve(async (req) => {
         try {
           const { data: org } = await adminClient
             .from('seeker_organizations')
-            .select('organization_name, trade_brand_name, organization_description, website_url, linkedin_url, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id')
+            .select('organization_name, trade_brand_name, organization_description, website_url, linkedin_url, twitter_url, tagline, functional_areas, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id')
             .eq('id', challengeData.organization_id)
             .single();
           if (org) {
