@@ -237,8 +237,6 @@ const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalD
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
 const CurationReviewPage = lazy(() => import("@/pages/cogniblend/CurationReviewPage"));
 const CogniPlaceholderPage = lazy(() => import("@/pages/cogniblend/CogniPlaceholderPage"));
-const ApprovalQueuePage = lazy(() => import("@/pages/cogniblend/ApprovalQueuePage"));
-const ApprovalReviewPage = lazy(() => import("@/pages/cogniblend/ApprovalReviewPage"));
 const PublicationReadinessPage = lazy(() => import("@/pages/cogniblend/PublicationReadinessPage"));
 const PublicChallengeDetailPage = lazy(() => import("@/pages/cogniblend/PublicChallengeDetailPage"));
 const ChallengeManagePage = lazy(() => import("@/pages/cogniblend/ChallengeManagePage"));
@@ -247,17 +245,9 @@ const FullSolutionUploadPage = lazy(() => import("@/pages/cogniblend/FullSolutio
 const ScreeningReviewPage = lazy(() => import("@/pages/cogniblend/ScreeningReviewPage"));
 const LcReviewQueuePage = lazy(() => import("@/pages/cogniblend/LcReviewQueuePage"));
 const LcReviewPanel = lazy(() => import("@/pages/cogniblend/LcReviewPanel"));
-const CogniSubmitRequestPage = lazy(() => import("@/pages/cogniblend/CogniSubmitRequestPage"));
-const CogniMyRequestsPage = lazy(() => import("@/pages/cogniblend/CogniMyRequestsPage"));
-const AMChallengeReviewPage = lazy(() => import("@/pages/cogniblend/AMChallengeReviewPage"));
-const AMRequestViewPage = lazy(() => import("@/pages/cogniblend/AMRequestViewPage"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
 const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
-
-// Solution Request Pages (lazy loaded — backward-compatible standalone routes)
-const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
-const SolutionRequestsListPage = lazy(() => import("@/pages/requests/SolutionRequestsListPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -359,14 +349,8 @@ const App = () => (
               <Route path="/cogni/curation" element={<LazyRoute><CurationQueuePage /></LazyRoute>} />
               <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
 
-              {/* Solution Request routes inside CogniShell */}
-              <Route path="/cogni/submit-request" element={<LazyRoute><CogniSubmitRequestPage /></LazyRoute>} />
-              <Route path="/cogni/my-requests/:id/view" element={<LazyRoute><AMRequestViewPage /></LazyRoute>} />
-              <Route path="/cogni/my-requests/:id/review" element={<LazyRoute><AMChallengeReviewPage /></LazyRoute>} />
-              {/* /cogni/my-requests collection page removed — dashboard Section A covers this */}
+              {/* My Challenges */}
               <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
-              <Route path="/cogni/approval" element={<LazyRoute><ApprovalQueuePage /></LazyRoute>} />
-              <Route path="/cogni/approval/:id" element={<LazyRoute><ApprovalReviewPage /></LazyRoute>} />
               <Route path="/cogni/lc-queue" element={<LazyRoute><LcChallengeQueuePage /></LazyRoute>} />
               <Route path="/cogni/legal" element={<LazyRoute><CogniPlaceholderPage title="Legal Documents" description="Manage legal templates and document attachments for challenges." /></LazyRoute>} />
               <Route path="/cogni/legal-review" element={<LazyRoute><LcReviewQueuePage /></LazyRoute>} />
@@ -1033,23 +1017,7 @@ const App = () => (
             />
             {/* SaasAgreementPage moved to nested /admin route above */}
 
-            {/* Solution Request Routes */}
-            <Route
-              path="/requests"
-              element={
-                <AuthGuard>
-                  <LazyRoute><SolutionRequestsListPage /></LazyRoute>
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/requests/new"
-              element={
-                <AuthGuard>
-                  <LazyRoute><NewSolutionRequestPage /></LazyRoute>
-                </AuthGuard>
-              }
-            />
+            {/* Solution Request Routes — removed (role architecture v2) */}
 
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />

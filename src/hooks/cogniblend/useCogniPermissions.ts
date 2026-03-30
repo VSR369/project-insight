@@ -2,13 +2,12 @@
  * useCogniPermissions — Centralized permission resolver for CogniBlend.
  * Translates raw role codes into semantic boolean capability flags.
  *
+ * ROLE ARCHITECTURE v2: 2 core roles (CR, CU) + 3 support (ER, LC, FC)
+ * Removed: AM, RQ, CA, ID — all legacy references resolved to CR or CU.
+ *
  * Two resolver layers:
  *   - `sees` (visibility): always checks ALL availableRoles — drives nav item rendering.
  *   - `can`  (action):     respects focused activeRole — drives dashboard sections & write actions.
- *
- * Two modes for action permissions:
- *   - Focused: when activeRole is set, only that role drives `can` flags.
- *   - Merged:  when no activeRole, all availableRoles are unioned.
  */
 
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
@@ -26,30 +25,23 @@ export function useCogniPermissions() {
 
   return {
     // ── Nav visibility flags (always based on ALL user roles) ──
-    canSeeChallengePage:  sees(['CA', 'CR']),
-    canSeeRequests:       sees(['AM', 'RQ']),
+    canSeeChallengePage:  sees(['CR']),
+    canSeeCreatorDashboard: sees(['CR']),
     canSeeCurationQueue:  sees(['CU']),
-    canSeeApprovalQueue:  sees(['ID']),
     canSeeLegalWorkspace: sees(['LC']),
     canSeeEvaluation:     sees(['ER']),
     canSeeEscrow:         sees(['FC']),
 
     // ── Action permissions (respects focused role) ──
-    canCreateChallenge:   can(['CA', 'CR']),
-    canSubmitRequest:     can(['AM', 'RQ']),
-    canEditSpec:          can(['CA', 'CR']),
+    canCreateChallenge:   can(['CR']),
+    canEditSpec:          can(['CR']),
     canCurate:            can(['CU']),
-    canApprove:           can(['ID']),
     canReviewEvaluation:  can(['ER']),
     canReviewLegal:       can(['LC']),
     canManageEscrow:      can(['FC']),
 
     // ── UX grouping flags (action-level) ──
-    isSpecRole:           can(['CA', 'CR']),
-    isBusinessOwner:      can(['AM', 'RQ']),
-
-    // Context switcher trigger — only when roles have competing UX intent
-    hasConflictingIntent: can(['AM', 'RQ']) && can(['CA', 'CR']),
+    isSpecRole:           can(['CR']),
   };
 }
 

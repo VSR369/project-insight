@@ -1,6 +1,6 @@
 /**
  * useAutoAssignChallengeRoles — Taxonomy-based auto-assignment for
- * challenge roles (CR, CU, ID) from the platform_provider_pool.
+ * challenge roles (CU) from the platform_provider_pool.
  *
  * Matching hierarchy:
  *   Industry Segment (MUST match)
@@ -17,7 +17,7 @@ import { validateRoleAssignment } from '@/hooks/cogniblend/useValidateRoleAssign
 
 interface AssignmentInput {
   challengeId: string;
-  roleCode: string;             // 'CR' | 'CU' | 'ID'
+  roleCode: string;             // 'CU' (primary), 'ER', 'LC', 'FC'
   industrySegmentId: string;
   proficiencyAreaIds?: string[];
   subDomainIds?: string[];
@@ -182,7 +182,7 @@ export async function autoAssignChallengeRole(
     assigned_by: input.assignedBy,
     assigned_at: new Date().toISOString(),
     status: 'ACTIVE',
-    assignment_phase: (input.roleCode === 'CR' || input.roleCode === 'CA') ? 'PHASE_2' : input.roleCode === 'CU' ? 'PHASE_3' : 'PHASE_4',
+    assignment_phase: input.roleCode === 'CU' ? 'PHASE_3' : input.roleCode === 'CR' ? 'PHASE_2' : 'PHASE_4',
   });
 
   const { error: assignError } = await supabase

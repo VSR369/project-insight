@@ -28,7 +28,7 @@ import { useAssignMember, useChallengeAssignments } from "@/hooks/queries/useSol
 import { usePoolMembers } from "@/hooks/queries/usePoolMembers";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { getRoleLabel, getRoleDisplayLabel } from "@/lib/roleUtils";
-import { PreviousTeamSuggestion } from "@/components/admin/marketplace/PreviousTeamSuggestion";
+
 import { FullyBookedAlternativesModal } from "@/components/admin/marketplace/FullyBookedAlternativesModal";
 import { NoAvailableMembersAlert } from "@/components/admin/marketplace/NoAvailableMembersAlert";
 import { useSessionExpiryWatcher, useRestoreFormFromRecovery, useSaveFormForRecovery } from "@/hooks/useSessionRecovery";
@@ -196,16 +196,7 @@ export function AssignMemberModal({
               )}
             </div>
 
-            {/* Previous team suggestion (BR-ASSIGN-002) */}
-            {selectedRole && orgId && (
-              <PreviousTeamSuggestion
-                challengeId={challengeId}
-                orgId={orgId}
-                roleCode={selectedRole}
-                excludeMemberIds={existingMemberIdsForRole}
-                onSelect={handlePreviousTeamSelect}
-              />
-            )}
+            {/* Previous team suggestion removed — simplified role architecture */}
 
             {/* Member selector */}
             {selectedRole && (

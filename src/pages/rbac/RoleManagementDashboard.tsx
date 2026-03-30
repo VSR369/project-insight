@@ -16,7 +16,7 @@ import { AggRoleManagement } from "@/components/rbac/AggRoleManagement";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { ChallengeRequestorToggle } from "@/components/rbac/ChallengeRequestorToggle";
+
 import { DelegatedAdminListTab } from "@/components/rbac/DelegatedAdminListTab";
 import { useCoreRoleCodes, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
@@ -121,8 +121,7 @@ export default function RoleManagementDashboard() {
         {/* MSME Toggle */}
         <MsmeToggle orgId={organizationId} onQuickAssign={() => setQuickAssignOpen(true)} />
 
-        {/* Challenge Requestor Toggle */}
-        <ChallengeRequestorToggle orgId={organizationId} />
+        {/* Challenge Requestor Toggle — removed (role architecture v2) */}
 
         {/* Role Tabs — Core + Aggregator only (BR-CORE-004: no Marketplace) */}
         {isLoading ? (

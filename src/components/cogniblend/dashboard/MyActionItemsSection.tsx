@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useMyRequests } from '@/hooks/queries/useMyRequests';
+
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
 import { ROLE_DISPLAY } from '@/types/cogniRoles';
@@ -102,9 +102,9 @@ export function MyActionItemsSection() {
   const queryClient = useQueryClient();
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
-  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '', 'mine');
+  
 
-  const { isSpecRole, isBusinessOwner } = useCogniPermissions();
+  const { isSpecRole } = useCogniPermissions();
 
   // Fetch unread notifications for CA/CR roles
   const { data: unreadNotifications = [], isLoading: notifLoading } = useQuery({
@@ -125,13 +125,9 @@ export function MyActionItemsSection() {
     staleTime: 10_000,
   });
 
-  const isLoading = chLoading || reqLoading || isRolesLoading || (isSpecRole && notifLoading);
+  const isLoading = chLoading || isRolesLoading || (isSpecRole && notifLoading);
 
   const challengeItems = challengesData?.items ?? [];
-  const allSRRows = useMemo(
-    () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
-    [requestsData],
-  );
 
   // Mark notification as read + navigate
   const handleNotificationAction = useCallback(
@@ -175,22 +171,7 @@ export function MyActionItemsSection() {
       }
     }
 
-    // Draft SRs (only for AM/RQ — driven by permission hook)
-    const showSRs = isBusinessOwner;
-    if (showSRs) {
-      for (const sr of allSRRows) {
-        if (sr.master_status === 'DRAFT' && !items.some((i) => i.id === sr.id)) {
-          items.push({
-            id: sr.id,
-            title: sr.title,
-            status: 'DRAFT',
-            phase: sr.current_phase ?? undefined,
-            phase_status: sr.phase_status,
-            created_at: sr.created_at,
-          });
-        }
-      }
-    }
+    // Draft SRs removed — no more AM/RQ request concept
 
     // Unread notifications for CA/CR (lifecycle alerts)
     if (isSpecRole) {
@@ -215,7 +196,7 @@ export function MyActionItemsSection() {
     }
 
     return items;
-  }, [challengeItems, allSRRows, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
+  }, [challengeItems, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
 

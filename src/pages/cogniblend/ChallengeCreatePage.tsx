@@ -394,7 +394,7 @@ export default function ChallengeCreatePage() {
   const backToLanding = useCallback(() => setView('landing'), [setView]);
 
   // Role-based auto-routing (via centralized permission hook)
-  const { isBusinessOwner: isAMorRQ, isSpecRole: isCreatorRole } = useCogniPermissions();
+  const { isSpecRole: isCreatorRole } = useCogniPermissions();
 
   // ═══════ Loading ═══════
   if (orgLoading || modelLoading) {
@@ -445,16 +445,7 @@ export default function ChallengeCreatePage() {
     tierCode: currentOrg.tierCode,
   };
 
-  // ═══════ AM/RQ auto-route: SimpleIntakeForm ═══════
-  if (isAMorRQ) {
-    return (
-      <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
-        <CreationContextBar />
-        <GovernanceEngagementSelector {...selectorProps} />
-        <SimpleIntakeForm />
-      </div>
-    );
-  }
+  // All creators now use the same flow (no separate AM/RQ intake)
 
   // ═══════ Inline views (AI / Editor) ═══════
   if (activeView === 'ai') {

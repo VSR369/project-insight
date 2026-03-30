@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
@@ -25,16 +24,10 @@ export function ActionItemsWidget() {
   const { data: currentOrg } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
-  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '');
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
-  const { isBusinessOwner } = useCogniPermissions();
 
-  const isLoading = reqLoading || chLoading || isRolesLoading;
+  const isLoading = chLoading || isRolesLoading;
 
-  const allSRRows = useMemo(
-    () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
-    [requestsData],
-  );
   const challengeItems = challengesData?.items ?? [];
 
   const filteredChallengeItems = useMemo(() => {
@@ -52,9 +45,7 @@ export function ActionItemsWidget() {
 
   const pendingActions = filteredChallengeItems.filter(
     (c) => c.master_status === 'DRAFT' || c.master_status === 'RETURNED'
-  ).length + (isBusinessOwner
-    ? allSRRows.filter((r) => r.master_status === 'DRAFT').length
-    : 0);
+  ).length;
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
   const modelLabel = orgContext?.operatingModel === 'MP' ? 'Marketplace' : 'Aggregator';

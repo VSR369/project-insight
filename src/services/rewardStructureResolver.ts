@@ -8,7 +8,13 @@
  */
 
 export type ChallengeModel = 'marketplace' | 'aggregator';
-export type SourceRole = 'AM' | 'CA' | 'CR' | 'CURATOR';
+export type SourceRole = 'CR' | 'CURATOR';
+
+/** Legacy source roles that map to CR for backward compatibility */
+const LEGACY_SOURCE_ROLES: Record<string, SourceRole> = {
+  AM: 'CR',
+  CA: 'CR',
+};
 export type RewardType = 'monetary' | 'non_monetary' | 'both' | null;
 
 export interface PrizeTier {
@@ -81,14 +87,19 @@ export interface RewardData {
 /* ── Role display names ── */
 
 const ROLE_DISPLAY_NAMES: Record<SourceRole, string> = {
-  AM: 'Account Manager',
-  CA: 'Challenge Architect',
   CR: 'Challenge Creator',
   CURATOR: 'Curator',
 };
 
-export function getRoleDisplayName(role: SourceRole): string {
-  return ROLE_DISPLAY_NAMES[role];
+/** Display names for legacy roles (backward compat for existing data) */
+const LEGACY_ROLE_DISPLAY: Record<string, string> = {
+  AM: 'Challenge Creator',
+  CA: 'Challenge Creator',
+};
+
+export function getRoleDisplayName(role: string): string {
+  if (role in ROLE_DISPLAY_NAMES) return ROLE_DISPLAY_NAMES[role as SourceRole];
+  return LEGACY_ROLE_DISPLAY[role] ?? role;
 }
 
 /* ── Model normalizer ── */
@@ -349,7 +360,7 @@ export function migrateRawReward(raw: any): {
 
 /* ── Source resolver ── */
 
-const MARKETPLACE_PRIORITY: SourceRole[] = ['AM', 'CA'];
+// Legacy: MARKETPLACE_PRIORITY removed — source is always CR or CURATOR
 
 /**
  * Resolve the reward data source from the challenge's reward_structure JSONB.
@@ -380,8 +391,11 @@ export function resolveRewardSource(
     };
   }
 
-  // Check for explicit source_role metadata embedded in the JSON
-  const embeddedRole = (raw.source_role as string)?.toUpperCase() as SourceRole | undefined;
+  // Check for explicit source_role metadata — resolve legacy AM/CA to CR
+  const rawRole = (raw.source_role as string)?.toUpperCase();
+  const embeddedRole: SourceRole | undefined = rawRole
+    ? (LEGACY_SOURCE_ROLES[rawRole] ?? rawRole) as SourceRole
+    : undefined;
   const sourceDate = raw.source_date as string | undefined;
   const migrated = migrateRawReward(raw);
 
@@ -389,7 +403,7 @@ export function resolveRewardSource(
   const rawUpstream = raw.upstream_source as any;
   const upstreamSource: UpstreamSource | undefined = rawUpstream && typeof rawUpstream === 'object'
     ? {
-        role: (rawUpstream.role as string)?.toUpperCase() as SourceRole,
+        role: ((r) => (LEGACY_SOURCE_ROLES[r] ?? r) as SourceRole)((rawUpstream.role as string)?.toUpperCase()),
         date: rawUpstream.date ?? rawUpstream.source_date,
         budgetMin: Number(rawUpstream.budget_min) || undefined,
         budgetMax: Number(rawUpstream.budget_max) || undefined,

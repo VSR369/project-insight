@@ -16,18 +16,14 @@ import type { MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
 
 /* ── Role codes that have meaningful "My Challenges" tabs ─── */
 
-const TAB_ELIGIBLE_ROLES = ['CR', 'CU', 'ER', 'ID', 'LC', 'FC', 'AM', 'RQ', 'CA'] as const;
+const TAB_ELIGIBLE_ROLES = ['CR', 'CU', 'ER', 'LC', 'FC'] as const;
 
 const TAB_LABELS: Record<string, string> = {
   CR: 'As Creator',
   CU: 'As Curator',
   ER: 'As Reviewer',
-  ID: 'As Approver',
   LC: 'As Legal',
   FC: 'As Finance',
-  AM: 'As Acct Mgr',
-  RQ: 'As Requestor',
-  CA: 'As Architect',
 };
 
 /* ── Master-status group ordering ────────────────────────── */
