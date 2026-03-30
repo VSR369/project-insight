@@ -761,7 +761,19 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.approaches_not_of_interest;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const items = Array.isArray(eb?.approaches_not_of_interest) ? eb.approaches_not_of_interest : [];
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not specified yet.</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {items.slice(0, 4).map((item: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs">{typeof item === 'string' ? item : item?.name ?? '—'}</Badge>
+          ))}
+          {items.length > 4 && <Badge variant="secondary" className="text-xs">+{items.length - 4} more</Badge>}
+        </div>
+      );
+    },
   },
   // ── New Phase 7 sections ──
   {
