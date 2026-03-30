@@ -1947,7 +1947,7 @@ export default function CurationReviewPage() {
       setSavingSection(true);
       const value = { items: structured };
       syncSectionToStore(sectionKey as SectionKey, value);
-      saveSectionMutation.mutate({ field: "description", value });
+      saveSectionMutation.mutate({ field: "submission_guidelines", value });
       return;
     }
 
