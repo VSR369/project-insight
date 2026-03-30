@@ -861,7 +861,7 @@ ${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` :
     const rating = ratings[d.dimension_key];
     if (!rating) return { text: `${d.dimension_name}: not rated`, type: 'warning' as const, field: d.dimension_key, reasoning: null };
     return {
-      text: `${d.dimension_name}: ${rating.rating}/5 — ${rating.justification}`,
+      text: `${d.dimension_name}: ${rating.rating}/10 — ${rating.justification}`,
       type: (rating.rating >= 4 ? 'warning' : 'strength') as string,
       field: d.dimension_key,
       reasoning: rating.justification,
