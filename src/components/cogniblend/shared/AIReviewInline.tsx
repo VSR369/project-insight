@@ -110,6 +110,10 @@ interface AIReviewInlineProps {
   initialRefinedContent?: string | null;
   /** Structured complexity ratings from AI — renders parameter table instead of text suggestion */
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
+  /** Whether upstream prerequisite sections are filled (soft guidance) */
+  prerequisitesReady?: boolean;
+  /** Labels of missing prerequisite sections (for warning toast) */
+  missingPrerequisites?: string[];
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -243,6 +247,8 @@ export function AIReviewInline({
   onReReview,
   initialRefinedContent,
   complexityRatings,
+  prerequisitesReady,
+  missingPrerequisites,
 }: AIReviewInlineProps) {
   const [editedComments, setEditedComments] = useState<SectionComment[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -252,6 +258,7 @@ export function AIReviewInline({
   const [isAddressed, setIsAddressed] = useState(review?.addressed ?? false);
   const [isReReviewing, setIsReReviewing] = useState(false);
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
+  const [prereqWarningShown, setPrereqWarningShown] = useState(false);
 
   // Structured items state (for deliverables, eval criteria, line_items)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
@@ -440,6 +447,17 @@ export function AIReviewInline({
 
   const handleReReview = useCallback(async () => {
     if (!challengeId) return;
+    // Soft prereq warning — first click warns, second click proceeds
+    if (prerequisitesReady === false && !prereqWarningShown) {
+      const names = missingPrerequisites?.slice(0, 3).join(', ') ?? 'prerequisite sections';
+      toast.warning(
+        `For best results, complete ${names} first. Click Re-review again to proceed anyway.`,
+        { duration: 5000 }
+      );
+      setPrereqWarningShown(true);
+      return;
+    }
+    setPrereqWarningShown(false);
     setIsReReviewing(true);
     try {
       // Delegate to custom re-review handler if provided (e.g. complexity uses assess-complexity)
@@ -523,7 +541,7 @@ export function AIReviewInline({
     } finally {
       setIsReReviewing(false);
     }
-  }, [challengeId, sectionKey, roleContext, currentContent, challengeContext, onSingleSectionReview, onReReview]);
+  }, [challengeId, sectionKey, roleContext, currentContent, challengeContext, onSingleSectionReview, onReReview, prerequisitesReady, prereqWarningShown, missingPrerequisites]);
 
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;

@@ -82,6 +82,7 @@ import {
   Tag,
   ChevronsDownUp,
   ChevronsUpDown,
+  ArrowRight,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
@@ -129,7 +130,7 @@ import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { CuratorSectionPanel, type SectionStatus, loadExpandState, saveExpandState } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { SECTION_FORMAT_CONFIG, LOCKED_SECTIONS as FORMAT_LOCKED_SECTIONS, AI_REVIEW_DISABLED_SECTIONS, EXTENDED_BRIEF_FIELD_MAP, EXTENDED_BRIEF_SUBSECTION_KEYS } from "@/lib/cogniblend/curationSectionFormats";
 import { getCurationFormStore, selectStaleSections } from "@/store/curationFormStore";
-import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
+import { getSectionDisplayName, getUpstreamDependencies } from "@/lib/cogniblend/sectionDependencies";
 import type { Json } from "@/integrations/supabase/types";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
@@ -138,7 +139,8 @@ import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
 import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queries/useCompletenessChecks";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
-
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 
 
@@ -892,60 +894,74 @@ const SECTIONS: SectionDef[] = [
 interface GroupDef {
   id: string;
   label: string;
+  icon: string;
   colorDone: string;
   colorActive: string;
   colorBorder: string;
   sectionKeys: string[];
+  prerequisiteGroups: string[];
 }
 
 const GROUPS: GroupDef[] = [
   {
-    id: "problem_definition",
-    label: "Problem Definition",
+    id: "foundation",
+    label: "1. Foundation",
+    icon: "🏗️",
     colorDone: "bg-emerald-100 text-emerald-800 border-emerald-300",
     colorActive: "bg-emerald-50 border-emerald-400",
     colorBorder: "border-emerald-200",
-    sectionKeys: ["context_and_background", "problem_statement", "scope", "expected_outcomes", "success_metrics_kpis"],
+    sectionKeys: ["problem_statement", "scope", "expected_outcomes", "context_and_background"],
+    prerequisiteGroups: [],
   },
   {
-    id: "challenge_context",
-    label: "Challenge Context",
+    id: "analysis",
+    label: "2. Analysis",
+    icon: "🔍",
     colorDone: "bg-teal-100 text-teal-800 border-teal-300",
     colorActive: "bg-teal-50 border-teal-400",
     colorBorder: "border-teal-200",
     sectionKeys: ["root_causes", "affected_stakeholders", "current_deficiencies", "preferred_approach", "approaches_not_of_interest"],
+    prerequisiteGroups: ["foundation"],
   },
   {
-    id: "scope_complexity",
-    label: "Scope & Complexity",
+    id: "specification",
+    label: "3. Specification",
+    icon: "📋",
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["solution_type", "deliverables", "data_resources_provided", "maturity_level", "complexity"],
+    sectionKeys: ["solution_type", "deliverables", "maturity_level", "data_resources_provided", "success_metrics_kpis"],
+    prerequisiteGroups: ["foundation"],
   },
   {
-    id: "solvers_schedule",
-    label: "Solvers & Schedule",
+    id: "assessment",
+    label: "4. Assessment",
+    icon: "⚖️",
     colorDone: "bg-slate-100 text-slate-700 border-slate-300",
     colorActive: "bg-slate-50 border-slate-400",
     colorBorder: "border-slate-200",
-    sectionKeys: ["solver_expertise", "eligibility", "phase_schedule", "submission_guidelines"],
+    sectionKeys: ["complexity", "solver_expertise", "eligibility"],
+    prerequisiteGroups: ["specification"],
   },
   {
-    id: "evaluation_rewards",
-    label: "Evaluation & Rewards",
+    id: "execution",
+    label: "5. Execution",
+    icon: "⚡",
     colorDone: "bg-amber-100 text-amber-800 border-amber-300",
     colorActive: "bg-amber-50 border-amber-400",
     colorBorder: "border-amber-200",
-    sectionKeys: ["evaluation_criteria", "reward_structure", "ip_model", "escrow_funding", "legal_docs"],
+    sectionKeys: ["phase_schedule", "evaluation_criteria", "submission_guidelines", "reward_structure", "ip_model"],
+    prerequisiteGroups: ["specification", "assessment"],
   },
   {
-    id: "publish_discover",
-    label: "Publish & Discover",
+    id: "presentation",
+    label: "6. Publish",
+    icon: "🚀",
     colorDone: "bg-violet-100 text-violet-800 border-violet-300",
     colorActive: "bg-violet-50 border-violet-400",
     colorBorder: "border-violet-200",
-    sectionKeys: ["hook", "visibility", "domain_tags"],
+    sectionKeys: ["hook", "visibility", "domain_tags", "legal_docs", "escrow_funding"],
+    prerequisiteGroups: ["execution"],
   },
 ];
 
@@ -1198,7 +1214,7 @@ export default function CurationReviewPage() {
   const { data: solutionTypesData = [] } = useSolutionTypes();
   const solutionTypeGroups = useMemo(() => groupSolutionTypes(solutionTypesData), [solutionTypesData]);
 
-  const [activeGroup, setActiveGroup] = useState<string>("problem_definition");
+  const [activeGroup, setActiveGroup] = useState<string>("foundation");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
@@ -1213,6 +1229,8 @@ export default function CurationReviewPage() {
   const [expandVersion, setExpandVersion] = useState(0);
   const [highlightWarnings, setHighlightWarnings] = useState(false);
   const [showOnlyStale, setShowOnlyStale] = useState(false);
+  const [guidedMode, setGuidedMode] = useState(false);
+  const [dismissedPrereqBanner, setDismissedPrereqBanner] = useState<Set<string>>(new Set());
 
   // Optimistic industry segment — bridges the gap between save and refetch
   const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
@@ -2570,6 +2588,79 @@ export default function CurationReviewPage() {
     return result;
   }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality, staleKeySet]);
 
+  // ── Group readiness: prerequisite completion tracking ──
+  const OPTIONAL_SECTIONS = new Set(['preferred_approach', 'approaches_not_of_interest', 'legal_docs', 'escrow_funding']);
+
+  const groupReadiness = useMemo(() => {
+    if (!challenge) return {} as Record<string, { ready: boolean; missingPrereqs: string[]; missingPrereqSections: string[]; completionPct: number }>;
+    const result: Record<string, { ready: boolean; missingPrereqs: string[]; missingPrereqSections: string[]; completionPct: number }> = {};
+
+    GROUPS.forEach((group) => {
+      const missingPrereqs: string[] = [];
+      const missingPrereqSections: string[] = [];
+
+      for (const prereqGroupId of group.prerequisiteGroups) {
+        const prereqGroup = GROUPS.find(g => g.id === prereqGroupId);
+        if (!prereqGroup) continue;
+
+        const criticalSections = prereqGroup.sectionKeys.filter(key => {
+          const sec = SECTION_MAP.get(key);
+          return sec && !OPTIONAL_SECTIONS.has(key);
+        });
+
+        const filledCount = criticalSections.filter(key => {
+          const sec = SECTION_MAP.get(key);
+          return sec?.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
+        }).length;
+
+        const completion = criticalSections.length > 0 ? filledCount / criticalSections.length : 1;
+
+        if (completion < 0.5) {
+          missingPrereqs.push(prereqGroup.label);
+          const unfilled = criticalSections.filter(key => {
+            const sec = SECTION_MAP.get(key);
+            return !sec?.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
+          });
+          missingPrereqSections.push(...unfilled);
+        }
+      }
+
+      const ownSections = group.sectionKeys.map(k => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
+      const ownFilled = ownSections.filter(s => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
+
+      result[group.id] = {
+        ready: missingPrereqs.length === 0,
+        missingPrereqs,
+        missingPrereqSections,
+        completionPct: ownSections.length > 0 ? (ownFilled / ownSections.length) * 100 : 0,
+      };
+    });
+
+    return result;
+  }, [challenge, legalDocs, legalDetails, escrowRecord]);
+
+  // ── Per-section upstream readiness ──
+  const sectionReadiness = useMemo(() => {
+    if (!challenge) return {} as Record<string, { ready: boolean; missing: string[] }>;
+    const result: Record<string, { ready: boolean; missing: string[] }> = {};
+
+    for (const group of GROUPS) {
+      for (const key of group.sectionKeys) {
+        const upstreamKeys = getUpstreamDependencies(key);
+        const missing: string[] = [];
+        for (const depKey of upstreamKeys) {
+          const depSec = SECTION_MAP.get(depKey);
+          if (depSec && !depSec.isFilled(challenge, legalDocs, legalDetails, escrowRecord)) {
+            missing.push(depSec.label);
+          }
+        }
+        result[key] = { ready: missing.length === 0, missing };
+      }
+    }
+
+    return result;
+  }, [challenge, legalDocs, legalDetails, escrowRecord]);
+
   // Inline AI flags per section from quality gaps
   const sectionAIFlags = useMemo(() => {
     if (!aiQuality?.gaps) return {};
@@ -2742,6 +2833,16 @@ export default function CurationReviewPage() {
         {orgTypeName && (
           <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
         )}
+        {/* Guided mode toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Switch
+            checked={guidedMode}
+            onCheckedChange={setGuidedMode}
+          />
+          <span className="text-xs text-muted-foreground">
+            {guidedMode ? 'Guided' : 'Free browse'}
+          </span>
+        </div>
         {user?.id && !isReadOnly && (
           <HoldResumeActions
             challengeId={challengeId!}
@@ -2933,8 +3034,9 @@ export default function CurationReviewPage() {
           const isActive = activeGroup === group.id;
           const allDone = done === total && total > 0;
           const hasFlag = progress?.hasAIFlag ?? false;
+          const readiness = groupReadiness[group.id];
 
-          let statusColor = "bg-muted/50 text-muted-foreground border-border"; // not started
+          let statusColor = "bg-muted/50 text-muted-foreground border-border";
           if (allDone) statusColor = group.colorDone;
           else if (done > 0) statusColor = "bg-blue-50 text-blue-800 border-blue-300";
           if (hasFlag && !allDone) statusColor = "bg-amber-50 text-amber-800 border-amber-300";
@@ -2947,18 +3049,25 @@ export default function CurationReviewPage() {
                 "rounded-lg border-2 p-3 text-left transition-all",
                 statusColor,
                 isActive && "ring-2 ring-primary ring-offset-2",
+                readiness && !readiness.ready && !isActive && "opacity-60",
               )}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-muted-foreground">{group.icon}</span>
                   <span className="text-sm font-semibold">{group.label}</span>
+                  {readiness && !readiness.ready && (
+                    <span className="inline-flex items-center justify-center h-4 px-1.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold border border-orange-200" title={`Complete ${readiness.missingPrereqs.join(', ')} first`}>
+                      ⏳ {readiness.missingPrereqs[0]}
+                    </span>
+                  )}
                   {staleCountByGroup[group.id] > 0 && (
                     <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
                       {staleCountByGroup[group.id]}
                     </span>
                   )}
                 </div>
-                {allDone && <CheckCircle2 className="h-4 w-4" />}
+                {readiness?.ready && allDone && <CheckCircle2 className="h-4 w-4" />}
                 {hasFlag && !allDone && <AlertTriangle className="h-4 w-4" />}
               </div>
               <div className="flex items-center gap-2 mt-1.5">
@@ -3017,6 +3126,49 @@ export default function CurationReviewPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
+              {/* Prerequisite guidance banner */}
+              {groupReadiness[activeGroupDef.id] && !groupReadiness[activeGroupDef.id].ready && !dismissedPrereqBanner.has(activeGroupDef.id) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3 mb-4">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800">
+                      Complete prerequisite sections first for best AI results
+                    </p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      The sections in <strong>{groupReadiness[activeGroupDef.id]?.missingPrereqs.join(', ')}</strong> should be completed before this tab.
+                      AI review and suggestions will be more accurate when prerequisite content exists.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {groupReadiness[activeGroupDef.id]?.missingPrereqSections.slice(0, 4).map(sk => {
+                        const sec = SECTION_MAP.get(sk);
+                        if (!sec) return null;
+                        return (
+                          <Button
+                            key={sk}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
+                            onClick={() => {
+                              const targetGroup = GROUPS.find(g => g.sectionKeys.includes(sk));
+                              if (targetGroup) setActiveGroup(targetGroup.id);
+                            }}
+                          >
+                            → Complete {sec.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-amber-600 shrink-0"
+                    onClick={() => setDismissedPrereqBanner(prev => new Set([...prev, activeGroupDef.id]))}
+                  >
+                    Continue anyway
+                  </Button>
+                </div>
+              )}
               <div className="space-y-3">
                 {activeGroupDef.sectionKeys
                   .filter((sectionKey) => !showOnlyStale || staleKeySet.has(sectionKey))
@@ -3718,6 +3870,7 @@ export default function CurationReviewPage() {
                   );
 
                   // Build AI review slot
+                  const secReadiness = sectionReadiness[section.key];
                   const aiReviewContent = (
                     <CurationAIReviewInline
                       sectionKey={section.key}
@@ -3735,8 +3888,9 @@ export default function CurationReviewPage() {
                       hasSentBefore={hasSentBefore}
                       onReReview={section.key === 'complexity' ? handleComplexityReReview : undefined}
                       complexityRatings={section.key === 'complexity' ? (aiSuggestedComplexity ?? undefined) : undefined}
+                      prerequisitesReady={secReadiness?.ready ?? true}
+                      missingPrerequisites={secReadiness?.missing}
                       onSendToCoordinator={isLocked ? (editedComments: string) => {
-                        // Store original AI comments for audit
                         const originalAiComments = (aiReview?.comments ?? []).map((c: any) => typeof c === 'string' ? c : c?.text ?? JSON.stringify(c)).join("\n\n");
                         setLockedSendState({
                           open: true,
@@ -4110,6 +4264,37 @@ export default function CurationReviewPage() {
         }}
         onProceed={executeWavesWithBudgetCheck}
       />
+
+      {/* Guided mode floating Next button */}
+      {guidedMode && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            size="lg"
+            className="shadow-lg gap-2 rounded-full px-6"
+            onClick={() => {
+              const currentIdx = GROUPS.findIndex(g => g.id === activeGroup);
+              for (let i = currentIdx + 1; i < GROUPS.length; i++) {
+                const gp = groupProgress[GROUPS[i].id];
+                if (gp && gp.done < gp.total) {
+                  setActiveGroup(GROUPS[i].id);
+                  return;
+                }
+              }
+              toast.success('All tabs reviewed!');
+            }}
+          >
+            Next: {(() => {
+              const currentIdx = GROUPS.findIndex(g => g.id === activeGroup);
+              for (let i = currentIdx + 1; i < GROUPS.length; i++) {
+                const gp = groupProgress[GROUPS[i].id];
+                if (gp && gp.done < gp.total) return GROUPS[i].label;
+              }
+              return 'All Complete';
+            })()}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
