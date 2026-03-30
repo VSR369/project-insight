@@ -158,8 +158,6 @@ export function AssignRoleSheet({
   const selectedRole = availableRoles.find((r) => r.code === effectiveRoleCode);
   const roleTitle = selectedRole?.display_name ?? "Role";
   const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
-  const isR10CR = false; // R10_CR role deprecated
-  const isExistingR10CR = false; // R10_CR role deprecated
 
   const existingMembers = deduplicateMembers(existingAssignments);
 
