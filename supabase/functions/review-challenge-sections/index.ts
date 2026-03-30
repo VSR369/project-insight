@@ -647,6 +647,7 @@ async function callAIBatchTwoPass(
   sectionConfigs?: SectionConfig[],
   skipAnalysis?: boolean,
   providedComments?: any[],
+  masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
