@@ -323,10 +323,36 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     const finalLevel = activeTab === "quick_select" && overrideLevel ? overrideLevel : derivedLevel;
     const finalScore = activeTab === "quick_select" ? 0 : weightedScore;
     const draftToSave = activeTab === "ai_review" ? aiDraft : manualDraft;
-    onSave(draftToSave, finalScore, finalLevel, mode);
+    // Build resolvedParams from effectiveParams so the save handler gets correct dimension keys/weights
+    const resolvedParams: ResolvedParam[] = effectiveParams.map((p) => ({
+      param_key: p.param_key,
+      name: p.name,
+      value: draftToSave[p.param_key] ?? 5,
+      weight: p.weight,
+    }));
+    onSave(draftToSave, finalScore, finalLevel, mode, resolvedParams);
     setAiJustifications({});
     setEditableParams(new Set());
-  }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel]);
+  }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel, effectiveParams]);
+
+  // ══════ Imperative handle: expose saveAiDraft for external Accept trigger ══════
+  useImperativeHandle(ref, () => ({
+    saveAiDraft: () => {
+      const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
+      const ws = totalWeight > 0
+        ? effectiveParams.reduce((s, p) => s + (aiDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight
+        : 5;
+      const score = Math.round(ws * 100) / 100;
+      const level = deriveComplexityLevel(score);
+      const resolvedParams: ResolvedParam[] = effectiveParams.map((p) => ({
+        param_key: p.param_key,
+        name: p.name,
+        value: aiDraft[p.param_key] ?? 5,
+        weight: p.weight,
+      }));
+      onSave(aiDraft, score, level, "AI_AUTO", resolvedParams);
+    },
+  }), [aiDraft, effectiveParams, onSave]);
 
   const handleCancel = useCallback(() => {
     const fresh = buildDraftFromExisting(currentParams, effectiveParams);
