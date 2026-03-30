@@ -78,7 +78,7 @@ export interface ComplexityAssessmentModuleProps {
   aiSuggestedRatings?: Record<string, { rating: number; justification: string }> | null;
 }
 
-export function ComplexityAssessmentModule({
+export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, ComplexityAssessmentModuleProps>(function ComplexityAssessmentModule({
   challengeId,
   currentScore,
   currentLevel,
@@ -91,7 +91,7 @@ export function ComplexityAssessmentModule({
   isLocked = false,
   saving,
   aiSuggestedRatings,
-}: ComplexityAssessmentModuleProps) {
+}, ref) {
   // ══════ Section 1: useState hooks ══════
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
