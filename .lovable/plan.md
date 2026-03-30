@@ -1,85 +1,68 @@
 
 
-# Reference Materials System — Files, URLs, Solver Sharing, Per-Section Matrix
+# Fix 10 Regression Bugs in AI Review Pipeline
 
 ## Summary
 
-Implement a comprehensive reference materials system that extends the existing `challenge_attachments` infrastructure with URL support, solver sharing controls, and per-section upload configuration. This spans a DB migration, edge function updates (extraction + AI prompts), a new UI component, and a solver-facing reference panel.
+Fix 2 critical, 4 high, and 4 medium bugs across two edge functions and one prompt template file. All bugs are confirmed present in the current code.
 
-## 4 Items, 6 Implementation Steps
+## Files Modified
 
-### Step 1: Migration — Extend `challenge_attachments`
+| File | Bugs Fixed |
+|------|-----------|
+| `supabase/functions/review-challenge-sections/index.ts` | 1, 2, 3, 5, 7, 10 |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | 6 |
+| `supabase/functions/extract-attachment-text/index.ts` | 4, 8, 9 |
 
-Add 7 new columns: `source_type`, `source_url`, `url_title`, `shared_with_solver`, `display_name`, `description`, `display_order`. Make `storage_path` and `mime_type` nullable for URL rows. Add CHECK constraints for source type validation.
+## Changes
 
-**File:** New SQL migration
+### Bug 1 (CRITICAL): Pass orgContext to Pass 2
 
-### Step 2: Edge Function — URL Extraction Branch
+Add `orgContext` parameter to `callAIPass2Rewrite` (line 574) and `callAIBatchTwoPass` (line 857). Prepend `buildContextIntelligence(challengeData, clientContext, orgContext)` to the Pass 2 system prompt (after line 747). Thread `orgContext` from main handler (line 1745) through `callAIBatchTwoPass` to `callAIPass2Rewrite`.
 
-**File:** `supabase/functions/extract-attachment-text/index.ts`
+### Bug 2 (CRITICAL): Pass attachmentsBySection to Pass 2
 
-Add a top-level branch before the existing file extraction logic:
-- When `att.source_type === 'url'`: fetch the page with 15s timeout, strip HTML tags/scripts/nav/footer, store cleaned text
-- Auto-populate `url_title` from `<title>` tag if missing
-- Handle PDF URLs gracefully (placeholder message)
-- Keep all existing file extraction code in an `else` block unchanged
+Add `attachmentsBySection` parameter to both `callAIPass2Rewrite` and `callAIBatchTwoPass`. Thread from main handler. Default to `{}` at usage site (line 689): `(attachmentsBySection || {})[r.section_key]`.
 
-### Step 3: Edge Function — Unified Prompt Injection
+### Bug 3 (HIGH): file_name null fallback
 
-**File:** `supabase/functions/review-challenge-sections/index.ts`
+Line 1505: change `att.file_name` to `(att.file_name || 'Unnamed file')`.
 
-Three changes to existing attachment handling code:
+### Bug 4 (HIGH): PDF extraction quality check
 
-**3a. Fetch query** (lines ~1478-1498): Expand `select()` to include `source_type`, `source_url`, `url_title`, `shared_with_solver`. Change the type from `{ fileName, content }[]` to include `sourceType`, `sourceUrl`, `sharedWithSolver`.
+In `extract-attachment-text`, after decoding PDF buffer, compute `printableRatio`. If < 0.2 or text < 50 chars, set a descriptive fallback message and method `pdf_binary_fallback`.
 
-**3b. Pass 1 attachment block** (lines ~1652-1661): Replace the simple `ATTACHED DOCUMENTS` block with the unified version that tags each reference as `[WEB PAGE]` or `[DOCUMENT]` and `[SHARED WITH SOLVERS]` or `[AI-ONLY]`. Append the `REFERENCE MATERIAL USAGE RULES` block.
+### Bug 5 (HIGH): Fetch all org fields
 
-**3c. Pass 2 per-section block** (lines ~688-693): Update to use the new type tags and sharing status.
+Expand the SELECT at line 1360 to include `twitter_url, tagline, social_links, functional_areas`. Map them to `orgContext`. Expand the `orgContext` type declaration at line 1276.
 
-### Step 4: Constants — Section Upload Config + Sharing Guidance
+### Bug 6 (HIGH): Use new org fields in prompt
 
-**File:** `src/lib/cogniblend/sectionUploadConfig.ts` (new)
+In `buildContextIntelligence` (promptTemplate.ts), add `tagline`, `twitterUrl`, `functionalAreas` to the org profile template output.
 
-Export `SECTION_UPLOAD_CONFIG` (all 27 sections: 18 enabled, 9 disabled) and `SHARING_GUIDANCE` (context-sensitive help text per section). Directly from the user's spec.
+### Bug 7 (MEDIUM): Move contextIntel before batch loop
 
-### Step 5: UI Component — `SectionReferencePanel`
+Move `const contextIntel = buildContextIntelligence(...)` from inside `for (const batch of batches)` (line 1694) to before the loop (before line 1559).
 
-**File:** `src/components/cogniblend/curation/SectionReferencePanel.tsx` (new)
+### Bug 8 (MEDIUM): URL extraction sparse check
 
-A collapsible panel rendered inside each `CuratorSectionPanel` for upload-enabled sections:
+In `extract-attachment-text`, after URL extraction succeeds, check if `extractedText.trim().length < 100`. If so, wrap in a descriptive message noting sparse/inaccessible content.
 
-- Collapsed by default, shows item count badge "📎 Reference Materials (3)"
-- Two action buttons: "Upload File" (filtered by `acceptedFormats`) and "Add Web Link" (inline URL input)
-- Per-item card showing: type icon, name, size/URL, extraction status, sharing toggle, display_name + description fields (visible when sharing ON), section-specific `SHARING_GUIDANCE` text
-- Remove button per item
-- Max count enforcement (files and URLs counted independently)
-- File upload: creates `challenge_attachments` row with `source_type='file'`, uploads to storage, triggers `extract-attachment-text`
-- URL add: creates row with `source_type='url'`, triggers `extract-attachment-text`
-- Uses React Query for fetching/mutating attachments
+### Bug 9 (MEDIUM): DOCX/XLSX binary fallback
 
-**Integration into `CurationReviewPage.tsx`:** Render `<SectionReferencePanel>` inside each section's content area (within the `CuratorSectionPanel` children), checking `SECTION_UPLOAD_CONFIG[sectionKey].enabled`.
+In `extract-attachment-text`, separate CSV from XLSX handling (CSV is plaintext, XLSX is ZIP). Apply `printableRatio` check for XLSX and DOCX. Same pattern as Bug 4.
 
-### Step 6: Solver Reference Panel
+### Bug 10 (MEDIUM): Org context in complexity
 
-**File:** `src/components/cogniblend/curation/SolverReferencePanel.tsx` (new)
+Add `orgContext` parameter to `executeComplexityAssessment` and `callComplexityAI`. Inject org name/country/industry into the complexity system prompt. Pass from main handler at line 1541.
 
-Read-only panel for published challenge view:
-- Queries `challenge_attachments` where `shared_with_solver = true`
-- Groups by section, displays `display_name`, `description`, file size/type
-- Files: Download button via signed URL
-- URLs: "Open Link" button linking to `source_url`
+## Implementation Order
 
-**Integration:** This needs to be placed in the published challenge detail page. Will identify the correct page component and add it.
-
-## Files Modified/Created
-
-| File | Action |
-|------|--------|
-| New SQL migration | Create — extend `challenge_attachments` |
-| `supabase/functions/extract-attachment-text/index.ts` | Modify — add URL branch |
-| `supabase/functions/review-challenge-sections/index.ts` | Modify — unified attachment fetch + prompt injection |
-| `src/lib/cogniblend/sectionUploadConfig.ts` | Create — config + sharing guidance |
-| `src/components/cogniblend/curation/SectionReferencePanel.tsx` | Create — curator UI |
-| `src/components/cogniblend/curation/SolverReferencePanel.tsx` | Create — solver view |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Modify — render SectionReferencePanel per section |
+1. Bugs 1 + 2 together (same parameter threading)
+2. Bugs 5 + 6 together (org fields fetch + prompt usage)
+3. Bug 7 (contextIntel hoisting)
+4. Bug 10 (complexity org context)
+5. Bug 3 (one-line fix)
+6. Bugs 4 + 8 + 9 together (extract-attachment-text)
+7. Deploy both edge functions
 
