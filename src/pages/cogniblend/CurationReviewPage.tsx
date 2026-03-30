@@ -3034,8 +3034,9 @@ export default function CurationReviewPage() {
           const isActive = activeGroup === group.id;
           const allDone = done === total && total > 0;
           const hasFlag = progress?.hasAIFlag ?? false;
+          const readiness = groupReadiness[group.id];
 
-          let statusColor = "bg-muted/50 text-muted-foreground border-border"; // not started
+          let statusColor = "bg-muted/50 text-muted-foreground border-border";
           if (allDone) statusColor = group.colorDone;
           else if (done > 0) statusColor = "bg-blue-50 text-blue-800 border-blue-300";
           if (hasFlag && !allDone) statusColor = "bg-amber-50 text-amber-800 border-amber-300";
@@ -3048,18 +3049,25 @@ export default function CurationReviewPage() {
                 "rounded-lg border-2 p-3 text-left transition-all",
                 statusColor,
                 isActive && "ring-2 ring-primary ring-offset-2",
+                readiness && !readiness.ready && !isActive && "opacity-60",
               )}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-muted-foreground">{group.icon}</span>
                   <span className="text-sm font-semibold">{group.label}</span>
+                  {readiness && !readiness.ready && (
+                    <span className="inline-flex items-center justify-center h-4 px-1.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold border border-orange-200" title={`Complete ${readiness.missingPrereqs.join(', ')} first`}>
+                      ⏳ {readiness.missingPrereqs[0]}
+                    </span>
+                  )}
                   {staleCountByGroup[group.id] > 0 && (
                     <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
                       {staleCountByGroup[group.id]}
                     </span>
                   )}
                 </div>
-                {allDone && <CheckCircle2 className="h-4 w-4" />}
+                {readiness?.ready && allDone && <CheckCircle2 className="h-4 w-4" />}
                 {hasFlag && !allDone && <AlertTriangle className="h-4 w-4" />}
               </div>
               <div className="flex items-center gap-2 mt-1.5">
