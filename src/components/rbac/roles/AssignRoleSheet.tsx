@@ -255,7 +255,6 @@ export function AssignRoleSheet({
       user_email: member.email,
       user_name: member.name ?? undefined,
       model_applicability: fullRoleCatalog.find((r) => r.code === existingMemberRoleCode)?.model_applicability ?? "both",
-      department_id: isExistingR10CR && selectedDepartmentId ? selectedDepartmentId : undefined,
     });
     setSelectedMemberEmail("");
     setExistingMemberRoleCode("");
