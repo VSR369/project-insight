@@ -196,7 +196,7 @@ export function MyActionItemsSection() {
     }
 
     return items;
-  }, [challengeItems, allSRRows, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
+  }, [challengeItems, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
 
