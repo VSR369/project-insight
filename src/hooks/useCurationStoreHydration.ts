@@ -36,6 +36,7 @@ interface ChallengeDataSlice {
   extended_brief: unknown;
   solver_expertise_requirements: unknown;
   complexity_parameters: unknown;
+  submission_guidelines: unknown;
 }
 
 /** Map challenge fields to section keys */
