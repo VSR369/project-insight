@@ -1,98 +1,165 @@
 
 
-# Link Proficiency Areas to Solution Types
+# Solution Types as Multi-Select Section with Full Curation Integration
 
-## Summary
+## What Changed from Previous Plan
 
-Replace the hardcoded 4 solution types with the existing Proficiency Area taxonomy. The curator selects a Proficiency Area (e.g., "Future & Business Blueprint") as the Solution Type. This selection drives complexity dimensions and auto-populates the Solver Expertise section.
+The previous implementation treated Solution Type as a **single proficiency-area radio selector** (4 options). The user's requirement is fundamentally different:
 
-## Current State
+- **15 granular solution types** grouped under 4 proficiency area headers
+- **Multiple solution types can be selected** per challenge (multi-select, not radio)
+- AI must auto-identify the right solution types from challenge context
+- Solution types must influence downstream sections (deliverables, complexity, solver expertise, etc.)
+- Full curation section lifecycle: AI review, staleness, wave execution, re-review
 
-- **4 hardcoded solution types**: `strategy_design`, `process_operations`, `technology_architecture`, `product_innovation`
-- **4 Proficiency Areas** (distinct names): Future & Business Blueprint, Business & Operational Excellence, Digital & Technology Blueprint, Product & Service Innovation
-- **`complexity_dimensions` table**: keyed by `solution_type` string
-- **No mapping** exists between proficiency areas and solution types
-
-## Natural Mapping
+## The 15 Solution Types (Grouped)
 
 ```text
-Proficiency Area                    → solution_type code
-─────────────────────────────────── ─────────────────────────
-Future & Business Blueprint         → strategy_design
-Business & Operational Excellence   → process_operations
-Digital & Technology Blueprint      → technology_architecture
-Product & Service Innovation        → product_innovation
+Future & Business Blueprint (strategy_design)
+├── Business Model Design
+├── Business Strategy Map
+└── Business Outcomes Design
+
+Product & Service Innovation (product_innovation)
+├── Product Innovation
+└── Service Innovation
+
+Business & Operational Excellence (process_operations)
+├── Business Processes Design (SCM, CRM, CXM, PLM etc.)
+├── Workplaces Design
+└── Operating Model Design
+
+Digital & Technology Blueprint (technology_architecture)
+├── Technology Strategy
+├── Technology Architecture
+├── Technology Governance
+├── AI Agents / Digital Workforce Design
+├── AI/ML Models Design
+└── Application Rationalization & Agentic AI Integration Strategy
 ```
 
-## Changes
+## Implementation Plan
 
-### 1. Create mapping table (DB migration)
+### 1. Database: New `md_solution_types` Master Data Table
 
-New table `proficiency_area_solution_type_map` linking proficiency area names to solution type codes:
+Create a proper master data table with hierarchical grouping:
 
 ```sql
-CREATE TABLE public.proficiency_area_solution_type_map (
+CREATE TABLE public.md_solution_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  proficiency_area_name TEXT NOT NULL,
-  solution_type_code TEXT NOT NULL,
+  code TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  proficiency_group TEXT NOT NULL,        -- e.g. 'strategy_design'
+  proficiency_group_label TEXT NOT NULL,  -- e.g. 'Future & Business Blueprint'
+  description TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-Seed with the 4 mappings. This makes the relationship data-driven rather than hardcoded.
+Seed with all 15 types. Also change `challenges.solution_type` from a single TEXT to a new JSONB column `solution_types` (array of codes) — or add a new `solution_types JSONB` column alongside the existing one for backward compatibility.
 
-### 2. Add Solution Type section to Tab 3 (Scope & Complexity)
+**Decision: Add `solution_types JSONB DEFAULT '[]'` column** to `challenges`, keep `solution_type` for backward compat with complexity dimensions (which maps proficiency group → dimensions).
 
-**File**: `CurationReviewPage.tsx`
+### 2. Update Section Format Config
 
-- Add a new section entry `solution_type` in the Tab 3 section list, placed before `complexity`
-- Renderer: radio group showing the 4 Proficiency Area names (fetched from DB via the mapping table)
-- On selection, save the `solution_type_code` to `challenges.solution_type`
-- Show the selected Proficiency Area name as the label, not the code
+In `curationSectionFormats.ts`:
+- Change `solution_type` format from `radio` to `checkbox_multi`
+- Update `masterDataTable` to `md_solution_types`
+- Update `aiUsesContext` to include `['problem_statement', 'scope', 'deliverables', 'context_and_background']`
 
-### 3. Update section format config
+### 3. Section Dependencies
 
-**File**: `curationSectionFormats.ts`
+In `sectionDependencies.ts`, add `solution_type` as an upstream section:
 
-Add `solution_type` entry with format `radio`, marking it as curator-editable and AI-draftable.
+```
+solution_type → [deliverables, complexity, solver_expertise, 
+                 evaluation_criteria, submission_guidelines, domain_tags]
+problem_statement → [...existing..., solution_type]
+scope → [...existing..., solution_type]  (AI can infer solution types from scope)
+```
 
-### 4. Auto-populate Solver Expertise on Solution Type change
+### 4. Move to Tab 3 Before Deliverables
 
-**File**: `CurationReviewPage.tsx`
+Current Tab 3 order: `deliverables, data_resources_provided, maturity_level, solution_type, complexity`
 
-When `solution_type` is saved:
-1. Look up the corresponding Proficiency Area name from the mapping
-2. Find all proficiency_area IDs matching that name (across expertise levels) for the challenge's industry segment
-3. Auto-set those IDs in `solver_expertise_requirements.proficiency_areas`
-4. Save to DB and show toast: "Solver Expertise auto-updated to match Solution Type"
+New order: `solution_type, deliverables, data_resources_provided, maturity_level, complexity`
 
-### 5. Update complexity module dependency
+This ensures solution types are set before deliverables (which depend on them).
 
-When `solution_type` changes:
-- If complexity was previously scored, show confirmation dialog (existing behavior)
-- The `useComplexityDimensions` hook already filters by `solutionType` — no change needed there
+### 5. Wave Execution Config
 
-### 6. Update `challengeContextAssembler.ts`
+In `waveConfig.ts`, add `solution_type` to **Wave 1 (Foundation)** or **Wave 2 (Enrichment)**. Since solution types depend on problem_statement and scope (Wave 1), place in **Wave 2**:
 
-- Keep `SOLUTION_TYPE_LABELS` but derive from the mapping table or update labels to match Proficiency Area names
-- Add `PROFICIENCY_AREA_TO_SOLUTION_TYPE` constant as a client-side fallback
+```
+Wave 2: ['solution_type', 'root_causes', 'affected_stakeholders', ...]
+```
 
-### 7. Add to DB SELECT in challenge fetch
+Or better: Wave 1 as it's foundational to deliverables (Wave 3). Add to Wave 1 prerequisites = `['problem_statement', 'scope']` — but Wave 1 has no prerequisites. Solution: add to **Wave 2** with prerequisite on problem_statement and scope.
 
-`solution_type` is already in the SELECT query — no change needed.
+### 6. UI Renderer (CurationReviewPage.tsx)
 
-## Technical Details
+Replace the current radio group with a **grouped checkbox multi-select**:
+- Group headers showing proficiency area labels
+- Checkboxes for each of the 15 solution types under their group
+- Display selected types as grouped badges in read mode
+- New hook `useSolutionTypes()` to fetch from `md_solution_types`
 
-- The mapping table is lightweight (4 rows) and avoids hardcoding the relationship
-- The `complexity_dimensions.solution_type` column values remain unchanged — no data migration needed
-- The radio selector shows Proficiency Area names with descriptions from the DB
-- Auto-population of Solver Expertise is additive (doesn't clear existing sub-domain/speciality selections)
-- The mapping is 1:1 today but the table structure supports future N:1 if needed
+### 7. Save Handler Update
 
-## Files Modified
+`handleSaveSolutionType` becomes `handleSaveSolutionTypes`:
+- Saves selected codes as JSON array to `challenges.solution_types`
+- Derives the primary `solution_type` (proficiency group) from the selected types for complexity dimension compatibility
+- Auto-populates solver expertise with matching proficiency area IDs (union of all selected groups)
+- Triggers staleness on downstream sections
 
-1. **DB migration** — create `proficiency_area_solution_type_map` + seed data
-2. `src/lib/cogniblend/curationSectionFormats.ts` — add `solution_type` section config
-3. `src/pages/cogniblend/CurationReviewPage.tsx` — add section entry, renderer, save handler, auto-populate logic
-4. `src/lib/cogniblend/challengeContextAssembler.ts` — update labels to match Proficiency Area names
+### 8. AI Review Integration
+
+The edge function `review-challenge-sections` already handles `solution_type` as a section. Updates needed:
+- AI prompt context includes the 15 solution type options with descriptions
+- AI returns a JSON array of recommended codes
+- `parseSuggestion` already handles `checkbox_multi` → `tryParseArray`
+- Accept handler maps AI suggestion codes to the store
+
+### 9. Challenge Context Assembler
+
+Update `challengeContextAssembler.ts`:
+- Change `solutionType: SolutionType | null` to `solutionTypes: string[]`
+- Keep `solutionType` for backward compat (derived as primary group)
+- Include solution type labels in context for AI consumption
+
+### 10. Display Name & Section Dependencies
+
+In `sectionDependencies.ts`:
+- Add `solution_type` display name
+- Add dependency entries
+
+### 11. Store Sync
+
+`SECTION_DB_FIELD_MAP` already has `solution_type: 'solution_type'`. Update to map to `solution_types` (new column).
+
+## Files to Modify
+
+1. **New migration** — create `md_solution_types` table + seed 15 rows + add `solution_types JSONB` column to challenges
+2. **`src/hooks/queries/useSolutionTypeMap.ts`** — rename/extend to `useSolutionTypes.ts` fetching from `md_solution_types`, grouped by proficiency area
+3. **`src/lib/cogniblend/curationSectionFormats.ts`** — change format to `checkbox_multi`
+4. **`src/lib/cogniblend/sectionDependencies.ts`** — add `solution_type` dependencies + display name
+5. **`src/lib/cogniblend/waveConfig.ts`** — add `solution_type` to Wave 2
+6. **`src/lib/cogniblend/challengeContextAssembler.ts`** — update context to include `solutionTypes` array
+7. **`src/pages/cogniblend/CurationReviewPage.tsx`** — new grouped checkbox renderer, updated save handler, reorder in Tab 3
+8. **`src/hooks/useCurationStoreSync.ts`** — update field mapping to `solution_types`
+9. **`src/hooks/useCurationStoreHydration.ts`** — hydrate from new column
+10. **`src/integrations/supabase/types.ts`** — auto-updated after migration
+
+## Verification
+
+1. Select multiple solution types → saves correctly as JSON array
+2. AI review suggests appropriate types based on challenge context
+3. Changing solution types marks deliverables, complexity, solver_expertise as stale
+4. Complexity module resolves dimensions from the primary proficiency group
+5. Solver expertise auto-populates from all selected proficiency groups
+6. Wave executor processes solution_type in correct order (before deliverables)
+7. Re-review works for solution_type section
+8. Accept/reject AI suggestions works with multi-select format
 
