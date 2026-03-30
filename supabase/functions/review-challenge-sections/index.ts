@@ -87,30 +87,37 @@ function jsonBrief(v: any): string {
 /* ── FIX 1: Cross-section dependency map ── */
 
 const SECTION_DEPENDENCIES: Record<string, string[]> = {
-  evaluation_criteria: ['deliverables', 'expected_outcomes', 'scope', 'submission_guidelines'],
-  reward_structure: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule', 'solver_expertise'],
-  solver_expertise: ['solution_type', 'deliverables', 'scope', 'domain_tags'],
-  eligibility: ['solver_expertise', 'maturity_level', 'complexity'],
-  phase_schedule: ['deliverables', 'maturity_level', 'complexity', 'evaluation_criteria'],
-  submission_guidelines: ['deliverables', 'evaluation_criteria', 'phase_schedule'],
-  complexity: ['solution_type', 'deliverables', 'scope', 'maturity_level', 'data_resources_provided'],
-  deliverables: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
-  hook: ['problem_statement', 'scope', 'deliverables', 'reward_structure', 'domain_tags'],
-  visibility: ['solver_expertise', 'eligibility'],
-  domain_tags: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
-  success_metrics_kpis: ['expected_outcomes', 'deliverables'],
-  data_resources_provided: ['deliverables', 'scope', 'solver_expertise'],
+  // Wave 1
+  problem_statement: [],
   scope: ['problem_statement'],
   expected_outcomes: ['problem_statement', 'scope'],
+  context_and_background: ['problem_statement'],
+  // Wave 2
   root_causes: ['problem_statement', 'context_and_background'],
   affected_stakeholders: ['problem_statement', 'scope'],
   current_deficiencies: ['problem_statement', 'root_causes'],
-  preferred_approach: ['problem_statement', 'root_causes', 'deliverables'],
+  preferred_approach: ['problem_statement', 'root_causes'],
   approaches_not_of_interest: ['preferred_approach'],
-  ip_model: ['deliverables', 'maturity_level', 'reward_structure'],
+  // Wave 3
+  solution_type: ['problem_statement', 'scope'],
+  deliverables: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
   maturity_level: ['deliverables', 'scope'],
-  context_and_background: ['problem_statement'],
-  solution_type: ['problem_statement', 'scope', 'deliverables'],
+  data_resources_provided: ['deliverables', 'scope'],
+  success_metrics_kpis: ['expected_outcomes', 'deliverables'],
+  // Wave 4
+  complexity: ['solution_type', 'deliverables', 'scope', 'maturity_level', 'data_resources_provided'],
+  solver_expertise: ['solution_type', 'deliverables', 'scope', 'domain_tags'],
+  eligibility: ['solver_expertise', 'maturity_level', 'complexity'],
+  // Wave 5
+  phase_schedule: ['deliverables', 'maturity_level', 'complexity'],
+  evaluation_criteria: ['deliverables', 'expected_outcomes', 'scope'],
+  submission_guidelines: ['deliverables', 'evaluation_criteria', 'phase_schedule'],
+  reward_structure: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule', 'solver_expertise'],
+  ip_model: ['deliverables', 'maturity_level', 'reward_structure'],
+  // Wave 6
+  hook: ['problem_statement', 'scope', 'deliverables', 'reward_structure', 'domain_tags'],
+  visibility: ['solver_expertise', 'eligibility'],
+  domain_tags: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
 };
 
 /** What to check FOR when reviewing a section against its dependencies */
@@ -202,38 +209,38 @@ const DEPENDENCY_REASONING: Record<string, Record<string, string>> = {
 
 const CURATION_SECTIONS = [
   // Wave 1: Foundation
-  { key: "problem_statement", desc: "Clarity, specificity, context, why it matters, what has been tried" },
-  { key: "scope", desc: "Bounded, in-scope vs out-of-scope clarity, no ambiguity" },
-  { key: "expected_outcomes", desc: "Clear, measurable outcomes solvers should deliver" },
-  { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
-  { key: "success_metrics_kpis", desc: "Quantitative KPIs aligned with expected outcomes and deliverables" },
-  // Wave 2: Enrichment
-  { key: "solution_type", desc: "Multi-select solution types from md_solution_types — return JSON array of matching codes" },
-  { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
-  { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
-  { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
-  { key: "preferred_approach", desc: "Seeker's strategic preferences — never rewrite human content" },
-  { key: "approaches_not_of_interest", desc: "Human-only section — approaches to exclude" },
-  // Wave 3: Complexity
-  { key: "deliverables", desc: "Measurable, concrete, complete list with acceptance criteria" },
-  { key: "maturity_level", desc: "Set and consistent with challenge depth" },
-  { key: "complexity", desc: "Properly assessed with justified parameter values" },
-  { key: "data_resources_provided", desc: "Datasets, APIs, documentation, and resources available to solvers" },
-  // Wave 4: Solvers & Timeline
-  { key: "solver_expertise", desc: "Required solver expertise areas, sub-domains, and specialities" },
-  { key: "eligibility", desc: "Specific qualifications, no overly broad or restrictive criteria" },
-  { key: "phase_schedule", desc: "Realistic timelines, sufficient for the scope and complexity" },
-  { key: "submission_guidelines", desc: "Clear format, content, and process requirements" },
-  // Wave 5: Evaluation & Commercial
-  { key: "evaluation_criteria", desc: "Clear criteria with proper weights summing to 100%, aligned with deliverables" },
-  { key: "reward_structure", desc: "Fair, well-structured, matches challenge complexity" },
-  { key: "ip_model", desc: "Clear IP ownership, licensing, and transfer terms" },
-  { key: "legal_docs", desc: "Required legal documents attached and reviewed" },
-  { key: "escrow_funding", desc: "Escrow funded (if required)" },
-  // Wave 6: Presentation
-  { key: "hook", desc: "Engaging, concise challenge hook that motivates solvers" },
-  { key: "visibility", desc: "Solver visibility types properly configured" },
-  { key: "domain_tags", desc: "Relevant domain tags for discoverability and solver matching" },
+  { key: "problem_statement", desc: "Our core business challenge — clear, specific, quantified, understandable by external solvers with no internal context" },
+  { key: "scope", desc: "What we need addressed (in scope) and what we explicitly exclude (out of scope)" },
+  { key: "expected_outcomes", desc: "The measurable results we expect from the winning solution" },
+  { key: "context_and_background", desc: "Our organizational and operational context that external solvers need to understand our environment" },
+  // Wave 2: Analysis
+  { key: "root_causes", desc: "The underlying causes of our problem — why it exists, not just what it is" },
+  { key: "affected_stakeholders", desc: "Who in our organization is impacted and what adoption challenges they will face" },
+  { key: "current_deficiencies", desc: "What our current state looks like — factual gaps, limitations, and measurable baselines" },
+  { key: "preferred_approach", desc: "Our strategic preferences and direction for the solution — seeker-authored, must be preserved as-is" },
+  { key: "approaches_not_of_interest", desc: "Approaches we have tried or rejected — solvers should avoid these" },
+  // Wave 3: Specification
+  { key: "solution_type", desc: "The type(s) of solution we are seeking — determines which solver pool is targeted" },
+  { key: "deliverables", desc: "Exactly what we expect solvers to produce — each with acceptance criteria and format" },
+  { key: "maturity_level", desc: "The depth of solution we need — Blueprint (strategy), POC (prototype), or Pilot (production)" },
+  { key: "data_resources_provided", desc: "Datasets, APIs, documentation, and tools we will provide to solvers" },
+  { key: "success_metrics_kpis", desc: "How we will measure whether the solution achieves our expected outcomes" },
+  // Wave 4: Assessment
+  { key: "complexity", desc: "How complex our challenge is across multiple dimensions — drives timeline and reward sizing" },
+  { key: "solver_expertise", desc: "The specific expertise, certifications, and domain knowledge we require from solvers" },
+  { key: "eligibility", desc: "Which solver tiers (individual, team, organization) are eligible to participate" },
+  // Wave 5: Execution
+  { key: "phase_schedule", desc: "Our timeline — registration, submission, evaluation, and winner announcement phases" },
+  { key: "evaluation_criteria", desc: "How we will score submissions — criteria, weights (must sum to 100%), methods, and evaluator roles" },
+  { key: "submission_guidelines", desc: "What solvers must submit — format, structure, required sections, and size limits" },
+  { key: "reward_structure", desc: "What we offer — monetary prize tiers and non-monetary incentives for solvers" },
+  { key: "ip_model", desc: "How intellectual property ownership transfers between solver and our organization" },
+  // Wave 6: Presentation & Compliance
+  { key: "legal_docs", desc: "Required legal agreements — NDA, Terms, IP assignment documents" },
+  { key: "escrow_funding", desc: "Prize fund escrow status and funding confirmation" },
+  { key: "hook", desc: "Our challenge headline — the first thing solvers see, must compel them to read further" },
+  { key: "visibility", desc: "Whether solver identities are visible or anonymous during evaluation" },
+  { key: "domain_tags", desc: "Tags that help the right solvers discover our challenge on the platform" },
 ];
 
 const INTAKE_SECTIONS = [
@@ -1330,25 +1337,54 @@ serve(async (req) => {
       challengeData = challengeResult.data;
 
       // ── Fetch organization context for intelligence layer ──
-      let orgContext: { orgType?: string; orgName?: string } = {};
+      let orgContext: {
+        orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
+        websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
+        annualRevenue?: string; employeeCount?: string; foundingYear?: number;
+        isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
+      } = {};
       if (challengeData.organization_id) {
         try {
           const { data: org } = await adminClient
             .from('seeker_organizations')
-            .select('name, organization_type_id')
+            .select('organization_name, trade_brand_name, organization_description, website_url, linkedin_url, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id')
             .eq('id', challengeData.organization_id)
             .single();
-          if (org?.organization_type_id) {
-            const { data: ot } = await adminClient
-              .from('organization_types')
-              .select('name')
-              .eq('id', org.organization_type_id)
-              .single();
-            orgContext = { orgType: ot?.name ?? undefined, orgName: org?.name ?? undefined };
-          } else if (org?.name) {
-            orgContext = { orgName: org.name };
+          if (org) {
+            orgContext.orgName = org.organization_name;
+            orgContext.tradeBrand = org.trade_brand_name ?? undefined;
+            orgContext.orgDescription = org.organization_description ?? undefined;
+            orgContext.websiteUrl = org.website_url ?? undefined;
+            orgContext.linkedinUrl = org.linkedin_url ?? undefined;
+            orgContext.hqCity = org.hq_city ?? undefined;
+            orgContext.annualRevenue = org.annual_revenue_range ?? undefined;
+            orgContext.employeeCount = org.employee_count_range ?? undefined;
+            orgContext.foundingYear = org.founding_year ?? undefined;
+            orgContext.isEnterprise = org.is_enterprise;
+
+            if (org.hq_country_id) {
+              const { data: ctry } = await adminClient.from('countries').select('name').eq('id', org.hq_country_id).single();
+              if (ctry) orgContext.hqCountry = ctry.name;
+            }
+            if (org.organization_type_id) {
+              const { data: ot } = await adminClient.from('organization_types').select('name').eq('id', org.organization_type_id).single();
+              if (ot) orgContext.orgType = ot.name;
+            }
+            const { data: orgIndustries } = await adminClient
+              .from('seeker_org_industries').select('industry_id, is_primary')
+              .eq('organization_id', challengeData.organization_id);
+            if (orgIndustries?.length) {
+              const ids = orgIndustries.map((oi: any) => oi.industry_id);
+              const { data: segs } = await adminClient.from('industry_segments').select('id, name').in('id', ids);
+              if (segs) {
+                orgContext.industries = segs.map((s: any) => ({
+                  name: s.name,
+                  isPrimary: orgIndustries.find((oi: any) => oi.industry_id === s.id)?.is_primary ?? false,
+                }));
+              }
+            }
           }
-        } catch { /* org context is optional — graceful fallback */ }
+        } catch (err) { console.warn('Org intel fetch failed:', err); }
       }
 
       // Extract extended_brief fields for intake/spec
@@ -1431,6 +1467,29 @@ serve(async (req) => {
     let masterDataOptions: Record<string, { code: string; label: string }[]> = {};
     if (resolvedContext === "curation") {
       masterDataOptions = await fetchMasterDataOptions(adminClient);
+    }
+
+    // ── Fetch extracted attachment content ────────────────
+    let attachmentsBySection: Record<string, { fileName: string; content: string }[]> = {};
+    if (resolvedContext === "curation") {
+      try {
+        const { data: attachments } = await adminClient
+          .from('challenge_attachments')
+          .select('section_key, file_name, mime_type, extracted_text')
+          .eq('challenge_id', challenge_id)
+          .eq('extraction_status', 'completed');
+
+        if (attachments?.length) {
+          for (const att of attachments) {
+            if (!att.extracted_text) continue;
+            if (!attachmentsBySection[att.section_key]) attachmentsBySection[att.section_key] = [];
+            attachmentsBySection[att.section_key].push({
+              fileName: att.file_name,
+              content: att.extracted_text.substring(0, 5000),
+            });
+          }
+        }
+      } catch { /* attachments are optional — graceful fallback */ }
     }
 
     // ── Separate complexity from standard batch ─────────────
@@ -1516,7 +1575,7 @@ Carry these answers through every section review. Each comment should reflect yo
 
       const eb = relevantData.extended_brief && typeof relevantData.extended_brief === 'object' ? relevantData.extended_brief : {};
 
-      const userPrompt = `${userPromptInstruction}
+      let userPrompt = `${userPromptInstruction}
 
 BEFORE REVIEWING INDIVIDUAL SECTIONS, scan the entire challenge and answer these internally:
 1. What ARCHETYPE is this challenge? (Data/ML, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX, Cybersecurity, Other)
@@ -1584,9 +1643,21 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 
 ${additionalData}`;
 
+      // Append attachment content to user prompt
+      if (Object.keys(attachmentsBySection).length > 0) {
+        let attachmentBlock = '\n\nATTACHED DOCUMENTS (uploaded by the seeking organization — use to enrich your review):\n';
+        for (const [sk, files] of Object.entries(attachmentsBySection)) {
+          for (const f of files) {
+            attachmentBlock += `\n--- ${f.fileName} (${sk}) ---\n${f.content}\n`;
+          }
+        }
+        userPrompt += attachmentBlock;
+      }
+
+
       let systemPrompt: string;
       // Build context intelligence preamble
-      const contextIntel = buildContextIntelligence(challengeData, clientContext, (challengeData as any)._orgContext);
+      const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
       if (useDbConfig && dbConfigMap) {
         const batchConfigs = batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean);
         systemPrompt = contextIntel + '\n\n' + buildSmartBatchPrompt(batchConfigs, resolvedContext, masterDataOptions, clientContext, challengeData);

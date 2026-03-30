@@ -489,6 +489,20 @@ Flag every uncertainty a solver would have as a [SOLVER VIEW] warning.
 - Never invent system names, cost figures, regulatory citations you're not confident about
 - If unsure about a domain-specific claim, say "in my experience" rather than stating as fact
 - THE TEST: "Would a Deloitte principal consultant with 15 years in this domain say this from experience?" Yes → include.
+
+### VOICE AND PERSPECTIVE
+
+All AI-generated challenge content MUST be written from the SEEKING ORGANIZATION'S perspective — first person plural ("we", "our", "us"). The challenge is the seeker's own document addressed to potential solvers.
+
+- WRONG: "The organization requires a predictive maintenance solution."
+- RIGHT: "We need a predictive maintenance solution for our manufacturing lines."
+
+- WRONG: "Solvers should note that the seeker has legacy SCADA systems."
+- RIGHT: "Our factory floor runs on legacy SCADA systems (Siemens S7-300) with limited API access."
+
+EXCEPTIONS:
+- evaluation_criteria and submission_guidelines use neutral procedural voice ("Submissions will be evaluated...", "Solvers must provide...")
+- AI review comments (speaking TO the curator) use second person ("Your problem statement should...", "Consider adding...")
 `;
 
 /* ── SECTION_WAVE_CONTEXT: Strategic role and lifecycle position for each section ── */
@@ -679,85 +693,69 @@ const CURRENCY_TO_GEOGRAPHY: Record<string, string> = {
 export function buildContextIntelligence(
   challengeData: any,
   clientContext: any,
-  orgContext?: { orgType?: string; orgName?: string },
+  orgContext?: any,
 ): string {
-  const parts: string[] = [];
+  const orgName = orgContext?.orgName || '(not specified)';
+  const websiteUrl = orgContext?.websiteUrl;
+  const linkedinUrl = orgContext?.linkedinUrl;
+  const country = orgContext?.hqCountry || '(infer from currency)';
+  const city = orgContext?.hqCity;
+  const orgType = orgContext?.orgType || 'Enterprise';
+  const primaryIndustry = orgContext?.industries?.find((i: any) => i.isPrimary)?.name
+    || (Array.isArray(challengeData.domain_tags) && challengeData.domain_tags.length > 0 ? challengeData.domain_tags[0] : '(infer from problem statement)');
 
   const currency = challengeData.currency_code || clientContext?.currency || 'USD';
-  const geography = CURRENCY_TO_GEOGRAPHY[currency] || 'Global';
-
-  const domainTags = Array.isArray(challengeData.domain_tags) ? challengeData.domain_tags : [];
+  const CURRENCY_GEO: Record<string, string> = { USD:'United States', EUR:'European Union', GBP:'United Kingdom', INR:'India', AED:'UAE/Gulf', SGD:'Singapore', AUD:'Australia', JPY:'Japan', CNY:'China', CAD:'Canada', BRL:'Brazil', ZAR:'South Africa', CHF:'Switzerland', KRW:'South Korea' };
+  const geography = orgContext?.hqCountry || CURRENCY_GEO[currency] || 'Global';
 
   const opModel = challengeData.operating_model || 'marketplace';
-  const opModelDesc = opModel === 'aggregator'
-    ? 'AGGREGATOR model — Curated solver pool, collaborative engagement. Challenge Creator (internal) defines the challenge. Reward and scope may be more flexible.'
-    : 'MARKETPLACE model — Open solver pool, competitive submissions. Account Manager and Challenge Architect may have pre-defined budget constraints and requirements.';
-
-  const orgType = orgContext?.orgType || 'Enterprise';
   const maturity = clientContext?.maturityLevel || challengeData.maturity_level || 'not set';
   const complexity = clientContext?.complexityLevel || challengeData.complexity_level || 'not set';
   const solutionType = clientContext?.solutionType || challengeData.solution_type || 'not set';
 
-  parts.push(`
-## CONTEXT INTELLIGENCE — ACTIVATE YOUR DOMAIN KNOWLEDGE
+  return `
+## CONTEXT INTELLIGENCE — KNOW THE SEEKER, KNOW THE DOMAIN
 
-You are reviewing a challenge with this profile:
-- **Seeker**: ${orgType} organization${orgContext?.orgName ? ` (${orgContext.orgName})` : ''}
-- **Geography**: ${geography} (currency: ${currency})
-- **Operating Model**: ${opModelDesc}
-- **Domain**: ${domainTags.length > 0 ? domainTags.join(', ') : 'Infer from problem statement'}
-- **Solution Type**: ${solutionType}
-- **Maturity**: ${maturity}
-- **Complexity**: ${complexity}
+### ORGANIZATION (THE SEEKER — "WE" IN ALL CONTENT)
+- **We are**: ${orgName}${orgContext?.tradeBrand ? ` (${orgContext.tradeBrand})` : ''} — ${orgType}${orgContext?.isEnterprise ? ' (Enterprise)' : ''}
+${orgContext?.orgDescription ? `- **About us**: ${orgContext.orgDescription.substring(0, 400)}` : ''}
+${websiteUrl ? `- **Website**: ${websiteUrl}` : ''}
+${linkedinUrl ? `- **LinkedIn**: ${linkedinUrl}` : ''}
+- **HQ**: ${city ? city + ', ' : ''}${geography}
+${orgContext?.annualRevenue ? `- **Revenue**: ${orgContext.annualRevenue}` : ''}
+${orgContext?.employeeCount ? `- **Team**: ${orgContext.employeeCount}` : ''}
+- **Industry**: ${primaryIndustry}
 
-### WHAT YOU KNOW (from your training — USE IT):
+${websiteUrl || orgName !== '(not specified)' ? `**YOU KNOW THIS ORGANIZATION** from your training (website, LinkedIn, press, industry reports). Use that knowledge:
+- What do we do? Core products/services? Market position? Key competitors?
+- Technology stack, infrastructure, strategic priorities?
+- Regulatory environment in ${geography}?
+GUARDRAIL: Only use what you confidently know. Never fabricate org-specific claims.` : ''}
 
-**INDUSTRY KNOWLEDGE**: You have been trained on millions of consulting engagements, industry reports (Gartner, Forrester, McKinsey, BCG), regulatory documents, and technology white papers. For this challenge's domain, you KNOW:
-- Standard KPIs and benchmarks for this industry
-- Common failure modes for this type of project
-- Regulatory requirements in ${geography}
-- Technology maturity and adoption patterns in this sector
-- Typical project timelines, budgets, and team compositions
-- What "good" looks like vs "typical" vs "problematic"
+### GEOGRAPHY: ${geography}
+You KNOW: data privacy laws, industry regulations for ${primaryIndustry}, tech infrastructure maturity, talent market, business culture norms. Reference SPECIFIC regulations for ${geography}, not generic advice. Currency: ${currency}.
 
-**GEOGRAPHIC KNOWLEDGE**: For ${geography}, you KNOW:
-- Regulatory landscape (data privacy, industry-specific regulations)
-- Business culture norms that affect challenge design
-- Technology infrastructure maturity and constraints
-- Labor market for specialized solvers
-- Currency-appropriate reward benchmarking
+### INDUSTRY: ${primaryIndustry}
+You KNOW: standard KPIs, benchmarks, frameworks, competitive dynamics, technology adoption curves, typical project budgets/timelines. Benchmark THIS challenge against industry norms.
 
-**COMPETITIVE INTELLIGENCE**: You KNOW what similar challenges look like on:
-- InnoCentive/Wazoku (enterprise innovation challenges)
-- HeroX (technology challenges)
-- Kaggle (data science challenges)
-- TopCoder (software development challenges)
-Use this knowledge to benchmark whether THIS challenge's scope, timeline, reward, and deliverables are competitive.
+### OPERATING MODEL: ${opModel.toUpperCase()}
+${opModel === 'aggregator' ? 'Internal Challenge Creator. May use insider jargon. Budget flexible. Review for external solver accessibility.' : 'AM/CA pre-defined parameters. Budget constraints MUST be respected. Challenge must be 100% self-contained for open competitive submissions.'}
 
-**OPERATING MODEL IMPLICATIONS (${opModel.toUpperCase()})**:
-${opModel === 'aggregator'
-    ? `- The Challenge Creator is internal — they have organizational context but may use jargon
-- Reward structure may be more flexible — budget may not be fixed yet
-- Solvers may be pre-qualified — eligibility can be more selective
-- Collaboration and iteration are possible — deliverables can be refined`
-    : `- An Account Manager and/or Challenge Architect have pre-defined parameters
-- Budget constraints from AM/CA MUST be respected — the curator cannot exceed them
-- Solver pool is open and competitive — challenge must be self-contained
-- One-shot submissions — deliverables must be unambiguous on first read`
-  }
+### CHALLENGE PROFILE: ${solutionType} | ${maturity} | ${complexity}
+${maturity === 'BLUEPRINT' || maturity === 'blueprint' ? 'Blueprint = strategic documents. Focus on framing and stakeholder alignment.' : maturity === 'POC' || maturity === 'poc' ? 'POC = working prototype. Focus on feasibility, data, demo-readiness.' : maturity === 'PILOT' || maturity === 'pilot' ? 'Pilot = production deployment. Focus on scalability, security, SLAs, operations.' : 'Assess depth from deliverables.'}
 
 ### HOW TO APPLY THIS KNOWLEDGE:
 
-1. **In COMMENTS**: When you identify an issue, don't just say "this needs improvement." Say WHY it's a problem using your domain knowledge. Example: "In ${geography}'s ${domainTags[0] || 'enterprise'} sector, [specific regulatory requirement] means this deliverable needs [specific addition]."
+1. **In COMMENTS**: When you identify an issue, don't just say "this needs improvement." Say WHY it's a problem using your domain knowledge. Example: "In ${geography}'s ${primaryIndustry} sector, [specific regulatory requirement] means this deliverable needs [specific addition]."
 
-2. **In BEST PRACTICES**: Don't cite generic frameworks. Apply them to THIS challenge. Example: "For a ${maturity}-level ${solutionType} challenge in ${domainTags[0] || 'this domain'}, the standard approach is [specific methodology]. This challenge's deliverables should include [specific artifact from that methodology]."
+2. **In BEST PRACTICES**: Don't cite generic frameworks. Apply them to THIS challenge. Example: "For a ${maturity}-level ${solutionType} challenge in ${primaryIndustry}, the standard approach is [specific methodology]."
 
-3. **In SUGGESTIONS**: Recommend improvements that a principal consultant in this domain would make. Not "add more detail" but "add a data quality assessment framework covering completeness, accuracy, and timeliness metrics — standard for ${domainTags[0] || 'data-intensive'} challenges in ${geography}."
+3. **In SUGGESTIONS**: Recommend improvements that a principal consultant in this domain would make. Not "add more detail" but "add a data quality assessment framework covering completeness, accuracy, and timeliness metrics."
 
-4. **In WARNINGS**: Flag domain-specific risks. "In my experience with ${maturity} ${domainTags[0] || 'technology'} challenges, the #1 failure mode is [specific risk]. This challenge should address it by [specific mitigation]."
-`);
+4. **In WARNINGS**: Flag domain-specific risks. "In my experience with ${maturity} ${primaryIndustry} challenges, the #1 failure mode is [specific risk]. This challenge should address it by [specific mitigation]."
 
-  return parts.join('');
+**COMPETITIVE INTELLIGENCE**: Benchmark THIS challenge against similar challenges on InnoCentive/Wazoku, HeroX, Kaggle, TopCoder. Is the scope, timeline, reward, and deliverables competitive?
+`;
 }
 
 
@@ -1266,6 +1264,8 @@ REWRITE RULES:
 5. MATCH FORMAT exactly. HTML → HTML. JSON → JSON. Don't convert.
 6. PRODUCTION-READY: Directly publishable. No "[TBD]", no "as appropriate", no "etc."
 
+VOICE RULE: All rewritten content uses first-person plural ("we", "our") from the seeker's perspective. Exception: evaluation_criteria and submission_guidelines use neutral procedural voice. NEVER write "the organization" or "the seeker" in challenge content.
+
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
 - Good problem statement: "Our supply chain planning team makes demand forecasts using 18-month-old statistical models in Excel, resulting in 23% forecast error (vs. industry benchmark of 12-15%). This drives $4.2M in annual excess inventory costs and 340 stockout events per quarter across our 12 distribution centers."
@@ -1287,12 +1287,6 @@ CHALLENGE CONTEXT:
 - Complexity: ${challengeContext?.complexityLevel || 'not set'}
 - Operating Model: ${challengeContext?.operatingModel || 'marketplace'}
 - Currency: ${challengeContext?.currency || 'USD'}
-- Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
-CHALLENGE CONTEXT:
-- Maturity: ${challengeContext?.maturityLevel || 'not set'}
-- Solution type: ${challengeContext?.solutionType || 'not set'}
-- Seeker: ${challengeContext?.seekerSegment || 'not set'}
-- Complexity: ${challengeContext?.complexityLevel || 'not set'}
 - Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
 `;
 
