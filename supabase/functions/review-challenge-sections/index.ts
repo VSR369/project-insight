@@ -1575,7 +1575,7 @@ Carry these answers through every section review. Each comment should reflect yo
 
       const eb = relevantData.extended_brief && typeof relevantData.extended_brief === 'object' ? relevantData.extended_brief : {};
 
-      const userPrompt = `${userPromptInstruction}
+      let userPrompt = `${userPromptInstruction}
 
 BEFORE REVIEWING INDIVIDUAL SECTIONS, scan the entire challenge and answer these internally:
 1. What ARCHETYPE is this challenge? (Data/ML, Enterprise Integration, Process Redesign, Strategic Advisory, Product/UX, Cybersecurity, Other)
