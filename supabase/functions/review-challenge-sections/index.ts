@@ -748,7 +748,7 @@ async function executeComplexityAssessment(
     `- ${d.dimension_key} (${d.dimension_name}): Level 1 = "${d.level_1_description}", Level 3 = "${d.level_3_description}", Level 5 = "${d.level_5_description}"`
   ).join('\n');
 
-  const systemPrompt = `You are an expert challenge complexity assessor. Analyze the challenge data and rate each complexity dimension on a scale of 1-5 based on the provided level descriptions.
+  const systemPrompt = `You are an expert challenge complexity assessor. Analyze the challenge data and rate each complexity dimension on a scale of 1-10 based on the provided level descriptions. Level 1 description maps to scores 1-2, Level 3 maps to scores 5-6, Level 5 maps to scores 9-10.
 
 COMPLEXITY DIMENSIONS:
 ${paramDescriptions}
