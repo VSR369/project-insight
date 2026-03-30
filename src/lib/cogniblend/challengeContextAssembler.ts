@@ -15,10 +15,10 @@ import { SECTION_FORMAT_CONFIG } from '@/lib/cogniblend/curationSectionFormats';
 export type SolutionType = 'strategy_design' | 'process_operations' | 'technology_architecture' | 'product_innovation';
 
 export const SOLUTION_TYPE_LABELS: Record<SolutionType, string> = {
-  strategy_design: 'Strategy & Design',
-  process_operations: 'Process & Operations',
-  technology_architecture: 'Technology & Architecture',
-  product_innovation: 'Product & Innovation',
+  strategy_design: 'Future & Business Blueprint',
+  process_operations: 'Business & Operational Excellence',
+  technology_architecture: 'Digital & Technology Blueprint',
+  product_innovation: 'Product & Service Innovation',
 };
 
 export const VALID_SOLUTION_TYPES: SolutionType[] = [
