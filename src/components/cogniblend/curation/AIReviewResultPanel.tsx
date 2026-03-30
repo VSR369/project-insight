@@ -324,48 +324,100 @@ function EditableLineItems({
   );
 }
 
-/** Editable table rows (eval criteria) */
+/** Editable table rows — column-aware, reads columns from SECTION_FORMAT_CONFIG */
 function EditableTableRows({
+  sectionKey,
   rows,
   onChange,
 }: {
+  sectionKey?: string;
   rows: Record<string, unknown>[];
   onChange: (rows: Record<string, unknown>[]) => void;
 }) {
+  const columns = sectionKey
+    ? SECTION_FORMAT_CONFIG[sectionKey]?.columns ?? null
+    : null;
+
+  // Fallback to legacy eval_criteria layout when no columns configured or section is eval_criteria
+  const isEvalCriteria = !columns || sectionKey === 'evaluation_criteria';
+
   const handleChange = (index: number, field: string, value: string) => {
     const updated = [...rows];
-    updated[index] = { ...updated[index], [field]: field === "weight" ? Number(value) || 0 : value };
+    const isNumeric = field === 'weight' || field === 'weight_percentage';
+    updated[index] = { ...updated[index], [field]: isNumeric ? Number(value) || 0 : value };
     onChange(updated);
   };
-  const handleAdd = () => onChange([...rows, { name: "", weight: 0, description: "" }]);
+
+  const handleAdd = () => {
+    if (isEvalCriteria) {
+      onChange([...rows, { name: "", weight: 0, description: "" }]);
+    } else {
+      const emptyRow: Record<string, unknown> = {};
+      columns!.forEach(c => { emptyRow[c] = ''; });
+      onChange([...rows, emptyRow]);
+    }
+  };
+
   const handleRemove = (index: number) => onChange(rows.filter((_, i) => i !== index));
 
+  const formatLabel = (key: string) =>
+    key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  if (isEvalCriteria) {
+    return (
+      <div className="space-y-1.5">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-start gap-1.5 rounded border border-border/50 p-2 bg-background/50">
+            <div className="flex-1 space-y-1">
+              <Input
+                value={String(row.name ?? row.criterion_name ?? "")}
+                onChange={(e) => handleChange(i, "name", e.target.value)}
+                className="text-sm h-7"
+                placeholder="Criterion name..."
+              />
+              <div className="flex gap-1.5">
+                <Input
+                  type="number"
+                  value={String(row.weight ?? row.weight_percentage ?? 0)}
+                  onChange={(e) => handleChange(i, "weight", e.target.value)}
+                  className="text-sm h-7 w-20"
+                  placeholder="Weight %"
+                />
+                <Input
+                  value={String(row.description ?? "")}
+                  onChange={(e) => handleChange(i, "description", e.target.value)}
+                  className="text-sm h-7 flex-1"
+                  placeholder="Description..."
+                />
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive mt-0.5" onClick={() => handleRemove(i)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAdd}>
+          <Plus className="h-3 w-3 mr-1" />Add Row
+        </Button>
+      </div>
+    );
+  }
+
+  // Dynamic column layout for non-eval table sections
   return (
     <div className="space-y-1.5">
       {rows.map((row, i) => (
         <div key={i} className="flex items-start gap-1.5 rounded border border-border/50 p-2 bg-background/50">
-          <div className="flex-1 space-y-1">
-            <Input
-              value={String(row.name ?? row.criterion_name ?? "")}
-              onChange={(e) => handleChange(i, "name", e.target.value)}
-              className="text-sm h-7"
-              placeholder="Criterion name..."
-            />
-            <div className="flex gap-1.5">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-1.5">
+            {columns!.map((col) => (
               <Input
-                type="number"
-                value={String(row.weight ?? row.weight_percentage ?? 0)}
-                onChange={(e) => handleChange(i, "weight", e.target.value)}
-                className="text-sm h-7 w-20"
-                placeholder="Weight %"
+                key={col}
+                value={String(row[col] ?? "")}
+                onChange={(e) => handleChange(i, col, e.target.value)}
+                className="text-sm h-7"
+                placeholder={formatLabel(col)}
               />
-              <Input
-                value={String(row.description ?? "")}
-                onChange={(e) => handleChange(i, "description", e.target.value)}
-                className="text-sm h-7 flex-1"
-                placeholder="Description..."
-              />
-            </div>
+            ))}
           </div>
           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive mt-0.5" onClick={() => handleRemove(i)}>
             <Trash2 className="h-3 w-3" />
