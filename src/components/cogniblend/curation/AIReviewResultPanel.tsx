@@ -532,10 +532,11 @@ function ComplexityParameterTable({
   const entries = Object.entries(ratings);
   if (entries.length === 0) return null;
 
-  // Simple average for display (weighted score computed elsewhere with master params)
-  const avgScore = entries.reduce((s, [, r]) => s + r.rating, 0) / entries.length;
-  const level = deriveComplexityLevel(avgScore);
-  const label = deriveComplexityLabel(avgScore);
+  // Weighted score using equal weights (1/n) — matches ComplexityAssessmentModule effectiveParams logic
+  const n = entries.length;
+  const weightedScore = entries.reduce((s, [, r]) => s + r.rating, 0) / n;
+  const level = deriveComplexityLevel(weightedScore);
+  const label = deriveComplexityLabel(weightedScore);
   const levelColor = LEVEL_COLORS[level] ?? "";
 
   function ratingColor(rating: number): string {
@@ -554,7 +555,7 @@ function ComplexityParameterTable({
           {level} — {label}
         </Badge>
         <span className="text-xs text-muted-foreground ml-auto">
-          Avg: {avgScore.toFixed(1)}/10
+          Score: {weightedScore.toFixed(2)}/10
         </span>
       </div>
 

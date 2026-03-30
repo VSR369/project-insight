@@ -36,6 +36,7 @@ interface ChallengeDataSlice {
   extended_brief: unknown;
   solver_expertise_requirements: unknown;
   complexity_parameters: unknown;
+  submission_guidelines?: unknown;
 }
 
 /** Map challenge fields to section keys */
@@ -52,6 +53,7 @@ const CHALLENGE_FIELD_TO_SECTION: Array<[keyof ChallengeDataSlice, SectionKey]> 
   ['visibility', 'visibility' as SectionKey],
   ['eligibility', 'eligibility' as SectionKey],
   ['description', 'submission_guidelines' as SectionKey],
+  ['submission_guidelines', 'submission_guidelines' as SectionKey],
   ['domain_tags', 'domain_tags' as SectionKey],
   
   ['expected_outcomes', 'expected_outcomes' as SectionKey],

@@ -709,8 +709,27 @@ async function callComplexityAI(
   adminClient: any,
   clientContext?: any,
 ): Promise<any> {
-  // Fetch complexity dimensions for the solution type
-  const solutionType = challengeData.solution_type || clientContext?.solutionType || 'ideation';
+  // Resolve solution type — REQUIRE explicit type, no arbitrary fallback
+  const solutionType = challengeData.solution_type || clientContext?.solutionType || null;
+
+  if (!solutionType) {
+    // Return a structured error result instead of scoring with wrong dimensions
+    console.warn("Complexity assessment skipped: no solution_type set on challenge");
+    const now = new Date().toISOString();
+    return {
+      section_key: "complexity",
+      status: "needs_revision",
+      comments: [{
+        text: "Cannot assess complexity: Solution Type is not set. Please select a Solution Type in the challenge configuration before running AI complexity assessment.",
+        type: "error",
+        field: "solution_type",
+        reasoning: "Complexity dimensions are solution-type-specific. Without a defined type, the AI cannot select the correct rating dimensions, leading to inconsistent and unreliable scores.",
+      }],
+      reviewed_at: now,
+      suggested_complexity: null,
+    };
+  }
+
   const { data: dimensions, error: dimError } = await adminClient
     .from("complexity_dimensions")
     .select("*")
@@ -719,19 +738,20 @@ async function callComplexityAI(
     .order("display_order");
 
   if (dimError || !dimensions?.length) {
-    // Try fetching without solution_type filter
-    const { data: fallbackDims } = await adminClient
-      .from("complexity_dimensions")
-      .select("*")
-      .eq("is_active", true)
-      .order("display_order")
-      .limit(10);
-
-    if (!fallbackDims?.length) {
-      console.error("No complexity dimensions found for solution_type:", solutionType);
-      throw new Error("No complexity dimensions configured");
-    }
-    return await executeComplexityAssessment(apiKey, model, challengeData, fallbackDims, clientContext);
+    console.error("No complexity dimensions found for solution_type:", solutionType);
+    const now = new Date().toISOString();
+    return {
+      section_key: "complexity",
+      status: "needs_revision",
+      comments: [{
+        text: `No complexity dimensions configured for solution type "${solutionType}". Please contact an admin to configure dimensions for this type.`,
+        type: "error",
+        field: "solution_type",
+        reasoning: "The complexity_dimensions table has no active rows for this solution type.",
+      }],
+      reviewed_at: now,
+      suggested_complexity: null,
+    };
   }
 
   return await executeComplexityAssessment(apiKey, model, challengeData, dimensions, clientContext);
@@ -841,7 +861,7 @@ ${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` :
     const rating = ratings[d.dimension_key];
     if (!rating) return { text: `${d.dimension_name}: not rated`, type: 'warning' as const, field: d.dimension_key, reasoning: null };
     return {
-      text: `${d.dimension_name}: ${rating.rating}/5 — ${rating.justification}`,
+      text: `${d.dimension_name}: ${rating.rating}/10 — ${rating.justification}`,
       type: (rating.rating >= 4 ? 'warning' : 'strength') as string,
       field: d.dimension_key,
       reasoning: rating.justification,
