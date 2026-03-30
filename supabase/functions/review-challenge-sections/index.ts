@@ -87,30 +87,37 @@ function jsonBrief(v: any): string {
 /* ── FIX 1: Cross-section dependency map ── */
 
 const SECTION_DEPENDENCIES: Record<string, string[]> = {
-  evaluation_criteria: ['deliverables', 'expected_outcomes', 'scope', 'submission_guidelines'],
-  reward_structure: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule', 'solver_expertise'],
-  solver_expertise: ['solution_type', 'deliverables', 'scope', 'domain_tags'],
-  eligibility: ['solver_expertise', 'maturity_level', 'complexity'],
-  phase_schedule: ['deliverables', 'maturity_level', 'complexity', 'evaluation_criteria'],
-  submission_guidelines: ['deliverables', 'evaluation_criteria', 'phase_schedule'],
-  complexity: ['solution_type', 'deliverables', 'scope', 'maturity_level', 'data_resources_provided'],
-  deliverables: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
-  hook: ['problem_statement', 'scope', 'deliverables', 'reward_structure', 'domain_tags'],
-  visibility: ['solver_expertise', 'eligibility'],
-  domain_tags: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
-  success_metrics_kpis: ['expected_outcomes', 'deliverables'],
-  data_resources_provided: ['deliverables', 'scope', 'solver_expertise'],
+  // Wave 1
+  problem_statement: [],
   scope: ['problem_statement'],
   expected_outcomes: ['problem_statement', 'scope'],
+  context_and_background: ['problem_statement'],
+  // Wave 2
   root_causes: ['problem_statement', 'context_and_background'],
   affected_stakeholders: ['problem_statement', 'scope'],
   current_deficiencies: ['problem_statement', 'root_causes'],
-  preferred_approach: ['problem_statement', 'root_causes', 'deliverables'],
+  preferred_approach: ['problem_statement', 'root_causes'],
   approaches_not_of_interest: ['preferred_approach'],
-  ip_model: ['deliverables', 'maturity_level', 'reward_structure'],
+  // Wave 3
+  solution_type: ['problem_statement', 'scope'],
+  deliverables: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
   maturity_level: ['deliverables', 'scope'],
-  context_and_background: ['problem_statement'],
-  solution_type: ['problem_statement', 'scope', 'deliverables'],
+  data_resources_provided: ['deliverables', 'scope'],
+  success_metrics_kpis: ['expected_outcomes', 'deliverables'],
+  // Wave 4
+  complexity: ['solution_type', 'deliverables', 'scope', 'maturity_level', 'data_resources_provided'],
+  solver_expertise: ['solution_type', 'deliverables', 'scope', 'domain_tags'],
+  eligibility: ['solver_expertise', 'maturity_level', 'complexity'],
+  // Wave 5
+  phase_schedule: ['deliverables', 'maturity_level', 'complexity'],
+  evaluation_criteria: ['deliverables', 'expected_outcomes', 'scope'],
+  submission_guidelines: ['deliverables', 'evaluation_criteria', 'phase_schedule'],
+  reward_structure: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule', 'solver_expertise'],
+  ip_model: ['deliverables', 'maturity_level', 'reward_structure'],
+  // Wave 6
+  hook: ['problem_statement', 'scope', 'deliverables', 'reward_structure', 'domain_tags'],
+  visibility: ['solver_expertise', 'eligibility'],
+  domain_tags: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
 };
 
 /** What to check FOR when reviewing a section against its dependencies */
