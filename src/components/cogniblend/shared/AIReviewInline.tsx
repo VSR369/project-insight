@@ -396,10 +396,14 @@ export function AIReviewInline({
   const handleCommentChange = useCallback((index: number, value: string) => {
     setEditedComments((prev) => {
       const updated = [...prev];
-      updated[index] = value;
+      const original = prev[index] ?? (review?.comments?.[index]);
+      // Preserve structured comment metadata (type, field, reasoning) when only editing text
+      updated[index] = (original && typeof original === 'object')
+        ? { ...original, text: value }
+        : value;
       return updated;
     });
-  }, []);
+  }, [review?.comments]);
 
   const handleSaveComment = useCallback(() => {
     setEditingIndex(null);
