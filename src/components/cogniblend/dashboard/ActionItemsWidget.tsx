@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
