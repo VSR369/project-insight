@@ -57,22 +57,3 @@ export function useToggleMsmeConfig() {
   });
 }
 
-export function useToggleChallengeRequestor() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ orgId, isEnabled }: { orgId: string; isEnabled: boolean }) => {
-      const { error } = await supabase
-        .from("md_rbac_msme_config")
-        .upsert({
-          org_id: orgId,
-          challenge_requestor_enabled: isEnabled,
-        });
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ["msme-config", variables.orgId] });
-      toast.success(variables.isEnabled ? "Challenge Requestor role enabled" : "Challenge Requestor role disabled");
-    },
-    onError: (e: Error) => handleMutationError(e, { operation: "toggle_challenge_requestor" }),
-  });
-}

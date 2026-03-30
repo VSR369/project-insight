@@ -699,8 +699,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
               by {sourceRequest.source_sr_creator_name ?? 'Unknown'} ({sourceRequest.source_sr_org_name ?? ''})
             </p>
           </div>
-          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => navigate('/cogni/my-requests')}>
-            View Original Request
+          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => navigate('/cogni/my-challenges')}>
+            View Challenge
           </Button>
         </div>
       )}

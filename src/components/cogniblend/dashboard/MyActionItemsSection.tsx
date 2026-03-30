@@ -75,14 +75,10 @@ interface ActionItem {
 function getActionRoute(item: ActionItem): {
   route: string; label: string; icon: typeof Eye;
 } {
-  // AM approval items → AM review page
-  if (item.phase_status === 'AM_APPROVAL_PENDING' || item.status === 'AM_APPROVAL_PENDING') {
-    return { route: `/cogni/my-requests/${item.id}/review`, label: 'Review & Approve', icon: ShieldCheck };
-  }
-  // Notification-based items → challenge view (or dashboard if no challenge)
+  // Notification-based items → challenge view
   if (item.isNotification) {
     const targetId = item.challengeId || item.id;
-    return { route: `/cogni/my-requests/${targetId}/view`, label: 'View', icon: Eye };
+    return { route: `/cogni/my-challenges/${targetId}`, label: 'View', icon: Eye };
   }
   // Drafts
   if (item.status === 'DRAFT') {
@@ -92,8 +88,8 @@ function getActionRoute(item: ActionItem): {
   if (item.status === 'RETURNED') {
     return { route: `/cogni/challenges/${item.id}/edit`, label: 'Revise', icon: Pencil };
   }
-  // Default: read-only AM view
-  return { route: `/cogni/my-requests/${item.id}/view`, label: 'View', icon: Eye };
+  // Default: challenge view
+  return { route: `/cogni/my-challenges/${item.id}`, label: 'View', icon: Eye };
 }
 
 export function MyActionItemsSection() {
