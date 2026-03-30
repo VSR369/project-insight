@@ -1509,6 +1509,7 @@ export default function CurationReviewPage() {
   }, []);
 
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
+  const complexityModuleRef = useRef<ComplexityModuleHandle>(null);
 
   // Stable ref for saveSectionMutation — avoids unstable deps in effects
   const saveSectionMutationRef = useRef(saveSectionMutation);
