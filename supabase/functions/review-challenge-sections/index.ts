@@ -70,6 +70,7 @@ const CURATION_SECTIONS = [
   { key: "context_and_background", desc: "Comprehensive context for external solvers — operational setting, prior attempts" },
   { key: "success_metrics_kpis", desc: "Quantitative KPIs aligned with expected outcomes and deliverables" },
   // Wave 2: Enrichment
+  { key: "solution_type", desc: "Multi-select solution types from md_solution_types — return JSON array of matching codes" },
   { key: "root_causes", desc: "Discrete root causes inferred from problem statement — phrase labels, max 8" },
   { key: "affected_stakeholders", desc: "Stakeholder table with name, role, impact, adoption challenge" },
   { key: "current_deficiencies", desc: "Current-state observation phrases — factual, not aspirational, max 10" },
