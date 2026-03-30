@@ -292,7 +292,7 @@ export function AIReviewInline({
       sectionKey !== 'complexity' &&
       review &&
       !review.addressed &&
-      (review.status === "warning" || review.status === "needs_revision" || review.status === "generated") &&
+      (review.status === "pass" || review.status === "warning" || review.status === "needs_revision" || review.status === "generated") &&
       review.comments && review.comments.length > 0 &&
       !refinedContent &&
       !isRefining &&
@@ -301,10 +301,18 @@ export function AIReviewInline({
       autoRefineTriggered.current = true;
 
       // If the review already returned an inline suggestion, use it directly — no second LLM call
-      if (review.suggestion && typeof review.suggestion === 'string' && review.suggestion.trim().length > 0) {
-        setRefinedContent(review.suggestion);
-        return;
+      if (review.suggestion != null) {
+        const suggestionStr = typeof review.suggestion === 'string'
+          ? review.suggestion
+          : JSON.stringify(review.suggestion);
+        if (suggestionStr.trim().length > 0) {
+          setRefinedContent(suggestionStr);
+          return;
+        }
       }
+
+      // For pass sections, don't trigger separate refine — only use inline suggestions
+      if (review.status === 'pass') return;
 
       // No inline suggestion — fall back to separate refine call
       const timer = setTimeout(() => {
