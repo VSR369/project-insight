@@ -532,6 +532,7 @@ export default function AIReviewConfigPage() {
         .from('ai_review_global_config')
         .update({
           default_model: globalModel,
+          critical_model: criticalModel.trim() || null,
           batch_split_threshold: batchThreshold,
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
