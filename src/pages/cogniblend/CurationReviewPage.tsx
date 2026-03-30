@@ -1225,7 +1225,7 @@ export default function CurationReviewPage() {
   const { data: solutionTypesData = [] } = useSolutionTypes();
   const solutionTypeGroups = useMemo(() => groupSolutionTypes(solutionTypesData), [solutionTypesData]);
 
-  const [activeGroup, setActiveGroup] = useState<string>("foundation");
+  const [activeGroup, setActiveGroup] = useState<string>("organization");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
   const [approvedSections, setApprovedSections] = useState<Record<string, boolean>>({});
