@@ -3987,6 +3987,8 @@ export default function CurationReviewPage() {
                   </div>
                 )}
               </div>
+              </>
+              )}
             </CardContent>
           </Card>
         </div>
