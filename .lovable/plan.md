@@ -1,68 +1,69 @@
 
 
-# Fix 10 Regression Bugs in AI Review Pipeline
+# Fix 7 Pass 2 Gaps — Elevate to Principal Consultant Level
 
 ## Summary
 
-Fix 2 critical, 4 high, and 4 medium bugs across two edge functions and one prompt template file. All bugs are confirmed present in the current code.
+Fix 7 gaps in the Pass 2 rewrite pipeline across two files. All changes are in edge function code only — no migrations, no UI changes.
 
 ## Files Modified
 
-| File | Bugs Fixed |
+| File | Gaps Fixed |
 |------|-----------|
-| `supabase/functions/review-challenge-sections/index.ts` | 1, 2, 3, 5, 7, 10 |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | 6 |
-| `supabase/functions/extract-attachment-text/index.ts` | 4, 8, 9 |
+| `supabase/functions/review-challenge-sections/index.ts` | 1, 2, 3, 7 |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | 4, 5, 6 |
 
 ## Changes
 
-### Bug 1 (CRITICAL): Pass orgContext to Pass 2
+### Gap 1: Replace raw JSON dump with compact summary
+**File:** `index.ts`, lines 722-724
 
-Add `orgContext` parameter to `callAIPass2Rewrite` (line 574) and `callAIBatchTwoPass` (line 857). Prepend `buildContextIntelligence(challengeData, clientContext, orgContext)` to the Pass 2 system prompt (after line 747). Thread `orgContext` from main handler (line 1745) through `callAIBatchTwoPass` to `callAIPass2Rewrite`.
+Replace `FULL CHALLENGE DATA:\n${JSON.stringify(challengeData, null, 2)}` with a compact reference block showing only Title, Problem (300 chars), Scope (300 chars), Maturity, Complexity, Domain Tags, Solution Type, Deliverable Count, IP Model, and Currency. Saves ~5,000-10,000 tokens per Pass 2 call.
 
-### Bug 2 (CRITICAL): Pass attachmentsBySection to Pass 2
+### Gap 2: Feed cross-section issues into Pass 2
+**File:** `index.ts`, inside `sectionPrompts` builder (~line 616-707)
 
-Add `attachmentsBySection` parameter to both `callAIPass2Rewrite` and `callAIBatchTwoPass`. Thread from main handler. Default to `{}` at usage site (line 689): `(attachmentsBySection || {})[r.section_key]`.
+After the `bestPractices` block (line 639-641), extract `cross_section_issues` from `pass1Results` that reference the current section key. Build a `crossIssueBlock` string and inject it into the per-section template after ISSUES TO ADDRESS.
 
-### Bug 3 (HIGH): file_name null fallback
+### Gap 3: Preserve strengths in Pass 2
+**File:** `index.ts`, inside `sectionPrompts` builder
 
-Line 1505: change `att.file_name` to `(att.file_name || 'Unnamed file')`.
+Filter `r.comments` for `type === 'strength'` entries. Build a `strengthBlock` string and inject before ISSUES TO ADDRESS so the LLM knows what to keep.
 
-### Bug 4 (HIGH): PDF extraction quality check
+### Gap 4: Add self-validation instruction
+**File:** `promptTemplate.ts`, in `buildPass2SystemPrompt` (after REWRITE RULES, ~line 1273)
 
-In `extract-attachment-text`, after decoding PDF buffer, compute `printableRatio`. If < 0.2 or text < 50 chars, set a descriptive fallback message and method `pdf_binary_fallback`.
+Append an 8-point self-validation checklist (address every issue, preserve strengths, resolve cross-section issues, seeker voice, solver comprehension, format match, specificity, AI-ONLY embedding).
 
-### Bug 5 (HIGH): Fetch all org fields
+### Gap 5: Section-specific quality bar exemplars
+**File:** `promptTemplate.ts`
 
-Expand the SELECT at line 1360 to include `twitter_url, tagline, social_links, functional_areas`. Map them to `orgContext`. Expand the `orgContext` type declaration at line 1276.
+Add a `SECTION_QUALITY_EXEMPLARS` constant with fallback examples for `scope`, `evaluation_criteria`, `success_metrics_kpis`, `hook`, `solver_expertise`, and `reward_structure`. In the per-section enrichment loop (line 1346-1348), add an `else if` branch using these when `config.example_good` is null.
 
-### Bug 6 (HIGH): Use new org fields in prompt
+### Gap 6: Quantification mandate
+**File:** `promptTemplate.ts`, in `buildPass2SystemPrompt` (after REWRITE RULES)
 
-In `buildContextIntelligence` (promptTemplate.ts), add `tagline`, `twitterUrl`, `functionalAreas` to the org profile template output.
+Append a QUANTIFICATION MANDATE block with 3 wrong/right pairs and a fallback instruction for benchmarked ranges.
 
-### Bug 7 (MEDIUM): Move contextIntel before batch loop
+### Gap 7: Generation strategy for empty sections
+**File:** `index.ts`, line 682
 
-Move `const contextIntel = buildContextIntelligence(...)` from inside `for (const batch of batches)` (line 1694) to before the loop (before line 1559).
-
-### Bug 8 (MEDIUM): URL extraction sparse check
-
-In `extract-attachment-text`, after URL extraction succeeds, check if `extractedText.trim().length < 100`. If so, wrap in a descriptive message noting sparse/inaccessible content.
-
-### Bug 9 (MEDIUM): DOCX/XLSX binary fallback
-
-In `extract-attachment-text`, separate CSV from XLSX handling (CSV is plaintext, XLSX is ZIP). Apply `printableRatio` check for XLSX and DOCX. Same pattern as Bug 4.
-
-### Bug 10 (MEDIUM): Org context in complexity
-
-Add `orgContext` parameter to `executeComplexityAssessment` and `callComplexityAI`. Inject org name/country/industry into the complexity system prompt. Pass from main handler at line 1541.
+Replace the generic `'ACTION: Generate new content from scratch based on challenge context.'` with a 5-step generation strategy: derive from upstream, apply domain expertise for the maturity level, reference attached materials, quantify, and follow exact format.
 
 ## Implementation Order
 
-1. Bugs 1 + 2 together (same parameter threading)
-2. Bugs 5 + 6 together (org fields fetch + prompt usage)
-3. Bug 7 (contextIntel hoisting)
-4. Bug 10 (complexity org context)
-5. Bug 3 (one-line fix)
-6. Bugs 4 + 8 + 9 together (extract-attachment-text)
-7. Deploy both edge functions
+1. Gap 1 (index.ts — replace JSON dump)
+2. Gaps 2 + 3 (index.ts — cross-section issues + strengths in sectionPrompts builder)
+3. Gap 7 (index.ts — generation strategy)
+4. Gaps 4 + 6 (promptTemplate.ts — self-validation + quantification mandate)
+5. Gap 5 (promptTemplate.ts — quality exemplars)
+6. Deploy edge function
+
+## Technical Notes
+
+- All changes are within the `review-challenge-sections` edge function
+- No database migrations required
+- No frontend changes required
+- Token savings from Gap 1 offset any token increase from Gaps 2-6
+- Net effect: better quality output at similar or lower token cost
 
