@@ -1194,6 +1194,8 @@ export default function CurationReviewPage() {
   const { data: complexityParams = [] } = useComplexityParams();
   const { data: industrySegments } = useIndustrySegments();
   const { data: solutionTypeMap = [] } = useSolutionTypeMap();
+  const { data: solutionTypesData = [] } = useSolutionTypes();
+  const solutionTypeGroups = useMemo(() => groupSolutionTypes(solutionTypesData), [solutionTypesData]);
 
   const [activeGroup, setActiveGroup] = useState<string>("problem_definition");
   const [editingSection, setEditingSection] = useState<string | null>(null);
