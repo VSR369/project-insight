@@ -4264,6 +4264,37 @@ export default function CurationReviewPage() {
         }}
         onProceed={executeWavesWithBudgetCheck}
       />
+
+      {/* Guided mode floating Next button */}
+      {guidedMode && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            size="lg"
+            className="shadow-lg gap-2 rounded-full px-6"
+            onClick={() => {
+              const currentIdx = GROUPS.findIndex(g => g.id === activeGroup);
+              for (let i = currentIdx + 1; i < GROUPS.length; i++) {
+                const gp = groupProgress[GROUPS[i].id];
+                if (gp && gp.done < gp.total) {
+                  setActiveGroup(GROUPS[i].id);
+                  return;
+                }
+              }
+              toast.success('All tabs reviewed!');
+            }}
+          >
+            Next: {(() => {
+              const currentIdx = GROUPS.findIndex(g => g.id === activeGroup);
+              for (let i = currentIdx + 1; i < GROUPS.length; i++) {
+                const gp = groupProgress[GROUPS[i].id];
+                if (gp && gp.done < gp.total) return GROUPS[i].label;
+              }
+              return 'All Complete';
+            })()}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
