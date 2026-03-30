@@ -1092,6 +1092,9 @@ serve(async (req) => {
       : Promise.resolve();
 
     for (const batch of batches) {
+      // Per-batch model selection: critical sections get premium model
+      const batchKeys = batch.map(b => b.key);
+      const modelToUse = getModelForRequest(batchKeys, globalConfig);
       // Build action-aware user prompt instruction for Pass 1 (analysis only)
       let userPromptInstruction: string;
       if (wave_action === 'generate') {

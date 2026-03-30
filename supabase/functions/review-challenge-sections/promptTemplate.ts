@@ -620,6 +620,15 @@ CHALLENGE CONTEXT:
     if (config.dos) {
       prompt += `\nINSTRUCTIONS: ${config.dos}\n`;
     }
+
+    // Per-section format instruction (ensures Pass 2 knows exact output shape)
+    const fmt = SECTION_FORMAT_MAP[config.section_key] || 'rich_text';
+    const ebInstr = EXTENDED_BRIEF_FORMAT_INSTRUCTIONS[config.section_key];
+    const fmtInstr = FORMAT_INSTRUCTIONS[fmt] || '';
+    const formatRule = ebInstr || fmtInstr;
+    if (formatRule) {
+      prompt += `\nOUTPUT FORMAT: ${formatRule}\n`;
+    }
   }
 
   // Table-format output reinforcement
