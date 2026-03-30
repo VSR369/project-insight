@@ -1952,7 +1952,7 @@ export default function CurationReviewPage() {
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
-    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags'];
+    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags', 'success_metrics_kpis', 'data_resources_provided'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
@@ -2007,6 +2007,28 @@ export default function CurationReviewPage() {
             description: c.description ?? c.details ?? "",
           }))
         };
+      }
+    }
+
+    // ── Success Metrics & KPIs: normalize AI field names to canonical columns ──
+    if (dbField === 'success_metrics_kpis' && valueToSave && typeof valueToSave === 'object') {
+      const rawArr = Array.isArray(valueToSave) ? valueToSave : (valueToSave?.items ?? null);
+      if (rawArr && Array.isArray(rawArr)) {
+        valueToSave = rawArr.map((row: any) => ({
+          kpi: row.kpi ?? row.metric ?? row.name ?? row.KPI ?? "",
+          baseline: row.baseline ?? row.Baseline ?? "",
+          target: row.target ?? row.Target ?? "",
+          measurement_method: row.measurement_method ?? row.method ?? row.Method ?? "",
+          timeframe: row.timeframe ?? row.Timeframe ?? row.timeline ?? "",
+        }));
+      }
+    }
+
+    // ── Data Resources Provided: unwrap from wrapper if needed ──
+    if (dbField === 'data_resources_provided' && valueToSave && typeof valueToSave === 'object') {
+      const rawArr = Array.isArray(valueToSave) ? valueToSave : (valueToSave?.items ?? null);
+      if (rawArr && Array.isArray(rawArr)) {
+        valueToSave = rawArr;
       }
     }
 
