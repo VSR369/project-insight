@@ -748,12 +748,12 @@ const SECTIONS: SectionDef[] = [
             <TableBody>
               {raw.map((r: any, i: number) => (
                 <TableRow key={i}>
-                  <TableCell className="text-sm font-medium">{r.resource ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{r.type ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{r.format ?? "—"}</TableCell>
+                  <TableCell className="text-sm font-medium">{r.resource ?? r.name ?? r.resource_name ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.type ?? r.data_type ?? r.resource_type ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.format ?? r.data_format ?? "—"}</TableCell>
                   <TableCell className="text-sm">{r.size ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{r.access_method ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{r.restrictions ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.access_method ?? r.access ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{r.restrictions ?? r.restriction ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
