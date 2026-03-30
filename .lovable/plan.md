@@ -1,55 +1,46 @@
 
 
-# Complexity Assessment — Two Bugs Fix Plan
+# Final 3 Bugs Fix Plan
 
-## Bug 1: Score mismatch between AI ratings and displayed score
+## Bug 1 (HIGH): Reward Structure — Tiers Array vs Record Mismatch
 
-**Root Cause:** The Accept handler in `CurationReviewPage.tsx` (lines 1843-1864) recalculates the score using `complexityParams` (from `master_complexity_params` table — generic params with custom weights like 0.15, 0.25, etc.), but the AI actually rated against `effectiveParams` inside the module (solution-type-specific dimensions with equal weights `1/n`). Different param keys + different weights = different score.
+**Problem:** The prompt tells the LLM to return `tiers` as an array of objects, but `applyAIReviewResult` expects a `Record<string, number>`. When the LLM returns an array, `Object.entries()` yields index keys ("0", "1") which don't match valid tier names.
 
-**Fix:** The Accept handler must use the same params the AI rated against. Pass `effectiveParams` or compute using the same dimension set. Specifically:
-- In `handleAcceptRefinement` for `complexity` (line 1843), instead of iterating `complexityParams`, iterate the AI ratings directly and compute with equal weights (matching what `effectiveParams` does in the module).
-- Better: have the module's `onSave` handle Accept too — the Accept handler should call `handleSaveComplexity` with the values the module already computed correctly.
+**Fix (2 changes):**
 
-**Concrete change in `CurationReviewPage.tsx` lines 1843-1866:**
-Replace the manual score recalculation with the module's own logic. Use `aiSuggestedComplexity` keys as the param set with equal weights:
+1. **`promptTemplate.ts` line 104** — Change the reward_structure format instruction to tell the LLM to return tiers as an object `{"platinum": 75000, "gold": 25000, "silver": 10000}` instead of an array.
 
-```typescript
-if (sectionKey === "complexity") {
-  if (aiSuggestedComplexity) {
-    const ratingKeys = Object.keys(aiSuggestedComplexity);
-    const paramValues: Record<string, number> = {};
-    ratingKeys.forEach((key) => {
-      const r = aiSuggestedComplexity[key];
-      paramValues[key] = r ? Math.max(1, Math.min(10, Math.round(r.rating))) : 5;
-    });
-    // Use equal weights (matching effectiveParams in module)
-    const count = ratingKeys.length || 1;
-    const ws = ratingKeys.reduce((s, k) => s + (paramValues[k] ?? 5), 0) / count;
-    const score = Math.round(ws * 100) / 100;
-    const level = deriveComplexityLevel(score);
-    handleSaveComplexity(paramValues, score, level);
-  }
-  return;
-}
-```
+2. **`CurationReviewPage.tsx` ~line 2052** — Add defensive array-to-record conversion for `monetary.tiers` before calling `applyAIReviewResult`. This handles cases where the LLM ignores the instruction and returns an array anyway.
 
-## Bug 2: Manual params overwrite AI review values on re-render
+## Bug 2 (MEDIUM): Submission Guidelines — Column Collision with `description`
 
-**Root Cause:** When manual params are saved, `queryClient.invalidateQueries` triggers a re-fetch. The `ComplexityAssessmentModule` component re-renders with new `currentParams` (now containing manual values). While `useState` preserves state across re-renders, `handleCancel` (line 306-313) and `handleConfirmSwitch` (line 252-264) both reset `aiDraft` from `currentParams` — which now has manual values. Additionally, if the component unmounts and remounts, `useState` initializer runs again from `currentParams`, losing the AI draft entirely.
+**Problem:** `submission_guidelines` uses `dbField: "description"`, which is the challenge's main description field. This causes data collision and garbled display when the description contains plain text.
 
-**Fix:** Preserve `aiDraft` independently from DB-persisted `currentParams`:
-1. Store AI draft values in a `useRef` that only gets set from `aiSuggestedRatings`, never from `currentParams`.
-2. In `handleCancel`, only reset `manualDraft` from `currentParams` — reset `aiDraft` from the preserved AI ref (or keep current aiDraft unchanged).
-3. In `handleConfirmSwitch`, same — don't reset `aiDraft` when switching to manual tab.
+**Fix (migration + code changes):**
 
-**Concrete changes in `ComplexityAssessmentModule.tsx`:**
+1. **DB Migration** — `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS submission_guidelines JSONB`
 
-- Add `const aiDraftRef = useRef<Record<string, number> | null>(null);`
-- In the `aiSuggestedRatings` useEffect (line 164-189), also save to ref: `aiDraftRef.current = newAiDraft;`
-- In `handleCancel` (line 306-313): reset `manualDraft` from `currentParams` but reset `aiDraft` from `aiDraftRef.current ?? buildDraftFromExisting(currentParams, effectiveParams)`
-- In `handleConfirmSwitch` (line 252-264): only reset the draft for the tab being switched TO, not aiDraft when switching to manual
+2. **`CurationReviewPage.tsx`:**
+   - Line 299: Change `dbField: "description"` → `dbField: "submission_guidelines"`
+   - Line 300-304: Update `isFilled` to read from `ch.submission_guidelines`
+   - Lines 2874-2877: Update render case to read from `challenge.submission_guidelines`
+   - Lines 2887, 2895: Update save mutations from `field: "description"` → `field: "submission_guidelines"`
+   - Update the dedicated Accept handler (Fix H) to use `submission_guidelines` field
+
+3. **Edge function `index.ts`** — Add `submission_guidelines` to the SELECT query
+
+## Bug 3 (LOW): Extended Brief Subsections Show Empty in Collapsed View
+
+**Problem:** 6 extended brief subsections + hook + complexity have `render: () => null`, showing empty bodies in collapsed cards.
+
+**Fix:** Add inline preview renderers for each subsection that reads from `ch.extended_brief` and shows a brief summary (badge chips for line items, count for tables, truncated text for rich text). Complexity and hook already have dedicated modules/renderers — only the 6 extended brief subsections need render functions.
 
 ## Files Modified
-1. `src/pages/cogniblend/CurationReviewPage.tsx` — Fix Accept handler score calculation (Bug 1)
-2. `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` — Preserve AI draft independently (Bug 2)
+
+1. `supabase/functions/review-challenge-sections/promptTemplate.ts` — Bug 1 (format instruction)
+2. `supabase/functions/review-challenge-sections/index.ts` — Bug 2 (add submission_guidelines to SELECT)
+3. `src/pages/cogniblend/CurationReviewPage.tsx` — Bugs 1, 2, 3 (defensive conversion, dbField change, render functions)
+4. **DB Migration** — Bug 2 (add submission_guidelines column)
+
+Edge function redeployment required after changes.
 
