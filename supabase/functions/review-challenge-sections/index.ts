@@ -724,9 +724,10 @@ ${depBlock}
           }).join('\n')}\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.\n`
         : '';
     })()}
+${strengthBlock}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
 ${actionableComments || '(No specific issues — generate fresh content based on challenge context)'}
-
+${crossIssueBlock}
 ${bestPractices ? `BEST PRACTICES TO INCORPORATE:\n${bestPractices}` : ''}
 
 ${r.guidelines?.length > 0 ? `GUIDELINES:\n- ${r.guidelines.join('\n- ')}` : ''}
