@@ -512,12 +512,14 @@ export default function AIReviewConfigPage() {
   const queryClient = useQueryClient();
 
   const [globalModel, setGlobalModel] = useState('');
+  const [criticalModel, setCriticalModel] = useState('');
   const [batchThreshold, setBatchThreshold] = useState(15);
   const [globalSaving, setGlobalSaving] = useState(false);
 
   useEffect(() => {
     if (globalConfig) {
       setGlobalModel(globalConfig.default_model);
+      setCriticalModel(globalConfig.critical_model ?? '');
       setBatchThreshold(globalConfig.batch_split_threshold);
     }
   }, [globalConfig]);
