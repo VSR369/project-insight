@@ -254,9 +254,9 @@ export function ComplexityAssessmentModule({
   const handleConfirmSwitch = useCallback(() => {
     if (!pendingTab) return;
     setActiveTab(pendingTab);
-    // Reset state for new tab — each draft is independent, just clear edit markers
-    const fresh = buildDraftFromExisting(currentParams, effectiveParams);
+    // Reset only the draft for the tab being switched TO; preserve AI draft independently
     if (pendingTab === "manual_params") {
+      const fresh = buildDraftFromExisting(currentParams, effectiveParams);
       setManualDraft(fresh);
     }
     setEditableParams(new Set());
