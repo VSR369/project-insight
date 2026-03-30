@@ -182,7 +182,7 @@ export async function autoAssignChallengeRole(
     assigned_by: input.assignedBy,
     assigned_at: new Date().toISOString(),
     status: 'ACTIVE',
-    assignment_phase: (input.roleCode === 'CR' || input.roleCode === 'CA') ? 'PHASE_2' : input.roleCode === 'CU' ? 'PHASE_3' : 'PHASE_4',
+    assignment_phase: input.roleCode === 'CU' ? 'PHASE_3' : input.roleCode === 'CR' ? 'PHASE_2' : 'PHASE_4',
   });
 
   const { error: assignError } = await supabase
