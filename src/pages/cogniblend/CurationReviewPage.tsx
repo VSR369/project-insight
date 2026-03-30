@@ -2898,6 +2898,14 @@ export default function CurationReviewPage() {
         </div>
       )}
 
+      {/* ═══ ORGANIZATION CONTEXT PANEL ═══ */}
+      {challenge.organization_id && (
+        <OrgContextPanel
+          challengeId={challenge.id}
+          organizationId={challenge.organization_id}
+        />
+      )}
+
       {/* ═══ ORIGINAL BRIEF (Seeding Data) ═══ */}
       {challenge.problem_statement && (
         <Accordion type="single" collapsible className="w-full">
