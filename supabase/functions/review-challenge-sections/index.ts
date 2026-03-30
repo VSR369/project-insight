@@ -457,7 +457,8 @@ async function callAIPass2Rewrite(
   // Build per-section rewrite instructions
   const sectionPrompts = sectionsNeedingSuggestion.map((r: any) => {
     // Look up content — for extended brief subsections, check inside challengeData.extended_brief
-    let originalContent = challengeData[r.section_key];
+    const aliasedFieldLookup = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
+    let originalContent = challengeData[aliasedFieldLookup] ?? challengeData[r.section_key];
     if (!originalContent && EXTENDED_BRIEF_KEYS.has(r.section_key) && challengeData.extended_brief) {
       try {
         const ebField = EB_FIELD_MAP[r.section_key] || r.section_key;
