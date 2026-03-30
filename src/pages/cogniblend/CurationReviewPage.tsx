@@ -296,11 +296,12 @@ const SECTIONS: SectionDef[] = [
     key: "submission_guidelines",
     label: "Submission Guidelines",
     attribution: "by CA",
-    dbField: "description",
+    dbField: "submission_guidelines",
     isFilled: (ch) => {
-      const raw = parseJson<any>(ch.description);
+      const raw = parseJson<any>((ch as any).submission_guidelines);
       const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       if (items && items.length > 0) return true;
+      // Fallback: check legacy description field
       return !!ch.description?.trim();
     },
     render: (ch) => {
