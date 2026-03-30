@@ -1572,6 +1572,9 @@ serve(async (req) => {
           })
       : Promise.resolve();
 
+    // Bug 7: Build context intelligence ONCE before the batch loop
+    const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
+
     for (const batch of batches) {
       // Per-batch model selection: critical sections get premium model
       const batchKeys = batch.map(b => b.key);
