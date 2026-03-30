@@ -1031,7 +1031,8 @@ RATING RULES:
 - Justification MUST reference SPECIFIC challenge content — quote values, cite numbers, name sections.
 - If a relevant section is empty, state that and rate conservatively (lower, not default 5).
 - DIFFERENTIATE ratings — dimensions should differ unless the challenge is truly uniform.
-- Consider MATURITY: Blueprint = more uncertainty/innovation. Pilot = more integration/scalability.`;
+- Consider MATURITY: Blueprint = more uncertainty/innovation. Pilot = more integration/scalability.
+${orgContext?.orgName ? `\nORGANIZATION CONTEXT: This challenge is from ${orgContext.orgName}${orgContext.hqCountry ? ` (${orgContext.hqCountry})` : ''}${orgContext.industries?.[0]?.name ? ` in ${orgContext.industries[0].name}` : ''}. Calibrate complexity ratings for this industry and geography.\n` : ''}`;
 
   const strip = (s: any): string => {
     if (!s) return '(empty)';
