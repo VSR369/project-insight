@@ -2010,6 +2010,27 @@ export default function CurationReviewPage() {
       }
     }
 
+    // ── Success Metrics & KPIs: normalize AI field names to canonical columns ──
+    if (dbField === 'success_metrics_kpis' && valueToSave && typeof valueToSave === 'object') {
+      const rawArr = Array.isArray(valueToSave) ? valueToSave : (valueToSave?.items ?? null);
+      if (rawArr && Array.isArray(rawArr)) {
+        valueToSave = rawArr.map((row: any) => ({
+          kpi: row.kpi ?? row.metric ?? row.name ?? row.KPI ?? "",
+          baseline: row.baseline ?? row.Baseline ?? "",
+          target: row.target ?? row.Target ?? "",
+          measurement_method: row.measurement_method ?? row.method ?? row.Method ?? "",
+          timeframe: row.timeframe ?? row.Timeframe ?? row.timeline ?? "",
+        }));
+      }
+    }
+
+    // ── Data Resources Provided: unwrap from wrapper if needed ──
+    if (dbField === 'data_resources_provided' && valueToSave && typeof valueToSave === 'object') {
+      const rawArr = Array.isArray(valueToSave) ? valueToSave : (valueToSave?.items ?? null);
+      if (rawArr && Array.isArray(rawArr)) {
+        valueToSave = rawArr;
+      }
+
     // ── Text fields: normalize markdown → sanitized HTML ──
     const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
     if (HTML_TEXT_FIELDS.includes(dbField) && typeof valueToSave === 'string') {
