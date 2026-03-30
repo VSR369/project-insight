@@ -17,7 +17,7 @@ import { validateRoleAssignment } from '@/hooks/cogniblend/useValidateRoleAssign
 
 interface AssignmentInput {
   challengeId: string;
-  roleCode: string;             // 'CR' | 'CU' | 'ID'
+  roleCode: string;             // 'CU' (primary), 'ER', 'LC', 'FC'
   industrySegmentId: string;
   proficiencyAreaIds?: string[];
   subDomainIds?: string[];
