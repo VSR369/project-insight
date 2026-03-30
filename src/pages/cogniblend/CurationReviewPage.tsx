@@ -1972,17 +1972,32 @@ export default function CurationReviewPage() {
     const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags', 'success_metrics_kpis', 'data_resources_provided'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-      if (jsonMatch) {
+
+      // Pre-processing: strip leading prose before first JSON delimiter
+      const jsonStartIndex = cleaned.search(/[\[{]/);
+      if (jsonStartIndex > 0) {
+        cleaned = cleaned.substring(jsonStartIndex);
+      }
+      // Strip trailing prose after last JSON delimiter
+      const jsonEndBracket = cleaned.lastIndexOf(']');
+      const jsonEndBrace = cleaned.lastIndexOf('}');
+      const jsonEnd = Math.max(jsonEndBracket, jsonEndBrace);
+      if (jsonEnd > 0 && jsonEnd < cleaned.length - 1) {
+        cleaned = cleaned.substring(0, jsonEnd + 1);
+      }
+
+      try {
+        valueToSave = JSON.parse(cleaned);
+      } catch {
+        // Attempt repair: fix trailing commas
+        const repaired = cleaned.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}');
         try {
-          valueToSave = JSON.parse(jsonMatch[1]);
+          valueToSave = JSON.parse(repaired);
         } catch {
-          toast.error(`AI returned invalid structured data for ${dbField}. Please try again.`);
+          toast.error(`AI returned invalid structured data for ${dbField}. Please re-review this section.`);
+          console.error(`JSON parse failed for ${dbField}:`, cleaned.substring(0, 200));
           return;
         }
-      } else {
-        toast.error(`AI did not return structured JSON for ${dbField}. Please try again.`);
-        return;
       }
     }
 
