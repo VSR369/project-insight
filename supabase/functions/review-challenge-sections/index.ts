@@ -1269,6 +1269,12 @@ serve(async (req) => {
     let challengeData: any;
     let additionalData = "";
     let resultIdx = 1;
+    let orgContext: {
+      orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
+      websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
+      annualRevenue?: string; employeeCount?: string; foundingYear?: number;
+      isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
+    } = {};
 
     if (isPreviewMode) {
       challengeData = {
