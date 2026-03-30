@@ -669,6 +669,11 @@ export function AIReviewResultPanel({
     if (solverExpertiseData) return "solver_expertise";
     if (scheduleRows) return "schedule_table";
     if (tableRows) return "table";
+    // If section IS table format but parse failed, show fallback instead of raw prose
+    const sectionFmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
+    if ((sectionFmt === 'table' || sectionFmt === 'schedule_table') && result.suggested_version) {
+      return "table_fallback";
+    }
     if (isStructured && structuredItems && structuredItems.length > 0) {
       const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if (fmt === "line_items") return "line_items";
