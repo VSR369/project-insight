@@ -2588,6 +2588,79 @@ export default function CurationReviewPage() {
     return result;
   }, [challenge, legalDocs, legalDetails, escrowRecord, aiQuality, staleKeySet]);
 
+  // ── Group readiness: prerequisite completion tracking ──
+  const OPTIONAL_SECTIONS = new Set(['preferred_approach', 'approaches_not_of_interest', 'legal_docs', 'escrow_funding']);
+
+  const groupReadiness = useMemo(() => {
+    if (!challenge) return {} as Record<string, { ready: boolean; missingPrereqs: string[]; missingPrereqSections: string[]; completionPct: number }>;
+    const result: Record<string, { ready: boolean; missingPrereqs: string[]; missingPrereqSections: string[]; completionPct: number }> = {};
+
+    GROUPS.forEach((group) => {
+      const missingPrereqs: string[] = [];
+      const missingPrereqSections: string[] = [];
+
+      for (const prereqGroupId of group.prerequisiteGroups) {
+        const prereqGroup = GROUPS.find(g => g.id === prereqGroupId);
+        if (!prereqGroup) continue;
+
+        const criticalSections = prereqGroup.sectionKeys.filter(key => {
+          const sec = SECTION_MAP.get(key);
+          return sec && !OPTIONAL_SECTIONS.has(key);
+        });
+
+        const filledCount = criticalSections.filter(key => {
+          const sec = SECTION_MAP.get(key);
+          return sec?.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
+        }).length;
+
+        const completion = criticalSections.length > 0 ? filledCount / criticalSections.length : 1;
+
+        if (completion < 0.5) {
+          missingPrereqs.push(prereqGroup.label);
+          const unfilled = criticalSections.filter(key => {
+            const sec = SECTION_MAP.get(key);
+            return !sec?.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
+          });
+          missingPrereqSections.push(...unfilled);
+        }
+      }
+
+      const ownSections = group.sectionKeys.map(k => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
+      const ownFilled = ownSections.filter(s => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord)).length;
+
+      result[group.id] = {
+        ready: missingPrereqs.length === 0,
+        missingPrereqs,
+        missingPrereqSections,
+        completionPct: ownSections.length > 0 ? (ownFilled / ownSections.length) * 100 : 0,
+      };
+    });
+
+    return result;
+  }, [challenge, legalDocs, legalDetails, escrowRecord]);
+
+  // ── Per-section upstream readiness ──
+  const sectionReadiness = useMemo(() => {
+    if (!challenge) return {} as Record<string, { ready: boolean; missing: string[] }>;
+    const result: Record<string, { ready: boolean; missing: string[] }> = {};
+
+    for (const group of GROUPS) {
+      for (const key of group.sectionKeys) {
+        const upstreamKeys = getUpstreamDependencies(key);
+        const missing: string[] = [];
+        for (const depKey of upstreamKeys) {
+          const depSec = SECTION_MAP.get(depKey);
+          if (depSec && !depSec.isFilled(challenge, legalDocs, legalDetails, escrowRecord)) {
+            missing.push(depSec.label);
+          }
+        }
+        result[key] = { ready: missing.length === 0, missing };
+      }
+    }
+
+    return result;
+  }, [challenge, legalDocs, legalDetails, escrowRecord]);
+
   // Inline AI flags per section from quality gaps
   const sectionAIFlags = useMemo(() => {
     if (!aiQuality?.gaps) return {};
