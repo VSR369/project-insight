@@ -3969,6 +3969,11 @@ export default function CurationReviewPage() {
                         aiAction={curationStore?.getState().getSectionEntry(section.key as SectionKey)?.aiAction ?? null}
                       >
                         {sectionContent}
+                        <SectionReferencePanel
+                          challengeId={challengeId!}
+                          sectionKey={section.key}
+                          disabled={isReadOnly}
+                        />
                       </CuratorSectionPanel>
                     </div>
                   );
