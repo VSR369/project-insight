@@ -163,6 +163,7 @@ export interface BuildChallengeContextOptions {
   challengeId: string;
   challengeTitle: string;
   solutionType?: SolutionType | null;
+  solutionTypes?: string[];
   seekerSegment?: string | null;
   organizationTypeId?: string | null;
   maturityLevelFromChallenge?: string | null;
