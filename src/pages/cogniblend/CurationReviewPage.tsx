@@ -3171,7 +3171,7 @@ export default function CurationReviewPage() {
                             currentLevel={challenge.complexity_level ?? null}
                             currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
                             complexityParams={complexityParams}
-                            solutionType={(challenge as any).solution_type as any}
+                            solutionType={challenge.solution_type as any}
                             onSave={handleSaveComplexity}
                             onLock={handleLockComplexity}
                             onUnlock={handleUnlockComplexity}
