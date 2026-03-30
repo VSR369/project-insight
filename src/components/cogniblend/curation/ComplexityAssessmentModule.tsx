@@ -110,6 +110,7 @@ export function ComplexityAssessmentModule({
   });
 
   const [editableParams, setEditableParams] = useState<Set<string>>(new Set());
+  const aiDraftRef = useRef<Record<string, number> | null>(null);
   const [aiJustifications, setAiJustifications] = useState<Record<string, string>>({});
   const [aiParamSources, setAiParamSources] = useState<Record<string, "ai" | "curator" | "default">>(() => {
     const sources: Record<string, "ai" | "curator" | "default"> = {};
