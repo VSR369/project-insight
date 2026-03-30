@@ -219,6 +219,18 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     };
   }, [activeDraft, effectiveParams]);
 
+  // AI score computed independently for reference on Manual tab
+  const aiScoreRef_ = useMemo(() => {
+    if (Object.keys(aiDraft).length === 0) return null;
+    const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
+    if (totalWeight === 0) return null;
+    const ws = effectiveParams.reduce((s, p) => s + (aiDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
+    return Math.round(ws * 100) / 100;
+  }, [aiDraft, effectiveParams]);
+  const aiLevelRef_ = aiScoreRef_ != null ? deriveComplexityLevel(aiScoreRef_) : null;
+  const aiLabelRef_ = aiScoreRef_ != null ? deriveComplexityLabel(aiScoreRef_) : null;
+  const hasAiRatings = !!aiSuggestedRatings && Object.keys(aiSuggestedRatings).length > 0;
+
   const hasDraftValues = Object.keys(activeDraft).length > 0;
   const displayScore = activeTab === "quick_select" ? 0
     : hasDraftValues ? weightedScore
