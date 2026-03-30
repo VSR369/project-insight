@@ -24,7 +24,7 @@ interface NavItem {
   path: string;
   icon: LucideIcon;
   isVisible: (perms: CogniPermissions) => boolean;
-  badgeKey?: 'activeChallenges' | 'curationQueue' | 'approvalQueue';
+  badgeKey?: 'activeChallenges' | 'curationQueue';
 }
 
 interface NavSection {
