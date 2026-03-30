@@ -1044,6 +1044,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
     case "reward_structure": return ch.reward_structure ? JSON.stringify(ch.reward_structure) : null;
     case "phase_schedule": return ch.phase_schedule ? JSON.stringify(ch.phase_schedule) : null;
     case "maturity_level": return ch.maturity_level;
+    case "solution_type": return ch.solution_type;
     case "complexity": return ch.complexity_parameters ? JSON.stringify(ch.complexity_parameters) : null;
     case "hook": return ch.hook;
     
