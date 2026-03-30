@@ -405,6 +405,7 @@ const SECTION_FIELD_ALIASES: Record<string, string> = {
   eligibility: 'solver_eligibility_types',
   visibility: 'solver_visibility_types',
   submission_guidelines: 'description',
+  solution_type: 'solution_types',
 };
 
 /* ══════════════════════════════════════════════════════════════
