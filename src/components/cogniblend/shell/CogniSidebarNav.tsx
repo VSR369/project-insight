@@ -124,9 +124,8 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
 
   // Badge counts from roleChallengeCount (approximate)
   const badgeCounts: Record<string, number> = {
-    activeChallenges: (roleChallengeCount['CR'] ?? 0) + (roleChallengeCount['CA'] ?? 0),
+    activeChallenges: roleChallengeCount['CR'] ?? 0,
     curationQueue: roleChallengeCount['CU'] ?? 0,
-    approvalQueue: roleChallengeCount['ID'] ?? 0,
   };
 
   const checkVisible = (item: NavItem): boolean => item.isVisible(permissions);
