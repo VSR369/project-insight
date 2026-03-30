@@ -326,7 +326,9 @@ export function AIReviewInline({
   // Use content-based signature (not just count) to detect changes even when comment count stays the same
   const prevReviewSignature = React.useRef<string | null>(null);
   useEffect(() => {
-    const commentHash = (review?.comments ?? []).join('\x1f');
+    const commentHash = (review?.comments ?? []).map((c: any) =>
+      typeof c === 'string' ? c : c.text ?? JSON.stringify(c)
+    ).join('\x1f');
     const sig = `${review?.reviewed_at}|${review?.status}|${commentHash}`;
     if (prevReviewSignature.current !== null && prevReviewSignature.current !== sig) {
       // Review changed — clear stale refinement/suggestion state
@@ -565,7 +567,17 @@ export function AIReviewInline({
       return;
     }
 
-    if (!refinedContent) return;
+    if (!refinedContent) {
+      // For pass sections with no suggestion, accept is a no-op — just mark addressed
+      if (review?.status === 'pass') {
+        setIsAddressed(true);
+        setIsOpen(false);
+        onMarkAddressed?.(sectionKey);
+        return;
+      }
+      toast.error("No AI suggestion available to accept. Try re-reviewing the section first.");
+      return;
+    }
 
     // If user edited the suggestion, use the edited version
     const hasEdits = editedSuggestedContent != null;
