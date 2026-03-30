@@ -2911,7 +2911,7 @@ export default function CurationReviewPage() {
                               structuredItems={structuredGuidelines}
                               onSaveStructured={(items) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "description", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+                                saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: items.map(({ name, description }) => ({ name, description })) } });
                               }}
                               badgePrefix="S"
                               hideAcceptanceCriteria
