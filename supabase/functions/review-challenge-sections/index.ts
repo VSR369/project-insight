@@ -1286,9 +1286,11 @@ serve(async (req) => {
     let resultIdx = 1;
     let orgContext: {
       orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
-      websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
+      websiteUrl?: string; linkedinUrl?: string; twitterUrl?: string; tagline?: string;
+      hqCountry?: string; hqCity?: string;
       annualRevenue?: string; employeeCount?: string; foundingYear?: number;
-      isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
+      isEnterprise?: boolean; functionalAreas?: string[];
+      industries?: { name: string; isPrimary: boolean }[];
     } = {};
 
     if (isPreviewMode) {
