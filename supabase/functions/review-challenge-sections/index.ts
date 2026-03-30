@@ -1337,25 +1337,54 @@ serve(async (req) => {
       challengeData = challengeResult.data;
 
       // ── Fetch organization context for intelligence layer ──
-      let orgContext: { orgType?: string; orgName?: string } = {};
+      let orgContext: {
+        orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
+        websiteUrl?: string; linkedinUrl?: string; hqCountry?: string; hqCity?: string;
+        annualRevenue?: string; employeeCount?: string; foundingYear?: number;
+        isEnterprise?: boolean; industries?: { name: string; isPrimary: boolean }[];
+      } = {};
       if (challengeData.organization_id) {
         try {
           const { data: org } = await adminClient
             .from('seeker_organizations')
-            .select('name, organization_type_id')
+            .select('organization_name, trade_brand_name, organization_description, website_url, linkedin_url, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id')
             .eq('id', challengeData.organization_id)
             .single();
-          if (org?.organization_type_id) {
-            const { data: ot } = await adminClient
-              .from('organization_types')
-              .select('name')
-              .eq('id', org.organization_type_id)
-              .single();
-            orgContext = { orgType: ot?.name ?? undefined, orgName: org?.name ?? undefined };
-          } else if (org?.name) {
-            orgContext = { orgName: org.name };
+          if (org) {
+            orgContext.orgName = org.organization_name;
+            orgContext.tradeBrand = org.trade_brand_name ?? undefined;
+            orgContext.orgDescription = org.organization_description ?? undefined;
+            orgContext.websiteUrl = org.website_url ?? undefined;
+            orgContext.linkedinUrl = org.linkedin_url ?? undefined;
+            orgContext.hqCity = org.hq_city ?? undefined;
+            orgContext.annualRevenue = org.annual_revenue_range ?? undefined;
+            orgContext.employeeCount = org.employee_count_range ?? undefined;
+            orgContext.foundingYear = org.founding_year ?? undefined;
+            orgContext.isEnterprise = org.is_enterprise;
+
+            if (org.hq_country_id) {
+              const { data: ctry } = await adminClient.from('countries').select('name').eq('id', org.hq_country_id).single();
+              if (ctry) orgContext.hqCountry = ctry.name;
+            }
+            if (org.organization_type_id) {
+              const { data: ot } = await adminClient.from('organization_types').select('name').eq('id', org.organization_type_id).single();
+              if (ot) orgContext.orgType = ot.name;
+            }
+            const { data: orgIndustries } = await adminClient
+              .from('seeker_org_industries').select('industry_id, is_primary')
+              .eq('organization_id', challengeData.organization_id);
+            if (orgIndustries?.length) {
+              const ids = orgIndustries.map((oi: any) => oi.industry_id);
+              const { data: segs } = await adminClient.from('industry_segments').select('id, name').in('id', ids);
+              if (segs) {
+                orgContext.industries = segs.map((s: any) => ({
+                  name: s.name,
+                  isPrimary: orgIndustries.find((oi: any) => oi.industry_id === s.id)?.is_primary ?? false,
+                }));
+              }
+            }
           }
-        } catch { /* org context is optional — graceful fallback */ }
+        } catch (err) { console.warn('Org intel fetch failed:', err); }
       }
 
       // Extract extended_brief fields for intake/spec
