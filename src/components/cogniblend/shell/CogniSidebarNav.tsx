@@ -43,10 +43,9 @@ const SECTIONS: NavSection[] = [
   {
     title: 'CHALLENGES',
     items: [
-      { label: 'New Challenge', path: '/cogni/challenges/create', icon: FilePlus, isVisible: (p) => p.canSeeChallengePage || p.canSeeRequests },
+      { label: 'New Challenge', path: '/cogni/challenges/create', icon: FilePlus, isVisible: (p) => p.canSeeChallengePage },
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, isVisible: (p) => p.canSeeChallengePage, badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, isVisible: (p) => p.canSeeCurationQueue, badgeKey: 'curationQueue' },
-      { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, isVisible: (p) => p.canSeeApprovalQueue, badgeKey: 'approvalQueue' },
       { label: 'Legal Workspace', path: '/cogni/lc-queue', icon: FileText, isVisible: (p) => p.canSeeLegalWorkspace },
       { label: 'Legal Review', path: '/cogni/legal-review', icon: FileCheck, isVisible: (p) => p.canSeeLegalWorkspace },
     ],
@@ -55,8 +54,8 @@ const SECTIONS: NavSection[] = [
     title: 'SOLUTIONS',
     items: [
       { label: 'Review Queue', path: '/cogni/review', icon: Eye, isVisible: (p) => p.canSeeEvaluation },
-      { label: 'Evaluation Panel', path: '/cogni/evaluation', icon: BarChart2, isVisible: (p) => p.canSeeEvaluation || p.canSeeApprovalQueue },
-      { label: 'Selection & IP', path: '/cogni/selection', icon: Award, isVisible: (p) => p.canSeeApprovalQueue },
+      { label: 'Evaluation Panel', path: '/cogni/evaluation', icon: BarChart2, isVisible: (p) => p.canSeeEvaluation },
+      { label: 'Selection & IP', path: '/cogni/selection', icon: Award, isVisible: (p) => p.canSeeEvaluation },
       { label: 'Escrow Management', path: '/cogni/escrow', icon: Lock, isVisible: (p) => p.canSeeEscrow },
       { label: 'Payment Processing', path: '/cogni/payments', icon: CreditCard, isVisible: (p) => p.canSeeEscrow },
     ],
