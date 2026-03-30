@@ -1369,9 +1369,11 @@ CHALLENGE CONTEXT:
       prompt += `\nANALYST SOURCES to cite: ${(sources as string[]).join(', ')}\n`;
     }
 
-    // Good example (calibration target)
+    // Good example (calibration target) — Gap 5: fallback to SECTION_QUALITY_EXEMPLARS
     if (config.example_good) {
       prompt += `\nEXCELLENT EXAMPLE (aim for this quality):\n${config.example_good}\n`;
+    } else if (SECTION_QUALITY_EXEMPLARS[config.section_key]) {
+      prompt += `\nEXCELLENT EXAMPLE (aim for this quality):\n${SECTION_QUALITY_EXEMPLARS[config.section_key]}\n`;
     }
 
     // Supervisor DOs

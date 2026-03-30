@@ -748,8 +748,12 @@ Currency: ${challengeData.currency_code || 'USD'}
 ${clientContext?.rateCard ? `Rate Card: Floor $${clientContext.rateCard.effortRateFloor}/hr, Reward floor $${clientContext.rateCard.rewardFloorAmount}` : ''}
 Today's Date: ${clientContext?.todaysDate || new Date().toISOString().split('T')[0]}
 
-FULL CHALLENGE DATA:
-${JSON.stringify(challengeData, null, 2)}
+CHALLENGE SUMMARY (for cross-referencing — detailed per-section content is provided below):
+Problem: ${(challengeData.problem_statement || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300)}...
+Scope: ${(challengeData.scope || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300)}...
+Domain Tags: ${JSON.stringify(challengeData.domain_tags || [])}
+Deliverable Count: ${Array.isArray(challengeData.deliverables) ? challengeData.deliverables.length : 'N/A'}
+IP Model: ${challengeData.ip_model || 'not set'}
 
 SECTIONS TO REWRITE:
 ${sectionPrompts.join('\n\n---\n\n')}`;
