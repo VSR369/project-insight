@@ -145,6 +145,51 @@ GUARDRAILS:
 - THE TEST: "Would a Deloitte senior consultant know this from experience?" Yes → include. Requires insider knowledge → don't.
 `;
 
+/** Get the format type for a section key from SECTION_FORMAT_MAP */
+export function getSectionFormatType(key: string): string | null {
+  return SECTION_FORMAT_MAP[key] ?? null;
+}
+
+/**
+ * Sanitize AI suggestion for table-format sections.
+ * Extracts a JSON array from prose/markdown if the LLM wraps it.
+ */
+export function sanitizeTableSuggestion(raw: string): string {
+  const cleaned = raw.trim()
+    .replace(/^```(?:json)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '').trim();
+
+  // Direct parse
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return JSON.stringify(parsed);
+    if (parsed?.items && Array.isArray(parsed.items)) return JSON.stringify(parsed.items);
+    if (parsed?.rows && Array.isArray(parsed.rows)) return JSON.stringify(parsed.rows);
+    if (parsed?.criteria && Array.isArray(parsed.criteria)) return JSON.stringify(parsed.criteria);
+  } catch { /* not valid JSON directly */ }
+
+  // Regex extract first JSON array from prose
+  const match = cleaned.match(/\[[\s\S]*\]/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return JSON.stringify(parsed);
+    } catch {
+      // Attempt repair: fix trailing commas and unbalanced brackets
+      let repaired = match[0]
+        .replace(/,\s*]/g, ']')
+        .replace(/,\s*}/g, '}');
+      const open = (repaired.match(/\[/g) || []).length;
+      const close = (repaired.match(/\]/g) || []).length;
+      for (let i = close; i < open; i++) repaired += ']';
+      try { JSON.parse(repaired); return repaired; } catch { /* give up */ }
+    }
+  }
+
+  // Return raw if extraction fails — frontend will handle fallback
+  return raw;
+}
+
 /* ── Section display name helper (Deno-compatible) ── */
 
 const SECTION_DISPLAY_NAMES: Record<string, string> = {
