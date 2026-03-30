@@ -2539,6 +2539,22 @@ export default function CurationReviewPage() {
   // Group progress computation — stale sections count as NOT done
   const staleKeySet = useMemo(() => new Set(staleSections.map(s => s.key)), [staleSections]);
 
+  // Stale count per group for badge display
+  const staleCountByGroup = useMemo(() => {
+    const counts: Record<string, number> = {};
+    GROUPS.forEach((g) => {
+      counts[g.id] = g.sectionKeys.filter((k) => staleKeySet.has(k)).length;
+    });
+    return counts;
+  }, [staleKeySet]);
+
+  // Auto-disable stale filter when no stale sections remain
+  useEffect(() => {
+    if (staleSections.length === 0 && showOnlyStale) {
+      setShowOnlyStale(false);
+    }
+  }, [staleSections.length, showOnlyStale]);
+
   const groupProgress = useMemo(() => {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
