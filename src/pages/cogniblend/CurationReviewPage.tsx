@@ -296,11 +296,12 @@ const SECTIONS: SectionDef[] = [
     key: "submission_guidelines",
     label: "Submission Guidelines",
     attribution: "by CA",
-    dbField: "description",
+    dbField: "submission_guidelines",
     isFilled: (ch) => {
-      const raw = parseJson<any>(ch.description);
+      const raw = parseJson<any>((ch as any).submission_guidelines);
       const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : null;
       if (items && items.length > 0) return true;
+      // Fallback: check legacy description field
       return !!ch.description?.trim();
     },
     render: (ch) => {
@@ -656,7 +657,15 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.context_background;
       return typeof val === "string" && val.trim().length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.context_background;
+      if (typeof val === 'string' && val.trim().length > 0) {
+        const truncated = val.length > 150 ? val.substring(0, 150) + '…' : val;
+        return <p className="text-sm text-muted-foreground line-clamp-3">{truncated}</p>;
+      }
+      return <p className="text-sm text-muted-foreground">Not available yet.</p>;
+    },
   },
   {
     key: "root_causes",
@@ -668,7 +677,19 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.root_causes;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const items = Array.isArray(eb?.root_causes) ? eb.root_causes : [];
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not inferred yet.</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {items.slice(0, 5).map((item: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs">{typeof item === 'string' ? item : item?.name ?? '—'}</Badge>
+          ))}
+          {items.length > 5 && <Badge variant="secondary" className="text-xs">+{items.length - 5} more</Badge>}
+        </div>
+      );
+    },
   },
   {
     key: "affected_stakeholders",
@@ -680,7 +701,12 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.affected_stakeholders;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const rows = Array.isArray(eb?.affected_stakeholders) ? eb.affected_stakeholders : [];
+      if (rows.length === 0) return <p className="text-sm text-muted-foreground">Not inferred yet.</p>;
+      return <p className="text-sm text-muted-foreground">{rows.length} stakeholder(s) identified</p>;
+    },
   },
   {
     key: "current_deficiencies",
@@ -692,7 +718,12 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.current_deficiencies;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const items = Array.isArray(eb?.current_deficiencies) ? eb.current_deficiencies : [];
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not inferred yet.</p>;
+      return <p className="text-sm text-muted-foreground">{items.length} deficiency observation(s)</p>;
+    },
   },
   {
     key: "preferred_approach",
@@ -705,7 +736,20 @@ const SECTIONS: SectionDef[] = [
       if (typeof val === "string") return val.trim().length > 0;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const val = eb?.preferred_approach;
+      const items = Array.isArray(val) ? val : (typeof val === 'string' && val.trim() ? [val] : []);
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not specified yet.</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {items.slice(0, 4).map((item: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs">{typeof item === 'string' ? item : item?.name ?? '—'}</Badge>
+          ))}
+          {items.length > 4 && <Badge variant="secondary" className="text-xs">+{items.length - 4} more</Badge>}
+        </div>
+      );
+    },
   },
   {
     key: "approaches_not_of_interest",
@@ -717,7 +761,19 @@ const SECTIONS: SectionDef[] = [
       const val = eb?.approaches_not_of_interest;
       return Array.isArray(val) && val.length > 0;
     },
-    render: () => null,
+    render: (ch) => {
+      const eb = parseJson<any>(ch.extended_brief);
+      const items = Array.isArray(eb?.approaches_not_of_interest) ? eb.approaches_not_of_interest : [];
+      if (items.length === 0) return <p className="text-sm text-muted-foreground">Not specified yet.</p>;
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {items.slice(0, 4).map((item: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs">{typeof item === 'string' ? item : item?.name ?? '—'}</Badge>
+          ))}
+          {items.length > 4 && <Badge variant="secondary" className="text-xs">+{items.length - 4} more</Badge>}
+        </div>
+      );
+    },
   },
   // ── New Phase 7 sections ──
   {
@@ -899,8 +955,15 @@ function getExpectedOutcomeObjects(ch: ChallengeData): DeliverableItem[] {
   return parseDeliverables(outcomes, 'O');
 }
 
-/** Returns submission guideline objects from description column */
+/** Returns submission guideline objects from submission_guidelines column (fallback: description) */
 function getSubmissionGuidelineObjects(ch: ChallengeData): DeliverableItem[] {
+  // Try new dedicated column first
+  const sgRaw = parseJson<any>((ch as any).submission_guidelines);
+  if (sgRaw) {
+    const sgItems = Array.isArray(sgRaw) ? sgRaw : (sgRaw?.items ?? []);
+    if (sgItems.length > 0) return parseDeliverables(sgItems, 'S');
+  }
+  // Fallback to legacy description column
   const raw = parseJson<any>(ch.description);
   const items = Array.isArray(raw) ? raw : (raw?.items ?? []);
   return parseDeliverables(items, 'S');
@@ -936,7 +999,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
   switch (sectionKey) {
     case "problem_statement": return ch.problem_statement;
     case "scope": return ch.scope;
-    case "submission_guidelines": return ch.description;
+    case "submission_guidelines": return (ch as any).submission_guidelines ?? ch.description;
     case "ip_model": return ch.ip_model;
     case "eligibility": {
       const solverTypes = parseJson<any>(ch.solver_eligibility_types);
@@ -989,7 +1052,7 @@ const GAP_FIELD_TO_SECTION: Record<string, string> = {
   ip_model: "ip_model",
   eligibility: "eligibility",
   visibility: "visibility",
-  description: "submission_guidelines",
+  submission_guidelines: "submission_guidelines",
   maturity_level: "maturity_level",
   legal: "legal_docs",
   escrow: "escrow_funding",
@@ -1946,7 +2009,7 @@ export default function CurationReviewPage() {
       setSavingSection(true);
       const value = { items: structured };
       syncSectionToStore(sectionKey as SectionKey, value);
-      saveSectionMutation.mutate({ field: "description", value });
+      saveSectionMutation.mutate({ field: "submission_guidelines", value });
       return;
     }
 
@@ -1994,7 +2057,7 @@ export default function CurationReviewPage() {
     let valueToSave: any = newContent;
 
     // ── Structured JSON fields: parse AI output into proper JSON ──
-    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'description', 'domain_tags', 'success_metrics_kpis', 'data_resources_provided'];
+    const JSON_FIELDS = ['deliverables', 'expected_outcomes', 'evaluation_criteria', 'phase_schedule', 'reward_structure', 'submission_guidelines', 'domain_tags', 'success_metrics_kpis', 'data_resources_provided'];
     if (JSON_FIELDS.includes(dbField)) {
       let cleaned = newContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
@@ -2048,6 +2111,24 @@ export default function CurationReviewPage() {
         });
         const currency = (valueToSave as any[])[0]?.currency || 'USD';
         valueToSave = { type: 'monetary', monetary: { tiers, currency } };
+      }
+      // Defensive: if monetary.tiers is an array (LLM may return [{tier_name, amount}] despite instructions),
+      // convert to Record<string, number> expected by applyAIReviewResult
+      if (valueToSave?.monetary?.tiers && Array.isArray(valueToSave.monetary.tiers)) {
+        const tierRecord: Record<string, number> = {};
+        const defaultNames = ['platinum', 'gold', 'silver', 'honorable_mention'];
+        (valueToSave.monetary.tiers as any[]).forEach((t: any, i: number) => {
+          const name = (t.tier_name || t.name || t.tier || defaultNames[i] || `tier_${i}`)
+            .toLowerCase().replace(/\s+/g, '_');
+          const amount = typeof t.amount === 'string'
+            ? Number(t.amount.replace(/[$,\s]/g, '')) || 0
+            : Number(t.amount ?? t.prize ?? t.value ?? 0) || 0;
+          tierRecord[name] = amount;
+        });
+        valueToSave = {
+          ...valueToSave,
+          monetary: { ...valueToSave.monetary, tiers: tierRecord },
+        };
       }
       // Apply to component state — this triggers pendingSave inside RewardStructureDisplay
       rewardStructureRef.current?.applyAIReviewResult(valueToSave);
@@ -2871,10 +2952,10 @@ export default function CurationReviewPage() {
 
                       // ── Submission guidelines (structured cards) ──
                       case "submission_guidelines": {
-                        const raw = parseJson<any>(challenge.description);
+                        const raw = parseJson<any>((challenge as any).submission_guidelines);
                         const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
                         const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
-                        const finalItems = lineItems.length > 0 ? lineItems : (challenge.description?.trim() ? [challenge.description] : []);
+                        const finalItems = lineItems.length > 0 ? lineItems : ((challenge as any).submission_guidelines ? [] : (challenge.description?.trim() ? [challenge.description] : []));
                         const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
                         return (
                           <>
@@ -2884,7 +2965,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(items) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "description", value: { items } });
+                                saveSectionMutation.mutate({ field: "submission_guidelines", value: { items } });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
@@ -2892,7 +2973,7 @@ export default function CurationReviewPage() {
                               structuredItems={structuredGuidelines}
                               onSaveStructured={(items) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "description", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+                                saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: items.map(({ name, description }) => ({ name, description })) } });
                               }}
                               badgePrefix="S"
                               hideAcceptanceCriteria
