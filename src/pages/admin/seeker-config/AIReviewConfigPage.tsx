@@ -580,7 +580,7 @@ export default function AIReviewConfigPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
                   <div className="space-y-2">
                     <Label>Default AI Model</Label>
                     <Input
@@ -589,7 +589,18 @@ export default function AIReviewConfigPage() {
                       placeholder="google/gemini-3-flash-preview"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Model identifier used by the AI gateway
+                      Model for standard sections
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Critical Section Model</Label>
+                    <Input
+                      value={criticalModel}
+                      onChange={e => setCriticalModel(e.target.value)}
+                      placeholder="e.g. anthropic/claude-sonnet-4"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Model for critical sections (problem, deliverables, etc.)
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -602,7 +613,7 @@ export default function AIReviewConfigPage() {
                       max={30}
                     />
                     <p className="text-xs text-muted-foreground">
-                      If active sections exceed this, review splits into 2 batches
+                      Max sections per batch
                     </p>
                   </div>
                   <Button onClick={handleSaveGlobal} disabled={globalSaving} className="w-fit">
@@ -612,6 +623,89 @@ export default function AIReviewConfigPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Config Health Dashboard (Change 5a) */}
+            {(() => {
+              const curationConfigs = (sections ?? []).filter(s => s.role_context === 'curation' && s.is_active);
+              if (curationConfigs.length === 0) return null;
+              const health = scoreAllConfigs(curationConfigs);
+              const getColor = (score: number) =>
+                score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-destructive';
+              const getBarColor = (score: number) =>
+                score >= 80 ? '[&>div]:bg-green-500' : score >= 60 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-destructive';
+
+              return (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Activity className="h-4 w-4" />
+                      Config Health — Curation ({health.totalSections} sections)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Review Readiness</Label>
+                          <span className={`text-sm font-semibold ${getColor(health.avgReviewReadiness)}`}>
+                            {health.avgReviewReadiness}%
+                          </span>
+                        </div>
+                        <Progress value={health.avgReviewReadiness} className={`h-2 ${getBarColor(health.avgReviewReadiness)}`} />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Generation Readiness</Label>
+                          <span className={`text-sm font-semibold ${getColor(health.avgGenerationReadiness)}`}>
+                            {health.avgGenerationReadiness}%
+                          </span>
+                        </div>
+                        <Progress value={health.avgGenerationReadiness} className={`h-2 ${getBarColor(health.avgGenerationReadiness)}`} />
+                      </div>
+                    </div>
+                    {health.belowThreshold.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {health.belowThreshold.length} section(s) below 70% threshold
+                        </p>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {health.belowThreshold.map(s => (
+                            <div key={s.sectionKey} className="flex items-start gap-2 text-xs p-2 rounded bg-muted/50">
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] shrink-0 ${
+                                  Math.min(s.reviewReadiness, s.generationReadiness) >= 60
+                                    ? 'border-yellow-500/30 text-yellow-700'
+                                    : 'border-destructive/30 text-destructive'
+                                }`}
+                              >
+                                R:{s.reviewReadiness} G:{s.generationReadiness}
+                              </Badge>
+                              <div>
+                                <span className="font-medium">{s.sectionKey}</span>
+                                {s.missing.length > 0 && (
+                                  <span className="text-destructive ml-1">— {s.missing.join('; ')}</span>
+                                )}
+                                {s.issues.length > 0 && (
+                                  <span className="text-yellow-700 ml-1">— {s.issues.join('; ')}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {health.belowThreshold.length === 0 && (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        All sections meet the 70% readiness threshold
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
             {/* Section Config Accordion */}
             <Accordion type="multiple" className="space-y-2">

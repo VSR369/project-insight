@@ -412,6 +412,7 @@ export type Database = {
       ai_review_global_config: {
         Row: {
           batch_split_threshold: number
+          critical_model: string | null
           default_model: string
           id: number
           updated_at: string
@@ -419,6 +420,7 @@ export type Database = {
         }
         Insert: {
           batch_split_threshold?: number
+          critical_model?: string | null
           default_model?: string
           id?: number
           updated_at?: string
@@ -426,6 +428,7 @@ export type Database = {
         }
         Update: {
           batch_split_threshold?: number
+          critical_model?: string | null
           default_model?: string
           id?: number
           updated_at?: string
