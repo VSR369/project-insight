@@ -33,12 +33,6 @@ function buildSteps(engagementModel?: string, governanceMode?: GovernanceMode): 
     mode === 'CONTROLLED' ? 'Full compliance checklist' :
     '14-point checklist';
 
-  // Step 5 (Approval) adapts to governance mode
-  const step5AiNote =
-    mode === 'QUICK' ? 'Auto-approved' :
-    mode === 'CONTROLLED' ? 'Formal gate approval' :
-    'Approve package';
-
   return [
     { label: 'Create', role: step1Role, aiNote: step1AiNote, manualNote: step1ManualNote },
     { label: 'Spec Review', role: 'CR', aiNote: 'Review AI output', manualNote: 'Review wizard data' },
