@@ -167,11 +167,13 @@ function hasStructuredData(config: SectionConfig): boolean {
   );
 }
 
-/* ── Structured batch prompt (Phase 6) ── */
+/* ── Structured batch prompt (Phase 6) — Pass 1: Analysis Only ── */
 
 /**
  * Build a structured 5-layer prompt for a batch of sections.
  * Used when configs have Phase 6 JSONB fields populated.
+ * NOTE: This prompt is for Pass 1 (Analysis). It does NOT ask for suggestions.
+ * Suggestions are generated in Pass 2 with a separate, focused prompt.
  */
 export function buildStructuredBatchPrompt(
   configs: SectionConfig[],
@@ -186,14 +188,14 @@ export function buildStructuredBatchPrompt(
   // Layer 1: Platform preamble
   parts.push(firstConfig.platform_preamble?.trim() || DEFAULT_PLATFORM_PREAMBLE);
   parts.push('');
-  parts.push(`## OUTPUT FORMAT
+  parts.push(`## OUTPUT FORMAT (PASS 1 — ANALYSIS ONLY)
 For each section, return a JSON object via the review_sections function with:
 
 1. **status**: "pass" | "warning" | "needs_revision" | "generated"
    - "pass" = content is good. STILL include 1-2 "strength" comments confirming what works well.
-   - "warning" = minor issues. Include a "suggestion" with improved content.
-   - "needs_revision" = critical errors. Include a "suggestion" with corrected content.
-   - "generated" = new content created for an empty section. MUST include "suggestion" with full content.
+   - "warning" = minor issues that should be improved.
+   - "needs_revision" = critical errors that must be fixed.
+   - "generated" = section was empty, new content will be generated in the next step.
 
 2. **comments**: Array of objects, each with:
    - "text": Clear, specific feedback referencing challenge details
@@ -206,19 +208,16 @@ For each section, return a JSON object via the review_sections function with:
    - "field" (optional): Specific field this comment applies to
    - "reasoning" (optional): Why this matters, referencing other sections
 
-3. **suggestion**: Improved/generated content in the section's native format.
-   - For "generated": Full content that can be directly used. REQUIRED.
-   - For "warning"/"needs_revision": Improved version addressing all error/warning/suggestion comments. REQUIRED.
-   - For "pass" with ONLY strength/best_practice comments: null or omit (content is already good).
-   - For "pass" with ANY error/warning/suggestion comments: MUST include improved content addressing those comments.
-
-4. **guidelines**: 1-3 domain-specific guidelines for this section.
+3. **guidelines**: 1-3 domain-specific guidelines for this section.
    - MUST reference THIS challenge's domain, maturity, and solution type.
    - MUST NOT be generic (no "ensure quality" or "follow best practices").
 
-5. **cross_section_issues**: Array of inconsistencies found with other sections.
+4. **cross_section_issues**: Array of inconsistencies found with other sections.
    - Only include genuine conflicts.
    - Each must specify the related_section, the issue, and a suggested_resolution.
+
+IMPORTANT: Do NOT include a "suggestion" field. Your ONLY job in this pass is to provide thorough, specific analysis. Improved content will be generated in a separate step based on your comments.
+Focus 100% of your attention on producing the most accurate, specific, and actionable analysis possible.
 `);
   parts.push('');
 
@@ -357,12 +356,11 @@ For each section, return a JSON object via the review_sections function with:
 
   parts.push('Every comment MUST use the {text, type} object format. Each distinct issue MUST be a separate comment.');
   parts.push('For "pass" sections: include 1-2 "strength" type comments — never return empty comments. Curators need confirmation the AI reviewed the section.');
-  parts.push('Your suggested content for each section MUST match the prescribed format — never write prose paragraphs for line_items, table, or checkbox sections.');
   parts.push('For master-data-backed sections, your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }
 
-/* ── Legacy batch prompt (backward compatible) ── */
+/* ── Legacy batch prompt (backward compatible) — Pass 1: Analysis Only ── */
 
 export function buildConfiguredBatchPrompt(
   configs: SectionConfig[],
@@ -374,11 +372,12 @@ export function buildConfiguredBatchPrompt(
   const parts: string[] = [];
   parts.push(`You are reviewing a ${contextLabel}.`);
   parts.push('');
-  parts.push(`For each section below, provide:
-- status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable — include "suggestion"), or "needs_revision" (errors — include "suggestion")
+  parts.push(`For each section below, provide ANALYSIS ONLY:
+- status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable), or "needs_revision" (errors found)
 - comments: array of objects with "text" (string) and "type" (one of: "error", "warning", "suggestion", "best_practice", "strength"). For pass sections, include strength comments.
-- suggestion: improved content addressing error/warning/suggestion comments. REQUIRED for warning/needs_revision/generated status. For pass sections, include suggestion ONLY if comments contain error, warning, or suggestion types; omit if all comments are strength/best_practice only.
-- guidelines: 1-3 domain-specific guidelines for this section`);
+- guidelines: 1-3 domain-specific guidelines for this section
+
+Do NOT include a "suggestion" field. Focus entirely on thorough, specific analysis. Improved content will be generated separately based on your comments.`);
   parts.push('');
 
   configs.forEach((config, i) => {
@@ -422,7 +421,6 @@ export function buildConfiguredBatchPrompt(
 
   parts.push('Every comment MUST use the {text, type} object format. Each distinct issue MUST be a separate comment.');
   parts.push('For "pass" sections: include 1-2 "strength" type comments confirming what works well.');
-  parts.push('Your suggested content for each section MUST match the prescribed format — never write prose paragraphs for line_items, table, or checkbox sections.');
   parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity), your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }
@@ -446,4 +444,22 @@ export function buildSmartBatchPrompt(
   }
 
   return buildConfiguredBatchPrompt(configs, roleContext, masterDataOptions);
+}
+
+/**
+ * Get the format instruction string for a section key.
+ * Used by Pass 2 (Rewrite) to tell the LLM what format the suggestion should be in.
+ */
+export function getSuggestionFormatInstruction(sectionKey: string): string {
+  const fmt = SECTION_FORMAT_MAP[sectionKey] || 'rich_text';
+  const ebInstr = EXTENDED_BRIEF_FORMAT_INSTRUCTIONS[sectionKey];
+  const fmtInstr = FORMAT_INSTRUCTIONS[fmt] || '';
+  return ebInstr || fmtInstr;
+}
+
+/**
+ * Get the format type key for a section (e.g. 'rich_text', 'line_items', 'table').
+ */
+export function getSectionFormatType(sectionKey: string): string {
+  return SECTION_FORMAT_MAP[sectionKey] || 'rich_text';
 }

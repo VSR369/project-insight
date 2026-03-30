@@ -6,13 +6,18 @@
  * Loads config from ai_review_section_config DB table; falls back to hardcoded defaults.
  * Persists results to challenges.ai_section_reviews.
  *
+ * TWO-PASS ARCHITECTURE:
+ * Pass 1 (Analyze): Generate comments, status, guidelines, cross-section issues. No suggestion.
+ * Pass 2 (Rewrite): Receive Pass 1 comments as input. Generate ONLY improved content.
+ * Pass 2 is skipped entirely when all sections pass with only strength/best_practice comments.
+ *
  * Batching: splits sections into batches of MAX_BATCH_SIZE to prevent LLM output truncation.
  * Master data: injects allowed option codes into prompt for master-data-backed sections.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, type SectionConfig } from "./promptTemplate.ts";
+import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, getSuggestionFormatInstruction, getSectionFormatType, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,9 +123,11 @@ For each section, assess:
 
   return `${roleGuidance}
 
-For each section provide:
+For each section provide ANALYSIS ONLY (no suggestion field):
 - status: "pass" (ready), "warning" (functional but improvable), or "needs_revision" (has specific issues that must be fixed)
-- comments: 1-3 specific, actionable improvement instructions. For "pass" status, provide 0-1 optional enhancement suggestions.
+- comments: 1-3 specific, actionable improvement instructions. For "pass" status, provide 1-2 "strength" comments.
+
+Do NOT include a "suggestion" field. Focus entirely on thorough analysis.
 
 Sections to review:
 ${sectionList}
@@ -195,16 +202,18 @@ async function fetchMasterDataOptions(
   return result;
 }
 
-/**
- * Call AI gateway for a batch of sections.
- */
-async function callAIBatch(
+/* ══════════════════════════════════════════════════════════════
+ * PASS 1: ANALYZE — Generate comments, status, guidelines.
+ * No suggestion field in the tool schema.
+ * ══════════════════════════════════════════════════════════════ */
+
+async function callAIPass1Analyze(
   apiKey: string,
   model: string,
   systemPrompt: string,
   userPrompt: string,
   sectionKeys: string[],
-): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[] }[]> {
+): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; guidelines: string[]; cross_section_issues: any[] }[]> {
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
     headers: {
@@ -222,7 +231,7 @@ async function callAIBatch(
           type: "function",
           function: {
             name: "review_sections",
-            description: "Return per-section review results with optional suggestions and cross-section issues.",
+            description: "Return per-section analysis: status, typed comments, guidelines, cross-section issues. Do NOT include a suggestion field — improved content will be generated in a separate step.",
             parameters: {
               type: "object",
               properties: {
@@ -235,7 +244,7 @@ async function callAIBatch(
                       status: {
                         type: "string",
                         enum: ["pass", "warning", "needs_revision", "generated"],
-                        description: "pass = content is good, warning = minor issues, needs_revision = errors found, generated = new content was created for an empty section",
+                        description: "pass = content is good, warning = minor issues, needs_revision = errors found, generated = section was empty and needs content creation",
                       },
                       comments: {
                         type: "array",
@@ -246,44 +255,31 @@ async function callAIBatch(
                             type: {
                               type: "string",
                               enum: ["error", "warning", "suggestion", "best_practice", "strength"],
-                              description: "error = must fix, warning = should improve, suggestion = nice-to-have, best_practice = industry standard reference, strength = positive reinforcement of what works well",
+                              description: "error = must fix, warning = should improve, suggestion = nice-to-have, best_practice = industry standard reference, strength = positive reinforcement",
                             },
-                            severity: { type: "string", enum: ["error", "warning", "suggestion"], description: "DEPRECATED — use 'type' instead. Kept for backward compatibility." },
                             field: { type: "string", description: "Specific field name this comment applies to, or null for general" },
-                            comment: { type: "string", description: "DEPRECATED — use 'text' instead. Kept for backward compatibility." },
                             reasoning: { type: "string", description: "Why this matters, referencing other sections for cross-consistency" },
                           },
                           required: ["text", "type"],
                         },
-                        description: "Multi-tier feedback: errors, warnings, suggestions, best practices, AND strengths. For 'pass' sections, include 1-2 strength comments confirming what is good.",
+                        description: "Multi-tier feedback: errors, warnings, suggestions, best practices, AND strengths. For 'pass' sections, include 1-2 strength comments.",
                       },
                       guidelines: {
                         type: "array",
                         items: { type: "string" },
-                        description: "1-3 domain-specific guidelines based on challenge context and solution type. Each must reference THIS specific challenge — not generic consulting advice.",
-                      },
-                      suggestion: {
-                        type: "string",
-                        description: `For 'generate' action: the full generated content. For 'review' action: suggested improved content. Format MUST match the section type:
-- rich_text sections (problem_statement, scope, hook, context_and_background): return HTML string
-- line_items sections (deliverables, expected_outcomes, root_causes, etc.): return a JSON array of strings, e.g. '["item1","item2"]'
-- table/schedule_table sections (evaluation_criteria, phase_schedule, affected_stakeholders, etc.): return a JSON array of row objects, e.g. '[{"col":"val"}]'
-- checkbox_single sections (maturity_level, complexity, ip_model): return a JSON object, e.g. '{"selected_id":"value"}'
-- checkbox_multi/tag_input sections (eligibility, visibility, domain_tags): return a JSON array of strings
-- custom/structured_fields sections: return a JSON object matching the section schema
-Null/empty if no content suggestion needed.`,
+                        description: "1-3 domain-specific guidelines based on challenge context and solution type.",
                       },
                       cross_section_issues: {
                         type: "array",
                         items: {
                           type: "object",
                           properties: {
-                            related_section: { type: "string", description: "Section key of the conflicting section" },
-                            issue: { type: "string", description: "Description of the cross-section inconsistency" },
+                            related_section: { type: "string" },
+                            issue: { type: "string" },
                             suggested_resolution: { type: "string" },
                           },
                         },
-                        description: "Cross-section consistency issues found during review. Empty array if none.",
+                        description: "Cross-section consistency issues found during review.",
                       },
                     },
                     required: ["section_key", "status", "comments"],
@@ -303,16 +299,17 @@ Null/empty if no content suggestion needed.`,
     if (response.status === 429) throw new Error("RATE_LIMIT");
     if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
     const errText = await response.text();
-    console.error("AI gateway error:", response.status, errText);
+    console.error("AI gateway error (Pass 1):", response.status, errText);
     throw new Error(`AI gateway error: ${response.status}`);
   }
 
   const result = await response.json();
 
-  // Token usage logging (Fix 6)
+  // Token usage logging — Pass 1
   const tokenUsage = result.usage || {};
   console.log(JSON.stringify({
     event: 'ai_review_tokens',
+    pass: 'pass1_analyze',
     sectionKeys,
     model: result.model || model || 'unknown',
     prompt_tokens: tokenUsage.prompt_tokens || 0,
@@ -322,12 +319,12 @@ Null/empty if no content suggestion needed.`,
   }));
 
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output");
+  if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output (Pass 1)");
 
   const parsed = JSON.parse(toolCall.function.arguments);
   const now = new Date().toISOString();
   const sections = (parsed.sections ?? []).map((s: any) => {
-    // Normalize comments: handle both old (severity/comment) and new (type/text) formats
+    // Normalize comments
     const rawComments = Array.isArray(s.comments) ? s.comments : [];
     const comments = rawComments.map((c: any) => {
       if (typeof c === 'string') return { text: c, type: 'warning' as const, field: null, reasoning: null };
@@ -339,31 +336,29 @@ Null/empty if no content suggestion needed.`,
       };
     });
 
-    // Only downgrade pass→warning if comments contain actual errors or warnings
-    // Strength/best_practice/suggestion-only comments keep "pass" status
+    // Normalize status
     const hasHighSeverity = comments.some((c: any) => c.type === 'error' || c.type === 'warning');
     const normalizedStatus = (s.status === 'pass' && hasHighSeverity) ? 'warning' : s.status;
 
     return {
-      ...s,
+      section_key: s.section_key,
       status: normalizedStatus,
       comments,
-      suggestion: s.suggestion || null,
       guidelines: Array.isArray(s.guidelines) ? s.guidelines : [],
       cross_section_issues: Array.isArray(s.cross_section_issues) ? s.cross_section_issues : [],
       reviewed_at: now,
     };
   });
 
-  // Backfill skipped sections as "warning" (not misleading "pass")
+  // Backfill skipped sections
   const returnedKeys = new Set(sections.map((s: any) => s.section_key));
   for (const key of sectionKeys) {
     if (!returnedKeys.has(key)) {
       sections.push({
         section_key: key,
         status: "warning",
-        comments: ["Review could not be completed for this section. Please re-review individually."],
-        suggestion: null,
+        comments: [{ text: "Review could not be completed for this section. Please re-review individually.", type: "warning", field: null, reasoning: null }],
+        guidelines: [],
         cross_section_issues: [],
         reviewed_at: now,
       });
@@ -371,6 +366,227 @@ Null/empty if no content suggestion needed.`,
   }
 
   return sections;
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * PASS 2: REWRITE — Generate suggestions for sections that need them.
+ * Receives Pass 1 comments as explicit input. LLM focuses 100% on rewriting.
+ * ══════════════════════════════════════════════════════════════ */
+
+const PASS2_SYSTEM_PROMPT = `You are a senior management consultant rewriting challenge section content based on specific review feedback.
+
+RULES:
+- For each section below, you receive the ORIGINAL CONTENT and a list of REVIEW COMMENTS.
+- Your job is to produce a REVISED version that addresses EVERY error, warning, and suggestion comment.
+- For each comment, the reader must be able to see a CORRESPONDING CHANGE in your revised content.
+- If a comment says "add acceptance criteria to deliverable 3" → your revised content MUST include specific acceptance criteria for deliverable 3.
+- If a comment says "reduce timeline from 24 weeks to 12 weeks" → your revised content MUST show the shorter timeline.
+- Do NOT add content that isn't supported by the challenge context.
+- Do NOT remove content that wasn't flagged in the comments.
+- Maintain the SAME FORMAT as the original (HTML, JSON array, plain text — match whatever you receive).
+- The output must be PRODUCTION-READY — not a draft, not notes, not commentary. It should be directly usable as the section content.
+- If original content is empty, generate complete content from the challenge context.
+
+QUALITY BAR: The revised content should read like it was written by a senior Deloitte consultant — specific, measurable, and actionable. Every sentence must reference THIS specific challenge.
+
+ANTI-HALLUCINATION: Never invent data, specifications, or dates not derivable from the challenge context. If context is insufficient, note what's missing but still produce the best possible content.`;
+
+async function callAIPass2Rewrite(
+  apiKey: string,
+  model: string,
+  pass1Results: any[],
+  challengeData: any,
+  waveAction: string,
+  clientContext?: any,
+): Promise<Map<string, string>> {
+  // Filter to sections that need suggestions
+  const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
+    const hasActionableComments = r.comments.some(
+      (c: any) => c.type === 'error' || c.type === 'warning' || c.type === 'suggestion'
+    );
+    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || waveAction === 'generate';
+  });
+
+  if (sectionsNeedingSuggestion.length === 0) {
+    return new Map();
+  }
+
+  // Build per-section rewrite instructions
+  const sectionPrompts = sectionsNeedingSuggestion.map((r: any) => {
+    const originalContent = challengeData[r.section_key];
+    const contentStr = originalContent
+      ? (typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent, null, 2))
+      : '(EMPTY — generate from scratch based on challenge context)';
+
+    const actionableComments = r.comments
+      .filter((c: any) => c.type === 'error' || c.type === 'warning' || c.type === 'suggestion')
+      .map((c: any, i: number) => `${i + 1}. [${c.type.toUpperCase()}] ${c.text}${c.field ? ` (field: ${c.field})` : ''}`)
+      .join('\n');
+
+    const bestPractices = r.comments
+      .filter((c: any) => c.type === 'best_practice')
+      .map((c: any) => `- ${c.text}`)
+      .join('\n');
+
+    const formatInstruction = getSuggestionFormatInstruction(r.section_key);
+    const formatType = getSectionFormatType(r.section_key);
+
+    return `### Section: ${r.section_key}
+${r.status === 'generated' ? 'ACTION: Generate new content from scratch based on challenge context.' : 'ACTION: Revise the existing content to address all issues below.'}
+
+FORMAT: ${formatType}. ${formatInstruction}
+
+ORIGINAL CONTENT:
+${contentStr}
+
+ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
+${actionableComments || '(No specific issues — generate fresh content based on challenge context)'}
+
+${bestPractices ? `BEST PRACTICES TO INCORPORATE:\n${bestPractices}` : ''}
+
+${r.guidelines?.length > 0 ? `GUIDELINES:\n- ${r.guidelines.join('\n- ')}` : ''}
+
+Produce the REVISED/GENERATED content now. Return it in the "suggestion" field for this section_key.`;
+  });
+
+  const pass2UserPrompt = `Rewrite/generate content for the following ${sectionPrompts.length} section(s).
+
+CHALLENGE CONTEXT:
+${JSON.stringify(challengeData, null, 2)}
+
+${clientContext?.todaysDate ? `Today's date: ${clientContext.todaysDate}. All dates must be in the future relative to this date.` : ''}
+${clientContext?.maturityLevel ? `Maturity level: ${clientContext.maturityLevel}` : ''}
+${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` : ''}
+
+SECTIONS TO REWRITE:
+${sectionPrompts.join('\n\n---\n\n')}`;
+
+  const response = await fetch(AI_GATEWAY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: PASS2_SYSTEM_PROMPT },
+        { role: "user", content: pass2UserPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "suggest_content",
+            description: "Return revised/generated content for each section that needs improvement. Each suggestion MUST address ALL issues listed in the review comments.",
+            parameters: {
+              type: "object",
+              properties: {
+                sections: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      section_key: { type: "string", description: "The section identifier" },
+                      suggestion: {
+                        type: "string",
+                        description: "The complete revised/generated content. Must address ALL issues listed. Must be in the section's native format (HTML for rich_text, JSON array for line_items, etc.).",
+                      },
+                    },
+                    required: ["section_key", "suggestion"],
+                  },
+                },
+              },
+              required: ["sections"],
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "suggest_content" } },
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("RATE_LIMIT");
+    if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
+    const errText = await response.text();
+    console.error("AI gateway error (Pass 2):", response.status, errText);
+    // Don't throw — return empty map so Pass 1 results are still usable
+    console.error("Pass 2 failed, returning Pass 1 results without suggestions");
+    return new Map();
+  }
+
+  const result = await response.json();
+
+  // Token usage logging — Pass 2
+  const tokenUsage = result.usage || {};
+  console.log(JSON.stringify({
+    event: 'ai_review_tokens',
+    pass: 'pass2_rewrite',
+    sectionKeys: sectionsNeedingSuggestion.map((s: any) => s.section_key),
+    model: result.model || model || 'unknown',
+    prompt_tokens: tokenUsage.prompt_tokens || 0,
+    completion_tokens: tokenUsage.completion_tokens || 0,
+    total_tokens: tokenUsage.total_tokens || 0,
+    timestamp: new Date().toISOString(),
+  }));
+
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) {
+    console.error("Pass 2: AI did not return structured output");
+    return new Map();
+  }
+
+  const parsed = JSON.parse(toolCall.function.arguments);
+  const suggestionMap = new Map<string, string>();
+
+  const sections = parsed.sections ?? parsed;
+  if (Array.isArray(sections)) {
+    for (const s of sections) {
+      if (s.section_key && s.suggestion) {
+        suggestionMap.set(s.section_key, s.suggestion);
+      }
+    }
+  }
+
+  return suggestionMap;
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * TWO-PASS ORCHESTRATOR
+ * Calls Pass 1, filters, conditionally calls Pass 2, merges.
+ * ══════════════════════════════════════════════════════════════ */
+
+async function callAIBatchTwoPass(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  sectionKeys: string[],
+  challengeData: any,
+  waveAction: string,
+  clientContext?: any,
+): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
+
+  // ═══ PASS 1: Analyze ═══
+  const pass1Results = await callAIPass1Analyze(apiKey, model, systemPrompt, userPrompt, sectionKeys);
+
+  // ═══ PASS 2: Rewrite (conditional) ═══
+  let suggestionMap: Map<string, string>;
+  try {
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext);
+  } catch (err: any) {
+    // Pass 2 failure is non-fatal — return Pass 1 results without suggestions
+    if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
+    console.error("Pass 2 failed, continuing with Pass 1 results:", err);
+    suggestionMap = new Map();
+  }
+
+  // ═══ MERGE: Combine Pass 1 analysis + Pass 2 suggestions ═══
+  return pass1Results.map((r: any) => ({
+    ...r,
+    suggestion: suggestionMap.get(r.section_key) || null,
+  }));
 }
 
 /**
@@ -635,7 +851,6 @@ serve(async (req) => {
     let resultIdx = 1;
 
     if (isPreviewMode) {
-      // Build mock challenge data from client context + current_content
       challengeData = {
         title: "Preview Test Challenge",
         problem_statement: current_content || "Test content for prompt preview.",
@@ -798,16 +1013,16 @@ serve(async (req) => {
       : Promise.resolve();
 
     for (const batch of batches) {
-      // Build action-aware user prompt instruction (Fix 2)
+      // Build action-aware user prompt instruction for Pass 1 (analysis only)
       let userPromptInstruction: string;
       if (wave_action === 'generate') {
-        userPromptInstruction = `The following section(s) are EMPTY. Generate complete, enterprise-grade content for each based on the challenge context provided. The content must be specific to THIS challenge — reference the problem domain, technologies, constraints, and stakeholders by name. Return the generated content in the "suggestion" field of each section result. Set status to "generated".`;
+        userPromptInstruction = `The following section(s) are EMPTY. Analyze what content should be generated for each based on the challenge context. Set status to "generated" and provide specific comments about what the generated content should include. Focus on thorough analysis — the actual content generation will happen in a separate step.`;
       } else if (wave_action === 'review_and_enhance') {
-        userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. If the content needs improvement based on the new context, return enhanced content in the "suggestion" field. If the content is fine, leave suggestion empty and set status to "pass" or "warning".`;
+        userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. Provide detailed comments on what needs improvement. Focus on thorough analysis — content improvement will happen in a separate step.`;
       } else if (section_key) {
-        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity. If ANY comment has type error, warning, or suggestion, you MUST also return a "suggestion" field with improved content that addresses all those comments. Only omit suggestion when ALL comments are strength or best_practice type.`;
+        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
       } else {
-        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity. If ANY comment has type error, warning, or suggestion, you MUST also return a "suggestion" field with improved content that addresses all those comments. Only omit suggestion when ALL comments are strength or best_practice type.`;
+        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. Provide thorough analysis with specific, actionable comments for each section. Focus entirely on identifying issues — improved content will be generated separately based on your analysis.`;
       }
 
       const userPrompt = `${userPromptInstruction}\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;
@@ -857,12 +1072,16 @@ serve(async (req) => {
 
       const promptSource = useDbConfig ? "supervisor" : "default";
       try {
-        const batchResults = await callAIBatch(
+        // ═══ TWO-PASS: Pass 1 (Analyze) + Pass 2 (Rewrite) ═══
+        const batchResults = await callAIBatchTwoPass(
           LOVABLE_API_KEY,
           modelToUse,
           systemPrompt,
           userPrompt,
           batch.map(s => s.key),
+          challengeData,
+          wave_action || 'review',
+          clientContext,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {
@@ -888,7 +1107,7 @@ serve(async (req) => {
           allNewSections.push({
             section_key: sec.key,
             status: "warning",
-            comments: ["Review could not be completed. Please re-review individually."],
+            comments: [{ text: "Review could not be completed. Please re-review individually.", type: "warning", field: null, reasoning: null }],
             reviewed_at: now,
           });
         }
