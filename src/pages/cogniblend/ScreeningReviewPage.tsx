@@ -405,7 +405,7 @@ export default function ScreeningReviewPage() {
 
   // ═══ SECTION 4: Derived ═══
   const hasERRole = roles?.includes('ER') ?? false;
-  const hasIDRole = roles?.includes('ID') ?? false;
+  const hasCURole = roles?.includes('CU') ?? false;
   const isEnterprise = data?.isEnterprise ?? false;
 
   // Access: ER role for Enterprise, or challenge owner (any role) for Lightweight
