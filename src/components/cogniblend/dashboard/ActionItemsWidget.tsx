@@ -24,11 +24,9 @@ export function ActionItemsWidget() {
   const { data: currentOrg } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
   const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
-  const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '');
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
-  const { isBusinessOwner } = useCogniPermissions();
 
-  const isLoading = reqLoading || chLoading || isRolesLoading;
+  const isLoading = chLoading || isRolesLoading;
 
   const allSRRows = useMemo(
     () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
