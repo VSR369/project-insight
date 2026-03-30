@@ -2064,11 +2064,27 @@ export default function CurationReviewPage() {
       }
     }
 
-    // ── Data Resources Provided: unwrap from wrapper if needed ──
+    // ── Data Resources Provided: normalize AI field aliases to canonical columns ──
     if (dbField === 'data_resources_provided' && valueToSave && typeof valueToSave === 'object') {
       const rawArr = Array.isArray(valueToSave) ? valueToSave : (valueToSave?.items ?? null);
       if (rawArr && Array.isArray(rawArr)) {
-        valueToSave = rawArr;
+        valueToSave = rawArr.map((row: any) => ({
+          resource: row.resource ?? row.name ?? row.resource_name ?? "",
+          type: row.type ?? row.data_type ?? row.resource_type ?? "",
+          format: row.format ?? "",
+          size: row.size ?? "",
+          access_method: row.access_method ?? row.access ?? "",
+          restrictions: row.restrictions ?? row.restriction ?? "",
+        }));
+      }
+    }
+
+    // ── Domain tags: validate as string array ──
+    if (dbField === 'domain_tags' && Array.isArray(valueToSave)) {
+      valueToSave = valueToSave.filter((t: any) => typeof t === 'string' && t.trim().length > 0);
+      if (valueToSave.length === 0) {
+        toast.error("AI suggested no valid domain tags. Please add tags manually.");
+        return;
       }
     }
 
