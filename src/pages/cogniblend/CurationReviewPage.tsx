@@ -1603,6 +1603,45 @@ export default function CurationReviewPage() {
     notifyStaleness('maturity_level');
   }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
+  /** Save solution type and auto-populate solver expertise */
+  const handleSaveSolutionType = useCallback(async (solutionTypeCode: string) => {
+    setSavingSection(true);
+    syncSectionToStore('solution_type' as SectionKey, solutionTypeCode);
+    saveSectionMutation.mutate({ field: "solution_type", value: solutionTypeCode });
+    notifyStaleness('solution_type');
+
+    // Auto-populate solver expertise with matching proficiency area
+    const proficiencyAreaName = SOLUTION_TYPE_TO_PROFICIENCY_AREA[solutionTypeCode];
+    if (proficiencyAreaName && challengeId) {
+      try {
+        const { data: paRows } = await supabase
+          .from('proficiency_areas')
+          .select('id, name')
+          .eq('is_active', true)
+          .eq('name', proficiencyAreaName);
+
+        if (paRows && paRows.length > 0) {
+          const paIds = paRows.map((r: any) => r.id);
+          // Merge with existing solver_expertise_requirements
+          const existing = challenge?.solver_expertise_requirements
+            ? (typeof challenge.solver_expertise_requirements === 'string'
+              ? JSON.parse(challenge.solver_expertise_requirements)
+              : challenge.solver_expertise_requirements) as Record<string, any>
+            : {};
+          const updated = {
+            ...existing,
+            proficiency_areas: paIds,
+          };
+          syncSectionToStore('solver_expertise' as SectionKey, updated);
+          saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: updated });
+          toast.success(`Solver Expertise auto-updated to match "${proficiencyAreaName}"`);
+        }
+      } catch (err) {
+        console.error('[SolutionType] Failed to auto-populate solver expertise:', err);
+      }
+    }
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements]);
+
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
     setSavingSection(true);
     syncSectionToStore('extended_brief' as SectionKey, updatedBrief);
