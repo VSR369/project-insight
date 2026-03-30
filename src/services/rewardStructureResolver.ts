@@ -403,7 +403,7 @@ export function resolveRewardSource(
   const rawUpstream = raw.upstream_source as any;
   const upstreamSource: UpstreamSource | undefined = rawUpstream && typeof rawUpstream === 'object'
     ? {
-        role: (rawUpstream.role as string)?.toUpperCase() as SourceRole,
+        role: ((r) => (LEGACY_SOURCE_ROLES[r] ?? r) as SourceRole)((rawUpstream.role as string)?.toUpperCase()),
         date: rawUpstream.date ?? rawUpstream.source_date,
         budgetMin: Number(rawUpstream.budget_min) || undefined,
         budgetMax: Number(rawUpstream.budget_max) || undefined,
