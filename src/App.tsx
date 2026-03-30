@@ -237,8 +237,6 @@ const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalD
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
 const CurationReviewPage = lazy(() => import("@/pages/cogniblend/CurationReviewPage"));
 const CogniPlaceholderPage = lazy(() => import("@/pages/cogniblend/CogniPlaceholderPage"));
-const ApprovalQueuePage = lazy(() => import("@/pages/cogniblend/ApprovalQueuePage"));
-const ApprovalReviewPage = lazy(() => import("@/pages/cogniblend/ApprovalReviewPage"));
 const PublicationReadinessPage = lazy(() => import("@/pages/cogniblend/PublicationReadinessPage"));
 const PublicChallengeDetailPage = lazy(() => import("@/pages/cogniblend/PublicChallengeDetailPage"));
 const ChallengeManagePage = lazy(() => import("@/pages/cogniblend/ChallengeManagePage"));
@@ -247,17 +245,9 @@ const FullSolutionUploadPage = lazy(() => import("@/pages/cogniblend/FullSolutio
 const ScreeningReviewPage = lazy(() => import("@/pages/cogniblend/ScreeningReviewPage"));
 const LcReviewQueuePage = lazy(() => import("@/pages/cogniblend/LcReviewQueuePage"));
 const LcReviewPanel = lazy(() => import("@/pages/cogniblend/LcReviewPanel"));
-const CogniSubmitRequestPage = lazy(() => import("@/pages/cogniblend/CogniSubmitRequestPage"));
-const CogniMyRequestsPage = lazy(() => import("@/pages/cogniblend/CogniMyRequestsPage"));
-const AMChallengeReviewPage = lazy(() => import("@/pages/cogniblend/AMChallengeReviewPage"));
-const AMRequestViewPage = lazy(() => import("@/pages/cogniblend/AMRequestViewPage"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
 const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
-
-// Solution Request Pages (lazy loaded — backward-compatible standalone routes)
-const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
-const SolutionRequestsListPage = lazy(() => import("@/pages/requests/SolutionRequestsListPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
