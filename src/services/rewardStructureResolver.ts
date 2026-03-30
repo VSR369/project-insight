@@ -87,14 +87,19 @@ export interface RewardData {
 /* ── Role display names ── */
 
 const ROLE_DISPLAY_NAMES: Record<SourceRole, string> = {
-  AM: 'Account Manager',
-  CA: 'Challenge Architect',
   CR: 'Challenge Creator',
   CURATOR: 'Curator',
 };
 
-export function getRoleDisplayName(role: SourceRole): string {
-  return ROLE_DISPLAY_NAMES[role];
+/** Display names for legacy roles (backward compat for existing data) */
+const LEGACY_ROLE_DISPLAY: Record<string, string> = {
+  AM: 'Challenge Creator',
+  CA: 'Challenge Creator',
+};
+
+export function getRoleDisplayName(role: string): string {
+  if (role in ROLE_DISPLAY_NAMES) return ROLE_DISPLAY_NAMES[role as SourceRole];
+  return LEGACY_ROLE_DISPLAY[role] ?? role;
 }
 
 /* ── Model normalizer ── */
