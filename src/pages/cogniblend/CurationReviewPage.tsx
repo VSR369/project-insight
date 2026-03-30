@@ -937,7 +937,7 @@ function getSectionContent(ch: ChallengeData, sectionKey: string): string | null
   switch (sectionKey) {
     case "problem_statement": return ch.problem_statement;
     case "scope": return ch.scope;
-    case "submission_guidelines": return ch.description;
+    case "submission_guidelines": return (ch as any).submission_guidelines ?? ch.description;
     case "ip_model": return ch.ip_model;
     case "eligibility": {
       const solverTypes = parseJson<any>(ch.solver_eligibility_types);
