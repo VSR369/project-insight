@@ -32,8 +32,10 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Save, Settings2, Bot } from 'lucide-react';
+import { Save, Settings2, Bot, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { buildConfiguredSectionPrompt, type SectionConfig } from '@/lib/aiReviewPromptTemplate';
+import { scoreAllConfigs, type ConfigScore, type AggregateConfigHealth } from '@/utils/promptConfigValidator';
 import { QualityCriteriaTab } from '@/components/admin/prompt-studio/QualityCriteriaTab';
 import { ConstraintsTemplatesTab } from '@/components/admin/prompt-studio/ConstraintsTemplatesTab';
 import { ResearchTab } from '@/components/admin/prompt-studio/ResearchTab';
