@@ -2588,6 +2588,11 @@ export default function CurationReviewPage() {
     if (!challenge) return {};
     const result: Record<string, { done: number; total: number; hasAIFlag: boolean }> = {};
     GROUPS.forEach((g) => {
+      if (g.id === 'organization') {
+        // Organization tab: 1 item, done if org has name + one enrichment
+        result[g.id] = { done: 0, total: 1, hasAIFlag: false };
+        return;
+      }
       const secs = g.sectionKeys.map((k) => SECTION_MAP.get(k)).filter(Boolean) as SectionDef[];
       const done = secs.filter((s) => s.isFilled(challenge, legalDocs, legalDetails, escrowRecord) && !staleKeySet.has(s.key)).length;
       const hasAIFlag = aiQuality?.gaps?.some((gap) => {
