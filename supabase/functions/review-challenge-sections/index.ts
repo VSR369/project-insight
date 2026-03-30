@@ -979,7 +979,7 @@ serve(async (req) => {
         ? "title, reward_structure, phase_schedule, ai_section_reviews"
         : resolvedContext === "evaluation"
         ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id";
+        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id, submission_guidelines";
 
       const fetchPromises: Promise<any>[] = [
         adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),

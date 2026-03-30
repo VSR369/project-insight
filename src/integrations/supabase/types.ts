@@ -1426,6 +1426,7 @@ export type Database = {
           solver_visibility_types: Json | null
           status: string
           submission_deadline: string | null
+          submission_guidelines: Json | null
           submission_template_url: string | null
           success_metrics_kpis: Json | null
           targeting_filters: Json | null
@@ -1499,6 +1500,7 @@ export type Database = {
           solver_visibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
+          submission_guidelines?: Json | null
           submission_template_url?: string | null
           success_metrics_kpis?: Json | null
           targeting_filters?: Json | null
@@ -1572,6 +1574,7 @@ export type Database = {
           solver_visibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
+          submission_guidelines?: Json | null
           submission_template_url?: string | null
           success_metrics_kpis?: Json | null
           targeting_filters?: Json | null
