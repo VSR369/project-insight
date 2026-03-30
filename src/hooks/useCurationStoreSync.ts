@@ -38,7 +38,7 @@ const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
   
   expected_outcomes: 'expected_outcomes',
   extended_brief: 'extended_brief',
-  submission_guidelines: 'description',
+  submission_guidelines: 'submission_guidelines',
   solver_expertise: 'solver_expertise_requirements',
   data_resources_provided: 'data_resources_provided',
   success_metrics_kpis: 'success_metrics_kpis',
