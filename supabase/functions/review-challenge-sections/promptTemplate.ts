@@ -766,6 +766,20 @@ Focus 100% of your attention on producing the most accurate, specific, and actio
     }
   }
 
+  // Strategic Coherence Check — whole-challenge assessment
+  parts.push(`
+## STRATEGIC COHERENCE CHECK (Apply after reviewing individual sections)
+After reviewing each section individually, step back and assess the challenge AS A WHOLE:
+
+1. **NARRATIVE COHERENCE**: Does the challenge tell a logical story? Problem → Root Causes → Scope → Deliverables → Outcomes → Evaluation → Reward. If any step doesn't flow from the previous, flag it as a cross_section_issue.
+
+2. **AMBITION-CAPABILITY MATCH**: Is what's being asked (deliverables, outcomes) achievable by the target solver profile (expertise, eligibility) within the constraints (timeline, budget)? Flag mismatches.
+
+3. **SOLVER ATTRACTIVENESS**: Would a top-tier solver in this domain choose THIS challenge over alternatives? Consider: reward/effort ratio, IP terms fairness, timeline realism, problem interestingness. If the answer is "probably not," flag as a cross_section_issue with specific improvement suggestions.
+
+4. **PUBLICATION READINESS**: Could this challenge be published TODAY and attract quality submissions? Or are there blockers? Rate overall readiness as a final cross_section_issue: { "related_section": "overall", "issue": "Publication readiness assessment: [READY/NEEDS_WORK/NOT_READY] — [specific reasoning]", "suggested_resolution": "..." }
+`);
+
   parts.push('Every comment MUST use the {text, type} object format. Each distinct issue MUST be a separate comment.');
   parts.push('For "pass" sections: include 1-2 "strength" type comments — never return empty comments. Curators need confirmation the AI reviewed the section.');
   parts.push('For master-data-backed sections, your comments MUST reference specific allowed codes when suggesting changes.');
