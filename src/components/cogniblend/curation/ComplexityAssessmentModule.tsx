@@ -766,6 +766,13 @@ function ManualParamsTab({
 }) {
   return (
     <div className="space-y-4">
+      {/* AI score reference */}
+      {aiScoreRef != null && aiLevelRef && aiLabelRef && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Bot className="h-3 w-3" />
+          <span>AI recommended: {aiScoreRef.toFixed(2)} ({aiLevelRef} — {aiLabelRef})</span>
+        </div>
+      )}
       {/* Live score */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm font-medium text-foreground">Weighted Score:</span>
