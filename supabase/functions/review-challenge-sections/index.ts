@@ -1322,6 +1322,28 @@ serve(async (req) => {
 
       challengeData = challengeResult.data;
 
+      // ── Fetch organization context for intelligence layer ──
+      let orgContext: { orgType?: string; orgName?: string } = {};
+      if (challengeData.organization_id) {
+        try {
+          const { data: org } = await adminClient
+            .from('seeker_organizations')
+            .select('name, organization_type_id')
+            .eq('id', challengeData.organization_id)
+            .single();
+          if (org?.organization_type_id) {
+            const { data: ot } = await adminClient
+              .from('organization_types')
+              .select('name')
+              .eq('id', org.organization_type_id)
+              .single();
+            orgContext = { orgType: ot?.name ?? undefined, orgName: org?.name ?? undefined };
+          } else if (org?.name) {
+            orgContext = { orgName: org.name };
+          }
+        } catch { /* org context is optional — graceful fallback */ }
+      }
+
       // Extract extended_brief fields for intake/spec
       if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
         const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
