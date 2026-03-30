@@ -2030,6 +2030,7 @@ export default function CurationReviewPage() {
       if (rawArr && Array.isArray(rawArr)) {
         valueToSave = rawArr;
       }
+    }
 
     // ── Text fields: normalize markdown → sanitized HTML ──
     const HTML_TEXT_FIELDS = ['problem_statement', 'scope', 'hook'];
