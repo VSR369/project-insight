@@ -905,6 +905,16 @@ interface GroupDef {
 
 const GROUPS: GroupDef[] = [
   {
+    id: "organization",
+    label: "0. Organization",
+    icon: "🏢",
+    colorDone: "bg-purple-100 text-purple-800 border-purple-300",
+    colorActive: "bg-purple-50 border-purple-400",
+    colorBorder: "border-purple-200",
+    sectionKeys: [],
+    prerequisiteGroups: [],
+  },
+  {
     id: "foundation",
     label: "1. Foundation",
     icon: "🏗️",
