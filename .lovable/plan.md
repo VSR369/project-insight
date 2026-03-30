@@ -1,52 +1,57 @@
 
 
-# Insert Content Templates for 3 Generation-Critical Sections
+# Fix: Success Metrics & KPIs AI Suggestion Renders as Distorted Text Instead of Table
 
-## Current State
+## Problem
 
-- `success_metrics_kpis` — already has content templates (blueprint/poc/pilot)
-- `root_causes` — empty `content_templates` (`{}`)
-- `current_deficiencies` — empty `content_templates` (`{}`)
-- `affected_stakeholders` — empty `content_templates` (`{}`)
+When the AI generates content for `success_metrics_kpis`, the suggestion is rendered as raw prose/markdown instead of a structured table. This happens because:
 
-## What to Do
+1. In `AIReviewResultPanel.tsx` (line 606-611), the `tableRows` parsing is hardcoded to **only** trigger for `evaluation_criteria` — it ignores all other `table`-format sections like `success_metrics_kpis`, `data_resources_provided`, and `affected_stakeholders`.
 
-Create a single database migration that UPDATEs `content_templates` (JSONB) for these 3 sections in `ai_review_section_config` where `role_context = 'curation'`.
+2. The `suggestedFormat` detection (line 648-661) therefore falls through to `"rich_text"` for these sections, rendering the AI JSON output as unformatted text.
 
-### Data to Insert
+## Solution
 
-**`root_causes`:**
-```json
-{
-  "blueprint": "Generate 4-6 root causes using 5-Whys methodology. Each: (a) phrase label not full sentence, (b) structural/systemic not symptomatic, (c) evidence-grounded where possible. Categorize each as: Process, Technology, Organizational, or Data. For blueprint-level, focus on strategic and organizational root causes.",
-  "poc": "Generate 4-6 root causes using 5-Whys methodology. Each: (a) phrase label not full sentence, (b) structural/systemic not symptomatic, (c) evidence-grounded where possible. Categorize each as: Process, Technology, Organizational, or Data. For POC-level, emphasize technical and data-related root causes that the proof of concept must address.",
-  "pilot": "Generate 4-6 root causes using 5-Whys methodology. Each: (a) phrase label not full sentence, (b) structural/systemic not symptomatic, (c) evidence-grounded where possible. Categorize each as: Process, Technology, Organizational, or Data. For pilot-level, include operational and change-management root causes relevant to scaled deployment."
-}
+Generalize the table row parsing and rendering to apply to **all** sections with `format: 'table'` in `SECTION_FORMAT_CONFIG`, not just `evaluation_criteria`.
+
+### File: `src/components/cogniblend/curation/AIReviewResultPanel.tsx`
+
+**Change 1 — Generalize `tableRows` parsing (line 606-611):**
+
+Replace the `evaluation_criteria`-only check with a generic check for any `table`-format section:
+
+```typescript
+const tableRows = useMemo(() => {
+  const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
+  if (fmt === 'table' && result.suggested_version) {
+    return parseTableRows(result.suggested_version);
+  }
+  return null;
+}, [sectionKey, result.suggested_version]);
 ```
 
-**`current_deficiencies`:**
-```json
-{
-  "blueprint": "Generate 5-8 factual observations. Format: '[System/Process] lacks/fails/cannot [capability], resulting in [impact].' Each must be factual not aspirational, name specific tools or processes where known, and be distinct from root causes. For blueprint-level, focus on strategic capability gaps and decision-making deficiencies.",
-  "poc": "Generate 5-8 factual observations. Format: '[System/Process] lacks/fails/cannot [capability], resulting in [impact].' Each must be factual not aspirational, name specific tools or processes where known, and be distinct from root causes. For POC-level, emphasize technical limitations, data gaps, and integration deficiencies the prototype must overcome.",
-  "pilot": "Generate 5-8 factual observations. Format: '[System/Process] lacks/fails/cannot [capability], resulting in [impact].' Each must be factual not aspirational, name specific tools or processes where known, and be distinct from root causes. For pilot-level, include operational, scalability, and adoption deficiencies relevant to production deployment."
-}
+This single change makes `success_metrics_kpis`, `data_resources_provided`, `affected_stakeholders`, and any future `table`-format sections render correctly as editable table rows in the AI suggestion panel.
+
+**No other files need changes** — the accept flow already handles `tableRows` via `parseRawStructuredArray` in `AIReviewInline.tsx`, and the curation page already renders saved data as a proper table (lines 778-801).
+
+### Edge Function Prompt Reinforcement
+
+**File: `supabase/functions/review-challenge-sections/promptTemplate.ts`**
+
+In the `buildPass2SystemPrompt` function, add explicit output format instructions for `table`-format sections to ensure the AI consistently returns a JSON array of objects (not markdown tables or prose):
+
+Add after the per-section enrichment loop:
+```
+For sections with table format, output a JSON ARRAY of objects. Example for success_metrics_kpis:
+[{"kpi":"Model Accuracy","baseline":"N/A","target":"F1 > 0.85","measurement_method":"Cross-validation","timeframe":"8 weeks"}]
+Do NOT output markdown tables or prose for table-format sections.
 ```
 
-**`affected_stakeholders`:**
-```json
-{
-  "blueprint": "Generate 4-6 stakeholder entries. Each: Name/Role (with approximate count), Impact (quantified where possible), Adoption Challenge (specific barrier). Include at least one Primary, one Secondary, and one Tertiary stakeholder. For blueprint-level, focus on strategic decision-makers and sponsors.",
-  "poc": "Generate 4-6 stakeholder entries. Each: Name/Role (with approximate count), Impact (quantified where possible), Adoption Challenge (specific barrier). Include at least one Primary, one Secondary, and one Tertiary stakeholder. For POC-level, emphasize technical teams, data owners, and integration partners who must participate in the proof of concept.",
-  "pilot": "Generate 4-6 stakeholder entries. Each: Name/Role (with approximate count), Impact (quantified where possible), Adoption Challenge (specific barrier). Include at least one Primary, one Secondary, and one Tertiary stakeholder. For pilot-level, include end-users, change management leads, and operational teams affected by scaled deployment."
-}
-```
+This ensures the AI output is always parseable as structured data.
 
-## Technical Details
+## Impact
 
-- Single migration file with 3 UPDATE statements
-- Target: `ai_review_section_config` WHERE `role_context = 'curation'` AND `section_key = X`
-- Also increment `version` column: `version = COALESCE(version, 0) + 1`
-- Set `updated_at = NOW()`
-- JSONB format matches existing pattern (key-per-maturity object)
+- Fixes distorted rendering for `success_metrics_kpis` AI suggestions
+- Also fixes the same latent bug for `data_resources_provided`, `affected_stakeholders`, and all other `table`-format sections
+- Backward compatible — `evaluation_criteria` continues to work identically since it also has `format: 'table'`
 
