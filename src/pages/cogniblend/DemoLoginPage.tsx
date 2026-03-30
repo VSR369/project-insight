@@ -80,17 +80,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
       manualDescription: 'Reviews challenge quality via 14-point checklist',
       aiDestination: '/cogni/curation',
       manualDestination: '/cogni/curation',
-      stepLabel: 'Step 4',
-    },
-    {
-      email: 'nh-id@testsetup.dev',
-      displayName: 'Dana Irving',
-      roles: ['ID'],
-      aiDescription: 'Final approval of AI-curated challenge package before publication',
-      manualDescription: 'Final approval of challenge before publication',
-      aiDestination: '/cogni/approval',
-      manualDestination: '/cogni/approval',
-      stepLabel: 'Step 5',
+      stepLabel: 'Step 3',
     },
     {
       email: 'nh-er1@testsetup.dev',
@@ -100,7 +90,7 @@ function getDemoUsers(engagementModel: string): DemoUser[] {
       manualDescription: 'Evaluates submitted solutions against criteria',
       aiDestination: '/cogni/review',
       manualDestination: '/cogni/review',
-      stepLabel: 'Step 6',
+      stepLabel: 'Step 4',
     },
     {
       email: 'nh-er2@testsetup.dev',
