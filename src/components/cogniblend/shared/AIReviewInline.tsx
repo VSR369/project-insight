@@ -530,12 +530,15 @@ export function AIReviewInline({
       // Change 3: Call review-challenge-sections with skip_analysis instead of refine-challenge-section
       const selectedCommentObjects = comments
         .filter((_, i) => selectedComments.has(i))
-        .map(text => ({
-          text,
-          type: 'warning' as const,
-          field: null,
-          reasoning: null,
-        }));
+        .map(c => {
+          if (typeof c === 'object' && c !== null && 'text' in c) return c;
+          return {
+            text: typeof c === 'string' ? c : String(c),
+            type: 'warning' as const,
+            field: null,
+            reasoning: null,
+          };
+        });
 
       const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
         body: {
