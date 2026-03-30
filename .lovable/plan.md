@@ -1,127 +1,124 @@
 
 
-# Curator AI — Final 8 Items Implementation Plan
+# Organization Context Panel for Curation Review
 
 ## Summary
-Implement 8 remaining items: fix wave/dependency alignment, add seeker voice directive, expand org context fetch, upgrade context intelligence, add DB migration for attachments + social fields, create attachment extraction edge function, and inject attachments into AI review prompts. Also fix a duplicate CHALLENGE CONTEXT block in Pass 2.
 
-## Files Modified
-1. `src/lib/cogniblend/waveConfig.ts` — Item 1: Fix EXECUTION_WAVES
-2. `supabase/functions/review-challenge-sections/index.ts` — Items 2, 3, 5, 8b
-3. `src/lib/cogniblend/sectionDependencies.ts` — Item 2: Align DIRECT_DEPENDENCIES
-4. `supabase/functions/review-challenge-sections/promptTemplate.ts` — Items 4, 6, fix duplicate CHALLENGE CONTEXT
-5. `supabase/functions/extract-attachment-text/index.ts` — Item 8a: New edge function
-6. DB Migration — Item 7: Social fields + challenge_attachments table
+Add an "Organization Details" section at the top of the Curation Review page that:
+1. Auto-populates org name, website, social media, and description from `seeker_organizations` (set by AM/CA/CR during challenge creation)
+2. Allows the Curator to fill in missing fields (website, LinkedIn, Twitter, description) if AM/CA/CR didn't provide them
+3. Supports uploading organization profile documents (using existing `challenge_attachments` table with `section_key = 'org_profile'`)
+4. Saves curator-entered org context back to `seeker_organizations` and triggers text extraction for uploaded docs
 
----
+## Architecture
 
-## Item 1: Fix EXECUTION_WAVES (waveConfig.ts)
+```text
+┌─────────────────────────────────────────────────────┐
+│  CurationReviewPage.tsx                             │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  OrgContextPanel (new component)              │  │
+│  │  - Auto-loaded from seeker_organizations      │  │
+│  │  - Editable fields: website, LinkedIn,        │  │
+│  │    Twitter, description, tagline              │  │
+│  │  - File upload for org profile docs           │  │
+│  │  - Saves back to seeker_organizations         │  │
+│  └───────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  Original Brief accordion (existing)          │  │
+│  └───────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  Progress Strip + Sections (existing)         │  │
+│  └───────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
 
-Replace the 6-wave `EXECUTION_WAVES` array (lines 47-84). Key moves:
-- `success_metrics_kpis` from Wave 1 → Wave 3
-- `solution_type` from Wave 2 → Wave 3
-- `submission_guidelines` and `phase_schedule` from Wave 4 → Wave 5
-- Rename waves: Foundation → "Foundation — Problem & Context", etc.
-- Update prerequisiteSections to match new wave structure
+## Files to Create/Modify
 
-## Item 2: Fix SECTION_DEPENDENCIES (index.ts + sectionDependencies.ts)
+### 1. New Component: `src/components/cogniblend/curation/OrgContextPanel.tsx`
 
-**index.ts** (lines 89-114): Replace `SECTION_DEPENDENCIES` with corrected acyclic map:
-- Remove circular refs: `preferred_approach→deliverables`, `data_resources_provided→solver_expertise`, `solution_type→deliverables`, `phase_schedule→evaluation_criteria`, `evaluation_criteria→submission_guidelines`
-- Add missing: `solution_type` depends on `['problem_statement', 'scope']` only (no deliverables — it's in the same wave)
+A collapsible accordion panel showing organization details with inline editing capability:
 
-**sectionDependencies.ts** (lines 14-42): Update `DIRECT_DEPENDENCIES` to match. Key changes:
-- Remove `solution_type` from `scope`'s downstream (circular with Wave 3)
-- Remove `deliverables` from `current_deficiencies`'s downstream
-- Remove `deliverables` from `preferred_approach`'s upstream
-- Remove `evaluation_criteria` from `phase_schedule`'s downstream
-- Remove `submission_guidelines` from `solution_type`'s downstream
-- Invalidate upstream cache by setting `_upstreamCache = null` (already done on module load)
+- **Read-only fields** (always shown): Organization Name, Org Type
+- **Editable fields** (pre-populated if AM/CA/CR provided, otherwise empty for curator to fill): Website URL, LinkedIn URL, Twitter URL, Organization Description, Tagline
+- **File upload zone**: Uses existing `FileUploadZone` component for org profile documents (PDF, DOCX, images). Uploads to `challenge-attachments` storage bucket with `section_key = 'org_profile'`. Triggers `extract-attachment-text` edge function after upload.
+- **Visual cue**: Shows a small amber indicator "AI uses this context" to convey importance
+- Fetches org data via a dedicated query on `seeker_organizations` using `challenge.organization_id`
+- Saves edits back to `seeker_organizations` via mutation
+- Lists existing org profile attachments with delete capability
 
-## Item 3: CURATION_SECTIONS Seeker Voice + Corrected Order (index.ts)
+**Key props**: `challengeId`, `organizationId`, `isReadOnly`
 
-Replace `CURATION_SECTIONS` (lines 203-237) with first-person descriptions matching the new wave order. Example: `"Our core business challenge — clear, specific, quantified..."` instead of `"Clarity, specificity, context..."`. Move `legal_docs` and `escrow_funding` to Wave 5 (before Wave 6 Presentation sections).
+### 2. Modify: `src/pages/cogniblend/CurationReviewPage.tsx`
 
-## Item 4: Seeker Voice Directive (promptTemplate.ts)
+- Add a new query to fetch org details (website, LinkedIn, Twitter, description, tagline, org type name) — expand the existing `curation-org-type` query to return all needed fields in one call
+- Render `OrgContextPanel` between the header and the "Original Brief" accordion
+- Pass `challengeId` and `challenge.organization_id` to the panel
 
-Append to `INTELLIGENCE_DIRECTIVE` (before closing backtick at line 492):
-- Voice rule: all AI-generated content uses first-person plural ("we", "our") from the seeker's perspective
-- Exceptions: `evaluation_criteria` and `submission_guidelines` use neutral procedural voice
-- BAD/GOOD examples
+### 3. Storage Bucket Migration
 
-Also append a VOICE RULE line to `buildPass2SystemPrompt` after the REWRITE RULES block (line ~1267).
+Create a migration to ensure the `challenge-attachments` storage bucket exists (the edge function already references it but the bucket may not be created yet):
 
-**Fix duplicate CHALLENGE CONTEXT**: Remove the duplicate block at lines 1291-1296.
+```sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('challenge-attachments', 'challenge-attachments', false)
+ON CONFLICT (id) DO NOTHING;
 
-## Item 5: Rich Organization Context Fetch (index.ts)
+-- RLS: authenticated users can upload/read
+CREATE POLICY "Authenticated users can upload challenge attachments"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'challenge-attachments');
 
-Replace the minimal org fetch (lines 1332-1352) with expanded version querying:
-- `organization_name, trade_brand_name, organization_description, website_url, hq_country_id, hq_city, annual_revenue_range, employee_count_range, founding_year, is_enterprise, organization_type_id`
-- Country name from `countries` table
-- Organization type from `organization_types` table
-- Industry segments from `seeker_org_industries` + `industry_segments` tables
+CREATE POLICY "Authenticated users can read challenge attachments"
+ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'challenge-attachments');
 
-Expand `orgContext` type to include all new fields. Wrapped in try/catch for graceful fallback.
+CREATE POLICY "Authenticated users can delete own challenge attachments"
+ON storage.objects FOR DELETE TO authenticated
+USING (bucket_id = 'challenge-attachments');
+```
 
-## Item 6: Upgrade buildContextIntelligence (promptTemplate.ts)
+### 4. Modify Edge Function Context
 
-Replace the existing function (lines 679-761) with the enhanced version that:
-- Uses rich org data (description, website, HQ, revenue, employees, industries)
-- Derives geography from `hqCountry` first, currency fallback
-- Adds "YOU KNOW THIS ORGANIZATION" section when website/name available
-- Maturity-specific guidance (Blueprint/POC/Pilot calibration)
-- Seeker-voice framing ("We are...")
+The `review-challenge-sections/index.ts` already fetches org context (website, LinkedIn, description, etc.) and passes it to `buildContextIntelligence`. It also already fetches `challenge_attachments` with `extraction_status = 'completed'` and injects them into prompts. No changes needed to the edge function -- org profile docs uploaded with `section_key = 'org_profile'` will automatically be included in the `ATTACHED DOCUMENTS` block sent to the AI.
 
-Update function signature from `orgContext?: { orgType?: string; orgName?: string }` to `orgContext?: any`.
+## Component Design: OrgContextPanel
 
-## Item 7: DB Migration
+```text
+┌─────────────────────────────────────────────────────────┐
+│ 🏢 Organization Context          ⚡ AI uses this context│
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Organization: Acme Corp         Type: Enterprise       │
+│                                                         │
+│  Website:    [https://acme.com        ] ← editable     │
+│  LinkedIn:   [https://linkedin.com/... ] ← editable     │
+│  Twitter:    [https://twitter.com/...  ] ← editable     │
+│  Description: [Multi-line textarea...  ] ← editable     │
+│                                                         │
+│  ┌─ Organization Profile Documents ─────────────────┐  │
+│  │  📄 Company_Profile.pdf   120 KB  [✓ Extracted] ✕ │  │
+│  │                                                   │  │
+│  │  [Drag & drop or click to upload]                 │  │
+│  │  PDF, DOCX, PNG, JPG · Max 10 MB                  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│                              [Save Organization Details] │
+└─────────────────────────────────────────────────────────┘
+```
 
-Single migration with 3 parts:
-- **Part A**: Add `linkedin_url`, `twitter_url`, `social_links`, `tagline`, `functional_areas` to `seeker_organizations`
-- **Part B**: Add `industry_segment_id`, `functional_area`, `target_geography` to `challenges`
-- **Part C**: Create `challenge_attachments` table with RLS policy and index
+## Data Flow
 
-## Item 8a: extract-attachment-text Edge Function
-
-New file `supabase/functions/extract-attachment-text/index.ts`:
-- Accepts `attachment_id` in request body
-- Downloads file from `challenge-attachments` storage bucket
-- Extracts text based on mime_type (PDF → text decode, images → Claude Vision API)
-- Updates `challenge_attachments` with extracted text and status
-- CORS headers, error handling, status tracking
-
-## Item 8b: Inject Attachments into AI Review (index.ts)
-
-After org fetch and before batch loop:
-- Query `challenge_attachments` for completed extractions
-- Build `attachmentsBySection` map
-- Append `ATTACHED DOCUMENTS` block to Pass 1 user prompt
-- Add section-specific attachments to Pass 2 per-section prompt
-
----
+1. AM/CA/CR selects org → `challenges.organization_id` is set
+2. When curator opens curation page, `OrgContextPanel` fetches org from `seeker_organizations` (website, LinkedIn, etc.)
+3. If fields are populated → shown as pre-filled, curator can verify
+4. If fields are empty → curator can enter them (important for AI quality)
+5. Curator uploads org profile docs → stored in `challenge-attachments` bucket with `section_key = 'org_profile'`
+6. Upload triggers `extract-attachment-text` → text extracted and stored in `challenge_attachments.extracted_text`
+7. When AI review runs → `buildContextIntelligence` uses org fields, and attachment text is injected into prompts
 
 ## Implementation Order
 
-**Phase 1** (Critical Fixes):
-1. Item 1: waveConfig.ts
-2. Item 2: index.ts SECTION_DEPENDENCIES + sectionDependencies.ts DIRECT_DEPENDENCIES
-3. Item 3: index.ts CURATION_SECTIONS
-4. Item 4: promptTemplate.ts seeker voice + fix duplicate CHALLENGE CONTEXT
-
-**Phase 2** (Intelligence Upgrade):
-5. Item 5: index.ts rich org fetch
-6. Item 6: promptTemplate.ts buildContextIntelligence upgrade
-
-**Phase 3** (Document Reading):
-7. Item 7: DB migration
-8. Item 8a: extract-attachment-text edge function
-9. Item 8b: index.ts attachment injection
-
-Then redeploy edge functions.
-
-## Risk Notes
-- DIRECT_DEPENDENCIES change will reset the upstream cache — safe since it's module-level
-- Org fetch expansion is wrapped in try/catch — graceful fallback if tables don't exist yet
-- Attachment injection is additive — empty attachmentsBySection = no change to prompts
-- Migration uses `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` for idempotency
+1. Create storage bucket migration for `challenge-attachments`
+2. Create `OrgContextPanel` component
+3. Integrate into `CurationReviewPage` (expand org query + render panel)
 
