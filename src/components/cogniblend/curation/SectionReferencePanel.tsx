@@ -57,7 +57,7 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
 
   const queryKey = ['challenge-attachments', challengeId, sectionKey];
 
-  const { data: attachments = [], isLoading } = useQuery({
+  const { data: attachments = [] } = useQuery({
     queryKey,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -70,28 +70,21 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
       return (data || []) as AttachmentRow[];
     },
     staleTime: 30_000,
+    enabled: !!config?.enabled,
   });
-
-  // Early return AFTER all hooks
-  if (!config?.enabled) return null;
-
-  const fileCount = attachments.filter(a => a.source_type === 'file').length;
-  const urlCount = attachments.filter(a => a.source_type === 'url').length;
-  const canAddFile = fileCount < (config?.maxFiles ?? 0);
-  const canAddUrl = urlCount < (config?.maxUrls ?? 0);
 
   const triggerExtraction = useCallback(async (attachmentId: string) => {
     try {
       await supabase.functions.invoke('extract-attachment-text', { body: { attachment_id: attachmentId } });
     } catch { /* extraction is best-effort */ }
-    // Poll for completion
     setTimeout(() => queryClient.invalidateQueries({ queryKey }), 3000);
     setTimeout(() => queryClient.invalidateQueries({ queryKey }), 8000);
   }, [queryClient, queryKey]);
 
-  // Upload file
   const handleFileUpload = useCallback(async (file: File) => {
-    if (!canAddFile) { toast.error('Maximum files reached for this section'); return; }
+    if (!config?.enabled) return;
+    const fileCount = attachments.filter(a => a.source_type === 'file').length;
+    if (fileCount >= config.maxFiles) { toast.error('Maximum files reached for this section'); return; }
     if (!config.acceptedFormats.includes(file.type)) { toast.error('Unsupported file format'); return; }
     if (file.size > config.maxFileSizeMB * 1024 * 1024) { toast.error(`File exceeds ${config.maxFileSizeMB} MB limit`); return; }
 
@@ -127,11 +120,12 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
     } finally {
       setUploading(false);
     }
-  }, [canAddFile, config, challengeId, sectionKey, queryClient, queryKey, triggerExtraction]);
+  }, [attachments, config, challengeId, sectionKey, queryClient, queryKey, triggerExtraction]);
 
-  // Add URL
   const handleAddUrl = useCallback(async () => {
-    if (!canAddUrl) { toast.error('Maximum URLs reached for this section'); return; }
+    if (!config?.enabled) return;
+    const urlCt = attachments.filter(a => a.source_type === 'url').length;
+    if (urlCt >= config.maxUrls) { toast.error('Maximum URLs reached for this section'); return; }
     const trimmedUrl = urlValue.trim();
     if (!trimmedUrl) { toast.error('Please enter a URL'); return; }
     try { new URL(trimmedUrl); } catch { toast.error('Invalid URL format'); return; }
@@ -161,9 +155,8 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
     } catch (err: any) {
       toast.error(`Failed to add link: ${err.message}`);
     }
-  }, [canAddUrl, urlValue, urlTitle, challengeId, sectionKey, config, queryClient, queryKey, triggerExtraction]);
+  }, [attachments, urlValue, urlTitle, challengeId, sectionKey, config, queryClient, queryKey, triggerExtraction]);
 
-  // Update attachment field
   const updateAttachment = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
       const { error } = await supabase
@@ -175,7 +168,6 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  // Remove attachment
   const removeAttachment = useMutation({
     mutationFn: async (att: AttachmentRow) => {
       if (att.source_type === 'file' && att.storage_path) {
@@ -191,13 +183,19 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
     onError: (err: Error) => toast.error(`Remove failed: ${err.message}`),
   });
 
-  // Retry extraction
   const retryExtraction = useCallback(async (id: string) => {
     await supabase.from('challenge_attachments').update({ extraction_status: 'pending', extraction_error: null }).eq('id', id);
     triggerExtraction(id);
     toast.info('Retrying extraction…');
   }, [triggerExtraction]);
 
+  // ── All hooks above, conditional return below ──
+  if (!config?.enabled) return null;
+
+  const fileCount = attachments.filter(a => a.source_type === 'file').length;
+  const urlCount = attachments.filter(a => a.source_type === 'url').length;
+  const canAddFile = fileCount < config.maxFiles;
+  const canAddUrl = urlCount < config.maxUrls;
   const sharingGuidance = SHARING_GUIDANCE[sectionKey];
 
   return (
