@@ -3625,7 +3625,7 @@ export default function CurationReviewPage() {
                       case "ip_model": return masterData.ipModelOptions;
                       case "maturity_level": return masterData.maturityOptions;
                       case "complexity": return masterData.complexityOptions;
-                      
+                      case "solution_type": return solutionTypeMap.map(m => ({ value: m.solution_type_code, label: m.proficiency_area_name }));
                       default: return undefined;
                     }
                   })();
