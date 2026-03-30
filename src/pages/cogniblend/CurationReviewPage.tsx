@@ -2903,7 +2903,7 @@ export default function CurationReviewPage() {
                               editing={isEditing}
                               onSave={(items) => {
                                 setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "description", value: { items } });
+                                saveSectionMutation.mutate({ field: "submission_guidelines", value: { items } });
                               }}
                               onCancel={cancelEdit}
                               saving={savingSection}
