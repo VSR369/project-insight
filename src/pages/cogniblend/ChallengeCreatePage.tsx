@@ -293,8 +293,8 @@ function GovernanceEngagementSelector({
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground">
             {engagementModel === 'AGG'
-              ? 'Aggregator model: solvers are curated and invited. An Account Manager (AM) role is not required.'
-              : 'Marketplace model: solvers discover and apply. An Account Manager (AM) role manages the process.'}
+              ? 'Aggregator model: solvers are curated and invited. Creator submits directly to Curator.'
+              : 'Marketplace model: solvers discover and apply. Creator submits to platform Curator.'}
           </p>
         </div>
       </div>
