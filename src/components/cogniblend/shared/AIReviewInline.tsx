@@ -196,14 +196,19 @@ function parseRawStructuredArray(content: string): any[] | null {
 function parseMasterDataCodes(content: string, sectionKey: string): string[] | null {
   const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
-  // Try JSON array parse (multi-select)
+  // Try JSON parse (array or object)
   try {
     const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
       return parsed.filter((v: any) => typeof v === "string" && v.trim().length > 0);
     }
+    // checkbox_single returns {"selected_id":"PILOT","rationale":"..."}
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const code = parsed.selected_id ?? parsed.id ?? parsed.code ?? parsed.value;
+      if (code && typeof code === 'string') return [code];
+    }
   } catch {
-    // Not a JSON array
+    // Not valid JSON
   }
 
   // For single-code sections, treat the whole string as a code (strip quotes)

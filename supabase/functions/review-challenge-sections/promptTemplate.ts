@@ -71,7 +71,7 @@ const SECTION_FORMAT_MAP: Record<string, string> = {
   expected_outcomes: 'line_items',
   submission_guidelines: 'line_items',
   evaluation_criteria: 'table',
-  reward_structure: 'table',
+  reward_structure: 'custom',
   phase_schedule: 'schedule_table',
   complexity: 'complexity_assessment',
   ip_model: 'checkbox_single',
@@ -101,6 +101,7 @@ const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
   current_deficiencies: 'Output: JSON array of current-state observation phrases. Max 10 items. Each item must be a factual observation about current state, not a wish or solution hint.',
   preferred_approach: 'Review existing content for clarity, completeness, and consistency with challenge scope. Output: JSON array of refined preferred approach phrases. Preserve the seeker\'s original intent. If section is empty, set status to "warning" with a comment requesting human input.',
   approaches_not_of_interest: 'Review existing content for clarity, completeness, and consistency with challenge scope. Output: JSON array of refined exclusion phrases. Preserve the seeker\'s original intent. If section is empty, set status to "warning" with a comment requesting human input.',
+  reward_structure: 'Output: JSON object with keys: type ("monetary"|"non_monetary"|"both"), monetary: { tiers: [ { tier_name: string, amount: number, currency: string, payment_trigger: string } ] }, nonMonetary: { items: [ string ] }. Do NOT output a table, flat array, or rich text. Amounts must be numbers, not strings.',
 };
 
 /* ── Default platform preamble ── */
