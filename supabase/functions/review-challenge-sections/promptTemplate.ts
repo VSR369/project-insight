@@ -377,7 +377,7 @@ export function buildConfiguredBatchPrompt(
   parts.push(`For each section below, provide:
 - status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable — include "suggestion"), or "needs_revision" (errors — include "suggestion")
 - comments: array of objects with "text" (string) and "type" (one of: "error", "warning", "suggestion", "best_practice", "strength"). For pass sections, include strength comments.
-- suggestion: improved content for warning/needs_revision sections (null for pass)
+- suggestion: improved content addressing error/warning/suggestion comments. REQUIRED for warning/needs_revision/generated status. For pass sections, include suggestion ONLY if comments contain error, warning, or suggestion types; omit if all comments are strength/best_practice only.
 - guidelines: 1-3 domain-specific guidelines for this section`);
   parts.push('');
 

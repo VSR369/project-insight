@@ -805,9 +805,9 @@ serve(async (req) => {
       } else if (wave_action === 'review_and_enhance') {
         userPromptInstruction = `The following section(s) contain AI-generated content from a previous wave. Review them now that you have more context from later sections. If the content needs improvement based on the new context, return enhanced content in the "suggestion" field. If the content is fine, leave suggestion empty and set status to "pass" or "warning".`;
       } else if (section_key) {
-        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity, and optionally a suggestion with improved content if significant changes are recommended.`;
+        userPromptInstruction = `Review ONLY the "${section_key}" section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity. If ANY comment has type error, warning, or suggestion, you MUST also return a "suggestion" field with improved content that addresses all those comments. Only omit suggestion when ALL comments are strength or best_practice type.`;
       } else {
-        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity, and optionally a suggestion with improved content if significant changes are recommended.`;
+        userPromptInstruction = `Review each section of this ${contextLabel} for quality, consistency, correctness, and completeness. For each section, return: status (pass/warning/needs_revision), specific comments with severity. If ANY comment has type error, warning, or suggestion, you MUST also return a "suggestion" field with improved content that addresses all those comments. Only omit suggestion when ALL comments are strength or best_practice type.`;
       }
 
       const userPrompt = `${userPromptInstruction}\n\nDATA: ${JSON.stringify(challengeData, null, 2)}${additionalData}`;

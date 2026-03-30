@@ -311,8 +311,14 @@ export function AIReviewInline({
         }
       }
 
-      // For pass sections, don't trigger separate refine — only use inline suggestions
-      if (review.status === 'pass') return;
+      // For pass sections, only skip refine if all comments are informational (no action needed)
+      if (review.status === 'pass') {
+        const hasActionable = review.comments?.some((c: any) => {
+          const type = typeof c === 'string' ? 'warning' : (c.type || c.severity || 'warning');
+          return type === 'error' || type === 'warning' || type === 'suggestion';
+        });
+        if (!hasActionable) return;
+      }
 
       // No inline suggestion — fall back to separate refine call
       const timer = setTimeout(() => {
