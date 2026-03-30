@@ -72,10 +72,13 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
     staleTime: 30_000,
   });
 
+  // Early return AFTER all hooks
+  if (!config?.enabled) return null;
+
   const fileCount = attachments.filter(a => a.source_type === 'file').length;
   const urlCount = attachments.filter(a => a.source_type === 'url').length;
-  const canAddFile = fileCount < config.maxFiles;
-  const canAddUrl = urlCount < config.maxUrls;
+  const canAddFile = fileCount < (config?.maxFiles ?? 0);
+  const canAddUrl = urlCount < (config?.maxUrls ?? 0);
 
   const triggerExtraction = useCallback(async (attachmentId: string) => {
     try {
