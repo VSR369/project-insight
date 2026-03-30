@@ -1,6 +1,6 @@
 /**
  * useAutoAssignChallengeRoles — Taxonomy-based auto-assignment for
- * challenge roles (CR, CU, ID) from the platform_provider_pool.
+ * challenge roles (CU) from the platform_provider_pool.
  *
  * Matching hierarchy:
  *   Industry Segment (MUST match)
