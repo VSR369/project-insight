@@ -391,8 +391,11 @@ export function resolveRewardSource(
     };
   }
 
-  // Check for explicit source_role metadata embedded in the JSON
-  const embeddedRole = (raw.source_role as string)?.toUpperCase() as SourceRole | undefined;
+  // Check for explicit source_role metadata — resolve legacy AM/CA to CR
+  const rawRole = (raw.source_role as string)?.toUpperCase();
+  const embeddedRole: SourceRole | undefined = rawRole
+    ? (LEGACY_SOURCE_ROLES[rawRole] ?? rawRole) as SourceRole
+    : undefined;
   const sourceDate = raw.source_date as string | undefined;
   const migrated = migrateRawReward(raw);
 
