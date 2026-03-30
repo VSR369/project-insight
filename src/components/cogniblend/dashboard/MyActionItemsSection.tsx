@@ -175,22 +175,7 @@ export function MyActionItemsSection() {
       }
     }
 
-    // Draft SRs (only for AM/RQ — driven by permission hook)
-    const showSRs = isBusinessOwner;
-    if (showSRs) {
-      for (const sr of allSRRows) {
-        if (sr.master_status === 'DRAFT' && !items.some((i) => i.id === sr.id)) {
-          items.push({
-            id: sr.id,
-            title: sr.title,
-            status: 'DRAFT',
-            phase: sr.current_phase ?? undefined,
-            phase_status: sr.phase_status,
-            created_at: sr.created_at,
-          });
-        }
-      }
-    }
+    // Draft SRs removed — no more AM/RQ request concept
 
     // Unread notifications for CA/CR (lifecycle alerts)
     if (isSpecRole) {

@@ -445,16 +445,7 @@ export default function ChallengeCreatePage() {
     tierCode: currentOrg.tierCode,
   };
 
-  // ═══════ AM/RQ auto-route: SimpleIntakeForm ═══════
-  if (isAMorRQ) {
-    return (
-      <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
-        <CreationContextBar />
-        <GovernanceEngagementSelector {...selectorProps} />
-        <SimpleIntakeForm />
-      </div>
-    );
-  }
+  // All creators now use the same flow (no separate AM/RQ intake)
 
   // ═══════ Inline views (AI / Editor) ═══════
   if (activeView === 'ai') {
