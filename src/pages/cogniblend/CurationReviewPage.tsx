@@ -3097,7 +3097,7 @@ export default function CurationReviewPage() {
                               onCancel={cancelEdit}
                               saving={savingSection}
                               getLabel={getMaturityLabel}
-                              getDescription={(val) => masterData.maturityOptions.find(o => o.value === val)?.description}
+                              getDescription={(val) => masterData.maturityOptions.find(o => o.value.toLowerCase() === val.toLowerCase())?.description}
                             />
                             {canEdit && !isEditing && (
                               <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
