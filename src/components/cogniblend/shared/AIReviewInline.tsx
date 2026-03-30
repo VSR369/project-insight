@@ -523,18 +523,37 @@ export function AIReviewInline({
     setRefinedContent(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("refine-challenge-section", {
+      // Change 3: Call review-challenge-sections with skip_analysis instead of refine-challenge-section
+      const selectedCommentObjects = comments
+        .filter((_, i) => selectedComments.has(i))
+        .map(text => ({
+          text,
+          type: 'warning' as const,
+          field: null,
+          reasoning: null,
+        }));
+
+      const { data, error } = await supabase.functions.invoke("review-challenge-sections", {
         body: {
           challenge_id: challengeId,
           section_key: sectionKey,
-          current_content: currentContent || "[empty — no content yet]",
-          issues: comments,
-          curator_instructions: selectedInstructions,
           role_context: roleContext,
+          wave_action: 'review',
+          skip_analysis: true,
+          provided_comments: [{
+            section_key: sectionKey,
+            status: 'needs_revision',
+            comments: selectedCommentObjects,
+            guidelines: [],
+            cross_section_issues: [],
+            reviewed_at: new Date().toISOString(),
+          }],
           context: {
             title: challengeContext.title,
-            maturity_level: challengeContext.maturity_level,
+            maturityLevel: challengeContext.maturity_level,
+            solutionType: (challengeContext as any).solution_type,
             domain_tags: challengeContext.domain_tags,
+            todaysDate: new Date().toISOString().split('T')[0],
           },
         },
       });
@@ -545,11 +564,13 @@ export function AIReviewInline({
         throw new Error(msg);
       }
 
-      if (data?.success && data.data?.refined_content) {
-        setRefinedContent(data.data.refined_content);
+      // Extract suggestion from the batch response
+      const sectionResult = data?.data?.sections?.find((s: any) => s.section_key === sectionKey);
+      if (data?.success && sectionResult?.suggestion) {
+        setRefinedContent(sectionResult.suggestion);
         toast.success("AI refinement ready — review the proposed changes below.");
       } else {
-        throw new Error(data?.error?.message ?? "Unexpected response from AI refinement");
+        throw new Error(data?.error?.message ?? "No suggestion generated. Try selecting different comments.");
       }
     } catch (e: any) {
       toast.error(`Refinement failed: ${e.message ?? "Unknown error"}`);

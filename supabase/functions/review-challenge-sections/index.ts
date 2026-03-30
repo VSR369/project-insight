@@ -13,11 +13,17 @@
  *
  * Batching: splits sections into batches of MAX_BATCH_SIZE to prevent LLM output truncation.
  * Master data: injects allowed option codes into prompt for master-data-backed sections.
+ *
+ * CHANGES:
+ * - Change 1: Pass 2 uses enriched buildPass2SystemPrompt with section-specific config
+ * - Change 2: getModelForRequest routes critical sections to critical_model
+ * - Change 3: skip_analysis + provided_comments for re-refine (Pass 2 only)
+ * - Change 4: cleanAIOutput sanitizes literal \n in LLM output
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, getSuggestionFormatInstruction, getSectionFormatType, type SectionConfig } from "./promptTemplate.ts";
+import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +33,32 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MAX_BATCH_SIZE = 12;
+
+/* ── Change 2: Critical sections for model routing ── */
+const CRITICAL_SECTIONS = new Set([
+  'problem_statement', 'deliverables', 'evaluation_criteria',
+  'phase_schedule', 'complexity', 'reward_structure',
+]);
+
+/** Change 2: Select model based on section importance */
+function getModelForRequest(sectionKeys: string[], globalConfig: any): string {
+  const hasCritical = sectionKeys.some(key => CRITICAL_SECTIONS.has(key));
+  if (hasCritical && globalConfig?.critical_model) {
+    return globalConfig.critical_model;
+  }
+  return globalConfig?.default_model || 'google/gemini-3-flash-preview';
+}
+
+/* ── Change 4: Clean literal escape sequences from AI output ── */
+function cleanAIOutput(text: string | null | undefined): string | null {
+  if (!text || typeof text !== 'string') return null;
+  return text
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+    .trim();
+}
 
 /* ── Hardcoded fallback section definitions ──────────────── */
 
@@ -371,25 +403,8 @@ async function callAIPass1Analyze(
 /* ══════════════════════════════════════════════════════════════
  * PASS 2: REWRITE — Generate suggestions for sections that need them.
  * Receives Pass 1 comments as explicit input. LLM focuses 100% on rewriting.
+ * Now uses enriched buildPass2SystemPrompt with section-specific config (Change 1).
  * ══════════════════════════════════════════════════════════════ */
-
-const PASS2_SYSTEM_PROMPT = `You are a senior management consultant rewriting challenge section content based on specific review feedback.
-
-RULES:
-- For each section below, you receive the ORIGINAL CONTENT and a list of REVIEW COMMENTS.
-- Your job is to produce a REVISED version that addresses EVERY error, warning, and suggestion comment.
-- For each comment, the reader must be able to see a CORRESPONDING CHANGE in your revised content.
-- If a comment says "add acceptance criteria to deliverable 3" → your revised content MUST include specific acceptance criteria for deliverable 3.
-- If a comment says "reduce timeline from 24 weeks to 12 weeks" → your revised content MUST show the shorter timeline.
-- Do NOT add content that isn't supported by the challenge context.
-- Do NOT remove content that wasn't flagged in the comments.
-- Maintain the SAME FORMAT as the original (HTML, JSON array, plain text — match whatever you receive).
-- The output must be PRODUCTION-READY — not a draft, not notes, not commentary. It should be directly usable as the section content.
-- If original content is empty, generate complete content from the challenge context.
-
-QUALITY BAR: The revised content should read like it was written by a senior Deloitte consultant — specific, measurable, and actionable. Every sentence must reference THIS specific challenge.
-
-ANTI-HALLUCINATION: Never invent data, specifications, or dates not derivable from the challenge context. If context is insufficient, note what's missing but still produce the best possible content.`;
 
 async function callAIPass2Rewrite(
   apiKey: string,
@@ -398,6 +413,7 @@ async function callAIPass2Rewrite(
   challengeData: any,
   waveAction: string,
   clientContext?: any,
+  sectionConfigs?: SectionConfig[],
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
@@ -461,6 +477,29 @@ ${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` :
 SECTIONS TO REWRITE:
 ${sectionPrompts.join('\n\n---\n\n')}`;
 
+  // Change 1: Build enriched Pass 2 system prompt if section configs are available
+  let pass2SystemPrompt: string;
+  if (sectionConfigs && sectionConfigs.length > 0) {
+    // Extract configs for sections that need suggestions
+    const pass2ConfigKeys = sectionsNeedingSuggestion.map((r: any) => r.section_key);
+    const pass2Configs = pass2ConfigKeys
+      .map((key: string) => sectionConfigs.find((c: SectionConfig) => c.section_key === key))
+      .filter(Boolean) as SectionConfig[];
+
+    // Build challenge context with section content for cross-references
+    const enrichedContext = {
+      ...clientContext,
+      sections: challengeData,
+    };
+
+    pass2SystemPrompt = pass2Configs.length > 0
+      ? buildPass2SystemPrompt(pass2Configs, enrichedContext)
+      : buildPass2SystemPrompt([], enrichedContext);
+  } else {
+    // Fallback to inline prompt when no configs available
+    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext);
+  }
+
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
     headers: {
@@ -470,7 +509,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: PASS2_SYSTEM_PROMPT },
+        { role: "system", content: pass2SystemPrompt },
         { role: "user", content: pass2UserPrompt },
       ],
       tools: [
@@ -555,6 +594,9 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
 /* ══════════════════════════════════════════════════════════════
  * TWO-PASS ORCHESTRATOR
  * Calls Pass 1, filters, conditionally calls Pass 2, merges.
+ * Change 1: Now accepts sectionConfigs for enriched Pass 2.
+ * Change 3: Supports skip_analysis mode (Pass 2 only).
+ * Change 4: Applies cleanAIOutput to all output fields.
  * ══════════════════════════════════════════════════════════════ */
 
 async function callAIBatchTwoPass(
@@ -566,15 +608,26 @@ async function callAIBatchTwoPass(
   challengeData: any,
   waveAction: string,
   clientContext?: any,
+  sectionConfigs?: SectionConfig[],
+  skipAnalysis?: boolean,
+  providedComments?: any[],
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
-  // ═══ PASS 1: Analyze ═══
-  const pass1Results = await callAIPass1Analyze(apiKey, model, systemPrompt, userPrompt, sectionKeys);
+  let pass1Results: any[];
+
+  // Change 3: Skip Pass 1 when skip_analysis is true
+  if (skipAnalysis && providedComments && providedComments.length > 0) {
+    pass1Results = providedComments;
+    console.log(`Skip-analysis mode: using ${providedComments.length} provided comment(s) for Pass 2 only`);
+  } else {
+    // ═══ PASS 1: Analyze ═══
+    pass1Results = await callAIPass1Analyze(apiKey, model, systemPrompt, userPrompt, sectionKeys);
+  }
 
   // ═══ PASS 2: Rewrite (conditional) ═══
   let suggestionMap: Map<string, string>;
   try {
-    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext);
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs);
   } catch (err: any) {
     // Pass 2 failure is non-fatal — return Pass 1 results without suggestions
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
@@ -583,10 +636,27 @@ async function callAIBatchTwoPass(
   }
 
   // ═══ MERGE: Combine Pass 1 analysis + Pass 2 suggestions ═══
-  return pass1Results.map((r: any) => ({
-    ...r,
-    suggestion: suggestionMap.get(r.section_key) || null,
-  }));
+  // Change 4: Apply cleanAIOutput to all output fields
+  return pass1Results.map((r: any) => {
+    const suggestion = suggestionMap.get(r.section_key) || null;
+    const cleanedComments = Array.isArray(r.comments)
+      ? r.comments.map((c: any) => ({
+          ...c,
+          text: cleanAIOutput(c.text) || c.text,
+          reasoning: cleanAIOutput(c.reasoning),
+        }))
+      : r.comments;
+    const cleanedGuidelines = Array.isArray(r.guidelines)
+      ? r.guidelines.map((g: string) => cleanAIOutput(g)).filter(Boolean)
+      : r.guidelines;
+
+    return {
+      ...r,
+      comments: cleanedComments,
+      guidelines: cleanedGuidelines,
+      suggestion: cleanAIOutput(suggestion),
+    };
+  });
 }
 
 /**
@@ -599,80 +669,74 @@ async function callComplexityAI(
   challengeData: any,
   adminClient: any,
   clientContext?: any,
-): Promise<{ section_key: string; status: string; comments: string[]; reviewed_at: string; suggested_complexity: Record<string, { rating: number; justification: string; evidence_sections: string[] }> }> {
-  // Fetch master complexity params
-  const { data: paramsData, error: paramsError } = await adminClient
-    .from("master_complexity_params")
-    .select("param_key, name, weight, description")
+): Promise<any> {
+  // Fetch complexity dimensions for the solution type
+  const solutionType = challengeData.solution_type || clientContext?.solutionType || 'ideation';
+  const { data: dimensions, error: dimError } = await adminClient
+    .from("complexity_dimensions")
+    .select("*")
     .eq("is_active", true)
+    .eq("solution_type", solutionType)
     .order("display_order");
 
-  if (paramsError || !paramsData?.length) {
-    const now = new Date().toISOString();
-    return {
-      section_key: "complexity",
-      status: "warning",
-      comments: ["No complexity parameters configured. Please set up master_complexity_params."],
-      reviewed_at: now,
-      suggested_complexity: {},
-    };
+  if (dimError || !dimensions?.length) {
+    // Try fetching without solution_type filter
+    const { data: fallbackDims } = await adminClient
+      .from("complexity_dimensions")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order")
+      .limit(10);
+
+    if (!fallbackDims?.length) {
+      console.error("No complexity dimensions found for solution_type:", solutionType);
+      throw new Error("No complexity dimensions configured");
+    }
+    return await executeComplexityAssessment(apiKey, model, challengeData, fallbackDims, clientContext);
   }
 
-  const COMPLEXITY_SYSTEM_PROMPT = `You are an expert innovation challenge complexity assessor. Your job is to analyze the full content of an innovation challenge and rate its complexity across multiple dimensions.
+  return await executeComplexityAssessment(apiKey, model, challengeData, dimensions, clientContext);
+}
 
-For each complexity parameter, you must:
-1. Carefully read the problem statement, scope, deliverables, evaluation criteria, reward structure, IP model, maturity level, eligibility requirements, domain tags, and phase schedule.
-2. Consider the SPECIFIC content — not generic defaults. Each parameter must be rated independently based on what the challenge actually requires.
-3. Rate each parameter on a scale of 1-10 where:
-   - 1-2: Very Low complexity — straightforward, well-understood domain, minimal risk
-   - 3-4: Low complexity — some nuance but largely standard approaches apply
-   - 5-6: Medium complexity — requires meaningful expertise, moderate uncertainty
-   - 7-8: High complexity — significant technical depth, cross-domain challenges, tight constraints
-   - 9-10: Very High complexity — cutting-edge, high uncertainty, extreme constraints
+async function executeComplexityAssessment(
+  apiKey: string,
+  model: string,
+  challengeData: any,
+  dimensions: any[],
+  clientContext?: any,
+): Promise<any> {
+  const paramDescriptions = dimensions.map((d: any) =>
+    `- ${d.dimension_key} (${d.dimension_name}): Level 1 = "${d.level_1_description}", Level 3 = "${d.level_3_description}", Level 5 = "${d.level_5_description}"`
+  ).join('\n');
 
-CRITICAL RULES:
-- Do NOT give the same rating to all parameters. Each parameter measures a DIFFERENT dimension and must be assessed independently.
-- Base your ratings on EVIDENCE from the challenge content, not assumptions.
-- If a section is missing or empty, factor that into your assessment (e.g., missing scope increases uncertainty).
-- Consider cross-section interactions: tight timelines + high technical novelty = amplified complexity.
-- For each rating, cite which challenge sections (e.g., problem_statement, deliverables, phase_schedule) informed your assessment.
-- Frame guideline_comments as helpful guidance for curators, e.g. "Consider rating technical_novelty 3-4 because..."
-- Today's date is {{todaysDate}}. All temporal assessments must use this as reference.`;
+  const systemPrompt = `You are an expert challenge complexity assessor. Analyze the challenge data and rate each complexity dimension on a scale of 1-5 based on the provided level descriptions.
 
-  const todaysDate = clientContext?.todaysDate || new Date().toISOString().split('T')[0];
-  const resolvedComplexityPrompt = COMPLEXITY_SYSTEM_PROMPT.replace('{{todaysDate}}', todaysDate);
-
-  const paramDescriptions = paramsData.map(
-    (p: any) => `- **${p.param_key}** (${p.name}): ${p.description ?? "No description"} [weight: ${(p.weight * 100).toFixed(0)}%]`
-  ).join("\n");
-
-  const userPrompt = `Analyze this innovation challenge and rate each complexity parameter independently (1-10).
-
-COMPLEXITY PARAMETERS TO RATE:
+COMPLEXITY DIMENSIONS:
 ${paramDescriptions}
 
-FULL CHALLENGE CONTENT:
+RATING RULES:
+- Rate each dimension independently based on the challenge content.
+- Provide a specific justification referencing actual challenge details for each rating.
+- Consider the solution type, deliverables, scope, and maturity level.
+- Be precise: don't default to middle values without justification.`;
+
+  const userPrompt = `Assess the complexity of this challenge:
+
 ${JSON.stringify(challengeData, null, 2)}
 
-Rate each parameter based on the actual challenge content. Do NOT give the same score to all parameters — each dimension is different.
-For each parameter, cite which sections of the challenge data informed your rating in the evidence_sections array.
-Also provide 2-4 guideline_comments that help curators understand the key complexity drivers.`;
+${clientContext?.maturityLevel ? `Maturity level: ${clientContext.maturityLevel}` : ''}
+${clientContext?.solutionType ? `Solution type: ${clientContext.solutionType}` : ''}`;
 
-  // Build tool schema dynamically
   const paramProperties: Record<string, any> = {};
-  const requiredParams: string[] = [];
-  for (const p of paramsData) {
-    paramProperties[p.param_key] = {
+  for (const d of dimensions) {
+    paramProperties[d.dimension_key] = {
       type: "object",
       properties: {
-        rating: { type: "integer", minimum: 1, maximum: 10, description: `Complexity rating for ${p.name} (1=very low, 10=very high)` },
-        justification: { type: "string", description: `Brief justification for the ${p.name} rating based on challenge content` },
-        evidence_sections: { type: "array", items: { type: "string" }, description: `Challenge sections that informed this rating (e.g. "problem_statement", "deliverables")` },
+        rating: { type: "number", minimum: 1, maximum: 5, description: `Rating for ${d.dimension_name} (1-5)` },
+        justification: { type: "string", description: `Why this rating was chosen, referencing specific challenge details` },
       },
-      required: ["rating", "justification", "evidence_sections"],
-      additionalProperties: false,
+      required: ["rating", "justification"],
     };
-    requiredParams.push(p.param_key);
   }
 
   const response = await fetch(AI_GATEWAY_URL, {
@@ -684,7 +748,7 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: resolvedComplexityPrompt },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       tools: [
@@ -692,19 +756,11 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
           type: "function",
           function: {
             name: "assess_complexity",
-            description: "Return per-parameter complexity ratings with justifications and evidence.",
+            description: "Return per-parameter complexity ratings with justifications.",
             parameters: {
               type: "object",
-              properties: {
-                ...paramProperties,
-                guideline_comments: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "2-4 guideline comments helping curators understand complexity drivers. Each should reference specific parameters and suggest rating ranges.",
-                },
-              },
-              required: [...requiredParams, "guideline_comments"],
-              additionalProperties: false,
+              properties: paramProperties,
+              required: dimensions.map((d: any) => d.dimension_key),
             },
           },
         },
@@ -717,36 +773,45 @@ Also provide 2-4 guideline_comments that help curators understand the key comple
     if (response.status === 429) throw new Error("RATE_LIMIT");
     if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
     const errText = await response.text();
-    console.error("Complexity AI gateway error:", response.status, errText);
+    console.error("AI gateway error (Complexity):", response.status, errText);
     throw new Error(`AI gateway error: ${response.status}`);
   }
 
   const result = await response.json();
+
+  // Token usage logging — Complexity
+  const tokenUsage = result.usage || {};
+  console.log(JSON.stringify({
+    event: 'ai_review_tokens',
+    pass: 'complexity_assessment',
+    model: result.model || model || 'unknown',
+    prompt_tokens: tokenUsage.prompt_tokens || 0,
+    completion_tokens: tokenUsage.completion_tokens || 0,
+    total_tokens: tokenUsage.total_tokens || 0,
+    timestamp: new Date().toISOString(),
+  }));
+
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) throw new Error("AI did not return structured complexity output");
 
-  const parsed = JSON.parse(toolCall.function.arguments);
+  const ratings = JSON.parse(toolCall.function.arguments);
   const now = new Date().toISOString();
 
-  // Extract guideline comments
-  const guidelineComments: string[] = Array.isArray(parsed.guideline_comments) ? parsed.guideline_comments : [];
-
-  // Extract per-parameter ratings
-  const ratings: Record<string, { rating: number; justification: string; evidence_sections: string[] }> = {};
-  for (const p of paramsData) {
-    const r = parsed[p.param_key];
-    if (r) {
-      ratings[p.param_key] = {
-        rating: Math.max(1, Math.min(10, r.rating ?? 5)),
-        justification: r.justification ?? "",
-        evidence_sections: Array.isArray(r.evidence_sections) ? r.evidence_sections : [],
-      };
-    }
-  }
+  // Build comments from ratings
+  const guidelineComments = dimensions.map((d: any) => {
+    const rating = ratings[d.dimension_key];
+    if (!rating) return { text: `${d.dimension_name}: not rated`, type: 'warning' as const, field: d.dimension_key, reasoning: null };
+    return {
+      text: `${d.dimension_name}: ${rating.rating}/5 — ${rating.justification}`,
+      type: (rating.rating >= 4 ? 'warning' : 'strength') as string,
+      field: d.dimension_key,
+      reasoning: rating.justification,
+    };
+  });
 
   return {
     section_key: "complexity",
-    status: guidelineComments.length > 0 ? "warning" : "pass",
+    status: "pass",
     comments: guidelineComments,
     reviewed_at: now,
     suggested_complexity: ratings,
@@ -785,7 +850,12 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id, section_key, role_context, context: clientContext, preview_mode, current_content, wave_action } = await req.json();
+    // Change 3: Extract skip_analysis and provided_comments
+    const {
+      challenge_id, section_key, role_context, context: clientContext,
+      preview_mode, current_content, wave_action,
+      skip_analysis, provided_comments,
+    } = await req.json();
     const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
 
     if (!challenge_id && !isPreviewMode) {
@@ -818,7 +888,6 @@ serve(async (req) => {
 
     const dbConfigs: SectionConfig[] = (configResult.data ?? []) as SectionConfig[];
     const globalConfig = globalConfigResult.data;
-    const modelToUse = globalConfig?.default_model || "google/gemini-3-flash-preview";
     const useDbConfig = dbConfigs.length > 0;
 
     // Build section list — from DB config or fallback
@@ -992,6 +1061,10 @@ serve(async (req) => {
 
     const allNewSections: any[] = [];
 
+    // Change 2: Use getModelForRequest for model selection
+    const allSectionKeys = sectionsToReview.map(s => s.key);
+    const modelToUse = getModelForRequest(allSectionKeys, globalConfig);
+
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
       ? callComplexityAI(LOVABLE_API_KEY, modelToUse, challengeData, adminClient, clientContext)
@@ -1070,9 +1143,16 @@ serve(async (req) => {
         }
       }
 
+      // Get batch-specific configs for Pass 2 enrichment
+      const batchSectionConfigs = useDbConfig && dbConfigMap
+        ? batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean)
+        : [];
+
       const promptSource = useDbConfig ? "supervisor" : "default";
       try {
         // ═══ TWO-PASS: Pass 1 (Analyze) + Pass 2 (Rewrite) ═══
+        // Change 1: Pass sectionConfigs for enriched Pass 2
+        // Change 3: Pass skip_analysis and provided_comments
         const batchResults = await callAIBatchTwoPass(
           LOVABLE_API_KEY,
           modelToUse,
@@ -1082,6 +1162,9 @@ serve(async (req) => {
           challengeData,
           wave_action || 'review',
           clientContext,
+          batchSectionConfigs,
+          skip_analysis === true,
+          provided_comments,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {

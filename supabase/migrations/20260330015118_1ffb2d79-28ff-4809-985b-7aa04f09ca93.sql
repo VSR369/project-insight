@@ -1,0 +1,1 @@
+ALTER TABLE ai_review_global_config ADD COLUMN IF NOT EXISTS critical_model TEXT;

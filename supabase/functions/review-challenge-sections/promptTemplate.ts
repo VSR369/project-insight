@@ -121,6 +121,28 @@ ANTI-HALLUCINATION RULES:
 - If you lack context, say exactly what information is needed and from which section.
 - NEVER generate generic consulting boilerplate. Every sentence must reference THIS specific challenge.`;
 
+/* ── Intelligence Directive (Change 6) ── */
+
+const INTELLIGENCE_DIRECTIVE = `
+## USE YOUR DOMAIN EXPERTISE
+
+You are NOT a passive checklist auditor. You are a senior consultant who KNOWS this domain.
+
+1. DOMAIN BEST PRACTICES: You KNOW standard KPIs, typical benchmarks, common pitfalls. When reviewing a supply chain challenge, reference MTBF/MTTR. When reviewing cybersecurity, reference NIST CSF 2.0. USE this knowledge in best_practice comments.
+
+2. INDUSTRY BENCHMARKS: You KNOW that similar challenges on InnoCentive/HeroX typically offer $X-$Y rewards, take 8-14 weeks for POCs, and produce 15-40 submissions. CITE these in context.
+
+3. COMMON PITFALLS: WARN about domain-specific risks. Enterprise integration POCs fail 40% of the time due to auth gaps. ML challenges fail when training data doesn't match production distribution. Be specific.
+
+4. FRAMEWORK APPLICATION: Don't just NAME frameworks. APPLY them. If TOGAF is relevant, check whether deliverables follow ADM phases. If Design Thinking applies, check whether the problem statement is user-centered.
+
+GUARDRAILS:
+- NEVER invent specific numbers, costs, system names, or specs not in the challenge context.
+- NEVER fabricate analyst quotes or regulatory citations.
+- Domain knowledge adds CONTEXT and DEPTH — not fabricated specifics about THIS organization.
+- THE TEST: "Would a Deloitte senior consultant know this from experience?" Yes → include. Requires insider knowledge → don't.
+`;
+
 /* ── Section display name helper (Deno-compatible) ── */
 
 const SECTION_DISPLAY_NAMES: Record<string, string> = {
@@ -188,6 +210,11 @@ export function buildStructuredBatchPrompt(
   // Layer 1: Platform preamble
   parts.push(firstConfig.platform_preamble?.trim() || DEFAULT_PLATFORM_PREAMBLE);
   parts.push('');
+
+  // Intelligence Directive (Change 6) — injected after preamble, before output format
+  parts.push(INTELLIGENCE_DIRECTIVE);
+  parts.push('');
+
   parts.push(`## OUTPUT FORMAT (PASS 1 — ANALYSIS ONLY)
 For each section, return a JSON object via the review_sections function with:
 
@@ -372,6 +399,11 @@ export function buildConfiguredBatchPrompt(
   const parts: string[] = [];
   parts.push(`You are reviewing a ${contextLabel}.`);
   parts.push('');
+
+  // Intelligence Directive (Change 6)
+  parts.push(INTELLIGENCE_DIRECTIVE);
+  parts.push('');
+
   parts.push(`For each section below, provide ANALYSIS ONLY:
 - status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable), or "needs_revision" (errors found)
 - comments: array of objects with "text" (string) and "type" (one of: "error", "warning", "suggestion", "best_practice", "strength"). For pass sections, include strength comments.
@@ -462,4 +494,112 @@ export function getSuggestionFormatInstruction(sectionKey: string): string {
  */
 export function getSectionFormatType(sectionKey: string): string {
   return SECTION_FORMAT_MAP[sectionKey] || 'rich_text';
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * PASS 2 SYSTEM PROMPT BUILDER (Change 1)
+ * Builds a section-aware system prompt with intelligence directive,
+ * content templates, quality criteria, frameworks, cross-references.
+ * ══════════════════════════════════════════════════════════════ */
+
+export function buildPass2SystemPrompt(
+  sectionConfigs: SectionConfig[],
+  challengeContext: any,
+): string {
+  let prompt = `You are a senior management consultant rewriting challenge section content. Your output must meet KPMG/PwC/EY/Deloitte quality — specific, measurable, actionable, grounded in domain expertise.
+
+REWRITE RULES:
+- Address EVERY error, warning, and suggestion comment. Each issue = a visible change.
+- Do NOT add content not supported by challenge context or your domain expertise.
+- Do NOT remove content not flagged in comments.
+- Match the SAME FORMAT as the original (HTML, JSON array, plain text).
+- Output PRODUCTION-READY content — directly usable, not a draft.
+- Output CLEAN text — use actual newlines, no literal \\n, no escaped quotes.
+
+INTELLIGENCE DIRECTIVE (CRITICAL):
+You are NOT a text editor applying find-and-replace. You are a senior consultant who KNOWS this domain.
+- APPLY domain expertise: If this is supply chain predictive maintenance, you KNOW vibration analysis needs baseline data, MTBF/MTTR are standard KPIs, edge deployment has latency constraints. USE that knowledge to make content richer.
+- ADD industry-specific details a Deloitte consultant would include: standard frameworks, typical benchmarks, common pitfalls, regulatory considerations — but ONLY for THIS challenge's domain.
+- CITE analyst references where configured below.
+- NEVER invent specific numbers, dates, system names, or specs not in the challenge context.
+- NEVER add content about domains unrelated to this challenge.
+- THE TEST: "Would a senior Deloitte consultant in this domain know this from experience?" If yes, include. If it requires insider knowledge of this specific org, don't.
+
+CHALLENGE CONTEXT:
+- Maturity: ${challengeContext?.maturityLevel || 'not set'}
+- Solution type: ${challengeContext?.solutionType || 'not set'}
+- Seeker: ${challengeContext?.seekerSegment || 'not set'}
+- Complexity: ${challengeContext?.complexityLevel || 'not set'}
+- Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
+`;
+
+  // Per-section enrichment
+  for (const config of sectionConfigs) {
+    if (!config) continue;
+    prompt += `\n========== SECTION: ${config.section_key} ==========\n`;
+
+    // Content template
+    const templates = config.content_templates;
+    if (templates && challengeContext?.maturityLevel) {
+      const ml = challengeContext.maturityLevel.toLowerCase();
+      const template = templates[ml];
+      if (template) {
+        prompt += `\nSTRUCTURE TEMPLATE (${challengeContext.maturityLevel}):\n${template}\nYour rewrite MUST follow this structure.\n`;
+      }
+    }
+
+    // Quality criteria
+    const criteria = config.quality_criteria;
+    if (criteria && Array.isArray(criteria) && criteria.length > 0) {
+      prompt += `\nQUALITY STANDARDS:\n`;
+      for (const c of criteria as any[]) {
+        prompt += `- ${c.name} (${c.severity}): ${c.description}\n`;
+      }
+    }
+
+    // Frameworks + sources
+    const frameworks = config.industry_frameworks ?? [];
+    if (frameworks.length > 0) {
+      prompt += `\nFRAMEWORKS: ${(frameworks as string[]).join(', ')}\n`;
+    }
+    const sources = config.analyst_sources ?? [];
+    if (sources.length > 0) {
+      prompt += `\nANALYST SOURCES to cite: ${(sources as string[]).join(', ')}\n`;
+    }
+
+    // Good example (calibration target)
+    if (config.example_good) {
+      prompt += `\nEXCELLENT EXAMPLE (aim for this quality):\n${config.example_good}\n`;
+    }
+
+    // Supervisor DOs
+    if (config.dos) {
+      prompt += `\nINSTRUCTIONS: ${config.dos}\n`;
+    }
+  }
+
+  // Cross-referenced section content
+  const allCrossRefs = new Set<string>();
+  for (const config of sectionConfigs) {
+    if (!config) continue;
+    for (const ref of (config.cross_references ?? []) as string[]) {
+      allCrossRefs.add(ref);
+    }
+  }
+  if (allCrossRefs.size > 0 && challengeContext?.sections) {
+    prompt += `\n========== RELATED SECTIONS (for consistency) ==========\n`;
+    for (const refKey of allCrossRefs) {
+      const refContent = challengeContext.sections[refKey];
+      if (refContent && typeof refContent === 'string' && refContent.trim().length > 0) {
+        prompt += `\n### ${getSectionName(refKey)}:\n${refContent.substring(0, 2000)}\n`;
+      } else if (refContent && typeof refContent === 'object') {
+        const serialized = JSON.stringify(refContent);
+        if (serialized.length > 0) {
+          prompt += `\n### ${getSectionName(refKey)}:\n${serialized.substring(0, 2000)}\n`;
+        }
+      }
+    }
+  }
+
+  return prompt;
 }
