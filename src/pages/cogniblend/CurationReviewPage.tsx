@@ -1476,7 +1476,7 @@ export default function CurationReviewPage() {
     return {
       challengeId: challengeId!,
       challengeTitle: challenge?.title ?? '',
-      solutionType: challenge?.solution_type ?? null,
+      solutionType: (challenge?.solution_type as any) ?? null,
       seekerSegment: null,
       organizationTypeId: null,
       maturityLevelFromChallenge: challenge?.maturity_level ?? null,
