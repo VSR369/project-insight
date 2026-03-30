@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
-import { SimpleIntakeForm } from '@/components/cogniblend/SimpleIntakeForm';
+import { ChallengeCreatorForm } from '@/components/cogniblend/creator/ChallengeCreatorForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
