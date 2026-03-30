@@ -511,8 +511,11 @@ export function AIReviewInline({
   const handleRefineWithAI = useCallback(async () => {
     if (!challengeId) return;
 
+    const commentToText = (c: SectionComment): string =>
+      typeof c === 'string' ? c : (c.text ?? c.comment ?? JSON.stringify(c));
     const selectedInstructions = comments
       .filter((_, i) => selectedComments.has(i))
+      .map(commentToText)
       .join("\n\n");
 
     if (!selectedInstructions.trim()) {
