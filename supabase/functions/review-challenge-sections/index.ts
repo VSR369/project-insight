@@ -1177,6 +1177,9 @@ serve(async (req) => {
       if (!challengeData.submission_guidelines) {
         challengeData.submission_guidelines = challengeData.description ?? null;
       }
+      if (challengeData.solution_types && !Array.isArray(challengeData.solution_type)) {
+        challengeData.solution_type = challengeData.solution_types;
+      }
 
       // If re-review sends current_content for a specific section, overlay onto challengeData
       if (section_key && current_content != null) {
