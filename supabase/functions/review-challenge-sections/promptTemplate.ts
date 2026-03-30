@@ -201,6 +201,86 @@ export const DEFAULT_QUALITY_CRITERIA: Record<string, any[]> = {
     { name: 'Outcome Alignment', severity: 'warning', description: 'Each KPI must map to an expected outcome. KPIs without corresponding outcomes are orphaned.', crossReferences: ['expected_outcomes'] },
     { name: 'Measurability', severity: 'error', description: 'Each KPI must include a specific measurement method and baseline/target values.' },
   ],
+
+  // ── GAP 1 FIX: Quality criteria for 13 previously uncovered sections ──
+
+  context_and_background: [
+    { name: 'External Solver Accessibility', severity: 'error', description: 'Context must be understandable by solvers with ZERO internal organizational knowledge. No undefined acronyms, no references to internal systems by name without explanation, no assumed cultural context.' },
+    { name: 'Prior Attempts', severity: 'warning', description: 'Should describe what has been tried before and why it was insufficient. This prevents solvers from re-proposing failed approaches and demonstrates organizational maturity.' },
+    { name: 'Triggering Event', severity: 'suggestion', description: 'Should explain why this challenge is being launched NOW — regulatory deadline, competitive pressure, technology readiness, budget availability. Creates urgency context for solvers.' },
+  ],
+
+  solution_type: [
+    { name: 'Deliverable Alignment', severity: 'error', description: 'Selected solution types must match the challenge deliverables. A "Data Strategy" challenge should not only select "Process Automation" types. Cross-check with deliverables and scope.', crossReferences: ['deliverables', 'scope'] },
+    { name: 'Coverage Without Dilution', severity: 'warning', description: 'Select 1-3 types. Too many types (>3) dilutes solver targeting. Too few may miss qualified solvers from adjacent domains.' },
+    { name: 'Solver Pool Impact', severity: 'suggestion', description: 'Consider which solution types correspond to the largest active solver pools on the platform. Niche types may limit participation.' },
+  ],
+
+  root_causes: [
+    { name: 'Problem Traceability', severity: 'error', description: 'Every root cause must directly relate to the stated problem. Root causes that address unrelated issues indicate scope confusion.', crossReferences: ['problem_statement'] },
+    { name: 'Actionability', severity: 'warning', description: 'Root causes should be at a level where a solver can address them. "Market dynamics" is too abstract. "Lack of real-time demand signal integration in the forecasting pipeline" is actionable.' },
+    { name: 'Completeness', severity: 'suggestion', description: 'Should cover technical, process, and organizational root causes — not just one dimension. Mono-dimensional root cause analysis leads to incomplete solutions.' },
+  ],
+
+  affected_stakeholders: [
+    { name: 'Adoption Challenge Required', severity: 'error', description: 'Every stakeholder MUST have an adoption_challenge filled in. This is the most valuable field — it tells solvers what resistance to expect and design around.' },
+    { name: 'Role Specificity', severity: 'warning', description: 'Roles must be specific: "VP of Supply Chain Operations" not "Management". Generic roles make the stakeholder map useless for solver planning.' },
+    { name: 'Completeness', severity: 'suggestion', description: 'Should include both primary stakeholders (directly impacted) and secondary stakeholders (indirectly affected, e.g., IT team for system integration, Legal for compliance review).', crossReferences: ['scope'] },
+  ],
+
+  current_deficiencies: [
+    { name: 'Factual Observations', severity: 'error', description: 'Each deficiency must be a factual observation about the CURRENT state — not a wish, not a solution hint, not a future aspiration. Bad: "Need better analytics". Good: "Current reporting requires 3 manual data exports and 48-hour processing lag".' },
+    { name: 'Problem Linkage', severity: 'warning', description: 'Deficiencies should clearly map to the stated root causes. Orphaned deficiencies (not linked to any root cause) suggest incomplete root cause analysis.', crossReferences: ['root_causes', 'problem_statement'] },
+    { name: 'Quantification', severity: 'suggestion', description: 'Where possible, quantify the deficiency: processing time, error rate, cost impact, manual effort hours. Numbers give solvers calibration points.' },
+  ],
+
+  preferred_approach: [
+    { name: 'Seeker Intent Preservation', severity: 'error', description: 'AI must NEVER rewrite human-authored preferred approaches. Only flag clarity issues or inconsistencies. The seeker knows their organization — respect their strategic direction.' },
+    { name: 'Scope Consistency', severity: 'warning', description: 'Preferred approaches must be achievable within the stated scope and deliverables. An approach requiring "full enterprise transformation" contradicts a Blueprint-level challenge.', crossReferences: ['scope', 'maturity_level', 'deliverables'] },
+    { name: 'Solver Guidance Value', severity: 'suggestion', description: 'Should provide strategic direction without being so prescriptive that it eliminates creative solver approaches. Balance guidance with openness.' },
+  ],
+
+  approaches_not_of_interest: [
+    { name: 'Seeker Intent Preservation', severity: 'error', description: 'AI must NEVER remove or soften human-authored exclusions. Only flag if an exclusion contradicts other sections (e.g., excluding the only viable approach for a given deliverable).' },
+    { name: 'Clarity', severity: 'warning', description: 'Each exclusion must be specific enough that a solver can clearly determine if their approach is excluded. "Approaches we have already tried" is not useful without listing what was tried.' },
+    { name: 'Preferred Approach Consistency', severity: 'suggestion', description: 'Should not contradict preferred_approach. If preferred approach says "cloud-native" but exclusions don\'t mention on-premise, that may be an oversight.', crossReferences: ['preferred_approach'] },
+  ],
+
+  maturity_level: [
+    { name: 'Deliverable Consistency', severity: 'error', description: 'Maturity level MUST match deliverables. If deliverables include "working API" or "deployable prototype", maturity cannot be "Blueprint". If deliverables are "strategic recommendations", maturity cannot be "Pilot".', crossReferences: ['deliverables'] },
+    { name: 'Timeline Feasibility', severity: 'warning', description: 'Maturity level determines feasible timeline: Blueprint = 4-8 weeks, POC = 8-16 weeks, Pilot = 16-32 weeks. If phase_schedule contradicts this, flag the inconsistency.', crossReferences: ['phase_schedule', 'complexity'] },
+    { name: 'Reward Proportionality', severity: 'suggestion', description: 'Reward amounts should scale with maturity: Blueprint rewards are typically lowest, Pilot rewards highest. Major mismatches reduce solver interest.', crossReferences: ['reward_structure'] },
+  ],
+
+  complexity: [
+    { name: 'Dimension Independence', severity: 'error', description: 'Each complexity dimension must be rated independently. A challenge can have high technical novelty but low timeline urgency. All dimensions at the same score (e.g., all 5s) is almost certainly wrong.' },
+    { name: 'Evidence-Based Justification', severity: 'warning', description: 'Every rating MUST cite specific challenge content. "Medium complexity" without referencing deliverables, scope, or constraints is useless. Quote field values, cite numbers.' },
+    { name: 'Empty Section Handling', severity: 'suggestion', description: 'If a section that should inform a dimension is empty (e.g., no data_resources_provided for data_complexity), rate conservatively (lower) and state the gap explicitly.', crossReferences: ['solution_type', 'deliverables', 'scope', 'maturity_level'] },
+  ],
+
+  data_resources_provided: [
+    { name: 'Solver Actionability', severity: 'error', description: 'Each resource must include an access_method — solvers need to know HOW to get the data. "Available upon request" is acceptable; no access method at all is not.' },
+    { name: 'Deliverable Sufficiency', severity: 'warning', description: 'The listed resources must be sufficient for solvers to produce all deliverables. If deliverables require training data but no datasets are listed, flag the gap.', crossReferences: ['deliverables'] },
+    { name: 'Restriction Clarity', severity: 'suggestion', description: 'Data restrictions (NDA, no redistribution, anonymization required) must be explicit. Ambiguous restrictions create legal risk for solvers and reduce participation.' },
+  ],
+
+  eligibility: [
+    { name: 'Expertise Alignment', severity: 'error', description: 'Eligibility tiers must be appropriate for the required solver expertise. TIER_1 (individuals) should not be the only option for a Pilot challenge requiring multi-disciplinary teams.', crossReferences: ['solver_expertise', 'complexity'] },
+    { name: 'Pool Size Consideration', severity: 'warning', description: 'Overly restrictive eligibility (single tier, high barrier) reduces the solver pool. Overly broad (all tiers for a niche challenge) dilutes submission quality. Balance based on maturity and complexity.', crossReferences: ['maturity_level'] },
+    { name: 'Master Data Compliance', severity: 'error', description: 'Only codes from the allowed values list may be used. Do NOT invent new eligibility tiers or codes.' },
+  ],
+
+  ip_model: [
+    { name: 'Deliverable-IP Alignment', severity: 'error', description: 'IP model must match deliverable nature. If deliverables include "proprietary algorithm" or "patentable invention", IP-NONE is inappropriate. If deliverables are "advisory report", IP-EA is excessive.', crossReferences: ['deliverables'] },
+    { name: 'Solver Incentive Balance', severity: 'warning', description: 'Stronger IP transfer (IP-EA) requires higher rewards to attract solvers. If IP-EA is selected but reward is low, flag the imbalance — top solvers will avoid the challenge.', crossReferences: ['reward_structure'] },
+    { name: 'Maturity Appropriateness', severity: 'suggestion', description: 'Blueprint challenges rarely need IP-EA (no tangible IP is produced). Pilot challenges with production code typically need IP-EA or IP-EL.', crossReferences: ['maturity_level'] },
+  ],
+
+  visibility: [
+    { name: 'Evaluation Bias Prevention', severity: 'warning', description: 'Default to "anonymous" unless the challenge specifically requires team assessment. Named visibility during evaluation introduces unconscious bias (brand recognition, institutional prestige).' },
+    { name: 'Challenge Type Match', severity: 'suggestion', description: 'Team-based challenges (Pilot, multi-phase) benefit from "named" visibility so evaluators can assess team composition and capability. Individual challenges (Blueprint, analysis) benefit from "anonymous".', crossReferences: ['maturity_level', 'eligibility'] },
+    { name: 'Master Data Compliance', severity: 'error', description: 'Only codes from the allowed values list may be used. Do NOT invent new visibility types.' },
+  ],
 };
 
 /* ── FIX 6: Domain-to-framework mapping ── */
