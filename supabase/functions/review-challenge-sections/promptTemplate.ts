@@ -1280,6 +1280,8 @@ REWRITE RULES:
 5. MATCH FORMAT exactly. HTML → HTML. JSON → JSON. Don't convert.
 6. PRODUCTION-READY: Directly publishable. No "[TBD]", no "as appropriate", no "etc."
 
+VOICE RULE: All rewritten content uses first-person plural ("we", "our") from the seeker's perspective. Exception: evaluation_criteria and submission_guidelines use neutral procedural voice. NEVER write "the organization" or "the seeker" in challenge content.
+
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
 - Good problem statement: "Our supply chain planning team makes demand forecasts using 18-month-old statistical models in Excel, resulting in 23% forecast error (vs. industry benchmark of 12-15%). This drives $4.2M in annual excess inventory costs and 340 stockout events per quarter across our 12 distribution centers."
@@ -1301,12 +1303,6 @@ CHALLENGE CONTEXT:
 - Complexity: ${challengeContext?.complexityLevel || 'not set'}
 - Operating Model: ${challengeContext?.operatingModel || 'marketplace'}
 - Currency: ${challengeContext?.currency || 'USD'}
-- Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
-CHALLENGE CONTEXT:
-- Maturity: ${challengeContext?.maturityLevel || 'not set'}
-- Solution type: ${challengeContext?.solutionType || 'not set'}
-- Seeker: ${challengeContext?.seekerSegment || 'not set'}
-- Complexity: ${challengeContext?.complexityLevel || 'not set'}
 - Today: ${challengeContext?.todaysDate || new Date().toISOString().split('T')[0]}
 `;
 
