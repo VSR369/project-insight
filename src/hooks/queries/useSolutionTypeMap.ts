@@ -25,7 +25,7 @@ export function useSolutionTypeMap() {
         .order('display_order');
 
       if (error) throw new Error(error.message);
-      return (data ?? []) as SolutionTypeMapping[];
+      return (data ?? []) as unknown as SolutionTypeMapping[];
     },
     staleTime: 15 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
