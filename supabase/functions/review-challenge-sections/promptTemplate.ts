@@ -713,17 +713,24 @@ export function buildContextIntelligence(
   const complexity = clientContext?.complexityLevel || challengeData.complexity_level || 'not set';
   const solutionType = clientContext?.solutionType || challengeData.solution_type || 'not set';
 
+  const tagline = orgContext?.tagline;
+  const twitterUrl = orgContext?.twitterUrl;
+  const functionalAreas = orgContext?.functionalAreas;
+
   return `
 ## CONTEXT INTELLIGENCE — KNOW THE SEEKER, KNOW THE DOMAIN
 
 ### ORGANIZATION (THE SEEKER — "WE" IN ALL CONTENT)
 - **We are**: ${orgName}${orgContext?.tradeBrand ? ` (${orgContext.tradeBrand})` : ''} — ${orgType}${orgContext?.isEnterprise ? ' (Enterprise)' : ''}
+${tagline ? `- **Our tagline**: "${tagline}"` : ''}
 ${orgContext?.orgDescription ? `- **About us**: ${orgContext.orgDescription.substring(0, 400)}` : ''}
 ${websiteUrl ? `- **Website**: ${websiteUrl}` : ''}
 ${linkedinUrl ? `- **LinkedIn**: ${linkedinUrl}` : ''}
+${twitterUrl ? `- **Twitter/X**: ${twitterUrl}` : ''}
 - **HQ**: ${city ? city + ', ' : ''}${geography}
 ${orgContext?.annualRevenue ? `- **Revenue**: ${orgContext.annualRevenue}` : ''}
 ${orgContext?.employeeCount ? `- **Team**: ${orgContext.employeeCount}` : ''}
+${functionalAreas?.length ? `- **Functions**: ${functionalAreas.join(', ')}` : ''}
 - **Industry**: ${primaryIndustry}
 
 ${websiteUrl || orgName !== '(not specified)' ? `**YOU KNOW THIS ORGANIZATION** from your training (website, LinkedIn, press, industry reports). Use that knowledge:
