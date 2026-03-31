@@ -214,15 +214,39 @@ export default function BrowseChallengesPage() {
         </p>
       </div>
 
-      {/* Search bar */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search challenges by title, org, or industry..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 text-base"
-        />
+      {/* Search + Filters */}
+      <div className="flex flex-col lg:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search challenges by title, org, or industry..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 text-base"
+          />
+        </div>
+        <Select value={industryFilter} onValueChange={setIndustryFilter}>
+          <SelectTrigger className="w-full lg:w-[200px]">
+            <SelectValue placeholder="Industry" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Industries</SelectItem>
+            {industries.map((ind) => (
+              <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={complexityFilter} onValueChange={setComplexityFilter}>
+          <SelectTrigger className="w-full lg:w-[200px]">
+            <SelectValue placeholder="Complexity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Complexity</SelectItem>
+            {complexities.map((cmp) => (
+              <SelectItem key={cmp} value={cmp}>{cmp}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Tabs */}
