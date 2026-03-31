@@ -82,7 +82,10 @@ export function useSubmitSolutionRequest() {
         .from('challenges')
         .update({
           problem_statement: payload.businessProblem,
-          scope: payload.expectedOutcomes,
+          scope: payload.constraints || null,
+          expected_outcomes: payload.expectedOutcomes
+            ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] })
+            : null,
           reward_structure: rewardStructure,
           phase_schedule: phaseSchedule,
           governance_mode_override: payload.governanceModeOverride ?? null,
