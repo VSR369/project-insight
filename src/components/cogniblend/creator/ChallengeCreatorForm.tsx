@@ -14,7 +14,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { Send, Save, Loader2 } from 'lucide-react';
+import { Send, Save, Loader2, FlaskConical } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,6 +29,7 @@ import type { GovernanceMode } from '@/lib/governanceMode';
 
 import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
+import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 
 /* ── Schema builders ── */
 
@@ -277,6 +278,15 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
   const isQuick = governanceMode === 'QUICK';
   const isControlled = governanceMode === 'CONTROLLED';
 
+  const handleFillTestData = useCallback(() => {
+    const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
+    const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
+    form.reset({
+      ...seed,
+      domain_tags: domainIds,
+    } as CreatorFormValues);
+  }, [engagementModel, industrySegments, form]);
+
   return (
     <FormProvider {...form}>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -311,15 +321,23 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         </Tabs>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-          <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={isBusy}>
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
-            Save Draft
-          </Button>
-          <Button type="submit" disabled={isBusy}>
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
-            Submit to Curator
-          </Button>
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
+          {import.meta.env.DEV && (
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}>
+              <FlaskConical className="h-4 w-4 mr-1.5" />
+              Fill Test Data
+            </Button>
+          )}
+          <div className="flex items-center gap-3 ml-auto">
+            <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={isBusy}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
+              Save Draft
+            </Button>
+            <Button type="submit" disabled={isBusy}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
+              Submit to Curator
+            </Button>
+          </div>
         </div>
       </form>
 
