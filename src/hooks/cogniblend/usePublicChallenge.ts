@@ -55,6 +55,7 @@ export interface PublicChallengeData {
   submission_guidelines: Record<string, unknown> | null;
   functional_area: string | null;
   target_geography: string | null;
+  creator_snapshot: Record<string, unknown> | null;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
@@ -98,7 +99,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           governance_profile, hook, effort_level, solution_type,
           data_resources_provided, success_metrics_kpis,
           submission_guidelines, functional_area, target_geography,
-          challenge_visibility,
+          challenge_visibility, creator_snapshot,
           seeker_organizations!challenges_organization_id_fkey (
             organization_name, trade_brand_name
           ),
@@ -197,6 +198,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     submission_guidelines: c.submission_guidelines as Record<string, unknown> | null,
     functional_area: c.functional_area as string | null,
     target_geography: c.target_geography as string | null,
+    creator_snapshot: c.creator_snapshot as Record<string, unknown> | null,
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
     industry_name: (industry?.name as string) ?? null,
