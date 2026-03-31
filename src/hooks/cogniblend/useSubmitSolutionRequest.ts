@@ -261,7 +261,7 @@ export function useSaveDraft() {
 
   return useMutation({
     mutationFn: async (payload: DraftPayload): Promise<{ challengeId: string }> => {
-      const title = payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
+      const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
 
       // Initialize challenge (stays in Phase 1)
       const { data: challengeId, error: initError } = await supabase.rpc(
