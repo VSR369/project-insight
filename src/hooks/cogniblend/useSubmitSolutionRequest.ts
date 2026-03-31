@@ -109,8 +109,11 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
-          maturity_level: payload.maturityLevel || null,
+          maturity_level: payload.maturityLevel?.toUpperCase() || null,
           ip_model: payload.ipModel || null,
+          domain_tags: payload.domainTags || null,
+          industry_segment_id: payload.industrySegmentId || null,
+          title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
