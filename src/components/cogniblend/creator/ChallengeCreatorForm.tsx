@@ -275,7 +275,13 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
           </TabsContent>
 
           <TabsContent value="context" className="mt-6">
-            <AdditionalContextTab governanceMode={governanceMode} />
+            <AdditionalContextTab
+              governanceMode={governanceMode}
+              attachedFiles={attachedFiles}
+              onFilesChange={setAttachedFiles}
+              referenceUrls={referenceUrls}
+              onUrlsChange={setReferenceUrls}
+            />
           </TabsContent>
         </Tabs>
 
