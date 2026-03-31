@@ -377,6 +377,10 @@ export function useUpdateDraft() {
           phase_schedule: {
             expected_timeline: payload.expectedTimeline,
           },
+          maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          ip_model: payload.ipModel || null,
+          domain_tags: payload.domainTags || null,
+          industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
