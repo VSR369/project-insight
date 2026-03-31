@@ -359,6 +359,7 @@ export function useUpdateDraft() {
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
+          title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           problem_statement: payload.businessProblem || null,
           scope: payload.constraints || null,
           expected_outcomes: payload.expectedOutcomes
@@ -402,6 +403,7 @@ export function useUpdateDraft() {
             ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
             ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
           },
         } as any)
         .eq('id', payload.challengeId);
