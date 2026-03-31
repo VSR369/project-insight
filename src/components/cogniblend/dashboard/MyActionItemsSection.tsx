@@ -149,12 +149,12 @@ export function MyActionItemsSection() {
     for (const ch of challengeItems) {
       const roles = challengeRoleMap.get(ch.challenge_id) ?? [];
       // Include if user has any role on this challenge (no activeRole filter)
-      if (roles.length === 0 && ch.master_status !== 'DRAFT') continue;
+      if (roles.length === 0 && !(ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1)) continue;
 
-      // Standard action items: DRAFT, RETURNED, AM_APPROVAL_PENDING
+      // Standard action items: draft (IN_PREPARATION phase 1), RETURNED, AM_APPROVAL_PENDING
       const needsAction =
-        ch.master_status === 'DRAFT' ||
-        ch.master_status === 'RETURNED' ||
+        (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ||
+        ch.phase_status === 'RETURNED' ||
         ch.phase_status === 'AM_APPROVAL_PENDING';
 
       if (needsAction) {
