@@ -109,6 +109,8 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
+          maturity_level: payload.maturityLevel || null,
+          ip_model: payload.ipModel || null,
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
@@ -119,6 +121,8 @@ export function useSubmitSolutionRequest() {
             ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
             ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
+            ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
           },
         } as any)
         .eq('id', challengeId);
