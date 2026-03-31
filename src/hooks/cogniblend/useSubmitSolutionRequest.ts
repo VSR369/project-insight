@@ -39,6 +39,10 @@ interface SubmitPayload {
   preferredApproach?: string;
   approachesNotOfInterest?: string;
   solutionExpectations?: string;
+  currentDeficiencies?: string;
+  referenceUrls?: string[];
+  maturityLevel?: string;
+  ipModel?: string;
 }
 
 interface SubmitResult {
@@ -105,6 +109,8 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
+          maturity_level: payload.maturityLevel || null,
+          ip_model: payload.ipModel || null,
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
@@ -115,6 +121,8 @@ export function useSubmitSolutionRequest() {
             ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
             ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
+            ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
           },
         } as any)
         .eq('id', challengeId);
@@ -138,17 +146,16 @@ export function useSubmitSolutionRequest() {
         try {
           const { data: defaultTemplates } = await supabase
             .from('legal_document_templates' as any)
-            .select('document_type, document_name, content_summary')
+            .select('document_type, document_name, description')
             .eq('tier', 'TIER_1')
-            .eq('is_active', true)
-            .eq('is_default', true);
+            .eq('is_active', true);
 
           if (defaultTemplates && defaultTemplates.length > 0) {
             const legalInserts = (defaultTemplates as any[]).map((tpl) => ({
               challenge_id: challengeId,
               document_type: tpl.document_type,
               document_name: tpl.document_name,
-              content_summary: tpl.content_summary,
+              content_summary: tpl.description || null,
               tier: 'TIER_1',
               status: 'auto_accepted',
               lc_status: 'approved',

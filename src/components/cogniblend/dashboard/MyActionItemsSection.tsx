@@ -135,7 +135,7 @@ export function MyActionItemsSection() {
       queryClient.invalidateQueries({ queryKey: ['cogni-notifications', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['cogni-unread-count', user?.id] });
       if (challengeId) {
-        navigate(`/cogni/my-requests/${challengeId}/view`);
+        navigate(`/cogni/challenges/${challengeId}/view`);
       }
     },
     [user?.id, queryClient, navigate],

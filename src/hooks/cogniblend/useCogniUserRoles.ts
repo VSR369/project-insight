@@ -47,6 +47,11 @@ export function useCogniUserRoles() {
     }
   }
 
+  // Default: if user has no challenge roles yet, grant baseline CR visibility
+  if (allRoleCodes.size === 0 && user?.id) {
+    allRoleCodes.add('CR');
+  }
+
   // Badge counts derived from challenge data
   const activeChallengeCount = query.data?.filter(
     (r) => r.master_status === 'ACTIVE' || r.master_status === 'IN_PREPARATION'

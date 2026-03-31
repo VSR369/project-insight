@@ -6,7 +6,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Filter, Loader2, Target, Calendar, Building2,
+  Search, Loader2, Target, Calendar, Building2,
   ArrowRight, Clock, Inbox,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useBrowseChallenges, type BrowseChallengeItem } from '@/hooks/cogniblend/useBrowseChallenges';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -136,6 +139,23 @@ export default function BrowseChallengesPage() {
   const { data: challenges, isLoading, error } = useBrowseChallenges();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [industryFilter, setIndustryFilter] = useState('all');
+  const [complexityFilter, setComplexityFilter] = useState('all');
+
+  // Extract unique filter options from data
+  const { industries, complexities } = useMemo(() => {
+    if (!challenges) return { industries: [], complexities: [] };
+    const indSet = new Set<string>();
+    const cmpSet = new Set<string>();
+    for (const c of challenges) {
+      if (c.industry_name) indSet.add(c.industry_name);
+      if (c.complexity_level) cmpSet.add(c.complexity_level);
+    }
+    return {
+      industries: Array.from(indSet).sort(),
+      complexities: Array.from(cmpSet).sort(),
+    };
+  }, [challenges]);
 
   const filtered = useMemo(() => {
     if (!challenges) return [];
@@ -150,6 +170,16 @@ export default function BrowseChallengesPage() {
       list = list.filter(c => !!c.published_at);
     }
 
+    // Industry filter
+    if (industryFilter !== 'all') {
+      list = list.filter(c => c.industry_name === industryFilter);
+    }
+
+    // Complexity filter
+    if (complexityFilter !== 'all') {
+      list = list.filter(c => c.complexity_level === complexityFilter);
+    }
+
     // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -162,7 +192,7 @@ export default function BrowseChallengesPage() {
     }
 
     return list;
-  }, [challenges, activeTab, searchQuery]);
+  }, [challenges, activeTab, searchQuery, industryFilter, complexityFilter]);
 
   const counts = useMemo(() => {
     if (!challenges) return { all: 0, active: 0, preparation: 0, published: 0 };
@@ -184,15 +214,39 @@ export default function BrowseChallengesPage() {
         </p>
       </div>
 
-      {/* Search bar */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search challenges by title, org, or industry..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 text-base"
-        />
+      {/* Search + Filters */}
+      <div className="flex flex-col lg:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search challenges by title, org, or industry..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 text-base"
+          />
+        </div>
+        <Select value={industryFilter} onValueChange={setIndustryFilter}>
+          <SelectTrigger className="w-full lg:w-[200px]">
+            <SelectValue placeholder="Industry" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Industries</SelectItem>
+            {industries.map((ind) => (
+              <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={complexityFilter} onValueChange={setComplexityFilter}>
+          <SelectTrigger className="w-full lg:w-[200px]">
+            <SelectValue placeholder="Complexity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Complexity</SelectItem>
+            {complexities.map((cmp) => (
+              <SelectItem key={cmp} value={cmp}>{cmp}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Tabs */}
