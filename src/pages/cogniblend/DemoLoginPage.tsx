@@ -1,17 +1,13 @@
 /**
- * DemoLoginPage — Two-tab quick-login for CogniBlend 360° Demo.
- * Tab 1: AI-Assisted Path (AI generates, roles review)
- * Tab 2: Manual Editor Path (8-step wizard, full control)
+ * DemoLoginPage — Quick-login for CogniBlend 360° Demo.
+ * Unified: all Creator destinations → /cogni/challenges/create (no tab params).
  * Route: /cogni/demo-login
  */
 
 import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -19,111 +15,91 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Users, Zap, ArrowLeft, Play, CheckCircle2, AlertCircle, Sparkles, Settings2, ShieldCheck, Info } from 'lucide-react';
+import { Loader2, Users, Zap, ArrowLeft, Settings2, ShieldCheck, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
 import { DemoWorkflowSteps } from '@/components/cogniblend/demo/DemoWorkflowSteps';
-import { DemoUserCard } from '@/components/cogniblend/demo/DemoUserCard';
 import { DemoSeedCard } from '@/components/cogniblend/demo/DemoSeedCard';
 import {
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const TEST_PASSWORD = 'TestSetup2026!';
-
-export type DemoPath = 'ai' | 'manual';
 
 export interface DemoUser {
   email: string;
   displayName: string;
   roles: string[];
-  aiDescription: string;
-  manualDescription: string;
-  aiDestination: string;
-  manualDestination: string;
+  description: string;
+  destination: string;
   stepLabel?: string;
 }
 
 /** Build the demo user list dynamically based on engagement model */
 function getDemoUsers(engagementModel: string): DemoUser[] {
-  const isMP = engagementModel === 'MP';
-
   return [
-    // Step 1: Challenge Creator
     {
       email: 'nh-cr@testsetup.dev',
       displayName: 'Chris Rivera',
       roles: ['CR'],
-      aiDescription: 'Creates challenge via AI-assisted intake, then submits to Curator',
-      manualDescription: 'Creates challenge spec manually using the editor wizard',
-      aiDestination: '/cogni/challenges/create?tab=ai',
-      manualDestination: '/cogni/challenges/create?tab=editor',
+      description: 'Creates challenge via the unified creation form, then submits to Curator',
+      destination: '/cogni/challenges/create',
       stepLabel: 'Step 1',
     },
     {
       email: 'nh-lc@testsetup.dev',
       displayName: 'Leslie Chen',
       roles: ['LC'],
-      aiDescription: 'Receives challenge from Creator; AI suggests legal docs to review, modify, and attach',
-      manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
-      aiDestination: '/cogni/lc-queue',
-      manualDestination: '/cogni/lc-queue',
+      description: 'Reviews challenge and attaches legal documents (NDA, IP, etc.)',
+      destination: '/cogni/lc-queue',
       stepLabel: 'Step 2',
     },
     {
       email: 'nh-cu@testsetup.dev',
       displayName: 'Casey Underwood',
       roles: ['CU'],
-      aiDescription: 'AI reviews spec + legal docs as a package; Curator accepts/declines findings',
-      manualDescription: 'Reviews challenge quality via 14-point checklist',
-      aiDestination: '/cogni/curation',
-      manualDestination: '/cogni/curation',
+      description: 'Reviews challenge quality via curation checklist and AI analysis',
+      destination: '/cogni/curation',
       stepLabel: 'Step 3',
     },
     {
       email: 'nh-er1@testsetup.dev',
       displayName: 'Evelyn Rhodes',
       roles: ['ER'],
-      aiDescription: 'Evaluates submitted solutions with AI-assisted scoring',
-      manualDescription: 'Evaluates submitted solutions against criteria',
-      aiDestination: '/cogni/review',
-      manualDestination: '/cogni/review',
+      description: 'Evaluates submitted solutions against criteria',
+      destination: '/cogni/review',
       stepLabel: 'Step 4',
     },
     {
       email: 'nh-er2@testsetup.dev',
       displayName: 'Ethan Russell',
       roles: ['ER'],
-      aiDescription: 'Second reviewer for dual-review governance (AI-assisted)',
-      manualDescription: 'Second reviewer for dual-review governance',
-      aiDestination: '/cogni/review',
-      manualDestination: '/cogni/review',
-      stepLabel: 'Step 6',
+      description: 'Second reviewer for dual-review governance',
+      destination: '/cogni/review',
+      stepLabel: 'Step 5',
     },
     {
       email: 'nh-fc@testsetup.dev',
       displayName: 'Frank Coleman',
       roles: ['FC'],
-      aiDescription: 'Confirms escrow creation & prize disbursement per business rules',
-      manualDescription: 'Manages escrow funding and prize disbursement',
-      aiDestination: '/cogni/escrow',
-      manualDestination: '/cogni/escrow',
+      description: 'Manages escrow funding and prize disbursement',
+      destination: '/cogni/escrow',
       stepLabel: 'Finance',
     },
     {
       email: 'nh-solo@testsetup.dev',
       displayName: 'Sam Solo',
       roles: ['CR', 'CU', 'ER', 'LC', 'FC'],
-      aiDescription: 'Solo operator — walks through all AI-assisted steps sequentially',
-      manualDescription: 'Solo operator — holds all roles for full wizard walkthrough',
-      aiDestination: '/cogni/challenges/create?tab=ai',
-      manualDestination: '/cogni/challenges/create?tab=editor',
+      description: 'Solo operator — holds all roles for full walkthrough',
+      destination: '/cogni/challenges/create',
       stepLabel: 'All Steps',
     },
   ];
 }
+
 const GOVERNANCE_CARDS: Array<{
   mode: GovernanceMode;
   icon: typeof Zap;
@@ -140,7 +116,7 @@ export default function DemoLoginPage() {
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
 
-  const handleLogin = useCallback(async (demoUser: DemoUser, path: DemoPath) => {
+  const handleLogin = useCallback(async (demoUser: DemoUser) => {
     setLoadingEmail(demoUser.email);
     try {
       await supabase.auth.signOut();
@@ -167,7 +143,6 @@ export default function DemoLoginPage() {
         }
 
         // Sync org operating_model to match selected engagement model
-        // Wrapped in try-catch: RLS may block this update if tenant resolution fails
         try {
           const { error: updateErr } = await supabase
             .from('seeker_organizations')
@@ -175,30 +150,25 @@ export default function DemoLoginPage() {
             .eq('id', orgRow.organization_id);
           if (updateErr) {
             console.warn('Operating model sync failed (RLS), will use edge function fallback:', updateErr.message);
-            // Fallback: invoke edge function with service_role to update
             await supabase.functions.invoke('setup-test-scenario', {
               body: { action: 'sync_operating_model', orgId: orgRow.organization_id, operatingModel: engagementModel },
             });
           }
         } catch (syncErr) {
-          // Non-fatal: log warning but continue login
           console.warn('Operating model sync failed entirely, continuing login:', syncErr);
           toast.warning('Could not sync engagement model. The org may use its default model.');
         }
       }
 
-      // Persist demo selections to sessionStorage
-      sessionStorage.setItem('cogni_demo_path', path);
+      // Persist demo selections to sessionStorage (no demo path needed)
       sessionStorage.setItem('cogni_demo_governance', governanceMode);
       sessionStorage.setItem('cogni_demo_engagement', engagementModel);
 
       // Force active role to match selected demo user's primary role
-      // Prevents CogniRoleContext from resolving to a higher-priority role (e.g. CR over RQ)
       localStorage.setItem('cogni_active_role', demoUser.roles[0]);
 
-      const destination = path === 'ai' ? demoUser.aiDestination : demoUser.manualDestination;
-      toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')}) — ${path === 'ai' ? 'AI-Assisted' : 'Manual Editor'}`);
-      navigate(destination);
+      toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')})`);
+      navigate(demoUser.destination);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
       toast.error(`Login failed: ${message}. Have you seeded the demo data first?`);
@@ -221,6 +191,8 @@ export default function DemoLoginPage() {
     );
   };
 
+  const demoUsers = getDemoUsers(engagementModel);
+
   return (
     <div className="min-h-screen bg-muted p-4 lg:p-8">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -232,7 +204,7 @@ export default function DemoLoginPage() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">CogniBlend 360° Demo</h1>
             <p className="text-sm text-muted-foreground">
-              New Horizon Company — Choose your workflow path, then pick a role
+              New Horizon Company — Configure settings, then pick a role
             </p>
           </div>
         </div>
@@ -316,67 +288,42 @@ export default function DemoLoginPage() {
           </CardContent>
         </Card>
 
-        {/* Tabbed Login */}
-        <Tabs defaultValue="ai" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-auto">
-            <TabsTrigger value="ai" className="flex items-center gap-2 py-3 data-[state=active]:bg-primary/10">
-              <Sparkles className="h-4 w-4" />
-              <div className="text-left">
-                <div className="text-sm font-semibold">AI-Assisted Path</div>
-                <div className="text-[10px] text-muted-foreground font-normal">AI generates, roles review</div>
-              </div>
-            </TabsTrigger>
-            <TabsTrigger value="manual" className="flex items-center gap-2 py-3 data-[state=active]:bg-primary/10">
-              <Settings2 className="h-4 w-4" />
-              <div className="text-left">
-                <div className="text-sm font-semibold">Manual Editor Path</div>
-                <div className="text-[10px] text-muted-foreground font-normal">8-step wizard, full control</div>
-              </div>
-            </TabsTrigger>
-          </TabsList>
+        {/* Workflow Steps */}
+        <DemoWorkflowSteps variant="ai" engagementModel={engagementModel} governanceMode={governanceMode} />
 
-          <TabsContent value="ai" className="mt-4 space-y-4">
-            <DemoWorkflowSteps variant="ai" engagementModel={engagementModel} governanceMode={governanceMode} />
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Pick a Role to Login
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-              {getDemoUsers(engagementModel).map((user) => (
-                <DemoUserCard
-                  key={user.email}
-                  user={user}
-                  path="ai"
-                  isLoading={loadingEmail === user.email}
-                  disabled={!!loadingEmail}
-                  onLogin={() => handleLogin(user, 'ai')}
-                  getRoleBadge={getRoleBadge}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="manual" className="mt-4 space-y-4">
-            <DemoWorkflowSteps variant="manual" engagementModel={engagementModel} governanceMode={governanceMode} />
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Pick a Role to Login
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-              {getDemoUsers(engagementModel).map((user) => (
-                <DemoUserCard
-                  key={user.email}
-                  user={user}
-                  path="manual"
-                  isLoading={loadingEmail === user.email}
-                  disabled={!!loadingEmail}
-                  onLogin={() => handleLogin(user, 'manual')}
-                  getRoleBadge={getRoleBadge}
-                />
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+        {/* Role Cards */}
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          Pick a Role to Login
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+          {demoUsers.map((user) => (
+            <Card
+              key={user.email}
+              className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow"
+              onClick={() => !loadingEmail && handleLogin(user)}
+            >
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm text-foreground">{user.displayName}</span>
+                  <div className="flex items-center gap-2">
+                    {user.stepLabel && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {user.stepLabel}
+                      </Badge>
+                    )}
+                    {loadingEmail === user.email && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {user.roles.map((r) => getRoleBadge(r))}
+                </div>
+                <p className="text-xs text-muted-foreground">{user.description}</p>
+                <span className="text-[11px] text-muted-foreground/60 font-mono">{user.email}</span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         {/* Footer hint */}
         <p className="text-center text-xs text-muted-foreground pt-4">
