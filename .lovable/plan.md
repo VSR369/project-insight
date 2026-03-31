@@ -1,85 +1,51 @@
 
 
-# Final Plan: Fix 7 Creator Bugs + Browse Challenges Enhancement
+# Fix: Legacy `CA` Role Blocking "My Challenges" Visibility
 
-## Confirmation: My Challenges vs Browse Challenges
+## Root Cause
 
-- **My Challenges** (`/cogni/my-challenges`) = Your own challenges (drafts, submitted, active). CRUD operations.
-- **Browse Challenges** (`/cogni/browse`) = Discovery marketplace showing published ACTIVE challenges from ALL organizations. Read-only for discovery.
+The user has `role_code = 'CA'` (legacy Challenge Architect) in `user_challenge_roles`. The previous migration deactivated `AM`, `ID`, `RQ` but missed `CA`. The sidebar permission check `canSeeChallengePage` requires `'CR'`, so the menu item is hidden. The default CR fallback doesn't help because `allRoleCodes` is non-empty (contains `CA`).
 
-**Browse Challenges already has:** search by title/org/industry, tabs (All/Active/In Preparation/Published), card grid with status badges, complexity/maturity filters. This is working correctly.
+## Fix (2 changes)
 
-**Enhancement needed:** Add dropdown filters for Industry and Complexity Level alongside existing search.
+### 1. SQL Migration — Convert legacy `CA` roles to `CR`
 
----
+Update all active `CA` role assignments to `CR` in `user_challenge_roles`. Also deactivate any resulting duplicates (where user already has `CR` for the same challenge).
 
-## All Changes (7 bugs + 1 enhancement)
+```sql
+-- Convert CA → CR (where no CR already exists for same user+challenge)
+UPDATE public.user_challenge_roles
+SET role_code = 'CR'
+WHERE role_code = 'CA' AND is_active = true
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_challenge_roles ucr2
+    WHERE ucr2.user_id = user_challenge_roles.user_id
+      AND ucr2.challenge_id = user_challenge_roles.challenge_id
+      AND ucr2.role_code = 'CR' AND ucr2.is_active = true
+  );
 
-### 1. SQL Migration (Bugs 4, 5, 7)
+-- Deactivate remaining CA rows (duplicates)
+UPDATE public.user_challenge_roles
+SET is_active = false
+WHERE role_code = 'CA' AND is_active = true;
+```
 
-**`get_phase_required_role`** — Replace `AM` → `CR`, `ID` → `CU` for phases 1-6.
+### 2. Frontend safety net — `useCogniPermissions.ts`
 
-**`auto_assign_roles_on_creation`** — QUICK assigns `['CR','CU','ER','LC','FC']`, STRUCTURED/CONTROLLED assigns `['CR']`. Remove deprecated `AM`/`ID`.
+Add `CA` as a legacy alias alongside `CR` in the `sees` and `can` checks, so any unconverted data still works:
 
-**Test data cleanup** — Soft-delete drafts with empty problem statements; deactivate orphan roles.
+- `canSeeChallengePage: sees(['CR', 'CA'])`
+- `canSeeCreatorDashboard: sees(['CR', 'CA'])`
+- `canCreateChallenge: can(['CR', 'CA'])`
+- `canEditSpec: can(['CR', 'CA'])`
+- `isSpecRole: can(['CR', 'CA'])`
 
-### 2. `src/hooks/cogniblend/useSubmitSolutionRequest.ts` (Bugs 2, 3)
-
-- **Bug 3**: Fix legal template query — remove `is_default` and `content_summary` columns (don't exist). Use `description` instead.
-- **Bug 2**: Add `referenceUrls`, `currentDeficiencies`, `maturityLevel`, `ipModel` to `SubmitPayload`. Include them in the single Write 1 update so Write 2 doesn't overwrite `extended_brief`.
-
-### 3. `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` (Bug 2)
-
-- Pass `contextBackground`, `rootCauses`, `affectedStakeholders`, `preferredApproach`, `approachesNotOfInterest`, `currentDeficiencies`, `referenceUrls`, `maturityLevel`, `ipModel` in `buildPayload`.
-- Remove the post-submit `.update()` that overwrites `extended_brief`. Keep only file upload logic.
-
-### 4. `src/components/cogniblend/dashboard/MyActionItemsSection.tsx` (Bug 1)
-
-- Line 138: `/cogni/my-requests/${challengeId}/view` → `/cogni/challenges/${challengeId}/view`
-
-### 5. `src/components/cogniblend/dashboard/ActionItemsWidget.tsx` (Bug 6)
-
-- Line 53: Change fallback from `{ label: 'Set Up Access', route: '/cogni/demo-login' }` to `{ label: 'Create Challenge', route: '/cogni/challenges/create' }`
-- Make all 3 stat cards clickable → navigate to `/cogni/my-challenges`
-
-### 6. `src/hooks/cogniblend/useCogniUserRoles.ts` (Sidebar fix)
-
-- After computing `allRoleCodes`, if empty and user is authenticated, add `'CR'` as baseline so sidebar items appear for new Creators.
-
-### 7. `src/pages/cogniblend/BrowseChallengesPage.tsx` (Enhancement)
-
-- Add Industry filter dropdown (extracted from challenge data)
-- Add Complexity Level filter dropdown (extracted from challenge data)
-- Place filters in a row next to the search bar
-
----
-
-## CRUD Operations — Business Rules Verification
-
-| Operation | Business Rule | Status |
-|---|---|---|
-| **Create** — New challenge via form | `initialize_challenge` RPC creates row + assigns roles | DONE |
-| **Read** — My Challenges list | Filtered by `user_challenge_roles` for current user | DONE |
-| **Read** — Browse Challenges | Only `ACTIVE` + `published_at IS NOT NULL` | DONE |
-| **Update** — Save Draft | Updates existing challenge (not new row) | DONE |
-| **Update** — Resume Draft | Loads via `?draft=<id>`, form pre-populated | DONE |
-| **Delete** — Soft delete draft | Sets `is_deleted=true`, only on DRAFT status | DONE |
-| **Submit** — Send to Curator | `complete_phase` RPC advances Phase 1→2 | DONE (Bug 4 fixes role check) |
-| **Legal auto-attach** — QUICK mode | Tier 1 templates auto-inserted | FIXED by Bug 3 |
-| **extended_brief preservation** | Single write, no overwrite | FIXED by Bug 2 |
-| **View** — Creator detail page | Hides solver components, shows status | DONE |
+Also update `SEEKING_ORG_ROLES` set to include `'CA'`.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| New SQL migration | Bugs 4, 5, 7 |
-| `useSubmitSolutionRequest.ts` | Bugs 2, 3 |
-| `ChallengeCreatorForm.tsx` | Bug 2 |
-| `MyActionItemsSection.tsx` | Bug 1 |
-| `ActionItemsWidget.tsx` | Bug 6 + sidebar fallback |
-| `useCogniUserRoles.ts` | Default CR for new users |
-| `BrowseChallengesPage.tsx` | Industry + Complexity filters |
-
-Total: 1 migration + 6 frontend files.
+| New SQL migration | Convert `CA` → `CR`, deactivate leftover `CA` |
+| `src/hooks/cogniblend/useCogniPermissions.ts` | Add `CA` as legacy alias in all CR permission checks |
 
