@@ -43,6 +43,8 @@ export function useBrowseChallenges() {
           industry_segments (name)
         `)
         .eq('is_deleted', false)
+        .eq('master_status', 'ACTIVE')
+        .not('published_at', 'is', null)
         .order('created_at', { ascending: false });
 
       if (error) throw new Error(error.message);

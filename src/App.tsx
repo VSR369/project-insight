@@ -352,7 +352,7 @@ const App = () => (
               <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
 
               {/* My Challenges */}
-              <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
+              <Route path="/cogni/my-challenges" element={<LazyRoute><MyChallengesPage /></LazyRoute>} />
               <Route path="/cogni/lc-queue" element={<LazyRoute><LcChallengeQueuePage /></LazyRoute>} />
               <Route path="/cogni/legal" element={<LazyRoute><CogniPlaceholderPage title="Legal Documents" description="Manage legal templates and document attachments for challenges." /></LazyRoute>} />
               <Route path="/cogni/legal-review" element={<LazyRoute><LcReviewQueuePage /></LazyRoute>} />
