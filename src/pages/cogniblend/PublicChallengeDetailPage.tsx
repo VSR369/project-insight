@@ -167,7 +167,7 @@ export default function PublicChallengeDetailPage() {
   const evalCriteria = data.evaluation_criteria as Record<string, unknown> | null;
   const weightedCriteria = (evalCriteria?.weighted_criteria ?? evalCriteria?.criteria ?? []) as Array<{ name: string; weight: number }>;
   const deliverables = data.deliverables as Record<string, unknown> | null;
-  const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as string[];
+  const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as any[];
   const artifactTypes = (deliverables?.permitted_artifact_types ?? []) as string[];
   const guidelines = (deliverables?.submission_guidelines ?? data.description ?? '') as string;
   const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
