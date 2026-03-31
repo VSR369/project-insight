@@ -23,7 +23,7 @@ export default function CogniDashboardPage() {
   // CR challenges mapped to RequestRow shape for journey section
   const { data: challengesData } = useMyChallenges(user?.id);
   const journeyRequests = useMemo<RequestRow[]>(() => {
-    if (!isSpecRole || !challengesData?.items) return [];
+    if (!challengesData?.items) return [];
     return challengesData.items
       .map((ch) => ({
         id: ch.challenge_id,

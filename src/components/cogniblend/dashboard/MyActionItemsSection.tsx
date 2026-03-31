@@ -91,7 +91,7 @@ function getActionRoute(item: ActionItem): {
     return { route: `/cogni/challenges/${item.id}/edit`, label: 'Revise', icon: Pencil };
   }
   // Default: challenge view
-  return { route: `/cogni/my-challenges/${item.id}`, label: 'View', icon: Eye };
+  return { route: `/cogni/challenges/${item.id}/view`, label: 'View', icon: Eye };
 }
 
 export function MyActionItemsSection() {
