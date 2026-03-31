@@ -50,7 +50,7 @@ export function ActionItemsWidget() {
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
   const modelLabel = orgContext?.operatingModel === 'MP' ? 'Marketplace' : 'Aggregator';
   const orgName = currentOrg?.orgName ?? 'Your Organization';
-  const primaryAction = ROLE_PRIMARY_ACTION[activeRole] ?? { label: 'Set Up Access', route: '/cogni/demo-login' };
+  const primaryAction = ROLE_PRIMARY_ACTION[activeRole] ?? { label: 'Create Challenge', route: '/cogni/challenges/create' };
 
   if (isLoading) {
     return (
