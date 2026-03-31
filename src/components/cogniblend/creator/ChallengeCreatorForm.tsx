@@ -167,8 +167,47 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     },
   });
 
+  // Load draft data when opened with ?draft=<id>
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!draftChallengeId || draftLoaded.current) return;
+    draftLoaded.current = true;
+    (async () => {
+      const { data: ch } = await supabase
+        .from('challenges')
+        .select('title, problem_statement, scope, maturity_level, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule')
+        .eq('id', draftChallengeId)
+        .maybeSingle();
+      if (!ch) return;
+      const rs = ch.reward_structure as Record<string, unknown> | null;
+      const eb = ch.extended_brief as Record<string, unknown> | null;
+      const eo = ch.expected_outcomes as any;
+      const ps = ch.phase_schedule as Record<string, unknown> | null;
+      form.reset({
+        title: (ch.title as string) || '',
+        problem_statement: (ch.problem_statement as string) || '',
+        scope: (ch.scope as string) || '',
+        maturity_level: (ch.maturity_level as any) || undefined,
+        industry_segment_id: (ch.industry_segment_id as string) || '',
+        domain_tags: (ch.domain_tags as string[]) || [],
+        currency: ((rs?.currency as string) || 'USD') as any,
+        budget_min: Number(rs?.budget_min ?? 0),
+        budget_max: Number(rs?.budget_max ?? 0),
+        ip_model: (ch.ip_model as string) || '',
+        expected_outcomes: eo?.items?.[0]?.name || '',
+        context_background: (eb?.context_background as string) || '',
+        preferred_approach: (eb?.preferred_approach as string) || '',
+        approaches_not_of_interest: (eb?.approaches_not_of_interest as string) || '',
+        affected_stakeholders: (eb?.affected_stakeholders as string) || '',
+        current_deficiencies: (eb?.current_deficiencies as string) || '',
+        root_causes: (eb?.root_causes as string) || '',
+        expected_timeline: (ps?.expected_timeline as string) || '',
+      });
+    })();
+  }, [draftChallengeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isSubmitting = submitMutation.isPending;
-  const isSaving = draftMutation.isPending;
+  const isSaving = draftMutation.isPending || updateDraftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
 
   const buildPayload = useCallback((data: CreatorFormValues) => {
