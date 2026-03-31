@@ -286,6 +286,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
     form.reset({
       ...seed,
+      industry_segment_id: industrySegments[0]?.id ?? '',
       domain_tags: domainIds,
     } as CreatorFormValues);
   }, [engagementModel, industrySegments, form]);

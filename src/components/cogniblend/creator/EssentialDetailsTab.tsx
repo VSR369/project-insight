@@ -141,6 +141,33 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
       </div>
 
+      {/* Primary Industry Segment */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">
+          Primary Industry Segment <span className="text-destructive">*</span>
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Select the primary industry this challenge belongs to.
+        </p>
+        <Controller
+          name="industry_segment_id"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger className="text-base">
+                <SelectValue placeholder="Select primary industry segment" />
+              </SelectTrigger>
+              <SelectContent>
+                {industrySegments.map((seg) => (
+                  <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.industry_segment_id?.message && <p className="text-xs text-destructive">{String(errors.industry_segment_id.message)}</p>}
+      </div>
+
       {/* Industry Domain */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">
