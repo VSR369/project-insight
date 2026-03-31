@@ -1247,6 +1247,12 @@ export default function CurationReviewPage() {
   // Optimistic industry segment — bridges the gap between save and refetch
   const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
 
+  // ── Phase 3: Escrow toggle for STRUCTURED governance ──
+  const [escrowEnabled, setEscrowEnabled] = useState(false);
+
+  // ── Phase 3: Bulk legal accept loading state ──
+  const [isAcceptingAllLegal, setIsAcceptingAllLegal] = useState(false);
+
   // ── Phase 5: Pre-flight gate + budget shortfall state ──
   const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
   const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
@@ -1445,6 +1451,27 @@ export default function CurationReviewPage() {
       toast.warning(`${affected.length} downstream section(s) marked stale after "${getSectionDisplayName(sectionKey as SectionKey)}" was changed.`);
     }
   }, [curationStore]);
+
+  // ── Phase 3: Bulk-accept all ai_suggested legal docs for STRUCTURED mode ──
+  const handleAcceptAllLegalDefaults = useCallback(async () => {
+    if (!challengeId) return;
+    setIsAcceptingAllLegal(true);
+    try {
+      const { error } = await supabase
+        .from('challenge_legal_docs')
+        .update({ status: 'ATTACHED' } as any)
+        .eq('challenge_id', challengeId)
+        .in('status', ['ai_suggested', 'default_applied']);
+      if (error) throw new Error(error.message);
+      queryClient.invalidateQueries({ queryKey: ['curation-legal-summary', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['curation-legal-details', challengeId] });
+      toast.success('All legal defaults accepted');
+    } catch (err: any) {
+      toast.error(`Failed to accept legal defaults: ${err.message}`);
+    } finally {
+      setIsAcceptingAllLegal(false);
+    }
+  }, [challengeId, queryClient]);
 
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
@@ -3599,16 +3626,28 @@ export default function CurationReviewPage() {
 
                       // ── Legal docs (read-only table) ──
                       case "legal_docs":
-                        return <LegalDocsSectionRenderer documents={legalDetails} />;
+                        return (
+                          <LegalDocsSectionRenderer
+                            documents={legalDetails}
+                            governanceMode={resolveGovernanceMode(challenge.governance_profile)}
+                            onAcceptAllDefaults={handleAcceptAllLegalDefaults}
+                            isAcceptingAll={isAcceptingAllLegal}
+                          />
+                        );
 
                       // ── Escrow funding (structured fields, read-only) ──
-                      case "escrow_funding":
+                      case "escrow_funding": {
+                        const gMode = resolveGovernanceMode(challenge.governance_profile);
                         return (
                           <StructuredFieldsSectionRenderer
                             escrow={escrowRecord}
-                            isControlledMode={isControlledMode(resolveGovernanceMode(challenge.governance_profile))}
+                            isControlledMode={isControlledMode(gMode)}
+                            governanceMode={gMode}
+                            escrowEnabled={escrowEnabled}
+                            onEscrowToggle={setEscrowEnabled}
                           />
                         );
+                      }
 
                       // ── Domain tags (tag input) ──
                       case "domain_tags":

@@ -114,6 +114,37 @@ export function useSubmitSolutionRequest() {
 
       if (phaseError) throw new Error(phaseError.message);
 
+      // 4. QUICK mode: auto-attach Tier 1 legal defaults (BR-LGL-001)
+      const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
+      if (effectiveGovernance.toUpperCase() === 'QUICK' || effectiveGovernance.toUpperCase() === 'LIGHTWEIGHT') {
+        try {
+          const { data: defaultTemplates } = await supabase
+            .from('legal_document_templates' as any)
+            .select('document_type, document_name, content_summary')
+            .eq('tier', 'TIER_1')
+            .eq('is_active', true)
+            .eq('is_default', true);
+
+          if (defaultTemplates && defaultTemplates.length > 0) {
+            const legalInserts = (defaultTemplates as any[]).map((tpl) => ({
+              challenge_id: challengeId,
+              document_type: tpl.document_type,
+              document_name: tpl.document_name,
+              content_summary: tpl.content_summary,
+              tier: 'TIER_1',
+              status: 'auto_accepted',
+              lc_status: 'approved',
+              attached_by: payload.creatorId,
+              created_by: payload.creatorId,
+            }));
+
+            await supabase.from('challenge_legal_docs').insert(legalInserts as any);
+          }
+        } catch {
+          // Non-blocking — legal auto-attach failure should not fail challenge creation
+        }
+      }
+
       return { challengeId };
     },
     onSuccess: () => {
