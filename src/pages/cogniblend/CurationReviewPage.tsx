@@ -3265,7 +3265,86 @@ export default function CurationReviewPage() {
 
                     switch (section.key) {
                       // ── Rich text sections ──
-                      case "problem_statement":
+                      case "problem_statement": {
+                        const resolvedSegIdPS = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
+                        const tfPS = parseJson<any>(challenge.targeting_filters);
+                        const segmentFromIntakePS = !!(tfPS?.industries?.length > 0) && !tfPS?.industry_segment_id;
+                        return (
+                          <>
+                            {/* Industry Segment — mandatory prerequisite field */}
+                            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5 mb-3">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
+                                {segmentFromIntakePS && resolvedSegIdPS && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
+                                )}
+                                {!resolvedSegIdPS && !isReadOnly && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">Required</Badge>
+                                )}
+                              </div>
+
+                              {/* Read-only: from intake or viewer mode */}
+                              {resolvedSegIdPS && (segmentFromIntakePS || isReadOnly) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {industrySegments?.find(s => s.id === resolvedSegIdPS)?.name ?? "Loading…"}
+                                </Badge>
+                              )}
+
+                              {/* Editable: curator-set, allow change */}
+                              {resolvedSegIdPS && !segmentFromIntakePS && !isReadOnly && (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {industrySegments?.find(s => s.id === resolvedSegIdPS)?.name ?? "Loading…"}
+                                  </Badge>
+                                  <Select value={resolvedSegIdPS} onValueChange={handleIndustrySegmentChange}>
+                                    <SelectTrigger className="w-auto max-w-[220px] h-7 text-xs border-dashed">
+                                      <span className="text-muted-foreground">Change</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(industrySegments ?? []).map(seg => (
+                                        <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+
+                              {/* Not set: mandatory dropdown */}
+                              {!resolvedSegIdPS && !isReadOnly && (
+                                <Select onValueChange={handleIndustrySegmentChange}>
+                                  <SelectTrigger className="w-full max-w-sm h-8 text-sm border-destructive/50">
+                                    <SelectValue placeholder="Select industry segment…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(industrySegments ?? []).map(seg => (
+                                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {!resolvedSegIdPS && isReadOnly && (
+                                <p className="text-sm text-destructive italic">No industry segment specified — required before review.</p>
+                              )}
+                            </div>
+
+                            <RichTextSectionRenderer
+                              value={getFieldValue(challenge, section.key)}
+                              readOnly={isReadOnly || isLocked}
+                              editing={isEditing}
+                              onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
+                              onCancel={cancelEdit}
+                              onEdit={() => setEditingSection(section.key)}
+                              saving={savingSection}
+                            />
+                            {canEdit && !isEditing && (
+                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
+                                <Pencil className="h-3 w-3 mr-1" />Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
                       case "scope":
                       case "hook":
                         return (
