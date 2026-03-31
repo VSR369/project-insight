@@ -229,6 +229,7 @@ interface DraftPayload {
   orgId: string;
   creatorId: string;
   operatingModel: string;
+  title?: string;
   businessProblem: string;
   expectedOutcomes: string;
   constraints?: string;
@@ -244,7 +245,6 @@ interface DraftPayload {
   beneficiariesMapping?: string;
   templateId?: string;
   governanceModeOverride?: string;
-  // Extended brief context fields from Creator
   contextBackground?: string;
   rootCauses?: string;
   affectedStakeholders?: string;
@@ -252,6 +252,7 @@ interface DraftPayload {
   preferredApproach?: string;
   approachesNotOfInterest?: string;
   solutionExpectations?: string;
+  currentDeficiencies?: string;
   maturityLevel?: string;
   ipModel?: string;
 }
