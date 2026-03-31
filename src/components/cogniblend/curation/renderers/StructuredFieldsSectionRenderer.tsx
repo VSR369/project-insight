@@ -1,9 +1,12 @@
 /**
  * StructuredFieldsSectionRenderer — Read-only display for structured data.
  * Used for: escrow_funding (always read-only)
+ * Phase 3: Added escrow toggle for STRUCTURED governance (optional escrow).
  */
 
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ShieldCheck, AlertTriangle } from "lucide-react";
 
 interface EscrowData {
@@ -22,13 +25,23 @@ interface EscrowData {
 interface StructuredFieldsSectionRendererProps {
   escrow: EscrowData | null;
   isControlledMode: boolean;
+  /** Governance mode for toggle logic */
+  governanceMode?: 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
+  /** Whether escrow is enabled (for STRUCTURED toggle) */
+  escrowEnabled?: boolean;
+  /** Callback when escrow toggle changes */
+  onEscrowToggle?: (enabled: boolean) => void;
 }
 
 export function StructuredFieldsSectionRenderer({
   escrow,
   isControlledMode,
+  governanceMode,
+  escrowEnabled,
+  onEscrowToggle,
 }: StructuredFieldsSectionRendererProps) {
-  if (!isControlledMode) {
+  // QUICK mode: escrow never required
+  if (!isControlledMode && governanceMode !== 'STRUCTURED') {
     return (
       <div className="flex items-start gap-2">
         <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -37,6 +50,44 @@ export function StructuredFieldsSectionRenderer({
     );
   }
 
+  // STRUCTURED mode: optional toggle
+  if (governanceMode === 'STRUCTURED') {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between rounded-md border border-border p-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="escrow-toggle" className="text-sm font-medium cursor-pointer">
+              Enable escrow for this challenge
+            </Label>
+          </div>
+          <Switch
+            id="escrow-toggle"
+            checked={escrowEnabled ?? false}
+            onCheckedChange={onEscrowToggle}
+          />
+        </div>
+        {escrowEnabled ? (
+          escrow ? (
+            <EscrowDetails escrow={escrow} />
+          ) : (
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                Escrow enabled. Finance Coordinator has not yet set up funding.
+              </p>
+            </div>
+          )
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Escrow is optional for Structured governance. Enable to require funding before publication.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // CONTROLLED mode: mandatory escrow
   if (!escrow) {
     return (
       <div className="flex items-start gap-2">
@@ -48,6 +99,10 @@ export function StructuredFieldsSectionRenderer({
     );
   }
 
+  return <EscrowDetails escrow={escrow} />;
+}
+
+function EscrowDetails({ escrow }: { escrow: EscrowData }) {
   const isFunded = escrow.escrow_status === "FUNDED";
 
   return (
