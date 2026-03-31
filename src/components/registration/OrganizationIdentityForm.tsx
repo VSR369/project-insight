@@ -92,7 +92,9 @@ export function OrganizationIdentityForm() {
     defaultValues: {
       legal_entity_name: state.step1?.legal_entity_name ?? '',
       trade_brand_name: state.step1?.trade_brand_name ?? '',
+      organization_description: state.step1?.organization_description ?? '',
       website_url: (state.step1 as any)?.website_url ?? '',
+      linkedin_url: state.step1?.linkedin_url ?? '',
       business_registration_number: (state.step1 as any)?.business_registration_number ?? '',
       organization_type_id: state.step1?.organization_type_id ?? '',
       industry_ids: state.step1?.industry_ids ?? [],
