@@ -1338,15 +1338,7 @@ export default function AISpecReviewPage() {
           specialityIds: selectedSpecialityIds,
           assignedBy: user.id,
         });
-        await autoAssignChallengeRole({
-          challengeId,
-          roleCode: 'ID',
-          industrySegmentId,
-          proficiencyAreaIds: selectedProfAreaIds,
-          subDomainIds: selectedSubDomainIds,
-          specialityIds: selectedSpecialityIds,
-          assignedBy: user.id,
-        });
+        // ID role removed per Role Architecture v2 — CU already assigned above
       } catch {
         // Non-blocking — assignments may not find matches
       }
@@ -1448,15 +1440,7 @@ export default function AISpecReviewPage() {
           specialityIds: selectedSpecialityIds,
           assignedBy: user.id,
         });
-        await autoAssignChallengeRole({
-          challengeId,
-          roleCode: 'ID',
-          industrySegmentId,
-          proficiencyAreaIds: selectedProfAreaIds,
-          subDomainIds: selectedSubDomainIds,
-          specialityIds: selectedSpecialityIds,
-          assignedBy: user.id,
-        });
+        // ID role removed per Role Architecture v2 — CU already assigned above
       } catch {
         // Non-blocking — assignments may not find matches
       }
