@@ -9,7 +9,7 @@
  *   CONTROLLED: 8 essential + 5 context fields required
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -132,6 +132,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
   const [showTierModal, setShowTierModal] = useState(false);
   const [activeTab, setActiveTab] = useState('essential');
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
 
   const schema = useMemo(
     () => buildCreatorSchema(governanceMode, engagementModel),
@@ -197,7 +199,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       const payload = buildPayload(data);
       const result = await submitMutation.mutateAsync(payload);
 
-      // Store extended_brief + maturity_level + ip_model
+       // Store extended_brief + maturity_level + ip_model + reference_urls
       if (result.challengeId) {
         await supabase
           .from('challenges')
@@ -211,9 +213,34 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
               affected_stakeholders: data.affected_stakeholders || undefined,
               current_deficiencies: data.current_deficiencies || undefined,
               root_causes: data.root_causes || undefined,
+              reference_urls: referenceUrls.length > 0 ? referenceUrls : undefined,
             },
           } as any)
           .eq('id', result.challengeId);
+
+        // Upload attached files to challenge_attachments
+        if (attachedFiles.length > 0 && currentOrg?.organizationId) {
+          for (const file of attachedFiles) {
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storagePath = `${currentOrg.organizationId}/challenges/${result.challengeId}/${crypto.randomUUID()}_${safeName}`;
+            const { error: uploadErr } = await supabase.storage
+              .from('challenge-attachments')
+              .upload(storagePath, file, { upsert: false, cacheControl: '3600' });
+
+            if (!uploadErr) {
+              await supabase.from('challenge_attachments').insert({
+                challenge_id: result.challengeId,
+                section_key: 'creator_reference',
+                source_type: 'file',
+                storage_path: storagePath,
+                file_name: file.name,
+                file_size: file.size,
+                mime_type: file.type,
+                uploaded_by: user?.id ?? null,
+              });
+            }
+          }
+        }
       }
       navigate('/cogni/my-challenges');
     } catch {
@@ -273,7 +300,13 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
           </TabsContent>
 
           <TabsContent value="context" className="mt-6">
-            <AdditionalContextTab governanceMode={governanceMode} />
+            <AdditionalContextTab
+              governanceMode={governanceMode}
+              attachedFiles={attachedFiles}
+              onFilesChange={setAttachedFiles}
+              referenceUrls={referenceUrls}
+              onUrlsChange={setReferenceUrls}
+            />
           </TabsContent>
         </Tabs>
 
