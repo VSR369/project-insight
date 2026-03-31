@@ -250,29 +250,13 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     }
     try {
       const payload = buildPayload(data);
-      const result = await submitMutation.mutateAsync(payload);
+      const result = await submitMutation.mutateAsync({
+        ...payload,
+        referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,
+      });
 
-       // Store extended_brief + maturity_level + ip_model + reference_urls
-      if (result.challengeId) {
-        await supabase
-          .from('challenges')
-          .update({
-            maturity_level: data.maturity_level,
-            ip_model: data.ip_model || null,
-            extended_brief: {
-              context_background: data.context_background || undefined,
-              preferred_approach: data.preferred_approach || undefined,
-              approaches_not_of_interest: data.approaches_not_of_interest || undefined,
-              affected_stakeholders: data.affected_stakeholders || undefined,
-              current_deficiencies: data.current_deficiencies || undefined,
-              root_causes: data.root_causes || undefined,
-              reference_urls: referenceUrls.length > 0 ? referenceUrls : undefined,
-            },
-          } as any)
-          .eq('id', result.challengeId);
-
-        // Upload attached files to challenge_attachments
-        if (attachedFiles.length > 0 && currentOrg?.organizationId) {
+       // Upload attached files only (extended_brief already saved in Write 1)
+      if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId) {
           for (const file of attachedFiles) {
             const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
             const storagePath = `${currentOrg.organizationId}/challenges/${result.challengeId}/${crypto.randomUUID()}_${safeName}`;

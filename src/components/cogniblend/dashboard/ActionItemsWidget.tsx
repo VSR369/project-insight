@@ -90,7 +90,7 @@ export function ActionItemsWidget() {
 
       {/* ── Stat Cards ───────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <Card className="border-border">
+        <Card className="border-border cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/cogni/my-challenges')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <FileText className="h-5 w-5 text-primary" />
@@ -101,7 +101,7 @@ export function ActionItemsWidget() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className="border-border cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/cogni/my-challenges')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
               <Clock className="h-5 w-5 text-amber-600" />
@@ -112,7 +112,7 @@ export function ActionItemsWidget() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className="border-border cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/cogni/my-challenges')}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-destructive" />
