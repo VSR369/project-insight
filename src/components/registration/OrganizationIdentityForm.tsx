@@ -305,6 +305,7 @@ export function OrganizationIdentityForm() {
       setStep1Data({
         legal_entity_name: data.legal_entity_name,
         trade_brand_name: data.trade_brand_name || undefined,
+        organization_description: data.organization_description || undefined,
         organization_type_id: data.organization_type_id,
         industry_ids: data.industry_ids,
         company_size_range: data.company_size_range,
@@ -314,6 +315,7 @@ export function OrganizationIdentityForm() {
         state_province_id: data.state_province_id,
         city: data.city,
         operating_geography_ids: data.operating_geography_ids,
+        linkedin_url: data.linkedin_url || undefined,
         verification_documents: verificationFiles.length > 0 ? verificationFiles : undefined,
         website_url: data.website_url || undefined,
         business_registration_number: data.business_registration_number || undefined,
