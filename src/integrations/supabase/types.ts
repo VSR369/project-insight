@@ -12587,8 +12587,8 @@ export type Database = {
         Args: {
           p_challenge_id: string
           p_creator_id: string
-          p_governance_profile: string
-          p_operating_model: string
+          p_governance_profile?: string
+          p_operating_model?: string
         }
         Returns: Json
       }

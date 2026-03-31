@@ -146,17 +146,16 @@ export function useSubmitSolutionRequest() {
         try {
           const { data: defaultTemplates } = await supabase
             .from('legal_document_templates' as any)
-            .select('document_type, document_name, content_summary')
+            .select('document_type, document_name, description')
             .eq('tier', 'TIER_1')
-            .eq('is_active', true)
-            .eq('is_default', true);
+            .eq('is_active', true);
 
           if (defaultTemplates && defaultTemplates.length > 0) {
             const legalInserts = (defaultTemplates as any[]).map((tpl) => ({
               challenge_id: challengeId,
               document_type: tpl.document_type,
               document_name: tpl.document_name,
-              content_summary: tpl.content_summary,
+              content_summary: tpl.description || null,
               tier: 'TIER_1',
               status: 'auto_accepted',
               lc_status: 'approved',
