@@ -198,6 +198,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     submission_guidelines: c.submission_guidelines as Record<string, unknown> | null,
     functional_area: c.functional_area as string | null,
     target_geography: c.target_geography as string | null,
+    creator_snapshot: c.creator_snapshot as Record<string, unknown> | null,
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
     industry_name: (industry?.name as string) ?? null,
