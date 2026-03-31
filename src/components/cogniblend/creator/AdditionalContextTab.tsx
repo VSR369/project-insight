@@ -1,7 +1,7 @@
 /**
  * AdditionalContextTab — Tab 2 of Challenge Creator Form.
- * Optional fields that enrich AI quality. Field keys match
- * curator section_keys in extended_brief for direct pipeline flow.
+ * Governance-aware: QUICK = optional, STRUCTURED = recommended, CONTROLLED = required.
+ * Field keys match curator section_keys in extended_brief for direct pipeline flow.
  */
 
 import { Controller, useFormContext } from 'react-hook-form';
@@ -14,7 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AlertTriangle } from 'lucide-react';
 import type { CreatorFormValues } from './ChallengeCreatorForm';
+import type { GovernanceMode } from '@/lib/governanceMode';
 
 const TIMELINE_OPTIONS = [
   { value: '4w', label: '4 weeks' },
@@ -32,35 +34,57 @@ const CONTEXT_FIELDS = [
   { key: 'root_causes' as const, label: 'Root Causes', placeholder: 'Why does this problem exist?' },
 ] as const;
 
-export function AdditionalContextTab() {
-  const { control } = useFormContext<CreatorFormValues>();
+interface AdditionalContextTabProps {
+  governanceMode: GovernanceMode;
+}
+
+export function AdditionalContextTab({ governanceMode }: AdditionalContextTabProps) {
+  const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
+  const isControlled = governanceMode === 'CONTROLLED';
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
-        <span className="text-sm">📋</span>
-        <p className="text-xs text-muted-foreground">
-          These fields are optional but strongly recommended. They feed directly into the AI
-          curation pipeline — richer context produces higher-quality challenge specs.
-        </p>
-      </div>
-
-      {CONTEXT_FIELDS.map((cf) => (
-        <div key={cf.key} className="space-y-2">
-          <Label className="text-sm font-medium">{cf.label}</Label>
-          <Controller
-            name={cf.key}
-            control={control}
-            render={({ field }) => (
-              <RichTextEditor
-                value={field.value ?? ''}
-                onChange={field.onChange}
-                placeholder={cf.placeholder}
-              />
-            )}
-          />
+      {isControlled ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-start gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <p className="text-xs text-destructive">
+            <span className="font-semibold">Controlled governance:</span> All context fields below are required
+            to meet compliance standards.
+          </p>
         </div>
-      ))}
+      ) : (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
+          <span className="text-sm">📋</span>
+          <p className="text-xs text-muted-foreground">
+            These fields are optional but strongly recommended. They feed directly into the AI
+            curation pipeline — richer context produces higher-quality challenge specs.
+          </p>
+        </div>
+      )}
+
+      {CONTEXT_FIELDS.map((cf) => {
+        const fieldError = (errors as any)[cf.key];
+        return (
+          <div key={cf.key} className="space-y-2">
+            <Label className="text-sm font-medium">
+              {cf.label}
+              {isControlled && <span className="text-destructive ml-1">*</span>}
+            </Label>
+            <Controller
+              name={cf.key}
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder={cf.placeholder}
+                />
+              )}
+            />
+            {fieldError && <p className="text-xs text-destructive">{fieldError.message}</p>}
+          </div>
+        );
+      })}
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Target Timeline</Label>

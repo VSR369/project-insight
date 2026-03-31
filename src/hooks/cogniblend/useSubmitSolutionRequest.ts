@@ -30,6 +30,7 @@ interface SubmitPayload {
   specialtyTags?: string[];
   beneficiariesMapping?: string;
   templateId?: string;
+  governanceModeOverride?: string;
 }
 
 interface SubmitResult {
