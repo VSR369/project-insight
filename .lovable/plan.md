@@ -1,51 +1,39 @@
 
 
-# Fix: Legacy `CA` Role Blocking "My Challenges" Visibility
+# Fix: Dashboard Showing Wrong Data + Invalid Routes
 
-## Root Cause
+## Root Cause Analysis
 
-The user has `role_code = 'CA'` (legacy Challenge Architect) in `user_challenge_roles`. The previous migration deactivated `AM`, `ID`, `RQ` but missed `CA`. The sidebar permission check `canSeeChallengePage` requires `'CR'`, so the menu item is hidden. The default CR fallback doesn't help because `allRoleCodes` is non-empty (contains `CA`).
+Three interlinked issues identified:
 
-## Fix (2 changes)
+### Issue 1: Active Challenges Shows 0
+In `ActionItemsWidget.tsx` line 37, `filteredChallengeItems` checks `ch.master_status === 'DRAFT'` but the system never uses `DRAFT` as a master_status — drafts are `IN_PREPARATION` with `current_phase === 1`. Same problem on line 47 checking for `RETURNED` and `PUBLISHED` on line 43. The actual challenge (`master_status: IN_PREPARATION`, `current_phase: 2`) passes the `activeChallenges` filter but may be excluded by the role-based filter if timing mismatches occur between `useMyChallenges` and `useCogniUserRoles` data.
 
-### 1. SQL Migration — Convert legacy `CA` roles to `CR`
+### Issue 2: Invalid Routes Show "Junk" Content
+`MyActionItemsSection.tsx` lines 83 and 94 navigate to `/cogni/my-challenges/${id}` — **this route does not exist**. No route is defined for `/cogni/my-challenges/:id` in App.tsx. This causes a fallback/catch-all rendering that shows unrelated content (likely the Curator workspace or another component).
 
-Update all active `CA` role assignments to `CR` in `user_challenge_roles`. Also deactivate any resulting duplicates (where user already has `CR` for the same challenge).
+### Issue 3: Request Lifecycle Journey Not Scoped to Creator
+The `CogniDashboardPage` passes `useMyChallenges` data to `RequestJourneySection`, but only when `isSpecRole` is true. This is correct but the journey section should show all the user's challenges regardless of `isSpecRole` filtering since the Creator always wants to see their challenge progress.
 
-```sql
--- Convert CA → CR (where no CR already exists for same user+challenge)
-UPDATE public.user_challenge_roles
-SET role_code = 'CR'
-WHERE role_code = 'CA' AND is_active = true
-  AND NOT EXISTS (
-    SELECT 1 FROM public.user_challenge_roles ucr2
-    WHERE ucr2.user_id = user_challenge_roles.user_id
-      AND ucr2.challenge_id = user_challenge_roles.challenge_id
-      AND ucr2.role_code = 'CR' AND ucr2.is_active = true
-  );
+## Fix Plan (3 files)
 
--- Deactivate remaining CA rows (duplicates)
-UPDATE public.user_challenge_roles
-SET is_active = false
-WHERE role_code = 'CA' AND is_active = true;
-```
+### 1. `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
+- **Line 83**: Change `/cogni/my-challenges/${targetId}` → `/cogni/challenges/${targetId}/view`
+- **Line 94**: Change `/cogni/my-challenges/${item.id}` → `/cogni/challenges/${item.id}/view`
 
-### 2. Frontend safety net — `useCogniPermissions.ts`
+### 2. `src/components/cogniblend/dashboard/ActionItemsWidget.tsx`
+- **Line 37**: Change `ch.master_status === 'DRAFT'` → `ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1` (matches actual draft detection)
+- **Line 43**: Remove `'PUBLISHED'` (not a valid master_status). Keep `ACTIVE` and `IN_PREPARATION`.
+- **Line 47**: Change `'DRAFT'` → drafts matching `IN_PREPARATION && phase 1`. Change `'RETURNED'` logic to check `phase_status` instead.
 
-Add `CA` as a legacy alias alongside `CR` in the `sees` and `can` checks, so any unconverted data still works:
-
-- `canSeeChallengePage: sees(['CR', 'CA'])`
-- `canSeeCreatorDashboard: sees(['CR', 'CA'])`
-- `canCreateChallenge: can(['CR', 'CA'])`
-- `canEditSpec: can(['CR', 'CA'])`
-- `isSpecRole: can(['CR', 'CA'])`
-
-Also update `SEEKING_ORG_ROLES` set to include `'CA'`.
+### 3. `src/pages/cogniblend/CogniDashboardPage.tsx`
+- Remove the `isSpecRole` gate on `journeyRequests` — always show lifecycle journey for Creator's own challenges.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| New SQL migration | Convert `CA` → `CR`, deactivate leftover `CA` |
-| `src/hooks/cogniblend/useCogniPermissions.ts` | Add `CA` as legacy alias in all CR permission checks |
+| `MyActionItemsSection.tsx` | Fix 2 invalid routes to `/cogni/challenges/:id/view` |
+| `ActionItemsWidget.tsx` | Fix draft/active status detection to match real master_status values |
+| `CogniDashboardPage.tsx` | Remove `isSpecRole` gate on journey section |
 
