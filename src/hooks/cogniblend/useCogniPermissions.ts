@@ -12,6 +12,9 @@
 
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 
+/** Seeking-org role codes — users with ONLY these have no solver features */
+const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
+
 export function useCogniPermissions() {
   const { activeRole, availableRoles } = useCogniRoleContext();
 
@@ -23,6 +26,10 @@ export function useCogniPermissions() {
   const can  = (codes: string[]) => codes.some(c => effectiveRoles.includes(c));
   const sees = (codes: string[]) => codes.some(c => visibilityRoles.includes(c));
 
+  // True when user holds at least one role outside the seeking-org set
+  const canSeeSolverFeatures = availableRoles.length > 0 &&
+    !availableRoles.every(r => SEEKING_ORG_ROLES.has(r));
+
   return {
     // ── Nav visibility flags (always based on ALL user roles) ──
     canSeeChallengePage:  sees(['CR']),
@@ -31,6 +38,7 @@ export function useCogniPermissions() {
     canSeeLegalWorkspace: sees(['LC']),
     canSeeEvaluation:     sees(['ER']),
     canSeeEscrow:         sees(['FC']),
+    canSeeSolverFeatures,
 
     // ── Action permissions (respects focused role) ──
     canCreateChallenge:   can(['CR']),

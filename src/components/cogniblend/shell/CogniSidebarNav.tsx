@@ -64,8 +64,8 @@ const SECTIONS: NavSection[] = [
     title: 'SOLVER',
     items: [
       { label: 'Browse Challenges', path: '/cogni/browse', icon: Search, isVisible: () => true },
-      { label: 'My Solutions', path: '/cogni/my-solutions', icon: Lightbulb, isVisible: () => true },
-      { label: 'My Portfolio', path: '/cogni/portfolio', icon: User, isVisible: () => true },
+      { label: 'My Solutions', path: '/cogni/my-solutions', icon: Lightbulb, isVisible: (p) => p.canSeeSolverFeatures },
+      { label: 'My Portfolio', path: '/cogni/portfolio', icon: User, isVisible: (p) => p.canSeeSolverFeatures },
     ],
   },
 ];
