@@ -21,7 +21,9 @@ export interface OrganizationIdentityData {
   city: string;
   operating_geography_ids: string[];
   organization_description?: string;
+  website_url?: string;
   linkedin_url?: string;
+  business_registration_number?: string;
   logo_file?: File;
   profile_document?: File;
   verification_documents?: File[];
