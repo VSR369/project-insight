@@ -40,8 +40,9 @@ const PURIFY_CONFIG = {
 
 export function SafeHtmlRenderer({ html, className, fallback = '—' }: SafeHtmlRendererProps) {
   const sanitized = useMemo(() => {
-    if (!html?.trim()) return null;
-    return DOMPurify.sanitize(html, PURIFY_CONFIG);
+    const htmlStr = typeof html === 'string' ? html : html != null ? String(html) : '';
+    if (!htmlStr.trim()) return null;
+    return DOMPurify.sanitize(htmlStr, PURIFY_CONFIG);
   }, [html]);
 
   if (!sanitized) {
