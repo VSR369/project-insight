@@ -1,0 +1,558 @@
+/**
+ * CreatorChallengeDetailView — Dual-tab view: My Version (snapshot) + Curator Version (live).
+ * Vertical scrolling with search filter on section headings.
+ */
+
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Building2, Globe, Search, Target, Layers, BookOpen,
+  Info, Trophy, Clock, Tag, Briefcase, MapPin, ListChecks, BarChart3,
+  FileText, Scale, ShieldCheck, Lock,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
+import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
+
+/* ─── Helpers ────────────────────────────────────────────── */
+
+function complexityColor(level: string | null): string {
+  switch (level) {
+    case 'L1': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+    case 'L2': return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'L3': return 'bg-amber-100 text-amber-800 border-amber-300';
+    case 'L4': return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'L5': return 'bg-red-100 text-red-800 border-red-300';
+    default: return 'bg-muted text-muted-foreground border-border';
+  }
+}
+
+function formatCurrency(amount: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function getMaturityLabel(level: string | null): string {
+  switch (level) {
+    case 'blueprint': return 'Blueprint';
+    case 'poc': return 'Proof of Concept';
+    case 'prototype': return 'Prototype';
+    case 'pilot': return 'Pilot';
+    default: return level || '—';
+  }
+}
+
+function governanceLabel(profile: string | null): string {
+  switch (profile) {
+    case 'LIGHTWEIGHT': return 'Quick';
+    case 'STRUCTURED': return 'Structured';
+    case 'CONTROLLED': return 'Controlled';
+    default: return profile || '—';
+  }
+}
+
+/* ─── Section rendering helpers ──────────────────────────── */
+
+interface SectionDef {
+  title: string;
+  icon: React.ElementType;
+  content: React.ReactNode | null;
+}
+
+function RichTextSection({ title, html, icon: Icon }: { title: string; html: string | null | undefined; icon: React.ElementType }) {
+  if (!html) return null;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <SafeHtmlRenderer html={html} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function BadgeSection({ title, icon: Icon, value }: { title: string; icon: React.ElementType; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Badge variant="secondary" className="text-xs font-semibold">{value}</Badge>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ListSection({ title, icon: Icon, items }: { title: string; icon: React.ElementType; items: Array<{ name?: string; title?: string; target?: string }> | null | undefined }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-1.5">
+          {items.map((item, i) => (
+            <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+              <span className="text-primary font-bold mt-0.5">•</span>
+              {item.name || item.title || JSON.stringify(item)}
+              {item.target ? ` — Target: ${item.target}` : ''}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WeightedCriteriaSection({ title, criteria }: { title: string; criteria: Array<{ name: string; weight: number }> }) {
+  if (!criteria || criteria.length === 0) return null;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <BarChart3 className="h-3.5 w-3.5 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="relative w-full overflow-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Criterion</th>
+                <th className="text-right py-2 pl-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              {criteria.map((c, i) => (
+                <tr key={i} className="border-b border-border/50 last:border-0">
+                  <td className="py-2.5 pr-4 text-foreground font-medium">{c.name}</td>
+                  <td className="py-2.5 pl-4 text-right">
+                    <Badge variant="secondary" className="text-xs font-bold tabular-nums">{c.weight}%</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TagsSection({ title, tags }: { title: string; tags: string[] | null | undefined }) {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <Tag className="h-3.5 w-3.5 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {tags.map((tag, i) => (
+            <Badge key={i} variant="outline" className="text-xs">{String(tag)}</Badge>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyPlaceholder({ message }: { message: string }) {
+  return (
+    <Card className="border-dashed">
+      <CardContent className="py-8 text-center">
+        <p className="text-sm text-muted-foreground italic">{message}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Search + Filter ────────────────────────────────────── */
+
+function FilteredSections({ sections, searchTerm }: { sections: SectionDef[]; searchTerm: string }) {
+  const filtered = useMemo(() => {
+    if (!searchTerm.trim()) return sections.filter((s) => s.content !== null);
+    const lower = searchTerm.toLowerCase();
+    return sections.filter((s) => s.content !== null && s.title.toLowerCase().includes(lower));
+  }, [sections, searchTerm]);
+
+  if (filtered.length === 0) {
+    return <EmptyPlaceholder message={searchTerm ? `No sections matching "${searchTerm}"` : 'No content available.'} />;
+  }
+
+  return <>{filtered.map((s) => <div key={s.title}>{s.content}</div>)}</>;
+}
+
+/* ─── Main Component ─────────────────────────────────────── */
+
+interface CreatorChallengeDetailViewProps {
+  data: PublicChallengeData;
+  challengeId: string;
+}
+
+export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallengeDetailViewProps) {
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
+  const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
+
+  /* ── Build "My Version" sections from snapshot ── */
+  const myVersionSections: SectionDef[] = useMemo(() => {
+    if (!snapshot) return [];
+    const eb = (snapshot.extended_brief ?? {}) as Record<string, unknown>;
+    const rs = (snapshot.reward_structure ?? {}) as Record<string, unknown>;
+    const currency = (snapshot.currency as string) || (rs.currency as string) || 'USD';
+    const budgetMin = Number(snapshot.budget_min ?? rs.budget_min ?? 0);
+    const budgetMax = Number(snapshot.budget_max ?? rs.budget_max ?? 0);
+
+    return [
+      {
+        title: 'Problem Statement',
+        icon: Target,
+        content: snapshot.problem_statement ? <RichTextSection title="Problem Statement" html={snapshot.problem_statement as string} icon={Target} /> : null,
+      },
+      {
+        title: 'Scope / Constraints',
+        icon: Layers,
+        content: snapshot.scope ? <RichTextSection title="Scope / Constraints" html={snapshot.scope as string} icon={Layers} /> : null,
+      },
+      {
+        title: 'Expected Outcomes',
+        icon: ListChecks,
+        content: snapshot.expected_outcomes ? (
+          <Card className="border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <ListChecks className="h-3.5 w-3.5 text-primary" /> Expected Outcomes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{String(snapshot.expected_outcomes)}</p>
+            </CardContent>
+          </Card>
+        ) : null,
+      },
+      {
+        title: 'Context & Background',
+        icon: BookOpen,
+        content: eb.context_background ? <RichTextSection title="Context & Background" html={eb.context_background as string} icon={BookOpen} /> : null,
+      },
+      {
+        title: 'Root Causes',
+        icon: Info,
+        content: eb.root_causes ? <RichTextSection title="Root Causes" html={eb.root_causes as string} icon={Info} /> : null,
+      },
+      {
+        title: 'Affected Stakeholders',
+        icon: Info,
+        content: eb.affected_stakeholders ? <RichTextSection title="Affected Stakeholders" html={eb.affected_stakeholders as string} icon={Info} /> : null,
+      },
+      {
+        title: 'Current Deficiencies',
+        icon: Info,
+        content: eb.current_deficiencies ? <RichTextSection title="Current Deficiencies" html={eb.current_deficiencies as string} icon={Info} /> : null,
+      },
+      {
+        title: 'Preferred Approach',
+        icon: Info,
+        content: eb.preferred_approach ? <RichTextSection title="Preferred Approach" html={eb.preferred_approach as string} icon={Info} /> : null,
+      },
+      {
+        title: 'Approaches Not of Interest',
+        icon: Info,
+        content: eb.approaches_not_of_interest ? <RichTextSection title="Approaches Not of Interest" html={eb.approaches_not_of_interest as string} icon={Info} /> : null,
+      },
+      {
+        title: 'Budget Range',
+        icon: Trophy,
+        content: (budgetMin > 0 || budgetMax > 0) ? (
+          <Card className="border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <Trophy className="h-3.5 w-3.5 text-primary" /> Budget Range
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-bold text-foreground">
+                {budgetMin > 0 && `${formatCurrency(budgetMin, currency)} — `}
+                {formatCurrency(budgetMax, currency)}
+                <span className="text-sm font-normal text-muted-foreground ml-1.5">{currency}</span>
+              </p>
+            </CardContent>
+          </Card>
+        ) : null,
+      },
+      {
+        title: 'Expected Timeline',
+        icon: Clock,
+        content: snapshot.expected_timeline ? (
+          <Card className="border-border">
+            <CardContent className="p-4 flex items-center gap-3">
+              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Expected Timeline</p>
+                <p className="text-sm font-medium text-foreground">{String(snapshot.expected_timeline)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null,
+      },
+      {
+        title: 'Maturity Level',
+        icon: Layers,
+        content: snapshot.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(snapshot.maturity_level as string)} /> : null,
+      },
+      {
+        title: 'IP Model',
+        icon: Briefcase,
+        content: snapshot.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={(snapshot.ip_model as string).replace(/_/g, ' ')} /> : null,
+      },
+      {
+        title: 'Domain Tags',
+        icon: Tag,
+        content: (snapshot.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={snapshot.domain_tags as string[]} /> : null,
+      },
+    ];
+  }, [snapshot]);
+
+  /* ── Build "Curator Version" sections from live challenge data ── */
+  const curatorSections: SectionDef[] = useMemo(() => {
+    const eb = data.extended_brief ?? {};
+    const rs = data.reward_structure ?? {};
+    const currency = data.currency_code || 'USD';
+    const evalCriteria = data.evaluation_criteria as Record<string, unknown> | null;
+    const weightedCriteria = (evalCriteria?.weighted_criteria ?? evalCriteria?.criteria ?? []) as Array<{ name: string; weight: number }>;
+    const deliverables = data.deliverables as Record<string, unknown> | null;
+    const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as any[];
+    const outcomeItems = (data.expected_outcomes as any)?.items as Array<{ name: string }> | undefined;
+    const metricsItems = (data.success_metrics_kpis as any)?.items as Array<{ name: string; target?: string }> | undefined;
+    const dataResources = data.data_resources_provided as Record<string, unknown> | null;
+    const dataResourceItems = (dataResources?.items ?? []) as Array<{ name: string }>;
+    const subGuidelines = data.submission_guidelines as Record<string, unknown> | null;
+    const guidelinesHtml = (subGuidelines?.content ?? subGuidelines?.guidelines ?? null) as string | null;
+    const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
+    const platinumAward = Number(rs.platinum_award ?? rs.budget_max ?? 0);
+    const goldAward = Number(rs.gold_award ?? 0);
+    const silverAward = Number(rs.silver_award ?? 0);
+
+    return [
+      { title: 'Problem Statement', icon: Target, content: data.problem_statement ? <RichTextSection title="Problem Statement" html={data.problem_statement} icon={Target} /> : null },
+      { title: 'Scope', icon: Layers, content: data.scope ? <RichTextSection title="Scope" html={data.scope} icon={Layers} /> : null },
+      { title: 'Expected Outcomes', icon: ListChecks, content: outcomeItems?.length ? <ListSection title="Expected Outcomes" icon={ListChecks} items={outcomeItems} /> : null },
+      { title: 'Context & Background', icon: BookOpen, content: (eb as any).context_background ? <RichTextSection title="Context & Background" html={(eb as any).context_background} icon={BookOpen} /> : null },
+      { title: 'Root Causes', icon: Info, content: (eb as any).root_causes ? <RichTextSection title="Root Causes" html={(eb as any).root_causes} icon={Info} /> : null },
+      { title: 'Affected Stakeholders', icon: Info, content: (eb as any).affected_stakeholders ? <RichTextSection title="Affected Stakeholders" html={(eb as any).affected_stakeholders} icon={Info} /> : null },
+      { title: 'Current Deficiencies', icon: Info, content: (eb as any).current_deficiencies ? <RichTextSection title="Current Deficiencies" html={(eb as any).current_deficiencies} icon={Info} /> : null },
+      { title: 'Preferred Approach', icon: Info, content: (eb as any).preferred_approach ? <RichTextSection title="Preferred Approach" html={(eb as any).preferred_approach} icon={Info} /> : null },
+      { title: 'Approaches Not of Interest', icon: Info, content: (eb as any).approaches_not_of_interest ? <RichTextSection title="Approaches Not of Interest" html={(eb as any).approaches_not_of_interest} icon={Info} /> : null },
+      { title: 'Value Proposition (Hook)', icon: Info, content: data.hook ? <RichTextSection title="Value Proposition (Hook)" html={data.hook} icon={Info} /> : null },
+      { title: 'Solution Type', icon: Briefcase, content: data.solution_type ? <BadgeSection title="Solution Type" icon={Briefcase} value={data.solution_type} /> : null },
+      { title: 'Deliverables', icon: FileText, content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d: any) => ({ name: typeof d === 'string' ? d : d?.name ?? d?.title ?? JSON.stringify(d) }))} /> : null },
+      { title: 'Maturity Level', icon: Layers, content: data.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(data.maturity_level)} /> : null },
+      { title: 'Data Resources Provided', icon: FileText, content: dataResourceItems.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
+      { title: 'Success Metrics & KPIs', icon: BarChart3, content: metricsItems?.length ? <ListSection title="Success Metrics & KPIs" icon={BarChart3} items={metricsItems} /> : null },
+      { title: 'Complexity', icon: BarChart3, content: data.complexity_level ? (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <BarChart3 className="h-3.5 w-3.5 text-primary" /> Complexity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Badge className={cn('text-xs font-semibold border', complexityColor(data.complexity_level))}>
+              {data.complexity_level}
+              {data.complexity_score != null && ` — ${Number(data.complexity_score).toFixed(1)}`}
+            </Badge>
+          </CardContent>
+        </Card>
+      ) : null },
+      { title: 'Effort Level', icon: BarChart3, content: data.effort_level ? <BadgeSection title="Effort Level" icon={BarChart3} value={data.effort_level} /> : null },
+      { title: 'Eligibility', icon: ShieldCheck, content: data.eligibility ? <BadgeSection title="Eligibility" icon={ShieldCheck} value={data.eligibility} /> : null },
+      { title: 'Evaluation Criteria', icon: BarChart3, content: weightedCriteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={weightedCriteria} /> : null },
+      { title: 'Submission Guidelines', icon: FileText, content: guidelinesHtml ? <RichTextSection title="Submission Guidelines" html={guidelinesHtml} icon={FileText} /> : null },
+      { title: 'Reward Structure', icon: Trophy, content: platinumAward > 0 ? (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Trophy className="h-3.5 w-3.5 text-primary" /> Reward Structure
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1 text-sm">
+              <p><span className="font-medium text-foreground">Budget Max:</span> <span className="text-muted-foreground">{formatCurrency(platinumAward, currency)}</span></p>
+              {goldAward > 0 && <p><span className="font-medium text-foreground">Gold:</span> <span className="text-muted-foreground">{formatCurrency(goldAward, currency)}</span></p>}
+              {silverAward > 0 && <p><span className="font-medium text-foreground">Silver:</span> <span className="text-muted-foreground">{formatCurrency(silverAward, currency)}</span></p>}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null },
+      { title: 'IP Model', icon: Briefcase, content: data.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={data.ip_model.replace(/_/g, ' ')} /> : null },
+      { title: 'Phase Schedule', icon: Clock, content: phaseSchedule && Object.keys(phaseSchedule).length ? (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-primary" /> Phase Schedule
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(phaseSchedule).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between rounded-lg bg-muted/30 border border-border px-4 py-2.5">
+                  <p className="text-[13px] font-semibold text-foreground capitalize">{key.replace(/_/g, ' ')}</p>
+                  <Badge variant="outline" className="text-xs font-bold">{String(value)}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null },
+      { title: 'Governance', icon: Scale, content: data.governance_profile ? <BadgeSection title="Governance Profile" icon={Scale} value={governanceLabel(data.governance_profile)} /> : null },
+      { title: 'Visibility', icon: Globe, content: data.challenge_visibility ? <BadgeSection title="Visibility" icon={Globe} value={data.challenge_visibility} /> : null },
+      { title: 'Functional Area', icon: Briefcase, content: data.functional_area ? <BadgeSection title="Functional Area" icon={Briefcase} value={data.functional_area} /> : null },
+      { title: 'Target Geography', icon: MapPin, content: data.target_geography ? <BadgeSection title="Target Geography" icon={MapPin} value={data.target_geography} /> : null },
+      { title: 'Domain Tags', icon: Tag, content: (data.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={data.domain_tags as string[]} /> : null },
+    ];
+  }, [data]);
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Back nav */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate('/cogni/my-challenges')}
+        className="text-muted-foreground hover:text-foreground -ml-2"
+      >
+        <ArrowLeft className="h-4 w-4 mr-1" /> My Challenges
+      </Button>
+
+      {/* Hero */}
+      <div className="space-y-4">
+        {(data.organization_name || data.industry_name) && (
+          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            {(data.organization_name || data.trade_brand_name) && (
+              <span className="flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" />
+                {data.trade_brand_name || data.organization_name}
+              </span>
+            )}
+            {data.industry_name && (
+              <span className="flex items-center gap-1.5">
+                <Globe className="h-4 w-4" />
+                {data.industry_name}
+              </span>
+            )}
+          </div>
+        )}
+
+        <h1 className="text-2xl font-bold text-primary tracking-tight leading-tight">
+          {data.title}
+        </h1>
+
+        {/* Status badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          {data.master_status === 'IN_PREPARATION' && (
+            <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 bg-amber-50">
+              {data.current_phase === 1 ? 'Draft' : 'In Curation'}
+            </Badge>
+          )}
+          {data.master_status === 'ACTIVE' && (
+            <Badge variant="outline" className="text-xs font-semibold border-emerald-300 text-emerald-700 bg-emerald-50">
+              Published
+            </Badge>
+          )}
+          {data.master_status === 'COMPLETED' && (
+            <Badge variant="outline" className="text-xs font-semibold border-blue-300 text-blue-700 bg-blue-50">
+              Completed
+            </Badge>
+          )}
+          {data.governance_profile && (
+            <Badge variant="secondary" className="text-xs font-semibold">
+              {governanceLabel(data.governance_profile)}
+            </Badge>
+          )}
+          {data.complexity_level && (
+            <Badge className={cn('text-xs font-semibold border', complexityColor(data.complexity_level))}>
+              {data.complexity_level}
+              {data.complexity_score != null && ` — ${Number(data.complexity_score).toFixed(1)}`}
+            </Badge>
+          )}
+          {data.current_phase != null && (
+            <Badge variant="outline" className="text-xs font-semibold">
+              Phase {data.current_phase}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Dual-tab view */}
+      <Tabs defaultValue={hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          <TabsList className="w-auto">
+            <TabsTrigger value="my-version" className="gap-1.5 text-xs">
+              <FileText className="h-3.5 w-3.5" /> My Version
+            </TabsTrigger>
+            <TabsTrigger value="curator-version" className="gap-1.5 text-xs">
+              <BookOpen className="h-3.5 w-3.5" /> Curator Version
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search sections..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
+        </div>
+
+        {/* My Version tab */}
+        <TabsContent value="my-version" className="space-y-4">
+          {hasSnapshot ? (
+            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
+          ) : (
+            <Card className="border-dashed border-amber-300 bg-amber-50/50">
+              <CardContent className="py-8 text-center">
+                <Info className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-amber-800">Original submission data is not available</p>
+                <p className="text-xs text-amber-600 mt-1">This challenge was created before snapshot tracking was enabled. Please view the Curator Version instead.</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Curator Version tab */}
+        <TabsContent value="curator-version" className="space-y-4">
+          <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+        </TabsContent>
+      </Tabs>
+
+      {/* Q&A section */}
+      <ChallengeQASection challengeId={challengeId} />
+      <div className="pb-8" />
+    </div>
+  );
+}

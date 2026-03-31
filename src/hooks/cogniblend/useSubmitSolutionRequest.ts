@@ -129,6 +129,39 @@ export function useSubmitSolutionRequest() {
 
       if (updateError) throw new Error(updateError.message);
 
+      // 2b. Save creator_snapshot — immutable record of original submission
+      const creatorSnapshot = {
+        problem_statement: payload.businessProblem,
+        scope: payload.constraints || null,
+        expected_outcomes: payload.expectedOutcomes || null,
+        reward_structure: rewardStructure,
+        phase_schedule: phaseSchedule,
+        extended_brief: {
+          ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
+          ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
+          ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+          ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
+          ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
+          ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+          ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+          ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
+          ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
+          ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
+        },
+        maturity_level: payload.maturityLevel || null,
+        ip_model: payload.ipModel || null,
+        domain_tags: payload.domainTags,
+        budget_min: payload.budgetMin,
+        budget_max: payload.budgetMax,
+        currency: payload.currency,
+        expected_timeline: payload.expectedTimeline,
+      };
+
+      await supabase
+        .from('challenges')
+        .update({ creator_snapshot: creatorSnapshot } as any)
+        .eq('id', challengeId);
+
       // 3. Complete phase to advance from Phase 1 → Phase 2 (curation-ready)
       const { error: phaseError } = await supabase.rpc(
         'complete_phase',

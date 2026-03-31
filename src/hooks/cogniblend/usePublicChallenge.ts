@@ -98,7 +98,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           governance_profile, hook, effort_level, solution_type,
           data_resources_provided, success_metrics_kpis,
           submission_guidelines, functional_area, target_geography,
-          challenge_visibility,
+          challenge_visibility, creator_snapshot,
           seeker_organizations!challenges_organization_id_fkey (
             organization_name, trade_brand_name
           ),
