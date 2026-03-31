@@ -252,6 +252,8 @@ interface DraftPayload {
   preferredApproach?: string;
   approachesNotOfInterest?: string;
   solutionExpectations?: string;
+  maturityLevel?: string;
+  ipModel?: string;
 }
 
 export function useSaveDraft() {
