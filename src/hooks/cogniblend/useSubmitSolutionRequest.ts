@@ -294,3 +294,71 @@ export function useSaveDraft() {
     },
   });
 }
+
+/* ── Update existing draft ──────────────────────────────── */
+
+export function useUpdateDraft() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: DraftPayload & { challengeId: string }): Promise<{ challengeId: string }> => {
+      const { error: updateError } = await supabase
+        .from('challenges')
+        .update({
+          problem_statement: payload.businessProblem || null,
+          scope: payload.constraints || null,
+          expected_outcomes: payload.expectedOutcomes
+            ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] })
+            : null,
+          governance_mode_override: payload.governanceModeOverride ?? null,
+          reward_structure: {
+            currency: payload.currency,
+            budget_min: payload.budgetMin,
+            budget_max: payload.budgetMax,
+            source_role: 'CR',
+            source_date: new Date().toISOString(),
+            upstream_source: {
+              role: 'CR',
+              date: new Date().toISOString(),
+              budget_min: payload.budgetMin,
+              budget_max: payload.budgetMax,
+              currency: payload.currency,
+            },
+          },
+          phase_schedule: {
+            expected_timeline: payload.expectedTimeline,
+          },
+          eligibility: JSON.stringify({
+            domain_tags: payload.domainTags,
+            urgency: payload.urgency,
+            constraints: payload.constraints || undefined,
+            industry_segment_id: payload.industrySegmentId || undefined,
+          }),
+          extended_brief: {
+            ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
+            ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
+            ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
+            ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
+            ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+            ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
+            ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
+            ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+            ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+          },
+        } as any)
+        .eq('id', payload.challengeId);
+
+      if (updateError) throw new Error(updateError.message);
+
+      return { challengeId: payload.challengeId };
+    },
+    onSuccess: () => {
+      toast.success('Draft updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'update_draft' });
+    },
+  });
+}

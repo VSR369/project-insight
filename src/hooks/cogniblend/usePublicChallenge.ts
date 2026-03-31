@@ -35,12 +35,26 @@ export interface PublicChallengeData {
   isVisible: boolean;
   daysRemaining: number | null;
   challenge_enrollment: string | null;
+  challenge_visibility: string | null;
   tenant_id: string;
   organization_name: string | null;
   trade_brand_name: string | null;
   industry_name: string | null;
   status: string | null;
   master_status: string | null;
+  current_phase: number | null;
+  extended_brief: Record<string, unknown> | null;
+  expected_outcomes: Record<string, unknown> | null;
+  domain_tags: unknown[] | null;
+  governance_profile: string | null;
+  hook: string | null;
+  effort_level: string | null;
+  solution_type: string | null;
+  data_resources_provided: Record<string, unknown> | null;
+  success_metrics_kpis: Record<string, unknown> | null;
+  submission_guidelines: Record<string, unknown> | null;
+  functional_area: string | null;
+  target_geography: string | null;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
@@ -79,7 +93,12 @@ export function usePublicChallenge(challengeId: string | undefined) {
           operating_model, visibility, eligibility, currency_code,
           submission_deadline, published_at, tenant_id, ip_model,
           reward_structure, evaluation_criteria, deliverables, phase_schedule,
-          status, master_status,
+          status, master_status, current_phase,
+          extended_brief, expected_outcomes, domain_tags,
+          governance_profile, hook, effort_level, solution_type,
+          data_resources_provided, success_metrics_kpis,
+          submission_guidelines, functional_area, target_geography,
+          challenge_visibility,
           seeker_organizations!challenges_organization_id_fkey (
             organization_name, trade_brand_name
           ),
@@ -161,9 +180,23 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     ip_model: c.ip_model as string | null,
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
     challenge_enrollment: c.challenge_enrollment as string | null,
+    challenge_visibility: c.challenge_visibility as string | null,
     tenant_id: c.tenant_id as string,
     status: c.status as string | null,
     master_status: c.master_status as string | null,
+    current_phase: c.current_phase as number | null,
+    extended_brief: c.extended_brief as Record<string, unknown> | null,
+    expected_outcomes: c.expected_outcomes as Record<string, unknown> | null,
+    domain_tags: c.domain_tags as unknown[] | null,
+    governance_profile: c.governance_profile as string | null,
+    hook: c.hook as string | null,
+    effort_level: c.effort_level as string | null,
+    solution_type: c.solution_type as string | null,
+    data_resources_provided: c.data_resources_provided as Record<string, unknown> | null,
+    success_metrics_kpis: c.success_metrics_kpis as Record<string, unknown> | null,
+    submission_guidelines: c.submission_guidelines as Record<string, unknown> | null,
+    functional_area: c.functional_area as string | null,
+    target_geography: c.target_geography as string | null,
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
     industry_name: (industry?.name as string) ?? null,

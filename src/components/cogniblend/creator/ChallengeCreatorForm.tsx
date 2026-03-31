@@ -9,18 +9,19 @@
  *   CONTROLLED: 8 essential + 5 context fields required
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Send, Save, Loader2, FlaskConical } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import { useSubmitSolutionRequest, useSaveDraft, useUpdateDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
@@ -123,17 +124,20 @@ interface ChallengeCreatorFormProps {
 
 export function ChallengeCreatorForm({ engagementModel, governanceMode }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
   const { data: tierLimit } = useTierLimitCheck();
   const submitMutation = useSubmitSolutionRequest();
   const draftMutation = useSaveDraft();
+  const updateDraftMutation = useUpdateDraft();
 
   const [showTierModal, setShowTierModal] = useState(false);
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
+  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(searchParams.get('draft'));
 
   const schema = useMemo(
     () => buildCreatorSchema(governanceMode, engagementModel),
@@ -164,8 +168,47 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     },
   });
 
+  // Load draft data when opened with ?draft=<id>
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!draftChallengeId || draftLoaded.current) return;
+    draftLoaded.current = true;
+    (async () => {
+      const { data: ch } = await supabase
+        .from('challenges')
+        .select('title, problem_statement, scope, maturity_level, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule')
+        .eq('id', draftChallengeId)
+        .maybeSingle();
+      if (!ch) return;
+      const rs = ch.reward_structure as Record<string, unknown> | null;
+      const eb = ch.extended_brief as Record<string, unknown> | null;
+      const eo = ch.expected_outcomes as any;
+      const ps = ch.phase_schedule as Record<string, unknown> | null;
+      form.reset({
+        title: (ch.title as string) || '',
+        problem_statement: (ch.problem_statement as string) || '',
+        scope: (ch.scope as string) || '',
+        maturity_level: (ch.maturity_level as any) || undefined,
+        industry_segment_id: (ch.industry_segment_id as string) || '',
+        domain_tags: (ch.domain_tags as string[]) || [],
+        currency: ((rs?.currency as string) || 'USD') as any,
+        budget_min: Number(rs?.budget_min ?? 0),
+        budget_max: Number(rs?.budget_max ?? 0),
+        ip_model: (ch.ip_model as string) || '',
+        expected_outcomes: eo?.items?.[0]?.name || '',
+        context_background: (eb?.context_background as string) || '',
+        preferred_approach: (eb?.preferred_approach as string) || '',
+        approaches_not_of_interest: (eb?.approaches_not_of_interest as string) || '',
+        affected_stakeholders: (eb?.affected_stakeholders as string) || '',
+        current_deficiencies: (eb?.current_deficiencies as string) || '',
+        root_causes: (eb?.root_causes as string) || '',
+        expected_timeline: (ps?.expected_timeline as string) || '',
+      });
+    })();
+  }, [draftChallengeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isSubmitting = submitMutation.isPending;
-  const isSaving = draftMutation.isPending;
+  const isSaving = draftMutation.isPending || updateDraftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
 
   const buildPayload = useCallback((data: CreatorFormValues) => {
@@ -255,7 +298,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     if (!currentOrg?.organizationId || !user?.id) return;
 
     try {
-      await draftMutation.mutateAsync({
+      const baseDraftPayload = {
         orgId: currentOrg.organizationId,
         creatorId: user.id,
         operatingModel: engagementModel,
@@ -269,8 +312,22 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         domainTags: data.domain_tags || [],
         urgency: 'standard',
         governanceModeOverride: governanceMode,
-      });
-      navigate('/cogni/my-challenges');
+        contextBackground: data.context_background || undefined,
+        rootCauses: data.root_causes || undefined,
+        affectedStakeholders: data.affected_stakeholders || undefined,
+        preferredApproach: data.preferred_approach || undefined,
+        approachesNotOfInterest: data.approaches_not_of_interest || undefined,
+      };
+
+      if (draftChallengeId) {
+        // Update existing draft
+        await updateDraftMutation.mutateAsync({ ...baseDraftPayload, challengeId: draftChallengeId });
+      } else {
+        // Create new draft, store the ID
+        const result = await draftMutation.mutateAsync(baseDraftPayload);
+        setDraftChallengeId(result.challengeId);
+      }
+      toast.success(draftChallengeId ? 'Draft updated' : 'Draft saved');
     } catch {
       // Error handled by mutation onError
     }

@@ -25,7 +25,6 @@ export default function CogniDashboardPage() {
   const journeyRequests = useMemo<RequestRow[]>(() => {
     if (!isSpecRole || !challengesData?.items) return [];
     return challengesData.items
-      .filter((ch) => ch.master_status !== 'DRAFT')
       .map((ch) => ({
         id: ch.challenge_id,
         title: ch.title,

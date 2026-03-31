@@ -1,5 +1,7 @@
 /**
- * PublicChallengeDetailPage — Public view of a published challenge.
+ * PublicChallengeDetailPage — Role-aware challenge detail view.
+ * - Creator (CR role): Shows all submitted data, curation status, no solver UI.
+ * - Others/Solvers: Shows solver-oriented view with enrollment CTA, Q&A, legal.
  * Route: /cogni/challenges/:id/view
  */
 
@@ -8,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
   Target, BarChart3, ListChecks, ArrowLeft, Scale, Lock, Briefcase,
-  Building2, Globe,
+  Building2, Globe, Info, Layers, BookOpen, MapPin, Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,11 +18,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
 import { usePublicChallengeLegal } from '@/hooks/cogniblend/usePublicChallengeLegal';
 import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
+import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { useAuth } from '@/hooks/useAuth';
 import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
@@ -59,6 +61,15 @@ function getMaturityLabel(level: string | null): string {
   }
 }
 
+function governanceLabel(profile: string | null): string {
+  switch (profile) {
+    case 'LIGHTWEIGHT': return 'Quick';
+    case 'STRUCTURED': return 'Structured';
+    case 'CONTROLLED': return 'Controlled';
+    default: return profile || '—';
+  }
+}
+
 /** Map challenge_enrollment or legacy eligibility to BRD enrollment model code */
 function deriveEnrollmentModel(challengeEnrollment: string | null, eligibility: string | null): string {
   if (challengeEnrollment) {
@@ -71,10 +82,28 @@ function deriveEnrollmentModel(challengeEnrollment: string | null, eligibility: 
     };
     return map[challengeEnrollment] ?? 'OPEN';
   }
-  // Fallback from legacy eligibility
   if (eligibility === 'invited_only') return 'IO';
   if (eligibility === 'curated_experts') return 'CE';
   return 'OPEN';
+}
+
+/** Render a text/html content section with null guard */
+function ContentSection({ title, content, icon: Icon }: { title: string; content: string | null | undefined; icon?: React.ElementType }) {
+  if (!content) return null;
+  const SectionIcon = Icon || Info;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <SectionIcon className="h-3.5 w-3.5 text-primary" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <SafeHtmlRenderer html={content} />
+      </CardContent>
+    </Card>
+  );
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -85,18 +114,22 @@ export default function PublicChallengeDetailPage() {
 
   const { user } = useAuth();
   const { data, isLoading, error } = usePublicChallenge(id);
+  const { data: userRoles } = useUserChallengeRoles(user?.id, id);
   const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
   const { data: reacceptStatus } = useLegalReacceptanceStatus(id, user?.id);
   const { data: legalSummary } = usePublicChallengeLegal(id);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
 
-  // Auto-open modal when solver has pending re-acceptance
+  // Determine if viewer is the Creator
+  const isCreator = (userRoles ?? []).includes('CR');
+
+  // Auto-open modal when solver has pending re-acceptance (solver-only)
   useEffect(() => {
-    if (reacceptStatus?.hasPending && !legalModalOpen) {
+    if (!isCreator && reacceptStatus?.hasPending && !legalModalOpen) {
       setLegalModalOpen(true);
     }
-  }, [reacceptStatus?.hasPending]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reacceptStatus?.hasPending, isCreator]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Loading ── */
   if (isLoading) {
@@ -118,14 +151,14 @@ export default function PublicChallengeDetailPage() {
         <p className="text-sm text-muted-foreground max-w-sm">
           This challenge doesn't exist, hasn't been published yet, or you don't have permission to view it.
         </p>
-        <Button variant="outline" size="sm" onClick={() => navigate('/cogni/browse')}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Browse Challenges
+        <Button variant="outline" size="sm" onClick={() => navigate(isCreator ? '/cogni/my-challenges' : '/cogni/browse')}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> {isCreator ? 'My Challenges' : 'Browse Challenges'}
         </Button>
       </div>
     );
   }
 
-  /* ── Extract data ── */
+  /* ── Extract shared data ── */
   const rs = data.reward_structure ?? {};
   const currency = data.currency_code || 'USD';
   const platinumAward = Number(rs.platinum_award ?? rs.budget_max ?? 0);
@@ -139,9 +172,485 @@ export default function PublicChallengeDetailPage() {
   const guidelines = (deliverables?.submission_guidelines ?? data.description ?? '') as string;
   const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
 
-  /** Derive enrollment model from challenge_enrollment field or legacy eligibility */
-  const enrollmentModel = deriveEnrollmentModel(data.challenge_enrollment, data.eligibility);
+  // Extended brief subsections
+  const eb = data.extended_brief ?? {};
+  const ebContextBackground = eb.context_background as string | undefined;
+  const ebRootCauses = eb.root_causes as string | undefined;
+  const ebAffectedStakeholders = eb.affected_stakeholders as string | undefined;
+  const ebCurrentDeficiencies = eb.current_deficiencies as string | undefined;
+  const ebPreferredApproach = eb.preferred_approach as string | undefined;
+  const ebApproachesNot = eb.approaches_not_of_interest as string | undefined;
 
+  // Expected outcomes
+  const expectedOutcomes = data.expected_outcomes;
+  const outcomeItems = (expectedOutcomes as any)?.items as Array<{ name: string }> | undefined;
+
+  // Success metrics
+  const successMetrics = data.success_metrics_kpis;
+  const metricsItems = (successMetrics as any)?.items as Array<{ name: string; target?: string }> | undefined;
+
+  // Domain tags
+  const domainTags = data.domain_tags as string[] | null;
+
+  /* ── CREATOR VIEW ──────────────────────────────────────── */
+  if (isCreator) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {/* Back nav */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/cogni/my-challenges')}
+          className="text-muted-foreground hover:text-foreground -ml-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" /> My Challenges
+        </Button>
+
+        {/* Hero */}
+        <div className="space-y-4">
+          {/* Org context */}
+          {(data.organization_name || data.industry_name) && (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              {(data.organization_name || data.trade_brand_name) && (
+                <span className="flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4" />
+                  {data.trade_brand_name || data.organization_name}
+                </span>
+              )}
+              {data.industry_name && (
+                <span className="flex items-center gap-1.5">
+                  <Globe className="h-4 w-4" />
+                  {data.industry_name}
+                </span>
+              )}
+            </div>
+          )}
+
+          <h1 className="text-2xl font-bold text-primary tracking-tight leading-tight">
+            {data.title}
+          </h1>
+
+          {/* Status badges */}
+          <div className="flex flex-wrap items-center gap-2">
+            {data.master_status === 'IN_PREPARATION' && (
+              <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 bg-amber-50">
+                {data.current_phase === 1 ? 'Draft' : 'In Curation'}
+              </Badge>
+            )}
+            {data.master_status === 'ACTIVE' && (
+              <Badge variant="outline" className="text-xs font-semibold border-emerald-300 text-emerald-700 bg-emerald-50">
+                Published
+              </Badge>
+            )}
+            {data.master_status === 'COMPLETED' && (
+              <Badge variant="outline" className="text-xs font-semibold border-blue-300 text-blue-700 bg-blue-50">
+                Completed
+              </Badge>
+            )}
+            {data.governance_profile && (
+              <Badge variant="secondary" className="text-xs font-semibold">
+                {governanceLabel(data.governance_profile)}
+              </Badge>
+            )}
+            {data.maturity_level && (
+              <Badge variant="secondary" className="text-xs font-semibold border border-border">
+                {getMaturityLabel(data.maturity_level)}
+              </Badge>
+            )}
+            {data.complexity_level && (
+              <Badge className={cn('text-xs font-semibold border', complexityColor(data.complexity_level))}>
+                {data.complexity_level}
+                {data.complexity_score != null && ` — ${Number(data.complexity_score).toFixed(1)}`}
+              </Badge>
+            )}
+            {data.operating_model && (
+              <Badge variant="outline" className="text-xs font-semibold">
+                {data.operating_model === 'MP' ? 'Marketplace' : 'Aggregator'}
+              </Badge>
+            )}
+            {data.current_phase != null && (
+              <Badge variant="outline" className="text-xs font-semibold">
+                Phase {data.current_phase}
+              </Badge>
+            )}
+          </div>
+
+          {/* Budget summary card */}
+          {(platinumAward > 0 || Number(rs.budget_min ?? 0) > 0) && (
+            <Card className="border-border">
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Budget Range</p>
+                <p className="text-lg font-bold text-foreground">
+                  {Number(rs.budget_min ?? 0) > 0 && `${formatCurrency(Number(rs.budget_min), currency)} — `}
+                  {formatCurrency(platinumAward, currency)}
+                  <span className="text-sm font-normal text-muted-foreground ml-1.5">{currency}</span>
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Tabbed content — Creator document view */}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="w-full justify-start overflow-x-auto">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs">
+              <Target className="h-3.5 w-3.5" /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="requirements" className="gap-1.5 text-xs">
+              <ListChecks className="h-3.5 w-3.5" /> Requirements
+            </TabsTrigger>
+            <TabsTrigger value="evaluation" className="gap-1.5 text-xs">
+              <BarChart3 className="h-3.5 w-3.5" /> Evaluation
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="gap-1.5 text-xs">
+              <Clock className="h-3.5 w-3.5" /> Timeline & Metadata
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Overview Tab ── */}
+          <TabsContent value="overview" className="space-y-4">
+            <ContentSection title="Problem Statement" content={data.problem_statement} icon={Target} />
+            <ContentSection title="Scope" content={data.scope} icon={Layers} />
+
+            {data.hook && (
+              <ContentSection title="Value Proposition" content={data.hook} icon={Info} />
+            )}
+
+            {/* Expected Outcomes */}
+            {outcomeItems && outcomeItems.length > 0 && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Expected Outcomes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-1.5">
+                    {outcomeItems.map((item, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary font-bold mt-0.5">•</span>
+                        {item.name}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Extended Brief sections */}
+            <ContentSection title="Context & Background" content={ebContextBackground} icon={BookOpen} />
+            <ContentSection title="Root Causes" content={ebRootCauses} icon={Info} />
+            <ContentSection title="Affected Stakeholders" content={ebAffectedStakeholders} icon={Info} />
+            <ContentSection title="Current Deficiencies" content={ebCurrentDeficiencies} icon={Info} />
+            <ContentSection title="Preferred Approach" content={ebPreferredApproach} icon={Info} />
+            <ContentSection title="Approaches Not of Interest" content={ebApproachesNot} icon={Info} />
+
+            {/* If no content at all */}
+            {!data.problem_statement && !data.scope && !ebContextBackground && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground italic">No overview content submitted yet.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ── Requirements Tab ── */}
+          <TabsContent value="requirements" className="space-y-4">
+            {data.solution_type && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Solution Type</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="secondary" className="text-xs font-semibold">{data.solution_type}</Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            {deliverablesList.length > 0 && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Deliverables</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-1.5">
+                    {deliverablesList.filter(Boolean).map((item, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary font-bold mt-0.5">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {data.maturity_level && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Maturity Level</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="secondary" className="text-xs font-semibold">{getMaturityLabel(data.maturity_level)}</Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            {data.effort_level && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Effort Level</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="secondary" className="text-xs font-semibold">{data.effort_level}</Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            {guidelines && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Submission Guidelines</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{guidelines}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {artifactTypes.length > 0 && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Permitted Artifact Types</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {artifactTypes.map((type, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs font-medium">{type}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {!data.solution_type && deliverablesList.length === 0 && !guidelines && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground italic">No requirements defined yet.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ── Evaluation Tab ── */}
+          <TabsContent value="evaluation" className="space-y-4">
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-foreground">Evaluation Criteria</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {weightedCriteria.length > 0 ? (
+                  <div className="relative w-full overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Criterion</th>
+                          <th className="text-right py-2 pl-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">Weight</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weightedCriteria.map((criterion, i) => (
+                          <tr key={i} className="border-b border-border/50 last:border-0">
+                            <td className="py-2.5 pr-4 text-foreground font-medium">{criterion.name}</td>
+                            <td className="py-2.5 pl-4 text-right">
+                              <Badge variant="secondary" className="text-xs font-bold tabular-nums">{criterion.weight}%</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-border">
+                          <td className="py-2.5 pr-4 text-xs font-bold text-muted-foreground">Total</td>
+                          <td className="py-2.5 pl-4 text-right">
+                            <Badge variant="outline" className="text-xs font-bold tabular-nums">
+                              {weightedCriteria.reduce((sum, c) => sum + c.weight, 0)}%
+                            </Badge>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No evaluation criteria defined yet.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Success Metrics */}
+            {metricsItems && metricsItems.length > 0 && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Success Metrics & KPIs</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-1.5">
+                    {metricsItems.map((m, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary font-bold mt-0.5">•</span>
+                        {m.name}{m.target ? ` — Target: ${m.target}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Reward summary */}
+            {platinumAward > 0 && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <Trophy className="h-3.5 w-3.5 text-primary" />
+                    Reward Structure
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium text-foreground">Budget Max:</span> <span className="text-muted-foreground">{formatCurrency(platinumAward, currency)}</span></p>
+                    {goldAward > 0 && <p><span className="font-medium text-foreground">Gold:</span> <span className="text-muted-foreground">{formatCurrency(goldAward, currency)}</span></p>}
+                    {silverAward > 0 && <p><span className="font-medium text-foreground">Silver:</span> <span className="text-muted-foreground">{formatCurrency(silverAward, currency)}</span></p>}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ── Timeline & Metadata Tab ── */}
+          <TabsContent value="timeline" className="space-y-4">
+            {/* Phase Schedule */}
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-foreground">Phase Schedule</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {phaseSchedule && Object.keys(phaseSchedule).length > 0 ? (
+                  <div className="space-y-3">
+                    {Object.entries(phaseSchedule).map(([key, value]) => {
+                      if (key === 'expected_timeline') {
+                        return (
+                          <div key={key} className="flex items-center gap-3 rounded-lg bg-muted/30 border border-border px-4 py-3">
+                            <Clock className="h-4 w-4 text-primary shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Expected Timeline</p>
+                              <p className="text-sm text-foreground font-medium">{String(value)}</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      const phaseLabel = key.replace(/_/g, ' ').replace(/phase\s?/i, 'Phase ');
+                      return (
+                        <div key={key} className="flex items-center justify-between rounded-lg bg-muted/30 border border-border px-4 py-3">
+                          <p className="text-[13px] font-semibold text-foreground capitalize">{phaseLabel}</p>
+                          <Badge variant="outline" className="text-xs font-bold tabular-nums">{String(value)} days</Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No phase schedule defined yet.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Deadline */}
+            {data.submission_deadline && (
+              <Card className="border-border">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-primary shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Submission Deadline</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {new Date(data.submission_deadline).toLocaleDateString()}
+                      {data.daysRemaining != null && (
+                        <span className={cn('ml-2', data.daysRemaining <= 7 ? 'text-destructive' : 'text-muted-foreground')}>
+                          ({data.daysRemaining} day{data.daysRemaining !== 1 ? 's' : ''} remaining)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Metadata badges */}
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-primary" /> Metadata
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {data.ip_model && (
+                    <Badge variant="outline" className="text-xs font-semibold">
+                      <Briefcase className="h-3 w-3 mr-1" /> IP: {data.ip_model.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                  {data.functional_area && (
+                    <Badge variant="secondary" className="text-xs font-semibold">{data.functional_area}</Badge>
+                  )}
+                  {data.target_geography && (
+                    <Badge variant="secondary" className="text-xs font-semibold">
+                      <MapPin className="h-3 w-3 mr-1" /> {data.target_geography}
+                    </Badge>
+                  )}
+                  {domainTags && domainTags.length > 0 && domainTags.map((tag, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">{String(tag)}</Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Legal & IP */}
+            {legalSummary && (legalSummary.hasNda || data.ip_model || data.escrowFunded || legalSummary.tier2DocCount > 0) && (
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Scale className="h-4 w-4 text-primary" /> Legal & IP Protection
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {legalSummary.hasNda && (
+                      <Badge variant="secondary" className="text-xs font-semibold"><Lock className="h-3 w-3 mr-1" /> NDA Required</Badge>
+                    )}
+                    {data.escrowFunded && (
+                      <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
+                        <ShieldCheck className="h-3 w-3 mr-1" /> Escrow Funded
+                      </Badge>
+                    )}
+                    {legalSummary.tier2DocCount > 0 && (
+                      <Badge variant="secondary" className="text-xs font-semibold">
+                        <FileText className="h-3 w-3 mr-1" /> {legalSummary.tier2DocCount} Tier 2 Doc{legalSummary.tier2DocCount !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Q&A is relevant for all roles per business rules */}
+        <ChallengeQASection challengeId={id!} />
+
+        <div className="pb-8" />
+      </div>
+    );
+  }
+
+  /* ── SOLVER VIEW (existing behavior) ───────────────────── */
+
+  const enrollmentModel = deriveEnrollmentModel(data.challenge_enrollment, data.eligibility);
   const eligibilityLabel: Record<string, string> = {
     anyone: 'open submissions',
     registered_users: 'Registered Users',
@@ -151,7 +660,7 @@ export default function PublicChallengeDetailPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* ═══ Back nav ═══ */}
+      {/* Back nav */}
       <Button
         variant="ghost"
         size="sm"
@@ -161,9 +670,8 @@ export default function PublicChallengeDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" /> Browse Challenges
       </Button>
 
-      {/* ═══ HERO SECTION ═══ */}
+      {/* HERO SECTION */}
       <div className="space-y-5">
-        {/* Org context */}
         {(data.organization_name || data.industry_name) && (
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             {(data.organization_name || data.trade_brand_name) && (
@@ -181,12 +689,10 @@ export default function PublicChallengeDetailPage() {
           </div>
         )}
 
-        {/* Title */}
         <h1 className="text-2xl font-bold text-primary tracking-tight leading-tight">
           {data.title}
         </h1>
 
-        {/* Info badges row */}
         <div className="flex flex-wrap items-center gap-2">
           {!data.published_at && (
             <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 bg-amber-50">
@@ -211,8 +717,7 @@ export default function PublicChallengeDetailPage() {
           )}
           {data.escrowFunded && (
             <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
-              <ShieldCheck className="h-3 w-3 mr-1" />
-              Solver Protected
+              <ShieldCheck className="h-3 w-3 mr-1" /> Solver Protected
             </Badge>
           )}
         </div>
@@ -220,11 +725,9 @@ export default function PublicChallengeDetailPage() {
         {/* Awards + Deadline + CTA row */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            {/* Award amounts */}
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Trophy className="h-3.5 w-3.5 inline mr-1 -mt-0.5" />
-                Platinum Award
+                <Trophy className="h-3.5 w-3.5 inline mr-1 -mt-0.5" /> Platinum Award
               </p>
               <p className="text-3xl font-bold text-foreground tracking-tight">
                 {formatCurrency(platinumAward, currency)}
@@ -238,7 +741,6 @@ export default function PublicChallengeDetailPage() {
               )}
             </div>
 
-            {/* Deadline + CTA */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               {data.daysRemaining != null && (
                 <div className="flex items-center gap-1.5 text-sm">
@@ -252,7 +754,6 @@ export default function PublicChallengeDetailPage() {
                 </div>
               )}
 
-              {/* Enrollment CTA */}
               <div className="w-full sm:w-auto sm:min-w-[220px]">
                 <SolverEnrollmentCTA
                   challengeId={data.id}
@@ -268,7 +769,7 @@ export default function PublicChallengeDetailPage() {
         </div>
       </div>
 
-      {/* ═══ WITHDRAWAL BANNER (material amendment) ═══ */}
+      {/* WITHDRAWAL BANNER */}
       {amendStatus?.hasActiveWithdrawal && amendStatus.solutionId && (
         <WithdrawalBanner
           challengeId={id!}
@@ -283,7 +784,7 @@ export default function PublicChallengeDetailPage() {
         />
       )}
 
-      {/* ═══ LEGAL RE-ACCEPTANCE BANNER ═══ */}
+      {/* LEGAL RE-ACCEPTANCE BANNER */}
       {amendStatus?.requiresLegalReAcceptance && (
         <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="flex-1 space-y-1">
@@ -298,7 +799,7 @@ export default function PublicChallengeDetailPage() {
         </div>
       )}
 
-      {/* ═══ TABBED CONTENT ═══ */}
+      {/* TABBED CONTENT — Solver view */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview" className="gap-1.5 text-xs">
@@ -315,29 +816,10 @@ export default function PublicChallengeDetailPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── Overview Tab ── */}
+        {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-5">
-          {data.problem_statement && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-foreground">Problem Statement</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SafeHtmlRenderer html={data.problem_statement} />
-              </CardContent>
-            </Card>
-          )}
-
-          {data.scope && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-foreground">Scope & Expected Outcomes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SafeHtmlRenderer html={data.scope} />
-              </CardContent>
-            </Card>
-          )}
+          <ContentSection title="Problem Statement" content={data.problem_statement} icon={Target} />
+          <ContentSection title="Scope & Expected Outcomes" content={data.scope} icon={Layers} />
 
           {deliverablesList.length > 0 && (
             <Card className="border-border">
@@ -369,9 +851,17 @@ export default function PublicChallengeDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {!data.problem_statement && !data.scope && deliverablesList.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-8 text-center">
+                <p className="text-sm text-muted-foreground italic">No overview content available.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
-        {/* ── Evaluation Tab ── */}
+        {/* Evaluation Tab */}
         <TabsContent value="evaluation" className="space-y-4">
           <Card className="border-border">
             <CardHeader className="pb-2">
@@ -392,9 +882,7 @@ export default function PublicChallengeDetailPage() {
                         <tr key={i} className="border-b border-border/50 last:border-0">
                           <td className="py-2.5 pr-4 text-foreground font-medium">{criterion.name}</td>
                           <td className="py-2.5 pl-4 text-right">
-                            <Badge variant="secondary" className="text-xs font-bold tabular-nums">
-                              {criterion.weight}%
-                            </Badge>
+                            <Badge variant="secondary" className="text-xs font-bold tabular-nums">{criterion.weight}%</Badge>
                           </td>
                         </tr>
                       ))}
@@ -418,20 +906,18 @@ export default function PublicChallengeDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* ── Guidelines Tab ── */}
+        {/* Guidelines Tab */}
         <TabsContent value="guidelines" className="space-y-4">
-          {guidelines && (
+          {guidelines ? (
             <Card className="border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-foreground">Submission Guidelines</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {guidelines}
-                </p>
+                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{guidelines}</p>
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
           {artifactTypes.length > 0 && (
             <Card className="border-border">
@@ -441,9 +927,7 @@ export default function PublicChallengeDetailPage() {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {artifactTypes.map((type, i) => (
-                    <Badge key={i} variant="secondary" className="text-xs font-medium">
-                      {type}
-                    </Badge>
+                    <Badge key={i} variant="secondary" className="text-xs font-medium">{type}</Badge>
                   ))}
                 </div>
               </CardContent>
@@ -451,7 +935,7 @@ export default function PublicChallengeDetailPage() {
           )}
 
           {!guidelines && artifactTypes.length === 0 && (
-            <Card className="border-border">
+            <Card className="border-dashed">
               <CardContent className="py-8 text-center">
                 <p className="text-sm text-muted-foreground italic">No submission guidelines provided.</p>
               </CardContent>
@@ -459,7 +943,7 @@ export default function PublicChallengeDetailPage() {
           )}
         </TabsContent>
 
-        {/* ── Timeline Tab ── */}
+        {/* Timeline Tab */}
         <TabsContent value="timeline" className="space-y-4">
           <Card className="border-border">
             <CardHeader className="pb-2">
@@ -468,7 +952,7 @@ export default function PublicChallengeDetailPage() {
             <CardContent>
               {phaseSchedule && Object.keys(phaseSchedule).length > 0 ? (
                 <div className="space-y-3">
-                  {Object.entries(phaseSchedule).map(([key, value], i) => {
+                  {Object.entries(phaseSchedule).map(([key, value]) => {
                     if (key === 'expected_timeline') {
                       return (
                         <div key={key} className="flex items-center gap-3 rounded-lg bg-muted/30 border border-border px-4 py-3">
@@ -484,9 +968,7 @@ export default function PublicChallengeDetailPage() {
                     return (
                       <div key={key} className="flex items-center justify-between rounded-lg bg-muted/30 border border-border px-4 py-3">
                         <p className="text-[13px] font-semibold text-foreground capitalize">{phaseLabel}</p>
-                        <Badge variant="outline" className="text-xs font-bold tabular-nums">
-                          {String(value)} days
-                        </Badge>
+                        <Badge variant="outline" className="text-xs font-bold tabular-nums">{String(value)} days</Badge>
                       </div>
                     );
                   })}
@@ -499,39 +981,30 @@ export default function PublicChallengeDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* ═══ LEGAL & IP PROTECTION SUMMARY (V-9) ═══ */}
+      {/* LEGAL & IP PROTECTION SUMMARY */}
       {legalSummary && (legalSummary.hasNda || data.ip_model || data.escrowFunded || legalSummary.tier2DocCount > 0) && (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Scale className="h-4 w-4 text-primary" />
-              Legal & IP Protection
+              <Scale className="h-4 w-4 text-primary" /> Legal & IP Protection
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {legalSummary.hasNda && (
-                <Badge variant="secondary" className="text-xs font-semibold">
-                  <Lock className="h-3 w-3 mr-1" />
-                  NDA Required
-                </Badge>
+                <Badge variant="secondary" className="text-xs font-semibold"><Lock className="h-3 w-3 mr-1" /> NDA Required</Badge>
               )}
               {data.ip_model && (
-                <Badge variant="outline" className="text-xs font-semibold">
-                  <Briefcase className="h-3 w-3 mr-1" />
-                  IP: {data.ip_model.replace(/_/g, ' ')}
-                </Badge>
+                <Badge variant="outline" className="text-xs font-semibold"><Briefcase className="h-3 w-3 mr-1" /> IP: {data.ip_model.replace(/_/g, ' ')}</Badge>
               )}
               {data.escrowFunded && (
                 <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
-                  <ShieldCheck className="h-3 w-3 mr-1" />
-                  Escrow Funded
+                  <ShieldCheck className="h-3 w-3 mr-1" /> Escrow Funded
                 </Badge>
               )}
               {legalSummary.tier2DocCount > 0 && (
                 <Badge variant="secondary" className="text-xs font-semibold">
-                  <FileText className="h-3 w-3 mr-1" />
-                  {legalSummary.tier2DocCount} Tier 2 Doc{legalSummary.tier2DocCount !== 1 ? 's' : ''} Required
+                  <FileText className="h-3 w-3 mr-1" /> {legalSummary.tier2DocCount} Tier 2 Doc{legalSummary.tier2DocCount !== 1 ? 's' : ''}
                 </Badge>
               )}
             </div>
@@ -539,10 +1012,10 @@ export default function PublicChallengeDetailPage() {
         </Card>
       )}
 
-      {/* ═══ Q&A SECTION ═══ */}
+      {/* Q&A SECTION */}
       <ChallengeQASection challengeId={id!} />
 
-      {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
+      {/* LEGAL RE-ACCEPT MODAL */}
       {reacceptStatus?.hasPending && reacceptStatus.record && (
         <LegalReAcceptModal
           open={legalModalOpen}
@@ -553,7 +1026,6 @@ export default function PublicChallengeDetailPage() {
         />
       )}
 
-      {/* Bottom spacer */}
       <div className="pb-8" />
     </div>
   );
