@@ -765,9 +765,6 @@ export default function LcLegalWorkspacePage() {
                   {challenge?.master_status && <Badge variant="outline">Status: {challenge.master_status}</Badge>}
                 </div>
                 {(() => {
-                  try {
-                    if (sessionStorage.getItem('cogni_demo_path') === 'ai') return null;
-                  } catch { /* SSR-safe */ }
                   const reward = parseRewardStructure(challenge?.reward_structure);
                   if (!reward) return null;
                   return (

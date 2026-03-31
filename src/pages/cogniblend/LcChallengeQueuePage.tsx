@@ -14,13 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Sparkles, ArrowRight, FolderOpen } from 'lucide-react';
 import { ROLE_COLORS } from '@/types/cogniRoles';
 
-function getIsAiPath(): boolean {
-  try {
-    return sessionStorage.getItem('cogni_demo_path') === 'ai';
-  } catch {
-    return false;
-  }
-}
 
 export default function LcChallengeQueuePage() {
   const { user } = useAuth();

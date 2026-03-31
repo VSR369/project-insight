@@ -65,9 +65,49 @@ interface AdditionalContextTabProps {
   onUrlsChange?: (urls: string[]) => void;
 }
 
-export function AdditionalContextTab({ governanceMode }: AdditionalContextTabProps) {
+export function AdditionalContextTab({
+  governanceMode,
+  attachedFiles = [],
+  onFilesChange,
+  referenceUrls = [],
+  onUrlsChange,
+}: AdditionalContextTabProps) {
   const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
   const isControlled = governanceMode === 'CONTROLLED';
+  const [urlInput, setUrlInput] = useState('');
+
+  const handleAddUrl = useCallback(() => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    try {
+      new URL(trimmed);
+    } catch {
+      toast.error('Please enter a valid URL (e.g. https://example.com)');
+      return;
+    }
+    if (referenceUrls.length >= MAX_URLS) {
+      toast.error(`Maximum ${MAX_URLS} reference URLs allowed`);
+      return;
+    }
+    if (referenceUrls.includes(trimmed)) {
+      toast.error('This URL has already been added');
+      return;
+    }
+    onUrlsChange?.([...referenceUrls, trimmed]);
+    setUrlInput('');
+  }, [urlInput, referenceUrls, onUrlsChange]);
+
+  const handleRemoveUrl = useCallback((index: number) => {
+    onUrlsChange?.(referenceUrls.filter((_, i) => i !== index));
+  }, [referenceUrls, onUrlsChange]);
+
+  const handleFilesChange = useCallback((files: File[]) => {
+    if (files.length > MAX_FILES) {
+      toast.error(`Maximum ${MAX_FILES} files allowed`);
+      return;
+    }
+    onFilesChange?.(files);
+  }, [onFilesChange]);
 
   return (
     <div className="space-y-6">
@@ -131,6 +171,60 @@ export function AdditionalContextTab({ governanceMode }: AdditionalContextTabPro
             </Select>
           )}
         />
+      </div>
+
+      {/* ── Reference Documents (File Upload) ── */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Reference Documents</Label>
+        <p className="text-xs text-muted-foreground">
+          Upload supporting files (max {MAX_FILES} files, {ATTACHMENT_CONFIG.maxSizeMB} MB each). These feed into the AI curation pipeline.
+        </p>
+        <FileUploadZone
+          config={ATTACHMENT_CONFIG}
+          multiple
+          files={attachedFiles}
+          onFilesChange={handleFilesChange}
+          onChange={() => {}}
+          value={null}
+        />
+      </div>
+
+      {/* ── Reference URLs ── */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">
+          <LinkIcon className="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
+          Reference URLs
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Add links to external references, research, or documentation (max {MAX_URLS}).
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            type="url"
+            placeholder="https://example.com/reference"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddUrl(); } }}
+            className="flex-1 text-base"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={handleAddUrl} disabled={!urlInput.trim()}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        </div>
+        {referenceUrls.length > 0 && (
+          <div className="space-y-1.5 mt-2">
+            {referenceUrls.map((url, index) => (
+              <div key={`${url}-${index}`} className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                <LinkIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm text-foreground truncate flex-1">{url}</span>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleRemoveUrl(index)}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
