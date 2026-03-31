@@ -132,6 +132,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
   const [showTierModal, setShowTierModal] = useState(false);
   const [activeTab, setActiveTab] = useState('essential');
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
 
   const schema = useMemo(
     () => buildCreatorSchema(governanceMode, engagementModel),
