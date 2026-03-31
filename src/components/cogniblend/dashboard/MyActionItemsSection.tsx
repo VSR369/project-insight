@@ -250,6 +250,28 @@ export function MyActionItemsSection() {
                         {item.title}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {(item.roleCodes ?? []).map((rc) => {
+                          const roleColor = ROLE_COLORS[rc];
+                          return roleColor ? (
+                            <span
+                              key={rc}
+                              className="inline-flex items-center justify-center rounded-full font-bold"
+                              style={{
+                                fontSize: 9,
+                                width: 24,
+                                height: 18,
+                                backgroundColor: roleColor.bg,
+                                color: roleColor.color,
+                              }}
+                            >
+                              {roleColor.label}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {item.phase ? PHASE_LABELS[item.phase] ?? `Phase ${item.phase}` : '—'}
                     </TableCell>
