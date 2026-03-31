@@ -328,6 +328,7 @@ export function useSaveDraft() {
             ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
             ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
           },
         } as any)
         .eq('id', challengeId);

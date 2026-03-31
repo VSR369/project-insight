@@ -37,6 +37,7 @@ const IP_OPTIONS = [
 const MATURITY_OPTIONS = [
   { value: 'blueprint', label: 'A strategic recommendation (Blueprint)', desc: 'Strategy, analysis, or roadmap' },
   { value: 'poc', label: 'A working prototype (POC)', desc: 'Proof of concept or demo' },
+  { value: 'prototype', label: 'A functional demo (Prototype)', desc: 'End-to-end working demonstration' },
   { value: 'pilot', label: 'A production-ready system (Pilot)', desc: 'Deployable solution' },
 ] as const;
 

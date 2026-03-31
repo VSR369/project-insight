@@ -294,6 +294,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         orgId: currentOrg.organizationId,
         creatorId: user.id,
         operatingModel: engagementModel,
+        title: data.title || '',
         businessProblem: data.problem_statement || '',
         expectedOutcomes: data.expected_outcomes || '',
         constraints: data.scope || '',
@@ -303,12 +304,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         expectedTimeline: data.expected_timeline || '8w',
         domainTags: data.domain_tags || [],
         urgency: 'standard',
+        industrySegmentId: (data as any).industry_segment_id || undefined,
         governanceModeOverride: governanceMode,
         contextBackground: data.context_background || undefined,
         rootCauses: data.root_causes || undefined,
         affectedStakeholders: data.affected_stakeholders || undefined,
         preferredApproach: data.preferred_approach || undefined,
         approachesNotOfInterest: data.approaches_not_of_interest || undefined,
+        currentDeficiencies: data.current_deficiencies || undefined,
+        maturityLevel: data.maturity_level || undefined,
+        ipModel: data.ip_model || undefined,
       };
 
       if (draftChallengeId) {
