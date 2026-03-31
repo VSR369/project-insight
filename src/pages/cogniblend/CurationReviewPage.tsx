@@ -1247,6 +1247,12 @@ export default function CurationReviewPage() {
   // Optimistic industry segment — bridges the gap between save and refetch
   const [optimisticIndustrySegId, setOptimisticIndustrySegId] = useState<string | null>(null);
 
+  // ── Phase 3: Escrow toggle for STRUCTURED governance ──
+  const [escrowEnabled, setEscrowEnabled] = useState(false);
+
+  // ── Phase 3: Bulk legal accept loading state ──
+  const [isAcceptingAllLegal, setIsAcceptingAllLegal] = useState(false);
+
   // ── Phase 5: Pre-flight gate + budget shortfall state ──
   const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
   const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
