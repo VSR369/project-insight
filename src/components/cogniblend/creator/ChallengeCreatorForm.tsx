@@ -63,6 +63,7 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     maturity_level: z.enum(['blueprint', 'poc', 'pilot'], {
       errorMap: () => ({ message: 'Please select a solution type' }),
     }),
+    industry_segment_id: z.string().min(1, 'Please select a primary industry segment'),
     domain_tags: z.array(z.string()).min(1, 'Select at least 1 domain').max(3, 'Max 3 domains'),
     currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
     budget_min: z.coerce.number().min(0).default(0),
