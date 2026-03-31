@@ -221,6 +221,85 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
     toast.success('Document removed');
   }, [challengeId, queryClient]);
 
+  // ── Hydrate local state from query cache (fires on mount & refetch) ──
+  useEffect(() => {
+    if (orgData) {
+      setWebsiteUrl(orgData.website_url ?? '');
+      setLinkedinUrl(orgData.linkedin_url ?? '');
+      setTwitterUrl(orgData.twitter_url ?? '');
+      setDescription(orgData.organization_description ?? '');
+      setTagline(orgData.tagline ?? '');
+      setIsDirty(false);
+    }
+  }, [orgData]);
+
+  // ── Auto-save with 800ms debounce ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDirty || isReadOnly || !organizationId) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const { error } = await supabase
+          .from('seeker_organizations')
+          .update({
+            website_url: websiteUrl.trim() || null,
+            linkedin_url: linkedinUrl.trim() || null,
+            twitter_url: twitterUrl.trim() || null,
+            organization_description: description.trim() || null,
+            tagline: tagline.trim() || null,
+          })
+          .eq('id', organizationId);
+        if (error) throw error;
+        if (isMountedRef.current) {
+          setIsDirty(false);
+          queryClient.invalidateQueries({ queryKey: ['org-context-panel', organizationId] });
+        }
+      } catch (err) {
+        console.error('[OrgContextPanel] Auto-save failed:', err);
+      }
+    }, 800);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [isDirty, websiteUrl, linkedinUrl, twitterUrl, description, tagline, organizationId, isReadOnly, queryClient]);
+
+  // ── Flush pending auto-save on unmount ──
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        // Fire immediate save on unmount if dirty
+        if (isDirty && organizationId) {
+          supabase
+            .from('seeker_organizations')
+            .update({
+              website_url: websiteUrl.trim() || null,
+              linkedin_url: linkedinUrl.trim() || null,
+              twitter_url: twitterUrl.trim() || null,
+              organization_description: description.trim() || null,
+              tagline: tagline.trim() || null,
+            })
+            .eq('id', organizationId)
+            .then(() => {});
+        }
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Field change handler ──
   const handleFieldChange = useCallback((setter: React.Dispatch<React.SetStateAction<string>>) => {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
