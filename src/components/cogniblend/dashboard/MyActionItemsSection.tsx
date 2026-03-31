@@ -21,7 +21,7 @@ import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
-import { ROLE_DISPLAY } from '@/types/cogniRoles';
+import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
 import { supabase } from '@/integrations/supabase/client';
 
 /* ── Phase labels ──────────────────────────────────── */
