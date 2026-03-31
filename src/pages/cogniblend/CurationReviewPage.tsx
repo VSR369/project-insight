@@ -3771,10 +3771,6 @@ export default function CurationReviewPage() {
                         const eb = parseExtendedBrief(challenge.extended_brief);
                         const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
                           ? getSubsectionValue(eb, "context_and_background") as string : "";
-                        const resolvedSegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
-                        // Determine if segment came from AM intake (targeting_filters) — only if NOT overridden by curator
-                        const tf = parseJson<any>(challenge.targeting_filters);
-                        const segmentFromIntake = !!(tf?.industries?.length > 0) && !tf?.industry_segment_id;
                         return (
                           <>
                             <RichTextSectionRenderer
