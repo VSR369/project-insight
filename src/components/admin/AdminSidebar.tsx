@@ -97,6 +97,7 @@ const seekerConfigItems = [
   { title: 'Membership Tiers', icon: Award, path: '/admin/seeker-config/membership-tiers' },
   { title: 'Engagement Models', icon: Network, path: '/admin/seeker-config/engagement-models' },
   { title: 'Challenge Complexity', icon: Activity, path: '/admin/seeker-config/challenge-complexity' },
+  { title: 'Solution Maturity', icon: Activity, path: '/admin/seeker-config/solution-maturity' },
   { title: 'Base Fee Config', icon: CreditCard, path: '/admin/seeker-config/base-fees' },
   { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
   { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
