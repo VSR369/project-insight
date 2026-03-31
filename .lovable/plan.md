@@ -1,58 +1,45 @@
 
 
-# Fix Expected Outcomes: Make Mandatory for Creator + Fix Data Mapping
+# Upload Deliverables Data to Challenge
 
-## Problems Found
+## What
+Programmatically populate the **Deliverables** section for challenge `edab47e4-ed9b-4b2c-b450-f64d53e3b8a9` with the 6 structured deliverables you provided, saving directly to the database.
 
-1. **Expected Outcomes hidden for QUICK mode** — currently only shown for STRUCTURED/CONTROLLED. You want it mandatory for ALL Creator modes.
+## Approach
+Run a Supabase update via the app's data layer — update the `deliverables` column on the `challenges` table with the structured JSON, and clear the localStorage cache so the Zustand store re-hydrates on next page load.
 
-2. **Critical data mapping bug** in `useSubmitSolutionRequest.ts`:
-   - Line 85: `scope: payload.expectedOutcomes` — Creator's expected outcomes is incorrectly saved to the `scope` DB column
-   - Line 184: `constraints: data.scope` — Creator's "Scope" field is mapped to `constraints` in the payload, which is never written to the DB
-   - The `expected_outcomes` DB column is **never populated** — that's why the Pre-Flight Gate always shows it as empty
-   - The `scope` DB column gets overwritten with expected outcomes text instead of actual scope
+## Data Format
+The `deliverables` column stores JSON in the format:
+```json
+{
+  "items": [
+    { "id": "D1", "name": "...", "description": "...", "acceptance_criteria": "..." },
+    { "id": "D2", "name": "...", "description": "...", "acceptance_criteria": "..." },
+    ...
+  ]
+}
+```
 
-3. **Navigation from Pre-Flight dialog works correctly** — clicking rows navigates to the right tab. Context & Background and Deliverables remain Curator/AI-generated sections as intended.
+## Deliverables to Insert
+| ID | Name | Description | Acceptance Criteria |
+|----|------|-------------|-------------------|
+| D1 | Downtime Reduction Program | Implement predictive maintenance to significantly reduce unplanned CNC machine downtime and associated revenue loss. | ≥30% reduction in unplanned downtime within 6 months; Measurable decrease in downtime cost (₹/hour basis); Monthly downtime reports validated by operations team |
+| D2 | Predictive Failure Alerts | Generate reliable 48–72 hour advance alerts for critical component failures to enable planned interventions. | ≥80% of critical failures predicted at least 48 hours in advance; ≤10% false positive alert rate; Alerts accessible to supervisors via dashboard/SMS/email |
+| D3 | Maintenance Cost Optimization | Transition from calendar-based to condition-based maintenance to reduce unnecessary replacements and repair costs. | ≥20% reduction in preventive maintenance costs; Reduction in premature part replacements (tracked monthly); Documented shift from time-based to condition-based schedules |
+| D4 | Production Reliability Improvement | Improve machine availability and stability to consistently meet production targets across all shifts. | ≥10–15% improvement in machine availability (uptime %); Reduction in production disruptions due to machine failure; Shift-wise production targets consistently achieved |
+| D5 | Spare Parts Optimization | Align spare parts inventory with actual equipment condition to minimize excess stock and emergency procurement. | ≥15% reduction in spare parts inventory holding cost; Reduction in emergency spare procurement incidents; Inventory levels aligned with predicted failure timelines |
+| D6 | ROI & Performance Dashboard | Provide a centralized dashboard to track financial savings, system performance, and predictive accuracy. | Real-time visibility of downtime savings and maintenance cost reduction; KPI tracking (prediction accuracy, uptime, cost savings) updated daily/weekly; ROI demonstrated within 6–9 months of implementation |
 
-## Changes
+## Implementation Steps
 
-### 1. Make Expected Outcomes mandatory for all modes
-**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
+1. **Create a temporary helper component** that runs once on mount to call `setSectionData('deliverables', payload)` on the Zustand store for this challenge, then triggers a sync flush to write to the `challenges.deliverables` DB column.
 
-- Change `outcomesRule`: remove the QUICK exception — make it required for all governance modes with a minimum character count (e.g., 50 chars)
-- Remove the `{!isQuick && ...}` conditional wrapper around the Expected Outcomes field
+2. **Alternatively (simpler)**: Add the data directly via a one-time database update using Supabase client, then invalidate the React Query cache so the curation page picks it up.
 
-**File: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`**
+3. **Verify** the deliverables render correctly as structured cards on the Scope & Complexity tab.
 
-- Remove the `{!isQuick && ...}` guard around the Expected Outcomes section so it always renders
-
-### 2. Fix the data mapping in payload and submission
-**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
-
-In `buildPayload()`, fix the field mapping:
-- `constraints` should remain as `data.scope` (this is correct)
-- Add a new `expectedOutcomes` field that maps to `data.expected_outcomes` (this is correct)
-- The issue is downstream in `useSubmitSolutionRequest`
-
-**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
-
-Fix the DB column mapping in both the create and draft-save paths:
-- Line 84-85: Change `scope: payload.expectedOutcomes` → `scope: payload.constraints`
-- Add: `expected_outcomes: payload.expectedOutcomes ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] }) : null`
-
-This ensures:
-- `scope` DB column receives the Creator's **Scope** text
-- `expected_outcomes` DB column receives the Creator's **Expected Outcomes** text (formatted as the JSON structure the Curation page expects)
-
-### 3. Apply same fix to the draft/update path (~line 210-213)
-**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
-
-Same column mapping fix for the second `.update()` call used in draft saves.
-
-## Result
-- Expected Outcomes appears for ALL Creator modes (QUICK, STRUCTURED, CONTROLLED)
-- Creator's scope text correctly populates the `scope` DB column
-- Creator's expected outcomes correctly populates the `expected_outcomes` DB column
-- Curation page Pre-Flight Gate will see expected outcomes as filled
-- Context & Background and Deliverables remain Curator/AI-generated (no change)
+## Technical Detail
+- File: `src/hooks/useCurationStoreSync.ts` — maps `deliverables` section → `deliverables` DB column
+- Store: `curationFormStore` — `setSectionData('deliverables', { items: [...] })`
+- The sync layer writes `entry.data` directly to the column, so the JSON object goes as-is
 
