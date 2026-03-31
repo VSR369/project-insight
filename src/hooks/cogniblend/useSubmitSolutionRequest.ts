@@ -39,6 +39,10 @@ interface SubmitPayload {
   preferredApproach?: string;
   approachesNotOfInterest?: string;
   solutionExpectations?: string;
+  currentDeficiencies?: string;
+  referenceUrls?: string[];
+  maturityLevel?: string;
+  ipModel?: string;
 }
 
 interface SubmitResult {
