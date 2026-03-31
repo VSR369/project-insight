@@ -13,7 +13,7 @@
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 
 /** Seeking-org role codes — users with ONLY these have no solver features */
-const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
+const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC', 'CA']);
 
 export function useCogniPermissions() {
   const { activeRole, availableRoles } = useCogniRoleContext();
