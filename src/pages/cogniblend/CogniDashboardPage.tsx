@@ -11,7 +11,7 @@ import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItems
 import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
+// useCogniPermissions available for future permission checks
 import { Zap } from 'lucide-react';
 import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourneySection';
 
