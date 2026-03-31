@@ -831,7 +831,7 @@ export default function PublicChallengeDetailPage() {
                   {deliverablesList.filter(Boolean).map((item, i) => (
                     <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                       <span className="text-primary font-bold mt-0.5">•</span>
-                      {item}
+                      {typeof item === 'string' ? item : (item?.name ?? item?.title ?? JSON.stringify(item))}
                     </li>
                   ))}
                 </ul>
