@@ -70,6 +70,8 @@ interface ActionItem {
   isNotification?: boolean;
   notificationId?: string;
   challengeId?: string;
+  /** Role codes the user holds on this challenge */
+  roleCodes?: string[];
 }
 
 function getActionRoute(item: ActionItem): {
