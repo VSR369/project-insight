@@ -39,11 +39,6 @@ const RECOMMENDED_SECTIONS: PreFlightItem[] = [
     reason: 'Industry context helps AI produce specific content. Will be AI-generated — review carefully.',
   },
   {
-    sectionId: 'expected_outcomes',
-    sectionName: 'Expected Outcomes',
-    reason: 'Success criteria help calibrate deliverables. Will be AI-derived from scope.',
-  },
-  {
     sectionId: 'deliverables',
     sectionName: 'Deliverables',
     reason: 'What solvers must produce. AI can infer but may miss sponsor-specific requirements.',

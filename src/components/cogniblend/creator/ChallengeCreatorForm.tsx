@@ -47,9 +47,7 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     ? z.string().optional().default('IP-NEL')
     : z.string().min(1, 'Please select an IP model');
 
-  const outcomesRule = isQuick
-    ? z.string().optional().default('')
-    : z.string().min(1, 'Expected results are required');
+  const outcomesRule = z.string().min(50, 'At least 50 characters required — describe what success looks like');
 
   // Context fields — required only for CONTROLLED
   const contextRule = isControlled
