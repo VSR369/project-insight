@@ -9,11 +9,11 @@
  *   CONTROLLED: 8 essential + 5 context fields required
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Send, Save, Loader2, FlaskConical } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
