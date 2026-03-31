@@ -39,12 +39,20 @@ const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
   solution_type: 'solution_types',
   
   expected_outcomes: 'expected_outcomes',
-  extended_brief: 'extended_brief',
   submission_guidelines: 'submission_guidelines',
   solver_expertise: 'solver_expertise_requirements',
   data_resources_provided: 'data_resources_provided',
   success_metrics_kpis: 'success_metrics_kpis',
 };
+
+/**
+ * Section keys that are stored as subfields within the `extended_brief` JSONB column.
+ * Maps store section key → JSONB subfield name inside extended_brief.
+ */
+const EXTENDED_BRIEF_SECTION_KEYS: Partial<Record<SectionKey, string>> = Object.entries(EXTENDED_BRIEF_FIELD_MAP).reduce(
+  (acc, [sectionKey, dbField]) => ({ ...acc, [sectionKey as SectionKey]: dbField }),
+  {} as Partial<Record<SectionKey, string>>,
+);
 
 interface UseCurationStoreSyncOptions {
   challengeId: string;
