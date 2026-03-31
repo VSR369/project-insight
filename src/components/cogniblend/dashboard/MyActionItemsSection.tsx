@@ -80,7 +80,7 @@ function getActionRoute(item: ActionItem): {
   // Notification-based items → challenge view
   if (item.isNotification) {
     const targetId = item.challengeId || item.id;
-    return { route: `/cogni/my-challenges/${targetId}`, label: 'View', icon: Eye };
+    return { route: `/cogni/challenges/${targetId}/view`, label: 'View', icon: Eye };
   }
   // Drafts
   if (item.status === 'DRAFT') {
@@ -91,7 +91,7 @@ function getActionRoute(item: ActionItem): {
     return { route: `/cogni/challenges/${item.id}/edit`, label: 'Revise', icon: Pencil };
   }
   // Default: challenge view
-  return { route: `/cogni/my-challenges/${item.id}`, label: 'View', icon: Eye };
+  return { route: `/cogni/challenges/${item.id}/view`, label: 'View', icon: Eye };
 }
 
 export function MyActionItemsSection() {
@@ -149,19 +149,21 @@ export function MyActionItemsSection() {
     for (const ch of challengeItems) {
       const roles = challengeRoleMap.get(ch.challenge_id) ?? [];
       // Include if user has any role on this challenge (no activeRole filter)
-      if (roles.length === 0 && ch.master_status !== 'DRAFT') continue;
+      if (roles.length === 0 && !(ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1)) continue;
 
-      // Standard action items: DRAFT, RETURNED, AM_APPROVAL_PENDING
+      // Standard action items: draft (IN_PREPARATION phase 1), RETURNED, AM_APPROVAL_PENDING
       const needsAction =
-        ch.master_status === 'DRAFT' ||
-        ch.master_status === 'RETURNED' ||
+        (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ||
+        ch.phase_status === 'RETURNED' ||
         ch.phase_status === 'AM_APPROVAL_PENDING';
 
       if (needsAction) {
         items.push({
           id: ch.challenge_id,
           title: ch.title,
-          status: ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING' : ch.master_status,
+          status: ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING'
+            : (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ? 'DRAFT'
+            : ch.phase_status === 'RETURNED' ? 'RETURNED' : ch.master_status,
           phase: ch.current_phase,
           phase_status: ch.phase_status,
           created_at: '',

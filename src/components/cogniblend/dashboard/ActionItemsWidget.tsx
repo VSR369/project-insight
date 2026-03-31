@@ -34,17 +34,18 @@ export function ActionItemsWidget() {
     if (!activeRole) return challengeItems;
     return challengeItems.filter((ch) => {
       const roles = challengeRoleMap.get(ch.challenge_id) ?? [];
-      if (ch.master_status === 'DRAFT') return true;
+      // Drafts (IN_PREPARATION phase 1) always visible to creator
+      if (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) return true;
       return roles.includes(activeRole);
     });
   }, [challengeItems, activeRole, challengeRoleMap]);
 
   const activeChallenges = filteredChallengeItems.filter(
-    (c) => c.master_status === 'ACTIVE' || c.master_status === 'IN_PREPARATION' || c.master_status === 'PUBLISHED'
+    (c) => c.master_status === 'ACTIVE' || c.master_status === 'IN_PREPARATION'
   ).length;
 
   const pendingActions = filteredChallengeItems.filter(
-    (c) => c.master_status === 'DRAFT' || c.master_status === 'RETURNED'
+    (c) => (c.master_status === 'IN_PREPARATION' && c.current_phase === 1) || c.phase_status === 'RETURNED'
   ).length;
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';

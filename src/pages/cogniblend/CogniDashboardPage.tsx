@@ -11,19 +11,19 @@ import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItems
 import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
+// useCogniPermissions available for future permission checks
 import { Zap } from 'lucide-react';
 import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourneySection';
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();
   const { data: orgContext } = useOrgModelContext();
-  const { isSpecRole } = useCogniPermissions();
+  // useCogniPermissions kept for future use
 
   // CR challenges mapped to RequestRow shape for journey section
   const { data: challengesData } = useMyChallenges(user?.id);
   const journeyRequests = useMemo<RequestRow[]>(() => {
-    if (!isSpecRole || !challengesData?.items) return [];
+    if (!challengesData?.items) return [];
     return challengesData.items
       .map((ch) => ({
         id: ch.challenge_id,
@@ -37,7 +37,7 @@ export default function CogniDashboardPage() {
         urgency: 'NORMAL',
         architect_name: null,
       }));
-  }, [isSpecRole, challengesData]);
+  }, [challengesData]);
 
   const showBypassBanner = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
