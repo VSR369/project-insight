@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getCurationFormStore } from '@/store/curationFormStore';
 import { createEmptySectionEntry } from '@/types/sections';
+import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import type { SectionKey, SectionStoreEntry, ReviewStatus } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 
