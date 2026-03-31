@@ -139,6 +139,23 @@ export default function BrowseChallengesPage() {
   const { data: challenges, isLoading, error } = useBrowseChallenges();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [industryFilter, setIndustryFilter] = useState('all');
+  const [complexityFilter, setComplexityFilter] = useState('all');
+
+  // Extract unique filter options from data
+  const { industries, complexities } = useMemo(() => {
+    if (!challenges) return { industries: [], complexities: [] };
+    const indSet = new Set<string>();
+    const cmpSet = new Set<string>();
+    for (const c of challenges) {
+      if (c.industry_name) indSet.add(c.industry_name);
+      if (c.complexity_level) cmpSet.add(c.complexity_level);
+    }
+    return {
+      industries: Array.from(indSet).sort(),
+      complexities: Array.from(cmpSet).sort(),
+    };
+  }, [challenges]);
 
   const filtered = useMemo(() => {
     if (!challenges) return [];
@@ -153,6 +170,16 @@ export default function BrowseChallengesPage() {
       list = list.filter(c => !!c.published_at);
     }
 
+    // Industry filter
+    if (industryFilter !== 'all') {
+      list = list.filter(c => c.industry_name === industryFilter);
+    }
+
+    // Complexity filter
+    if (complexityFilter !== 'all') {
+      list = list.filter(c => c.complexity_level === complexityFilter);
+    }
+
     // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -165,7 +192,7 @@ export default function BrowseChallengesPage() {
     }
 
     return list;
-  }, [challenges, activeTab, searchQuery]);
+  }, [challenges, activeTab, searchQuery, industryFilter, complexityFilter]);
 
   const counts = useMemo(() => {
     if (!challenges) return { all: 0, active: 0, preparation: 0, published: 0 };
