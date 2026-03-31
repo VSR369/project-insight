@@ -301,6 +301,12 @@ export default function ChallengeCreatePage() {
         tierCode={currentOrg.tierCode}
       />
 
+      {/* Organization Context Card */}
+      <CreatorOrgContextCard
+        organizationId={currentOrg.organizationId}
+        governanceMode={governanceMode}
+      />
+
       {/* Challenge Creator Form — governance-aware */}
       <ChallengeCreatorForm
         engagementModel={engagementModel}
