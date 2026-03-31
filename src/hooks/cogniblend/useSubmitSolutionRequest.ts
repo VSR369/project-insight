@@ -109,8 +109,11 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
-          maturity_level: payload.maturityLevel || null,
+          maturity_level: payload.maturityLevel?.toUpperCase() || null,
           ip_model: payload.ipModel || null,
+          domain_tags: payload.domainTags || null,
+          industry_segment_id: payload.industrySegmentId || null,
+          title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
@@ -148,9 +151,11 @@ export function useSubmitSolutionRequest() {
           ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
           ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
         },
-        maturity_level: payload.maturityLevel || null,
+        title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
+        maturity_level: payload.maturityLevel?.toUpperCase() || null,
         ip_model: payload.ipModel || null,
         domain_tags: payload.domainTags,
+        industry_segment_id: payload.industrySegmentId || null,
         budget_min: payload.budgetMin,
         budget_max: payload.budgetMax,
         currency: payload.currency,
@@ -247,6 +252,8 @@ interface DraftPayload {
   preferredApproach?: string;
   approachesNotOfInterest?: string;
   solutionExpectations?: string;
+  maturityLevel?: string;
+  ipModel?: string;
 }
 
 export function useSaveDraft() {
@@ -297,6 +304,10 @@ export function useSaveDraft() {
           phase_schedule: {
             expected_timeline: payload.expectedTimeline,
           },
+          maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          ip_model: payload.ipModel || null,
+          domain_tags: payload.domainTags || null,
+          industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
@@ -368,6 +379,10 @@ export function useUpdateDraft() {
           phase_schedule: {
             expected_timeline: payload.expectedTimeline,
           },
+          maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          ip_model: payload.ipModel || null,
+          domain_tags: payload.domainTags || null,
+          industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
