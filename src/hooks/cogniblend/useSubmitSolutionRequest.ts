@@ -31,6 +31,14 @@ interface SubmitPayload {
   beneficiariesMapping?: string;
   templateId?: string;
   governanceModeOverride?: string;
+  // Extended brief context fields from Creator
+  contextBackground?: string;
+  rootCauses?: string;
+  affectedStakeholders?: string;
+  scopeDefinition?: string;
+  preferredApproach?: string;
+  approachesNotOfInterest?: string;
+  solutionExpectations?: string;
 }
 
 interface SubmitResult {
