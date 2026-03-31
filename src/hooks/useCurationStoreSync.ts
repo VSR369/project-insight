@@ -100,14 +100,22 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
       const challengeUpdate: Record<string, unknown> = {};
       const reviewEntries: Record<string, unknown> = {};
 
+      // Track extended_brief subsection updates separately
+      const extendedBriefUpdates: Record<string, unknown> = {};
+
       for (const sectionKey of sectionsToSave) {
         const entry = storeState.sections[sectionKey];
         if (!entry) continue;
 
         const dbField = SECTION_DB_FIELD_MAP[sectionKey];
+        const briefField = EXTENDED_BRIEF_SECTION_KEYS[sectionKey];
+
         if (dbField && entry.data !== undefined) {
           // Section has its own DB column
           challengeUpdate[dbField] = entry.data;
+        } else if (briefField && entry.data !== undefined) {
+          // Section is a subfield within extended_brief JSONB
+          extendedBriefUpdates[briefField] = entry.data;
         }
 
         // Always save review state to ai_section_reviews
@@ -120,6 +128,21 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
           addressed: entry.addressed,
           reviewed_at: new Date().toISOString(),
         };
+      }
+
+      // If any extended_brief subsections changed, read-modify-write the JSONB column
+      if (Object.keys(extendedBriefUpdates).length > 0) {
+        const { data: current } = await supabase
+          .from('challenges')
+          .select('extended_brief')
+          .eq('id', challengeId)
+          .single();
+
+        const existingBrief = (current?.extended_brief && typeof current.extended_brief === 'object' && !Array.isArray(current.extended_brief))
+          ? (current.extended_brief as Record<string, unknown>)
+          : {};
+
+        challengeUpdate.extended_brief = { ...existingBrief, ...extendedBriefUpdates };
       }
 
       // Save section data to their respective columns
