@@ -30,6 +30,7 @@ interface SubmitPayload {
   specialtyTags?: string[];
   beneficiariesMapping?: string;
   templateId?: string;
+  governanceModeOverride?: string;
 }
 
 interface SubmitResult {
@@ -84,6 +85,7 @@ export function useSubmitSolutionRequest() {
           scope: payload.expectedOutcomes,
           reward_structure: rewardStructure,
           phase_schedule: phaseSchedule,
+          governance_mode_override: payload.governanceModeOverride ?? null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
@@ -147,6 +149,7 @@ interface DraftPayload {
   specialtyTags?: string[];
   beneficiariesMapping?: string;
   templateId?: string;
+  governanceModeOverride?: string;
 }
 
 export function useSaveDraft() {
@@ -176,6 +179,7 @@ export function useSaveDraft() {
         .update({
           problem_statement: payload.businessProblem || null,
           scope: payload.expectedOutcomes || null,
+          governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,
             budget_min: payload.budgetMin,

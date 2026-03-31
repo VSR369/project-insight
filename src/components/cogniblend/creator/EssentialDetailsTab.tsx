@@ -1,6 +1,7 @@
 /**
  * EssentialDetailsTab — Tab 1 of Challenge Creator Form.
- * All mandatory fields for challenge creation.
+ * Governance-aware: QUICK hides scope/IP/outcomes as optional,
+ * STRUCTURED shows all 8, CONTROLLED shows all 8 required.
  */
 
 import { Controller, useFormContext } from 'react-hook-form';
@@ -16,8 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Info } from 'lucide-react';
-import type { CreatorFormValues } from './ChallengeCreatorForm';
-import type { TaxonomySegment } from '@/hooks/queries/useTaxonomySelectors';
+import type { GovernanceMode } from '@/lib/governanceMode';
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -28,6 +28,7 @@ const CURRENCY_OPTIONS = [
 
 const IP_OPTIONS = [
   { value: 'IP-EA', label: 'We own everything', desc: 'Full IP transfer to your org' },
+  { value: 'IP-EL', label: 'Exclusive license', desc: 'Solver licenses exclusively to your org' },
   { value: 'IP-NEL', label: 'Solver licenses to us', desc: 'Non-exclusive license' },
   { value: 'IP-JO', label: 'Joint ownership', desc: 'Both parties co-own' },
   { value: 'IP-NONE', label: 'No transfer (advisory)', desc: 'Consulting only' },
@@ -41,12 +42,14 @@ const MATURITY_OPTIONS = [
 
 interface EssentialDetailsTabProps {
   engagementModel: string;
-  industrySegments: TaxonomySegment[];
+  industrySegments: Array<{ id: string; name: string }>;
+  governanceMode: GovernanceMode;
 }
 
-export function EssentialDetailsTab({ engagementModel, industrySegments }: EssentialDetailsTabProps) {
-  const { control, register, formState: { errors }, watch } = useFormContext<CreatorFormValues>();
+export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode }: EssentialDetailsTabProps) {
+  const { control, register, formState: { errors } } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
+  const isQuick = governanceMode === 'QUICK';
 
   return (
     <div className="space-y-6">
@@ -61,7 +64,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
           className="text-base"
           {...register('title')}
         />
-        {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+        {errors.title?.message && <p className="text-xs text-destructive">{String(errors.title.message)}</p>}
       </div>
 
       {/* Problem Statement */}
@@ -83,30 +86,32 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
             />
           )}
         />
-        {errors.problem_statement && <p className="text-xs text-destructive">{errors.problem_statement.message}</p>}
+        {errors.problem_statement?.message && <p className="text-xs text-destructive">{String(errors.problem_statement.message)}</p>}
       </div>
 
-      {/* Scope */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          Scope <span className="text-destructive">*</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          What should solvers address? What should they NOT touch?
-        </p>
-        <Controller
-          name="scope"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor
-              value={field.value}
-              onChange={field.onChange}
-              placeholder="Define the boundaries of this challenge..."
-            />
-          )}
-        />
-        {errors.scope && <p className="text-xs text-destructive">{errors.scope.message}</p>}
-      </div>
+      {/* Scope — optional for QUICK */}
+      {!isQuick && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            Scope <span className="text-destructive">*</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            What should solvers address? What should they NOT touch?
+          </p>
+          <Controller
+            name="scope"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Define the boundaries of this challenge..."
+              />
+            )}
+          />
+          {errors.scope?.message && <p className="text-xs text-destructive">{String(errors.scope.message)}</p>}
+        </div>
+      )}
 
       {/* Solution Depth */}
       <div className="space-y-3">
@@ -133,7 +138,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
             </RadioGroup>
           )}
         />
-        {errors.maturity_level && <p className="text-xs text-destructive">{errors.maturity_level.message}</p>}
+        {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
       </div>
 
       {/* Industry Domain */}
@@ -174,7 +179,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
             </div>
           )}
         />
-        {errors.domain_tags && <p className="text-xs text-destructive">{errors.domain_tags.message}</p>}
+        {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
       </div>
 
       {/* Budget Range */}
@@ -208,8 +213,8 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
             )}
           />
         </div>
-        {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
-        {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
+        {errors.budget_min?.message && <p className="text-xs text-destructive">{String(errors.budget_min.message)}</p>}
+        {errors.budget_max?.message && <p className="text-xs text-destructive">{String(errors.budget_max.message)}</p>}
         {isMPBudgetRequired && (
           <div className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -218,54 +223,58 @@ export function EssentialDetailsTab({ engagementModel, industrySegments }: Essen
         )}
       </div>
 
-      {/* IP Preference */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          IP Preference <span className="text-destructive">*</span>
-        </Label>
-        <Controller
-          name="ip_model"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
-              <SelectTrigger className="text-base">
-                <SelectValue placeholder="Select IP ownership model" />
-              </SelectTrigger>
-              <SelectContent>
-                {IP_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span>{opt.label}</span>
-                    <span className="text-xs text-muted-foreground ml-2">— {opt.desc}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {errors.ip_model && <p className="text-xs text-destructive">{errors.ip_model.message}</p>}
-      </div>
+      {/* IP Preference — optional for QUICK (auto-defaults to IP-NEL) */}
+      {!isQuick && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            IP Preference <span className="text-destructive">*</span>
+          </Label>
+          <Controller
+            name="ip_model"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                <SelectTrigger className="text-base">
+                  <SelectValue placeholder="Select IP ownership model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {IP_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span>{opt.label}</span>
+                      <span className="text-xs text-muted-foreground ml-2">— {opt.desc}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.ip_model?.message && <p className="text-xs text-destructive">{String(errors.ip_model.message)}</p>}
+        </div>
+      )}
 
-      {/* Expected Results */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          What results do you expect? <span className="text-destructive">*</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          What does success look like? Include numbers and metrics if possible.
-        </p>
-        <Controller
-          name="expected_outcomes"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor
-              value={field.value}
-              onChange={field.onChange}
-              placeholder="Describe the expected outcomes..."
-            />
-          )}
-        />
-        {errors.expected_outcomes && <p className="text-xs text-destructive">{errors.expected_outcomes.message}</p>}
-      </div>
+      {/* Expected Results — optional for QUICK */}
+      {!isQuick && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            What results do you expect? <span className="text-destructive">*</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            What does success look like? Include numbers and metrics if possible.
+          </p>
+          <Controller
+            name="expected_outcomes"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Describe the expected outcomes..."
+              />
+            )}
+          />
+          {errors.expected_outcomes?.message && <p className="text-xs text-destructive">{String(errors.expected_outcomes.message)}</p>}
+        </div>
+      )}
     </div>
   );
 }
