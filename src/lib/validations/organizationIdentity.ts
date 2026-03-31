@@ -27,9 +27,19 @@ export const organizationIdentitySchema = z.object({
     .optional()
     .or(z.literal('')),
 
+  organization_description: z.string()
+    .trim()
+    .min(200, 'Please provide at least 200 characters describing your organization')
+    .max(2000, 'Description must be 2000 characters or less'),
+
   website_url: z.string()
     .trim()
     .url('Please enter a valid URL (e.g. https://example.com)')
+    .max(255, 'URL must be 255 characters or less'),
+
+  linkedin_url: z.string()
+    .trim()
+    .url('Please enter a valid LinkedIn URL')
     .max(255, 'URL must be 255 characters or less')
     .optional()
     .or(z.literal('')),

@@ -150,6 +150,9 @@ export function useUpdateOrganization() {
       tenantId: string;
       legal_entity_name: string;
       trade_brand_name?: string;
+      website_url?: string;
+      linkedin_url?: string;
+      organization_description?: string;
       organization_type_id: string;
       employee_count_range: string;
       annual_revenue_range: string;
@@ -177,6 +180,9 @@ export function useUpdateOrganization() {
           organization_name: orgData.legal_entity_name,
           legal_entity_name: orgData.legal_entity_name,
           trade_brand_name: orgData.trade_brand_name || null,
+          website_url: orgData.website_url || null,
+          linkedin_url: orgData.linkedin_url || null,
+          organization_description: orgData.organization_description || null,
           organization_type_id: orgData.organization_type_id,
           employee_count_range: orgData.employee_count_range,
           annual_revenue_range: orgData.annual_revenue_range,
@@ -313,6 +319,9 @@ export function useCreateOrganization() {
     mutationFn: async (payload: {
       legal_entity_name: string;
       trade_brand_name?: string;
+      website_url?: string;
+      linkedin_url?: string;
+      organization_description?: string;
       organization_type_id: string;
       employee_count_range: string;
       annual_revenue_range: string;
@@ -345,6 +354,9 @@ export function useCreateOrganization() {
           organization_name: orgData.legal_entity_name,
           legal_entity_name: orgData.legal_entity_name,
           trade_brand_name: orgData.trade_brand_name || null,
+          website_url: orgData.website_url || null,
+          linkedin_url: orgData.linkedin_url || null,
+          organization_description: orgData.organization_description || null,
           organization_type_id: orgData.organization_type_id,
           employee_count_range: orgData.employee_count_range,
           annual_revenue_range: orgData.annual_revenue_range,

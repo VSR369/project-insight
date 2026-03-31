@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import { ChallengeCreatorForm } from '@/components/cogniblend/creator/ChallengeCreatorForm';
+import { CreatorOrgContextCard } from '@/components/cogniblend/creator/CreatorOrgContextCard';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { cn } from '@/lib/utils';
@@ -298,6 +299,12 @@ export default function ChallengeCreatePage() {
         engagementModel={engagementModel}
         onEngagementModelChange={setEngagementModel}
         tierCode={currentOrg.tierCode}
+      />
+
+      {/* Organization Context Card */}
+      <CreatorOrgContextCard
+        organizationId={currentOrg.organizationId}
+        governanceMode={governanceMode}
       />
 
       {/* Challenge Creator Form — governance-aware */}

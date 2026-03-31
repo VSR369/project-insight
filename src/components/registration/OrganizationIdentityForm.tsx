@@ -12,6 +12,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect, useRef } from 'react';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -91,7 +92,9 @@ export function OrganizationIdentityForm() {
     defaultValues: {
       legal_entity_name: state.step1?.legal_entity_name ?? '',
       trade_brand_name: state.step1?.trade_brand_name ?? '',
+      organization_description: state.step1?.organization_description ?? '',
       website_url: (state.step1 as any)?.website_url ?? '',
+      linkedin_url: state.step1?.linkedin_url ?? '',
       business_registration_number: (state.step1 as any)?.business_registration_number ?? '',
       organization_type_id: state.step1?.organization_type_id ?? '',
       industry_ids: state.step1?.industry_ids ?? [],
@@ -208,6 +211,8 @@ export function OrganizationIdentityForm() {
       legal_entity_name: data.legal_entity_name,
       trade_brand_name: data.trade_brand_name || undefined,
       website_url: data.website_url || undefined,
+      linkedin_url: data.linkedin_url || undefined,
+      organization_description: data.organization_description || undefined,
       registration_number: data.business_registration_number || undefined,
       organization_type_id: data.organization_type_id,
       employee_count_range: data.company_size_range,
@@ -300,6 +305,7 @@ export function OrganizationIdentityForm() {
       setStep1Data({
         legal_entity_name: data.legal_entity_name,
         trade_brand_name: data.trade_brand_name || undefined,
+        organization_description: data.organization_description || undefined,
         organization_type_id: data.organization_type_id,
         industry_ids: data.industry_ids,
         company_size_range: data.company_size_range,
@@ -309,6 +315,7 @@ export function OrganizationIdentityForm() {
         state_province_id: data.state_province_id,
         city: data.city,
         operating_geography_ids: data.operating_geography_ids,
+        linkedin_url: data.linkedin_url || undefined,
         verification_documents: verificationFiles.length > 0 ? verificationFiles : undefined,
         website_url: data.website_url || undefined,
         business_registration_number: data.business_registration_number || undefined,
@@ -380,10 +387,47 @@ export function OrganizationIdentityForm() {
             name="website_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Website URL</FormLabel>
+                <FormLabel>Website URL *</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="https://www.example.com" className="text-base" />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* LinkedIn URL (recommended) */}
+          <FormField
+            control={form.control}
+            name="linkedin_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>LinkedIn Company Page <span className="text-muted-foreground text-xs">(recommended)</span></FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://linkedin.com/company/your-company" className="text-base" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* About Your Organization */}
+          <FormField
+            control={form.control}
+            name="organization_description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>About Your Organization *</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder="What does your organization do? Describe your core business, market, and key capabilities in 2-3 sentences. (min 200 characters)"
+                    className="text-base min-h-[100px] resize-y"
+                  />
+                </FormControl>
+                {field.value && field.value.length > 0 && field.value.length < 200 && (
+                  <p className="text-xs text-muted-foreground">{field.value.length}/200 characters minimum</p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

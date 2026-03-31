@@ -20,6 +20,8 @@ export interface OrganizationIdentityData {
   state_province_id: string;
   city: string;
   operating_geography_ids: string[];
+  organization_description?: string;
+  linkedin_url?: string;
   logo_file?: File;
   profile_document?: File;
   verification_documents?: File[];
