@@ -331,10 +331,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       // Error handled by mutation onError
     }
   };
-    } catch {
-      // Error handled by mutation onError
-    }
-  };
 
   const isQuick = governanceMode === 'QUICK';
   const isControlled = governanceMode === 'CONTROLLED';
