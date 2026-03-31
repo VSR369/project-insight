@@ -188,6 +188,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       expectedTimeline: data.expected_timeline || '8w',
       domainTags: data.domain_tags,
       urgency: 'standard',
+      industrySegmentId: (data as any).industry_segment_id || undefined,
       beneficiariesMapping: data.affected_stakeholders || undefined,
       governanceModeOverride: governanceMode,
     };
