@@ -248,6 +248,7 @@ const LcReviewPanel = lazy(() => import("@/pages/cogniblend/LcReviewPanel"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
 const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
+const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallengesPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
