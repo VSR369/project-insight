@@ -287,6 +287,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
           }
         }
       }
+      toast.success(`Challenge "${data.title}" submitted to Curator. Track progress in My Challenges.`);
       navigate('/cogni/my-challenges');
     } catch {
       // Error handled by mutation onError
