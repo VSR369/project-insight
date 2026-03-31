@@ -17,8 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Info } from 'lucide-react';
-import type { CreatorFormValues } from './ChallengeCreatorForm';
-import type { TaxonomySegment } from '@/hooks/queries/useTaxonomySelectors';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
 const CURRENCY_OPTIONS = [
@@ -44,12 +42,12 @@ const MATURITY_OPTIONS = [
 
 interface EssentialDetailsTabProps {
   engagementModel: string;
-  industrySegments: TaxonomySegment[];
+  industrySegments: Array<{ id: string; name: string }>;
   governanceMode: GovernanceMode;
 }
 
 export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode }: EssentialDetailsTabProps) {
-  const { control, register, formState: { errors } } = useFormContext<CreatorFormValues>();
+  const { control, register, formState: { errors } } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
   const isQuick = governanceMode === 'QUICK';
 
@@ -66,7 +64,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
           className="text-base"
           {...register('title')}
         />
-        {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+        {errors.title?.message && <p className="text-xs text-destructive">{String(errors.title.message)}</p>}
       </div>
 
       {/* Problem Statement */}
@@ -88,7 +86,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
             />
           )}
         />
-        {errors.problem_statement && <p className="text-xs text-destructive">{errors.problem_statement.message}</p>}
+        {errors.problem_statement?.message && <p className="text-xs text-destructive">{String(errors.problem_statement.message)}</p>}
       </div>
 
       {/* Scope — optional for QUICK */}
@@ -111,7 +109,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
               />
             )}
           />
-          {errors.scope && <p className="text-xs text-destructive">{errors.scope.message}</p>}
+          {errors.scope?.message && <p className="text-xs text-destructive">{String(errors.scope.message)}</p>}
         </div>
       )}
 
@@ -140,7 +138,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
             </RadioGroup>
           )}
         />
-        {errors.maturity_level && <p className="text-xs text-destructive">{errors.maturity_level.message}</p>}
+        {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
       </div>
 
       {/* Industry Domain */}
@@ -181,7 +179,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
             </div>
           )}
         />
-        {errors.domain_tags && <p className="text-xs text-destructive">{errors.domain_tags.message}</p>}
+        {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
       </div>
 
       {/* Budget Range */}
@@ -215,8 +213,8 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
             )}
           />
         </div>
-        {errors.budget_min && <p className="text-xs text-destructive">{errors.budget_min.message}</p>}
-        {errors.budget_max && <p className="text-xs text-destructive">{errors.budget_max.message}</p>}
+        {errors.budget_min?.message && <p className="text-xs text-destructive">{String(errors.budget_min.message)}</p>}
+        {errors.budget_max?.message && <p className="text-xs text-destructive">{String(errors.budget_max.message)}</p>}
         {isMPBudgetRequired && (
           <div className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -250,7 +248,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
               </Select>
             )}
           />
-          {errors.ip_model && <p className="text-xs text-destructive">{errors.ip_model.message}</p>}
+          {errors.ip_model?.message && <p className="text-xs text-destructive">{String(errors.ip_model.message)}</p>}
         </div>
       )}
 
@@ -274,7 +272,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
               />
             )}
           />
-          {errors.expected_outcomes && <p className="text-xs text-destructive">{errors.expected_outcomes.message}</p>}
+          {errors.expected_outcomes?.message && <p className="text-xs text-destructive">{String(errors.expected_outcomes.message)}</p>}
         </div>
       )}
     </div>

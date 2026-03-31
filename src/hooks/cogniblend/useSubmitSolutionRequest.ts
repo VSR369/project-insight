@@ -149,6 +149,7 @@ interface DraftPayload {
   specialtyTags?: string[];
   beneficiariesMapping?: string;
   templateId?: string;
+  governanceModeOverride?: string;
 }
 
 export function useSaveDraft() {
