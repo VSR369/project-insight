@@ -230,6 +230,7 @@ export function MyActionItemsSection() {
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Title</TableHead>
+                <TableHead className="w-[80px]">Role</TableHead>
                 <TableHead className="w-[100px]">Phase</TableHead>
                 <TableHead className="w-[160px]">Status</TableHead>
                 <TableHead className="w-[120px] text-right">Action</TableHead>
