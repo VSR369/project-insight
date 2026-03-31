@@ -195,8 +195,6 @@ export function MyActionItemsSection() {
     return items;
   }, [challengeItems, challengeRoleMap, isSpecRole, unreadNotifications]);
 
-  const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
-
   if (isLoading) {
     return (
       <section className="mb-6">
@@ -214,7 +212,7 @@ export function MyActionItemsSection() {
           <CheckCircle className="h-8 w-8 text-[hsl(155,68%,37%)] mb-2" />
           <p className="text-sm font-bold text-[hsl(155,68%,37%)]">All caught up!</p>
           <p className="text-xs text-muted-foreground">
-            No items need your attention as {roleName} right now.
+            No items need your attention right now.
           </p>
         </div>
       </section>
