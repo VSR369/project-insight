@@ -8,6 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
   Target, BarChart3, ListChecks, ArrowLeft, Scale, Lock, Briefcase,
+  Building2, Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -162,6 +163,24 @@ export default function PublicChallengeDetailPage() {
 
       {/* ═══ HERO SECTION ═══ */}
       <div className="space-y-5">
+        {/* Org context */}
+        {(data.organization_name || data.industry_name) && (
+          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            {(data.organization_name || data.trade_brand_name) && (
+              <span className="flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" />
+                {data.trade_brand_name || data.organization_name}
+              </span>
+            )}
+            {data.industry_name && (
+              <span className="flex items-center gap-1.5">
+                <Globe className="h-4 w-4" />
+                {data.industry_name}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Title */}
         <h1 className="text-2xl font-bold text-primary tracking-tight leading-tight">
           {data.title}
@@ -169,6 +188,11 @@ export default function PublicChallengeDetailPage() {
 
         {/* Info badges row */}
         <div className="flex flex-wrap items-center gap-2">
+          {!data.published_at && (
+            <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 bg-amber-50">
+              In Preparation
+            </Badge>
+          )}
           {data.maturity_level && (
             <Badge variant="secondary" className="text-xs font-semibold border border-border">
               {getMaturityLabel(data.maturity_level)}

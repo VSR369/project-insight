@@ -1,6 +1,7 @@
 /**
- * usePublicChallenge — Fetches published challenge data for the public detail page.
- * Includes visibility/eligibility checks against current user.
+ * usePublicChallenge — Fetches challenge data for the detail page.
+ * Authenticated users can view all non-deleted challenges.
+ * Unauthenticated users can only view published challenges.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -35,29 +36,17 @@ export interface PublicChallengeData {
   daysRemaining: number | null;
   challenge_enrollment: string | null;
   tenant_id: string;
+  organization_name: string | null;
+  trade_brand_name: string | null;
+  industry_name: string | null;
+  status: string | null;
+  master_status: string | null;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
 
-const VISIBILITY_RANK: Record<string, number> = {
-  public: 1,
-  registered_users: 2,
-  curated_experts: 3,
-  invite_only: 4,
-};
-
-const ELIGIBILITY_RANK: Record<string, number> = {
-  anyone: 1,
-  registered_users: 2,
-  curated_experts: 3,
-  invited_only: 4,
-};
-
 function checkVisibility(visibility: string | null, isAuthenticated: boolean): boolean {
   if (!visibility || visibility === 'public') return true;
-  if (visibility === 'registered_users' && isAuthenticated) return true;
-  // curated_experts and invite_only require specific checks
-  // For now, authenticated users can view registered_users+ content
   if (isAuthenticated) return true;
   return false;
 }
@@ -65,7 +54,6 @@ function checkVisibility(visibility: string | null, isAuthenticated: boolean): b
 function checkEligibility(eligibility: string | null, isAuthenticated: boolean): boolean {
   if (!eligibility || eligibility === 'anyone') return true;
   if (eligibility === 'registered_users' && isAuthenticated) return true;
-  // Curated/invited require role-based checks — simplified for now
   if (eligibility === 'curated_experts' || eligibility === 'invited_only') return false;
   return isAuthenticated;
 }
@@ -82,20 +70,30 @@ export function usePublicChallenge(challengeId: string | undefined) {
       const { data: { user } } = await supabase.auth.getUser();
       const isAuthenticated = !!user;
 
-      // Fetch challenge (only published ones)
-      const { data: challenge, error } = await supabase
+      // Build query — authenticated users see all non-deleted; public only published
+      let query = supabase
         .from('challenges')
         .select(`
           id, title, problem_statement, scope, description,
           maturity_level, complexity_level, complexity_score,
           operating_model, visibility, eligibility, currency_code,
           submission_deadline, published_at, tenant_id, ip_model,
-          reward_structure, evaluation_criteria, deliverables, phase_schedule
+          reward_structure, evaluation_criteria, deliverables, phase_schedule,
+          status, master_status,
+          seeker_organizations!challenges_organization_id_fkey (
+            organization_name, trade_brand_name
+          ),
+          industry_segments (name)
         `)
         .eq('id', challengeId)
-        .eq('is_deleted', false)
-        .not('published_at', 'is', null)
-        .single();
+        .eq('is_deleted', false);
+
+      // Unauthenticated users can only see published challenges
+      if (!isAuthenticated) {
+        query = query.not('published_at', 'is', null);
+      }
+
+      const { data: challenge, error } = await query.maybeSingle();
 
       if (error || !challenge) return null;
 
@@ -139,6 +137,9 @@ export function usePublicChallenge(challengeId: string | undefined) {
 }
 
 function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining'> {
+  const org = c.seeker_organizations as Record<string, unknown> | null;
+  const industry = c.industry_segments as Record<string, unknown> | null;
+
   return {
     id: c.id as string,
     title: c.title as string,
@@ -161,5 +162,10 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
     challenge_enrollment: c.challenge_enrollment as string | null,
     tenant_id: c.tenant_id as string,
+    status: c.status as string | null,
+    master_status: c.master_status as string | null,
+    organization_name: (org?.organization_name as string) ?? null,
+    trade_brand_name: (org?.trade_brand_name as string) ?? null,
+    industry_name: (industry?.name as string) ?? null,
   };
 }
