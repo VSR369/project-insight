@@ -149,6 +149,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       problem_statement: '',
       scope: '',
       maturity_level: undefined,
+      industry_segment_id: '',
       domain_tags: [],
       currency: 'USD',
       budget_min: 0,
