@@ -59,7 +59,7 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     title: z.string().trim().min(1, 'Title is required').max(100, 'Max 100 characters'),
     problem_statement: z.string().min(problemMin, `At least ${problemMin} characters required`),
     scope: scopeRule,
-    maturity_level: z.enum(['blueprint', 'poc', 'pilot'], {
+    maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
       errorMap: () => ({ message: 'Please select a solution type' }),
     }),
     industry_segment_id: z.string().min(1, 'Please select a primary industry segment'),
@@ -99,7 +99,7 @@ export type CreatorFormValues = z.infer<ReturnType<typeof buildCreatorSchema>> e
   title: string;
   problem_statement: string;
   scope: string;
-  maturity_level: 'blueprint' | 'poc' | 'pilot';
+  maturity_level: 'blueprint' | 'poc' | 'prototype' | 'pilot';
   domain_tags: string[];
   currency: 'USD' | 'EUR' | 'GBP' | 'INR';
   budget_min: number;
@@ -188,7 +188,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         title: (ch.title as string) || '',
         problem_statement: (ch.problem_statement as string) || '',
         scope: (ch.scope as string) || '',
-        maturity_level: (ch.maturity_level as any) || undefined,
+        maturity_level: (ch.maturity_level as string)?.toLowerCase() as any || undefined,
         industry_segment_id: (ch.industry_segment_id as string) || '',
         domain_tags: (ch.domain_tags as string[]) || [],
         currency: ((rs?.currency as string) || 'USD') as any,
@@ -294,6 +294,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         orgId: currentOrg.organizationId,
         creatorId: user.id,
         operatingModel: engagementModel,
+        title: data.title || '',
         businessProblem: data.problem_statement || '',
         expectedOutcomes: data.expected_outcomes || '',
         constraints: data.scope || '',
@@ -303,12 +304,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         expectedTimeline: data.expected_timeline || '8w',
         domainTags: data.domain_tags || [],
         urgency: 'standard',
+        industrySegmentId: (data as any).industry_segment_id || undefined,
         governanceModeOverride: governanceMode,
         contextBackground: data.context_background || undefined,
         rootCauses: data.root_causes || undefined,
         affectedStakeholders: data.affected_stakeholders || undefined,
         preferredApproach: data.preferred_approach || undefined,
         approachesNotOfInterest: data.approaches_not_of_interest || undefined,
+        currentDeficiencies: data.current_deficiencies || undefined,
+        maturityLevel: data.maturity_level || undefined,
+        ipModel: data.ip_model || undefined,
       };
 
       if (draftChallengeId) {

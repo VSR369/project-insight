@@ -229,6 +229,7 @@ interface DraftPayload {
   orgId: string;
   creatorId: string;
   operatingModel: string;
+  title?: string;
   businessProblem: string;
   expectedOutcomes: string;
   constraints?: string;
@@ -244,7 +245,6 @@ interface DraftPayload {
   beneficiariesMapping?: string;
   templateId?: string;
   governanceModeOverride?: string;
-  // Extended brief context fields from Creator
   contextBackground?: string;
   rootCauses?: string;
   affectedStakeholders?: string;
@@ -252,6 +252,7 @@ interface DraftPayload {
   preferredApproach?: string;
   approachesNotOfInterest?: string;
   solutionExpectations?: string;
+  currentDeficiencies?: string;
   maturityLevel?: string;
   ipModel?: string;
 }
@@ -261,7 +262,7 @@ export function useSaveDraft() {
 
   return useMutation({
     mutationFn: async (payload: DraftPayload): Promise<{ challengeId: string }> => {
-      const title = payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
+      const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
 
       // Initialize challenge (stays in Phase 1)
       const { data: challengeId, error: initError } = await supabase.rpc(
@@ -281,6 +282,7 @@ export function useSaveDraft() {
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
+          title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           problem_statement: payload.businessProblem || null,
           scope: payload.constraints || null,
           expected_outcomes: payload.expectedOutcomes
@@ -326,6 +328,7 @@ export function useSaveDraft() {
             ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
             ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
           },
         } as any)
         .eq('id', challengeId);
@@ -356,6 +359,7 @@ export function useUpdateDraft() {
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
+          title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           problem_statement: payload.businessProblem || null,
           scope: payload.constraints || null,
           expected_outcomes: payload.expectedOutcomes
@@ -399,6 +403,7 @@ export function useUpdateDraft() {
             ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
             ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
+            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
           },
         } as any)
         .eq('id', payload.challengeId);
