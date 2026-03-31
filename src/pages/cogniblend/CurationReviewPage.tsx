@@ -1452,6 +1452,27 @@ export default function CurationReviewPage() {
     }
   }, [curationStore]);
 
+  // ── Phase 3: Bulk-accept all ai_suggested legal docs for STRUCTURED mode ──
+  const handleAcceptAllLegalDefaults = useCallback(async () => {
+    if (!challengeId) return;
+    setIsAcceptingAllLegal(true);
+    try {
+      const { error } = await supabase
+        .from('challenge_legal_docs')
+        .update({ status: 'ATTACHED' } as any)
+        .eq('challenge_id', challengeId)
+        .in('status', ['ai_suggested', 'default_applied']);
+      if (error) throw new Error(error.message);
+      queryClient.invalidateQueries({ queryKey: ['curation-legal-summary', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['curation-legal-details', challengeId] });
+      toast.success('All legal defaults accepted');
+    } catch (err: any) {
+      toast.error(`Failed to accept legal defaults: ${err.message}`);
+    } finally {
+      setIsAcceptingAllLegal(false);
+    }
+  }, [challengeId, queryClient]);
+
   useEffect(() => {
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
       let stored: SectionReview[] = [];
