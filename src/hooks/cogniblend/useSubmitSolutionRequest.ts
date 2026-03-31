@@ -179,6 +179,7 @@ export function useSaveDraft() {
         .update({
           problem_statement: payload.businessProblem || null,
           scope: payload.expectedOutcomes || null,
+          governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,
             budget_min: payload.budgetMin,
