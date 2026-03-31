@@ -1344,14 +1344,8 @@ export default function AISpecReviewPage() {
       }
     }
 
-    const isAiPath = sessionStorage.getItem('cogni_demo_path') === 'ai';
-    if (isAiPath) {
-      toast.success('Specification approved. Legal Coordinator will prepare documents.');
-      navigate('/cogni/dashboard');
-    } else {
-      toast.success('Specification approved. Proceeding to legal document attachment.');
-      navigate(`/cogni/challenges/${challengeId}/legal`);
-    }
+    toast.success('Specification approved. Proceeding to legal document attachment.');
+    navigate(`/cogni/challenges/${challengeId}/legal`);
   };
 
   const handleApproveAndContinue = async () => {
