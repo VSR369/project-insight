@@ -112,13 +112,7 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
         orgTypeName = ot?.name ?? null;
       }
 
-      // Seed local state
-      setWebsiteUrl(org?.website_url ?? '');
-      setLinkedinUrl(org?.linkedin_url ?? '');
-      setTwitterUrl(org?.twitter_url ?? '');
-      setDescription(org?.organization_description ?? '');
-      setTagline(org?.tagline ?? '');
-      setIsDirty(false);
+      // State hydration moved to useEffect below
 
       return {
         organization_name: org?.organization_name ?? '',
