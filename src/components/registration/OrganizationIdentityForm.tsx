@@ -211,6 +211,8 @@ export function OrganizationIdentityForm() {
       legal_entity_name: data.legal_entity_name,
       trade_brand_name: data.trade_brand_name || undefined,
       website_url: data.website_url || undefined,
+      linkedin_url: data.linkedin_url || undefined,
+      organization_description: data.organization_description || undefined,
       registration_number: data.business_registration_number || undefined,
       organization_type_id: data.organization_type_id,
       employee_count_range: data.company_size_range,
