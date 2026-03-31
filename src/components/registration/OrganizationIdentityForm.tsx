@@ -383,10 +383,47 @@ export function OrganizationIdentityForm() {
             name="website_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Website URL</FormLabel>
+                <FormLabel>Website URL *</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="https://www.example.com" className="text-base" />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* LinkedIn URL (recommended) */}
+          <FormField
+            control={form.control}
+            name="linkedin_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>LinkedIn Company Page <span className="text-muted-foreground text-xs">(recommended)</span></FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://linkedin.com/company/your-company" className="text-base" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* About Your Organization */}
+          <FormField
+            control={form.control}
+            name="organization_description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>About Your Organization *</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder="What does your organization do? Describe your core business, market, and key capabilities in 2-3 sentences. (min 200 characters)"
+                    className="text-base min-h-[100px] resize-y"
+                  />
+                </FormControl>
+                {field.value && field.value.length > 0 && field.value.length < 200 && (
+                  <p className="text-xs text-muted-foreground">{field.value.length}/200 characters minimum</p>
+                )}
                 <FormMessage />
               </FormItem>
             )}
