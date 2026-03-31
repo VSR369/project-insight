@@ -85,6 +85,7 @@ export function useSubmitSolutionRequest() {
           scope: payload.expectedOutcomes,
           reward_structure: rewardStructure,
           phase_schedule: phaseSchedule,
+          governance_mode_override: payload.governanceModeOverride ?? null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
