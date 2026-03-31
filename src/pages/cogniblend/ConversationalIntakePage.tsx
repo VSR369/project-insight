@@ -949,6 +949,16 @@ export function ConversationalIntakeContent({
         expectedTimeline: data.deadline ? format(data.deadline, 'yyyy-MM-dd') : '',
         domainTags: selectedTemplate?.prefill.domain_tags ?? [],
         urgency: 'normal',
+        // Pass Creator context fields so they are saved atomically in extended_brief
+        contextBackground: data.context_background?.trim() || undefined,
+        rootCauses: data.root_causes?.trim() || undefined,
+        affectedStakeholders: data.affected_stakeholders?.trim() || undefined,
+        scopeDefinition: data.scope_definition?.trim() || undefined,
+        preferredApproach: data.preferred_approach?.trim() || undefined,
+        approachesNotOfInterest: data.approaches_not_of_interest?.trim() || undefined,
+        solutionExpectations: data.solution_expectations?.trim() || undefined,
+        templateId: selectedTemplate?.id,
+        beneficiariesMapping: data.beneficiaries_mapping?.trim() || undefined,
       });
 
       // Build extended_brief from expand fields
