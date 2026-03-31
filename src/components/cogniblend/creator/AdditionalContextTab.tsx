@@ -4,8 +4,11 @@
  * Field keys match curator section_keys in extended_brief for direct pipeline flow.
  */
 
+import { useState, useCallback } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import {
   Select,
@@ -14,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Plus, X, Link as LinkIcon } from 'lucide-react';
+import { FileUploadZone } from '@/components/shared/FileUploadZone';
+import { toast } from 'sonner';
 import type { CreatorFormValues } from './ChallengeCreatorForm';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
