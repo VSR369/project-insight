@@ -319,6 +319,9 @@ export function useCreateOrganization() {
     mutationFn: async (payload: {
       legal_entity_name: string;
       trade_brand_name?: string;
+      website_url?: string;
+      linkedin_url?: string;
+      organization_description?: string;
       organization_type_id: string;
       employee_count_range: string;
       annual_revenue_range: string;
