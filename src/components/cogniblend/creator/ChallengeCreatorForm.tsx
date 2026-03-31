@@ -59,7 +59,7 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     title: z.string().trim().min(1, 'Title is required').max(100, 'Max 100 characters'),
     problem_statement: z.string().min(problemMin, `At least ${problemMin} characters required`),
     scope: scopeRule,
-    maturity_level: z.enum(['blueprint', 'poc', 'pilot'], {
+    maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
       errorMap: () => ({ message: 'Please select a solution type' }),
     }),
     industry_segment_id: z.string().min(1, 'Please select a primary industry segment'),
