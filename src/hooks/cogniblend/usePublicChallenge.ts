@@ -180,6 +180,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     ip_model: c.ip_model as string | null,
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
     challenge_enrollment: c.challenge_enrollment as string | null,
+    challenge_visibility: c.challenge_visibility as string | null,
     tenant_id: c.tenant_id as string,
     status: c.status as string | null,
     master_status: c.master_status as string | null,
