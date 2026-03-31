@@ -139,15 +139,15 @@ export function MyActionItemsSection() {
     [user?.id, queryClient, navigate],
   );
 
-  // Build action items
+  // Build action items — show ALL roles simultaneously (Phase 4: unified dashboard)
   const actionItems = useMemo(() => {
     const items: ActionItem[] = [];
 
-    // Challenges the user has a role on that need action
+    // Challenges the user has a role on that need action — across ALL roles
     for (const ch of challengeItems) {
       const roles = challengeRoleMap.get(ch.challenge_id) ?? [];
-      const isRelevant = !activeRole || roles.includes(activeRole) || ch.master_status === 'DRAFT';
-      if (!isRelevant) continue;
+      // Include if user has any role on this challenge (no activeRole filter)
+      if (roles.length === 0 && ch.master_status !== 'DRAFT') continue;
 
       // Standard action items: DRAFT, RETURNED, AM_APPROVAL_PENDING
       const needsAction =
@@ -163,11 +163,10 @@ export function MyActionItemsSection() {
           phase: ch.current_phase,
           phase_status: ch.phase_status,
           created_at: '',
+          roleCodes: roles,
         });
       }
     }
-
-    // Draft SRs removed — no more AM/RQ request concept
 
     // Unread notifications for CA/CR (lifecycle alerts)
     if (isSpecRole) {
@@ -192,7 +191,7 @@ export function MyActionItemsSection() {
     }
 
     return items;
-  }, [challengeItems, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
+  }, [challengeItems, challengeRoleMap, isSpecRole, unreadNotifications]);
 
   const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
 
