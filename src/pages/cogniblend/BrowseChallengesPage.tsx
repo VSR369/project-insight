@@ -6,7 +6,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Filter, Loader2, Target, Calendar, Building2,
+  Search, Loader2, Target, Calendar, Building2,
   ArrowRight, Clock, Inbox,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useBrowseChallenges, type BrowseChallengeItem } from '@/hooks/cogniblend/useBrowseChallenges';
 import { formatDistanceToNow } from 'date-fns';
 
