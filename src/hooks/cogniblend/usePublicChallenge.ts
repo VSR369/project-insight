@@ -41,6 +41,19 @@ export interface PublicChallengeData {
   industry_name: string | null;
   status: string | null;
   master_status: string | null;
+  current_phase: number | null;
+  extended_brief: Record<string, unknown> | null;
+  expected_outcomes: Record<string, unknown> | null;
+  domain_tags: unknown[] | null;
+  governance_profile: string | null;
+  hook: string | null;
+  effort_level: string | null;
+  solution_type: string | null;
+  data_resources_provided: Record<string, unknown> | null;
+  success_metrics_kpis: Record<string, unknown> | null;
+  submission_guidelines: Record<string, unknown> | null;
+  functional_area: string | null;
+  target_geography: string | null;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
