@@ -87,7 +87,13 @@ import { computeSolverAssignment } from '@/lib/cogniblend/solverAutoAssign';
 import { getPostGenerationRoute, shouldRequireAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
 import { CHALLENGE_TEMPLATES, type ChallengeTemplate } from '@/lib/challengeTemplates';
-import type { SharedIntakeState } from './ChallengeCreatePage';
+/** Legacy shared state type — kept for backward compat with AI intake flow */
+interface SharedIntakeState {
+  problemStatement: string;
+  maturityLevel: string;
+  selectedTemplate: any | null;
+  generatedSpec: any | null;
+}
 
 /* ─── Constants ───────────────────────────────────────── */
 
