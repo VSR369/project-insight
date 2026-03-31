@@ -35,6 +35,7 @@ export interface PublicChallengeData {
   isVisible: boolean;
   daysRemaining: number | null;
   challenge_enrollment: string | null;
+  challenge_visibility: string | null;
   tenant_id: string;
   organization_name: string | null;
   trade_brand_name: string | null;
