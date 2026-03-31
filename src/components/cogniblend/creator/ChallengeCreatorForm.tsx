@@ -280,7 +280,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
   const handleFillTestData = useCallback(() => {
     const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
-    const domainIds = industrySegments.slice(0, 2).map((s) => s.value);
+    const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
     form.reset({
       ...seed,
       domain_tags: domainIds,
