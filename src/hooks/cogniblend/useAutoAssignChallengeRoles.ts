@@ -37,6 +37,8 @@ interface AssignmentResult {
 export async function autoAssignChallengeRole(
   input: AssignmentInput,
 ): Promise<AssignmentResult | null> {
+  // TODO: For LC/FC roles, query seeker org's org_users table instead of platform_provider_pool.
+  // Current behavior fails gracefully (returns null) if no match found in pool.
   // 1. Fetch eligible pool members with the target role code
   const { data: members, error: fetchError } = await supabase
     .from('platform_provider_pool')
