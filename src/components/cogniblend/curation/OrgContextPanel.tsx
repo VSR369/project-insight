@@ -406,8 +406,8 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
           value={description}
           onChange={handleFieldChange(setDescription)}
           disabled={isReadOnly}
-          rows={3}
-          className="text-sm resize-none"
+          rows={5}
+          className="text-sm resize-y min-h-[120px]"
         />
         <p className="text-[10px] text-muted-foreground">
           Providing a rich description helps the AI produce more contextually relevant challenge content.
