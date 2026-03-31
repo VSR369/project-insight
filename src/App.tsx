@@ -731,6 +731,7 @@ const App = () => (
               <Route path="seeker-config/engagement-models" element={<PermissionGuard permissionKey="seeker_config.view"><EngagementModelsPage /></PermissionGuard>} />
               <Route path="seeker-config/challenge-complexity" element={<PermissionGuard permissionKey="seeker_config.view"><ChallengeComplexityPage /></PermissionGuard>} />
               <Route path="seeker-config/challenge-statuses" element={<PermissionGuard permissionKey="seeker_config.view"><ChallengeStatusesPage /></PermissionGuard>} />
+              <Route path="seeker-config/solution-maturity" element={<PermissionGuard permissionKey="seeker_config.view"><SolutionMaturityPage /></PermissionGuard>} />
               {/* Compliance Config — permission: seeker_config.manage_compliance */}
               <Route path="seeker-config/export-control" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><ExportControlPage /></PermissionGuard>} />
               <Route path="seeker-config/data-residency" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><DataResidencyPage /></PermissionGuard>} />
