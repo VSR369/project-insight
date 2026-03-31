@@ -13,6 +13,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { getCurationFormStore } from '@/store/curationFormStore';
+import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { SECTION_KEYS } from '@/types/sections';
 
@@ -38,12 +39,20 @@ const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
   solution_type: 'solution_types',
   
   expected_outcomes: 'expected_outcomes',
-  extended_brief: 'extended_brief',
   submission_guidelines: 'submission_guidelines',
   solver_expertise: 'solver_expertise_requirements',
   data_resources_provided: 'data_resources_provided',
   success_metrics_kpis: 'success_metrics_kpis',
 };
+
+/**
+ * Section keys that are stored as subfields within the `extended_brief` JSONB column.
+ * Maps store section key → JSONB subfield name inside extended_brief.
+ */
+const EXTENDED_BRIEF_SECTION_KEYS: Partial<Record<SectionKey, string>> = Object.entries(EXTENDED_BRIEF_FIELD_MAP).reduce(
+  (acc, [sectionKey, dbField]) => ({ ...acc, [sectionKey as SectionKey]: dbField }),
+  {} as Partial<Record<SectionKey, string>>,
+);
 
 interface UseCurationStoreSyncOptions {
   challengeId: string;
@@ -91,14 +100,22 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
       const challengeUpdate: Record<string, unknown> = {};
       const reviewEntries: Record<string, unknown> = {};
 
+      // Track extended_brief subsection updates separately
+      const extendedBriefUpdates: Record<string, unknown> = {};
+
       for (const sectionKey of sectionsToSave) {
         const entry = storeState.sections[sectionKey];
         if (!entry) continue;
 
         const dbField = SECTION_DB_FIELD_MAP[sectionKey];
+        const briefField = EXTENDED_BRIEF_SECTION_KEYS[sectionKey];
+
         if (dbField && entry.data !== undefined) {
           // Section has its own DB column
           challengeUpdate[dbField] = entry.data;
+        } else if (briefField && entry.data !== undefined) {
+          // Section is a subfield within extended_brief JSONB
+          extendedBriefUpdates[briefField] = entry.data;
         }
 
         // Always save review state to ai_section_reviews
@@ -111,6 +128,21 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
           addressed: entry.addressed,
           reviewed_at: new Date().toISOString(),
         };
+      }
+
+      // If any extended_brief subsections changed, read-modify-write the JSONB column
+      if (Object.keys(extendedBriefUpdates).length > 0) {
+        const { data: current } = await supabase
+          .from('challenges')
+          .select('extended_brief')
+          .eq('id', challengeId)
+          .single();
+
+        const existingBrief = (current?.extended_brief && typeof current.extended_brief === 'object' && !Array.isArray(current.extended_brief))
+          ? (current.extended_brief as Record<string, unknown>)
+          : {};
+
+        challengeUpdate.extended_brief = { ...existingBrief, ...extendedBriefUpdates };
       }
 
       // Save section data to their respective columns

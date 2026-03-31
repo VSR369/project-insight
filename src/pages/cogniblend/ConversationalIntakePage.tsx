@@ -949,17 +949,20 @@ export function ConversationalIntakeContent({
         expectedTimeline: data.deadline ? format(data.deadline, 'yyyy-MM-dd') : '',
         domainTags: selectedTemplate?.prefill.domain_tags ?? [],
         urgency: 'normal',
+        // Pass Creator context fields so they are saved atomically in extended_brief
+        contextBackground: data.context_background?.trim() || undefined,
+        rootCauses: data.root_causes?.trim() || undefined,
+        affectedStakeholders: data.affected_stakeholders?.trim() || undefined,
+        scopeDefinition: data.scope_definition?.trim() || undefined,
+        preferredApproach: data.preferred_approach?.trim() || undefined,
+        approachesNotOfInterest: data.approaches_not_of_interest?.trim() || undefined,
+        solutionExpectations: data.solution_expectations?.trim() || undefined,
+        templateId: selectedTemplate?.id,
+        beneficiariesMapping: data.beneficiaries_mapping?.trim() || undefined,
       });
 
-      // Build extended_brief from expand fields
-      const extendedBrief: Record<string, string> = {};
-      if (data.context_background?.trim()) extendedBrief.context_background = data.context_background.trim();
-      if (data.root_causes?.trim()) extendedBrief.root_causes = data.root_causes.trim();
-      if (data.affected_stakeholders?.trim()) extendedBrief.affected_stakeholders = data.affected_stakeholders.trim();
-      if (data.scope_definition?.trim()) extendedBrief.scope_definition = data.scope_definition.trim();
-      if (data.preferred_approach?.trim()) extendedBrief.preferred_approach = data.preferred_approach.trim();
-      if (data.approaches_not_of_interest?.trim()) extendedBrief.approaches_not_of_interest = data.approaches_not_of_interest.trim();
-
+      // extended_brief context fields are already saved atomically via createChallenge above.
+      // This saveStep only writes AI-generated spec fields — no extended_brief to avoid overwrite.
       await saveStep.mutateAsync({
         challengeId,
         fields: {
@@ -978,8 +981,6 @@ export function ConversationalIntakeContent({
           
           governance_profile: governanceMode,
           operating_model: engagementModel,
-          // Persist domain-expert context in extended_brief JSONB
-          ...(Object.keys(extendedBrief).length > 0 ? { extended_brief: extendedBrief } : {}),
           solver_eligibility_types: (() => {
             const details = Array.isArray(spec.solver_eligibility_details)
               ? spec.solver_eligibility_details.map((d: any) => ({ code: d.code, label: d.label }))

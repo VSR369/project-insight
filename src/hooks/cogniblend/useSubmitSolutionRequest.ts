@@ -31,6 +31,14 @@ interface SubmitPayload {
   beneficiariesMapping?: string;
   templateId?: string;
   governanceModeOverride?: string;
+  // Extended brief context fields from Creator
+  contextBackground?: string;
+  rootCauses?: string;
+  affectedStakeholders?: string;
+  scopeDefinition?: string;
+  preferredApproach?: string;
+  approachesNotOfInterest?: string;
+  solutionExpectations?: string;
 }
 
 interface SubmitResult {
@@ -100,6 +108,13 @@ export function useSubmitSolutionRequest() {
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
+            ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
+            ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
+            ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+            ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
+            ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
+            ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+            ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
           },
         } as any)
         .eq('id', challengeId);
@@ -184,6 +199,14 @@ interface DraftPayload {
   beneficiariesMapping?: string;
   templateId?: string;
   governanceModeOverride?: string;
+  // Extended brief context fields from Creator
+  contextBackground?: string;
+  rootCauses?: string;
+  affectedStakeholders?: string;
+  scopeDefinition?: string;
+  preferredApproach?: string;
+  approachesNotOfInterest?: string;
+  solutionExpectations?: string;
 }
 
 export function useSaveDraft() {
@@ -245,6 +268,13 @@ export function useSaveDraft() {
           extended_brief: {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
+            ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
+            ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
+            ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+            ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
+            ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
+            ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+            ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
           },
         } as any)
         .eq('id', challengeId);

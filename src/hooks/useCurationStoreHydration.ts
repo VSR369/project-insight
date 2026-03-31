@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getCurationFormStore } from '@/store/curationFormStore';
 import { createEmptySectionEntry } from '@/types/sections';
+import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import type { SectionKey, SectionStoreEntry, ReviewStatus } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 
@@ -100,6 +101,29 @@ export function useCurationStoreHydration({
       const value = challenge[field];
       if (value != null) {
         sectionsData[sectionKey] = value as SectionStoreEntry['data'];
+      }
+    }
+
+    // Decompose extended_brief JSONB into individual subsection store entries
+    const extBrief = challenge.extended_brief;
+    if (extBrief && typeof extBrief === 'object' && !Array.isArray(extBrief)) {
+      const briefObj = extBrief as Record<string, unknown>;
+      // Reverse map: DB field name → store section key
+      for (const [sectionKey, dbField] of Object.entries(EXTENDED_BRIEF_FIELD_MAP)) {
+        const value = briefObj[dbField];
+        if (value != null) {
+          sectionsData[sectionKey as SectionKey] = value as SectionStoreEntry['data'];
+        }
+      }
+      // Also check for keys that match directly (e.g. context_background stored as-is)
+      for (const [key, value] of Object.entries(briefObj)) {
+        if (value != null) {
+          // Find the section key for this DB field
+          const matchedSection = Object.entries(EXTENDED_BRIEF_FIELD_MAP).find(([, dbF]) => dbF === key);
+          if (matchedSection) {
+            sectionsData[matchedSection[0] as SectionKey] = value as SectionStoreEntry['data'];
+          }
+        }
       }
     }
 
