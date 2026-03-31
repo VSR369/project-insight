@@ -188,7 +188,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         title: (ch.title as string) || '',
         problem_statement: (ch.problem_statement as string) || '',
         scope: (ch.scope as string) || '',
-        maturity_level: (ch.maturity_level as any) || undefined,
+        maturity_level: (ch.maturity_level as string)?.toLowerCase() as any || undefined,
         industry_segment_id: (ch.industry_segment_id as string) || '',
         domain_tags: (ch.domain_tags as string[]) || [],
         currency: ((rs?.currency as string) || 'USD') as any,
