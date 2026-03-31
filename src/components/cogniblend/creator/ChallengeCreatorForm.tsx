@@ -278,6 +278,15 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
   const isQuick = governanceMode === 'QUICK';
   const isControlled = governanceMode === 'CONTROLLED';
 
+  const handleFillTestData = useCallback(() => {
+    const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
+    const domainIds = industrySegments.slice(0, 2).map((s) => s.value);
+    form.reset({
+      ...seed,
+      domain_tags: domainIds,
+    } as CreatorFormValues);
+  }, [engagementModel, industrySegments, form]);
+
   return (
     <FormProvider {...form}>
       <form onSubmit={handleSubmit} className="space-y-6">
