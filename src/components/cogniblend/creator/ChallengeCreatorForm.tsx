@@ -232,6 +232,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       industrySegmentId: (data as any).industry_segment_id || undefined,
       beneficiariesMapping: data.affected_stakeholders || undefined,
       governanceModeOverride: governanceMode,
+      contextBackground: data.context_background || undefined,
+      rootCauses: data.root_causes || undefined,
+      affectedStakeholders: data.affected_stakeholders || undefined,
+      preferredApproach: data.preferred_approach || undefined,
+      approachesNotOfInterest: data.approaches_not_of_interest || undefined,
+      currentDeficiencies: data.current_deficiencies || undefined,
+      maturityLevel: data.maturity_level || undefined,
+      ipModel: data.ip_model || undefined,
     };
   }, [currentOrg, user, engagementModel, governanceMode]);
 
