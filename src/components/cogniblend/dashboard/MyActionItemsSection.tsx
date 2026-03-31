@@ -21,7 +21,7 @@ import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
 import { useCogniPermissions } from '@/hooks/cogniblend/useCogniPermissions';
-import { ROLE_DISPLAY } from '@/types/cogniRoles';
+import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
 import { supabase } from '@/integrations/supabase/client';
 
 /* ── Phase labels ──────────────────────────────────── */
@@ -70,6 +70,8 @@ interface ActionItem {
   isNotification?: boolean;
   notificationId?: string;
   challengeId?: string;
+  /** Role codes the user holds on this challenge */
+  roleCodes?: string[];
 }
 
 function getActionRoute(item: ActionItem): {
@@ -96,7 +98,7 @@ export function MyActionItemsSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
+  const { challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
   
 
@@ -139,15 +141,15 @@ export function MyActionItemsSection() {
     [user?.id, queryClient, navigate],
   );
 
-  // Build action items
+  // Build action items — show ALL roles simultaneously (Phase 4: unified dashboard)
   const actionItems = useMemo(() => {
     const items: ActionItem[] = [];
 
-    // Challenges the user has a role on that need action
+    // Challenges the user has a role on that need action — across ALL roles
     for (const ch of challengeItems) {
       const roles = challengeRoleMap.get(ch.challenge_id) ?? [];
-      const isRelevant = !activeRole || roles.includes(activeRole) || ch.master_status === 'DRAFT';
-      if (!isRelevant) continue;
+      // Include if user has any role on this challenge (no activeRole filter)
+      if (roles.length === 0 && ch.master_status !== 'DRAFT') continue;
 
       // Standard action items: DRAFT, RETURNED, AM_APPROVAL_PENDING
       const needsAction =
@@ -163,11 +165,10 @@ export function MyActionItemsSection() {
           phase: ch.current_phase,
           phase_status: ch.phase_status,
           created_at: '',
+          roleCodes: roles,
         });
       }
     }
-
-    // Draft SRs removed — no more AM/RQ request concept
 
     // Unread notifications for CA/CR (lifecycle alerts)
     if (isSpecRole) {
@@ -192,9 +193,7 @@ export function MyActionItemsSection() {
     }
 
     return items;
-  }, [challengeItems, activeRole, challengeRoleMap, isSpecRole, unreadNotifications]);
-
-  const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
+  }, [challengeItems, challengeRoleMap, isSpecRole, unreadNotifications]);
 
   if (isLoading) {
     return (
@@ -213,7 +212,7 @@ export function MyActionItemsSection() {
           <CheckCircle className="h-8 w-8 text-[hsl(155,68%,37%)] mb-2" />
           <p className="text-sm font-bold text-[hsl(155,68%,37%)]">All caught up!</p>
           <p className="text-xs text-muted-foreground">
-            No items need your attention as {roleName} right now.
+            No items need your attention right now.
           </p>
         </div>
       </section>
@@ -229,6 +228,7 @@ export function MyActionItemsSection() {
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Title</TableHead>
+                <TableHead className="w-[80px]">Role</TableHead>
                 <TableHead className="w-[100px]">Phase</TableHead>
                 <TableHead className="w-[160px]">Status</TableHead>
                 <TableHead className="w-[120px] text-right">Action</TableHead>
@@ -247,6 +247,28 @@ export function MyActionItemsSection() {
                         {NotifIcon && <NotifIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                         {item.title}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {(item.roleCodes ?? []).map((rc) => {
+                          const roleColor = ROLE_COLORS[rc];
+                          return roleColor ? (
+                            <span
+                              key={rc}
+                              className="inline-flex items-center justify-center rounded-full font-bold"
+                              style={{
+                                fontSize: 9,
+                                width: 24,
+                                height: 18,
+                                backgroundColor: roleColor.bg,
+                                color: roleColor.color,
+                              }}
+                            >
+                              {roleColor.label}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {item.phase ? PHASE_LABELS[item.phase] ?? `Phase ${item.phase}` : '—'}
