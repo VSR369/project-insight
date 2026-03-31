@@ -1,43 +1,34 @@
 
 
-# Plan: Add "Seed Test Data" Button to Creator Form
+# Move Industry Segment Selector to Problem Statement Section
 
-## What
+## Current State
+The Industry Segment selector is embedded inside the `context_and_background` section (4th item in Tab 1: Foundation). It's not visible until the curator scrolls down or expands that section.
 
-Add a dev/test-only button on the Challenge Creator page that pre-fills the form with realistic, curator-quality content — the **original human-authored content** (not AI-modified). This lets testers skip manual data entry and immediately submit a fully-populated challenge.
+## Change
+Move the Industry Segment selector block to render **above** the Problem Statement rich text editor — making it the first thing curators see when they open Tab 1: Foundation.
 
-## Approach
+## Implementation
 
-### 1. Create seed content constants file
-**New file:** `src/components/cogniblend/creator/creatorSeedContent.ts`
+### File: `src/pages/cogniblend/CurationReviewPage.tsx`
 
-Define two seed data objects (one MP-oriented, one AGG-oriented) containing realistic content for every Creator form field:
+**1. Move the industry segment UI block from `case "context_and_background"` to `case "problem_statement"`**
 
-- `title`, `problem_statement` (200+ chars), `scope`, `maturity_level`, `domain_tags` (will use first available segment IDs at runtime), `currency`, `budget_min`, `budget_max`, `ip_model`, `expected_outcomes`
-- Tab 2 context fields: `context_background`, `preferred_approach`, `approaches_not_of_interest`, `affected_stakeholders`, `current_deficiencies`, `root_causes`, `expected_timeline`
+In the `problem_statement` case (~line 3268), insert the industry segment selector block (the `<div className="rounded-lg border...">` block currently at lines 3702-3754) **before** the `RichTextSectionRenderer`. This includes:
+- The "Industry Segment" label with intake/required badges
+- Read-only display when from intake or in viewer mode
+- Editable dropdown when curator-set
+- Mandatory selection dropdown when not yet set
 
-Content will be plain curator-style text — not AI-polished prose. Think business stakeholder language with specifics (dollar amounts, team sizes, system names).
+**2. Remove the industry segment block from `context_and_background` case**
 
-### 2. Add seed button to ChallengeCreatorForm
-**Edit:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
+Delete lines ~3701-3754 from the `context_and_background` case so the selector only appears once.
 
-- Import seed content
-- Add a "🧪 Fill Test Data" button (visible only in dev/demo context — check for `import.meta.env.DEV` or a `testsetup.dev` email domain)
-- On click, call `form.reset(seedContent)` where `seedContent` is chosen based on the current `engagementModel` (MP vs AGG)
-- For `domain_tags`, query the available industry segments and pick the first 2 matching ones at runtime
+**3. No other changes needed** — the `resolveIndustrySegmentId`, `handleIndustrySegmentChange`, `optimisticIndustrySegId`, and `industrySegments` variables are already in scope at the section render level.
 
-### 3. Domain tag resolution
-Since `domain_tags` expects actual segment IDs (UUIDs), the seed button handler will:
-- Use the already-loaded `industrySegments` array from `useIndustrySegmentOptions()`
-- Pick the first 2 segments from the list as defaults
-- This avoids hardcoding UUIDs
-
-## Technical Details
-
-- **No database changes** — purely client-side form pre-fill
-- **No new dependencies**
-- Button placement: in the form footer, left-aligned, before Save Draft / Submit
-- Button styling: `variant="ghost"` with a test tube icon, muted color
-- The seed content will match what a curator would see as "original creator content" — realistic business language, specific numbers, named stakeholders
-- Two content sets: one manufacturing/IoT (MP) and one healthcare/automation (AGG) — matching the existing demo scenario themes
+## Technical Detail
+- The industry segment resolution logic (`resolveIndustrySegmentId`) and mutation handler (`handleIndustrySegmentChange`) remain unchanged
+- The `optimisticIndustrySegId` state variable and its setter remain at the page level
+- The `useIndustrySegments()` hook call stays where it is
+- Only the JSX render location changes — from `context_and_background` to `problem_statement`
 
