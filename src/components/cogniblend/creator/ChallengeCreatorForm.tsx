@@ -297,7 +297,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     if (!currentOrg?.organizationId || !user?.id) return;
 
     try {
-      await draftMutation.mutateAsync({
+      const baseDraftPayload = {
         orgId: currentOrg.organizationId,
         creatorId: user.id,
         operatingModel: engagementModel,
@@ -311,8 +311,26 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         domainTags: data.domain_tags || [],
         urgency: 'standard',
         governanceModeOverride: governanceMode,
-      });
-      navigate('/cogni/my-challenges');
+        contextBackground: data.context_background || undefined,
+        rootCauses: data.root_causes || undefined,
+        affectedStakeholders: data.affected_stakeholders || undefined,
+        preferredApproach: data.preferred_approach || undefined,
+        approachesNotOfInterest: data.approaches_not_of_interest || undefined,
+      };
+
+      if (draftChallengeId) {
+        // Update existing draft
+        await updateDraftMutation.mutateAsync({ ...baseDraftPayload, challengeId: draftChallengeId });
+      } else {
+        // Create new draft, store the ID
+        const result = await draftMutation.mutateAsync(baseDraftPayload);
+        setDraftChallengeId(result.challengeId);
+      }
+      toast.success(draftChallengeId ? 'Draft updated' : 'Draft saved');
+    } catch {
+      // Error handled by mutation onError
+    }
+  };
     } catch {
       // Error handled by mutation onError
     }
