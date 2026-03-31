@@ -13,6 +13,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { getCurationFormStore } from '@/store/curationFormStore';
+import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { SECTION_KEYS } from '@/types/sections';
 
