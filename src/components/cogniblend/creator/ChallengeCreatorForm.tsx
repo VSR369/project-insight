@@ -123,17 +123,20 @@ interface ChallengeCreatorFormProps {
 
 export function ChallengeCreatorForm({ engagementModel, governanceMode }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
   const { data: tierLimit } = useTierLimitCheck();
   const submitMutation = useSubmitSolutionRequest();
   const draftMutation = useSaveDraft();
+  const updateDraftMutation = useUpdateDraft();
 
   const [showTierModal, setShowTierModal] = useState(false);
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
+  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(searchParams.get('draft'));
 
   const schema = useMemo(
     () => buildCreatorSchema(governanceMode, engagementModel),
