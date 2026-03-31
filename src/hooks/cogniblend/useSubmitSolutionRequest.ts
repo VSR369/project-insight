@@ -212,7 +212,10 @@ export function useSaveDraft() {
         .from('challenges')
         .update({
           problem_statement: payload.businessProblem || null,
-          scope: payload.expectedOutcomes || null,
+          scope: payload.constraints || null,
+          expected_outcomes: payload.expectedOutcomes
+            ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] })
+            : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,

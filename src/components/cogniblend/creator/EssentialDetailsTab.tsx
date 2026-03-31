@@ -279,29 +279,27 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      {/* Expected Results — optional for QUICK */}
-      {!isQuick && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            What results do you expect? <span className="text-destructive">*</span>
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            What does success look like? Include numbers and metrics if possible.
-          </p>
-          <Controller
-            name="expected_outcomes"
-            control={control}
-            render={({ field }) => (
-              <RichTextEditor
-                value={field.value ?? ''}
-                onChange={field.onChange}
-                placeholder="Describe the expected outcomes..."
-              />
-            )}
-          />
-          {errors.expected_outcomes?.message && <p className="text-xs text-destructive">{String(errors.expected_outcomes.message)}</p>}
-        </div>
-      )}
+      {/* Expected Results — mandatory for all modes */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">
+          What results do you expect? <span className="text-destructive">*</span>
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          What does success look like? Include numbers and metrics if possible.
+        </p>
+        <Controller
+          name="expected_outcomes"
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              placeholder="Describe the expected outcomes..."
+            />
+          )}
+        />
+        {errors.expected_outcomes?.message && <p className="text-xs text-destructive">{String(errors.expected_outcomes.message)}</p>}
+      </div>
     </div>
   );
 }
