@@ -1,69 +1,48 @@
 
 
-# Clean Slate: Delete All Challenge Data for Fresh Testing
+# Fix: Invalid maturity_level + Ensure Full Creator Data Flows to Curator
 
-## What You Need To Do
+## Issue 1: `Invalid maturity_level: blueprint`
 
-You cannot delete data through the app UI. You need to run DELETE statements against the database. Since the data has foreign key relationships, child tables must be cleaned first (cascade order).
+**Root cause:** The Creator form's Zod schema defines maturity_level as `z.enum(['blueprint', 'poc', 'pilot'])` (lowercase). The value is passed as-is to `useSubmitSolutionRequest`, which writes it directly to the `challenges` table. A DB trigger rejects any value not in `('BLUEPRINT','POC','PROTOTYPE','PILOT')`.
 
-## Option 1: Run in Supabase SQL Editor (Recommended)
+**Fix:** In `useSubmitSolutionRequest.ts`, normalize `maturityLevel` to UPPERCASE before writing to DB. Apply the same to `ipModel` using the existing `normalizeChallengeFields` utility, or simply `.toUpperCase()` inline since the form already constrains valid values.
 
-Go to the **SQL Editor** in your Supabase dashboard and run this script:
+### Changes in `useSubmitSolutionRequest.ts`:
+- Line 112: `maturity_level: payload.maturityLevel?.toUpperCase() || null`
+- Line 113: `ip_model: payload.ipModel || null` (already uppercase from form)
+- Line 151 (snapshot): `maturity_level: payload.maturityLevel?.toUpperCase() || null`
+- Same fix in `useSaveDraft` and `useUpdateDraft` functions
 
-```sql
--- Step 1: Delete all child records (foreign keys reference challenges)
-DELETE FROM audit_trail;
-DELETE FROM curator_section_actions;
-DELETE FROM user_challenge_roles;
-DELETE FROM challenge_role_assignments;
-DELETE FROM challenge_attachments;
-DELETE FROM challenge_incentive_selections;
-DELETE FROM challenge_legal_docs;
-DELETE FROM challenge_package_versions;
-DELETE FROM challenge_prize_tiers;
-DELETE FROM challenge_qa;
-DELETE FROM challenge_submissions;
-DELETE FROM cogni_notifications;
-DELETE FROM communication_log;
-DELETE FROM duplicate_reviews;
-DELETE FROM escrow_records;
-DELETE FROM ip_transfer_records;
-DELETE FROM legal_acceptance_ledger;
-DELETE FROM legal_reacceptance_records;
-DELETE FROM legal_review_requests;
-DELETE FROM pending_challenge_refs;
-DELETE FROM rating_records;
-DELETE FROM seeker_invoice_line_items;
-DELETE FROM sla_timers;
-DELETE FROM solutions;
-DELETE FROM solver_enrollments;
-DELETE FROM amendment_records;
-DELETE FROM dispute_records;
+## Issue 2: Creator data not fully flowing to Curator sections
 
--- Step 2: Delete all challenges
-DELETE FROM challenges;
-```
+**Root cause:** Several Creator form fields are captured but not properly written to the correct DB columns that the Curator workspace reads from. Specifically:
 
-## Option 2: If tables have ON DELETE CASCADE
+1. **`title`** — Already written via `initialize_challenge` RPC, OK.
+2. **`expected_outcomes`** — Written as `JSON.stringify({ items: [{ name: value }] })` — OK.
+3. **`scope`** — Written correctly.
+4. **`problem_statement`** — Written correctly.
+5. **`extended_brief` fields** (context_background, root_causes, etc.) — Written correctly to the `extended_brief` JSONB column.
+6. **`maturity_level`** — Fails due to case mismatch (Issue 1).
+7. **`ip_model`** — Written correctly (form provides uppercase codes like `IP-NEL`).
+8. **`industry_segment_id`** — **NOT written** in the update call. The Creator form captures it but `useSubmitSolutionRequest` never writes it to the challenges table.
+9. **`domain_tags`** — Written inside `eligibility` JSON but **NOT** to the `domain_tags` column directly.
 
-If the `challenges` foreign keys use `ON DELETE CASCADE`, you may only need:
+### Additional changes needed:
+- Add `industry_segment_id` to the challenge update in `useSubmitSolutionRequest`
+- Add `domain_tags` to the challenge update (the column exists on challenges table)
+- Also add `title` to the update call (currently only set via RPC which may truncate)
+- Include `industry_segment_id` and `title` in the `creator_snapshot`
 
-```sql
-DELETE FROM challenges;
-```
+## Files Changed
 
-But the full script in Option 1 is safer.
+| File | Change |
+|------|--------|
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Uppercase maturity_level, add missing fields (industry_segment_id, domain_tags, title) to update + snapshot |
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Same fixes in `useSaveDraft` and `useUpdateDraft` |
 
-## After Cleanup
-
-1. Clear your browser's `sessionStorage` (DevTools → Application → Session Storage → Clear)
-2. Refresh the page
-3. Go to Creator flow → Create a new challenge from scratch
-4. Submit it → It should transition to Phase 2 (Curation) and save the `creator_snapshot`
-5. Switch to Curator role → Run AI curation
-6. Switch back to Creator → Verify "My Version" vs "Curator Version" tabs
-
-## Current Data
-
-You currently have **15 challenges** in the database, most are duplicates of "Predictive Maintenance for CNC Machining Line — Plant 7". All will be removed.
+## Technical Notes
+- No migration needed — columns already exist
+- The `challengeFieldNormalizer` utility exists but is overkill here since the form already constrains values; a simple `.toUpperCase()` is sufficient and matches what the normalizer does internally
+- The `getMaturityLabel` in `CreatorChallengeDetailView` already handles both lowercase and uppercase display, so no UI changes needed
 
