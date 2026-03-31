@@ -39,8 +39,30 @@ const CONTEXT_FIELDS = [
   { key: 'root_causes' as const, label: 'Root Causes', placeholder: 'Why does this problem exist?' },
 ] as const;
 
+const ATTACHMENT_CONFIG = {
+  maxSizeBytes: 10 * 1024 * 1024,
+  maxSizeMB: 10,
+  allowedTypes: [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv',
+    'image/png',
+    'image/jpeg',
+  ] as readonly string[],
+  allowedExtensions: ['.pdf', '.docx', '.xlsx', '.csv', '.png', '.jpg'] as readonly string[],
+  label: 'Reference Documents',
+} as const;
+
+const MAX_FILES = 5;
+const MAX_URLS = 5;
+
 interface AdditionalContextTabProps {
   governanceMode: GovernanceMode;
+  attachedFiles?: File[];
+  onFilesChange?: (files: File[]) => void;
+  referenceUrls?: string[];
+  onUrlsChange?: (urls: string[]) => void;
 }
 
 export function AdditionalContextTab({ governanceMode }: AdditionalContextTabProps) {
