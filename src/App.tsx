@@ -139,6 +139,7 @@ const FunctionalAreasPage = lazy(() => import("@/pages/admin/functional-areas/Fu
 const SubscriptionTiersPage = lazy(() => import("@/pages/admin/subscription-tiers").then(m => ({ default: m.SubscriptionTiersPage })));
 const EngagementModelsPage = lazy(() => import("@/pages/admin/engagement-models").then(m => ({ default: m.EngagementModelsPage })));
 const ChallengeComplexityPage = lazy(() => import("@/pages/admin/challenge-complexity").then(m => ({ default: m.ChallengeComplexityPage })));
+const SolutionMaturityPage = lazy(() => import("@/pages/admin/solution-maturity").then(m => ({ default: m.SolutionMaturityPage })));
 const ChallengeStatusesPage = lazy(() => import("@/pages/admin/challenge-statuses").then(m => ({ default: m.ChallengeStatusesPage })));
 const ExportControlPage = lazy(() => import("@/pages/admin/export-control").then(m => ({ default: m.ExportControlPage })));
 const DataResidencyPage = lazy(() => import("@/pages/admin/data-residency").then(m => ({ default: m.DataResidencyPage })));
