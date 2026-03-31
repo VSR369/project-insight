@@ -3626,16 +3626,28 @@ export default function CurationReviewPage() {
 
                       // ── Legal docs (read-only table) ──
                       case "legal_docs":
-                        return <LegalDocsSectionRenderer documents={legalDetails} />;
+                        return (
+                          <LegalDocsSectionRenderer
+                            documents={legalDetails}
+                            governanceMode={resolveGovernanceMode(challenge.governance_profile)}
+                            onAcceptAllDefaults={handleAcceptAllLegalDefaults}
+                            isAcceptingAll={isAcceptingAllLegal}
+                          />
+                        );
 
                       // ── Escrow funding (structured fields, read-only) ──
-                      case "escrow_funding":
+                      case "escrow_funding": {
+                        const gMode = resolveGovernanceMode(challenge.governance_profile);
                         return (
                           <StructuredFieldsSectionRenderer
                             escrow={escrowRecord}
-                            isControlledMode={isControlledMode(resolveGovernanceMode(challenge.governance_profile))}
+                            isControlledMode={isControlledMode(gMode)}
+                            governanceMode={gMode}
+                            escrowEnabled={escrowEnabled}
+                            onEscrowToggle={setEscrowEnabled}
                           />
                         );
+                      }
 
                       // ── Domain tags (tag input) ──
                       case "domain_tags":
