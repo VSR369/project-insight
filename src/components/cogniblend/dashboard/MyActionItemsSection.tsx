@@ -98,7 +98,7 @@ export function MyActionItemsSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { activeRole, challengeRoleMap, isRolesLoading } = useCogniRoleContext();
+  const { challengeRoleMap, isRolesLoading } = useCogniRoleContext();
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
   
 
