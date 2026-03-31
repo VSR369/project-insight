@@ -6,7 +6,7 @@
  * Rendered as Tab 0 in the wave progress strip.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -112,13 +112,7 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
         orgTypeName = ot?.name ?? null;
       }
 
-      // Seed local state
-      setWebsiteUrl(org?.website_url ?? '');
-      setLinkedinUrl(org?.linkedin_url ?? '');
-      setTwitterUrl(org?.twitter_url ?? '');
-      setDescription(org?.organization_description ?? '');
-      setTagline(org?.tagline ?? '');
-      setIsDirty(false);
+      // State hydration moved to useEffect below
 
       return {
         organization_name: org?.organization_name ?? '',
@@ -227,6 +221,85 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
     toast.success('Document removed');
   }, [challengeId, queryClient]);
 
+  // ── Hydrate local state from query cache (fires on mount & refetch) ──
+  useEffect(() => {
+    if (orgData) {
+      setWebsiteUrl(orgData.website_url ?? '');
+      setLinkedinUrl(orgData.linkedin_url ?? '');
+      setTwitterUrl(orgData.twitter_url ?? '');
+      setDescription(orgData.organization_description ?? '');
+      setTagline(orgData.tagline ?? '');
+      setIsDirty(false);
+    }
+  }, [orgData]);
+
+  // ── Auto-save with 800ms debounce ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDirty || isReadOnly || !organizationId) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const { error } = await supabase
+          .from('seeker_organizations')
+          .update({
+            website_url: websiteUrl.trim() || null,
+            linkedin_url: linkedinUrl.trim() || null,
+            twitter_url: twitterUrl.trim() || null,
+            organization_description: description.trim() || null,
+            tagline: tagline.trim() || null,
+          })
+          .eq('id', organizationId);
+        if (error) throw error;
+        if (isMountedRef.current) {
+          setIsDirty(false);
+          queryClient.invalidateQueries({ queryKey: ['org-context-panel', organizationId] });
+        }
+      } catch (err) {
+        console.error('[OrgContextPanel] Auto-save failed:', err);
+      }
+    }, 800);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [isDirty, websiteUrl, linkedinUrl, twitterUrl, description, tagline, organizationId, isReadOnly, queryClient]);
+
+  // ── Flush pending auto-save on unmount ──
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        // Fire immediate save on unmount if dirty
+        if (isDirty && organizationId) {
+          supabase
+            .from('seeker_organizations')
+            .update({
+              website_url: websiteUrl.trim() || null,
+              linkedin_url: linkedinUrl.trim() || null,
+              twitter_url: twitterUrl.trim() || null,
+              organization_description: description.trim() || null,
+              tagline: tagline.trim() || null,
+            })
+            .eq('id', organizationId)
+            .then(() => {});
+        }
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Field change handler ──
   const handleFieldChange = useCallback((setter: React.Dispatch<React.SetStateAction<string>>) => {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -333,8 +406,8 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
           value={description}
           onChange={handleFieldChange(setDescription)}
           disabled={isReadOnly}
-          rows={3}
-          className="text-sm resize-none"
+          rows={5}
+          className="text-sm resize-y min-h-[120px]"
         />
         <p className="text-[10px] text-muted-foreground">
           Providing a rich description helps the AI produce more contextually relevant challenge content.
