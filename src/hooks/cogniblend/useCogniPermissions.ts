@@ -32,8 +32,8 @@ export function useCogniPermissions() {
 
   return {
     // ── Nav visibility flags (always based on ALL user roles) ──
-    canSeeChallengePage:  sees(['CR']),
-    canSeeCreatorDashboard: sees(['CR']),
+    canSeeChallengePage:  sees(['CR', 'CA']),
+    canSeeCreatorDashboard: sees(['CR', 'CA']),
     canSeeCurationQueue:  sees(['CU']),
     canSeeLegalWorkspace: sees(['LC']),
     canSeeEvaluation:     sees(['ER']),
@@ -41,15 +41,15 @@ export function useCogniPermissions() {
     canSeeSolverFeatures,
 
     // ── Action permissions (respects focused role) ──
-    canCreateChallenge:   can(['CR']),
-    canEditSpec:          can(['CR']),
+    canCreateChallenge:   can(['CR', 'CA']),
+    canEditSpec:          can(['CR', 'CA']),
     canCurate:            can(['CU']),
     canReviewEvaluation:  can(['ER']),
     canReviewLegal:       can(['LC']),
     canManageEscrow:      can(['FC']),
 
     // ── UX grouping flags (action-level) ──
-    isSpecRole:           can(['CR']),
+    isSpecRole:           can(['CR', 'CA']),
   };
 }
 
