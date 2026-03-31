@@ -257,25 +257,24 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
        // Upload attached files only (extended_brief already saved in Write 1)
       if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId) {
-          for (const file of attachedFiles) {
-            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const storagePath = `${currentOrg.organizationId}/challenges/${result.challengeId}/${crypto.randomUUID()}_${safeName}`;
-            const { error: uploadErr } = await supabase.storage
-              .from('challenge-attachments')
-              .upload(storagePath, file, { upsert: false, cacheControl: '3600' });
+        for (const file of attachedFiles) {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storagePath = `${currentOrg.organizationId}/challenges/${result.challengeId}/${crypto.randomUUID()}_${safeName}`;
+          const { error: uploadErr } = await supabase.storage
+            .from('challenge-attachments')
+            .upload(storagePath, file, { upsert: false, cacheControl: '3600' });
 
-            if (!uploadErr) {
-              await supabase.from('challenge_attachments').insert({
-                challenge_id: result.challengeId,
-                section_key: 'creator_reference',
-                source_type: 'file',
-                storage_path: storagePath,
-                file_name: file.name,
-                file_size: file.size,
-                mime_type: file.type,
-                uploaded_by: user?.id ?? null,
-              });
-            }
+          if (!uploadErr) {
+            await supabase.from('challenge_attachments').insert({
+              challenge_id: result.challengeId,
+              section_key: 'creator_reference',
+              source_type: 'file',
+              storage_path: storagePath,
+              file_name: file.name,
+              file_size: file.size,
+              mime_type: file.type,
+              uploaded_by: user?.id ?? null,
+            });
           }
         }
       }
