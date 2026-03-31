@@ -55,6 +55,7 @@ export interface PublicChallengeData {
   submission_guidelines: Record<string, unknown> | null;
   functional_area: string | null;
   target_geography: string | null;
+  creator_snapshot: Record<string, unknown> | null;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
