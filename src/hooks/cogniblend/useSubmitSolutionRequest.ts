@@ -282,6 +282,7 @@ export function useSaveDraft() {
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
+          title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           problem_statement: payload.businessProblem || null,
           scope: payload.constraints || null,
           expected_outcomes: payload.expectedOutcomes
