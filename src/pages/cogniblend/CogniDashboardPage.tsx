@@ -18,7 +18,7 @@ import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourne
 export default function CogniDashboardPage() {
   const { user } = useAuth();
   const { data: orgContext } = useOrgModelContext();
-  const { isSpecRole } = useCogniPermissions();
+  // useCogniPermissions kept for future use
 
   // CR challenges mapped to RequestRow shape for journey section
   const { data: challengesData } = useMyChallenges(user?.id);
