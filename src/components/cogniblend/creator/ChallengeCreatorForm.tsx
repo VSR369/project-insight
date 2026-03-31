@@ -63,6 +63,7 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     maturity_level: z.enum(['blueprint', 'poc', 'pilot'], {
       errorMap: () => ({ message: 'Please select a solution type' }),
     }),
+    industry_segment_id: z.string().min(1, 'Please select a primary industry segment'),
     domain_tags: z.array(z.string()).min(1, 'Select at least 1 domain').max(3, 'Max 3 domains'),
     currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
     budget_min: z.coerce.number().min(0).default(0),
@@ -148,6 +149,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       problem_statement: '',
       scope: '',
       maturity_level: undefined,
+      industry_segment_id: '',
       domain_tags: [],
       currency: 'USD',
       budget_min: 0,
@@ -186,6 +188,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       expectedTimeline: data.expected_timeline || '8w',
       domainTags: data.domain_tags,
       urgency: 'standard',
+      industrySegmentId: (data as any).industry_segment_id || undefined,
       beneficiariesMapping: data.affected_stakeholders || undefined,
       governanceModeOverride: governanceMode,
     };
@@ -283,6 +286,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
     form.reset({
       ...seed,
+      industry_segment_id: industrySegments[0]?.id ?? '',
       domain_tags: domainIds,
     } as CreatorFormValues);
   }, [engagementModel, industrySegments, form]);
