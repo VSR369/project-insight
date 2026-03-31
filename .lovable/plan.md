@@ -1,127 +1,69 @@
 
 
-# Plan: Dual-Version Challenge View (Creator Version + Curator Version)
+# Clean Slate: Delete All Challenge Data for Fresh Testing
 
-## Problem
+## What You Need To Do
 
-The Creator's original input (problem_statement, scope, extended_brief, etc.) is written directly to the `challenges` table. When the Curator refines the challenge, they **overwrite the same columns**. There is no separate snapshot of the Creator's original submission. This means the Creator currently sees the Curator's refined content when viewing their challenge — which appears as "junk" because the Curator adds structured HTML, technical sections, and formatted content the Creator never wrote.
+You cannot delete data through the app UI. You need to run DELETE statements against the database. Since the data has foreign key relationships, child tables must be cleaned first (cascade order).
 
-## Solution Overview
+## Option 1: Run in Supabase SQL Editor (Recommended)
 
-**Two changes required:**
-
-1. **Database**: Add a `creator_snapshot` JSONB column to `challenges` that captures the Creator's original submission at the moment they submit (Phase 1 → Phase 2 transition). This is a one-time snapshot — immutable after creation.
-
-2. **UI**: Replace the current 4-tab Creator view in `PublicChallengeDetailPage` with a **2-tab layout**: "My Version" (from `creator_snapshot`) and "Curator Version" (from current challenge columns). Both tabs show a single vertically scrollable page of all relevant sections with a search/filter bar to jump to section headings.
-
-## Detailed Plan
-
-### Step 1: Database Migration — Add `creator_snapshot` Column
-
-Add a JSONB column to `challenges`:
+Go to the **SQL Editor** in your Supabase dashboard and run this script:
 
 ```sql
-ALTER TABLE public.challenges 
-  ADD COLUMN IF NOT EXISTS creator_snapshot JSONB;
+-- Step 1: Delete all child records (foreign keys reference challenges)
+DELETE FROM audit_trail;
+DELETE FROM curator_section_actions;
+DELETE FROM user_challenge_roles;
+DELETE FROM challenge_role_assignments;
+DELETE FROM challenge_attachments;
+DELETE FROM challenge_incentive_selections;
+DELETE FROM challenge_legal_docs;
+DELETE FROM challenge_package_versions;
+DELETE FROM challenge_prize_tiers;
+DELETE FROM challenge_qa;
+DELETE FROM challenge_submissions;
+DELETE FROM cogni_notifications;
+DELETE FROM communication_log;
+DELETE FROM duplicate_reviews;
+DELETE FROM escrow_records;
+DELETE FROM ip_transfer_records;
+DELETE FROM legal_acceptance_ledger;
+DELETE FROM legal_reacceptance_records;
+DELETE FROM legal_review_requests;
+DELETE FROM pending_challenge_refs;
+DELETE FROM rating_records;
+DELETE FROM seeker_invoice_line_items;
+DELETE FROM sla_timers;
+DELETE FROM solutions;
+DELETE FROM solver_enrollments;
+DELETE FROM amendment_records;
+DELETE FROM dispute_records;
+
+-- Step 2: Delete all challenges
+DELETE FROM challenges;
 ```
 
-This stores the Creator's original input fields as a frozen snapshot:
-```json
-{
-  "problem_statement": "...",
-  "scope": "...",
-  "expected_outcomes": {...},
-  "reward_structure": {...},
-  "phase_schedule": {...},
-  "extended_brief": {...},
-  "maturity_level": "...",
-  "ip_model": "...",
-  "eligibility": "...",
-  "domain_tags": [...]
-}
+## Option 2: If tables have ON DELETE CASCADE
+
+If the `challenges` foreign keys use `ON DELETE CASCADE`, you may only need:
+
+```sql
+DELETE FROM challenges;
 ```
 
-### Step 2: Populate `creator_snapshot` on Challenge Submission
+But the full script in Option 1 is safer.
 
-In `useSubmitSolutionRequest.ts`, after the challenge fields are written but **before** `complete_phase` is called, save a snapshot:
+## After Cleanup
 
-```typescript
-// After the update call succeeds, snapshot the Creator's original input
-await supabase.from('challenges').update({
-  creator_snapshot: {
-    problem_statement: payload.businessProblem,
-    scope: payload.constraints || null,
-    expected_outcomes: payload.expectedOutcomes,
-    reward_structure: rewardStructure,
-    phase_schedule: phaseSchedule,
-    extended_brief: { ...extendedBriefObj },
-    maturity_level: payload.maturityLevel || null,
-    ip_model: payload.ipModel || null,
-    domain_tags: payload.domainTags,
-    budget_min: payload.budgetMin,
-    budget_max: payload.budgetMax,
-    currency: payload.currency,
-    expected_timeline: payload.expectedTimeline,
-    beneficiaries_mapping: payload.beneficiariesMapping || null,
-  }
-}).eq('id', challengeId);
-```
+1. Clear your browser's `sessionStorage` (DevTools → Application → Session Storage → Clear)
+2. Refresh the page
+3. Go to Creator flow → Create a new challenge from scratch
+4. Submit it → It should transition to Phase 2 (Curation) and save the `creator_snapshot`
+5. Switch to Curator role → Run AI curation
+6. Switch back to Creator → Verify "My Version" vs "Curator Version" tabs
 
-### Step 3: Fetch `creator_snapshot` in `usePublicChallenge`
+## Current Data
 
-Add `creator_snapshot` to the select query so the detail page can access it.
-
-### Step 4: New Component — `CreatorChallengeDetailView`
-
-Replace the existing Creator section in `PublicChallengeDetailPage` with a dedicated component that has:
-
-**Two top-level tabs:**
-- **My Version** — Reads from `creator_snapshot` JSONB
-- **Curator Version** — Reads from current challenge columns (what the Curator wrote)
-
-**Each tab renders a single vertically scrollable page** with all sections displayed as cards:
-
-**My Version sections** (from `creator_snapshot`):
-- Problem Statement, Scope/Constraints, Expected Outcomes
-- Context & Background, Root Causes, Affected Stakeholders, Current Deficiencies
-- Preferred Approach, Approaches Not of Interest
-- Budget Range, Expected Timeline
-- Maturity Level, IP Model, Domain Tags
-
-**Curator Version sections** (from live challenge columns — all 26 curation sections):
-- Problem Statement, Scope, Expected Outcomes, Context & Background
-- Root Causes, Affected Stakeholders, Current Deficiencies, Preferred/Not Preferred Approach
-- Solution Type, Deliverables, Maturity Level, Data Resources, Success Metrics/KPIs
-- Complexity, Solver Expertise, Eligibility
-- Phase Schedule, Evaluation Criteria, Submission Guidelines, Reward Structure, IP Model
-- Hook, Visibility, Domain Tags
-
-Each section is rendered as a Card with proper content rendering:
-- Rich text → `SafeHtmlRenderer`
-- JSON arrays (deliverables, criteria) → structured lists/tables
-- Badges for tags, checkboxes, single-value fields
-- Empty sections show "Not yet curated" placeholder
-
-**Search bar** at the top of each tab filters sections by heading text (case-insensitive match on section titles).
-
-### Step 5: Handle Missing Snapshot (Existing Challenges)
-
-For challenges created before this migration (no `creator_snapshot`), the "My Version" tab shows a message: "Original submission data is not available for challenges created before this feature was added." and defaults to the Curator Version tab.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| New migration SQL | Add `creator_snapshot JSONB` column |
-| `useSubmitSolutionRequest.ts` | Save snapshot before `complete_phase` |
-| `usePublicChallenge.ts` | Add `creator_snapshot` to select query + type |
-| New: `CreatorChallengeDetailView.tsx` | Dual-tab view with search + vertical scroll |
-| `PublicChallengeDetailPage.tsx` | Replace Creator section with new component |
-
-## Technical Notes
-
-- `creator_snapshot` is write-once at submission time — never updated after
-- No RLS changes needed — `creator_snapshot` lives on `challenges` table which already has RLS
-- The Curator Version tab renders the same data the Curator workspace edits, using `SafeHtmlRenderer` for HTML and structured renderers for JSON arrays/objects
-- Search is client-side filtering on section heading strings — no server round-trip
+You currently have **15 challenges** in the database, most are duplicates of "Predictive Maintenance for CNC Machining Line — Plant 7". All will be removed.
 
