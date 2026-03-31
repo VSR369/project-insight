@@ -1,48 +1,39 @@
 
 
-# Fix: Invalid maturity_level + Ensure Full Creator Data Flows to Curator
+# Fix: Maturity Level, Delete Bug, Draft Resume, and Creator→Curator Data Flow
 
-## Issue 1: `Invalid maturity_level: blueprint`
+## Issues Found
 
-**Root cause:** The Creator form's Zod schema defines maturity_level as `z.enum(['blueprint', 'poc', 'pilot'])` (lowercase). The value is passed as-is to `useSubmitSolutionRequest`, which writes it directly to the `challenges` table. A DB trigger rejects any value not in `('BLUEPRINT','POC','PROTOTYPE','PILOT')`.
+### Bug 1: Missing "Prototype" maturity option
+`EssentialDetailsTab.tsx` has only 3 options (blueprint, poc, pilot). The Zod schema in `ChallengeCreatorForm.tsx` also omits `prototype`. DB accepts 4: BLUEPRINT, POC, PROTOTYPE, PILOT.
 
-**Fix:** In `useSubmitSolutionRequest.ts`, normalize `maturityLevel` to UPPERCASE before writing to DB. Apply the same to `ipModel` using the existing `normalizeChallengeFields` utility, or simply `.toUpperCase()` inline since the form already constrains valid values.
+### Bug 2: Delete not working
+`useMyChallenges.ts` line 38 selects `id, title, current_phase, master_status, phase_status, governance_profile, operating_model` — **`is_deleted` is NOT in the select**. So the filter on line 51 (`if (!ch || ch.is_deleted) continue`) never triggers because `ch.is_deleted` is always `undefined`. Deleted challenges keep showing.
 
-### Changes in `useSubmitSolutionRequest.ts`:
-- Line 112: `maturity_level: payload.maturityLevel?.toUpperCase() || null`
-- Line 113: `ip_model: payload.ipModel || null` (already uppercase from form)
-- Line 151 (snapshot): `maturity_level: payload.maturityLevel?.toUpperCase() || null`
-- Same fix in `useSaveDraft` and `useUpdateDraft` functions
+### Bug 3: Draft resume shows empty form
+When a draft is saved, `maturity_level` is written as `BLUEPRINT` (uppercase). When resuming, the form hydration on line 191 does `(ch.maturity_level as any) || undefined` — but the Zod enum expects lowercase `'blueprint'`. The uppercase value fails validation silently, and since the resolver rejects it, the field appears empty. Same potential issue for other fields.
 
-## Issue 2: Creator data not fully flowing to Curator sections
+### Bug 4: Save Draft missing fields + creating duplicates
+`handleSaveDraft` in `ChallengeCreatorForm.tsx` (line 293-312) does NOT include `maturityLevel`, `ipModel`, or `industrySegmentId` in the draft payload. These fields are lost on save. Additionally, `useSaveDraft` always calls `initialize_challenge` to create a NEW challenge — if the user saves draft multiple times without a `draftChallengeId` being set (e.g., due to an error), it creates duplicate records.
 
-**Root cause:** Several Creator form fields are captured but not properly written to the correct DB columns that the Curator workspace reads from. Specifically:
+---
 
-1. **`title`** — Already written via `initialize_challenge` RPC, OK.
-2. **`expected_outcomes`** — Written as `JSON.stringify({ items: [{ name: value }] })` — OK.
-3. **`scope`** — Written correctly.
-4. **`problem_statement`** — Written correctly.
-5. **`extended_brief` fields** (context_background, root_causes, etc.) — Written correctly to the `extended_brief` JSONB column.
-6. **`maturity_level`** — Fails due to case mismatch (Issue 1).
-7. **`ip_model`** — Written correctly (form provides uppercase codes like `IP-NEL`).
-8. **`industry_segment_id`** — **NOT written** in the update call. The Creator form captures it but `useSubmitSolutionRequest` never writes it to the challenges table.
-9. **`domain_tags`** — Written inside `eligibility` JSON but **NOT** to the `domain_tags` column directly.
+## Plan
 
-### Additional changes needed:
-- Add `industry_segment_id` to the challenge update in `useSubmitSolutionRequest`
-- Add `domain_tags` to the challenge update (the column exists on challenges table)
-- Also add `title` to the update call (currently only set via RPC which may truncate)
-- Include `industry_segment_id` and `title` in the `creator_snapshot`
+### File 1: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`
+- Add `prototype` to `MATURITY_OPTIONS` array (between poc and pilot)
 
-## Files Changed
+### File 2: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
+- Add `'prototype'` to the Zod enum: `z.enum(['blueprint', 'poc', 'prototype', 'pilot'])`
+- Fix draft hydration: lowercase `maturity_level` when loading from DB (`ch.maturity_level?.toLowerCase()`)
+- Fix `handleSaveDraft` to include `maturityLevel`, `ipModel`, and `industrySegmentId` in the payload
 
-| File | Change |
-|------|--------|
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Uppercase maturity_level, add missing fields (industry_segment_id, domain_tags, title) to update + snapshot |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Same fixes in `useSaveDraft` and `useUpdateDraft` |
+### File 3: `src/hooks/cogniblend/useMyChallenges.ts`
+- Add `is_deleted` to the challenge select query so the filter on line 51 actually works
 
-## Technical Notes
-- No migration needed — columns already exist
-- The `challengeFieldNormalizer` utility exists but is overkill here since the form already constrains values; a simple `.toUpperCase()` is sufficient and matches what the normalizer does internally
-- The `getMaturityLabel` in `CreatorChallengeDetailView` already handles both lowercase and uppercase display, so no UI changes needed
+### File 4: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
+- In `useSaveDraft`: add `currentDeficiencies` field to extended_brief (currently missing)
+- Ensure `title` is written in the draft save (currently only uses problem_statement substring)
+
+No new files. No migrations needed (all columns already exist).
 
