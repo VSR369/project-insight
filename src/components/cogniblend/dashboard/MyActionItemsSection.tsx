@@ -80,7 +80,7 @@ function getActionRoute(item: ActionItem): {
   // Notification-based items → challenge view
   if (item.isNotification) {
     const targetId = item.challengeId || item.id;
-    return { route: `/cogni/my-challenges/${targetId}`, label: 'View', icon: Eye };
+    return { route: `/cogni/challenges/${targetId}/view`, label: 'View', icon: Eye };
   }
   // Drafts
   if (item.status === 'DRAFT') {
