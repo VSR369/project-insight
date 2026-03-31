@@ -248,6 +248,7 @@ const LcReviewPanel = lazy(() => import("@/pages/cogniblend/LcReviewPanel"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
 const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
+const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallengesPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -360,7 +361,7 @@ const App = () => (
               <Route path="/cogni/selection" element={<LazyRoute><CogniPlaceholderPage title="Selection & IP" description="Select winning solutions and manage IP transfer processes." /></LazyRoute>} />
               <Route path="/cogni/escrow" element={<LazyRoute><EscrowManagementPage /></LazyRoute>} />
               <Route path="/cogni/payments" element={<LazyRoute><CogniPlaceholderPage title="Payment Processing" description="Process prize payments and manage financial transactions." /></LazyRoute>} />
-              <Route path="/cogni/browse" element={<LazyRoute><CogniPlaceholderPage title="Browse Challenges" description="Discover and explore open innovation challenges." /></LazyRoute>} />
+              <Route path="/cogni/browse" element={<LazyRoute><BrowseChallengesPage /></LazyRoute>} />
               <Route path="/cogni/my-solutions" element={<LazyRoute><CogniPlaceholderPage title="My Solutions" description="Track your submitted solutions and their evaluation status." /></LazyRoute>} />
               <Route path="/cogni/portfolio" element={<LazyRoute><CogniPlaceholderPage title="My Portfolio" description="Manage your solver profile and showcase your expertise." /></LazyRoute>} />
             </Route>
