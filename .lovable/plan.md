@@ -1,52 +1,58 @@
 
 
-# Fix Organization Tab: Persistent Data & Expandable Description
+# Fix Expected Outcomes: Make Mandatory for Creator + Fix Data Mapping
 
-## Problems Identified
+## Problems Found
 
-1. **Data lost on tab switch**: Local state (`useState`) is seeded inside `queryFn`. When you switch tabs and come back, the component remounts but React Query serves cached data without re-executing `queryFn` (due to 5-min `staleTime`). The `useState` setters never fire → fields show empty strings.
+1. **Expected Outcomes hidden for QUICK mode** — currently only shown for STRUCTURED/CONTROLLED. You want it mandatory for ALL Creator modes.
 
-2. **Description textarea not expandable**: The `Textarea` has `resize-none` and fixed `rows={3}`, making it hard to write/edit longer content.
+2. **Critical data mapping bug** in `useSubmitSolutionRequest.ts`:
+   - Line 85: `scope: payload.expectedOutcomes` — Creator's expected outcomes is incorrectly saved to the `scope` DB column
+   - Line 184: `constraints: data.scope` — Creator's "Scope" field is mapped to `constraints` in the payload, which is never written to the DB
+   - The `expected_outcomes` DB column is **never populated** — that's why the Pre-Flight Gate always shows it as empty
+   - The `scope` DB column gets overwritten with expected outcomes text instead of actual scope
+
+3. **Navigation from Pre-Flight dialog works correctly** — clicking rows navigates to the right tab. Context & Background and Deliverables remain Curator/AI-generated sections as intended.
 
 ## Changes
 
-### File: `src/components/cogniblend/curation/OrgContextPanel.tsx`
+### 1. Make Expected Outcomes mandatory for all modes
+**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
 
-**1. Fix persistence — sync state from query data via `useEffect`**
+- Change `outcomesRule`: remove the QUICK exception — make it required for all governance modes with a minimum character count (e.g., 50 chars)
+- Remove the `{!isQuick && ...}` conditional wrapper around the Expected Outcomes field
 
-Remove the `setState` calls from inside `queryFn` (lines 116-121). Instead, add a `useEffect` that watches `orgData` and seeds local state whenever it changes. This fires on every mount — whether from fresh fetch or cache hit.
+**File: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`**
 
-```tsx
-useEffect(() => {
-  if (orgData) {
-    setWebsiteUrl(orgData.website_url ?? '');
-    setLinkedinUrl(orgData.linkedin_url ?? '');
-    setTwitterUrl(orgData.twitter_url ?? '');
-    setDescription(orgData.organization_description ?? '');
-    setTagline(orgData.tagline ?? '');
-    setIsDirty(false);
-  }
-}, [orgData]);
-```
+- Remove the `{!isQuick && ...}` guard around the Expected Outcomes section so it always renders
 
-**2. Auto-save with debounce (800ms)**
+### 2. Fix the data mapping in payload and submission
+**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
 
-Add a `useEffect` with an 800ms debounce timer that auto-saves dirty fields to `seeker_organizations`. This ensures data persists even if the user switches tabs without clicking Save. The explicit Save button remains as a visual confirmation option.
+In `buildPayload()`, fix the field mapping:
+- `constraints` should remain as `data.scope` (this is correct)
+- Add a new `expectedOutcomes` field that maps to `data.expected_outcomes` (this is correct)
+- The issue is downstream in `useSubmitSolutionRequest`
 
-**3. Make description textarea expandable**
+**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
 
-- Remove `resize-none` class
-- Add `resize-y` class for vertical resizing
-- Increase default `rows` from 3 to 4
-- Add `min-h-[80px]` so it doesn't shrink too small
+Fix the DB column mapping in both the create and draft-save paths:
+- Line 84-85: Change `scope: payload.expectedOutcomes` → `scope: payload.constraints`
+- Add: `expected_outcomes: payload.expectedOutcomes ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] }) : null`
 
-### No database or schema changes needed
+This ensures:
+- `scope` DB column receives the Creator's **Scope** text
+- `expected_outcomes` DB column receives the Creator's **Expected Outcomes** text (formatted as the JSON structure the Curation page expects)
 
-Data already saves to `seeker_organizations` — the issue is purely a client-side state hydration bug.
+### 3. Apply same fix to the draft/update path (~line 210-213)
+**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
 
-## Technical Detail
+Same column mapping fix for the second `.update()` call used in draft saves.
 
-- The root cause is React Query's cache behavior: `queryFn` only runs on cache miss or stale refetch, but `staleTime` is 5 minutes. The `useState` initializers default to `''`, so on remount with cached data, fields appear empty.
-- Auto-save debounce uses `useRef` for the timer, flushing on unmount to catch tab switches.
-- The `isDirty` flag prevents unnecessary saves on initial hydration.
+## Result
+- Expected Outcomes appears for ALL Creator modes (QUICK, STRUCTURED, CONTROLLED)
+- Creator's scope text correctly populates the `scope` DB column
+- Creator's expected outcomes correctly populates the `expected_outcomes` DB column
+- Curation page Pre-Flight Gate will see expected outcomes as filled
+- Context & Background and Deliverables remain Curator/AI-generated (no change)
 
