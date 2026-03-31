@@ -1,6 +1,6 @@
 /**
  * PublicChallengeDetailPage — Role-aware challenge detail view.
- * - Creator (CR role): Shows all submitted data, curation status, no solver UI.
+ * - Creator (CR role): Shows dual-tab view (My Version / Curator Version).
  * - Others/Solvers: Shows solver-oriented view with enrollment CTA, Q&A, legal.
  * Route: /cogni/challenges/:id/view
  */
@@ -28,6 +28,7 @@ import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanne
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 import { SolverEnrollmentCTA } from '@/components/cogniblend/solver/SolverEnrollmentCTA';
+import { CreatorChallengeDetailView } from '@/components/cogniblend/challenges/CreatorChallengeDetailView';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
