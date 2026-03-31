@@ -29,6 +29,7 @@ import type { GovernanceMode } from '@/lib/governanceMode';
 
 import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
+import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 
 /* ── Schema builders ── */
 
