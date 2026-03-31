@@ -37,7 +37,7 @@ export default function CogniDashboardPage() {
         urgency: 'NORMAL',
         architect_name: null,
       }));
-  }, [isSpecRole, challengesData]);
+  }, [challengesData]);
 
   const showBypassBanner = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
