@@ -5,21 +5,18 @@
 import { ReactNode } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, Settings2 } from 'lucide-react';
-import type { DemoUser, DemoPath } from '@/pages/cogniblend/DemoLoginPage';
+import { Loader2 } from 'lucide-react';
+import type { DemoUser } from '@/pages/cogniblend/DemoLoginPage';
 
 interface DemoUserCardProps {
   user: DemoUser;
-  path: DemoPath;
   isLoading: boolean;
   disabled: boolean;
   onLogin: () => void;
   getRoleBadge: (code: string) => ReactNode;
 }
 
-export function DemoUserCard({ user, path, isLoading, disabled, onLogin, getRoleBadge }: DemoUserCardProps) {
-  const description = path === 'ai' ? user.aiDescription : user.manualDescription;
-
+export function DemoUserCard({ user, isLoading, disabled, onLogin, getRoleBadge }: DemoUserCardProps) {
   return (
     <Card
       className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow"
@@ -40,15 +37,8 @@ export function DemoUserCard({ user, path, isLoading, disabled, onLogin, getRole
         <div className="flex flex-wrap gap-1">
           {user.roles.map((r) => getRoleBadge(r))}
         </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-muted-foreground/60 font-mono">{user.email}</span>
-          {path === 'ai' ? (
-            <Sparkles className="h-3 w-3 text-primary/40" />
-          ) : (
-            <Settings2 className="h-3 w-3 text-muted-foreground/40" />
-          )}
-        </div>
+        <p className="text-xs text-muted-foreground">{user.description}</p>
+        <span className="text-[11px] text-muted-foreground/60 font-mono">{user.email}</span>
       </CardContent>
     </Card>
   );
