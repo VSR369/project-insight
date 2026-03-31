@@ -99,7 +99,7 @@ export type CreatorFormValues = z.infer<ReturnType<typeof buildCreatorSchema>> e
   title: string;
   problem_statement: string;
   scope: string;
-  maturity_level: 'blueprint' | 'poc' | 'pilot';
+  maturity_level: 'blueprint' | 'poc' | 'prototype' | 'pilot';
   domain_tags: string[];
   currency: 'USD' | 'EUR' | 'GBP' | 'INR';
   budget_min: number;
