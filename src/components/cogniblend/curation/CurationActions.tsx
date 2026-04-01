@@ -261,7 +261,7 @@ export default function CurationActions({
         p_user_id: user?.id ?? "",
         p_challenge_id: challengeId,
         p_solution_id: "",
-        p_action: "CURATION_SENT_TO_AM",
+        p_action: "CURATION_SENT_TO_CR",
         p_method: "UI",
         p_phase_from: 3,
         p_phase_to: 3,
