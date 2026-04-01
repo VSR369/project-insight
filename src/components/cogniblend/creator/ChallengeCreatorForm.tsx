@@ -414,6 +414,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
   const isControlled = governanceMode === 'CONTROLLED';
 
+  const { data: fieldRules } = useGovernanceFieldRules(governanceMode);
+
   const handleFillTestData = useCallback(() => {
     const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
     const domainIds = industrySegments.slice(0, 2).map((segment) => segment.id);
@@ -423,14 +425,19 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase()
     );
 
+    // Filter seed by governance rules — strip hidden fields
+    const filteredSeed = fieldRules
+      ? filterSeedByGovernance(seed, fieldRules)
+      : seed;
+
     form.reset({
-      ...seed,
+      ...filteredSeed,
       maturity_level: maturityMatch?.code ?? seed.maturity_level,
       solution_maturity_id: maturityMatch?.id ?? '',
       industry_segment_id: industrySegments[0]?.id ?? '',
       domain_tags: domainIds,
     } as CreatorFormValues);
-  }, [engagementModel, industrySegments, solutionMaturityOptions, form]);
+  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules]);
 
   return (
     <FormProvider {...form}>

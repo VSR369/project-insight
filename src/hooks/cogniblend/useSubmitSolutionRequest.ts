@@ -12,6 +12,12 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';
 import { normalizeChallengeFields } from '@/lib/cogniblend/challengeFieldNormalizer';
+import {
+  fetchGovernanceFieldRules,
+  stripHiddenFields,
+  stripHiddenExtendedBriefFields,
+  FORM_FIELD_TO_GOVERNANCE_KEY,
+} from '@/lib/cogniblend/governanceFieldFilter';
 
 interface SubmitPayload {
   orgId: string;
