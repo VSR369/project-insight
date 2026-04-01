@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { BookOpen, Filter } from 'lucide-react';
+import { BookOpen, Filter, ArrowUpCircle } from 'lucide-react';
 
 const TIER_COLORS: Record<string, string> = {
   excellent: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
