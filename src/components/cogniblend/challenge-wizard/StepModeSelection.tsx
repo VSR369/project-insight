@@ -227,6 +227,53 @@ export function StepModeSelection({
           </p>
         </div>
       </div>
+
+      {/* ═══ Section 3: Creator Approval Toggle ═══ */}
+      {selectedModel === 'MP' && (
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-base font-bold text-foreground mb-1">Creator Approval</h3>
+            <p className="text-sm text-muted-foreground">
+              Require your sign-off before the Curator publishes the refined challenge.
+            </p>
+          </div>
+
+          <Controller
+            control={form.control}
+            name="creator_approval_required"
+            render={({ field }) => {
+              const isForced = selectedMode === 'CONTROLLED';
+              const checked = isForced ? true : !!field.value;
+
+              return (
+                <div className="flex items-center justify-between rounded-lg border border-border bg-background p-4 max-w-sm">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="creator-approval-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+                      Require my approval before publication
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {isForced
+                        ? 'Mandatory for Controlled governance mode.'
+                        : selectedMode === 'QUICK'
+                          ? 'Optional — the Curator can publish directly.'
+                          : 'Recommended — review the final specification before it goes live.'}
+                    </p>
+                  </div>
+                  <Switch
+                    id="creator-approval-toggle"
+                    checked={checked}
+                    onCheckedChange={(val) => {
+                      if (!isForced) field.onChange(val);
+                    }}
+                    disabled={isForced}
+                    className="shrink-0 ml-4"
+                  />
+                </div>
+              );
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
