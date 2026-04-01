@@ -18,6 +18,7 @@ interface SubmitPayload {
   operatingModel: string;
   title?: string;
   businessProblem: string;
+  draftChallengeId?: string;
   expectedOutcomes: string[];
   constraints?: string;
   currency: string;
@@ -57,21 +58,28 @@ export function useSubmitSolutionRequest() {
 
   return useMutation({
     mutationFn: async (payload: SubmitPayload): Promise<SubmitResult> => {
-      // 1. Initialize challenge via RPC
-      const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim();
+      // 1. Use existing draft or initialize new challenge via RPC
+      let challengeId: string;
 
-      const { data: challengeId, error: initError } = await supabase.rpc(
-        'initialize_challenge',
-        {
-          p_org_id: payload.orgId,
-          p_creator_id: payload.creatorId,
-          p_title: title,
-          p_operating_model: payload.operatingModel,
-        },
-      );
+      if (payload.draftChallengeId) {
+        // Draft already exists — promote it instead of creating a duplicate
+        challengeId = payload.draftChallengeId;
+      } else {
+        const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim();
+        const { data: newId, error: initError } = await supabase.rpc(
+          'initialize_challenge',
+          {
+            p_org_id: payload.orgId,
+            p_creator_id: payload.creatorId,
+            p_title: title,
+            p_operating_model: payload.operatingModel,
+          },
+        );
 
-      if (initError) throw new Error(initError.message);
-      if (!challengeId) throw new Error('Failed to create challenge');
+        if (initError) throw new Error(initError.message);
+        if (!newId) throw new Error('Failed to create challenge');
+        challengeId = newId;
+      }
 
       // 2. Update challenge with form fields — source role always 'CR'
       const rewardStructure = {
@@ -218,6 +226,7 @@ export function useSubmitSolutionRequest() {
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['tier_limit_check'] });
     },
     onError: (error: Error) => {
