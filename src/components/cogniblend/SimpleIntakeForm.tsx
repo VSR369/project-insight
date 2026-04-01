@@ -1037,7 +1037,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
                 <RichTextEditor
                   value={field.value ?? ''}
                   onChange={field.onChange}
-                  placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+                  placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Creator understand your priorities."
                   storagePath="am-commercial-success"
                 />
               )}
