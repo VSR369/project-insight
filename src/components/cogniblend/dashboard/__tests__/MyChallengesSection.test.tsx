@@ -49,6 +49,7 @@ const ITEMS: MyChallengeItem[] = [
     role_code: 'CR',
     operating_model: 'AGG',
     created_at: '2025-06-03T10:00:00Z',
+  },
 ];
 
 const ROLE_COUNTS: Record<string, number> = { CR: 2, CU: 1, ER: 0, ID: 0 };
