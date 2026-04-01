@@ -386,12 +386,11 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
     const weightedCriteria = (evalCriteria?.weighted_criteria ?? evalCriteria?.criteria ?? []) as Array<{ name: string; weight: number }>;
     const deliverables = data.deliverables as Record<string, unknown> | null;
     const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as any[];
-    const outcomeItems = (data.expected_outcomes as any)?.items as Array<{ name: string }> | undefined;
-    const metricsItems = (data.success_metrics_kpis as any)?.items as Array<{ name: string; target?: string }> | undefined;
+    const outcomeItems = parseItems(data.expected_outcomes);
+    const metricsItems = parseItems(data.success_metrics_kpis);
     const dataResources = data.data_resources_provided as Record<string, unknown> | null;
-    const dataResourceItems = (dataResources?.items ?? []) as Array<{ name: string }>;
-    const subGuidelines = data.submission_guidelines as Record<string, unknown> | null;
-    const guidelinesHtml = (subGuidelines?.content ?? subGuidelines?.guidelines ?? null) as string | null;
+    const dataResourceItems = parseItems(dataResources) ?? (dataResources?.items ? parseItems(dataResources.items) : null);
+    const guidelinesItems = parseItems(data.submission_guidelines);
     const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
     const platinumAward = Number(rs.platinum_award ?? rs.budget_max ?? 0);
     const goldAward = Number(rs.gold_award ?? 0);
