@@ -26,7 +26,7 @@ const ITEMS: MyChallengeItem[] = [
     governance_profile: 'LIGHTWEIGHT',
     role_code: 'CR',
     operating_model: 'MP',
-  },
+    created_at: '2025-06-01T10:00:00Z',
   {
     challenge_id: 'c2',
     title: 'Quantum Computing',
