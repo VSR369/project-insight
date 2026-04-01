@@ -551,7 +551,7 @@ async function callAIPass2Rewrite(
   sectionConfigs?: SectionConfig[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
   orgContext?: any,
-  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; sharedWithSolver: boolean }[]>,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; sharedWithSolver: boolean }[]>,
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
