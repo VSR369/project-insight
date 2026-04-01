@@ -10,7 +10,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
-import { serializeLineItems, serializeStakeholders } from '@/lib/cogniblend/creatorCuratorFieldMap';
+import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';
+import { normalizeChallengeFields } from '@/lib/cogniblend/challengeFieldNormalizer';
 
 interface SubmitPayload {
   orgId: string;
@@ -36,7 +37,12 @@ interface SubmitPayload {
   // Extended brief context fields from Creator
   contextBackground?: string;
   rootCauses?: string[];
-  affectedStakeholders?: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
+  affectedStakeholders?: Array<{
+    stakeholder_name: string;
+    role: string;
+    impact_description: string;
+    adoption_challenge: string;
+  }>;
   scopeDefinition?: string;
   preferredApproach?: string[];
   approachesNotOfInterest?: string[];
@@ -53,35 +59,91 @@ interface SubmitResult {
   challengeId: string;
 }
 
+interface DraftPayload {
+  orgId: string;
+  creatorId: string;
+  operatingModel: string;
+  title?: string;
+  businessProblem: string;
+  expectedOutcomes: string[];
+  constraints?: string;
+  currency: string;
+  budgetMin: number;
+  budgetMax: number;
+  expectedTimeline: string;
+  domainTags: string[];
+  urgency: string;
+  industrySegmentId?: string;
+  subDomainIds?: string[];
+  specialtyTags?: string[];
+  beneficiariesMapping?: string;
+  templateId?: string;
+  governanceModeOverride?: string;
+  contextBackground?: string;
+  rootCauses?: string[];
+  affectedStakeholders?: Array<{
+    stakeholder_name: string;
+    role: string;
+    impact_description: string;
+    adoption_challenge: string;
+  }>;
+  scopeDefinition?: string;
+  preferredApproach?: string[];
+  approachesNotOfInterest?: string[];
+  solutionExpectations?: string;
+  currentDeficiencies?: string[];
+  maturityLevel?: string;
+  solutionMaturityId?: string;
+  ipModel?: string;
+  submissionGuidelines?: string[];
+}
+
+function normalizeConstrainedChallengeFields({
+  maturityLevel,
+  ipModel,
+}: {
+  maturityLevel?: string;
+  ipModel?: string;
+}): {
+  maturity_level: string | null;
+  ip_model: string | null;
+} {
+  const normalized = normalizeChallengeFields({
+    maturity_level: maturityLevel || null,
+    ip_model: ipModel || null,
+  });
+
+  return {
+    maturity_level: (normalized.maturity_level as string | null | undefined) ?? null,
+    ip_model: (normalized.ip_model as string | null | undefined) ?? null,
+  };
+}
+
 export function useSubmitSolutionRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: SubmitPayload): Promise<SubmitResult> => {
-      // 1. Use existing draft or initialize new challenge via RPC
       let challengeId: string;
 
       if (payload.draftChallengeId) {
-        // Draft already exists — promote it instead of creating a duplicate
         challengeId = payload.draftChallengeId;
       } else {
         const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim();
-        const { data: newId, error: initError } = await supabase.rpc(
-          'initialize_challenge',
-          {
-            p_org_id: payload.orgId,
-            p_creator_id: payload.creatorId,
-            p_title: title,
-            p_operating_model: payload.operatingModel,
-          },
-        );
+        const { data: newId, error: initError } = await supabase.rpc('initialize_challenge', {
+          p_org_id: payload.orgId,
+          p_creator_id: payload.creatorId,
+          p_title: title,
+          p_operating_model: payload.operatingModel,
+        });
 
         if (initError) throw new Error(initError.message);
         if (!newId) throw new Error('Failed to create challenge');
         challengeId = newId;
       }
 
-      // 2. Update challenge with form fields — source role always 'CR'
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
+
       const rewardStructure = {
         currency: payload.currency,
         budget_min: payload.budgetMin,
@@ -119,9 +181,9 @@ export function useSubmitSolutionRequest() {
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
-          maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          maturity_level: normalizedConstrainedFields.maturity_level,
           solution_maturity_id: payload.solutionMaturityId || null,
-          ip_model: payload.ipModel || null,
+          ip_model: normalizedConstrainedFields.ip_model,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
@@ -130,12 +192,18 @@ export function useSubmitSolutionRequest() {
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
             ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
             ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
-            ...(payload.affectedStakeholders?.length ? { affected_stakeholders: payload.affectedStakeholders.filter(s => s.stakeholder_name.trim()) } : {}),
+            ...(payload.affectedStakeholders?.length
+              ? { affected_stakeholders: payload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
+              : {}),
             ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
             ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
-            ...(payload.approachesNotOfInterest?.filter(Boolean).length ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) } : {}),
+            ...(payload.approachesNotOfInterest?.filter(Boolean).length
+              ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) }
+              : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) } : {}),
+            ...(payload.currentDeficiencies?.filter(Boolean).length
+              ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) }
+              : {}),
             ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
           },
         } as any)
@@ -143,7 +211,6 @@ export function useSubmitSolutionRequest() {
 
       if (updateError) throw new Error(updateError.message);
 
-      // 2b. Save creator_snapshot — immutable record of original submission
       const creatorSnapshot = {
         problem_statement: payload.businessProblem,
         scope: payload.constraints || null,
@@ -163,8 +230,9 @@ export function useSubmitSolutionRequest() {
           ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
         },
         title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
-        maturity_level: payload.maturityLevel?.toUpperCase() || null,
-        ip_model: payload.ipModel || null,
+        maturity_level: normalizedConstrainedFields.maturity_level,
+        solution_maturity_id: payload.solutionMaturityId || null,
+        ip_model: normalizedConstrainedFields.ip_model,
         domain_tags: payload.domainTags,
         industry_segment_id: payload.industrySegmentId || null,
         budget_min: payload.budgetMin,
@@ -173,23 +241,15 @@ export function useSubmitSolutionRequest() {
         expected_timeline: payload.expectedTimeline,
       };
 
-      await supabase
-        .from('challenges')
-        .update({ creator_snapshot: creatorSnapshot } as any)
-        .eq('id', challengeId);
+      await supabase.from('challenges').update({ creator_snapshot: creatorSnapshot } as any).eq('id', challengeId);
 
-      // 3. Complete phase to advance from Phase 1 → Phase 2 (curation-ready)
-      const { error: phaseError } = await supabase.rpc(
-        'complete_phase',
-        {
-          p_challenge_id: challengeId,
-          p_user_id: payload.creatorId,
-        },
-      );
+      const { error: phaseError } = await supabase.rpc('complete_phase', {
+        p_challenge_id: challengeId,
+        p_user_id: payload.creatorId,
+      });
 
       if (phaseError) throw new Error(phaseError.message);
 
-      // 4. QUICK mode: auto-attach Tier 1 legal defaults (BR-LGL-001)
       const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
       if (effectiveGovernance.toUpperCase() === 'QUICK' || effectiveGovernance.toUpperCase() === 'LIGHTWEIGHT') {
         try {
@@ -200,11 +260,11 @@ export function useSubmitSolutionRequest() {
             .eq('is_active', true);
 
           if (defaultTemplates && defaultTemplates.length > 0) {
-            const legalInserts = (defaultTemplates as any[]).map((tpl) => ({
+            const legalInserts = (defaultTemplates as any[]).map((template) => ({
               challenge_id: challengeId,
-              document_type: tpl.document_type,
-              document_name: tpl.document_name,
-              content_summary: tpl.description || null,
+              document_type: template.document_type,
+              document_name: template.document_name,
+              content_summary: template.description || null,
               tier: 'TIER_1',
               status: 'auto_accepted',
               lc_status: 'approved',
@@ -235,64 +295,24 @@ export function useSubmitSolutionRequest() {
   });
 }
 
-/* ── Save Draft ──────────────────────────────────────────── */
-
-interface DraftPayload {
-  orgId: string;
-  creatorId: string;
-  operatingModel: string;
-  title?: string;
-  businessProblem: string;
-  expectedOutcomes: string[];
-  constraints?: string;
-  currency: string;
-  budgetMin: number;
-  budgetMax: number;
-  expectedTimeline: string;
-  domainTags: string[];
-  urgency: string;
-  industrySegmentId?: string;
-  subDomainIds?: string[];
-  specialtyTags?: string[];
-  beneficiariesMapping?: string;
-  templateId?: string;
-  governanceModeOverride?: string;
-  contextBackground?: string;
-  rootCauses?: string[];
-  affectedStakeholders?: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
-  scopeDefinition?: string;
-  preferredApproach?: string[];
-  approachesNotOfInterest?: string[];
-  solutionExpectations?: string;
-  currentDeficiencies?: string[];
-  maturityLevel?: string;
-  solutionMaturityId?: string;
-  ipModel?: string;
-  submissionGuidelines?: string[];
-}
-
 export function useSaveDraft() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: DraftPayload): Promise<{ challengeId: string }> => {
       const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
 
-      // Initialize challenge (stays in Phase 1)
-      const { data: challengeId, error: initError } = await supabase.rpc(
-        'initialize_challenge',
-        {
-          p_org_id: payload.orgId,
-          p_creator_id: payload.creatorId,
-          p_title: title,
-          p_operating_model: payload.operatingModel,
-        },
-      );
+      const { data: challengeId, error: initError } = await supabase.rpc('initialize_challenge', {
+        p_org_id: payload.orgId,
+        p_creator_id: payload.creatorId,
+        p_title: title,
+        p_operating_model: payload.operatingModel,
+      });
 
       if (initError) throw new Error(initError.message);
       if (!challengeId) throw new Error('Failed to create draft');
 
-      // Update with form fields — no complete_phase call
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
@@ -319,9 +339,9 @@ export function useSaveDraft() {
           phase_schedule: {
             expected_timeline: payload.expectedTimeline,
           },
-          maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          maturity_level: normalizedConstrainedFields.maturity_level,
           solution_maturity_id: payload.solutionMaturityId || null,
-          ip_model: payload.ipModel || null,
+          ip_model: normalizedConstrainedFields.ip_model,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
@@ -337,12 +357,18 @@ export function useSaveDraft() {
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
             ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
             ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
-            ...(payload.affectedStakeholders?.length ? { affected_stakeholders: payload.affectedStakeholders.filter(s => s.stakeholder_name.trim()) } : {}),
+            ...(payload.affectedStakeholders?.length
+              ? { affected_stakeholders: payload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
+              : {}),
             ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
             ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
-            ...(payload.approachesNotOfInterest?.filter(Boolean).length ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) } : {}),
+            ...(payload.approachesNotOfInterest?.filter(Boolean).length
+              ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) }
+              : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) } : {}),
+            ...(payload.currentDeficiencies?.filter(Boolean).length
+              ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) }
+              : {}),
           },
         } as any)
         .eq('id', challengeId);
@@ -363,13 +389,13 @@ export function useSaveDraft() {
   });
 }
 
-/* ── Update existing draft ──────────────────────────────── */
-
 export function useUpdateDraft() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: DraftPayload & { challengeId: string }): Promise<{ challengeId: string }> => {
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
+
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
@@ -396,9 +422,9 @@ export function useUpdateDraft() {
           phase_schedule: {
             expected_timeline: payload.expectedTimeline,
           },
-          maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          maturity_level: normalizedConstrainedFields.maturity_level,
           solution_maturity_id: payload.solutionMaturityId || null,
-          ip_model: payload.ipModel || null,
+          ip_model: normalizedConstrainedFields.ip_model,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
@@ -412,12 +438,18 @@ export function useUpdateDraft() {
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
             ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
             ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
-            ...(payload.affectedStakeholders?.length ? { affected_stakeholders: payload.affectedStakeholders.filter(s => s.stakeholder_name.trim()) } : {}),
+            ...(payload.affectedStakeholders?.length
+              ? { affected_stakeholders: payload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
+              : {}),
             ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
             ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
-            ...(payload.approachesNotOfInterest?.filter(Boolean).length ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) } : {}),
+            ...(payload.approachesNotOfInterest?.filter(Boolean).length
+              ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) }
+              : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) } : {}),
+            ...(payload.currentDeficiencies?.filter(Boolean).length
+              ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) }
+              : {}),
           },
         } as any)
         .eq('id', payload.challengeId);

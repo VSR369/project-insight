@@ -46,7 +46,12 @@ interface EssentialDetailsTabProps {
 }
 
 export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode }: EssentialDetailsTabProps) {
-  const { control, register, formState: { errors } } = useFormContext();
+  const {
+    control,
+    register,
+    setValue,
+    formState: { errors },
+  } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
   const isQuick = governanceMode === 'QUICK';
 
@@ -54,7 +59,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
 
   return (
     <div className="space-y-6">
-      {/* Challenge Title */}
       <div className="space-y-2">
         <Label htmlFor="title" className="text-sm font-medium">
           Challenge Title <span className="text-destructive">*</span>
@@ -68,7 +72,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.title?.message && <p className="text-xs text-destructive">{String(errors.title.message)}</p>}
       </div>
 
-      {/* Problem Statement */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Problem Statement <span className="text-destructive">*</span>
@@ -90,7 +93,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.problem_statement?.message && <p className="text-xs text-destructive">{String(errors.problem_statement.message)}</p>}
       </div>
 
-      {/* Scope — optional for QUICK */}
       {!isQuick && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">
@@ -114,7 +116,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      {/* Solution Depth — Dynamic from DB */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">
           What kind of solution do you need? <span className="text-destructive">*</span>
@@ -129,16 +130,27 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
             name="maturity_level"
             control={control}
             render={({ field }) => (
-              <RadioGroup value={field.value} onValueChange={field.onChange} className="space-y-2">
-                {maturityOptions.map((opt) => (
+              <RadioGroup
+                value={field.value}
+                onValueChange={(nextValue) => {
+                  field.onChange(nextValue);
+                  const selectedOption = maturityOptions.find((option) => option.code === nextValue);
+                  setValue('solution_maturity_id', selectedOption?.id ?? '', {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+                className="space-y-2"
+              >
+                {maturityOptions.map((option) => (
                   <label
-                    key={opt.id}
+                    key={option.id}
                     className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
                   >
-                    <RadioGroupItem value={opt.code} className="mt-0.5" />
+                    <RadioGroupItem value={option.code} className="mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                      {opt.description && <p className="text-xs text-muted-foreground">{opt.description}</p>}
+                      <p className="text-sm font-medium text-foreground">{option.label}</p>
+                      {option.description && <p className="text-xs text-muted-foreground">{option.description}</p>}
                     </div>
                   </label>
                 ))}
@@ -149,7 +161,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
       </div>
 
-      {/* Primary Industry Segment */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Primary Industry Segment <span className="text-destructive">*</span>
@@ -166,8 +177,8 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
                 <SelectValue placeholder="Select primary industry segment" />
               </SelectTrigger>
               <SelectContent>
-                {industrySegments.map((seg) => (
-                  <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                {industrySegments.map((segment) => (
+                  <SelectItem key={segment.id} value={segment.id}>{segment.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -176,7 +187,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.industry_segment_id?.message && <p className="text-xs text-destructive">{String(errors.industry_segment_id.message)}</p>}
       </div>
 
-      {/* Industry Domain */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Industry Domain <span className="text-destructive">*</span>
@@ -187,18 +197,18 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
           control={control}
           render={({ field }) => (
             <div className="flex flex-wrap gap-2">
-              {industrySegments.map((seg) => {
-                const isSelected = (field.value ?? []).includes(seg.id);
+              {industrySegments.map((segment) => {
+                const isSelected = (field.value ?? []).includes(segment.id);
                 const atMax = (field.value ?? []).length >= 3 && !isSelected;
                 return (
                   <button
-                    key={seg.id}
+                    key={segment.id}
                     type="button"
                     disabled={atMax}
                     onClick={() => {
                       const current = field.value ?? [];
                       field.onChange(
-                        isSelected ? current.filter((v: string) => v !== seg.id) : [...current, seg.id],
+                        isSelected ? current.filter((value: string) => value !== segment.id) : [...current, segment.id],
                       );
                     }}
                     className={`
@@ -207,7 +217,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
                       ${atMax ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                     `}
                   >
-                    {seg.name}
+                    {segment.name}
                   </button>
                 );
               })}
@@ -217,7 +227,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
       </div>
 
-      {/* Budget Range */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Budget Range {isMPBudgetRequired && <span className="text-destructive">*</span>}
@@ -240,8 +249,8 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CURRENCY_OPTIONS.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  {CURRENCY_OPTIONS.map((currency) => (
+                    <SelectItem key={currency.value} value={currency.value}>{currency.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -258,7 +267,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         )}
       </div>
 
-      {/* IP Preference — optional for QUICK (auto-defaults to IP-NEL) */}
       {!isQuick && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">
@@ -273,10 +281,10 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
                   <SelectValue placeholder="Select IP ownership model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {IP_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <span>{opt.label}</span>
-                      <span className="text-xs text-muted-foreground ml-2">— {opt.desc}</span>
+                  {IP_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span>{option.label}</span>
+                      <span className="text-xs text-muted-foreground ml-2">— {option.desc}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -287,7 +295,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      {/* Expected Results — LineItemsInput (string[]) */}
       <Controller
         name="expected_outcomes"
         control={control}
