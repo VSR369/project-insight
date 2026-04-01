@@ -24,6 +24,11 @@ function validBase(overrides: Record<string, unknown> = {}) {
     submission_deadline: '2026-06-01',
     expected_timeline: '3 months',
     review_duration: 14,
+    // CONTROLLED-required fields
+    context_background: 'Background context for the challenge',
+    root_causes: ['Root cause one'],
+    current_deficiencies: ['Deficiency one'],
+    affected_stakeholders: [{ stakeholder_name: 'Team Lead', role: 'Engineering', impact_description: 'High', adoption_challenge: 'Training' }],
     ...overrides,
   };
 }
