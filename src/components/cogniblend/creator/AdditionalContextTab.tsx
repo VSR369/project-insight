@@ -26,6 +26,7 @@ import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineIte
 import { toast } from 'sonner';
 import type { CreatorFormValues } from './ChallengeCreatorForm';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
 const TIMELINE_OPTIONS = [
   { value: '4w', label: '4 weeks' },
