@@ -8,6 +8,8 @@
  */
 
 import type { SectionKey } from '@/types/sections';
+import { scoreDomainCoverage } from './domainCoverageScorer';
+import { scoreOrgContext } from './orgContextScorer';
 
 export interface PreFlightItem {
   sectionId: SectionKey;
