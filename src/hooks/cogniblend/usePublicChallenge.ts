@@ -202,6 +202,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     functional_area: c.functional_area as string | null,
     target_geography: c.target_geography as string | null,
     creator_snapshot: c.creator_snapshot as Record<string, unknown> | null,
+    governance_mode_override: c.governance_mode_override as string | null,
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
     industry_name: (industry?.name as string) ?? null,
