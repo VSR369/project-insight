@@ -82,12 +82,14 @@ export function isFieldRequired(rules: FieldRulesMap | undefined | null, fieldKe
 }
 
 /** Get min length for a text field */
-export function getFieldMinLength(rules: FieldRulesMap, fieldKey: string, fallback: number): number {
+export function getFieldMinLength(rules: FieldRulesMap | undefined | null, fieldKey: string, fallback: number): number {
+  if (!rules) return fallback;
   return rules[fieldKey]?.minLength ?? fallback;
 }
 
 /** Get max length for a text field */
-export function getFieldMaxLength(rules: FieldRulesMap, fieldKey: string, fallback: number): number {
+export function getFieldMaxLength(rules: FieldRulesMap | undefined | null, fieldKey: string, fallback: number): number {
+  if (!rules) return fallback;
   return rules[fieldKey]?.maxLength ?? fallback;
 }
 
