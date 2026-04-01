@@ -79,6 +79,7 @@ interface SectionConfigRow {
   wave_number: number | null;
   tab_group: string | null;
   version: number | null;
+  discovery_directives: any | null;
 }
 
 interface GlobalConfig {
@@ -193,6 +194,7 @@ function SectionEditor({
           web_search_queries: form.web_search_queries as any,
           industry_frameworks: form.industry_frameworks as any,
           analyst_sources: form.analyst_sources as any,
+          discovery_directives: form.discovery_directives as any,
           wave_number: form.wave_number,
           tab_group: form.tab_group,
           updated_at: new Date().toISOString(),
@@ -467,9 +469,11 @@ function SectionEditor({
             webSearchQueries={form.web_search_queries ?? []}
             industryFrameworks={form.industry_frameworks ?? []}
             analystSources={form.analyst_sources ?? []}
+            discoveryDirectives={form.discovery_directives ?? null}
             onQueriesChange={q => setForm(f => ({ ...f, web_search_queries: q }))}
             onFrameworksChange={fw => setForm(f => ({ ...f, industry_frameworks: fw }))}
             onSourcesChange={s => setForm(f => ({ ...f, analyst_sources: s }))}
+            onDiscoveryDirectivesChange={d => setForm(f => ({ ...f, discovery_directives: d }))}
           />
         </TabsContent>
 

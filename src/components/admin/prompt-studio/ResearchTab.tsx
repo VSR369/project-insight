@@ -16,13 +16,17 @@ import { Plus, Trash2, X } from 'lucide-react';
 import type { WebSearchDirective } from '@/lib/cogniblend/assemblePrompt';
 import { useState } from 'react';
 
+import { DiscoveryDirectivesEditor, type DiscoveryDirectives } from './DiscoveryDirectivesEditor';
+
 interface ResearchTabProps {
   webSearchQueries: WebSearchDirective[];
   industryFrameworks: string[];
   analystSources: string[];
+  discoveryDirectives: DiscoveryDirectives | null;
   onQueriesChange: (q: WebSearchDirective[]) => void;
   onFrameworksChange: (f: string[]) => void;
   onSourcesChange: (s: string[]) => void;
+  onDiscoveryDirectivesChange: (d: DiscoveryDirectives) => void;
 }
 
 function TagInput({
@@ -76,9 +80,11 @@ export function ResearchTab({
   webSearchQueries,
   industryFrameworks,
   analystSources,
+  discoveryDirectives,
   onQueriesChange,
   onFrameworksChange,
   onSourcesChange,
+  onDiscoveryDirectivesChange,
 }: ResearchTabProps) {
   const addQuery = () => {
     onQueriesChange([
@@ -171,6 +177,12 @@ export function ResearchTab({
           placeholder="e.g., Gartner, Forrester, McKinsey"
         />
       </div>
+
+      {/* Discovery Directives */}
+      <DiscoveryDirectivesEditor
+        value={discoveryDirectives}
+        onChange={onDiscoveryDirectivesChange}
+      />
     </div>
   );
 }
