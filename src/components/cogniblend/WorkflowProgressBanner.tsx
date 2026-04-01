@@ -21,14 +21,14 @@ const WORKFLOW_STEPS: Record<number, WorkflowStep> = {
     step: 1,
     label: 'Create Challenge',
     nextLabel: 'AI Spec Review',
-    nextRole: 'Challenge Creator / Architect (CR/CA)',
+    nextRole: 'Challenge Creator (CR)',
     description: 'Fill in the intake form and let AI generate the specification.',
   },
   2: {
     step: 2,
     label: 'AI Spec Review',
     nextLabel: 'Legal Document Attachment',
-    nextRole: 'Challenge Creator / Architect (CR/CA)',
+    nextRole: 'Challenge Creator (CR)',
     description: 'Review and approve each section of the AI-generated specification.',
   },
   3: {
@@ -41,16 +41,16 @@ const WORKFLOW_STEPS: Record<number, WorkflowStep> = {
   4: {
     step: 4,
     label: 'Curation Review',
-    nextLabel: 'Innovation Director Approval',
-    nextRole: 'Innovation Director (ID)',
-    description: 'Complete the 14-point checklist and submit to the Innovation Director.',
+    nextLabel: 'Curator Approval',
+    nextRole: 'Curator (CU)',
+    description: 'Complete the 14-point checklist and approve the challenge for publication.',
   },
   5: {
     step: 5,
-    label: 'ID Approval',
+    label: 'Curator Approval',
     nextLabel: 'Publication',
     nextRole: 'System / CR',
-    description: 'Innovation Director reviews and approves the challenge for publication.',
+    description: 'Curator reviews and approves the challenge for publication.',
   },
   6: {
     step: 6,

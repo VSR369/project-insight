@@ -386,7 +386,7 @@ export default function CurationChecklistPanel({
           { challengeId, userId: user.id },
           {
             onSuccess: () => {
-              toast.success("Challenge submitted to Innovation Director for review.");
+              toast.success("Challenge approved and submitted for publication.");
               setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
                 navigate("/cogni/curation");
@@ -513,7 +513,7 @@ export default function CurationChecklistPanel({
               ) : (
                 <Send className="h-4 w-4 mr-1.5" />
               )}
-              Submit to Innovation Director
+              Approve & Submit for Publication
             </Button>
 
             <Button

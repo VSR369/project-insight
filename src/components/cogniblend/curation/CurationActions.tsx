@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { handleMutationError } from "@/lib/errorHandler";
 import type { Json } from "@/integrations/supabase/types";
 
 interface StaleSectionInfo {
@@ -125,7 +126,7 @@ export default function CurationActions({
         .from("user_challenge_roles" as any)
         .select("user_id")
         .eq("challenge_id", challengeId)
-        .in("role_code", ["CR", "CA"])
+        .in("role_code", ["CR"])
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
@@ -181,7 +182,7 @@ export default function CurationActions({
       setReturnReason("");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to return challenge: ${error.message}`);
+      handleMutationError(error, { operation: 'curation_return_challenge' });
     },
   });
 
@@ -190,7 +191,7 @@ export default function CurationActions({
   const maxCycles = 3;
   const isMP = operatingModel === 'MP';
 
-  /* ── Fetch AM decline reason (latest) ───────────────── */
+  /* ── Fetch CR decline reason (latest) ───────────────── */
   const { data: amDeclineReason } = useQuery({
     queryKey: ['am-decline-reason', challengeId],
     queryFn: async () => {
@@ -208,7 +209,7 @@ export default function CurationActions({
     staleTime: 30_000,
   });
 
-  // Check if AM opted into pre-publish approval
+  // Check if CR opted into pre-publish approval
   const { data: extendedBrief } = useQuery({
     queryKey: ['challenge-extended-brief', challengeId],
     queryFn: async () => {
@@ -224,7 +225,7 @@ export default function CurationActions({
   });
   const amApprovalRequired = isMP && (extendedBrief?.am_approval_required !== false);
 
-  // For MP: update phase_status to AM_APPROVAL_PENDING instead of advancing phase
+  // For MP: update phase_status to CR_APPROVAL_PENDING instead of advancing phase
   const amApprovalMutation = useMutation({
     mutationFn: async () => {
       // Set phase_status to AM_APPROVAL_PENDING
@@ -249,10 +250,10 @@ export default function CurationActions({
          await supabase.from('cogni_notifications').insert({
            user_id: crUserId,
           challenge_id: challengeId,
-          notification_type: 'am_approval_requested',
-          title: 'Challenge ready for your approval',
-          message: 'The Curator has completed the challenge review. Please review and approve before it goes to the Innovation Director.',
-        });
+           notification_type: 'cr_approval_requested',
+           title: 'Challenge ready for your approval',
+           message: 'The Curator has completed the challenge review. Please review and approve before publication.',
+         });
       }
 
       // Audit
@@ -260,7 +261,7 @@ export default function CurationActions({
         p_user_id: user?.id ?? "",
         p_challenge_id: challengeId,
         p_solution_id: "",
-        p_action: "CURATION_SENT_TO_AM",
+        p_action: "CURATION_SENT_TO_CR",
         p_method: "UI",
         p_phase_from: 3,
         p_phase_to: 3,
@@ -269,19 +270,19 @@ export default function CurationActions({
           completed_count: completedCount,
           total_count: totalCount,
           amendment_cycle: amendmentCount,
-          target: 'AM_APPROVAL',
+          target: 'CR_APPROVAL',
         } as unknown as Json,
       });
     },
     onSuccess: () => {
-      toast.success("Challenge sent to Account Manager for approval.");
+      toast.success("Challenge sent to Challenge Creator for approval.");
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
         navigate("/cogni/curation");
       }, 1500);
     },
     onError: (error: Error) => {
-      toast.error(`Failed to send for approval: ${error.message}`);
+      handleMutationError(error, { operation: 'curation_send_to_cr' });
     },
   });
 
@@ -307,13 +308,13 @@ export default function CurationActions({
       return;
     }
 
-    // AM declined → resubmit, or MP model with AM approval required → route to AM
+    // CR declined → resubmit, or MP model with CR approval required → route to CR
     if (isAmDeclined || amApprovalRequired) {
       amApprovalMutation.mutate();
       return;
     }
 
-    // AGG model: submit directly to Innovation Director
+    // AGG model: submit directly — Curator has full approval authority
     supabase
       .rpc("log_audit", {
         p_user_id: user.id,
@@ -335,7 +336,7 @@ export default function CurationActions({
           { challengeId, userId: user.id },
           {
             onSuccess: () => {
-              toast.success("Challenge submitted to Innovation Director for review.");
+              toast.success("Challenge approved and submitted for publication.");
               setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
                 navigate("/cogni/curation");
@@ -385,13 +386,13 @@ export default function CurationActions({
         )}
       </div>
 
-      {/* AM Declined Alert */}
+      {/* CR Declined Alert */}
       {isAmDeclined && amDeclineReason && (
         <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 space-y-2">
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-destructive">Declined by Account Manager</p>
+              <p className="text-xs font-semibold text-destructive">Declined by Challenge Creator</p>
               <p className="text-xs text-foreground mt-1">{amDeclineReason.reason}</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 Decline cycle {amDeclineReason.amendment_number} · {new Date(amDeclineReason.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -456,10 +457,10 @@ export default function CurationActions({
               <Send className="h-4 w-4 mr-1.5" />
             )}
             {isAmDeclined
-              ? 'Resubmit to Account Manager'
+              ? 'Resubmit to Challenge Creator'
               : amApprovalRequired
-                ? 'Send to Account Manager for Approval'
-                : 'Submit to Innovation Director'}
+                ? 'Send to Creator for Approval'
+                : 'Approve & Submit for Publication'}
           </Button>
 
           <Button

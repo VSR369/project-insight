@@ -1,7 +1,7 @@
 /**
- * SimpleIntakeForm — Model-adaptive intake form for AM/RQ roles.
- * AGG (RQ): Template selector cards + single Problem/Idea editor — auto-derives title.
- * MP (AM): 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
+ * SimpleIntakeForm — Model-adaptive intake form for Challenge Creator (CR) role.
+ * AGG: Template selector cards + single Problem/Idea editor — auto-derives title.
+ * MP: 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
  * 
  * Supports mode="create" (default), mode="edit" (pre-fills from existing challenge),
  * and mode="view" (read-only display with content-hugging heights).
@@ -70,7 +70,7 @@ const TIMELINE_OPTIONS = [
 
 /* ── Schemas ── */
 
-/** AGG (RQ) schema — template card + single idea field */
+/** AGG schema — template card + single idea field */
 const aggSchema = z.object({
   selected_template: z.string().min(1, 'Please select a challenge type'),
   problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(5000, 'Keep your idea under 5000 characters'),
@@ -87,7 +87,7 @@ const aggSchema = z.object({
   architect_id: z.string().optional(),
 });
 
-/** MP (AM) schema — comprehensive 6-field problem brief */
+/** MP schema — comprehensive 6-field problem brief */
 const mpSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   problem_summary: z.string().trim().min(1, 'Problem summary is required').max(5000, 'Problem summary must be 5000 characters or less'),
@@ -787,7 +787,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     );
   }
 
-  // ═══════ AM (Marketplace) Render ═══════
+  // ═══════ MP (Marketplace) Render ═══════
   return (
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
@@ -806,7 +806,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               ? 'Read-only view of your submitted problem brief.'
               : isEditMode
               ? 'Update your problem brief below. All formatting will be preserved.'
-              : 'As your organization\'s representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.'}
+              : 'As your organization\'s representative, provide the problem details. Your Challenge Creator will contact you within 2 business days.'}
           </p>
         </div>
       </div>
@@ -1037,7 +1037,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
                 <RichTextEditor
                   value={field.value ?? ''}
                   onChange={field.onChange}
-                  placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Architect understand your priorities."
+                  placeholder="What does a good outcome look like from a business perspective? Helps the Challenge Creator understand your priorities."
                   storagePath="am-commercial-success"
                 />
               )}

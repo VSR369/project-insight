@@ -25,25 +25,25 @@ const PHASE_ACTIONS: Record<number, PhaseAction> = {
     label: 'Complete Spec Review',
     description: 'Review and approve the AI-generated specification.',
     route: (id) => `/cogni/challenges/${id}/spec`,
-    role: 'Challenge Creator / Architect',
+    role: 'Challenge Creator (CR)',
   },
   2: {
     label: 'Attach Legal Documents',
     description: 'Attach required Tier 1 & Tier 2 legal documents.',
     route: (id) => `/cogni/challenges/${id}/legal`,
-    role: 'Challenge Creator / Architect',
+    role: 'Challenge Creator (CR)',
   },
   3: {
     label: 'Awaiting Curation',
     description: 'Challenge is in the curation queue for review.',
     route: () => `/cogni/curation`,
-    role: 'Curator',
+    role: 'Curator (CU)',
   },
   4: {
-    label: 'Awaiting ID Approval',
-    description: 'Innovation Director needs to approve this challenge.',
+    label: 'Awaiting Curator Approval',
+    description: 'Curator needs to approve this challenge.',
     route: () => `/cogni/curation`,
-    role: 'Innovation Director',
+    role: 'Curator (CU)',
   },
 };
 

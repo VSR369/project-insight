@@ -302,23 +302,25 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      <Controller
-        name="expected_outcomes"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={field.value ?? ['']}
-            onChange={field.onChange}
-            label="What results do you expect?"
-            placeholder="Describe one expected outcome..."
-            required
-            minItems={1}
-            maxItems={10}
-            addLabel="Add Outcome"
-            error={errors.expected_outcomes?.message ? String(errors.expected_outcomes.message) : undefined}
-          />
-        )}
-      />
+      {isFieldVisible(fieldRules, 'expected_outcomes') && (
+        <Controller
+          name="expected_outcomes"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={field.value ?? ['']}
+              onChange={field.onChange}
+              label="What results do you expect?"
+              placeholder="Describe one expected outcome..."
+              required
+              minItems={1}
+              maxItems={10}
+              addLabel="Add Outcome"
+              error={errors.expected_outcomes?.message ? String(errors.expected_outcomes.message) : undefined}
+            />
+          )}
+        />
+      )}
     </div>
   );
 }
