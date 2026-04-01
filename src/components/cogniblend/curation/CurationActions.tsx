@@ -182,7 +182,7 @@ export default function CurationActions({
       setReturnReason("");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to return challenge: ${error.message}`);
+      handleMutationError(error, { operation: 'curation_return_challenge' });
     },
   });
 
