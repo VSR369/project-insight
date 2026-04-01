@@ -294,21 +294,61 @@ export function preFlightCheck(
   // Gap 4: Quality prediction
   const qualityPrediction = computeQualityPrediction(sections);
 
-  // Phase 10: Domain coverage check
+  // Phase 10: Domain coverage scoring
+  let domainCoverageResult: PreFlightResult['domainCoverage'];
   const domainContent = getSectionContent(sections, 'domain_tags');
   if (domainContent.length > 0) {
     try {
       const tags = typeof sections.domain_tags === 'string'
         ? JSON.parse(sections.domain_tags)
         : sections.domain_tags;
-      if (Array.isArray(tags) && tags.length > 5) {
-        warnings.push({
-          sectionId: 'domain_tags' as SectionKey,
-          sectionName: 'Domain Tags',
-          reason: `${tags.length} domain tags selected. Broad domain coverage may reduce AI specificity — consider narrowing to 3-5 core domains.`,
-        });
+      if (Array.isArray(tags)) {
+        const coverage = scoreDomainCoverage(tags);
+        domainCoverageResult = {
+          score: coverage.score,
+          coverageLevel: coverage.coverageLevel,
+          recommendation: coverage.recommendation,
+        };
+        if (coverage.coverageLevel === 'thin') {
+          warnings.push({
+            sectionId: 'domain_tags' as SectionKey,
+            sectionName: 'Domain Tags',
+            reason: `Thin domain coverage: ${coverage.thinDomains.join(', ')}. AI has limited reference data — expect more curator edits.`,
+          });
+        } else if (coverage.coverageLevel === 'moderate') {
+          warnings.push({
+            sectionId: 'domain_tags' as SectionKey,
+            sectionName: 'Domain Tags',
+            reason: coverage.recommendation,
+          });
+        }
+        if (tags.length > 5) {
+          warnings.push({
+            sectionId: 'domain_tags' as SectionKey,
+            sectionName: 'Domain Tags',
+            reason: `${tags.length} domain tags selected. Broad domain coverage may reduce AI specificity — consider narrowing to 3-5 core domains.`,
+          });
+        }
       }
     } catch { /* ignore parse errors */ }
+  }
+
+  // Phase 10: Org context scoring
+  let orgContextResult: PreFlightResult['orgContext'];
+  if (orgProfile) {
+    const orgScore = scoreOrgContext(orgProfile);
+    orgContextResult = {
+      score: orgScore.score,
+      missingFields: orgScore.missingFields,
+      recommendation: orgScore.recommendation,
+    };
+    if (orgScore.score < 50) {
+      warnings.push({
+        sectionId: 'problem_statement' as SectionKey, // closest relevant section
+        sectionName: 'Organization Context',
+        reason: orgScore.recommendation,
+      });
+    }
   }
 
   return {
@@ -318,5 +358,7 @@ export function preFlightCheck(
     budgetAlignmentErrors: alignment.errors,
     budgetAlignmentWarnings: alignment.warnings,
     qualityPrediction,
+    domainCoverage: domainCoverageResult,
+    orgContext: orgContextResult,
   };
 }

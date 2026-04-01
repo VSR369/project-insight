@@ -521,6 +521,33 @@ export function assembleBatchPrompt(
 }
 
 /**
+ * Inject dynamic few-shot examples into a composed prompt.
+ * Call after assemblePrompt() with results from fetchRelevantExamples().
+ */
+export function injectDynamicExamples(
+  prompt: string,
+  examples: Array<{ content: string; quality_tier: string; annotation: string | null }>,
+): string {
+  if (!examples || examples.length === 0) return prompt;
+
+  const exampleLines: string[] = ['', '### Dynamic Examples (from published challenges)'];
+  for (const ex of examples) {
+    const tierLabel = ex.quality_tier === 'excellent' ? '✅ EXCELLENT' : '✅ GOOD';
+    exampleLines.push(`${tierLabel}: ${ex.content}`);
+    if (ex.annotation) exampleLines.push(`Note: ${ex.annotation}`);
+    exampleLines.push('');
+  }
+
+  // Inject before "### Challenge Context" if it exists
+  const contextMarker = '### Challenge Context';
+  const idx = prompt.indexOf(contextMarker);
+  if (idx > 0) {
+    return prompt.slice(0, idx) + exampleLines.join('\n') + '\n' + prompt.slice(idx);
+  }
+  return prompt + exampleLines.join('\n');
+}
+
+/**
  * Estimate token count for a prompt (rough: ~4 chars per token for English text).
  */
 export function estimateTokenCount(prompt: string): number {

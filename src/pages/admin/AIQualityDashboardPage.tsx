@@ -1,18 +1,20 @@
 /**
  * AIQualityDashboardPage — Admin dashboard for AI quality metrics.
  *
- * Shows: average accuracy, grade distribution, worst sections,
- * section heatmap, solver feedback summary.
+ * Shows: average accuracy, grade distribution, section heatmap,
+ * solver feedback summary, with filters for governance/domain/maturity/period.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAIQualityMetrics, useAIQualityAggregates, useSolverFeedbackSummary } from '@/hooks/queries/useAIQualityMetrics';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAIQualityMetrics, useAIQualityAggregates, useSolverFeedbackSummary, type QualityMetricRow } from '@/hooks/queries/useAIQualityMetrics';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, TrendingUp, AlertTriangle, Star } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertTriangle, Star, Filter } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const GRADE_COLORS: Record<string, string> = {
   A: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
@@ -21,16 +23,88 @@ const GRADE_COLORS: Record<string, string> = {
   D: 'bg-destructive/10 text-destructive border-destructive/30',
 };
 
+function getHeatmapColor(rewriteRate: number): string {
+  if (rewriteRate <= 10) return 'bg-emerald-100 text-emerald-800';
+  if (rewriteRate <= 25) return 'bg-emerald-50 text-emerald-700';
+  if (rewriteRate <= 40) return 'bg-amber-50 text-amber-700';
+  if (rewriteRate <= 60) return 'bg-amber-100 text-amber-800';
+  return 'bg-red-100 text-red-800';
+}
+
 export default function AIQualityDashboardPage() {
+  // Filters
+  const [filterGovernance, setFilterGovernance] = useState<string>('all');
+  const [filterMaturity, setFilterMaturity] = useState<string>('all');
+  const [filterPeriod, setFilterPeriod] = useState<string>('all');
+
   const { data: metrics, isLoading } = useAIQualityMetrics(100);
   const { data: aggregates } = useAIQualityAggregates();
   const { data: solverFeedback } = useSolverFeedbackSummary();
+
+  // Apply client-side filters
+  const filteredMetrics = useMemo(() => {
+    if (!metrics) return [];
+    return metrics.filter((m) => {
+      if (filterGovernance !== 'all' && m.governance_mode !== filterGovernance) return false;
+      if (filterMaturity !== 'all' && m.maturity_level !== filterMaturity) return false;
+      if (filterPeriod !== 'all') {
+        const days = filterPeriod === '7d' ? 7 : filterPeriod === '30d' ? 30 : 90;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        if (new Date(m.computed_at) < cutoff) return false;
+      }
+      return true;
+    });
+  }, [metrics, filterGovernance, filterMaturity, filterPeriod]);
+
+  // Section heatmap data
+  const sectionHeatmap = useMemo(() => {
+    if (!filteredMetrics || filteredMetrics.length === 0) return [];
+    const sectionStats: Record<string, { accepted: number; edited: number; rewritten: number; total: number }> = {};
+
+    for (const m of filteredMetrics) {
+      const breakdown = m.section_breakdown as Record<string, any> | null;
+      if (!breakdown) continue;
+      for (const [sectionKey, data] of Object.entries(breakdown)) {
+        if (!sectionStats[sectionKey]) {
+          sectionStats[sectionKey] = { accepted: 0, edited: 0, rewritten: 0, total: 0 };
+        }
+        const d = data as any;
+        if (d.status === 'accepted_unchanged') sectionStats[sectionKey].accepted++;
+        else if (d.status === 'accepted_with_edits') sectionStats[sectionKey].edited++;
+        else if (d.status === 'rejected_rewritten') sectionStats[sectionKey].rewritten++;
+        sectionStats[sectionKey].total++;
+      }
+    }
+
+    return Object.entries(sectionStats)
+      .map(([key, stats]) => ({
+        sectionKey: key,
+        label: key.replace(/_/g, ' '),
+        acceptRate: stats.total > 0 ? Math.round((stats.accepted / stats.total) * 100) : 0,
+        editRate: stats.total > 0 ? Math.round((stats.edited / stats.total) * 100) : 0,
+        rewriteRate: stats.total > 0 ? Math.round((stats.rewritten / stats.total) * 100) : 0,
+        total: stats.total,
+      }))
+      .sort((a, b) => b.rewriteRate - a.rewriteRate);
+  }, [filteredMetrics]);
 
   const solverAvg = useMemo(() => {
     if (!solverFeedback || solverFeedback.length === 0) return null;
     const avg = solverFeedback.reduce((s, f) => s + f.clarity_overall, 0) / solverFeedback.length;
     return Math.round(avg * 10) / 10;
   }, [solverFeedback]);
+
+  // Unique values for filter dropdowns
+  const governanceModes = useMemo(() => {
+    if (!metrics) return [];
+    return [...new Set(metrics.map(m => m.governance_mode).filter(Boolean))].sort() as string[];
+  }, [metrics]);
+
+  const maturityLevels = useMemo(() => {
+    if (!metrics) return [];
+    return [...new Set(metrics.map(m => m.maturity_level).filter(Boolean))].sort() as string[];
+  }, [metrics]);
 
   if (isLoading) {
     return (
@@ -48,6 +122,47 @@ export default function AIQualityDashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">AI Quality Dashboard</h1>
         <p className="text-sm text-muted-foreground">Track AI accuracy, curator edits, and solver feedback</p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Select value={filterGovernance} onValueChange={setFilterGovernance}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Governance" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Governance</SelectItem>
+            {governanceModes.map(g => (
+              <SelectItem key={g} value={g}>{g}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterMaturity} onValueChange={setFilterMaturity}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Maturity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Maturity</SelectItem>
+            {maturityLevels.map(m => (
+              <SelectItem key={m} value={m}>{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="Period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="7d">Last 7 Days</SelectItem>
+            <SelectItem value="30d">Last 30 Days</SelectItem>
+            <SelectItem value="90d">Last 90 Days</SelectItem>
+          </SelectContent>
+        </Select>
+        <Badge variant="secondary" className="ml-auto">
+          {filteredMetrics.length} challenge{filteredMetrics.length !== 1 ? 's' : ''}
+        </Badge>
       </div>
 
       {/* Summary Cards */}
@@ -111,10 +226,11 @@ export default function AIQualityDashboardPage() {
         </Card>
       </div>
 
-      {/* Grade Distribution + Recent Metrics */}
+      {/* Tabs */}
       <Tabs defaultValue="grades">
         <TabsList>
           <TabsTrigger value="grades">Grade Distribution</TabsTrigger>
+          <TabsTrigger value="heatmap">Section Heatmap</TabsTrigger>
           <TabsTrigger value="recent">Recent Challenges</TabsTrigger>
           <TabsTrigger value="feedback">Solver Feedback</TabsTrigger>
         </TabsList>
@@ -145,6 +261,44 @@ export default function AIQualityDashboardPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="heatmap">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Section Rewrite Heatmap</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Green = mostly accepted unchanged. Red = frequently rewritten by curators.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {sectionHeatmap.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
+                  {sectionHeatmap.map((s) => (
+                    <div
+                      key={s.sectionKey}
+                      className={cn(
+                        'rounded-md px-3 py-2 text-sm flex items-center justify-between',
+                        getHeatmapColor(s.rewriteRate),
+                      )}
+                    >
+                      <span className="capitalize truncate mr-2">{s.label}</span>
+                      <div className="flex items-center gap-2 shrink-0 text-xs">
+                        <span title="Accept rate">{s.acceptRate}%✅</span>
+                        <span title="Edit rate">{s.editRate}%✏️</span>
+                        <span title="Rewrite rate">{s.rewriteRate}%🔄</span>
+                        <Badge variant="outline" className="text-[10px]">{s.total}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No section-level data yet. Data populates as curators review challenges.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="recent">
           <Card>
             <CardContent className="pt-6">
@@ -161,7 +315,7 @@ export default function AIQualityDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(metrics ?? []).slice(0, 20).map((m) => (
+                    {filteredMetrics.slice(0, 20).map((m) => (
                       <tr key={m.id} className="border-b last:border-0">
                         <td className="py-2 font-mono text-xs">{m.challenge_id.slice(0, 8)}</td>
                         <td className="py-2">
@@ -177,7 +331,7 @@ export default function AIQualityDashboardPage() {
                         </td>
                       </tr>
                     ))}
-                    {(!metrics || metrics.length === 0) && (
+                    {filteredMetrics.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-muted-foreground">
                           No quality data yet.

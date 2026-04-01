@@ -321,19 +321,35 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
 
   const filledCount = [websiteUrl, linkedinUrl, twitterUrl, description].filter(v => v.trim()).length;
 
+  // Org context score for AI quality badge
+  const orgScore = scoreOrgContext({
+    name: orgData?.organization_name,
+    description: description || orgData?.organization_description || undefined,
+    website: websiteUrl || orgData?.website_url || undefined,
+  });
+  const scoreColor = orgScore.score >= 80 ? 'text-emerald-700 border-emerald-300 bg-emerald-50'
+    : orgScore.score >= 50 ? 'text-amber-700 border-amber-300 bg-amber-50'
+    : 'text-destructive border-destructive/30 bg-destructive/5';
+
   return (
     <div className="space-y-5">
-      {/* AI context notice */}
+      {/* AI context notice + org context score */}
       <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
         <Zap className="h-4 w-4 text-amber-600 shrink-0" />
         <p className="text-xs text-amber-700">
           <strong>AI uses this context</strong> — Providing organization details helps the AI produce more relevant and contextually accurate challenge content.
         </p>
-        {filledCount < 3 && (
-          <Badge variant="outline" className="text-[10px] text-muted-foreground ml-auto shrink-0">
-            {filledCount}/4 fields filled
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className={`text-[10px] ${scoreColor}`}>
+            <Activity className="h-2.5 w-2.5 mr-0.5" />
+            AI Context: {orgScore.score}%
           </Badge>
-        )}
+          {filledCount < 3 && (
+            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+              {filledCount}/4 fields filled
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Read-only org info */}

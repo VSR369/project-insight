@@ -23,6 +23,7 @@ import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/us
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { WithdrawSolutionModal } from '@/components/cogniblend/solver/WithdrawSolutionModal';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
+import { ChallengeClarityFeedback } from '@/components/cogniblend/solver/ChallengeClarityFeedback';
 import { SolutionStatusBadge } from '@/components/cogniblend/SolutionStatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';

@@ -181,7 +181,7 @@ export default function ExampleLibraryManagerPage() {
                 ))}
                 {(!examples || examples.length === 0) && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
                       No examples yet. Examples are harvested when high-quality challenges are published.
                     </td>
                   </tr>
