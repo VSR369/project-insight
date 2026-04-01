@@ -241,6 +241,16 @@ export function useSubmitSolutionRequest() {
       };
       const filteredSnapshotBrief = stripHiddenExtendedBriefFields(rawSnapshotBrief, governanceRules);
 
+      // Resolve domain tag UUIDs to human-readable names for immutable snapshot
+      let resolvedDomainTagNames: string[] = [];
+      if (filteredPayload.domainTags?.length) {
+        const { data: tagRows } = await supabase
+          .from('industry_segments')
+          .select('id, name')
+          .in('id', filteredPayload.domainTags);
+        resolvedDomainTagNames = (tagRows ?? []).map((t) => t.name);
+      }
+
       const creatorSnapshot = {
         problem_statement: filteredPayload.businessProblem,
         scope: filteredPayload.constraints || null,
@@ -252,11 +262,12 @@ export function useSubmitSolutionRequest() {
         maturity_level: normalizedConstrainedFields.maturity_level,
         solution_maturity_id: filteredPayload.solutionMaturityId || null,
         ip_model: normalizedConstrainedFields.ip_model,
-        domain_tags: payload.domainTags,
-        industry_segment_id: payload.industrySegmentId || null,
-        budget_min: payload.budgetMin,
-        budget_max: payload.budgetMax,
-        currency: payload.currency,
+        domain_tags: resolvedDomainTagNames,
+        domain_tag_ids: filteredPayload.domainTags,
+        industry_segment_id: filteredPayload.industrySegmentId || null,
+        budget_min: filteredPayload.budgetMin ?? 0,
+        budget_max: filteredPayload.budgetMax ?? 0,
+        currency: filteredPayload.currency ?? payload.currency,
         expected_timeline: filteredPayload.expectedTimeline,
       };
 
