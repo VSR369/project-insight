@@ -6,7 +6,7 @@
  * 2. Submissions with anonymised solver IDs for Enterprise
  * 3. Package versions (snapshot history)
  * 4. Amendment records
- * 5. ID-role permission check for deadline extension
+ * 5. CU-role permission check for deadline extension
  */
 
 import { useQuery } from '@tanstack/react-query';

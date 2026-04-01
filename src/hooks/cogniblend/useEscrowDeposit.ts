@@ -148,8 +148,8 @@ export function useVerifyEscrow() {
         .eq('is_active', true);
 
       const cuUsers = ((cuRoles ?? []) as unknown as Array<{ user_id: string }>);
-      if (idUsers.length > 0) {
-        const notifications = idUsers.map((r) => ({
+      if (cuUsers.length > 0) {
+        const notifications = cuUsers.map((r) => ({
           user_id: r.user_id,
           notification_type: 'ESCROW_VERIFIED',
           title: 'Escrow verified',
