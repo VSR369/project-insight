@@ -22,6 +22,7 @@ import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 import { useGovernanceFieldRules, isFieldVisible } from '@/hooks/queries/useGovernanceFieldRules';
 import { resolveChallengeGovernance } from '@/lib/governanceMode';
+import { formatCurrency, governanceLabel, complexityColor } from '@/lib/cogniblend/displayHelpers';
 import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
 /* ─── parseItems: robust JSONB → displayable list helper ── */
