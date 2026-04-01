@@ -63,6 +63,7 @@ export function useMyChallenges(userId: string | undefined) {
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
           operating_model: ch.operating_model ?? null,
+          created_at: ch.created_at ?? '',
         });
       }
 
