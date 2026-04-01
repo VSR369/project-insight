@@ -198,13 +198,26 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
       const parseLineItems = (value: unknown): string[] => {
         if (!value) return [''];
-        if (Array.isArray(value)) return value.length > 0 ? value : [''];
-        if (typeof value === 'object' && value !== null && 'items' in value) {
-          const items = (value as { items?: Array<{ name?: string } | string> }).items;
+
+        // Try to parse string as JSON first (handles double-encoded JSONB)
+        let parsed: unknown = value;
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch { return [(value as string).trim() || ''].filter(Boolean).length > 0 ? [value as string] : ['']; }
+        }
+
+        // Handle { items: [{ name: "..." }] } structure
+        if (typeof parsed === 'object' && parsed !== null && 'items' in parsed) {
+          const items = (parsed as { items?: Array<{ name?: string } | string> }).items;
           if (Array.isArray(items)) {
-            return items.map((item) => (typeof item === 'string' ? item : item?.name || '')).filter(Boolean);
+            const result = items.map((item) => (typeof item === 'string' ? item : item?.name || '')).filter(Boolean);
+            return result.length > 0 ? result : [''];
           }
         }
+
+        // Handle plain array
+        if (Array.isArray(parsed)) return parsed.length > 0 ? parsed : [''];
+
+        // Fallback
         if (typeof value === 'string' && value.trim()) return [value];
         return [''];
       };
