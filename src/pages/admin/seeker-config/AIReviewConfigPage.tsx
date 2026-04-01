@@ -527,6 +527,7 @@ export default function AIReviewConfigPage() {
       setGlobalModel(globalConfig.default_model);
       setCriticalModel(globalConfig.critical_model ?? '');
       setBatchThreshold(globalConfig.batch_split_threshold);
+      setUseContextIntelligence(globalConfig.use_context_intelligence ?? false);
     }
   }, [globalConfig]);
 
