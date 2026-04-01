@@ -80,9 +80,11 @@ export function ResearchTab({
   webSearchQueries,
   industryFrameworks,
   analystSources,
+  discoveryDirectives,
   onQueriesChange,
   onFrameworksChange,
   onSourcesChange,
+  onDiscoveryDirectivesChange,
 }: ResearchTabProps) {
   const addQuery = () => {
     onQueriesChange([
