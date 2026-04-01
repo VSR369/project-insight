@@ -1,7 +1,7 @@
 /**
- * SimpleIntakeForm — Model-adaptive intake form for AM/RQ roles.
- * AGG (RQ): Template selector cards + single Problem/Idea editor — auto-derives title.
- * MP (AM): 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
+ * SimpleIntakeForm — Model-adaptive intake form for Challenge Creator (CR) role.
+ * AGG: Template selector cards + single Problem/Idea editor — auto-derives title.
+ * MP: 6-field "Submit a Problem Brief" — Title, Problem Summary, Solution Expectations, Sector, Budget, Timeline.
  * 
  * Supports mode="create" (default), mode="edit" (pre-fills from existing challenge),
  * and mode="view" (read-only display with content-hugging heights).
