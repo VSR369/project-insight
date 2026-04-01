@@ -8,8 +8,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Folder, Eye, Pencil, Trash2, Loader2,
-  Clock, CheckCircle2, XCircle, AlertCircle,
+  Clock, CheckCircle2, XCircle, AlertCircle, AlertTriangle,
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges, type MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
 import { supabase } from '@/integrations/supabase/client';
