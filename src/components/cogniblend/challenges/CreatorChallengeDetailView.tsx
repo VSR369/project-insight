@@ -21,6 +21,54 @@ import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge'
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 
+/* ─── parseItems: robust JSONB → displayable list helper ── */
+
+/**
+ * Safely extracts a displayable list from various stored formats:
+ * - { items: [{ name: "..." }] }  → extract names
+ * - string[]                      → wrap each
+ * - JSON string                   → parse then extract
+ * - plain string                  → single item
+ */
+function parseItems(value: unknown): Array<{ name: string }> | null {
+  if (!value) return null;
+  let parsed: unknown = value;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return [{ name: parsed as string }]; }
+  }
+  if (typeof parsed === 'object' && parsed !== null && 'items' in (parsed as any)) {
+    const items = (parsed as any).items;
+    if (Array.isArray(items) && items.length > 0) {
+      return items.map((i: any) => ({ name: typeof i === 'string' ? i : i?.name ?? JSON.stringify(i) }));
+    }
+  }
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    return parsed.map((item: any) => ({ name: typeof item === 'string' ? item : item?.name ?? JSON.stringify(item) }));
+  }
+  if (typeof value === 'string' && (value as string).trim()) return [{ name: value as string }];
+  return null;
+}
+
+/**
+ * Parse affected_stakeholders from various formats into a structured list.
+ */
+function parseStakeholders(value: unknown): Array<{ name: string }> | null {
+  if (!value) return null;
+  let parsed: unknown = value;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return [{ name: parsed as string }]; }
+  }
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    return parsed.map((s: any) => {
+      if (typeof s === 'string') return { name: s };
+      const label = s?.stakeholder_name || s?.name || '';
+      const role = s?.role ? ` (${s.role})` : '';
+      return { name: `${label}${role}`.trim() || JSON.stringify(s) };
+    });
+  }
+  return parseItems(value);
+}
+
 /* ─── Helpers ────────────────────────────────────────────── */
 
 function complexityColor(level: string | null): string {
