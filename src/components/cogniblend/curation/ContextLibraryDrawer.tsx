@@ -95,7 +95,8 @@ function ConfidenceBadge({ score }: { score: number | null }) {
   return <span className={`text-xs font-medium ${color}`}>{pct}%</span>;
 }
 
-export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClose }: ContextLibraryDrawerProps) {
+export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClose, onOpenChange }: ContextLibraryDrawerProps) {
+  const handleClose = () => { onClose?.(); onOpenChange?.(false); };
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);

@@ -4407,6 +4407,7 @@ export default function CurationReviewPage() {
       {challengeId && (
         <ContextLibraryDrawer
           challengeId={challengeId}
+          challengeTitle={challenge?.title}
           open={contextLibraryOpen}
           onOpenChange={setContextLibraryOpen}
         />
