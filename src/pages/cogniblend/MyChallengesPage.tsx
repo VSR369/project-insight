@@ -177,6 +177,7 @@ export default function MyChallengesPage() {
               <ChallengeCard
                 key={`${ch.challenge_id}-${ch.role_code}`}
                 challenge={ch}
+                isDuplicate={duplicateTitles.has(ch.title.trim().toLowerCase())}
                 onView={() => navigate(`/cogni/challenges/${ch.challenge_id}/view`)}
                 onResume={() => navigate(`/cogni/challenges/create?draft=${ch.challenge_id}`)}
                 onDelete={() => setDeleteTarget(ch.challenge_id)}
