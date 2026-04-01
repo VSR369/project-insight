@@ -1543,11 +1543,15 @@ serve(async (req) => {
       try {
         const { data: digest } = await adminClient
           .from('challenge_context_digest')
-          .select('digest_text, source_count')
+          .select('digest_text, source_count, key_facts')
           .eq('challenge_id', challenge_id)
           .maybeSingle();
         if (digest?.digest_text) {
-          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}\n`;
+          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}`;
+          if (digest.key_facts) {
+            contextDigestText += `\n\nVERIFIED KEY FACTS:\n${JSON.stringify(digest.key_facts, null, 2)}`;
+          }
+          contextDigestText += '\n';
         }
       } catch { /* digest is optional */ }
     }
