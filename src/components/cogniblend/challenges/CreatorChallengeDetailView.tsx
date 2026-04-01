@@ -21,6 +21,54 @@ import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge'
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 
+/* ─── parseItems: robust JSONB → displayable list helper ── */
+
+/**
+ * Safely extracts a displayable list from various stored formats:
+ * - { items: [{ name: "..." }] }  → extract names
+ * - string[]                      → wrap each
+ * - JSON string                   → parse then extract
+ * - plain string                  → single item
+ */
+function parseItems(value: unknown): Array<{ name: string }> | null {
+  if (!value) return null;
+  let parsed: unknown = value;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return [{ name: parsed as string }]; }
+  }
+  if (typeof parsed === 'object' && parsed !== null && 'items' in (parsed as any)) {
+    const items = (parsed as any).items;
+    if (Array.isArray(items) && items.length > 0) {
+      return items.map((i: any) => ({ name: typeof i === 'string' ? i : i?.name ?? JSON.stringify(i) }));
+    }
+  }
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    return parsed.map((item: any) => ({ name: typeof item === 'string' ? item : item?.name ?? JSON.stringify(item) }));
+  }
+  if (typeof value === 'string' && (value as string).trim()) return [{ name: value as string }];
+  return null;
+}
+
+/**
+ * Parse affected_stakeholders from various formats into a structured list.
+ */
+function parseStakeholders(value: unknown): Array<{ name: string }> | null {
+  if (!value) return null;
+  let parsed: unknown = value;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return [{ name: parsed as string }]; }
+  }
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    return parsed.map((s: any) => {
+      if (typeof s === 'string') return { name: s };
+      const label = s?.stakeholder_name || s?.name || '';
+      const role = s?.role ? ` (${s.role})` : '';
+      return { name: `${label}${role}`.trim() || JSON.stringify(s) };
+    });
+  }
+  return parseItems(value);
+}
+
 /* ─── Helpers ────────────────────────────────────────────── */
 
 function complexityColor(level: string | null): string {
@@ -233,18 +281,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       {
         title: 'Expected Outcomes',
         icon: ListChecks,
-        content: snapshot.expected_outcomes ? (
-          <Card className="border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <ListChecks className="h-3.5 w-3.5 text-primary" /> Expected Outcomes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{String(snapshot.expected_outcomes)}</p>
-            </CardContent>
-          </Card>
-        ) : null,
+        content: parseItems(snapshot.expected_outcomes) ? <ListSection title="Expected Outcomes" icon={ListChecks} items={parseItems(snapshot.expected_outcomes)!} /> : null,
       },
       {
         title: 'Context & Background',
@@ -254,27 +291,27 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       {
         title: 'Root Causes',
         icon: Info,
-        content: eb.root_causes ? <RichTextSection title="Root Causes" html={eb.root_causes as string} icon={Info} /> : null,
+        content: parseItems(eb.root_causes) ? <ListSection title="Root Causes" icon={Info} items={parseItems(eb.root_causes)!} /> : null,
       },
       {
         title: 'Affected Stakeholders',
         icon: Info,
-        content: eb.affected_stakeholders ? <RichTextSection title="Affected Stakeholders" html={eb.affected_stakeholders as string} icon={Info} /> : null,
+        content: parseStakeholders(eb.affected_stakeholders) ? <ListSection title="Affected Stakeholders" icon={Info} items={parseStakeholders(eb.affected_stakeholders)!} /> : null,
       },
       {
         title: 'Current Deficiencies',
         icon: Info,
-        content: eb.current_deficiencies ? <RichTextSection title="Current Deficiencies" html={eb.current_deficiencies as string} icon={Info} /> : null,
+        content: parseItems(eb.current_deficiencies) ? <ListSection title="Current Deficiencies" icon={Info} items={parseItems(eb.current_deficiencies)!} /> : null,
       },
       {
         title: 'Preferred Approach',
         icon: Info,
-        content: eb.preferred_approach ? <RichTextSection title="Preferred Approach" html={eb.preferred_approach as string} icon={Info} /> : null,
+        content: parseItems(eb.preferred_approach) ? <ListSection title="Preferred Approach" icon={Info} items={parseItems(eb.preferred_approach)!} /> : null,
       },
       {
         title: 'Approaches Not of Interest',
         icon: Info,
-        content: eb.approaches_not_of_interest ? <RichTextSection title="Approaches Not of Interest" html={eb.approaches_not_of_interest as string} icon={Info} /> : null,
+        content: parseItems(eb.approaches_not_of_interest) ? <ListSection title="Approaches Not of Interest" icon={Info} items={parseItems(eb.approaches_not_of_interest)!} /> : null,
       },
       {
         title: 'Budget Range',
@@ -338,12 +375,11 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
     const weightedCriteria = (evalCriteria?.weighted_criteria ?? evalCriteria?.criteria ?? []) as Array<{ name: string; weight: number }>;
     const deliverables = data.deliverables as Record<string, unknown> | null;
     const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as any[];
-    const outcomeItems = (data.expected_outcomes as any)?.items as Array<{ name: string }> | undefined;
-    const metricsItems = (data.success_metrics_kpis as any)?.items as Array<{ name: string; target?: string }> | undefined;
+    const outcomeItems = parseItems(data.expected_outcomes);
+    const metricsItems = parseItems(data.success_metrics_kpis);
     const dataResources = data.data_resources_provided as Record<string, unknown> | null;
-    const dataResourceItems = (dataResources?.items ?? []) as Array<{ name: string }>;
-    const subGuidelines = data.submission_guidelines as Record<string, unknown> | null;
-    const guidelinesHtml = (subGuidelines?.content ?? subGuidelines?.guidelines ?? null) as string | null;
+    const dataResourceItems = parseItems(dataResources) ?? (dataResources?.items ? parseItems(dataResources.items) : null);
+    const guidelinesItems = parseItems(data.submission_guidelines);
     const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
     const platinumAward = Number(rs.platinum_award ?? rs.budget_max ?? 0);
     const goldAward = Number(rs.gold_award ?? 0);
@@ -354,16 +390,16 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       { title: 'Scope', icon: Layers, content: data.scope ? <RichTextSection title="Scope" html={data.scope} icon={Layers} /> : null },
       { title: 'Expected Outcomes', icon: ListChecks, content: outcomeItems?.length ? <ListSection title="Expected Outcomes" icon={ListChecks} items={outcomeItems} /> : null },
       { title: 'Context & Background', icon: BookOpen, content: (eb as any).context_background ? <RichTextSection title="Context & Background" html={(eb as any).context_background} icon={BookOpen} /> : null },
-      { title: 'Root Causes', icon: Info, content: (eb as any).root_causes ? <RichTextSection title="Root Causes" html={(eb as any).root_causes} icon={Info} /> : null },
-      { title: 'Affected Stakeholders', icon: Info, content: (eb as any).affected_stakeholders ? <RichTextSection title="Affected Stakeholders" html={(eb as any).affected_stakeholders} icon={Info} /> : null },
-      { title: 'Current Deficiencies', icon: Info, content: (eb as any).current_deficiencies ? <RichTextSection title="Current Deficiencies" html={(eb as any).current_deficiencies} icon={Info} /> : null },
-      { title: 'Preferred Approach', icon: Info, content: (eb as any).preferred_approach ? <RichTextSection title="Preferred Approach" html={(eb as any).preferred_approach} icon={Info} /> : null },
-      { title: 'Approaches Not of Interest', icon: Info, content: (eb as any).approaches_not_of_interest ? <RichTextSection title="Approaches Not of Interest" html={(eb as any).approaches_not_of_interest} icon={Info} /> : null },
+      { title: 'Root Causes', icon: Info, content: (() => { const items = parseItems((eb as any).root_causes); return items?.length ? <ListSection title="Root Causes" icon={Info} items={items} /> : null; })() },
+      { title: 'Affected Stakeholders', icon: Info, content: (() => { const items = parseStakeholders((eb as any).affected_stakeholders); return items?.length ? <ListSection title="Affected Stakeholders" icon={Info} items={items} /> : null; })() },
+      { title: 'Current Deficiencies', icon: Info, content: (() => { const items = parseItems((eb as any).current_deficiencies); return items?.length ? <ListSection title="Current Deficiencies" icon={Info} items={items} /> : null; })() },
+      { title: 'Preferred Approach', icon: Info, content: (() => { const items = parseItems((eb as any).preferred_approach); return items?.length ? <ListSection title="Preferred Approach" icon={Info} items={items} /> : null; })() },
+      { title: 'Approaches Not of Interest', icon: Info, content: (() => { const items = parseItems((eb as any).approaches_not_of_interest); return items?.length ? <ListSection title="Approaches Not of Interest" icon={Info} items={items} /> : null; })() },
       { title: 'Value Proposition (Hook)', icon: Info, content: data.hook ? <RichTextSection title="Value Proposition (Hook)" html={data.hook} icon={Info} /> : null },
       { title: 'Solution Type', icon: Briefcase, content: data.solution_type ? <BadgeSection title="Solution Type" icon={Briefcase} value={data.solution_type} /> : null },
       { title: 'Deliverables', icon: FileText, content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d: any) => ({ name: typeof d === 'string' ? d : d?.name ?? d?.title ?? JSON.stringify(d) }))} /> : null },
       { title: 'Maturity Level', icon: Layers, content: data.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(data.maturity_level)} /> : null },
-      { title: 'Data Resources Provided', icon: FileText, content: dataResourceItems.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
+      { title: 'Data Resources Provided', icon: FileText, content: dataResourceItems?.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
       { title: 'Success Metrics & KPIs', icon: BarChart3, content: metricsItems?.length ? <ListSection title="Success Metrics & KPIs" icon={BarChart3} items={metricsItems} /> : null },
       { title: 'Complexity', icon: BarChart3, content: data.complexity_level ? (
         <Card className="border-border">
@@ -383,7 +419,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       { title: 'Effort Level', icon: BarChart3, content: data.effort_level ? <BadgeSection title="Effort Level" icon={BarChart3} value={data.effort_level} /> : null },
       { title: 'Eligibility', icon: ShieldCheck, content: data.eligibility ? <BadgeSection title="Eligibility" icon={ShieldCheck} value={data.eligibility} /> : null },
       { title: 'Evaluation Criteria', icon: BarChart3, content: weightedCriteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={weightedCriteria} /> : null },
-      { title: 'Submission Guidelines', icon: FileText, content: guidelinesHtml ? <RichTextSection title="Submission Guidelines" html={guidelinesHtml} icon={FileText} /> : null },
+      { title: 'Submission Guidelines', icon: FileText, content: guidelinesItems?.length ? <ListSection title="Submission Guidelines" icon={FileText} items={guidelinesItems} /> : null },
       { title: 'Reward Structure', icon: Trophy, content: platinumAward > 0 ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
@@ -539,7 +575,20 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
         {/* Curator Version tab */}
         <TabsContent value="curator-version" className="space-y-4">
-          <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+          {(data.current_phase ?? 1) >= 3 ? (
+            <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+          ) : (
+            <Card className="border-dashed border-primary/30 bg-primary/5">
+              <CardContent className="py-12 text-center">
+                <BookOpen className="h-10 w-10 text-primary/50 mx-auto mb-3" />
+                <p className="text-base font-semibold text-foreground">Under Review by Curator</p>
+                <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
+                  This challenge is currently being reviewed and refined by the Curator.
+                  The curated version will be available once the review is complete and submitted for approval.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
