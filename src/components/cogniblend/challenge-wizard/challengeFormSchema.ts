@@ -139,10 +139,8 @@ export function createChallengeFormSchema(
     maturity_level: z.string().min(1, 'Please select a maturity level'),
     solution_maturity_id: z.string().optional().or(z.literal('')),
 
-    // Step 1 — Rich-text fields (CONTROLLED: required; else optional)
-    context_background: isControlled
-      ? z.string().min(1, 'Context & Background is required for Controlled mode').max(5000).trim()
-      : z.string().max(5000).optional().or(z.literal('')),
+    // Step 1 — Rich-text fields (always optional per plan v2)
+    context_background: z.string().max(5000).optional().or(z.literal('')),
     detailed_description: z.string().max(5000).optional().or(z.literal('')),
 
     // Step 1 — Line items (aligned with curator line_items format)
