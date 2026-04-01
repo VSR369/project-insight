@@ -12,6 +12,7 @@ import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { RoleSwitcher } from './RoleSwitcher';
+import { DevRoleSwitcher } from './DevRoleSwitcher';
 
 interface CogniTopBarProps {
   pageTitle: string;
@@ -97,6 +98,9 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
 
       {/* Role Switcher — visible on all breakpoints */}
       <RoleSwitcher />
+
+      {/* Dev-only quick user switch */}
+      <DevRoleSwitcher />
 
       {/* Spacer */}
       <div className="flex-1" />
