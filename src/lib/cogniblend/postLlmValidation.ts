@@ -78,11 +78,25 @@ export function validateAIOutput(
     validatePrizeTierTotal(aiOutput, context, corrections, passedChecks);
   }
 
+  // Rule 6: Format validation
+  const formatResult = validateFormat(sectionKey, aiOutput);
+  corrections.push(...formatResult.corrections);
+  passedChecks.push(...formatResult.passedChecks);
+
+  // Rule 7: Contradiction detection (cross-section — runs for every section but uses full context)
+  const contradictions = detectContradictions(context);
+
+  // Rule 8: Confidence scoring
+  const confidenceScore = scoreConfidence(sectionKey, context);
+
   const unfixedErrors = corrections.filter(c => c.severity === 'error' && !c.autoFixed);
   return {
     isValid: unfixedErrors.length === 0,
     corrections,
     passedChecks,
+    confidenceScore,
+    contradictions: contradictions.length > 0 ? contradictions : undefined,
+    formatResult,
   };
 }
 
