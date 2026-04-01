@@ -24,7 +24,7 @@ function validBase(overrides: Record<string, unknown> = {}) {
     submission_deadline: '2026-06-01',
     expected_timeline: '3 months',
     review_duration: 14,
-    // CONTROLLED-required fields
+    // Context fields (optional for all modes per plan v2, included for completeness)
     context_background: 'Background context for the challenge',
     root_causes: ['Root cause one'],
     current_deficiencies: ['Deficiency one'],
