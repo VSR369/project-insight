@@ -237,6 +237,12 @@ export default function ChallengeCreatePage() {
     }
   }, [orgContext?.operatingModel]);
 
+  // Callback for draft resume to sync governance/engagement from loaded draft
+  const handleDraftModeSync = useCallback((gov: GovernanceMode, eng: string) => {
+    setGovernanceMode(gov);
+    setEngagementModel(eng);
+  }, []);
+
   // ═══════ Loading ═══════
   if (orgLoading || modelLoading) {
     return (
