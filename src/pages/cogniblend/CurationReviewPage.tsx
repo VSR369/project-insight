@@ -4402,6 +4402,15 @@ export default function CurationReviewPage() {
           </Button>
         </div>
       )}
+
+      {/* Context Library Drawer (Phase 7) */}
+      {challengeId && (
+        <ContextLibraryDrawer
+          challengeId={challengeId}
+          open={contextLibraryOpen}
+          onOpenChange={setContextLibraryOpen}
+        />
+      )}
     </div>
   );
 }
