@@ -4073,6 +4073,11 @@ export default function CurationReviewPage() {
             </CardContent>
           </Card>
 
+          {/* AI Confidence Summary (Phase 10) */}
+          {challengeId && challenge && (
+            <AIConfidenceSummary challengeId={challengeId} challenge={challenge} />
+          )}
+
           {/* Challenge Completeness Checklist (Phase 7) */}
           <CompletenessChecklistCard
             result={completenessResult}
