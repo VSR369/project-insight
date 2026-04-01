@@ -1258,6 +1258,7 @@ serve(async (req) => {
     const dbConfigs: SectionConfig[] = (configResult.data ?? []) as SectionConfig[];
     const globalConfig = globalConfigResult.data;
     const useDbConfig = dbConfigs.length > 0;
+    const useContextIntelligence = globalConfig?.use_context_intelligence === true;
 
     // Build section list — from DB config or fallback
     let sectionsToReview: { key: string; desc: string }[];
