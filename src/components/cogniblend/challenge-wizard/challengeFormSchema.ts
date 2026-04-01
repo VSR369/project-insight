@@ -245,22 +245,28 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   scope: '',
   domain_tags: [],
   taxonomy_tags: '',
-  maturity_level: undefined as unknown as 'blueprint',
+  maturity_level: '',
+  solution_maturity_id: '',
 
   // Rich-text fields
   context_background: '',
   detailed_description: '',
-  root_causes: '',
-  affected_stakeholders: '',
-  current_deficiencies: '',
-  expected_outcomes: '',
-  preferred_approach: '',
-  approaches_not_of_interest: '',
+
+  // Line items (curator-aligned)
+  root_causes: [''],
+  current_deficiencies: [''],
+  expected_outcomes: [''],
+  preferred_approach: [''],
+  approaches_not_of_interest: [''],
+
+  // Structured table (curator-aligned)
+  affected_stakeholders: [],
+
   industry_segment_id: '',
   experience_countries: [],
 
   deliverables_list: [''],
-  submission_guidelines: '',
+  submission_guidelines: [''],
 
   // Evaluation
   weighted_criteria: [
