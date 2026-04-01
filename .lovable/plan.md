@@ -1,87 +1,65 @@
 
 
-# Gap Analysis: FINAL-EXECUTION-PLAN-2 vs Current Implementation
+# Context Intelligence System — Implementation Plan
 
-## Summary
+## Overview
 
-Most of the plan is implemented. There are **3 real gaps** and **2 minor discrepancies** remaining.
+A complete AI-powered context discovery, extraction, and digest system for the Curation workflow. Curators can discover relevant external resources via AI, manage a centralized Context Library, and feed verified context into AI section reviews for grounded, citation-backed output.
 
----
+## What Gets Built
 
-## Fully Implemented (No Gaps)
+**3 Database Migrations** -- New columns on `challenge_attachments` (discovery tracking), new `challenge_context_digest` table, and `discovery_directives` JSONB on `ai_review_section_config` with seed data for all 27 curation sections.
 
-| Item | Status |
-|------|--------|
-| 1.1 isFieldVisible for 'auto' | Done |
-| 1.2 MyChallengesPage operator fix | Done |
-| 1.3 Form key prop on mode change | Done |
-| 1.4 Snapshot serializeLineItems | Done (all 3 locations use it) |
-| 1.6 Solo mode threshold >= 4 | Done |
-| 2.1 Remove CA from useCogniPermissions | Done (no 'CA' found) |
-| 2.2 Remove CA from CurationActions | Done (uses `.in("role_code", ["CR"])`) |
-| 2.3 Replace ID with CU/CR in 4 hooks | Done (all 4 verified) |
-| 2.4 DB: role_authority_matrix cleanup | Done (migration exists) |
-| 2.5 DB: notification_routing cleanup | Done (migration exists) |
-| 2.6 Delete dead code files | Done (files don't exist) |
-| 3.1 DB: Fix governance field rules | Done |
-| 3.2 Align Creator form schema (title max 200, problem min, scope min, industry, preferred_approach optional) | Done |
-| 3.3 Hide QUICK fields in AdditionalContextTab | Done |
-| 3.4 Strip auto/hidden from snapshot | Done (stripHiddenFields used) |
-| 3.5 Extract displayHelpers | Done |
-| 3.6 Extract shared draft payload builder | Done (buildChallengeUpdatePayload exists) |
-| 4.1 Creator Approval toggle | Done |
-| 4.2 DB: challenge_section_approvals | Done |
-| 4.3 Update CurationActions for approval | Done |
-| 4.4 MyChallengesPage approval state | Done |
-| 4.5 Approval banner in DetailView | Done |
-| 5.1 DB: validate_role_assignment | Done |
-| 6.1 DB: validate_gate_03 | Done |
-| 6.2 Wire gate into complete_phase | Done |
+**2 New Edge Functions** -- `discover-context-resources` (AI-powered web search for relevant sources per section) and `generate-context-digest` (synthesizes accepted sources into a 600-word grounded digest).
 
----
+**1 Enhanced Edge Function** -- `extract-attachment-text` gains Tier 2 AI summarization (extracted_summary + extracted_key_data JSON) and increased text truncation (5K to 50K chars).
 
-## Remaining Gaps
+**1 Enhanced Edge Function** -- `review-challenge-sections` gets 4 fixes: Pass 1 batch-filtered attachments, context digest injection, enhanced attachment format with summaries/key data, and a grounding rule requiring [INFERENCE] tags on unverified claims.
 
-### Gap 1: Legacy text references not cleaned up (Prompt 2.7)
+**1 New Hook** -- `useContextLibrary.ts` with ~11 queries/mutations covering discovery, accept/reject, upload, URL add, sharing, section relinking, digest regeneration.
 
-**AIReviewInline.tsx line 3** still says:
-```
-Extracted from CurationAIReviewInline for reuse across AM/RQ, CR/CA, and CU roles.
-```
-Should say: `...for reuse across CR and CU roles.`
+**2 New Components** -- `ContextLibraryDrawer.tsx` (900px Sheet with source list, detail panel, digest viewer) and `ContextLibraryCard.tsx` (right-rail summary card with source/suggestion counts).
 
-**TestSetupPage.tsx lines 36, 46, 56** still reference legacy roles in scenario descriptions:
-- `'Creates org + 1 user with all roles (AM, CR, CU, ID, ER, FC)'` → should use `(CR, CU, ER, LC, FC)`
-- `'Creates org + 3 users with split roles (CR/CU, ID/ER, AM/FC)'` → should use `(CR/CU, ER/LC, FC)`
-- `'Creates org + 8 users each with 1 role (AM, CR, CU, ID, ER×2, FC, LC)'` → should use `(CR, CU, ER×2, LC, FC)`
+**1 New Admin Component** -- `DiscoveryDirectivesEditor.tsx` for configuring per-section discovery rules in Prompt Studio.
 
-**useCancelChallenge.ts** — no legacy references found (already clean).
+**2 Updated Components** -- `SectionReferencePanel` (add "View in Library" link), `CurationReviewPage` (wire card + drawer state).
 
-**StepModeSelection.tsx** — no "Account Manager" references found (already clean).
+**1 Updated Admin Page** -- `AIReviewConfigPage` saves `discovery_directives` JSONB.
 
-### Gap 2: `get_phase_required_role` missing phases 7-10, 12
+## Technical Details
 
-The migration maps phases 1-6, 11, 13 but returns `'UNKNOWN'` for phases 7 (ER), 8 (ER), 9 (FC), 10 (ER), 12 (FC). The FINAL-EXECUTION-PLAN specifies these mappings.
+### Execution Sequence (10 Prompts)
 
-Additionally, phases 11 and 13 map to `'CU'` but the plan says they should map to `'CR'` (award decision and closure).
+| # | Scope | Type | Dependencies |
+|---|-------|------|-------------|
+| 7.1 | Add `discovery_directives` JSONB to `ai_review_section_config` + seed 27 sections | DB Migration | None |
+| 7.2 | Add 8 columns to `challenge_attachments` + create `challenge_context_digest` table with RLS | DB Migration | None |
+| 7.3 | `discover-context-resources` edge function | Edge Function | 7.1, 7.2 |
+| 7.4 | `generate-context-digest` edge function | Edge Function | 7.2 |
+| 7.5 | Enhance `extract-attachment-text` with Tier 2 summarization | Edge Function | 7.2 |
+| 7.6 | `useContextLibrary.ts` hook (queries + mutations) | Frontend Hook | 7.2, 7.3, 7.4, 7.5 |
+| 7.7 | `ContextLibraryDrawer.tsx` | Frontend Component | 7.6 |
+| 7.8 | `ContextLibraryCard.tsx` + wire into CurationReviewPage + SectionReferencePanel link | Frontend Component | 7.7 |
+| 7.9 | Fix Pass 1 + inject digest + grounding rule in `review-challenge-sections` | Edge Function | 7.2 |
+| 7.10 | `DiscoveryDirectivesEditor.tsx` + wire into ResearchTab/AIReviewConfigPage | Admin Component | 7.1 |
 
-### Gap 3: CONTROLLED context fields — plan v2 says Optional, code says Required
+### Key Integration Points
 
-The FINAL-EXECUTION-PLAN-2 field matrix (lines 74-77) marks `context_background`, `root_causes`, `affected_stakeholders`, and `current_deficiencies` as **Optional** for CONTROLLED mode. However, the current schema enforces them as **Required** for CONTROLLED.
+- **CurationReviewPage** (4394 lines): Add `contextLibraryOpen` state, render `ContextLibraryCard` in right rail after `CompletenessChecklistCard`, render `ContextLibraryDrawer` at component bottom.
+- **SectionReferencePanel** (427 lines): Add `onOpenLibrary` prop and "View in Library" link.
+- **review-challenge-sections** (1855 lines): 4 targeted changes at lines ~1510, ~1578, ~1690, ~1668.
+- **extract-attachment-text** (260 lines): Additive Tier 2 after existing extraction.
+- **AIReviewConfigPage** (782 lines): Add `discovery_directives` to form state and save query.
 
-This is a **contradiction between the two plan versions**. The original plan (implemented) said keep them CONTROLLED-required. The new uploaded plan says Optional. You need to decide which is correct.
+### Database Schema Changes
 
-### Minor: 1.5 useEffect dependency
+**`challenge_attachments` new columns:** `discovery_source` (manual/ai_suggested/creator_uploaded), `discovery_status` (suggested/accepted/rejected), `resource_type`, `relevance_explanation`, `confidence_score` (NUMERIC 3,2), `suggested_sections` (TEXT[]), `extracted_summary`, `extracted_key_data` (JSONB).
 
-Could not verify without reading the specific useEffect — this was marked as needing verification but is low-risk since the form key prop (1.3) already forces remount on mode change, making the useEffect dependency less critical.
+**New table `challenge_context_digest`:** `challenge_id` (unique FK), `digest_text`, `key_facts` (JSONB), `source_count`, `generated_at`. RLS: authenticated read, service_role write.
 
----
+**`ai_review_section_config` new column:** `discovery_directives` (JSONB) with per-section seeds defining priority, max_resources, resource_types with search query templates using `{{domain}}`, `{{geography}}`, `{{industry}}` variables.
 
-## Recommended Actions
+### Zero Breaking Changes
 
-1. **Fix legacy text** in AIReviewInline.tsx (comment) and TestSetupPage.tsx (descriptions) — 2 files, text-only changes
-2. **Fix `get_phase_required_role`** — add missing phases 7-10, 12 and correct phases 11, 13 to 'CR'
-3. **Decide on CONTROLLED context fields** — keep Required (current) or change to Optional (per new plan)?
-
-These are all low-risk changes. The core functionality (approval flow, phase gating, role separation, form schema, legacy role cleanup) is complete.
+All existing components, hooks, stores, and edge functions continue working unchanged. The system is purely additive.
 
