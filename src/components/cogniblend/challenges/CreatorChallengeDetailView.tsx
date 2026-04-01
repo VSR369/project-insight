@@ -585,8 +585,45 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </div>
       </div>
 
+      {/* ── Creator Approval Banner ── */}
+      {isPendingApproval && (
+        <Card className="border-violet-300 bg-violet-50/50 dark:bg-violet-900/20">
+          <CardContent className="py-4 px-5">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-violet-800 dark:text-violet-300">
+                  Curator review complete — your approval is required
+                </p>
+                <p className="text-xs text-violet-600 dark:text-violet-400">
+                  Review the Curator Version below. Approve to proceed to publication, or request changes.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => requestChangesMutation.mutate()}
+                  disabled={requestChangesMutation.isPending || approveMutation.isPending}
+                  className="border-violet-300 text-violet-700 hover:bg-violet-100"
+                >
+                  Request Changes
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => approveMutation.mutate()}
+                  disabled={approveMutation.isPending || requestChangesMutation.isPending}
+                  className="bg-violet-600 hover:bg-violet-700 text-white"
+                >
+                  {approveMutation.isPending ? 'Approving…' : 'Approve & Publish'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Dual-tab view */}
-      <Tabs defaultValue={hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
+      <Tabs defaultValue={isPendingApproval ? 'curator-version' : hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <TabsList className="w-auto">
             <TabsTrigger value="my-version" className="gap-1.5 text-xs">
