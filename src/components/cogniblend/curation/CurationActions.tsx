@@ -223,15 +223,15 @@ export default function CurationActions({
     enabled: !!challengeId,
     staleTime: 5 * 60_000,
   });
-  const amApprovalRequired = isMP && (extendedBrief?.am_approval_required !== false);
+  const crApprovalRequired = isMP && (extendedBrief?.creator_approval_required !== false);
 
   // For MP: update phase_status to CR_APPROVAL_PENDING instead of advancing phase
-  const amApprovalMutation = useMutation({
+  const crApprovalMutation = useMutation({
     mutationFn: async () => {
-      // Set phase_status to AM_APPROVAL_PENDING
+      // Set phase_status to CR_APPROVAL_PENDING
       const { error: updateError } = await supabase
         .from('challenges')
-        .update({ phase_status: 'AM_APPROVAL_PENDING' } as any)
+        .update({ phase_status: 'CR_APPROVAL_PENDING' } as any)
         .eq('id', challengeId);
       if (updateError) throw new Error(updateError.message);
 
