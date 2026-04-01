@@ -251,7 +251,10 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
       {/* ── 2. Industry Segment — Select from master data ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
-          Industry Segment <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+          Industry Segment{' '}
+          {!isQuick
+            ? <span className="text-destructive">*</span>
+            : <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
         </Label>
         <Controller
           name="industry_segment_id"
@@ -320,23 +323,31 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
       </div>
 
       {/* ── 4. Context & Background (rich_text — matches curator) ── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Context & Background <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="context_background"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              placeholder="Provide context about the challenge background, industry landscape, and why this problem matters."
-              storagePath="context-background"
-            />
+      {!isQuick && (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Context & Background{' '}
+            {isRequired('context_background')
+              ? <span className="text-destructive">*</span>
+              : <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
+          </Label>
+          <Controller
+            name="context_background"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Provide context about the challenge background, industry landscape, and why this problem matters."
+                storagePath="context-background"
+              />
+            )}
+          />
+          {errors.context_background && (
+            <p className="text-xs text-destructive">{errors.context_background.message}</p>
           )}
-        />
-      </div>
+        </div>
+      )}
 
       {/* ── 5. Problem Statement (rich_text — matches curator) ── */}
       <div className="space-y-1.5">
@@ -387,19 +398,22 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
       </div>
 
       {/* ── 7. Root Causes (line_items — matches curator) ── */}
-      <Controller
-        name="root_causes"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Root Causes"
-            placeholder="Identify an underlying root cause..."
-            addLabel="Add Root Cause"
-          />
-        )}
-      />
+      {!isQuick && (
+        <Controller
+          name="root_causes"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label={`Root Causes${isRequired('root_causes') ? '' : ' (optional)'}`}
+              placeholder="Identify an underlying root cause..."
+              addLabel="Add Root Cause"
+              error={(errors as any).root_causes?.message}
+            />
+          )}
+        />
+      )}
 
       {/* ── 8. Scope Definition (rich_text — matches curator) ── */}
       {!isQuick ? (
@@ -501,75 +515,86 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         </Button>
       </div>
 
-      {/* ── 10. Affected Stakeholders (table — matches curator) ── */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          Affected Stakeholders <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          Identify stakeholders affected by this problem.
-        </p>
-        {stakeholders.length > 0 && (
-          <div className="space-y-3">
-            {stakeholders.map((s, i) => (
-              <div key={i} className="rounded-lg border border-border bg-background p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Stakeholder {i + 1}</span>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeStakeholder(i)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+      {/* ── 10. Affected Stakeholders (table — matches curator) — hidden in QUICK ── */}
+      {!isQuick && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            Affected Stakeholders{' '}
+            {isRequired('affected_stakeholders')
+              ? <span className="text-destructive">*</span>
+              : <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Identify stakeholders affected by this problem.
+          </p>
+          {stakeholders.length > 0 && (
+            <div className="space-y-3">
+              {stakeholders.map((s, i) => (
+                <div key={i} className="rounded-lg border border-border bg-background p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Stakeholder {i + 1}</span>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeStakeholder(i)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Stakeholder name"
+                      value={s.stakeholder_name ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'stakeholder_name', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Role"
+                      value={s.role ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'role', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Impact description"
+                      value={s.impact_description ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'impact_description', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Adoption challenge"
+                      value={s.adoption_challenge ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'adoption_challenge', e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Stakeholder name"
-                    value={s.stakeholder_name ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'stakeholder_name', e.target.value)}
-                    className="text-sm"
-                  />
-                  <Input
-                    placeholder="Role"
-                    value={s.role ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'role', e.target.value)}
-                    className="text-sm"
-                  />
-                  <Input
-                    placeholder="Impact description"
-                    value={s.impact_description ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'impact_description', e.target.value)}
-                    className="text-sm"
-                  />
-                  <Input
-                    placeholder="Adoption challenge"
-                    value={s.adoption_challenge ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'adoption_challenge', e.target.value)}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <Button type="button" variant="ghost" size="sm" onClick={addStakeholder} className="text-primary hover:text-primary/80">
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Stakeholder
-        </Button>
-      </div>
+              ))}
+            </div>
+          )}
+          <Button type="button" variant="ghost" size="sm" onClick={addStakeholder} className="text-primary hover:text-primary/80">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Stakeholder
+          </Button>
+          {(errors as any).affected_stakeholders?.message && (
+            <p className="text-xs text-destructive">{(errors as any).affected_stakeholders.message}</p>
+          )}
+        </div>
+      )}
 
-      {/* ── 11. Current Deficiencies (line_items — matches curator) ── */}
-      <Controller
-        name="current_deficiencies"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Current Deficiencies"
-            placeholder="Describe a gap in current solutions..."
-            addLabel="Add Deficiency"
-          />
-        )}
-      />
+      {/* ── 11. Current Deficiencies (line_items — hidden in QUICK) ── */}
+      {!isQuick && (
+        <Controller
+          name="current_deficiencies"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label={`Current Deficiencies${isRequired('current_deficiencies') ? '' : ' (optional)'}`}
+              placeholder="Describe a gap in current solutions..."
+              addLabel="Add Deficiency"
+              error={(errors as any).current_deficiencies?.message}
+            />
+          )}
+        />
+      )}
 
-      {/* ── 12. Expected Outcomes (line_items — matches curator) ── */}
+      {/* ── 12. Expected Outcomes (line_items — visible for ALL modes) ── */}
       <Controller
         name="expected_outcomes"
         control={control}
@@ -584,35 +609,39 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         )}
       />
 
-      {/* ── 13. Preferred Approach (line_items — matches curator) ── */}
-      <Controller
-        name="preferred_approach"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Preferred Approach"
-            placeholder="Describe a preferred methodology..."
-            addLabel="Add Approach"
-          />
-        )}
-      />
+      {/* ── 13. Preferred Approach (line_items — hidden in QUICK) ── */}
+      {!isQuick && (
+        <Controller
+          name="preferred_approach"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label="Preferred Approach (optional)"
+              placeholder="Describe a preferred methodology..."
+              addLabel="Add Approach"
+            />
+          )}
+        />
+      )}
 
-      {/* ── 14. Approaches NOT of Interest (line_items — matches curator) ── */}
-      <Controller
-        name="approaches_not_of_interest"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Approaches NOT of Interest"
-            placeholder="Describe an approach that should NOT be submitted..."
-            addLabel="Add Excluded Approach"
-          />
-        )}
-      />
+      {/* ── 14. Approaches NOT of Interest (line_items — hidden in QUICK) ── */}
+      {!isQuick && (
+        <Controller
+          name="approaches_not_of_interest"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label="Approaches NOT of Interest (optional)"
+              placeholder="Describe an approach that should NOT be submitted..."
+              addLabel="Add Excluded Approach"
+            />
+          )}
+        />
+      )}
 
       {/* ── 15. Submission Guidelines (line_items — matches curator) ── */}
       <Controller
