@@ -270,7 +270,7 @@ export default function CurationActions({
           completed_count: completedCount,
           total_count: totalCount,
           amendment_cycle: amendmentCount,
-          target: 'AM_APPROVAL',
+          target: 'CR_APPROVAL',
         } as unknown as Json,
       });
     },
