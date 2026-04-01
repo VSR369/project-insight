@@ -132,8 +132,8 @@ function checkScopeDeliverables(
   if (!scope || !deliverables || deliverables.length === 0) return;
 
   const scopeLower = scope.toLowerCase();
-  const unmapped = deliverables.filter((d: any) => {
-    const name = (typeof d === 'string' ? d : d?.name ?? d?.title ?? '').toLowerCase();
+  const unmapped = deliverables.filter((d: unknown) => {
+    const name = (typeof d === 'string' ? d : (d as any)?.name ?? (d as any)?.title ?? '').toLowerCase();
     return name.length > 3 && !scopeLower.includes(name.slice(0, Math.min(name.length, 20)));
   });
 
