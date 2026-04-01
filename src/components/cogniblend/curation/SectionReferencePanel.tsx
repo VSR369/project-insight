@@ -297,6 +297,18 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
           {config.uploadPrompt}. All materials are read by AI.
           {config.sharingRecommendation === 'recommended' && ' Sharing with solvers is recommended for this section.'}
         </p>
+
+        {/* Context Library link */}
+        {onOpenLibrary && (
+          <button
+            type="button"
+            onClick={() => onOpenLibrary(sectionKey)}
+            className="flex items-center gap-1 text-[10px] text-primary hover:underline px-1 mt-1"
+          >
+            <BookOpen className="h-3 w-3" />
+            View all sources in Context Library
+          </button>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );
