@@ -417,6 +417,7 @@ export type Database = {
           id: number
           updated_at: string
           updated_by: string | null
+          use_context_intelligence: boolean
         }
         Insert: {
           batch_split_threshold?: number
@@ -425,6 +426,7 @@ export type Database = {
           id?: number
           updated_at?: string
           updated_by?: string | null
+          use_context_intelligence?: boolean
         }
         Update: {
           batch_split_threshold?: number
@@ -433,6 +435,7 @@ export type Database = {
           id?: number
           updated_at?: string
           updated_by?: string | null
+          use_context_intelligence?: boolean
         }
         Relationships: []
       }
