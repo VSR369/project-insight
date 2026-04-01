@@ -194,6 +194,18 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
 
       if (!challenge) return;
 
+      // Sync governance/engagement from draft to parent page
+      if (onDraftModeSync) {
+        const draftGovernance = (challenge as any).governance_mode_override as string | null;
+        const draftEngagement = (challenge as any).operating_model as string | null;
+        if (draftGovernance || draftEngagement) {
+          onDraftModeSync(
+            (draftGovernance as GovernanceMode) ?? governanceMode,
+            draftEngagement ?? engagementModel,
+          );
+        }
+      }
+
       const rewardStructure = challenge.reward_structure as Record<string, unknown> | null;
       const extendedBrief = challenge.extended_brief as Record<string, unknown> | null;
       const expectedOutcomes = challenge.expected_outcomes as unknown;
