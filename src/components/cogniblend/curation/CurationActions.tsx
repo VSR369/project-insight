@@ -309,8 +309,8 @@ export default function CurationActions({
     }
 
     // CR declined → resubmit, or MP model with CR approval required → route to CR
-    if (isAmDeclined || amApprovalRequired) {
-      amApprovalMutation.mutate();
+    if (isAmDeclined || crApprovalRequired) {
+      crApprovalMutation.mutate();
       return;
     }
 
