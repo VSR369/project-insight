@@ -226,6 +226,7 @@ export function useSubmitSolutionRequest() {
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['tier_limit_check'] });
     },
     onError: (error: Error) => {

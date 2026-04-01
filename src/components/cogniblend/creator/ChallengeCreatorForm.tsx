@@ -291,6 +291,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       const result = await submitMutation.mutateAsync({
         ...payload,
         referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,
+        draftChallengeId: draftChallengeId || undefined,
       });
 
        // Upload attached files only (extended_brief already saved in Write 1)
