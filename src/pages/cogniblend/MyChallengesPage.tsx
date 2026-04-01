@@ -112,7 +112,9 @@ export default function MyChallengesPage() {
           deleted_at: new Date().toISOString(),
           deleted_by: user.id,
         } as any)
-        .eq('id', deleteTarget);
+        .eq('id', deleteTarget)
+        .eq('created_by', user.id)
+        .eq('current_phase', 1);
 
       if (error) throw new Error(error.message);
       toast.success('Draft deleted');
