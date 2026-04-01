@@ -138,6 +138,7 @@ export default function ExampleLibraryManagerPage() {
                   <th className="pb-2 font-medium text-muted-foreground">Annotation</th>
                   <th className="pb-2 font-medium text-muted-foreground">Active</th>
                   <th className="pb-2 font-medium text-muted-foreground">Uses</th>
+                  <th className="pb-2 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
