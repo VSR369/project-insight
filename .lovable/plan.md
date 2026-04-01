@@ -1,49 +1,39 @@
 
 
-# Bug Fix: STRUCTURED Governance Mode Always Highlighted on Basic Tier
+# Quick Role-Switch for Testing
 
-## Root Cause
+## Problem
+You're seeing a blank page on `/cogni/lc-queue` — likely a stale/expired session. To test as Curator, you need to go through the full demo login flow each time you switch roles.
 
-The **DemoLoginPage** (`src/pages/cogniblend/DemoLoginPage.tsx`, line 116) initializes governance mode as `'STRUCTURED'` by default:
-```ts
-const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
-```
+## Current Testing Options (No Code Changes Needed)
 
-When a user logs in via the demo page without changing the selector, `'STRUCTURED'` is persisted to `sessionStorage`. ChallengeCreatePage then reads this value (lines 221-224) and sets it as the active governance mode — **bypassing the tier ceiling check entirely**.
+**Option A — Use the "Switch Role" FAB button:**
+Every CogniBlend page has a floating blue "Switch Role" button at the bottom-right corner. Click it to go to `/cogni/demo-login` and pick a different role (e.g., Casey Underwood for Curator). This already exists in `CogniShell.tsx` (line 94-101).
 
-This means even a Basic-tier org (which should only allow QUICK) gets STRUCTURED highlighted.
+**Option B — Direct URL:**
+Navigate to `/cogni/demo-login` in your browser, then click the Curator card.
 
-## Fix (2 files)
+## Proposed Enhancement: Inline Role Quick-Switcher
 
-### 1. DemoLoginPage — Default to QUICK
-Change the initial state from `'STRUCTURED'` to `'QUICK'`:
-```ts
-const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
-```
+Add a lightweight **dev-only quick-switch dropdown** directly in the CogniShell top bar that lets you switch demo users instantly without navigating away from the current page.
 
-### 2. ChallengeCreatePage — Clamp sessionStorage value against tier
-In the useEffect that reads `cogni_demo_governance` (lines 220-228), add a tier-ceiling check so even if sessionStorage contains STRUCTURED, it gets clamped to the org's available modes:
+### How it works
+1. Add a new component `DevRoleSwitcher.tsx` in `src/components/cogniblend/shell/`
+2. It renders a dropdown listing all 7 demo users with their role badges
+3. Clicking a user triggers: sign out → sign in as that user → reload current page
+4. Only renders when `window.location.hostname` includes `lovableproject.com` or `localhost` (dev-only guard)
+5. Placed in `CogniTopBar` next to the existing `RoleSwitcher`
 
-```ts
-useEffect(() => {
-  const demoGov = sessionStorage.getItem('cogni_demo_governance') as GovernanceMode | null;
-  sessionStorage.removeItem('cogni_demo_governance');
+### Files to create/edit
+- **Create:** `src/components/cogniblend/shell/DevRoleSwitcher.tsx` (~80 lines)
+  - Imports the same `getDemoUsers` list and `TEST_PASSWORD` from DemoLoginPage (will need to export them)
+  - Renders a dropdown with user cards
+  - On click: `supabase.auth.signOut()` → `signInWithPassword()` → set `cogni_active_role` → `window.location.reload()`
+- **Edit:** `src/pages/cogniblend/DemoLoginPage.tsx` — Export `getDemoUsers` and `TEST_PASSWORD`
+- **Edit:** `src/components/cogniblend/shell/CogniTopBar.tsx` — Add `<DevRoleSwitcher />` next to RoleSwitcher
 
-  if (currentOrg) {
-    const available = getAvailableGovernanceModes(currentOrg.tierCode);
-    if (demoGov && available.includes(demoGov)) {
-      setGovernanceMode(demoGov);
-    } else {
-      setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
-    }
-  }
-}, [currentOrg]);
-```
-
-This ensures governance mode always respects the tier ceiling, whether set from demo login or org defaults.
-
-## Impact
-- No DB changes
-- No new dependencies
-- Fixes the visual mismatch where STRUCTURED appears selected on a Basic-tier org
+### Safety
+- Dev-only: hostname check ensures it never appears in production
+- No changes to auth guards, routing, or main business logic
+- Uses the same login mechanism as the existing demo login page
 
