@@ -44,9 +44,10 @@ interface EssentialDetailsTabProps {
   engagementModel: string;
   industrySegments: Array<{ id: string; name: string }>;
   governanceMode: GovernanceMode;
+  fieldRules?: FieldRulesMap;
 }
 
-export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode }: EssentialDetailsTabProps) {
+export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode, fieldRules }: EssentialDetailsTabProps) {
   const {
     control,
     register,
@@ -54,7 +55,10 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
     formState: { errors },
   } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
-  const isQuick = governanceMode === 'QUICK';
+  const rules = fieldRules ?? {};
+  const showScope = isFieldVisible(rules, 'scope');
+  const showIpModel = isFieldVisible(rules, 'ip_model');
+  const showBudget = isFieldVisible(rules, 'platinum_award');
 
   const { data: maturityOptions = [], isLoading: maturityLoading } = useSolutionMaturityList();
 
