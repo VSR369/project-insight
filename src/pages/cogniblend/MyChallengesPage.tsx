@@ -91,7 +91,7 @@ export default function MyChallengesPage() {
   const filteredItems = useMemo(() => {
     if (activeTab === 'all') return items;
     if (activeTab === 'drafts') return items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase === 1);
-    if (activeTab === 'active') return items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase > 1 || c.master_status === 'ACTIVE');
+    if (activeTab === 'active') return items.filter((c) => (c.master_status === 'IN_PREPARATION' && c.current_phase > 1) || c.master_status === 'ACTIVE');
     if (activeTab === 'completed') return items.filter((c) => c.master_status === 'COMPLETED' || c.master_status === 'CANCELLED' || c.master_status === 'TERMINATED');
     return items;
   }, [items, activeTab]);

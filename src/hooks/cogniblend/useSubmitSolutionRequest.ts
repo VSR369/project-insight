@@ -254,7 +254,7 @@ export function useSubmitSolutionRequest() {
       const creatorSnapshot = {
         problem_statement: filteredPayload.businessProblem,
         scope: filteredPayload.constraints || null,
-        expected_outcomes: filteredPayload.expectedOutcomes || null,
+        expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
         reward_structure: rewardStructure,
         phase_schedule: phaseSchedule,
         extended_brief: filteredSnapshotBrief,

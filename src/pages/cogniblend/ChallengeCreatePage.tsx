@@ -225,7 +225,7 @@ export default function ChallengeCreatePage() {
     } else if (currentOrg) {
       setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
-  }, [currentOrg?.governanceProfile]);
+  }, [currentOrg]);
 
   useEffect(() => {
     const demoEng = sessionStorage.getItem('cogni_demo_engagement');

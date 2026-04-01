@@ -41,7 +41,9 @@ export function useMyChallenges(userId: string | undefined) {
           )
         `)
         .eq('user_id', userId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { referencedTable: 'challenges', ascending: false })
+        .limit(50);
 
       if (error) throw new Error(error.message);
 
