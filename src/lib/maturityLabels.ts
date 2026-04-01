@@ -6,6 +6,7 @@
 
 export const MATURITY_LABELS: Record<string, string> = {
   blueprint: 'An idea or concept',
+  demo: 'A working demonstration',
   poc: 'Proof it can work',
   prototype: 'A working demo',
   pilot: 'A real-world test',
