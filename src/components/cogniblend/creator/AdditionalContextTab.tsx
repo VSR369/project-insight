@@ -144,6 +144,7 @@ export function AdditionalContextTab({
       )}
 
       {/* Context & Background — rich text (single narrative field) */}
+      {isFieldVisible(rules, 'context_background') && (
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Context & Background
