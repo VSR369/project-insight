@@ -27,7 +27,9 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-const TEST_PASSWORD = 'TestSetup2026!';
+export const DEMO_TEST_PASSWORD = 'TestSetup2026!';
+/** @deprecated Use DEMO_TEST_PASSWORD */
+const TEST_PASSWORD = DEMO_TEST_PASSWORD;
 
 export interface DemoUser {
   email: string;
@@ -38,8 +40,11 @@ export interface DemoUser {
   stepLabel?: string;
 }
 
+/** Static demo users list for dev quick-switch (uses default engagement model) */
+export const DEMO_USERS: DemoUser[] = buildDemoUsers('MP');
+
 /** Build the demo user list dynamically based on engagement model */
-function getDemoUsers(engagementModel: string): DemoUser[] {
+function buildDemoUsers(engagementModel: string): DemoUser[] {
   return [
     {
       email: 'nh-cr@testsetup.dev',
@@ -191,7 +196,7 @@ export default function DemoLoginPage() {
     );
   };
 
-  const demoUsers = getDemoUsers(engagementModel);
+  const demoUsers = buildDemoUsers(engagementModel);
 
   return (
     <div className="min-h-screen bg-muted p-4 lg:p-8">
