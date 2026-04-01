@@ -430,7 +430,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       { title: 'Effort Level', icon: BarChart3, content: data.effort_level ? <BadgeSection title="Effort Level" icon={BarChart3} value={data.effort_level} /> : null },
       { title: 'Eligibility', icon: ShieldCheck, content: data.eligibility ? <BadgeSection title="Eligibility" icon={ShieldCheck} value={data.eligibility} /> : null },
       { title: 'Evaluation Criteria', icon: BarChart3, content: weightedCriteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={weightedCriteria} /> : null },
-      { title: 'Submission Guidelines', icon: FileText, content: guidelinesHtml ? <RichTextSection title="Submission Guidelines" html={guidelinesHtml} icon={FileText} /> : null },
+      { title: 'Submission Guidelines', icon: FileText, content: guidelinesItems?.length ? <ListSection title="Submission Guidelines" icon={FileText} items={guidelinesItems} /> : null },
       { title: 'Reward Structure', icon: Trophy, content: platinumAward > 0 ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
