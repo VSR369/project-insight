@@ -410,7 +410,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       { title: 'Solution Type', icon: Briefcase, content: data.solution_type ? <BadgeSection title="Solution Type" icon={Briefcase} value={data.solution_type} /> : null },
       { title: 'Deliverables', icon: FileText, content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d: any) => ({ name: typeof d === 'string' ? d : d?.name ?? d?.title ?? JSON.stringify(d) }))} /> : null },
       { title: 'Maturity Level', icon: Layers, content: data.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(data.maturity_level)} /> : null },
-      { title: 'Data Resources Provided', icon: FileText, content: dataResourceItems.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
+      { title: 'Data Resources Provided', icon: FileText, content: dataResourceItems?.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
       { title: 'Success Metrics & KPIs', icon: BarChart3, content: metricsItems?.length ? <ListSection title="Success Metrics & KPIs" icon={BarChart3} items={metricsItems} /> : null },
       { title: 'Complexity', icon: BarChart3, content: data.complexity_level ? (
         <Card className="border-border">
