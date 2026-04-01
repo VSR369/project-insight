@@ -576,22 +576,25 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         </div>
       )}
 
-      {/* ── 11. Current Deficiencies (line_items — matches curator) ── */}
-      <Controller
-        name="current_deficiencies"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Current Deficiencies"
-            placeholder="Describe a gap in current solutions..."
-            addLabel="Add Deficiency"
-          />
-        )}
-      />
+      {/* ── 11. Current Deficiencies (line_items — hidden in QUICK) ── */}
+      {!isQuick && (
+        <Controller
+          name="current_deficiencies"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label={`Current Deficiencies${isRequired('current_deficiencies') ? '' : ' (optional)'}`}
+              placeholder="Describe a gap in current solutions..."
+              addLabel="Add Deficiency"
+              error={(errors as any).current_deficiencies?.message}
+            />
+          )}
+        />
+      )}
 
-      {/* ── 12. Expected Outcomes (line_items — matches curator) ── */}
+      {/* ── 12. Expected Outcomes (line_items — visible for ALL modes) ── */}
       <Controller
         name="expected_outcomes"
         control={control}
@@ -606,35 +609,39 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         )}
       />
 
-      {/* ── 13. Preferred Approach (line_items — matches curator) ── */}
-      <Controller
-        name="preferred_approach"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Preferred Approach"
-            placeholder="Describe a preferred methodology..."
-            addLabel="Add Approach"
-          />
-        )}
-      />
+      {/* ── 13. Preferred Approach (line_items — hidden in QUICK) ── */}
+      {!isQuick && (
+        <Controller
+          name="preferred_approach"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label="Preferred Approach (optional)"
+              placeholder="Describe a preferred methodology..."
+              addLabel="Add Approach"
+            />
+          )}
+        />
+      )}
 
-      {/* ── 14. Approaches NOT of Interest (line_items — matches curator) ── */}
-      <Controller
-        name="approaches_not_of_interest"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Approaches NOT of Interest"
-            placeholder="Describe an approach that should NOT be submitted..."
-            addLabel="Add Excluded Approach"
-          />
-        )}
-      />
+      {/* ── 14. Approaches NOT of Interest (line_items — hidden in QUICK) ── */}
+      {!isQuick && (
+        <Controller
+          name="approaches_not_of_interest"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label="Approaches NOT of Interest (optional)"
+              placeholder="Describe an approach that should NOT be submitted..."
+              addLabel="Add Excluded Approach"
+            />
+          )}
+        />
+      )}
 
       {/* ── 15. Submission Guidelines (line_items — matches curator) ── */}
       <Controller
