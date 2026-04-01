@@ -55,7 +55,8 @@ function getStatusConfig(masterStatus: string, phase: number): StatusConfig {
 
 function governanceLabel(profile: string): string {
   switch (profile) {
-    case 'LIGHTWEIGHT': return 'Quick';
+    case 'LIGHTWEIGHT':
+    case 'QUICK': return 'Quick';
     case 'STRUCTURED': return 'Structured';
     case 'CONTROLLED': return 'Controlled';
     default: return profile;
