@@ -156,17 +156,17 @@ export function useSubmitSolutionRequest() {
       const normalizedConstrainedFields = normalizeConstrainedChallengeFields(filteredPayload);
 
       const rewardStructure = {
-        currency: payload.currency,
-        budget_min: payload.budgetMin,
-        budget_max: payload.budgetMax,
+        currency: filteredPayload.currency ?? payload.currency,
+        budget_min: filteredPayload.budgetMin ?? 0,
+        budget_max: filteredPayload.budgetMax ?? 0,
         source_role: 'CR',
         source_date: new Date().toISOString(),
         upstream_source: {
           role: 'CR',
           date: new Date().toISOString(),
-          budget_min: payload.budgetMin,
-          budget_max: payload.budgetMax,
-          currency: payload.currency,
+          budget_min: filteredPayload.budgetMin ?? 0,
+          budget_max: filteredPayload.budgetMax ?? 0,
+          currency: filteredPayload.currency ?? payload.currency,
         },
       };
 
