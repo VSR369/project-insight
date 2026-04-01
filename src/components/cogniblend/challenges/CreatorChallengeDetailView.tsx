@@ -39,15 +39,7 @@ function formatCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
-function getMaturityLabel(level: string | null): string {
-  switch (level) {
-    case 'blueprint': return 'Blueprint';
-    case 'poc': return 'Proof of Concept';
-    case 'prototype': return 'Prototype';
-    case 'pilot': return 'Pilot';
-    default: return level || '—';
-  }
-}
+/* getMaturityLabel imported from @/lib/maturityLabels */
 
 function governanceLabel(profile: string | null): string {
   switch (profile) {
