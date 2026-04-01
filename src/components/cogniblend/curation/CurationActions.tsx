@@ -209,7 +209,7 @@ export default function CurationActions({
     staleTime: 30_000,
   });
 
-  // Check if AM opted into pre-publish approval
+  // Check if CR opted into pre-publish approval
   const { data: extendedBrief } = useQuery({
     queryKey: ['challenge-extended-brief', challengeId],
     queryFn: async () => {
