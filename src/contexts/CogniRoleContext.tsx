@@ -41,7 +41,7 @@ export function CogniRoleProvider({ children }: { children: ReactNode }) {
     return ROLE_PRIORITY.filter((code) => allRoleCodes.has(code));
   }, [allRoleCodes]);
 
-  const isSoloMode = availableRoles.length >= 6;
+  const isSoloMode = availableRoles.length >= 4;
 
   const challengeRoleMap = useMemo(() => {
     const map = new Map<string, string[]>();
