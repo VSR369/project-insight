@@ -148,7 +148,12 @@ export function useSubmitSolutionRequest() {
         challengeId = newId;
       }
 
-      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
+      // Fetch governance rules and strip hidden fields from payload
+      const effectiveMode = payload.governanceModeOverride ?? 'STRUCTURED';
+      const governanceRules = await fetchGovernanceFieldRules(effectiveMode);
+      const filteredPayload = stripHiddenFields(payload as unknown as Record<string, unknown>, governanceRules) as unknown as SubmitPayload;
+
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(filteredPayload);
 
       const rewardStructure = {
         currency: payload.currency,
