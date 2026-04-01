@@ -394,7 +394,7 @@ export default function SolutionSubmitPage() {
     };
 
     return (
-      <div className="max-w-3xl mx-auto p-6">
+      <div className="max-w-3xl mx-auto p-6 space-y-4">
         <Card className="border-primary/30">
           <CardContent className="p-8 text-center space-y-4">
             <CheckCircle className="h-12 w-12 text-primary mx-auto" />
@@ -433,6 +433,16 @@ export default function SolutionSubmitPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Solver Clarity Feedback — shown once after successful submission */}
+        {challengeId && userId && (
+          <ChallengeClarityFeedback
+            challengeId={challengeId}
+            solverId={userId}
+            onComplete={() => toast.success('Thanks for helping improve challenge quality!')}
+            onSkip={() => {}}
+          />
+        )}
 
         {withdrawalCtx && (
           <WithdrawSolutionModal
