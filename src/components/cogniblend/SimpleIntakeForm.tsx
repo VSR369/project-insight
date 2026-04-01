@@ -87,7 +87,7 @@ const aggSchema = z.object({
   architect_id: z.string().optional(),
 });
 
-/** MP (AM) schema — comprehensive 6-field problem brief */
+/** MP schema — comprehensive 6-field problem brief */
 const mpSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
   problem_summary: z.string().trim().min(1, 'Problem summary is required').max(5000, 'Problem summary must be 5000 characters or less'),
