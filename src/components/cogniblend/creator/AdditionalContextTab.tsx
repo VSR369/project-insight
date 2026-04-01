@@ -239,8 +239,10 @@ export function AdditionalContextTab({
           <p className="text-xs text-destructive">{String((errors as any).affected_stakeholders.message)}</p>
         )}
       </div>
+      )}
 
       {/* Timeline */}
+      {isFieldVisible(rules, 'expected_timeline') && (
       <div className="space-y-2">
         <Label className="text-sm font-medium">Target Timeline</Label>
         <Controller
