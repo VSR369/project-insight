@@ -1,50 +1,64 @@
 
 
-# Fix: My Challenges — Draft vs Submitted State & Resume Bug
+# Fix: maturity_level SOLUTION_DEMO Validation Mismatch
 
-## Problem Summary
+## Root Cause
 
-Two related bugs after submitting a challenge that was previously saved as a draft:
+There's a mismatch between three layers:
 
-1. **Duplicate challenge created**: When submitting from a draft (`?draft=<id>`), the submit flow always calls `initialize_challenge` RPC to create a **new** challenge instead of using the existing draft. The old draft remains at Phase 1 ("Draft" status) while a new challenge is created at Phase 2.
+1. **`md_solution_maturity` table** (master data): has codes `SOLUTION_BLUEPRINT`, `SOLUTION_DEMO`, `SOLUTION_POC`, `SOLUTION_PROTOTYPE`
+2. **DB trigger `trg_challenges_validate_cogniblend`**: validates maturity_level against `BLUEPRINT | POC | PROTOTYPE | PILOT`
+3. **Client normalizer `challengeFieldNormalizer.ts`**: validates against same list `BLUEPRINT | POC | PROTOTYPE | PILOT`
 
-2. **Resume shows empty form**: Clicking "Resume" on the old draft loads it, but since all form data was saved to the *new* challenge, the draft has no meaningful data.
+When a user selects "Solution Demo" (code `SOLUTION_DEMO`), the normalizer strips `SOLUTION_` → `DEMO`, which is rejected because `DEMO` isn't in the allowed list.
 
-3. **Missing query invalidation**: `onSuccess` in `useSubmitSolutionRequest` doesn't invalidate `['cogni-my-challenges']`, so the list may show stale data.
+Additionally, `PILOT` exists in the trigger/normalizer but has no corresponding `md_solution_maturity` record.
 
-**Additionally**, the My Challenges page shows "Resume" for all drafts but doesn't distinguish between a true draft (never submitted) and a submitted challenge. Per the user's requirement:
-- **Draft (Phase 1, not submitted)** → "Resume" button + "Delete" button
-- **Submitted to Curator (Phase 2+)** → "View" button only
+## Fix (3 changes)
 
-## Plan
+### 1. Update DB trigger to accept DEMO (and keep PILOT for backward compat)
 
-### 1. Add `draftChallengeId` to `SubmitPayload` in `useSubmitSolutionRequest.ts`
+Add `DEMO` to the allowed maturity_level values in `trg_challenges_validate_cogniblend`:
 
-- Add optional `draftChallengeId?: string` to the `SubmitPayload` interface
-- When `draftChallengeId` is provided, **skip** `initialize_challenge` RPC and use the existing challenge ID directly
-- Update the challenge record with form data and call `complete_phase` on the existing draft
-- Add `['cogni-my-challenges']` to query invalidation in `onSuccess`
-
-### 2. Pass `draftChallengeId` from `ChallengeCreatorForm.tsx`
-
-- In `handleSubmit`, include `draftChallengeId` in the payload passed to `submitMutation.mutateAsync()`
-- This ensures drafts are promoted rather than duplicated
-
-### 3. Fix `MyChallengesPage.tsx` action buttons
-
-The current logic already correctly distinguishes draft vs non-draft:
+```sql
+IF NEW.maturity_level IS NOT NULL AND NEW.maturity_level NOT IN 
+  ('BLUEPRINT','POC','PROTOTYPE','PILOT','DEMO') THEN
 ```
-isDraft = master_status === 'IN_PREPARATION' && current_phase === 1
-```
-- Draft → Resume + Delete (already correct)
-- Non-draft → View (already correct)
 
-No changes needed here since fixing bugs #1 and #2 will resolve the display issue — submitted challenges will properly advance to Phase 2 and show "View" instead of "Resume".
+**Migration file:** `supabase/migrations/XXXX_add_demo_maturity_to_trigger.sql`
+
+### 2. Update client normalizer to accept DEMO
+
+Add `DEMO` to `VALID_MATURITY` in `challengeFieldNormalizer.ts`:
+
+```typescript
+const VALID_MATURITY = ['BLUEPRINT', 'POC', 'PROTOTYPE', 'PILOT', 'DEMO'] as const;
+```
+
+### 3. Update maturityLabels.ts to include DEMO
+
+Add the `demo` entry so display labels resolve correctly:
+
+```typescript
+export const MATURITY_LABELS: Record<string, string> = {
+  blueprint: 'An idea or concept',
+  demo: 'A working demonstration',
+  poc: 'Proof it can work',
+  prototype: 'A working demo',
+  pilot: 'A real-world test',
+};
+```
+
+### 4. Update unit tests
+
+Add `DEMO` and `SOLUTION_DEMO` test cases to `challengeFieldNormalizer.test.ts`.
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Add `draftChallengeId` to payload; skip `initialize_challenge` when present; add `cogni-my-challenges` invalidation |
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Pass `draftChallengeId` in submit payload |
+| `supabase/migrations/XXXX_add_demo_maturity.sql` | Add DEMO to trigger validation |
+| `src/lib/cogniblend/challengeFieldNormalizer.ts` | Add DEMO to VALID_MATURITY |
+| `src/lib/maturityLabels.ts` | Add demo label and description |
+| `src/lib/cogniblend/__tests__/challengeFieldNormalizer.test.ts` | Add DEMO test cases |
 
