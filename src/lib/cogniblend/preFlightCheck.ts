@@ -39,6 +39,10 @@ export interface PreFlightResult {
   budgetAlignmentWarnings: PreFlightItem[];
   /** Quality prediction based on recommended section presence */
   qualityPrediction: QualityPrediction;
+  /** Domain coverage score (0-100) and coverage level */
+  domainCoverage?: { score: number; coverageLevel: string; recommendation: string };
+  /** Org context score (0-100) and missing fields */
+  orgContext?: { score: number; missingFields: string[]; recommendation: string };
 }
 
 const MANDATORY_SECTIONS: PreFlightItem[] = [
