@@ -15,6 +15,7 @@ export interface MyChallengeItem {
   phase_status: string;
   role_code: string;
   governance_profile: string;
+  governance_mode_override: string | null;
   operating_model: string | null;
   created_at: string;
 }
