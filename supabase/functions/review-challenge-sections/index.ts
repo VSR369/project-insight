@@ -1514,6 +1514,7 @@ serve(async (req) => {
       content: string;
       summary?: string;
       keyData?: Record<string, unknown>;
+      resourceType?: string;
       sharedWithSolver: boolean;
     }[]> = {};
     if (resolvedContext === "curation") {
