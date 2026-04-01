@@ -1427,6 +1427,8 @@ export default function CurationReviewPage() {
     aiReviews: aiReviews as any[],
     sectionActions: sectionActions as any[],
   });
+
+  // ── Zustand store hydration & sync ──
   const { syncSectionToStore } = useCurationStoreHydration({
     challengeId: challengeId!,
     challenge: challenge ?? null,
