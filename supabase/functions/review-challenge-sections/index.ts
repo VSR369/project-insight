@@ -690,15 +690,32 @@ ${depBlock}
       const sectionAtts = (attachmentsBySection || {})[r.section_key] || [];
       if (sectionAtts.length === 0) return '';
       let block = '\nREFERENCE MATERIALS for this section:\n';
+
+      // Gap 2: Tiered injection when context intelligence is enabled
+      const isSoloBatch = sectionsNeedingSuggestion.length === 1;
+      const fewAttachments = sectionAtts.length <= 2;
+
       for (const a of sectionAtts) {
         const typeTag = a.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
         const shareTag = a.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY';
         block += `--- [${typeTag}] ${a.name} [${shareTag}] ---\n`;
         if (a.sourceUrl) block += `Source: ${a.sourceUrl}\n`;
         if (a.resourceType) block += `Type: ${a.resourceType}\n`;
+
+        // TIER 2 (always): summary + keyData
         if (a.summary) block += `KEY POINTS:\n${a.summary}\n`;
         if (a.keyData && Object.keys(a.keyData).length > 0) block += `VERIFIED DATA: ${JSON.stringify(a.keyData)}\n`;
-        block += `CONTENT:\n${a.content}\n`;
+
+        // TIER 3 (conditional): full content only when solo batch, ≤2 attachments, or no summary
+        const includeFull = !useContextIntelligence || isSoloBatch || fewAttachments || !a.summary;
+        if (includeFull) {
+          // Dynamic budget: truncate if >30K tokens (~120K chars) total
+          const maxContentLen = 30000 * 4; // ~30K tokens ≈ 120K chars
+          const contentToInclude = a.content.length > maxContentLen
+            ? a.content.substring(0, maxContentLen) + '\n[... content truncated for token budget ...]'
+            : a.content;
+          block += `CONTENT:\n${contentToInclude}\n`;
+        }
       }
       block += `\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.`;
       block += `\n\nGROUNDING RULE: Every factual claim, statistic, or benchmark MUST trace to the VERIFIED CONTEXT DIGEST or a REFERENCE MATERIAL. If a claim is NOT from these sources, prefix it with [INFERENCE] so the Curator can verify independently.\n`;
