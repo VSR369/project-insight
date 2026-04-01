@@ -74,6 +74,7 @@ interface AdditionalContextTabProps {
 
 export function AdditionalContextTab({
   governanceMode,
+  fieldRules,
   attachedFiles = [],
   onFilesChange,
   referenceUrls = [],
@@ -81,6 +82,7 @@ export function AdditionalContextTab({
 }: AdditionalContextTabProps) {
   const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
   const isControlled = governanceMode === 'CONTROLLED';
+  const rules = fieldRules ?? {};
   const [urlInput, setUrlInput] = useState('');
 
   const { fields: stakeholderFields, append: addStakeholder, remove: removeStakeholder } = useFieldArray({
