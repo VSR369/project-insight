@@ -232,6 +232,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
       </div>
 
+      {showBudget && (
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Budget Range {isMPBudgetRequired && <span className="text-destructive">*</span>}
