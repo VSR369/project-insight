@@ -515,58 +515,66 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         </Button>
       </div>
 
-      {/* ── 10. Affected Stakeholders (table — matches curator) ── */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          Affected Stakeholders <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          Identify stakeholders affected by this problem.
-        </p>
-        {stakeholders.length > 0 && (
-          <div className="space-y-3">
-            {stakeholders.map((s, i) => (
-              <div key={i} className="rounded-lg border border-border bg-background p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Stakeholder {i + 1}</span>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeStakeholder(i)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+      {/* ── 10. Affected Stakeholders (table — matches curator) — hidden in QUICK ── */}
+      {!isQuick && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            Affected Stakeholders{' '}
+            {isRequired('affected_stakeholders')
+              ? <span className="text-destructive">*</span>
+              : <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Identify stakeholders affected by this problem.
+          </p>
+          {stakeholders.length > 0 && (
+            <div className="space-y-3">
+              {stakeholders.map((s, i) => (
+                <div key={i} className="rounded-lg border border-border bg-background p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Stakeholder {i + 1}</span>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeStakeholder(i)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Stakeholder name"
+                      value={s.stakeholder_name ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'stakeholder_name', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Role"
+                      value={s.role ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'role', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Impact description"
+                      value={s.impact_description ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'impact_description', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Adoption challenge"
+                      value={s.adoption_challenge ?? ''}
+                      onChange={(e) => updateStakeholder(i, 'adoption_challenge', e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Stakeholder name"
-                    value={s.stakeholder_name ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'stakeholder_name', e.target.value)}
-                    className="text-sm"
-                  />
-                  <Input
-                    placeholder="Role"
-                    value={s.role ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'role', e.target.value)}
-                    className="text-sm"
-                  />
-                  <Input
-                    placeholder="Impact description"
-                    value={s.impact_description ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'impact_description', e.target.value)}
-                    className="text-sm"
-                  />
-                  <Input
-                    placeholder="Adoption challenge"
-                    value={s.adoption_challenge ?? ''}
-                    onChange={(e) => updateStakeholder(i, 'adoption_challenge', e.target.value)}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <Button type="button" variant="ghost" size="sm" onClick={addStakeholder} className="text-primary hover:text-primary/80">
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Stakeholder
-        </Button>
-      </div>
+              ))}
+            </div>
+          )}
+          <Button type="button" variant="ghost" size="sm" onClick={addStakeholder} className="text-primary hover:text-primary/80">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Stakeholder
+          </Button>
+          {(errors as any).affected_stakeholders?.message && (
+            <p className="text-xs text-destructive">{(errors as any).affected_stakeholders.message}</p>
+          )}
+        </div>
+      )}
 
       {/* ── 11. Current Deficiencies (line_items — matches curator) ── */}
       <Controller
