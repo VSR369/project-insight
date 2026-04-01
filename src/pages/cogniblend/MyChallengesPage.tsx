@@ -35,7 +35,11 @@ interface StatusConfig {
   badgeClass: string;
 }
 
-function getStatusConfig(masterStatus: string, phase: number): StatusConfig {
+function getStatusConfig(masterStatus: string, phase: number, phaseStatus?: string | null): StatusConfig {
+  // CR_APPROVAL_PENDING — challenge awaiting creator sign-off
+  if (phaseStatus === 'CR_APPROVAL_PENDING') {
+    return { label: 'Awaiting Your Approval', icon: AlertCircle, badgeClass: 'bg-violet-50 text-violet-700 border-violet-300' };
+  }
   if (masterStatus === 'IN_PREPARATION' && phase === 1) {
     return { label: 'Draft', icon: Pencil, badgeClass: 'bg-muted text-muted-foreground border-border' };
   }
