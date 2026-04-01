@@ -1,70 +1,66 @@
 
 
-# CR Role Code Review — Implementation Plan
+# Creator → Detail View Data Alignment Fix
 
-## Overview
-Implementing findings from the Senior Architect review: 3 critical bugs, 5 medium fixes, and dead code removal. Net ~2,950 lines removed.
+## Problem
 
-## Phase 1: Critical Bug Fixes
+The user correctly identified that the Creator Challenge Detail View ("My Version") shows fields the Creator **did not explicitly fill in**. After querying the actual `md_governance_field_rules` table, I found the root causes:
 
-### 1.1 BUG-CR-001 — Form validation not updating on governance mode change
-**File:** `ChallengeCreatePage.tsx` line 317
-Add `key={governanceMode}-${engagementModel}` to `ChallengeCreatorForm` to force remount when mode changes, ensuring the correct Zod resolver is used.
+### Finding 1: IP Model has `visibility: 'auto'` for QUICK mode
+The `isFieldVisible()` function only hides fields with `visibility === 'hidden'`. Since `'auto'` !== `'hidden'`, the IP field **shows in the form** AND gets the default value `IP-NEL` from `defaultValues`. The user never chose it, but it appears in the snapshot and detail view as if they did.
 
-### 1.2 BUG-CR-002 — Operator precedence in Active tab filter
-**File:** `MyChallengesPage.tsx` line 94
-Add parentheses: `(c.master_status === 'IN_PREPARATION' && c.current_phase > 1) || c.master_status === 'ACTIVE'`
+**Design intent**: QUICK mode should auto-assign IP-NEL silently — user shouldn't see or interact with it. The detail view shouldn't display auto-assigned values as user decisions.
 
-### 1.3 BUG-CR-003 — Snapshot expected_outcomes format mismatch
-**File:** `useSubmitSolutionRequest.ts` line 257
-Change `filteredPayload.expectedOutcomes || null` to `serializeLineItems(filteredPayload.expectedOutcomes)` so the snapshot matches the challenges table format.
+### Finding 2: Scope has `visibility: 'optional'` for QUICK mode
+Per project memory, QUICK mode hides Scope. But the DB rule says `optional`, not `hidden`. After our recent refactor (replacing hardcoded `!isQuick` with `isFieldVisible()`), Scope now **incorrectly shows** in QUICK mode because `'optional'` passes the visibility check.
 
-## Phase 2: Dead Code Removal (~3,000 lines)
+### Finding 3: Expected Outcomes has `visibility: 'optional'` for QUICK mode
+But per project memory: "Expected Outcomes is mandatory across all governance modes." The DB rule contradicts the documented requirement.
 
-### 2.1 Delete `SimpleIntakeForm.tsx` (1,151 lines)
-Confirmed: zero imports outside the file itself.
+### Finding 4: Detail view shows empty/default values from snapshot
+The snapshot saves auto-defaulted values (IP-NEL, empty scope, budget 0/0) even when the user didn't interact with them. The detail view renders these because `snapshot.ip_model` is truthy (`'IP-NEL'`).
 
-### 2.2 Delete `ConversationalIntakePage.tsx` (1,807 lines)
-Confirmed: no route in App.tsx, zero external imports.
+## Fix Plan
 
-## Phase 3: Medium Fixes & Cleanup
+### 1. Update `isFieldVisible()` to treat `'auto'` as not visible
+**File:** `src/hooks/queries/useGovernanceFieldRules.ts`
 
-### 3.1 LineItemsInput key fix
-**File:** `LineItemsInput.tsx` line 86
-Change `key={index}` to `` key={`item-${index}-${item.slice(0,20)}`} `` for stable drag-and-drop keys.
+```typescript
+export function isFieldVisible(rules: FieldRulesMap, fieldKey: string): boolean {
+  const rule = rules[fieldKey];
+  if (!rule) return true;
+  return rule.visibility !== 'hidden' && rule.visibility !== 'auto';
+}
+```
 
-### 3.2 Extract shared display helpers (DRY)
-**Create:** `src/lib/cogniblend/displayHelpers.ts` with `formatCurrency()`, `governanceLabel()`, `complexityColor()` extracted from `CreatorChallengeDetailView.tsx`.
-**Update:** `CreatorChallengeDetailView.tsx`, `PublicChallengeDetailPage.tsx`, `MyChallengesPage.tsx` to import from shared module instead of local definitions.
+This ensures auto-assigned fields (like IP for QUICK) are hidden from the form AND the detail view.
 
-### 3.3 Extract shared draft payload builder
-**File:** `useSubmitSolutionRequest.ts`
-Extract `buildChallengeUpdatePayload()` shared by `useSaveDraft` and `useUpdateDraft` to eliminate ~150 lines of duplication.
+### 2. Fix DB governance rules for QUICK mode
+**Migration:** Update 3 field rules:
+- `scope` for QUICK: change `optional` → `hidden` (matches original design)
+- `expected_outcomes` for QUICK: change `optional` → `required` (matches project memory: mandatory for all modes)
+- Optionally verify `ip_model: 'auto'` is correct intent
 
-### 3.4 Fix useEffect dependency
-**File:** `ChallengeCreatePage.tsx` line 228
-Change `[currentOrg?.governanceProfile]` to `[currentOrg]`.
+### 3. Ensure snapshot excludes auto/hidden field values
+**File:** `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
 
-### 3.5 Add explanatory comment for is_deleted client-side filter
-**File:** `useMyChallenges.ts` — add comment explaining PostgREST nested filter limitation.
+The snapshot construction should check governance visibility before including fields. For `'auto'` fields, save the auto-assigned value to the DB column but **exclude it from the snapshot** (since it wasn't a user decision). Apply the same `stripHiddenFields` to the snapshot object.
 
-### 3.6 Add pagination prep to useMyChallenges
-Add `.order('created_at', { ascending: false }).limit(50)` for scalability.
+### 4. Detail view: skip rendering sections with empty/default data
+**File:** `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
 
-## Files Summary
+The `myVersionSections` already has null checks per section, but auto-defaulted values like `ip_model: 'IP-NEL'` and `budget: 0/0` pass these checks. Since fix #3 strips them from snapshots, new submissions will be clean. For existing snapshots, the governance field rules filter in `FilteredSections` will handle hiding (since `'auto'` is now treated as not visible).
 
-| File | Action |
+## Files Changed
+
+| File | Change |
 |------|--------|
-| `ChallengeCreatePage.tsx` | Add key prop + fix useEffect dep |
-| `MyChallengesPage.tsx` | Fix operator precedence |
-| `useSubmitSolutionRequest.ts` | Fix snapshot format + extract helper |
-| `SimpleIntakeForm.tsx` | DELETE |
-| `ConversationalIntakePage.tsx` | DELETE |
-| `LineItemsInput.tsx` | Fix key prop |
-| `displayHelpers.ts` | CREATE (shared utils) |
-| `CreatorChallengeDetailView.tsx` | Import shared helpers |
-| `PublicChallengeDetailPage.tsx` | Import shared helpers |
-| `useMyChallenges.ts` | Add comment + pagination |
+| `src/hooks/queries/useGovernanceFieldRules.ts` | Treat `'auto'` visibility as not visible |
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Strip hidden/auto fields from snapshot |
+| Migration | Fix `scope` (→ hidden), `expected_outcomes` (→ required) for QUICK mode |
 
-**Not touched:** Curator, LC, FC, ER files. Supabase migrations. Edge functions. App.tsx routing. Auth system. Admin pages.
+## Not Changed
+- `EssentialDetailsTab.tsx` — already uses `isFieldVisible()`, will auto-correct once `'auto'` is handled
+- `CreatorChallengeDetailView.tsx` — already uses `fieldRules` filter, will auto-correct
+- `MyChallengesPage.tsx` list cards — only shows title/badges, no domain tags or IP (confirmed correct)
 
