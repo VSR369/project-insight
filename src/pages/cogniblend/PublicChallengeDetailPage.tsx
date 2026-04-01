@@ -30,6 +30,7 @@ import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAccept
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 import { SolverEnrollmentCTA } from '@/components/cogniblend/solver/SolverEnrollmentCTA';
 import { CreatorChallengeDetailView } from '@/components/cogniblend/challenges/CreatorChallengeDetailView';
+import { formatCurrency, complexityColor, governanceLabel } from '@/lib/cogniblend/displayHelpers';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
