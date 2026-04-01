@@ -519,6 +519,7 @@ export default function AIReviewConfigPage() {
   const [globalModel, setGlobalModel] = useState('');
   const [criticalModel, setCriticalModel] = useState('');
   const [batchThreshold, setBatchThreshold] = useState(15);
+  const [useContextIntelligence, setUseContextIntelligence] = useState(false);
   const [globalSaving, setGlobalSaving] = useState(false);
 
   useEffect(() => {
