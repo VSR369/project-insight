@@ -223,15 +223,76 @@ serve(async (req) => {
     }
 
     // Save extracted text
-    await adminClient.from("challenge_attachments").update({
+    const updatePayload: Record<string, unknown> = {
       extracted_text: extractedText.substring(0, 100000),
       extraction_method: method,
       extraction_status: "completed",
       updated_at: new Date().toISOString(),
-    }).eq("id", attachment_id);
+    };
+
+    // ── TIER 2: AI Summarization (additive) ──
+    if (extractedText.length > 500) {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (LOVABLE_API_KEY) {
+        try {
+          const tier2Resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              max_tokens: 1500,
+              temperature: 0.1,
+              messages: [{
+                role: "user",
+                content: `Analyze this document and provide:
+
+1. SUMMARY: 3-5 bullet points of key information (max 500 chars total)
+2. KEY_DATA: Extract as JSON with these arrays: facts[], statistics[], names[], dates[], regulations[]
+
+Document content:
+${extractedText.substring(0, 8000)}
+
+Return in this exact format:
+SUMMARY:
+- bullet 1
+- bullet 2
+
+KEY_DATA:
+{"facts":[],"statistics":[],"names":[],"dates":[],"regulations":[]}`,
+              }],
+            }),
+          });
+          if (tier2Resp.ok) {
+            const tier2Result = await tier2Resp.json();
+            const tier2Content = tier2Result.choices?.[0]?.message?.content || "";
+
+            // Parse summary
+            const summaryMatch = tier2Content.match(/SUMMARY:\s*([\s\S]*?)(?=KEY_DATA:|$)/i);
+            if (summaryMatch?.[1]) {
+              updatePayload.extracted_summary = summaryMatch[1].trim().substring(0, 500);
+            }
+
+            // Parse key data JSON
+            const keyDataMatch = tier2Content.match(/KEY_DATA:\s*(\{[\s\S]*\})/i);
+            if (keyDataMatch?.[1]) {
+              try {
+                updatePayload.extracted_key_data = JSON.parse(keyDataMatch[1].trim());
+              } catch { /* skip if invalid JSON */ }
+            }
+          }
+        } catch (tier2Err: any) {
+          console.error("Tier 2 summarization failed (non-blocking):", tier2Err.message);
+        }
+      }
+    }
+
+    await adminClient.from("challenge_attachments").update(updatePayload).eq("id", attachment_id);
 
     return new Response(
-      JSON.stringify({ success: true, data: { method, length: extractedText.length } }),
+      JSON.stringify({ success: true, data: { method, length: extractedText.length, hasSummary: !!updatePayload.extracted_summary } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: any) {
