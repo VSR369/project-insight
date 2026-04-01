@@ -23,6 +23,7 @@ interface SectionReferencePanelProps {
   challengeId: string;
   sectionKey: string;
   disabled?: boolean;
+  onOpenLibrary?: (sectionKey: string) => void;
 }
 
 interface AttachmentRow {
