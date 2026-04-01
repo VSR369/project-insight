@@ -87,6 +87,52 @@ OUT OF SCOPE:
   reward_structure: `Monetary: 3-tier competitive structure. 1st place: $45,000, 2nd place: $20,000, 3rd place: $10,000. Total pool: $75,000 USD. Non-monetary: Featured case study on our innovation portal, letter of recommendation from our VP Supply Chain, priority consideration for Phase 2 pilot engagement.`,
 };
 
+/**
+ * Proportionality Anchor — calibrates AI-generated content scale to the
+ * challenge's budget, maturity level, and timeline.
+ */
+function buildProportionalityAnchor(ctx?: any): string {
+  if (!ctx) return '';
+
+  const budgetMin = ctx.budgetMin ?? ctx.budget_min ?? 0;
+  const budgetMax = ctx.budgetMax ?? ctx.budget_max ?? 0;
+  const currency = ctx.currency ?? ctx.currencyCode ?? 'USD';
+  const maturity = ctx.maturityLevel ?? ctx.maturity_level ?? 'not set';
+  const timeline = ctx.timeline ?? ctx.totalWeeks ?? 'not set';
+
+  // Determine budget tier label
+  let budgetTier = 'unknown';
+  if (budgetMax > 0 && budgetMax < 25000) budgetTier = 'under $25K (micro-challenge)';
+  else if (budgetMax >= 25000 && budgetMax <= 100000) budgetTier = '$25K–$100K (standard challenge)';
+  else if (budgetMax > 100000 && budgetMax <= 500000) budgetTier = '$100K–$500K (premium challenge)';
+  else if (budgetMax > 500000) budgetTier = '$500K+ (enterprise challenge)';
+
+  // Maturity mapping
+  const maturityMap: Record<string, string> = {
+    blueprint: 'Blueprint — conceptual exploration, lightweight deliverables',
+    demo: 'Demo — working demonstration, moderate deliverables',
+    poc: 'POC — feasibility evidence, focused deliverables',
+    prototype: 'Prototype — functional end-to-end demo, substantial deliverables',
+    pilot: 'Pilot — real-world deployment test, comprehensive deliverables',
+  };
+  const maturityDesc = maturityMap[(maturity || '').toLowerCase()] ?? maturity;
+
+  return `## PROPORTIONALITY ANCHOR (CRITICAL — SCOPE CALIBRATION)
+Budget range: ${currency} ${budgetMin.toLocaleString()}–${budgetMax.toLocaleString()} (Tier: ${budgetTier})
+Maturity level: ${maturityDesc}
+Timeline: ${timeline} weeks
+
+CALIBRATION RULES:
+- Under $25K: Max 3 deliverables, max 5 KPIs, max 2 evaluation criteria, max 2 phases. Simple expertise requirements.
+- $25K–$100K: Max 5 deliverables, max 8 KPIs, max 5 evaluation criteria, max 3 phases. Standard expertise.
+- $100K–$500K: Max 8 deliverables, max 12 KPIs, max 7 evaluation criteria, max 4 phases. Advanced expertise.
+- $500K+: Scale appropriately but justify complexity with budget headroom.
+
+SCOPE CEILING RULE: Never generate more deliverables, criteria, or phases than the budget tier allows unless the seeker explicitly specified them.
+
+10× TEST: Before finalizing ANY section, ask: "Would a reasonable sponsor paying ${currency} ${budgetMax.toLocaleString()} expect this level of scope/complexity?" If the answer is no, scale down.`;
+}
+
 /** Map section keys to their format type for prompt enrichment */
 const SECTION_FORMAT_MAP: Record<string, string> = {
   problem_statement: 'rich_text',
@@ -915,6 +961,10 @@ export function buildStructuredBatchPrompt(
   parts.push(INTELLIGENCE_DIRECTIVE);
   parts.push('');
 
+  // Proportionality Anchor — calibrates AI output scale to budget/maturity/timeline
+  parts.push(buildProportionalityAnchor(clientContext));
+  parts.push('');
+
   // FIX 6 + GAP 3: Domain-specific framework injection (scans tags, problem_statement, scope)
   {
     const frameworks = detectDomainFrameworks(
@@ -1323,6 +1373,8 @@ Before returning your rewritten content, mentally verify:
 8. ✅ For AI-ONLY reference materials — did I embed the data directly (not reference the document)?
 
 If ANY check fails, revise before returning.
+
+${buildProportionalityAnchor(challengeContext)}
 
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
