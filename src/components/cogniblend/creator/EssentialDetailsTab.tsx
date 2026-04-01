@@ -98,7 +98,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.problem_statement?.message && <p className="text-xs text-destructive">{String(errors.problem_statement.message)}</p>}
       </div>
 
-      {!isQuick && (
+      {showScope && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">
             Scope <span className="text-destructive">*</span>
