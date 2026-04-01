@@ -1548,9 +1548,9 @@ serve(async (req) => {
       } catch { /* attachments are optional — graceful fallback */ }
     }
 
-    // ── Phase 7: Fetch context digest ─────────────────────────────────────
+    // ── Phase 7: Fetch context digest (gated by feature flag) ──────────────
     let contextDigestText = '';
-    if (resolvedContext === "curation") {
+    if (resolvedContext === "curation" && useContextIntelligence) {
       try {
         const { data: digest } = await adminClient
           .from('challenge_context_digest')
