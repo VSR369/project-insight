@@ -12,6 +12,12 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';
 import { normalizeChallengeFields } from '@/lib/cogniblend/challengeFieldNormalizer';
+import {
+  fetchGovernanceFieldRules,
+  stripHiddenFields,
+  stripHiddenExtendedBriefFields,
+  FORM_FIELD_TO_GOVERNANCE_KEY,
+} from '@/lib/cogniblend/governanceFieldFilter';
 
 interface SubmitPayload {
   orgId: string;
@@ -142,7 +148,12 @@ export function useSubmitSolutionRequest() {
         challengeId = newId;
       }
 
-      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
+      // Fetch governance rules and strip hidden fields from payload
+      const effectiveMode = payload.governanceModeOverride ?? 'STRUCTURED';
+      const governanceRules = await fetchGovernanceFieldRules(effectiveMode);
+      const filteredPayload = stripHiddenFields(payload as unknown as Record<string, unknown>, governanceRules) as unknown as SubmitPayload;
+
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(filteredPayload);
 
       const rewardStructure = {
         currency: payload.currency,
@@ -160,85 +171,93 @@ export function useSubmitSolutionRequest() {
       };
 
       const phaseSchedule = {
-        expected_timeline: payload.expectedTimeline,
+        expected_timeline: filteredPayload.expectedTimeline,
       };
+
+      // Build extended_brief then strip hidden fields
+      const rawExtendedBrief: Record<string, unknown> = {
+        ...(filteredPayload.beneficiariesMapping ? { beneficiaries_mapping: filteredPayload.beneficiariesMapping } : {}),
+        ...(filteredPayload.templateId ? { challenge_template_id: filteredPayload.templateId } : {}),
+        ...(filteredPayload.contextBackground ? { context_background: filteredPayload.contextBackground } : {}),
+        ...(filteredPayload.rootCauses?.filter(Boolean).length ? { root_causes: filteredPayload.rootCauses.filter(Boolean) } : {}),
+        ...(filteredPayload.affectedStakeholders?.length
+          ? { affected_stakeholders: filteredPayload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
+          : {}),
+        ...(filteredPayload.scopeDefinition ? { scope_definition: filteredPayload.scopeDefinition } : {}),
+        ...(filteredPayload.preferredApproach?.filter(Boolean).length ? { preferred_approach: filteredPayload.preferredApproach.filter(Boolean) } : {}),
+        ...(filteredPayload.approachesNotOfInterest?.filter(Boolean).length
+          ? { approaches_not_of_interest: filteredPayload.approachesNotOfInterest.filter(Boolean) }
+          : {}),
+        ...(filteredPayload.solutionExpectations ? { solution_expectations: filteredPayload.solutionExpectations } : {}),
+        ...(filteredPayload.currentDeficiencies?.filter(Boolean).length
+          ? { current_deficiencies: filteredPayload.currentDeficiencies.filter(Boolean) }
+          : {}),
+        ...(filteredPayload.referenceUrls?.length ? { reference_urls: filteredPayload.referenceUrls } : {}),
+      };
+      const filteredExtendedBrief = stripHiddenExtendedBriefFields(rawExtendedBrief, governanceRules);
 
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
-          problem_statement: payload.businessProblem,
-          scope: payload.constraints || null,
-          expected_outcomes: serializeLineItems(payload.expectedOutcomes),
-          submission_guidelines: payload.submissionGuidelines ? serializeLineItems(payload.submissionGuidelines) : null,
+          problem_statement: filteredPayload.businessProblem,
+          scope: filteredPayload.constraints || null,
+          expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
+          submission_guidelines: filteredPayload.submissionGuidelines ? serializeLineItems(filteredPayload.submissionGuidelines) : null,
           reward_structure: rewardStructure,
           phase_schedule: phaseSchedule,
           governance_mode_override: payload.governanceModeOverride ?? null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
-            constraints: payload.constraints || undefined,
+            constraints: filteredPayload.constraints || undefined,
             industry_segment_id: payload.industrySegmentId || undefined,
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
           maturity_level: normalizedConstrainedFields.maturity_level,
-          solution_maturity_id: payload.solutionMaturityId || null,
+          solution_maturity_id: filteredPayload.solutionMaturityId || null,
           ip_model: normalizedConstrainedFields.ip_model,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
-          extended_brief: {
-            ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
-            ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
-            ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-            ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
-            ...(payload.affectedStakeholders?.length
-              ? { affected_stakeholders: payload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
-              : {}),
-            ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-            ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
-            ...(payload.approachesNotOfInterest?.filter(Boolean).length
-              ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) }
-              : {}),
-            ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies?.filter(Boolean).length
-              ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) }
-              : {}),
-            ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
-          },
+          extended_brief: filteredExtendedBrief,
         } as any)
         .eq('id', challengeId);
 
       if (updateError) throw new Error(updateError.message);
 
+      // Build creator snapshot with same governance filtering
+      const rawSnapshotBrief: Record<string, unknown> = {
+        ...(filteredPayload.contextBackground ? { context_background: filteredPayload.contextBackground } : {}),
+        ...(filteredPayload.rootCauses ? { root_causes: filteredPayload.rootCauses } : {}),
+        ...(filteredPayload.affectedStakeholders ? { affected_stakeholders: filteredPayload.affectedStakeholders } : {}),
+        ...(filteredPayload.scopeDefinition ? { scope_definition: filteredPayload.scopeDefinition } : {}),
+        ...(filteredPayload.preferredApproach ? { preferred_approach: filteredPayload.preferredApproach } : {}),
+        ...(filteredPayload.approachesNotOfInterest ? { approaches_not_of_interest: filteredPayload.approachesNotOfInterest } : {}),
+        ...(filteredPayload.solutionExpectations ? { solution_expectations: filteredPayload.solutionExpectations } : {}),
+        ...(filteredPayload.currentDeficiencies ? { current_deficiencies: filteredPayload.currentDeficiencies } : {}),
+        ...(filteredPayload.beneficiariesMapping ? { beneficiaries_mapping: filteredPayload.beneficiariesMapping } : {}),
+        ...(filteredPayload.referenceUrls?.length ? { reference_urls: filteredPayload.referenceUrls } : {}),
+      };
+      const filteredSnapshotBrief = stripHiddenExtendedBriefFields(rawSnapshotBrief, governanceRules);
+
       const creatorSnapshot = {
-        problem_statement: payload.businessProblem,
-        scope: payload.constraints || null,
-        expected_outcomes: payload.expectedOutcomes || null,
+        problem_statement: filteredPayload.businessProblem,
+        scope: filteredPayload.constraints || null,
+        expected_outcomes: filteredPayload.expectedOutcomes || null,
         reward_structure: rewardStructure,
         phase_schedule: phaseSchedule,
-        extended_brief: {
-          ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-          ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
-          ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
-          ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-          ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
-          ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
-          ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-          ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
-          ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
-          ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
-        },
+        extended_brief: filteredSnapshotBrief,
         title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
         maturity_level: normalizedConstrainedFields.maturity_level,
-        solution_maturity_id: payload.solutionMaturityId || null,
+        solution_maturity_id: filteredPayload.solutionMaturityId || null,
         ip_model: normalizedConstrainedFields.ip_model,
         domain_tags: payload.domainTags,
         industry_segment_id: payload.industrySegmentId || null,
         budget_min: payload.budgetMin,
         budget_max: payload.budgetMax,
         currency: payload.currency,
-        expected_timeline: payload.expectedTimeline,
+        expected_timeline: filteredPayload.expectedTimeline,
       };
 
       await supabase.from('challenges').update({ creator_snapshot: creatorSnapshot } as any).eq('id', challengeId);
@@ -301,7 +320,12 @@ export function useSaveDraft() {
   return useMutation({
     mutationFn: async (payload: DraftPayload): Promise<{ challengeId: string }> => {
       const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
-      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
+
+      // Governance-aware filtering for drafts
+      const effectiveMode = payload.governanceModeOverride ?? 'STRUCTURED';
+      const governanceRules = await fetchGovernanceFieldRules(effectiveMode);
+      const fp = stripHiddenFields(payload as unknown as Record<string, unknown>, governanceRules) as unknown as DraftPayload;
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(fp);
 
       const { data: challengeId, error: initError } = await supabase.rpc('initialize_challenge', {
         p_org_id: payload.orgId,
@@ -313,14 +337,33 @@ export function useSaveDraft() {
       if (initError) throw new Error(initError.message);
       if (!challengeId) throw new Error('Failed to create draft');
 
+      const rawExtBrief: Record<string, unknown> = {
+        ...(fp.beneficiariesMapping ? { beneficiaries_mapping: fp.beneficiariesMapping } : {}),
+        ...(fp.templateId ? { challenge_template_id: fp.templateId } : {}),
+        ...(fp.contextBackground ? { context_background: fp.contextBackground } : {}),
+        ...(fp.rootCauses?.filter(Boolean).length ? { root_causes: fp.rootCauses.filter(Boolean) } : {}),
+        ...(fp.affectedStakeholders?.length
+          ? { affected_stakeholders: fp.affectedStakeholders.filter((s) => s.stakeholder_name.trim()) }
+          : {}),
+        ...(fp.scopeDefinition ? { scope_definition: fp.scopeDefinition } : {}),
+        ...(fp.preferredApproach?.filter(Boolean).length ? { preferred_approach: fp.preferredApproach.filter(Boolean) } : {}),
+        ...(fp.approachesNotOfInterest?.filter(Boolean).length
+          ? { approaches_not_of_interest: fp.approachesNotOfInterest.filter(Boolean) }
+          : {}),
+        ...(fp.solutionExpectations ? { solution_expectations: fp.solutionExpectations } : {}),
+        ...(fp.currentDeficiencies?.filter(Boolean).length
+          ? { current_deficiencies: fp.currentDeficiencies.filter(Boolean) }
+          : {}),
+      };
+
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
-          problem_statement: payload.businessProblem || null,
-          scope: payload.constraints || null,
-          expected_outcomes: serializeLineItems(payload.expectedOutcomes),
-          submission_guidelines: payload.submissionGuidelines ? serializeLineItems(payload.submissionGuidelines) : null,
+          problem_statement: fp.businessProblem || null,
+          scope: fp.constraints || null,
+          expected_outcomes: serializeLineItems(fp.expectedOutcomes),
+          submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,
@@ -337,39 +380,22 @@ export function useSaveDraft() {
             },
           },
           phase_schedule: {
-            expected_timeline: payload.expectedTimeline,
+            expected_timeline: fp.expectedTimeline,
           },
           maturity_level: normalizedConstrainedFields.maturity_level,
-          solution_maturity_id: payload.solutionMaturityId || null,
+          solution_maturity_id: fp.solutionMaturityId || null,
           ip_model: normalizedConstrainedFields.ip_model,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
-            constraints: payload.constraints || undefined,
+            constraints: fp.constraints || undefined,
             industry_segment_id: payload.industrySegmentId || undefined,
             sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
-          extended_brief: {
-            ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
-            ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
-            ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-            ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
-            ...(payload.affectedStakeholders?.length
-              ? { affected_stakeholders: payload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
-              : {}),
-            ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-            ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
-            ...(payload.approachesNotOfInterest?.filter(Boolean).length
-              ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) }
-              : {}),
-            ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies?.filter(Boolean).length
-              ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) }
-              : {}),
-          },
+          extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
         } as any)
         .eq('id', challengeId);
 
@@ -394,16 +420,39 @@ export function useUpdateDraft() {
 
   return useMutation({
     mutationFn: async (payload: DraftPayload & { challengeId: string }): Promise<{ challengeId: string }> => {
-      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(payload);
+      // Governance-aware filtering for draft updates
+      const effectiveMode = payload.governanceModeOverride ?? 'STRUCTURED';
+      const governanceRules = await fetchGovernanceFieldRules(effectiveMode);
+      const fp = stripHiddenFields(payload as unknown as Record<string, unknown>, governanceRules) as unknown as (DraftPayload & { challengeId: string });
+      const normalizedConstrainedFields = normalizeConstrainedChallengeFields(fp);
+
+      const rawExtBrief: Record<string, unknown> = {
+        ...(fp.beneficiariesMapping ? { beneficiaries_mapping: fp.beneficiariesMapping } : {}),
+        ...(fp.templateId ? { challenge_template_id: fp.templateId } : {}),
+        ...(fp.contextBackground ? { context_background: fp.contextBackground } : {}),
+        ...(fp.rootCauses?.filter(Boolean).length ? { root_causes: fp.rootCauses.filter(Boolean) } : {}),
+        ...(fp.affectedStakeholders?.length
+          ? { affected_stakeholders: fp.affectedStakeholders.filter((s) => s.stakeholder_name.trim()) }
+          : {}),
+        ...(fp.scopeDefinition ? { scope_definition: fp.scopeDefinition } : {}),
+        ...(fp.preferredApproach?.filter(Boolean).length ? { preferred_approach: fp.preferredApproach.filter(Boolean) } : {}),
+        ...(fp.approachesNotOfInterest?.filter(Boolean).length
+          ? { approaches_not_of_interest: fp.approachesNotOfInterest.filter(Boolean) }
+          : {}),
+        ...(fp.solutionExpectations ? { solution_expectations: fp.solutionExpectations } : {}),
+        ...(fp.currentDeficiencies?.filter(Boolean).length
+          ? { current_deficiencies: fp.currentDeficiencies.filter(Boolean) }
+          : {}),
+      };
 
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
-          problem_statement: payload.businessProblem || null,
-          scope: payload.constraints || null,
-          expected_outcomes: serializeLineItems(payload.expectedOutcomes),
-          submission_guidelines: payload.submissionGuidelines ? serializeLineItems(payload.submissionGuidelines) : null,
+          problem_statement: fp.businessProblem || null,
+          scope: fp.constraints || null,
+          expected_outcomes: serializeLineItems(fp.expectedOutcomes),
+          submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,
@@ -420,37 +469,20 @@ export function useUpdateDraft() {
             },
           },
           phase_schedule: {
-            expected_timeline: payload.expectedTimeline,
+            expected_timeline: fp.expectedTimeline,
           },
           maturity_level: normalizedConstrainedFields.maturity_level,
-          solution_maturity_id: payload.solutionMaturityId || null,
+          solution_maturity_id: fp.solutionMaturityId || null,
           ip_model: normalizedConstrainedFields.ip_model,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
-            constraints: payload.constraints || undefined,
+            constraints: fp.constraints || undefined,
             industry_segment_id: payload.industrySegmentId || undefined,
           }),
-          extended_brief: {
-            ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
-            ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
-            ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-            ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
-            ...(payload.affectedStakeholders?.length
-              ? { affected_stakeholders: payload.affectedStakeholders.filter((stakeholder) => stakeholder.stakeholder_name.trim()) }
-              : {}),
-            ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-            ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
-            ...(payload.approachesNotOfInterest?.filter(Boolean).length
-              ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) }
-              : {}),
-            ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies?.filter(Boolean).length
-              ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) }
-              : {}),
-          },
+          extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
         } as any)
         .eq('id', payload.challengeId);
 
