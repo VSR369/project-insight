@@ -686,13 +686,21 @@ ${contentStr}
 ${depBlock}
     ${(() => {
       const sectionAtts = (attachmentsBySection || {})[r.section_key] || [];
-      return sectionAtts.length > 0
-        ? `\nREFERENCE MATERIALS for this section:\n${sectionAtts.map((a: any) => {
-            const typeTag = a.sourceType === 'url' ? 'WEB' : 'DOC';
-            const shareTag = a.sharedWithSolver ? 'SHARED' : 'AI-ONLY';
-            return `--- [${typeTag}] ${a.name} [${shareTag}] ---\n${a.sourceUrl ? `Source: ${a.sourceUrl}\n` : ''}${a.content}`;
-          }).join('\n')}\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.\n`
-        : '';
+      if (sectionAtts.length === 0) return '';
+      let block = '\nREFERENCE MATERIALS for this section:\n';
+      for (const a of sectionAtts) {
+        const typeTag = a.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
+        const shareTag = a.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY';
+        block += `--- [${typeTag}] ${a.name} [${shareTag}] ---\n`;
+        if (a.sourceUrl) block += `Source: ${a.sourceUrl}\n`;
+        if (a.resourceType) block += `Type: ${a.resourceType}\n`;
+        if (a.summary) block += `KEY POINTS:\n${a.summary}\n`;
+        if (a.keyData && Object.keys(a.keyData).length > 0) block += `VERIFIED DATA: ${JSON.stringify(a.keyData)}\n`;
+        block += `CONTENT:\n${a.content}\n`;
+      }
+      block += `\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.`;
+      block += `\n\nGROUNDING RULE: Every factual claim, statistic, or benchmark MUST trace to the VERIFIED CONTEXT DIGEST or a REFERENCE MATERIAL. If a claim is NOT from these sources, prefix it with [INFERENCE] so the Curator can verify independently.\n`;
+      return block;
     })()}
 ${strengthBlock}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
