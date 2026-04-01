@@ -65,6 +65,7 @@ const EMPTY_STAKEHOLDER = { stakeholder_name: '', role: '', impact_description: 
 
 interface AdditionalContextTabProps {
   governanceMode: GovernanceMode;
+  fieldRules?: FieldRulesMap;
   attachedFiles?: File[];
   onFilesChange?: (files: File[]) => void;
   referenceUrls?: string[];
