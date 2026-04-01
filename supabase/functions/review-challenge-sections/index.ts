@@ -1521,7 +1521,7 @@ serve(async (req) => {
       try {
         const { data: attachments } = await adminClient
           .from('challenge_attachments')
-          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extracted_summary, extracted_key_data, extraction_status, shared_with_solver, discovery_status')
+          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extracted_summary, extracted_key_data, extraction_status, shared_with_solver, discovery_status, resource_type')
           .eq('challenge_id', challenge_id)
           .eq('extraction_status', 'completed')
           .in('discovery_status', ['accepted', 'manual']);
