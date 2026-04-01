@@ -1,6 +1,6 @@
 /**
  * AIReviewInline — Role-agnostic per-section AI review panel.
- * Extracted from CurationAIReviewInline for reuse across AM/RQ, CR/CA, and CU roles.
+ * Extracted from CurationAIReviewInline for reuse across CR and CU roles.
  *
  * Phase 5B: Now format-aware for master-data sections (checkbox_multi, checkbox_single,
  * select, radio). AI suggestions for these sections are parsed as code arrays/strings

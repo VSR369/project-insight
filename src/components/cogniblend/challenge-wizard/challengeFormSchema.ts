@@ -152,20 +152,13 @@ export function createChallengeFormSchema(
     preferred_approach: z.array(z.string()).default(['']),
     approaches_not_of_interest: z.array(z.string()).default(['']),
 
-    // Step 1 — Structured table (CONTROLLED: required; else optional)
-    affected_stakeholders: isControlled
-      ? z.array(z.object({
-          stakeholder_name: z.string().max(200).default(''),
-          role: z.string().max(200).default(''),
-          impact_description: z.string().max(500).default(''),
-          adoption_challenge: z.string().max(500).default(''),
-        })).refine((arr) => arr.some((s) => s.stakeholder_name.trim().length > 0), 'At least one stakeholder is required for Controlled mode')
-      : z.array(z.object({
-          stakeholder_name: z.string().max(200).default(''),
-          role: z.string().max(200).default(''),
-          impact_description: z.string().max(500).default(''),
-          adoption_challenge: z.string().max(500).default(''),
-        })).default([]),
+    // Step 1 — Structured table (always optional per plan v2)
+    affected_stakeholders: z.array(z.object({
+      stakeholder_name: z.string().max(200).default(''),
+      role: z.string().max(200).default(''),
+      impact_description: z.string().max(500).default(''),
+      adoption_challenge: z.string().max(500).default(''),
+    })).default([]),
 
     // Step 1 — Selectors
     // industry_segment_id: optional for QUICK, required for STRUCTURED/CONTROLLED
