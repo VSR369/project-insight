@@ -18,6 +18,7 @@ interface SubmitPayload {
   operatingModel: string;
   title?: string;
   businessProblem: string;
+  draftChallengeId?: string;
   expectedOutcomes: string[];
   constraints?: string;
   currency: string;
