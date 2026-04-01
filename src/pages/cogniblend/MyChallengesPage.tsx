@@ -55,7 +55,8 @@ function getStatusConfig(masterStatus: string, phase: number): StatusConfig {
 
 function governanceLabel(profile: string): string {
   switch (profile) {
-    case 'LIGHTWEIGHT': return 'Quick';
+    case 'LIGHTWEIGHT':
+    case 'QUICK': return 'Quick';
     case 'STRUCTURED': return 'Structured';
     case 'CONTROLLED': return 'Controlled';
     default: return profile;
@@ -111,7 +112,9 @@ export default function MyChallengesPage() {
           deleted_at: new Date().toISOString(),
           deleted_by: user.id,
         } as any)
-        .eq('id', deleteTarget);
+        .eq('id', deleteTarget)
+        .eq('created_by', user.id)
+        .eq('current_phase', 1);
 
       if (error) throw new Error(error.message);
       toast.success('Draft deleted');
@@ -245,7 +248,7 @@ function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete 
                 {statusConfig.label}
               </Badge>
               <Badge variant="outline" className="text-[10px]">
-                {governanceLabel(ch.governance_profile)}
+                {governanceLabel(ch.governance_mode_override ?? ch.governance_profile)}
               </Badge>
               {ch.operating_model && (
                 <Badge variant="outline" className="text-[10px]">

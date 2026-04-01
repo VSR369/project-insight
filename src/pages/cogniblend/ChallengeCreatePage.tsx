@@ -6,7 +6,7 @@
  * Then 2-tab ChallengeCreatorForm with governance-aware validation.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Zap, ShieldCheck, Info,
@@ -237,6 +237,12 @@ export default function ChallengeCreatePage() {
     }
   }, [orgContext?.operatingModel]);
 
+  // Callback for draft resume to sync governance/engagement from loaded draft
+  const handleDraftModeSync = useCallback((gov: GovernanceMode, eng: string) => {
+    setGovernanceMode(gov);
+    setEngagementModel(eng);
+  }, []);
+
   // ═══════ Loading ═══════
   if (orgLoading || modelLoading) {
     return (
@@ -311,6 +317,7 @@ export default function ChallengeCreatePage() {
       <ChallengeCreatorForm
         engagementModel={engagementModel}
         governanceMode={governanceMode}
+        onDraftModeSync={handleDraftModeSync}
       />
     </div>
   );

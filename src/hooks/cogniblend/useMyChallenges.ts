@@ -15,6 +15,7 @@ export interface MyChallengeItem {
   phase_status: string;
   role_code: string;
   governance_profile: string;
+  governance_mode_override: string | null;
   operating_model: string | null;
   created_at: string;
 }
@@ -36,7 +37,7 @@ export function useMyChallenges(userId: string | undefined) {
           role_code,
           challenge_id,
           challenges!user_challenge_roles_challenge_id_fkey (
-            id, title, current_phase, master_status, phase_status, governance_profile, operating_model, is_deleted, created_at
+            id, title, current_phase, master_status, phase_status, governance_profile, governance_mode_override, operating_model, is_deleted, created_at
           )
         `)
         .eq('user_id', userId)
@@ -62,6 +63,7 @@ export function useMyChallenges(userId: string | undefined) {
           phase_status: ch.phase_status ?? 'ACTIVE',
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
+          governance_mode_override: ch.governance_mode_override ?? null,
           operating_model: ch.operating_model ?? null,
           created_at: ch.created_at ?? '',
         });

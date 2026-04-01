@@ -121,6 +121,7 @@ export type CreatorFormValues = {
 interface ChallengeCreatorFormProps {
   engagementModel: string;
   governanceMode: GovernanceMode;
+  onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
 }
 
 function toFormMaturityCode(value: string | null | undefined): string {
@@ -131,7 +132,7 @@ function toFormMaturityCode(value: string | null | undefined): string {
   return `SOLUTION_${upper}`;
 }
 
-export function ChallengeCreatorForm({ engagementModel, governanceMode }: ChallengeCreatorFormProps) {
+export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -187,11 +188,23 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     (async () => {
       const { data: challenge } = await supabase
         .from('challenges')
-        .select('title, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule')
+        .select('title, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model')
         .eq('id', draftChallengeId)
         .maybeSingle();
 
       if (!challenge) return;
+
+      // Sync governance/engagement from draft to parent page
+      if (onDraftModeSync) {
+        const draftGovernance = (challenge as any).governance_mode_override as string | null;
+        const draftEngagement = (challenge as any).operating_model as string | null;
+        if (draftGovernance || draftEngagement) {
+          onDraftModeSync(
+            (draftGovernance as GovernanceMode) ?? governanceMode,
+            draftEngagement ?? engagementModel,
+          );
+        }
+      }
 
       const rewardStructure = challenge.reward_structure as Record<string, unknown> | null;
       const extendedBrief = challenge.extended_brief as Record<string, unknown> | null;
@@ -461,12 +474,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
               engagementModel={engagementModel}
               industrySegments={industrySegments}
               governanceMode={governanceMode}
+              fieldRules={fieldRules}
             />
           </TabsContent>
 
           <TabsContent value="context" className="mt-6">
             <AdditionalContextTab
               governanceMode={governanceMode}
+              fieldRules={fieldRules}
               attachedFiles={attachedFiles}
               onFilesChange={setAttachedFiles}
               referenceUrls={referenceUrls}

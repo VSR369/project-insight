@@ -26,6 +26,7 @@ import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineIte
 import { toast } from 'sonner';
 import type { CreatorFormValues } from './ChallengeCreatorForm';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
 const TIMELINE_OPTIONS = [
   { value: '4w', label: '4 weeks' },
@@ -64,6 +65,7 @@ const EMPTY_STAKEHOLDER = { stakeholder_name: '', role: '', impact_description: 
 
 interface AdditionalContextTabProps {
   governanceMode: GovernanceMode;
+  fieldRules?: FieldRulesMap;
   attachedFiles?: File[];
   onFilesChange?: (files: File[]) => void;
   referenceUrls?: string[];
@@ -72,6 +74,7 @@ interface AdditionalContextTabProps {
 
 export function AdditionalContextTab({
   governanceMode,
+  fieldRules,
   attachedFiles = [],
   onFilesChange,
   referenceUrls = [],
@@ -79,6 +82,7 @@ export function AdditionalContextTab({
 }: AdditionalContextTabProps) {
   const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
   const isControlled = governanceMode === 'CONTROLLED';
+  const rules = fieldRules ?? {};
   const [urlInput, setUrlInput] = useState('');
 
   const { fields: stakeholderFields, append: addStakeholder, remove: removeStakeholder } = useFieldArray({
@@ -140,6 +144,7 @@ export function AdditionalContextTab({
       )}
 
       {/* Context & Background — rich text (single narrative field) */}
+      {isFieldVisible(rules, 'context_background') && (
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Context & Background
@@ -160,9 +165,10 @@ export function AdditionalContextTab({
           <p className="text-xs text-destructive">{(errors as any).context_background.message}</p>
         )}
       </div>
+      )}
 
       {/* Line-item fields */}
-      {LINE_ITEM_FIELDS.map((cf) => {
+      {LINE_ITEM_FIELDS.filter((cf) => isFieldVisible(rules, cf.key)).map((cf) => {
         const fieldError = (errors as any)[cf.key];
         return (
           <Controller
@@ -187,6 +193,7 @@ export function AdditionalContextTab({
       })}
 
       {/* Affected Stakeholders — structured table */}
+      {isFieldVisible(rules, 'affected_stakeholders') && (
       <div className="space-y-3">
         <Label className="text-sm font-medium">
           Affected Stakeholders
@@ -232,8 +239,10 @@ export function AdditionalContextTab({
           <p className="text-xs text-destructive">{String((errors as any).affected_stakeholders.message)}</p>
         )}
       </div>
+      )}
 
       {/* Timeline */}
+      {isFieldVisible(rules, 'expected_timeline') && (
       <div className="space-y-2">
         <Label className="text-sm font-medium">Target Timeline</Label>
         <Controller
@@ -253,6 +262,7 @@ export function AdditionalContextTab({
           )}
         />
       </div>
+      )}
 
       {/* ── Reference Documents (File Upload) ── */}
       <div className="space-y-2">

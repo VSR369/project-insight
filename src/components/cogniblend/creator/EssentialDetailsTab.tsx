@@ -23,6 +23,7 @@ import { Info, Loader2 } from 'lucide-react';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -43,9 +44,10 @@ interface EssentialDetailsTabProps {
   engagementModel: string;
   industrySegments: Array<{ id: string; name: string }>;
   governanceMode: GovernanceMode;
+  fieldRules?: FieldRulesMap;
 }
 
-export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode }: EssentialDetailsTabProps) {
+export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode, fieldRules }: EssentialDetailsTabProps) {
   const {
     control,
     register,
@@ -53,7 +55,10 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
     formState: { errors },
   } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
-  const isQuick = governanceMode === 'QUICK';
+  const rules = fieldRules ?? {};
+  const showScope = isFieldVisible(rules, 'scope');
+  const showIpModel = isFieldVisible(rules, 'ip_model');
+  const showBudget = isFieldVisible(rules, 'platinum_award');
 
   const { data: maturityOptions = [], isLoading: maturityLoading } = useSolutionMaturityList();
 
@@ -93,7 +98,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.problem_statement?.message && <p className="text-xs text-destructive">{String(errors.problem_statement.message)}</p>}
       </div>
 
-      {!isQuick && (
+      {showScope && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">
             Scope <span className="text-destructive">*</span>
@@ -227,6 +232,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
       </div>
 
+      {showBudget && (
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Budget Range {isMPBudgetRequired && <span className="text-destructive">*</span>}
@@ -266,8 +272,9 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
           </div>
         )}
       </div>
+      )}
 
-      {!isQuick && (
+      {showIpModel && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">
             IP Preference <span className="text-destructive">*</span>
