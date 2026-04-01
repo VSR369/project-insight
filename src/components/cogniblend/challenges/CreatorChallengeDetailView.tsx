@@ -242,6 +242,8 @@ interface CreatorChallengeDetailViewProps {
 
 export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallengeDetailViewProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Resolve effective governance mode and fetch field rules
@@ -254,6 +256,64 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
   const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
+  const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
+
+  // Approve mutation — advances from CR_APPROVAL_PENDING to phase 4
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('challenges')
+        .update({ phase_status: 'COMPLETED' } as any)
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+
+      // Audit
+      await supabase.rpc('log_audit', {
+        p_user_id: user?.id ?? '',
+        p_challenge_id: challengeId,
+        p_solution_id: '',
+        p_action: 'CR_APPROVED_CURATION',
+        p_method: 'UI',
+        p_phase_from: 3,
+        p_phase_to: 3,
+        p_details: {} as any,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Challenge approved — proceeding to publication.');
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['public-challenge'] });
+    },
+    onError: (err: Error) => toast.error(`Approval failed: ${err.message}`),
+  });
+
+  // Request Changes mutation — set back to RETURNED
+  const requestChangesMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('challenges')
+        .update({ phase_status: 'RETURNED' } as any)
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+
+      await supabase.rpc('log_audit', {
+        p_user_id: user?.id ?? '',
+        p_challenge_id: challengeId,
+        p_solution_id: '',
+        p_action: 'CR_REQUESTED_CHANGES',
+        p_method: 'UI',
+        p_phase_from: 3,
+        p_phase_to: 3,
+        p_details: {} as any,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Returned to Curator for further refinement.');
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['public-challenge'] });
+    },
+    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+  });
 
   /* ── Build "My Version" sections from snapshot ── */
   const myVersionSections: SectionDef[] = useMemo(() => {
