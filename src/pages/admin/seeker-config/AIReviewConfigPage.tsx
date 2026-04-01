@@ -79,6 +79,7 @@ interface SectionConfigRow {
   wave_number: number | null;
   tab_group: string | null;
   version: number | null;
+  discovery_directives: any | null;
 }
 
 interface GlobalConfig {
