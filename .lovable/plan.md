@@ -1,53 +1,37 @@
 
 
-# Fix: Fill Test Data — Solution Maturity & 5IR Business Challenge Content
+# Verification Report: Fill Test Data Maturity Fix & My Challenges View
 
-## Problems Identified
+## Finding 1: Fill Test Data Maturity — CODE IS FIXED ✅
 
-### Bug: Solution maturity not selected
-The `handleFillTestData` function sets `maturity_level: 'PILOT'` (from seed), but the radio group uses `option.code` from `md_solution_maturity` (e.g., `SOLUTION_PILOT`). These don't match → radio stays unselected. Additionally, `solution_maturity_id` is hardcoded to `''`.
+The code changes are correct:
+- `handleFillTestData` (line 402-418) now looks up `solutionMaturityOptions` to match seed maturity codes to actual `md_solution_maturity` records
+- Both `maturity_level` (the UI code like `SOLUTION_PROTOTYPE`) and `solution_maturity_id` (the UUID) are set
+- The normalizer (`challengeFieldNormalizer.ts`) includes `DEMO` in `VALID_MATURITY`
+- All three mutation paths (`useSubmitSolutionRequest`, `useSaveDraft`, `useUpdateDraft`) call `normalizeConstrainedChallengeFields` which strips `SOLUTION_` prefix before DB write
 
-**Fix**: In `handleFillTestData`, look up the matching `md_solution_maturity` record by matching the seed's maturity code to the DB code (e.g., `PILOT` → find record where `code` contains `PILOT`), then set both `maturity_level = record.code` and `solution_maturity_id = record.id`.
+**However**: The current draft in the database (`bc92ae14...`) still has `maturity_level: NULL` and `solution_maturity_id: NULL`. This means you haven't used "Fill Test Data" since the fix was deployed, or the draft was created before the fix. You need to click "Fill Test Data" again on this draft to populate the maturity field.
 
-### Content: Upgrade seed data to 5IR business transformation challenges
+## Finding 2: My Challenges "View" Empty Screen — CANNOT REPRODUCE YET
 
-Replace the current app/ERP-level scenarios with high-end strategic business transformation challenges involving Digital Workers (AI Agents), ecosystem redesign, policy transformation, and cultural change.
+There are **zero submitted challenges** in the database. All 5 challenges are phase 1 drafts (4 soft-deleted, 1 active). The "View" button only appears for non-draft challenges (submitted, phase 2+). Since no challenge has been submitted yet, this issue cannot currently occur.
 
-**MP Seed → Supply Chain Digital Workforce Transformation**
-A manufacturing conglomerate wants to redesign its supply chain by deploying autonomous AI agents that replace manual workflows, redefine roles and responsibilities, restructure policies, and transform the organizational ecosystem. This is a systemic business transformation, not a software project.
+The "View" route (`/cogni/challenges/:id/view`) renders `PublicChallengeDetailPage`, which has a potential issue:
 
-**AGG Seed → Autonomous Enterprise Operations Platform**
-A financial services group wants to deploy AI-powered digital workers across compliance, risk assessment, and client advisory — fundamentally changing how the organization operates, governs, and delivers value.
+**Potential bug identified**: The `getMaturityLabel` function in `PublicChallengeDetailPage.tsx` (line 55-63) uses lowercase keys (`'blueprint'`, `'poc'`, `'prototype'`, `'pilot'`) but the DB stores UPPERCASE (`'BLUEPRINT'`, `'POC'`). There is a centralized `getMaturityLabel` in `maturityLabels.ts` that handles this with a `.toLowerCase()` fallback, but the inline function in the detail page does NOT. This won't cause an empty screen but would show raw uppercase codes instead of labels.
 
-## Changes
+## Recommended Next Steps
+
+1. **Test end-to-end**: Click "Fill Test Data" on the current draft, verify maturity radio is selected, then submit to curator
+2. **Fix inline `getMaturityLabel`** in `PublicChallengeDetailPage.tsx` and `CreatorChallengeDetailView.tsx` — replace inline functions with the centralized import from `@/lib/maturityLabels`
+3. After successful submission, verify the "View" button works on My Challenges page
+
+## Changes Required
 
 | File | Change |
 |---|---|
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Update `handleFillTestData` to look up maturity record from `maturityOptions` and set both `maturity_level` (code) and `solution_maturity_id` (uuid) |
-| `src/components/cogniblend/creator/creatorSeedContent.ts` | Replace both MP and AGG seed content with 5IR business transformation challenges; add `solution_maturity_id` field (empty string default, populated at runtime) |
+| `src/pages/cogniblend/PublicChallengeDetailPage.tsx` | Replace inline `getMaturityLabel` with import from `@/lib/maturityLabels` |
+| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Replace inline `getMaturityLabel` with import from `@/lib/maturityLabels` |
 
-## Technical Detail
-
-```typescript
-// ChallengeCreatorForm.tsx — handleFillTestData fix
-const handleFillTestData = useCallback(() => {
-  const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
-  const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
-  
-  // Match seed maturity code to actual md_solution_maturity record
-  const maturityMatch = maturityOptions?.find((m) => 
-    m.code.replace('SOLUTION_', '') === seed.maturity_level
-  );
-  
-  form.reset({
-    ...seed,
-    maturity_level: maturityMatch?.code ?? seed.maturity_level,
-    solution_maturity_id: maturityMatch?.id ?? '',
-    industry_segment_id: industrySegments[0]?.id ?? '',
-    domain_tags: domainIds,
-  } as CreatorFormValues);
-}, [engagementModel, industrySegments, maturityOptions, form]);
-```
-
-This requires passing `maturityOptions` (from `useSolutionMaturityList`) into the `handleFillTestData` scope — it's already fetched in the component via `useSolutionMaturityList`.
+These are minor fixes. The main maturity normalization pipeline is already working correctly.
 
