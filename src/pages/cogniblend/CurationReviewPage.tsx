@@ -1984,7 +1984,7 @@ export default function CurationReviewPage() {
       sectionContents['industry_segment'] = null;
     }
 
-    const pfResult = preFlightCheck(sectionContents);
+    const pfResult = preFlightCheck(sectionContents, challenge.operating_model);
 
     // Add industry segment as mandatory blocker if missing
     if (!industrySegId) {

@@ -23,25 +23,35 @@ const MANDATORY_SECTIONS: PreFlightItem[] = [
   {
     sectionId: 'problem_statement',
     sectionName: 'Problem Statement',
-    reason: 'Defines what the challenge solves. AI cannot infer this — it must come from the curator or sponsor.',
+    reason: 'The core business problem. AI cannot infer this.',
   },
   {
-    sectionId: 'scope',
-    sectionName: 'Scope',
-    reason: 'Defines the challenge boundary. Without it, AI generates unbounded content.',
+    sectionId: 'maturity_level',
+    sectionName: 'Maturity Level',
+    reason: 'Blueprint/POC/Pilot determines the scale of all generated content.',
+  },
+  {
+    sectionId: 'domain_tags',
+    sectionName: 'Domain Tags',
+    reason: 'Industry context for frameworks, benchmarks, and expertise requirements.',
   },
 ];
 
 const RECOMMENDED_SECTIONS: PreFlightItem[] = [
   {
-    sectionId: 'context_and_background',
-    sectionName: 'Context & Background',
-    reason: 'Industry context helps AI produce specific content. Will be AI-generated — review carefully.',
+    sectionId: 'scope',
+    sectionName: 'Scope',
+    reason: 'Helps bound AI output. Will be AI-generated if empty — review carefully.',
   },
   {
-    sectionId: 'deliverables',
-    sectionName: 'Deliverables',
-    reason: 'What solvers must produce. AI can infer but may miss sponsor-specific requirements.',
+    sectionId: 'expected_outcomes',
+    sectionName: 'Expected Outcomes',
+    reason: 'Guides KPI and evaluation generation. AI can derive from problem if missing.',
+  },
+  {
+    sectionId: 'context_and_background',
+    sectionName: 'Context & Background',
+    reason: 'Industry context helps specificity. AI uses org profile as fallback.',
   },
 ];
 
@@ -59,6 +69,31 @@ function getSectionContent(
     return str;
   }
   return String(val).trim();
+}
+
+/**
+ * Parse reward_structure JSONB and extract budget_max.
+ * Returns 0 if not parseable or not present.
+ */
+function parseRewardStructureBudgetMax(
+  sections: Record<string, string | null | unknown>,
+): number {
+  const val = sections['reward_structure'];
+  if (val == null) return 0;
+  try {
+    const obj = typeof val === 'string' ? JSON.parse(val) : val;
+    if (typeof obj === 'object' && obj !== null) {
+      const budgetMax = (obj as Record<string, unknown>).budget_max;
+      if (typeof budgetMax === 'number' && budgetMax > 0) return budgetMax;
+      if (typeof budgetMax === 'string') {
+        const parsed = parseFloat(budgetMax);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    }
+  } catch {
+    // Invalid JSON — treat as missing
+  }
+  return 0;
 }
 
 /** Maps section keys to their parent tab label for navigation context */
@@ -89,6 +124,7 @@ export const SECTION_TO_TAB: Record<string, string> = {
 
 export function preFlightCheck(
   sections: Record<string, string | null | unknown>,
+  operatingModel?: string,
 ): PreFlightResult {
   const missingMandatory: PreFlightItem[] = [];
   const warnings: PreFlightItem[] = [];
@@ -106,6 +142,19 @@ export function preFlightCheck(
       warnings.push({
         ...s,
         reason: s.reason + ' AI will generate this — review the output carefully.',
+      });
+    }
+  }
+
+  // Marketplace budget check: MP mode requires a valid budget_max > 0
+  const normalizedModel = (operatingModel ?? '').toLowerCase();
+  if (normalizedModel === 'marketplace' || normalizedModel === 'mp') {
+    const budgetMax = parseRewardStructureBudgetMax(sections);
+    if (budgetMax <= 0) {
+      missingMandatory.push({
+        sectionId: 'reward_structure' as SectionKey,
+        sectionName: 'Reward Structure (Budget)',
+        reason: 'Marketplace challenges require a budget maximum > 0. Set the budget in Evaluation & Rewards.',
       });
     }
   }
