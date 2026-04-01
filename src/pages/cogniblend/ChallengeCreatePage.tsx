@@ -225,7 +225,7 @@ export default function ChallengeCreatePage() {
     } else if (currentOrg) {
       setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
     }
-  }, [currentOrg?.governanceProfile]);
+  }, [currentOrg]);
 
   useEffect(() => {
     const demoEng = sessionStorage.getItem('cogni_demo_engagement');
@@ -315,6 +315,7 @@ export default function ChallengeCreatePage() {
 
       {/* Challenge Creator Form — governance-aware */}
       <ChallengeCreatorForm
+        key={`${governanceMode}-${engagementModel}`}
         engagementModel={engagementModel}
         governanceMode={governanceMode}
         onDraftModeSync={handleDraftModeSync}

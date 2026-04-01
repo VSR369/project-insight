@@ -13,6 +13,7 @@ import {
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges, type MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
+import { governanceLabel } from '@/lib/cogniblend/displayHelpers';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -53,15 +54,7 @@ function getStatusConfig(masterStatus: string, phase: number): StatusConfig {
   return { label: masterStatus || 'Unknown', icon: AlertCircle, badgeClass: 'bg-muted text-muted-foreground border-border' };
 }
 
-function governanceLabel(profile: string): string {
-  switch (profile) {
-    case 'LIGHTWEIGHT':
-    case 'QUICK': return 'Quick';
-    case 'STRUCTURED': return 'Structured';
-    case 'CONTROLLED': return 'Controlled';
-    default: return profile;
-  }
-}
+/* governanceLabel imported from displayHelpers */
 
 /* ── Component ──────────────────────────────────────────── */
 
@@ -91,7 +84,7 @@ export default function MyChallengesPage() {
   const filteredItems = useMemo(() => {
     if (activeTab === 'all') return items;
     if (activeTab === 'drafts') return items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase === 1);
-    if (activeTab === 'active') return items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase > 1 || c.master_status === 'ACTIVE');
+    if (activeTab === 'active') return items.filter((c) => (c.master_status === 'IN_PREPARATION' && c.current_phase > 1) || c.master_status === 'ACTIVE');
     if (activeTab === 'completed') return items.filter((c) => c.master_status === 'COMPLETED' || c.master_status === 'CANCELLED' || c.master_status === 'TERMINATED');
     return items;
   }, [items, activeTab]);

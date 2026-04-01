@@ -79,7 +79,7 @@ export function LineItemsInput({
       <div className="space-y-2">
         {items.map((item, index) => (
           <div
-            key={index}
+            key={`item-${index}-${item.slice(0, 20)}`}
             draggable
             onDragStart={() => handleDragStart(index)}
             onDragEnd={handleDragEnd}

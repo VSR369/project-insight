@@ -41,13 +41,16 @@ export function useMyChallenges(userId: string | undefined) {
           )
         `)
         .eq('user_id', userId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { referencedTable: 'challenges', ascending: false })
+        .limit(50);
 
       if (error) throw new Error(error.message);
 
       const items: MyChallengeItem[] = [];
       const roleCounts: Record<string, number> = {};
 
+      // NOTE: is_deleted cannot be filtered server-side on joined tables in PostgREST. Client-side filter is intentional.
       for (const row of data ?? []) {
         const ch = row.challenges as any;
         if (!ch || ch.is_deleted) continue;
