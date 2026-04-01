@@ -27,10 +27,12 @@ const RISK_CONFIG: Record<RiskLevel, { icon: typeof Shield; label: string; class
 export function AIConfidenceSummary({ sectionKeys, context, className }: AIConfidenceSummaryProps) {
   const scores = useMemo(() => {
     if (!context) return [];
+    // Cast to ChallengeContext — scoreConfidence handles missing fields gracefully
+    const ctx = context as ChallengeContext;
     return sectionKeys
       .map((key) => ({
         key,
-        ...scoreConfidence(key, context),
+        ...scoreConfidence(key, ctx),
       }))
       .sort((a, b) => a.score - b.score); // lowest confidence first
   }, [sectionKeys, context]);
