@@ -140,6 +140,8 @@ import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
 import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queries/useCompletenessChecks";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
+import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
+import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
