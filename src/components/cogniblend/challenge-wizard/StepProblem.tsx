@@ -251,7 +251,10 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
       {/* ── 2. Industry Segment — Select from master data ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
-          Industry Segment <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+          Industry Segment{' '}
+          {!isQuick
+            ? <span className="text-destructive">*</span>
+            : <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
         </Label>
         <Controller
           name="industry_segment_id"
