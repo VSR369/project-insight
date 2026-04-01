@@ -513,7 +513,7 @@ export default function CurationChecklistPanel({
               ) : (
                 <Send className="h-4 w-4 mr-1.5" />
               )}
-              Submit to Innovation Director
+              Approve & Submit for Publication
             </Button>
 
             <Button
