@@ -806,7 +806,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
               ? 'Read-only view of your submitted problem brief.'
               : isEditMode
               ? 'Update your problem brief below. All formatting will be preserved.'
-              : 'As your organization\'s representative, provide the problem details. Your Challenge Architect will contact you within 2 business days.'}
+              : 'As your organization\'s representative, provide the problem details. Your Challenge Creator will contact you within 2 business days.'}
           </p>
         </div>
       </div>
