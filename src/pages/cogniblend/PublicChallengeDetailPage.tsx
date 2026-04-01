@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
+import { getMaturityLabel } from '@/lib/maturityLabels';
 import { usePublicChallengeLegal } from '@/hooks/cogniblend/usePublicChallengeLegal';
 import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
@@ -52,15 +53,7 @@ function formatCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
-function getMaturityLabel(level: string | null): string {
-  switch (level) {
-    case 'blueprint': return 'Blueprint';
-    case 'poc': return 'Proof of Concept';
-    case 'prototype': return 'Prototype';
-    case 'pilot': return 'Pilot';
-    default: return level || '—';
-  }
-}
+/* getMaturityLabel imported from @/lib/maturityLabels */
 
 function governanceLabel(profile: string | null): string {
   switch (profile) {
