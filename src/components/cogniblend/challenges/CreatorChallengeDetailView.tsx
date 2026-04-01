@@ -20,6 +20,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
+import { useGovernanceFieldRules, isFieldVisible } from '@/hooks/queries/useGovernanceFieldRules';
+import { resolveChallengeGovernance } from '@/lib/governanceMode';
+import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
 /* ─── parseItems: robust JSONB → displayable list helper ── */
 
@@ -105,6 +108,7 @@ interface SectionDef {
   title: string;
   icon: React.ElementType;
   content: React.ReactNode | null;
+  fieldKey?: string; // maps to md_governance_field_rules.field_key
 }
 
 function RichTextSection({ title, html, icon: Icon }: { title: string; html: string | null | undefined; icon: React.ElementType }) {
@@ -230,12 +234,18 @@ function EmptyPlaceholder({ message }: { message: string }) {
 
 /* ─── Search + Filter ────────────────────────────────────── */
 
-function FilteredSections({ sections, searchTerm }: { sections: SectionDef[]; searchTerm: string }) {
+function FilteredSections({ sections, searchTerm, fieldRules }: { sections: SectionDef[]; searchTerm: string; fieldRules?: FieldRulesMap }) {
   const filtered = useMemo(() => {
-    if (!searchTerm.trim()) return sections.filter((s) => s.content !== null);
-    const lower = searchTerm.toLowerCase();
-    return sections.filter((s) => s.content !== null && s.title.toLowerCase().includes(lower));
-  }, [sections, searchTerm]);
+    return sections.filter((s) => {
+      if (s.content === null) return false;
+      // Hide sections whose governance field rule is 'hidden'
+      if (s.fieldKey && fieldRules && !isFieldVisible(fieldRules, s.fieldKey)) return false;
+      if (searchTerm.trim()) {
+        return s.title.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      return true;
+    });
+  }, [sections, searchTerm, fieldRules]);
 
   if (filtered.length === 0) {
     return <EmptyPlaceholder message={searchTerm ? `No sections matching "${searchTerm}"` : 'No content available.'} />;
@@ -255,6 +265,14 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Resolve effective governance mode and fetch field rules
+  const effectiveGovernance = resolveChallengeGovernance(
+    data.governance_mode_override,
+    data.governance_profile,
+    null // tier ceiling not needed for display filtering
+  );
+  const { data: fieldRules } = useGovernanceFieldRules(effectiveGovernance);
+
   const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
 
@@ -269,53 +287,43 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
     return [
       {
-        title: 'Problem Statement',
-        icon: Target,
+        title: 'Problem Statement', icon: Target, fieldKey: 'problem_statement',
         content: snapshot.problem_statement ? <RichTextSection title="Problem Statement" html={snapshot.problem_statement as string} icon={Target} /> : null,
       },
       {
-        title: 'Scope / Constraints',
-        icon: Layers,
+        title: 'Scope / Constraints', icon: Layers, fieldKey: 'scope',
         content: snapshot.scope ? <RichTextSection title="Scope / Constraints" html={snapshot.scope as string} icon={Layers} /> : null,
       },
       {
-        title: 'Expected Outcomes',
-        icon: ListChecks,
+        title: 'Expected Outcomes', icon: ListChecks, fieldKey: 'expected_outcomes',
         content: parseItems(snapshot.expected_outcomes) ? <ListSection title="Expected Outcomes" icon={ListChecks} items={parseItems(snapshot.expected_outcomes)!} /> : null,
       },
       {
-        title: 'Context & Background',
-        icon: BookOpen,
+        title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background',
         content: eb.context_background ? <RichTextSection title="Context & Background" html={eb.context_background as string} icon={BookOpen} /> : null,
       },
       {
-        title: 'Root Causes',
-        icon: Info,
+        title: 'Root Causes', icon: Info, fieldKey: 'root_causes',
         content: parseItems(eb.root_causes) ? <ListSection title="Root Causes" icon={Info} items={parseItems(eb.root_causes)!} /> : null,
       },
       {
-        title: 'Affected Stakeholders',
-        icon: Info,
+        title: 'Affected Stakeholders', icon: Info, fieldKey: 'affected_stakeholders',
         content: parseStakeholders(eb.affected_stakeholders) ? <ListSection title="Affected Stakeholders" icon={Info} items={parseStakeholders(eb.affected_stakeholders)!} /> : null,
       },
       {
-        title: 'Current Deficiencies',
-        icon: Info,
+        title: 'Current Deficiencies', icon: Info, fieldKey: 'current_deficiencies',
         content: parseItems(eb.current_deficiencies) ? <ListSection title="Current Deficiencies" icon={Info} items={parseItems(eb.current_deficiencies)!} /> : null,
       },
       {
-        title: 'Preferred Approach',
-        icon: Info,
+        title: 'Preferred Approach', icon: Info, fieldKey: 'preferred_approach',
         content: parseItems(eb.preferred_approach) ? <ListSection title="Preferred Approach" icon={Info} items={parseItems(eb.preferred_approach)!} /> : null,
       },
       {
-        title: 'Approaches Not of Interest',
-        icon: Info,
+        title: 'Approaches Not of Interest', icon: Info, fieldKey: 'approaches_not_of_interest',
         content: parseItems(eb.approaches_not_of_interest) ? <ListSection title="Approaches Not of Interest" icon={Info} items={parseItems(eb.approaches_not_of_interest)!} /> : null,
       },
       {
-        title: 'Budget Range',
-        icon: Trophy,
+        title: 'Budget Range', icon: Trophy, fieldKey: 'platinum_award',
         content: (budgetMin > 0 || budgetMax > 0) ? (
           <Card className="border-border">
             <CardHeader className="pb-2">
@@ -334,8 +342,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         ) : null,
       },
       {
-        title: 'Expected Timeline',
-        icon: Clock,
+        title: 'Expected Timeline', icon: Clock, fieldKey: 'expected_timeline',
         content: snapshot.expected_timeline ? (
           <Card className="border-border">
             <CardContent className="p-4 flex items-center gap-3">
@@ -349,18 +356,15 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         ) : null,
       },
       {
-        title: 'Maturity Level',
-        icon: Layers,
+        title: 'Maturity Level', icon: Layers, fieldKey: 'maturity_level',
         content: snapshot.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(snapshot.maturity_level as string)} /> : null,
       },
       {
-        title: 'IP Model',
-        icon: Briefcase,
+        title: 'IP Model', icon: Briefcase, fieldKey: 'ip_model',
         content: snapshot.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={(snapshot.ip_model as string).replace(/_/g, ' ')} /> : null,
       },
       {
-        title: 'Domain Tags',
-        icon: Tag,
+        title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags',
         content: (snapshot.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={snapshot.domain_tags as string[]} /> : null,
       },
     ];
@@ -386,22 +390,22 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
     const silverAward = Number(rs.silver_award ?? 0);
 
     return [
-      { title: 'Problem Statement', icon: Target, content: data.problem_statement ? <RichTextSection title="Problem Statement" html={data.problem_statement} icon={Target} /> : null },
-      { title: 'Scope', icon: Layers, content: data.scope ? <RichTextSection title="Scope" html={data.scope} icon={Layers} /> : null },
-      { title: 'Expected Outcomes', icon: ListChecks, content: outcomeItems?.length ? <ListSection title="Expected Outcomes" icon={ListChecks} items={outcomeItems} /> : null },
-      { title: 'Context & Background', icon: BookOpen, content: (eb as any).context_background ? <RichTextSection title="Context & Background" html={(eb as any).context_background} icon={BookOpen} /> : null },
-      { title: 'Root Causes', icon: Info, content: (() => { const items = parseItems((eb as any).root_causes); return items?.length ? <ListSection title="Root Causes" icon={Info} items={items} /> : null; })() },
-      { title: 'Affected Stakeholders', icon: Info, content: (() => { const items = parseStakeholders((eb as any).affected_stakeholders); return items?.length ? <ListSection title="Affected Stakeholders" icon={Info} items={items} /> : null; })() },
-      { title: 'Current Deficiencies', icon: Info, content: (() => { const items = parseItems((eb as any).current_deficiencies); return items?.length ? <ListSection title="Current Deficiencies" icon={Info} items={items} /> : null; })() },
-      { title: 'Preferred Approach', icon: Info, content: (() => { const items = parseItems((eb as any).preferred_approach); return items?.length ? <ListSection title="Preferred Approach" icon={Info} items={items} /> : null; })() },
-      { title: 'Approaches Not of Interest', icon: Info, content: (() => { const items = parseItems((eb as any).approaches_not_of_interest); return items?.length ? <ListSection title="Approaches Not of Interest" icon={Info} items={items} /> : null; })() },
-      { title: 'Value Proposition (Hook)', icon: Info, content: data.hook ? <RichTextSection title="Value Proposition (Hook)" html={data.hook} icon={Info} /> : null },
-      { title: 'Solution Type', icon: Briefcase, content: data.solution_type ? <BadgeSection title="Solution Type" icon={Briefcase} value={data.solution_type} /> : null },
-      { title: 'Deliverables', icon: FileText, content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d: any) => ({ name: typeof d === 'string' ? d : d?.name ?? d?.title ?? JSON.stringify(d) }))} /> : null },
-      { title: 'Maturity Level', icon: Layers, content: data.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(data.maturity_level)} /> : null },
-      { title: 'Data Resources Provided', icon: FileText, content: dataResourceItems?.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
-      { title: 'Success Metrics & KPIs', icon: BarChart3, content: metricsItems?.length ? <ListSection title="Success Metrics & KPIs" icon={BarChart3} items={metricsItems} /> : null },
-      { title: 'Complexity', icon: BarChart3, content: data.complexity_level ? (
+      { title: 'Problem Statement', icon: Target, fieldKey: 'problem_statement', content: data.problem_statement ? <RichTextSection title="Problem Statement" html={data.problem_statement} icon={Target} /> : null },
+      { title: 'Scope', icon: Layers, fieldKey: 'scope', content: data.scope ? <RichTextSection title="Scope" html={data.scope} icon={Layers} /> : null },
+      { title: 'Expected Outcomes', icon: ListChecks, fieldKey: 'expected_outcomes', content: outcomeItems?.length ? <ListSection title="Expected Outcomes" icon={ListChecks} items={outcomeItems} /> : null },
+      { title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background', content: (eb as any).context_background ? <RichTextSection title="Context & Background" html={(eb as any).context_background} icon={BookOpen} /> : null },
+      { title: 'Root Causes', icon: Info, fieldKey: 'root_causes', content: (() => { const items = parseItems((eb as any).root_causes); return items?.length ? <ListSection title="Root Causes" icon={Info} items={items} /> : null; })() },
+      { title: 'Affected Stakeholders', icon: Info, fieldKey: 'affected_stakeholders', content: (() => { const items = parseStakeholders((eb as any).affected_stakeholders); return items?.length ? <ListSection title="Affected Stakeholders" icon={Info} items={items} /> : null; })() },
+      { title: 'Current Deficiencies', icon: Info, fieldKey: 'current_deficiencies', content: (() => { const items = parseItems((eb as any).current_deficiencies); return items?.length ? <ListSection title="Current Deficiencies" icon={Info} items={items} /> : null; })() },
+      { title: 'Preferred Approach', icon: Info, fieldKey: 'preferred_approach', content: (() => { const items = parseItems((eb as any).preferred_approach); return items?.length ? <ListSection title="Preferred Approach" icon={Info} items={items} /> : null; })() },
+      { title: 'Approaches Not of Interest', icon: Info, fieldKey: 'approaches_not_of_interest', content: (() => { const items = parseItems((eb as any).approaches_not_of_interest); return items?.length ? <ListSection title="Approaches Not of Interest" icon={Info} items={items} /> : null; })() },
+      { title: 'Value Proposition (Hook)', icon: Info, fieldKey: 'hook', content: data.hook ? <RichTextSection title="Value Proposition (Hook)" html={data.hook} icon={Info} /> : null },
+      { title: 'Solution Type', icon: Briefcase, fieldKey: 'solution_type', content: data.solution_type ? <BadgeSection title="Solution Type" icon={Briefcase} value={data.solution_type} /> : null },
+      { title: 'Deliverables', icon: FileText, fieldKey: 'deliverables_list', content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d: any) => ({ name: typeof d === 'string' ? d : d?.name ?? d?.title ?? JSON.stringify(d) }))} /> : null },
+      { title: 'Maturity Level', icon: Layers, fieldKey: 'maturity_level', content: data.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(data.maturity_level)} /> : null },
+      { title: 'Data Resources Provided', icon: FileText, fieldKey: 'data_resources_provided', content: dataResourceItems?.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
+      { title: 'Success Metrics & KPIs', icon: BarChart3, fieldKey: 'success_metrics_kpis', content: metricsItems?.length ? <ListSection title="Success Metrics & KPIs" icon={BarChart3} items={metricsItems} /> : null },
+      { title: 'Complexity', icon: BarChart3, fieldKey: 'complexity_level', content: data.complexity_level ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
@@ -416,11 +420,11 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
           </CardContent>
         </Card>
       ) : null },
-      { title: 'Effort Level', icon: BarChart3, content: data.effort_level ? <BadgeSection title="Effort Level" icon={BarChart3} value={data.effort_level} /> : null },
-      { title: 'Eligibility', icon: ShieldCheck, content: data.eligibility ? <BadgeSection title="Eligibility" icon={ShieldCheck} value={data.eligibility} /> : null },
-      { title: 'Evaluation Criteria', icon: BarChart3, content: weightedCriteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={weightedCriteria} /> : null },
-      { title: 'Submission Guidelines', icon: FileText, content: guidelinesItems?.length ? <ListSection title="Submission Guidelines" icon={FileText} items={guidelinesItems} /> : null },
-      { title: 'Reward Structure', icon: Trophy, content: platinumAward > 0 ? (
+      { title: 'Effort Level', icon: BarChart3, fieldKey: 'effort_level', content: data.effort_level ? <BadgeSection title="Effort Level" icon={BarChart3} value={data.effort_level} /> : null },
+      { title: 'Eligibility', icon: ShieldCheck, fieldKey: 'eligibility', content: data.eligibility ? <BadgeSection title="Eligibility" icon={ShieldCheck} value={data.eligibility} /> : null },
+      { title: 'Evaluation Criteria', icon: BarChart3, fieldKey: 'weighted_criteria', content: weightedCriteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={weightedCriteria} /> : null },
+      { title: 'Submission Guidelines', icon: FileText, fieldKey: 'submission_guidelines', content: guidelinesItems?.length ? <ListSection title="Submission Guidelines" icon={FileText} items={guidelinesItems} /> : null },
+      { title: 'Reward Structure', icon: Trophy, fieldKey: 'platinum_award', content: platinumAward > 0 ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
@@ -436,8 +440,8 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
           </CardContent>
         </Card>
       ) : null },
-      { title: 'IP Model', icon: Briefcase, content: data.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={data.ip_model.replace(/_/g, ' ')} /> : null },
-      { title: 'Phase Schedule', icon: Clock, content: phaseSchedule && Object.keys(phaseSchedule).length ? (
+      { title: 'IP Model', icon: Briefcase, fieldKey: 'ip_model', content: data.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={data.ip_model.replace(/_/g, ' ')} /> : null },
+      { title: 'Phase Schedule', icon: Clock, fieldKey: 'phase_schedule', content: phaseSchedule && Object.keys(phaseSchedule).length ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
@@ -458,9 +462,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       ) : null },
       { title: 'Governance', icon: Scale, content: data.governance_profile ? <BadgeSection title="Governance Profile" icon={Scale} value={governanceLabel(data.governance_profile)} /> : null },
       { title: 'Visibility', icon: Globe, content: data.challenge_visibility ? <BadgeSection title="Visibility" icon={Globe} value={data.challenge_visibility} /> : null },
-      { title: 'Functional Area', icon: Briefcase, content: data.functional_area ? <BadgeSection title="Functional Area" icon={Briefcase} value={data.functional_area} /> : null },
-      { title: 'Target Geography', icon: MapPin, content: data.target_geography ? <BadgeSection title="Target Geography" icon={MapPin} value={data.target_geography} /> : null },
-      { title: 'Domain Tags', icon: Tag, content: (data.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={data.domain_tags as string[]} /> : null },
+      { title: 'Functional Area', icon: Briefcase, fieldKey: 'functional_area', content: data.functional_area ? <BadgeSection title="Functional Area" icon={Briefcase} value={data.functional_area} /> : null },
+      { title: 'Target Geography', icon: MapPin, fieldKey: 'target_geography', content: data.target_geography ? <BadgeSection title="Target Geography" icon={MapPin} value={data.target_geography} /> : null },
+      { title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags', content: (data.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={data.domain_tags as string[]} /> : null },
     ];
   }, [data]);
 
@@ -561,7 +565,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         {/* My Version tab */}
         <TabsContent value="my-version" className="space-y-4">
           {hasSnapshot ? (
-            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
+            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
             <Card className="border-dashed border-amber-300 bg-amber-50/50">
               <CardContent className="py-8 text-center">
@@ -576,7 +580,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         {/* Curator Version tab */}
         <TabsContent value="curator-version" className="space-y-4">
           {((data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
-            <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+            <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
             <Card className="border-dashed border-primary/30 bg-primary/5">
               <CardContent className="py-12 text-center">
