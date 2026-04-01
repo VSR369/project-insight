@@ -802,6 +802,9 @@ const App = () => (
               {/* Admin Contact, Email Templates — permission: marketplace.manage_config */}
               <Route path="marketplace/admin-contact" element={<PermissionGuard permissionKey="marketplace.manage_config"><AdminContactProfilePage /></PermissionGuard>} />
               <Route path="marketplace/email-templates" element={<PermissionGuard permissionKey="marketplace.manage_config"><EmailTemplatesPage /></PermissionGuard>} />
+              {/* AI Quality Dashboard (Phase 10) — supervisor only */}
+              <Route path="ai-quality" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIQualityDashboardPage /></PermissionGuard>} />
+              <Route path="ai-quality/examples" element={<PermissionGuard permissionKey="supervisor.configure_system"><ExampleLibraryManagerPage /></PermissionGuard>} />
             </Route>
 
             {/* Reviewer Routes (all lazy loaded) */}

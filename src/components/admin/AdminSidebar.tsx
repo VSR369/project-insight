@@ -689,6 +689,20 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
 
+              {/* AI Quality (Phase 10) — supervisor only */}
+              {hasPermission('supervisor.configure_system') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/ai-quality')}
+                    onMouseEnter={() => handleMouseEnter('/admin/ai-quality')}
+                    isActive={location.pathname.startsWith('/admin/ai-quality')}
+                  >
+                    <BrainCircuit className="h-4 w-4" />
+                    <span>AI Quality</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
               {/* ── Dev Tools (collapsible, supervisor only) ── */}
               {hasPermission('supervisor.configure_system') && (
                 <Collapsible
