@@ -62,9 +62,10 @@ export function scoreConfidence(
   }
 
   // Factor 4: Domain tags present (+5)
-  if (context.domainTags && context.domainTags.length > 0) {
+  const domainTags = context.masterData?.validDomainTags ?? [];
+  if (domainTags.length > 0) {
     score += 5;
-    factors.push(`${context.domainTags.length} domain tags`);
+    factors.push(`${domainTags.length} domain tags`);
   }
 
   // Factor 5: Organization context (+5)
