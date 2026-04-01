@@ -1,98 +1,118 @@
 
 
-# Implementation Plan: 8 Gaps from FINAL-MASTER-PLAN
+# Audit: FINAL-MASTER-PLAN (34 Prompts) vs Current Codebase
 
 ## Summary
 
-Line-by-line audit found **8 gaps** (5 functional, 3 structural) between the FINAL-MASTER-PLAN and current code. All other 34 prompts across 8 phases are correctly implemented.
+**31 of 34 prompts are fully implemented.** 3 prompts have partial discrepancies in validation thresholds.
 
 ---
 
-## Gap 1 — Feature flag `use_context_intelligence` missing
+## Phase-by-Phase Status
 
-The plan requires a `use_context_intelligence BOOLEAN DEFAULT false` on `ai_review_global_config` to gate all Phase 7 context intelligence features. Currently missing from DB and code — context intelligence runs unconditionally with no rollback mechanism.
+### PHASE 1: BUG FIXES (6 Prompts) — ALL IMPLEMENTED
 
-**Fix:** DB migration to add the column. Edge function fetches flag and gates digest/grounding/enhanced attachments behind it. Admin toggle added.
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 1.1 | `isFieldVisible` visibility check | Done — line 73 matches |
+| 1.2 | Active tab filter parentheses | Done — line 91 matches |
+| 1.3 | `key={governanceMode-engagementModel}` | Done — line 318 matches |
+| 1.4 | `serializeLineItems(expectedOutcomes)` | Done — 3 call sites fixed |
+| 1.5 | useEffect dependency `[currentOrg]` | Done — line 228 matches |
+| 1.6 | `availableRoles.length >= 4` | Done — line 44 matches |
 
-## Gap 2 — Pass 2 tiered attachment injection not implemented
+### PHASE 2: LEGACY ROLE CLEANUP (7 Prompts) — ALL IMPLEMENTED
 
-Plan requires: Tier 2 (summary + keyData always), Tier 3 (full content only for solo batches, ≤2 attachments, or missing summary). Dynamic budget: truncate if >30K tokens. Currently sends full content unconditionally.
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 2.1 | Remove all 'CA' from useCogniPermissions | Done — no 'CA' found |
+| 2.2 | CurationActions `["CR"]` not `["CR","CA"]` | Done — line 129 |
+| 2.3 | ID→CU in 4 hooks | Done — all 4 confirmed |
+| 2.4 | DB migration: role_authority_matrix | Done — in types.ts |
+| 2.5 | DB migration: notification_routing | Done |
+| 2.6 | Delete SimpleIntakeForm + ConversationalIntakePage | Done — no imports found |
+| 2.7 | Text updates in 4 files | Done |
 
-**Fix:** Update Pass 2 attachment block with tier logic gated behind feature flag.
+### PHASE 3: CREATOR FORM ALIGNMENT (5 Prompts) — 2 DISCREPANCIES
 
-## Gap 3 — Pre-flight maturity-budget alignment missing
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 3.1 | DB migration: scope hidden for QUICK, expected_outcomes required | Done |
+| 3.2 | buildCreatorSchema validation thresholds | **PARTIAL** — see below |
+| 3.3 | AdditionalContextTab QUICK filtering | Done — uses `isFieldVisible(rules, ...)` driven by DB rules from 3.1 |
+| 3.4 | displayHelpers.ts extraction | Done — used by 3 consumer files |
+| 3.5 | Creator Approval toggle | Done — in schema + StepModeSelection |
 
-Plan requires cross-validation: Blueprint $5K–$75K, POC $5K–$200K, Pilot $25K+. Below minimum blocks AI; above range for Blueprint warns.
+**Prompt 3.2 Discrepancies:**
 
-**Fix:** Add `checkMaturityBudgetAlignment()` to `preFlightCheck.ts`.
+| Field | Plan says | Code has |
+|-------|-----------|----------|
+| `title` max | 200 chars | 100 chars |
+| `problem_statement` QUICK min | 200 chars | 100 chars |
+| `problem_statement` STRUCTURED min | 300 chars | 200 chars (same as non-QUICK default) |
+| `problem_statement` CONTROLLED min | 500 chars | 200 chars |
+| `scope` STRUCTURED min | 150 chars | 100 chars |
+| `scope` CONTROLLED min | 200 chars | 100 chars |
+| `industry_segment` QUICK | optional | required (`min(1)`) |
 
-## Gap 4 — Pre-flight quality prediction missing
+### PHASE 4: CREATOR APPROVAL FLOW (5 Prompts) — ALL IMPLEMENTED
 
-Plan requires showing prediction (95%/85%/80%/65%) based on scope+outcomes presence, plus "Add Expected Outcomes" / "Add Scope" quick-action scroll buttons.
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 4.1 | challenge_section_approvals table | Done — in types.ts |
+| 4.2 | CurationActions CR_APPROVAL_PENDING | Done |
+| 4.3 | MyChallengesPage violet badge + button | Done |
+| 4.4 | CreatorChallengeDetailView approval banner | Done |
+| 4.5 | SectionApprovalCard/List + hook | Done |
 
-**Fix:** Add prediction fields to `PreFlightResult`, compute in `preFlightCheck()`, display in `PreFlightGateDialog.tsx`.
+### PHASE 5: ROLE SEPARATION (1 Prompt) — IMPLEMENTED
 
-## Gap 5 — Edge function fail-safes missing
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 5.1 | validate_role_separation function | Done — in types.ts |
 
-Plan requires: token overflow → strip attachments fallback; timeout differentiation (60s regular, 90s solo); `finish_reason: 'length'` detection with batch split retry.
+### PHASE 6: PHASE GATING (2 Prompts) — ALL IMPLEMENTED
 
-**Fix:** Add token estimation, configurable timeout, and finish_reason retry logic to `index.ts`.
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 6.1 | validate_gate_03 function | Done — in types.ts |
+| 6.2 | Wire into complete_phase | Done |
 
-## Gap 6 — ContextLibraryDrawer is 512-line monolith
+### PHASE 7: CONTEXT INTELLIGENCE (10 Prompts) — 1 MINOR GAP
 
-Plan requires 5 components: Drawer (<120), SourceList (<250), SourceDetail (<200), DigestPanel (<100), SuggestionCard (<80).
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 7.1 | DB: discovery_directives + use_context_intelligence + seed | Done |
+| 7.2 | DB: challenge_attachments fields + context_digest table | Done |
+| 7.3 | discover-context-resources edge function | Done |
+| 7.4 | generate-context-digest edge function | Done |
+| 7.5 | extract-attachment-text Tier 2 enhancement | Done |
+| 7.6 | useContextLibrary hook | Done |
+| 7.7 | 5-component Context Library decomposition | Done |
+| 7.8 | ContextLibraryCard + wiring | **PARTIAL** — Card + drawer wired. SectionReferencePanel has `onOpenLibrary` prop but plan says "View in Library" link text — code uses a generic link. Functionally complete. |
+| 7.9 | AI pipeline enhancement (flag-gated) | Done — tiered attachments, digest injection, grounding rule, finish_reason detection |
+| 7.10 | DiscoveryDirectivesEditor + ResourceTypeCard admin | Done |
 
-**Fix:** Extract into `context-library/` subfolder.
+### PHASE 8: PROPORTIONALITY + PRE-FLIGHT (2 Prompts) — ALL IMPLEMENTED
 
-## Gap 7 — SectionApprovalCard/List not extracted
-
-`useSectionApprovals.ts` exists but the two UI components are still inline in CurationReviewPage.
-
-**Fix:** Extract `SectionApprovalCard.tsx` and `SectionApprovalList.tsx`.
-
-## Gap 8 — Pass 1 sends per-section attachments (should be digest-only)
-
-Plan says Pass 1 gets digest in system prompt only. Currently sends batch-filtered attachments. Fix gated behind feature flag.
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 8.1 Part 1 | Pre-flight: maturity-budget alignment + quality prediction | Done |
+| 8.1 Part 2 | buildProportionalityAnchor in promptTemplate.ts | Done — injected in both Pass 1 + Pass 2 |
+| 8.2 | SCOPE_PROPORTIONALITY quality criteria for 6 sections | Done — migration exists |
 
 ---
 
-## Implementation Rounds
+## Actionable Fixes Needed (1 item)
 
-### Round 1: DB + Pre-flight Enhancements (Gaps 1, 3, 4)
+### Fix Prompt 3.2 — Validation thresholds in `buildCreatorSchema`
 
-| File | Change |
-|------|--------|
-| New migration | `ALTER TABLE ai_review_global_config ADD COLUMN use_context_intelligence BOOLEAN DEFAULT false` |
-| `preFlightCheck.ts` | Add maturity-budget alignment ranges + quality prediction computation |
-| `PreFlightGateDialog.tsx` | Display prediction bar + quick-action scroll buttons |
+Update `ChallengeCreatorForm.tsx` lines 49-64:
 
-### Round 2: Edge Function Fixes (Gaps 2, 5, 8)
+1. `title` max: 100 → **200**
+2. `problem_statement` min: differentiate by governance (QUICK=200, STRUCTURED=300, CONTROLLED=500)
+3. `scope` min for non-QUICK: differentiate (STRUCTURED=150, CONTROLLED=200)
+4. `industry_segment_id` for QUICK: make optional
 
-| File | Change |
-|------|--------|
-| `review-challenge-sections/index.ts` | Fetch `use_context_intelligence` flag; gate digest/grounding/attachments behind it; Pass 1 digest-only when flag ON; Pass 2 tiered attachments; token estimation + timeout config + finish_reason retry |
-
-### Round 3: Context Library Decomposition (Gap 6)
-
-| File | Change |
-|------|--------|
-| 5 new files in `context-library/` | Extract from 512-line ContextLibraryDrawer into orchestrator + 4 sub-components |
-| `ContextLibraryDrawer.tsx` | Replace with thin orchestrator importing sub-components |
-
-### Round 4: Approval Component Decomposition (Gap 7)
-
-| File | Change |
-|------|--------|
-| `approval/SectionApprovalCard.tsx` | NEW — single section approval card |
-| `approval/SectionApprovalList.tsx` | NEW — list with progress bar |
-| `CurationReviewPage.tsx` | Import and use new components |
-
----
-
-## Risk
-
-- Rounds 1-2: Feature-flagged (default OFF). Zero impact on existing behavior.
-- Rounds 3-4: Pure refactors. No functional change.
-- Total files: ~14 changed/created
-- Breaking changes: 0
+All other fields and logic remain unchanged. Single file edit, ~10 lines changed.
 
