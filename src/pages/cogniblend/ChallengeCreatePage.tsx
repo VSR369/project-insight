@@ -311,6 +311,10 @@ export default function ChallengeCreatePage() {
       <ChallengeCreatorForm
         engagementModel={engagementModel}
         governanceMode={governanceMode}
+        onDraftModeSync={useCallback((gov: GovernanceMode, eng: string) => {
+          setGovernanceMode(gov);
+          setEngagementModel(eng);
+        }, [])}
       />
     </div>
   );
