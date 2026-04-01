@@ -1420,7 +1420,13 @@ export default function CurationReviewPage() {
     return sectionActions.filter(a => a.section_key === sectionKey);
   }, [sectionActions]);
 
-  // ── Zustand store hydration & sync ──
+  // Section approval operations (extracted — Prompt 4.5)
+  const { handleApproveLockedSection, handleUndoApproval } = useSectionApprovals({
+    challengeId,
+    userId: user?.id,
+    aiReviews: aiReviews as any[],
+    sectionActions: sectionActions as any[],
+  });
   const { syncSectionToStore } = useCurationStoreHydration({
     challengeId: challengeId!,
     challenge: challenge ?? null,
