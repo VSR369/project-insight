@@ -43,7 +43,7 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'mp_enterprise_3',
     title: 'MP Enterprise Org with 3 Users',
-    description: 'Creates org + 3 users with split roles (CR/CU, ID/ER, AM/FC)',
+    description: 'Creates org + 3 users with split roles (CR/CU, ER/LC, FC)',
     model: 'Marketplace',
     governance: 'Enterprise',
     userCount: 3,
