@@ -38,6 +38,7 @@ const ITEMS: MyChallengeItem[] = [
     role_code: 'CU',
     operating_model: 'MP',
     created_at: '2025-06-02T10:00:00Z',
+  },
   {
     challenge_id: 'c3',
     title: 'Green Energy',
