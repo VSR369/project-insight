@@ -65,7 +65,8 @@ export function useGovernanceFieldRules(governanceMode: GovernanceMode | null | 
 /* ── Helpers ───────────────────────────────────────────── */
 
 /** Check if a field should be shown (not hidden) */
-export function isFieldVisible(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldVisible(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return true; // Rules not yet loaded — default to visible
   const rule = rules[fieldKey];
   if (!rule) return true; // Default: show if not configured
   // 'auto' fields are silently assigned — hide from form and detail view
