@@ -1,71 +1,77 @@
 
 
-# Fix: Line Items Showing as Single Non-Friendly Entry
+# Fix: Curator Version Visibility Gate + Content Rendering
 
-## Problem
-When a draft is saved and reloaded, `expected_outcomes` (and other line-item fields like `root_causes`, `current_deficiencies`, etc.) display as a single item containing raw JSON text instead of multiple individual line items.
+## Two Problems
 
-## Root Cause
-Data flows through a double-serialization problem:
+1. **Curator Version shown before curation is complete** — The "Curator Version" tab always renders live DB columns, even when the curator hasn't touched the challenge yet. Creators see raw/unrefined data.
 
-1. **Write path**: `serializeLineItems(['item1', 'item2'])` produces a **string**: `'{"items":[{"name":"item1"},{"name":"item2"}]}'`
-2. **Storage**: The `expected_outcomes` column is `Json` type, so Supabase stores this string as a JSON string literal (double-encoded)
-3. **Read path**: When loaded back, `expected_outcomes` comes back as a raw string `'{"items":[...]}'`
-4. **Parse path**: `parseLineItems` at line 208 hits `typeof value === 'string'` and returns `[value]` — the entire JSON blob as one entry
+2. **Distorted/junk content** — Line-item fields (`expected_outcomes`, `root_causes`, `submission_guidelines`, etc.) are stored as `{ items: [{ name: "..." }] }` objects but rendered via `RichTextSection` (expects HTML string) or raw `String()` cast, producing `[object Object]` or JSON blobs.
 
-The `parseLineItems` function checks for `typeof value === 'object' && 'items' in value` but never gets there because the value is still a string.
+## Fix
 
-## Fix (2 files)
+### 1. Gate Curator Version tab on phase progression
 
-### 1. `src/lib/cogniblend/creatorCuratorFieldMap.ts` — Fix `serializeLineItems`
-Change output from `JSON.stringify(...)` (string) to a plain object `{ items: [...] }` so Supabase stores it as proper JSONB, not a double-encoded string.
+The Curator Version should only be visible once the curator has completed their review. The `current_phase` field on the challenge indicates progress:
+- Phase 1-2: Creator/intake phase — curator hasn't started or is still working
+- Phase 3+: Curator has submitted their work
+
+**Logic:** If `current_phase <= 2`, replace the Curator Version tab content with an "Under Review" placeholder message. The tab remains visible but shows: "This challenge is currently under review by the Curator. The refined version will be available once the review is complete."
+
+### 2. Fix content rendering for structured data
+
+The Curator Version sections render line-item fields (`expected_outcomes`, `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`, `submission_guidelines`) through `RichTextSection` which calls `SafeHtmlRenderer`. These fields are JSONB objects, not HTML strings.
+
+**Fixes in `CreatorChallengeDetailView.tsx`:**
+
+| Field | Current renderer | Fix |
+|-------|-----------------|-----|
+| `expected_outcomes` | Already uses `ListSection` | OK but needs fallback parsing |
+| `root_causes` (extended_brief) | `RichTextSection` | Parse `{ items: [{name}] }` → `ListSection` |
+| `current_deficiencies` (extended_brief) | `RichTextSection` | Parse → `ListSection` |
+| `preferred_approach` (extended_brief) | `RichTextSection` | Parse → `ListSection` |
+| `approaches_not_of_interest` (extended_brief) | `RichTextSection` | Parse → `ListSection` |
+| `affected_stakeholders` (extended_brief) | `RichTextSection` | Parse structured table rows |
+| `submission_guidelines` | Attempts `.content`/`.guidelines` keys | Parse `{ items: [{name}] }` → `ListSection` |
+| Snapshot `expected_outcomes` | `String()` cast | Parse `{ items: [{name}] }` → list |
+
+Add a helper function `parseItems(value)` that handles:
+- `{ items: [{ name: "..." }] }` → extract names
+- `string[]` → use directly  
+- `string` (JSON) → parse then extract
+- `string` (plain) → wrap as single item
+
+### 3. "My Version" snapshot line-item fields
+
+Same parsing fix for snapshot fields that may contain structured JSONB (e.g., `expected_outcomes`, `root_causes` in `extended_brief`).
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Add phase gate for Curator tab, add `parseItems` helper, fix all structured field renderers in both tabs |
+
+## Technical Detail
 
 ```typescript
-// Before (returns a string that gets double-serialized):
-return JSON.stringify({ items: filtered.map((name) => ({ name })) });
-
-// After (returns an object for proper JSONB storage):
-return { items: filtered.map((name) => ({ name })) };
-```
-
-Update the return type from `string | null` to `Record<string, unknown> | null`.
-
-### 2. `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` — Fix `parseLineItems`
-Add JSON string parsing before the object check so it handles both already-parsed objects AND double-encoded strings:
-
-```typescript
-const parseLineItems = (value: unknown): string[] => {
-  if (!value) return [''];
-  
-  // Try to parse string as JSON first
+// Helper to extract displayable items from various stored formats
+function parseItems(value: unknown): Array<{ name: string }> | null {
+  if (!value) return null;
   let parsed = value;
   if (typeof parsed === 'string') {
-    try { parsed = JSON.parse(parsed); } catch { return [parsed as string]; }
+    try { parsed = JSON.parse(parsed); } catch { return [{ name: parsed }]; }
   }
-  
-  // Handle { items: [{ name: "..." }] } structure
+  if (Array.isArray(parsed)) {
+    return parsed.map(item => ({ name: typeof item === 'string' ? item : item?.name ?? JSON.stringify(item) }));
+  }
   if (typeof parsed === 'object' && parsed !== null && 'items' in parsed) {
-    const items = (parsed as { items?: Array<{ name?: string } | string> }).items;
-    if (Array.isArray(items)) {
-      const result = items.map(item => typeof item === 'string' ? item : item?.name || '').filter(Boolean);
-      return result.length > 0 ? result : [''];
-    }
+    const items = (parsed as any).items;
+    if (Array.isArray(items)) return items.map(i => ({ name: typeof i === 'string' ? i : i?.name ?? '' }));
   }
-  
-  // Handle plain array
-  if (Array.isArray(parsed)) return parsed.length > 0 ? parsed : [''];
-  
-  // Fallback
-  if (typeof value === 'string' && value.trim()) return [value];
-  return [''];
-};
+  return null;
+}
+
+// Curator Version gate
+const curatorReady = (data.current_phase ?? 1) >= 3;
 ```
-
-### 3. `src/hooks/cogniblend/useSubmitSolutionRequest.ts` — Update type references
-Update `serializeLineItems` usages to match the new return type (no code change needed — `as any` cast already handles it).
-
-## Impact
-- All line-item fields (`expected_outcomes`, `submission_guidelines`, plus `root_causes`, `preferred_approach`, etc. in `extended_brief`) will correctly round-trip through save/load
-- Fill Test Data continues to work (it sets arrays directly, no serialization)
-- Existing drafts with double-encoded strings will be correctly parsed on load
 
