@@ -1350,6 +1350,53 @@ export type Database = {
           },
         ]
       }
+      challenge_section_approvals: {
+        Row: {
+          challenge_id: string
+          comment: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          reviewer_id: string | null
+          section_key: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          comment?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reviewer_id?: string | null
+          section_key: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          comment?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reviewer_id?: string | null
+          section_key?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_section_approvals_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_submissions: {
         Row: {
           challenge_id: string
