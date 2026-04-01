@@ -25,21 +25,20 @@ PHASE 2: LEGACY ROLE CLEANUP
   2.7 Clean up legacy role text refs       ❌ NOT DONE
 
 PHASE 3: CREATOR FORM ALIGNMENT
-  3.1 DB: Fix governance field rules       ✅ PARTIALLY DONE (scope/outcomes done; 
-      recent migration fixed 6 more rules)
-  3.2 Align Creator form schema with DB    ❌ NOT DONE (title max 100, problemMin 
-      100/200, scope min 100, industry always required, lineItemRule wrong)
-  3.3 Hide QUICK fields in AdditionalCtx   ❌ NOT DONE (no isQuick guard)
+  3.1 DB: Fix governance field rules       ✅ DONE
+  3.2 Align Creator form schema with DB    ✅ DONE (industry required for STRUCTURED/CONTROLLED,
+      CONTROLLED context fields required, correct min/max)
+  3.3 Hide QUICK fields in AdditionalCtx   ✅ DONE (isQuick guards on 6 context fields)
   3.4 Strip auto/hidden from snapshot      ✅ DONE (stripHiddenFields exists)
   3.5 Extract displayHelpers              ✅ DONE (file exists, imports in place)
   3.6 Extract shared draft payload builder ⚠️  NEEDS VERIFICATION
 
 PHASE 4: CREATOR APPROVAL FLOW
-  4.1 Add Creator Approval toggle to form  ❌ NOT DONE (no creator_approval_required)
-  4.2 DB: Create section_approvals table   ❌ NOT DONE
-  4.3 Update CurationActions for approval  ❌ NOT DONE (still am_approval_required)
-  4.4 Update MyChallengesPage for approval ❌ NOT DONE
-  4.5 Add approval banner to DetailView    ❌ NOT DONE
+  4.1 Add Creator Approval toggle to form  ✅ DONE (creator_approval_required in schema + StepModeSelection Switch)
+  4.2 DB: Create section_approvals table   ✅ DONE (challenge_section_approvals with RLS)
+  4.3 Update CurationActions for approval  ✅ DONE (Phase B rewired to CR_APPROVAL_PENDING)
+  4.4 Update MyChallengesPage for approval ✅ DONE (CR_APPROVAL_PENDING status + Review & Approve button)
+  4.5 Add approval banner to DetailView    ✅ DONE (violet banner with Approve/Request Changes + curator tab auto-select)
 
 PHASE 5: CONTROLLED MODE — ROLE SEPARATION
   5.1 DB: validate_role_separation fn      ❌ NOT DONE
