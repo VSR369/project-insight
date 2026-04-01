@@ -403,13 +403,19 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
     const domainIds = industrySegments.slice(0, 2).map((segment) => segment.id);
 
+    // Match seed maturity code to actual md_solution_maturity record
+    const maturityMatch = solutionMaturityOptions.find((m) =>
+      m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase()
+    );
+
     form.reset({
       ...seed,
-      solution_maturity_id: '',
+      maturity_level: maturityMatch?.code ?? seed.maturity_level,
+      solution_maturity_id: maturityMatch?.id ?? '',
       industry_segment_id: industrySegments[0]?.id ?? '',
       domain_tags: domainIds,
     } as CreatorFormValues);
-  }, [engagementModel, industrySegments, form]);
+  }, [engagementModel, industrySegments, solutionMaturityOptions, form]);
 
   return (
     <FormProvider {...form}>
