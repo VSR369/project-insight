@@ -32,13 +32,20 @@ import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 
+/* ── Stakeholder row shape ── */
+const stakeholderRowSchema = z.object({
+  stakeholder_name: z.string(),
+  role: z.string(),
+  impact_description: z.string(),
+  adoption_challenge: z.string(),
+});
+
 /* ── Schema builders ── */
 
 function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: string) {
   const isQuick = governanceMode === 'QUICK';
   const isControlled = governanceMode === 'CONTROLLED';
 
-  // QUICK: relaxed minimums; STRUCTURED/CONTROLLED: stricter
   const problemMin = isQuick ? 100 : 200;
   const scopeRule = isQuick
     ? z.string().optional().default('')
@@ -48,20 +55,27 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     ? z.string().optional().default('IP-NEL')
     : z.string().min(1, 'Please select an IP model');
 
-  const outcomesRule = z.string().min(50, 'At least 50 characters required — describe what success looks like');
+  // Expected outcomes — line items (string[])
+  const outcomesRule = z.array(z.string()).min(1, 'Add at least one expected outcome');
 
-  // Context fields — required only for CONTROLLED
-  const contextRule = isControlled
+  // Context fields — line items for CONTROLLED, optional arrays otherwise
+  const lineItemRule = isControlled
+    ? z.array(z.string()).min(1, 'Required for Controlled governance')
+    : z.array(z.string()).default(['']);
+
+  const contextStringRule = isControlled
     ? z.string().min(1, 'Required for Controlled governance')
     : z.string().optional().default('');
+
+  const stakeholderRule = isControlled
+    ? z.array(stakeholderRowSchema).min(1, 'Required for Controlled governance')
+    : z.array(stakeholderRowSchema).default([]);
 
   const base = z.object({
     title: z.string().trim().min(1, 'Title is required').max(100, 'Max 100 characters'),
     problem_statement: z.string().min(problemMin, `At least ${problemMin} characters required`),
     scope: scopeRule,
-    maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
-      errorMap: () => ({ message: 'Please select a solution type' }),
-    }),
+    maturity_level: z.string().min(1, 'Please select a solution type'),
     industry_segment_id: z.string().min(1, 'Please select a primary industry segment'),
     domain_tags: z.array(z.string()).min(1, 'Select at least 1 domain').max(3, 'Max 3 domains'),
     currency: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
@@ -70,14 +84,12 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
     ip_model: ipRule,
     expected_outcomes: outcomesRule,
     // Tab 2 — context fields
-    context_background: contextRule,
-    preferred_approach: contextRule,
-    approaches_not_of_interest: isControlled
-      ? z.string().min(1, 'Required for Controlled governance')
-      : z.string().optional().default(''),
-    affected_stakeholders: contextRule,
-    current_deficiencies: contextRule,
-    root_causes: contextRule,
+    context_background: contextStringRule,
+    preferred_approach: lineItemRule,
+    approaches_not_of_interest: lineItemRule,
+    affected_stakeholders: stakeholderRule,
+    current_deficiencies: lineItemRule,
+    root_causes: lineItemRule,
     expected_timeline: z.string().optional().default(''),
   });
 
@@ -95,24 +107,25 @@ function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: str
   return base;
 }
 
-export type CreatorFormValues = z.infer<ReturnType<typeof buildCreatorSchema>> extends z.infer<infer T> ? z.infer<T> : {
+export type CreatorFormValues = {
   title: string;
   problem_statement: string;
   scope: string;
-  maturity_level: 'blueprint' | 'poc' | 'prototype' | 'pilot';
+  maturity_level: string;
   domain_tags: string[];
   currency: 'USD' | 'EUR' | 'GBP' | 'INR';
   budget_min: number;
   budget_max: number;
   ip_model: string;
-  expected_outcomes: string;
+  expected_outcomes: string[];
   context_background: string;
-  preferred_approach: string;
-  approaches_not_of_interest: string;
-  affected_stakeholders: string;
-  current_deficiencies: string;
-  root_causes: string;
+  preferred_approach: string[];
+  approaches_not_of_interest: string[];
+  affected_stakeholders: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
+  current_deficiencies: string[];
+  root_causes: string[];
   expected_timeline: string;
+  industry_segment_id: string;
 };
 
 /* ── Props ── */
@@ -150,20 +163,20 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       title: '',
       problem_statement: '',
       scope: '',
-      maturity_level: undefined,
+      maturity_level: '',
       industry_segment_id: '',
       domain_tags: [],
       currency: 'USD',
       budget_min: 0,
       budget_max: 0,
       ip_model: governanceMode === 'QUICK' ? 'IP-NEL' : '',
-      expected_outcomes: '',
+      expected_outcomes: [''],
       context_background: '',
-      preferred_approach: '',
-      approaches_not_of_interest: '',
-      affected_stakeholders: '',
-      current_deficiencies: '',
-      root_causes: '',
+      preferred_approach: [''],
+      approaches_not_of_interest: [''],
+      affected_stakeholders: [],
+      current_deficiencies: [''],
+      root_causes: [''],
       expected_timeline: '',
     },
   });
@@ -184,24 +197,46 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       const eb = ch.extended_brief as Record<string, unknown> | null;
       const eo = ch.expected_outcomes as any;
       const ps = ch.phase_schedule as Record<string, unknown> | null;
+
+      // Parse line items from DB format { items: [{ name: "..." }] } or string[]
+      const parseLineItems = (val: unknown): string[] => {
+        if (!val) return [''];
+        if (Array.isArray(val)) return val.length > 0 ? val : [''];
+        if (typeof val === 'object' && val !== null && 'items' in val) {
+          const items = (val as any).items;
+          if (Array.isArray(items)) return items.map((i: any) => i.name || i).filter(Boolean);
+        }
+        if (typeof val === 'string' && val.trim()) return [val];
+        return [''];
+      };
+
+      const parseStakeholders = (val: unknown): Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }> => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          try { const parsed = JSON.parse(val); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+        }
+        return [];
+      };
+
       form.reset({
         title: (ch.title as string) || '',
         problem_statement: (ch.problem_statement as string) || '',
         scope: (ch.scope as string) || '',
-        maturity_level: (ch.maturity_level as string)?.toLowerCase() as any || undefined,
+        maturity_level: ((ch.maturity_level as string) || '').toUpperCase(),
         industry_segment_id: (ch.industry_segment_id as string) || '',
         domain_tags: (ch.domain_tags as string[]) || [],
         currency: ((rs?.currency as string) || 'USD') as any,
         budget_min: Number(rs?.budget_min ?? 0),
         budget_max: Number(rs?.budget_max ?? 0),
         ip_model: (ch.ip_model as string) || '',
-        expected_outcomes: eo?.items?.[0]?.name || '',
+        expected_outcomes: parseLineItems(eo),
         context_background: (eb?.context_background as string) || '',
-        preferred_approach: (eb?.preferred_approach as string) || '',
-        approaches_not_of_interest: (eb?.approaches_not_of_interest as string) || '',
-        affected_stakeholders: (eb?.affected_stakeholders as string) || '',
-        current_deficiencies: (eb?.current_deficiencies as string) || '',
-        root_causes: (eb?.root_causes as string) || '',
+        preferred_approach: parseLineItems(eb?.preferred_approach),
+        approaches_not_of_interest: parseLineItems(eb?.approaches_not_of_interest),
+        affected_stakeholders: parseStakeholders(eb?.affected_stakeholders),
+        current_deficiencies: parseLineItems(eb?.current_deficiencies),
+        root_causes: parseLineItems(eb?.root_causes),
         expected_timeline: (ps?.expected_timeline as string) || '',
       });
     })();
@@ -210,6 +245,10 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
   const isSubmitting = submitMutation.isPending;
   const isSaving = draftMutation.isPending || updateDraftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
+
+  /** Filter empty strings from line-item arrays */
+  const cleanArray = (arr: string[] | undefined): string[] =>
+    (arr || []).filter((s) => s.trim().length > 0);
 
   const buildPayload = useCallback((data: CreatorFormValues) => {
     if (!currentOrg?.organizationId || !user?.id) {
@@ -221,7 +260,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       operatingModel: engagementModel,
       title: data.title,
       businessProblem: data.problem_statement,
-      expectedOutcomes: data.expected_outcomes || '',
+      expectedOutcomes: cleanArray(data.expected_outcomes),
       constraints: data.scope || '',
       currency: data.currency,
       budgetMin: data.budget_min,
@@ -229,15 +268,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       expectedTimeline: data.expected_timeline || '8w',
       domainTags: data.domain_tags,
       urgency: 'standard',
-      industrySegmentId: (data as any).industry_segment_id || undefined,
-      beneficiariesMapping: data.affected_stakeholders || undefined,
+      industrySegmentId: data.industry_segment_id || undefined,
       governanceModeOverride: governanceMode,
       contextBackground: data.context_background || undefined,
-      rootCauses: data.root_causes || undefined,
-      affectedStakeholders: data.affected_stakeholders || undefined,
-      preferredApproach: data.preferred_approach || undefined,
-      approachesNotOfInterest: data.approaches_not_of_interest || undefined,
-      currentDeficiencies: data.current_deficiencies || undefined,
+      rootCauses: cleanArray(data.root_causes),
+      affectedStakeholders: data.affected_stakeholders.length > 0 ? data.affected_stakeholders : undefined,
+      preferredApproach: cleanArray(data.preferred_approach),
+      approachesNotOfInterest: cleanArray(data.approaches_not_of_interest),
+      currentDeficiencies: cleanArray(data.current_deficiencies),
       maturityLevel: data.maturity_level || undefined,
       ipModel: data.ip_model || undefined,
     };
@@ -296,7 +334,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         operatingModel: engagementModel,
         title: data.title || '',
         businessProblem: data.problem_statement || '',
-        expectedOutcomes: data.expected_outcomes || '',
+        expectedOutcomes: cleanArray(data.expected_outcomes),
         constraints: data.scope || '',
         currency: data.currency,
         budgetMin: data.budget_min,
@@ -304,23 +342,21 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
         expectedTimeline: data.expected_timeline || '8w',
         domainTags: data.domain_tags || [],
         urgency: 'standard',
-        industrySegmentId: (data as any).industry_segment_id || undefined,
+        industrySegmentId: data.industry_segment_id || undefined,
         governanceModeOverride: governanceMode,
         contextBackground: data.context_background || undefined,
-        rootCauses: data.root_causes || undefined,
-        affectedStakeholders: data.affected_stakeholders || undefined,
-        preferredApproach: data.preferred_approach || undefined,
-        approachesNotOfInterest: data.approaches_not_of_interest || undefined,
-        currentDeficiencies: data.current_deficiencies || undefined,
+        rootCauses: cleanArray(data.root_causes),
+        affectedStakeholders: data.affected_stakeholders.length > 0 ? data.affected_stakeholders : undefined,
+        preferredApproach: cleanArray(data.preferred_approach),
+        approachesNotOfInterest: cleanArray(data.approaches_not_of_interest),
+        currentDeficiencies: cleanArray(data.current_deficiencies),
         maturityLevel: data.maturity_level || undefined,
         ipModel: data.ip_model || undefined,
       };
 
       if (draftChallengeId) {
-        // Update existing draft
         await updateDraftMutation.mutateAsync({ ...baseDraftPayload, challengeId: draftChallengeId });
       } else {
-        // Create new draft, store the ID
         const result = await draftMutation.mutateAsync(baseDraftPayload);
         setDraftChallengeId(result.challengeId);
       }
@@ -330,7 +366,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     }
   };
 
-  const isQuick = governanceMode === 'QUICK';
   const isControlled = governanceMode === 'CONTROLLED';
 
   const handleFillTestData = useCallback(() => {
