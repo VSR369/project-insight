@@ -386,7 +386,7 @@ export default function CurationActions({
         )}
       </div>
 
-      {/* AM Declined Alert */}
+      {/* CR Declined Alert */}
       {isAmDeclined && amDeclineReason && (
         <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 space-y-2">
           <div className="flex items-start gap-2">
