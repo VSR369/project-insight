@@ -108,6 +108,7 @@ interface SectionDef {
   title: string;
   icon: React.ElementType;
   content: React.ReactNode | null;
+  fieldKey?: string; // maps to md_governance_field_rules.field_key
 }
 
 function RichTextSection({ title, html, icon: Icon }: { title: string; html: string | null | undefined; icon: React.ElementType }) {
