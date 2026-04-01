@@ -126,7 +126,7 @@ export const AGG_SEED: SeedContent = {
   context_background:
     'We are a regional health system (NovaCare Health) with $1.8B annual revenue. We completed an Epic implementation 18 months ago — the system is stable but our registration workflows were lifted-and-shifted from the old Meditech system without redesign. Our CIO committed to a "digital front door" strategy in the board meeting last quarter. Two competitor systems in our market already offer online check-in and we are losing commercially insured patients to them. Our patient satisfaction scores for "registration experience" are in the 34th percentile nationally.',
   preferred_approach: [
-    'Patient-facing mobile web app (no native app — patients won't download for a one-time visit)',
+    'Patient-facing mobile web app (no native app — patients will not download for a one-time visit)',
     'Integration with Epic via FHIR R4 APIs and Epic MyChart for existing patients',
     'Clearinghouse API (Availity or Change Healthcare) for insurance verification — not individual payer scraping',
     'OCR for insurance card capture on patient phone',
