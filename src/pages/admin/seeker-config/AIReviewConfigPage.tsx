@@ -87,6 +87,7 @@ interface GlobalConfig {
   default_model: string;
   batch_split_threshold: number;
   critical_model?: string | null;
+  use_context_intelligence?: boolean;
   updated_at: string;
   updated_by: string | null;
 }
@@ -518,6 +519,7 @@ export default function AIReviewConfigPage() {
   const [globalModel, setGlobalModel] = useState('');
   const [criticalModel, setCriticalModel] = useState('');
   const [batchThreshold, setBatchThreshold] = useState(15);
+  const [useContextIntelligence, setUseContextIntelligence] = useState(false);
   const [globalSaving, setGlobalSaving] = useState(false);
 
   useEffect(() => {
@@ -525,6 +527,7 @@ export default function AIReviewConfigPage() {
       setGlobalModel(globalConfig.default_model);
       setCriticalModel(globalConfig.critical_model ?? '');
       setBatchThreshold(globalConfig.batch_split_threshold);
+      setUseContextIntelligence(globalConfig.use_context_intelligence ?? false);
     }
   }, [globalConfig]);
 
@@ -538,6 +541,7 @@ export default function AIReviewConfigPage() {
           default_model: globalModel,
           critical_model: criticalModel.trim() || null,
           batch_split_threshold: batchThreshold,
+          use_context_intelligence: useContextIntelligence,
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
         })
@@ -618,6 +622,21 @@ export default function AIReviewConfigPage() {
                     />
                     <p className="text-xs text-muted-foreground">
                       Max sections per batch
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Context Intelligence</Label>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Switch
+                        checked={useContextIntelligence}
+                        onCheckedChange={setUseContextIntelligence}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {useContextIntelligence ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Enable digest, grounding rules, and tiered attachments in AI reviews
                     </p>
                   </div>
                   <Button onClick={handleSaveGlobal} disabled={globalSaving} className="w-fit">

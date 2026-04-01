@@ -2,6 +2,7 @@
  * PreFlightGateDialog — Modal shown before global AI review
  * when mandatory sections are missing or recommended sections are empty.
  * Redesigned as an actionable navigation checklist.
+ * Gap 4: Quality prediction bar + quick-action scroll buttons.
  */
 
 import React from 'react';
@@ -15,7 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { XCircle, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { XCircle, AlertTriangle, ChevronRight, Sparkles, PenLine } from 'lucide-react';
 import type { PreFlightResult, PreFlightItem } from '@/lib/cogniblend/preFlightCheck';
 import { SECTION_TO_TAB } from '@/lib/cogniblend/preFlightCheck';
 
@@ -69,6 +71,67 @@ function NavigableRow({
   );
 }
 
+function QualityPredictionBar({
+  prediction,
+  onGoToSection,
+}: {
+  prediction: PreFlightResult['qualityPrediction'];
+  onGoToSection: (sectionKey: string) => void;
+}) {
+  const barColor =
+    prediction.qualityPct >= 90
+      ? '[&>div]:bg-emerald-500'
+      : prediction.qualityPct >= 80
+        ? '[&>div]:bg-primary'
+        : prediction.qualityPct >= 70
+          ? '[&>div]:bg-amber-500'
+          : '[&>div]:bg-destructive';
+
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">Quality Prediction</span>
+        </div>
+        <span className="text-sm font-semibold text-foreground">{prediction.qualityPct}%</span>
+      </div>
+      <Progress value={prediction.qualityPct} className={`h-2 ${barColor}`} />
+      <p className="text-xs text-muted-foreground">
+        {prediction.label} — expect ~{prediction.sectionsToEdit} sections to edit after AI review.
+      </p>
+
+      {/* Quick-action scroll buttons for missing recommended sections */}
+      {(!prediction.hasScope || !prediction.hasOutcomes) && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {!prediction.hasScope && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => onGoToSection('scope')}
+            >
+              <PenLine className="h-3 w-3" />
+              Add Scope
+            </Button>
+          )}
+          {!prediction.hasOutcomes && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => onGoToSection('expected_outcomes')}
+            >
+              <PenLine className="h-3 w-3" />
+              Add Expected Outcomes
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PreFlightGateDialog({
   result,
   open,
@@ -78,18 +141,27 @@ export function PreFlightGateDialog({
 }: PreFlightGateDialogProps) {
   if (!result) return null;
 
-  const isBlocking = !result.canProceed;
-  const hasWarnings = result.warnings.length > 0;
+  const allErrors = [
+    ...result.missingMandatory,
+    ...(result.budgetAlignmentErrors ?? []),
+  ];
+  const allWarnings = [
+    ...result.warnings,
+    ...(result.budgetAlignmentWarnings ?? []),
+  ];
 
-  if (!isBlocking && !hasWarnings) return null;
+  const isBlocking = !result.canProceed;
+  const hasWarnings = allWarnings.length > 0;
+
+  if (!isBlocking && !hasWarnings && result.qualityPrediction.qualityPct >= 95) return null;
 
   const handleNavigate = (sectionId: string) => {
     onGoToSection(sectionId);
     onOpenChange(false);
   };
 
-  const firstMandatory = result.missingMandatory[0];
-  const firstWarning = result.warnings[0];
+  const firstError = allErrors[0];
+  const firstWarning = allWarnings[0];
 
   return (
     <Dialog
@@ -124,13 +196,19 @@ export function PreFlightGateDialog({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-4">
-          {/* Mandatory missing sections */}
-          {result.missingMandatory.length > 0 && (
+          {/* Quality Prediction (Gap 4) */}
+          <QualityPredictionBar
+            prediction={result.qualityPrediction}
+            onGoToSection={handleNavigate}
+          />
+
+          {/* Mandatory missing sections + budget alignment errors */}
+          {allErrors.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-destructive px-1">
                 Required — Must be filled
               </p>
-              {result.missingMandatory.map((item) => (
+              {allErrors.map((item) => (
                 <NavigableRow
                   key={item.sectionId}
                   item={item}
@@ -141,13 +219,13 @@ export function PreFlightGateDialog({
             </div>
           )}
 
-          {/* Recommended empty sections */}
+          {/* Recommended empty sections + budget alignment warnings */}
           {hasWarnings && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 px-1">
                 Recommended — Will be AI-generated
               </p>
-              {result.warnings.map((item) => (
+              {allWarnings.map((item) => (
                 <NavigableRow
                   key={item.sectionId}
                   item={item}
@@ -164,19 +242,21 @@ export function PreFlightGateDialog({
             <Button
               variant="default"
               size="sm"
-              onClick={() => handleNavigate(firstMandatory.sectionId)}
+              onClick={() => handleNavigate(firstError.sectionId)}
             >
-              Go to {firstMandatory.sectionName}
+              Go to {firstError.sectionName}
             </Button>
           ) : (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleNavigate(firstWarning.sectionId)}
-              >
-                Fill them first
-              </Button>
+              {firstWarning && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleNavigate(firstWarning.sectionId)}
+                >
+                  Fill them first
+                </Button>
+              )}
               <Button
                 variant="default"
                 size="sm"

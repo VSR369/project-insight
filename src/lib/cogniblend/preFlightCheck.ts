@@ -3,6 +3,8 @@
  *
  * Tier 1 (mandatory): blocks review if missing.
  * Tier 2 (recommended): warns but allows proceeding.
+ * Gap 3: Maturity-budget alignment validation.
+ * Gap 4: Quality prediction based on scope/outcomes presence.
  */
 
 import type { SectionKey } from '@/types/sections';
@@ -13,10 +15,28 @@ export interface PreFlightItem {
   reason: string;
 }
 
+export interface QualityPrediction {
+  /** Estimated quality percentage (65–95) */
+  qualityPct: number;
+  /** Estimated sections needing manual edits */
+  sectionsToEdit: string;
+  /** Human-readable explanation */
+  label: string;
+  /** Which recommended sections are present */
+  hasScope: boolean;
+  hasOutcomes: boolean;
+}
+
 export interface PreFlightResult {
   canProceed: boolean;
   missingMandatory: PreFlightItem[];
   warnings: PreFlightItem[];
+  /** Maturity-budget alignment errors (blocking) */
+  budgetAlignmentErrors: PreFlightItem[];
+  /** Maturity-budget alignment warnings (non-blocking) */
+  budgetAlignmentWarnings: PreFlightItem[];
+  /** Quality prediction based on recommended section presence */
+  qualityPrediction: QualityPrediction;
 }
 
 const MANDATORY_SECTIONS: PreFlightItem[] = [
@@ -122,6 +142,108 @@ export const SECTION_TO_TAB: Record<string, string> = {
   domain_tags: 'Publish & Discover',
 };
 
+/**
+ * Gap 3: Maturity-budget alignment ranges.
+ * Below minimum → ERROR (blocks AI). Above range for Blueprint → WARNING.
+ */
+const MATURITY_BUDGET_RANGES: Record<string, { min: number; max: number }> = {
+  blueprint: { min: 5000, max: 75000 },
+  poc: { min: 5000, max: 200000 },
+  pilot: { min: 25000, max: Infinity },
+  prototype: { min: 5000, max: 150000 },
+  demo: { min: 5000, max: 100000 },
+};
+
+function normalizeMaturity(raw: string | null | undefined): string {
+  if (!raw) return '';
+  return raw
+    .toLowerCase()
+    .replace(/^solution[_\s]*/i, '')
+    .trim();
+}
+
+function checkMaturityBudgetAlignment(
+  sections: Record<string, string | null | unknown>,
+): { errors: PreFlightItem[]; warnings: PreFlightItem[] } {
+  const errors: PreFlightItem[] = [];
+  const warnings: PreFlightItem[] = [];
+
+  const maturityRaw = getSectionContent(sections, 'maturity_level');
+  const maturity = normalizeMaturity(maturityRaw);
+  const budgetMax = parseRewardStructureBudgetMax(sections);
+
+  // Skip check if no budget or no maturity
+  if (!maturity || budgetMax <= 0) return { errors, warnings };
+
+  const range = MATURITY_BUDGET_RANGES[maturity];
+  if (!range) return { errors, warnings };
+
+  if (budgetMax < range.min) {
+    errors.push({
+      sectionId: 'reward_structure' as SectionKey,
+      sectionName: 'Reward Structure (Budget)',
+      reason: `Budget $${budgetMax.toLocaleString()} is below the minimum $${range.min.toLocaleString()} for ${maturity} maturity level.`,
+    });
+  }
+
+  if (budgetMax > range.max && range.max !== Infinity) {
+    warnings.push({
+      sectionId: 'reward_structure' as SectionKey,
+      sectionName: 'Reward Structure (Budget)',
+      reason: `Budget $${budgetMax.toLocaleString()} exceeds the typical $${range.max.toLocaleString()} ceiling for ${maturity}. Consider a higher maturity level.`,
+    });
+  }
+
+  return { errors, warnings };
+}
+
+/**
+ * Gap 4: Compute quality prediction based on scope + outcomes presence.
+ */
+function computeQualityPrediction(
+  sections: Record<string, string | null | unknown>,
+): QualityPrediction {
+  const scopeContent = getSectionContent(sections, 'scope');
+  const outcomesContent = getSectionContent(sections, 'expected_outcomes');
+  const hasScope = scopeContent.length >= 30;
+  const hasOutcomes = outcomesContent.length >= 30;
+
+  if (hasScope && hasOutcomes) {
+    return {
+      qualityPct: 95,
+      sectionsToEdit: '2–3',
+      label: 'Excellent — both Scope and Outcomes are provided',
+      hasScope,
+      hasOutcomes,
+    };
+  }
+  if (hasOutcomes) {
+    return {
+      qualityPct: 85,
+      sectionsToEdit: '5–7',
+      label: 'Good — Outcomes provided, Scope will be AI-generated',
+      hasScope,
+      hasOutcomes,
+    };
+  }
+  if (hasScope) {
+    return {
+      qualityPct: 80,
+      sectionsToEdit: '5–7',
+      label: 'Fair — Scope provided, Outcomes will be AI-generated',
+      hasScope,
+      hasOutcomes,
+    };
+  }
+  return {
+    qualityPct: 65,
+    sectionsToEdit: '10–15',
+    label: 'Both Scope and Outcomes are missing — expect more editing',
+    hasScope,
+    hasOutcomes,
+  };
+}
+
 export function preFlightCheck(
   sections: Record<string, string | null | unknown>,
   operatingModel?: string,
@@ -159,9 +281,18 @@ export function preFlightCheck(
     }
   }
 
+  // Gap 3: Maturity-budget alignment
+  const alignment = checkMaturityBudgetAlignment(sections);
+
+  // Gap 4: Quality prediction
+  const qualityPrediction = computeQualityPrediction(sections);
+
   return {
-    canProceed: missingMandatory.length === 0,
+    canProceed: missingMandatory.length === 0 && alignment.errors.length === 0,
     missingMandatory,
     warnings,
+    budgetAlignmentErrors: alignment.errors,
+    budgetAlignmentWarnings: alignment.warnings,
+    qualityPrediction,
   };
 }

@@ -551,7 +551,9 @@ async function callAIPass2Rewrite(
   sectionConfigs?: SectionConfig[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
   orgContext?: any,
-  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; sharedWithSolver: boolean }[]>,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; resourceType?: string; sharedWithSolver: boolean }[]>,
+  contextDigestText?: string,
+  useContextIntelligence?: boolean,
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
@@ -688,15 +690,32 @@ ${depBlock}
       const sectionAtts = (attachmentsBySection || {})[r.section_key] || [];
       if (sectionAtts.length === 0) return '';
       let block = '\nREFERENCE MATERIALS for this section:\n';
+
+      // Gap 2: Tiered injection when context intelligence is enabled
+      const isSoloBatch = sectionsNeedingSuggestion.length === 1;
+      const fewAttachments = sectionAtts.length <= 2;
+
       for (const a of sectionAtts) {
         const typeTag = a.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
         const shareTag = a.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY';
         block += `--- [${typeTag}] ${a.name} [${shareTag}] ---\n`;
         if (a.sourceUrl) block += `Source: ${a.sourceUrl}\n`;
         if (a.resourceType) block += `Type: ${a.resourceType}\n`;
+
+        // TIER 2 (always): summary + keyData
         if (a.summary) block += `KEY POINTS:\n${a.summary}\n`;
         if (a.keyData && Object.keys(a.keyData).length > 0) block += `VERIFIED DATA: ${JSON.stringify(a.keyData)}\n`;
-        block += `CONTENT:\n${a.content}\n`;
+
+        // TIER 3 (conditional): full content only when solo batch, ≤2 attachments, or no summary
+        const includeFull = !useContextIntelligence || isSoloBatch || fewAttachments || !a.summary;
+        if (includeFull) {
+          // Dynamic budget: truncate if >30K tokens (~120K chars) total
+          const maxContentLen = 30000 * 4; // ~30K tokens ≈ 120K chars
+          const contentToInclude = a.content.length > maxContentLen
+            ? a.content.substring(0, maxContentLen) + '\n[... content truncated for token budget ...]'
+            : a.content;
+          block += `CONTENT:\n${contentToInclude}\n`;
+        }
       }
       block += `\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.`;
       block += `\n\nGROUNDING RULE: Every factual claim, statistic, or benchmark MUST trace to the VERIFIED CONTEXT DIGEST or a REFERENCE MATERIAL. If a claim is NOT from these sources, prefix it with [INFERENCE] so the Curator can verify independently.\n`;
@@ -834,6 +853,23 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     timestamp: new Date().toISOString(),
   }));
 
+  // Gap 5: Detect finish_reason: 'length' (output truncation)
+  const finishReason = result.choices?.[0]?.finish_reason;
+  if (finishReason === 'length') {
+    console.warn(JSON.stringify({
+      event: 'ai_review_truncated',
+      pass: 'pass2_rewrite',
+      sectionKeys: sectionsNeedingSuggestion.map((s: any) => s.section_key),
+      model: result.model || model,
+      timestamp: new Date().toISOString(),
+    }));
+    // If more than 1 section, the output was likely truncated — return empty to let batch split retry
+    if (sectionsNeedingSuggestion.length > 1) {
+      console.error("Pass 2 output truncated with multiple sections — retry with smaller batches");
+      return new Map();
+    }
+  }
+
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) {
     console.error("Pass 2: AI did not return structured output");
@@ -884,7 +920,9 @@ async function callAIBatchTwoPass(
   providedComments?: any[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
   orgContext?: any,
-  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; sharedWithSolver: boolean }[]>,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; resourceType?: string; sharedWithSolver: boolean }[]>,
+  contextDigestText?: string,
+  useContextIntelligence?: boolean,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
@@ -901,7 +939,7 @@ async function callAIBatchTwoPass(
   // ═══ PASS 2: Rewrite (conditional) ═══
   let suggestionMap: Map<string, string>;
   try {
-    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection);
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection, contextDigestText, useContextIntelligence);
   } catch (err: any) {
     // Pass 2 failure is non-fatal — return Pass 1 results without suggestions
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
@@ -1258,6 +1296,7 @@ serve(async (req) => {
     const dbConfigs: SectionConfig[] = (configResult.data ?? []) as SectionConfig[];
     const globalConfig = globalConfigResult.data;
     const useDbConfig = dbConfigs.length > 0;
+    const useContextIntelligence = globalConfig?.use_context_intelligence === true;
 
     // Build section list — from DB config or fallback
     let sectionsToReview: { key: string; desc: string }[];
@@ -1547,9 +1586,9 @@ serve(async (req) => {
       } catch { /* attachments are optional — graceful fallback */ }
     }
 
-    // ── Phase 7: Fetch context digest ─────────────────────────────────────
+    // ── Phase 7: Fetch context digest (gated by feature flag) ──────────────
     let contextDigestText = '';
-    if (resolvedContext === "curation") {
+    if (resolvedContext === "curation" && useContextIntelligence) {
       try {
         const { data: digest } = await adminClient
           .from('challenge_context_digest')
@@ -1725,8 +1764,9 @@ ${additionalData}`;
         userPrompt += contextDigestText;
       }
 
-      // Append reference materials (files + URLs) to user prompt
-      if (Object.keys(attachmentsBySection).length > 0) {
+      // Gap 8: When context intelligence flag is ON, Pass 1 gets digest-only (no per-section attachments).
+      // Attachments are reserved for Pass 2 with tiered injection.
+      if (!useContextIntelligence && Object.keys(attachmentsBySection).length > 0) {
         let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
         const batchKeySet = new Set(batch.map(b => b.key));
         for (const [sk, refs] of Object.entries(attachmentsBySection)) {
@@ -1738,7 +1778,6 @@ ${additionalData}`;
             if (ref.sourceType === 'url' && ref.sourceUrl) {
               attachmentBlock += `Source: ${ref.sourceUrl}\n`;
             }
-            // Phase 7: Include AI summary if available, then full content
             if (ref.summary) {
               attachmentBlock += `AI Summary: ${ref.summary}\n`;
             }
@@ -1751,14 +1790,14 @@ ${additionalData}`;
         attachmentBlock += `
 REFERENCE MATERIAL USAGE RULES:
 - Use ALL materials (files, web pages, shared and private) to inform your review and suggestions.
-- SHARED materials: Solvers will also see these. You may reference them directly in section content ("As detailed in the attached architecture diagram..." or "Refer to our API docs at [url]...").
-- AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself. Write "Our current defect rate is 4.2%" — NOT "Per the attached audit report..." The information must stand alone in the section.
-- WEB PAGES: These represent the org's public presence, industry context, or technical documentation. Use them to validate challenge content against actual capabilities.
+- SHARED materials: Solvers will also see these. You may reference them directly in section content.
+- AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself.
+- WEB PAGES: These represent the org's public presence, industry context, or technical documentation.
 
 GROUNDING RULE (CRITICAL):
 - When your suggestion includes a specific claim, data point, or statistic, it MUST be traceable to the Context Digest, a Reference Material, or the challenge's own content.
-- If you infer or estimate a value that is NOT directly stated in any source, you MUST tag it with [INFERENCE] — e.g., "The estimated market size is $2.4B [INFERENCE]".
-- Never fabricate statistics, benchmarks, or proper nouns. If you cannot verify a claim, say so explicitly.
+- If you infer or estimate a value that is NOT directly stated in any source, you MUST tag it with [INFERENCE].
+- Never fabricate statistics, benchmarks, or proper nouns.
 `;
         userPrompt += attachmentBlock;
       }
@@ -1833,6 +1872,8 @@ GROUNDING RULE (CRITICAL):
           masterDataOptions,
           orgContext,
           attachmentsBySection,
+          contextDigestText,
+          useContextIntelligence,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {
