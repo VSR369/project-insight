@@ -302,27 +302,27 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       {
         title: 'Root Causes',
         icon: Info,
-        content: eb.root_causes ? <RichTextSection title="Root Causes" html={eb.root_causes as string} icon={Info} /> : null,
+        content: parseItems(eb.root_causes) ? <ListSection title="Root Causes" icon={Info} items={parseItems(eb.root_causes)!} /> : null,
       },
       {
         title: 'Affected Stakeholders',
         icon: Info,
-        content: eb.affected_stakeholders ? <RichTextSection title="Affected Stakeholders" html={eb.affected_stakeholders as string} icon={Info} /> : null,
+        content: parseStakeholders(eb.affected_stakeholders) ? <ListSection title="Affected Stakeholders" icon={Info} items={parseStakeholders(eb.affected_stakeholders)!} /> : null,
       },
       {
         title: 'Current Deficiencies',
         icon: Info,
-        content: eb.current_deficiencies ? <RichTextSection title="Current Deficiencies" html={eb.current_deficiencies as string} icon={Info} /> : null,
+        content: parseItems(eb.current_deficiencies) ? <ListSection title="Current Deficiencies" icon={Info} items={parseItems(eb.current_deficiencies)!} /> : null,
       },
       {
         title: 'Preferred Approach',
         icon: Info,
-        content: eb.preferred_approach ? <RichTextSection title="Preferred Approach" html={eb.preferred_approach as string} icon={Info} /> : null,
+        content: parseItems(eb.preferred_approach) ? <ListSection title="Preferred Approach" icon={Info} items={parseItems(eb.preferred_approach)!} /> : null,
       },
       {
         title: 'Approaches Not of Interest',
         icon: Info,
-        content: eb.approaches_not_of_interest ? <RichTextSection title="Approaches Not of Interest" html={eb.approaches_not_of_interest as string} icon={Info} /> : null,
+        content: parseItems(eb.approaches_not_of_interest) ? <ListSection title="Approaches Not of Interest" icon={Info} items={parseItems(eb.approaches_not_of_interest)!} /> : null,
       },
       {
         title: 'Budget Range',
