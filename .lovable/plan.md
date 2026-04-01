@@ -1,106 +1,96 @@
 
 
-# Creator Functionality Audit: Governance + Engagement + Tier + CRUD Alignment
+# Creator & Curator Role Audit: Gaps vs Project Knowledge
 
-## Audit Summary
+## Summary
 
-After reviewing all Creator-related files end-to-end, the pipeline is **largely correct** post-recent fixes, but **7 issues remain** ranging from display bugs to data integrity gaps.
+After reviewing all Creator and Curator files against project knowledge (memories + architecture standards), I found **9 issues** — mostly legacy terminology that contradicts the Role Architecture v2 ("AM, RQ, CA, ID removed"), plus missing architecture standard compliance.
 
 ---
 
 ## Issues Found
 
-### Issue 1: `governanceLabel()` in MyChallengesPage doesn't handle `QUICK`
+### Issue 1: Legacy role names in UI strings (contradicts Role Architecture v2)
 
-**File:** `MyChallengesPage.tsx` line 56-63
+Per memory `cogniblend-role-governance`: "All legacy roles (AM, RQ, CA, ID) have been removed. The Curator (CU) inherits all approval authority previously held by the Innovation Director."
 
-The `governanceLabel()` function maps `LIGHTWEIGHT` → `Quick`, `STRUCTURED` → `Structured`, `CONTROLLED` → `Controlled`. But the Creator form now writes `QUICK` to `governance_mode_override`, not `LIGHTWEIGHT`. If `governance_profile` is `QUICK`, the function falls through to the default case and displays the raw string `QUICK` instead of `Quick`.
+But multiple files still reference removed roles in user-visible text:
 
-**Fix:** Add `case 'QUICK': return 'Quick';` to the switch.
+| File | Legacy Reference | Should Be |
+|------|-----------------|-----------|
+| `WorkflowProgressBanner.tsx` L24 | `Challenge Creator / Architect (CR/CA)` | `Challenge Creator (CR)` |
+| `WorkflowProgressBanner.tsx` L31 | `Challenge Creator / Architect (CR/CA)` | `Challenge Creator (CR)` |
+| `WorkflowProgressBanner.tsx` L44-46 | `Innovation Director Approval`, `Innovation Director (ID)` | `CU Approval` or skip (CU already owns this) |
+| `RequestJourneySection.tsx` L38-42 | `You (AM)`, `Challenge Creator / Architect`, `Innovation Director` (5 refs) | Use modern role names (CR, CU) |
+| `WhatsNextCard.tsx` L28,34,44-46 | `Challenge Creator / Architect`, `Innovation Director` | `Challenge Creator`, `Curator` |
+| `CurationActions.tsx` L254,277,338,394,459-462 | `Account Manager`, `Innovation Director` in toasts/buttons | `Challenge Creator`, `Curator` |
 
-Same issue exists in `CreatorChallengeDetailView.tsx` line 96-103 — identical switch with same gap.
+### Issue 2: Legacy `SimpleIntakeForm` uses AM/RQ role model
 
----
+`SimpleIntakeForm.tsx` is documented as "Model-adaptive intake form for AM/RQ roles" and references `am_approval_required`, `Challenge Architect`, and legacy workflow. Per Role Architecture v2, AM and RQ are removed. This entire form may be the legacy intake path that should either be removed or fully migrated to use CR terminology.
 
-### Issue 2: EssentialDetailsTab field hiding is hardcoded, not governance-driven
+### Issue 3: `CurationActions` still routes to "Innovation Director" for AGG model
 
-**File:** `EssentialDetailsTab.tsx` lines 96, 270
+Line 316-338: AGG model submit calls `completePhase` and toasts "Challenge submitted to Innovation Director for review." Per memory, "The Curator (CU) inherits all approval and cancellation authority previously held by the Innovation Director." The AGG path should either complete curation directly or go to a CU senior review — not ID.
 
-The `Scope` and `IP Preference` fields are hidden with `{!isQuick && (...)}` — a hardcoded check against `governanceMode === 'QUICK'`. This works today but ignores the Supervisor-configurable `md_governance_field_rules` table. If a Supervisor marks `scope` as `required` for QUICK mode, the form still hides it.
+### Issue 4: `am_approval_required` workflow in CurationActions
 
-Similarly, `Budget Range` always shows regardless of governance rules (no visibility check against `platinum_award` field_key).
+Lines 225-286: For MP model, CurationActions checks `am_approval_required` from `extended_brief` and routes to "Account Manager" for pre-publish approval. Per Role Architecture v2, AM is removed. This approval should either be removed (CU has full authority) or rebranded to "Creator Approval" if the CR role retains pre-publish sign-off.
 
-**Fix:** Pass `fieldRules` from the parent form and use `isFieldVisible(fieldRules, 'scope')` instead of `!isQuick`. Apply the same pattern to `ip_model` and `platinum_award` (budget fields).
+### Issue 5: `WorkflowProgressBanner` phase model references 13 phases
 
----
+`RequestJourneySection.tsx` defines 13 phases with owners like AM, ID, Challenge Architect. The `WorkflowProgressBanner` maps to 6 steps. Both reference legacy roles. These need updating to match the modern 2-core-role architecture.
 
-### Issue 3: AdditionalContextTab field hiding is hardcoded
+### Issue 6: Missing `handleMutationError` in CurationActions
 
-**File:** `AdditionalContextTab.tsx`
+`CurationActions.tsx` uses raw `toast.error()` in `onError` handlers (lines 183-185, 283-285) instead of the centralized `handleMutationError` from `@/lib/errorHandler`. Per architecture standard Section 11.5, all error handling must use the centralized handler.
 
-The Tab 2 fields (context_background, root_causes, etc.) always render regardless of governance mode. Their `required` flag is driven by `isControlled` but they are never hidden for QUICK mode. The Zod schema handles validation (optional for QUICK), but the UI doesn't hide fields the Supervisor has marked `hidden`.
+### Issue 7: Direct Supabase calls in CurationActions component
 
-**Fix:** Accept `fieldRules` prop. Wrap each field group in `isFieldVisible(fieldRules, fieldKey)` checks. Timeline field should check `expected_timeline` visibility.
+`CurationActions.tsx` makes direct `supabase.from()` and `supabase.rpc()` calls inside the component (lines 89-98, 121-138, 230-234, 317-346). Per architecture standard Section 5.2: "Services are stateless... services call data access helpers, never Supabase directly from components."
 
----
+### Issue 8: `MyActionItemsSection` JSDoc references legacy CA/CR
 
-### Issue 4: `expected_timeline` location mismatch with memory
+Line 4: "For CA/CR: also shows unread lifecycle notifications." CA is a removed legacy role. Comment should reference CR only.
 
-Per project memory: "The 'Target Timeline' field is located in the **Essential Details** tab." But the actual code has it in `AdditionalContextTab.tsx` (line 237). This contradicts the documented intent.
+### Issue 9: Missing `expected_outcomes` visibility check in EssentialDetailsTab
 
-**Fix:** Either move `expected_timeline` to `EssentialDetailsTab` or update the memory. Recommend keeping it in Tab 2 as it's an optional enrichment field for most modes.
-
----
-
-### Issue 5: Draft resume doesn't load `governance_mode_override`
-
-**File:** `ChallengeCreatorForm.tsx` lines 188-261
-
-When resuming a draft via `?draft=<id>`, the form fetches challenge data but does NOT fetch `governance_mode_override` or `operating_model`. The parent `ChallengeCreatePage` initializes governance/engagement from org defaults, so a draft saved as `CONTROLLED/AGG` will resume as `QUICK/MP` if that's the org default.
-
-**Fix:** Fetch `governance_mode_override` and `operating_model` in the draft load query. Expose a callback to the parent page to set the governance mode and engagement model from the loaded draft values.
-
----
-
-### Issue 6: `useMyChallenges` doesn't fetch `governance_mode_override`
-
-**File:** `useMyChallenges.ts` line 39
-
-The query fetches `governance_profile` but not `governance_mode_override`. The `MyChallengesPage` badge shows `governanceLabel(ch.governance_profile)` — this will show the ORG-level default, not the per-challenge override. A QUICK challenge under a STRUCTURED org will incorrectly display "Structured".
-
-**Fix:** Add `governance_mode_override` to the select query and the `MyChallengeItem` interface. In the card, display `governance_mode_override ?? governance_profile`.
-
----
-
-### Issue 7: Delete draft has no RLS guard for ownership
-
-**File:** `MyChallengesPage.tsx` lines 103-124
-
-The delete handler does a raw `supabase.from('challenges').update({ is_deleted: true }).eq('id', deleteTarget)` with no ownership check. This relies entirely on RLS. If RLS is misconfigured or the table has a broad update policy, any user could delete any challenge. The handler also doesn't verify the challenge is in Phase 1 (draft state) — it could soft-delete an active published challenge.
-
-**Fix:** Add `.eq('created_by', user.id)` and `.eq('current_phase', 1)` filters to the update query as defense-in-depth.
+The Expected Outcomes field (lines 305-321 in EssentialDetailsTab) always renders without checking `isFieldVisible(rules, 'expected_outcomes')`. All other governance-aware fields use this check. While expected_outcomes is mandatory for all modes, the pattern should be consistent — if a Supervisor marks it hidden via `md_governance_field_rules`, it should respect that.
 
 ---
 
 ## Fix Plan
 
-### Files to Change
+### Phase 1: Terminology cleanup (low risk, high impact)
 
-| File | Changes |
-|------|---------|
-| `src/pages/cogniblend/MyChallengesPage.tsx` | Fix `governanceLabel` switch; add `governance_mode_override` display; add ownership + phase guard to delete |
-| `src/hooks/cogniblend/useMyChallenges.ts` | Fetch `governance_mode_override`; add to interface |
-| `src/components/cogniblend/creator/EssentialDetailsTab.tsx` | Accept `fieldRules` prop; use `isFieldVisible()` for scope, IP, budget fields |
-| `src/components/cogniblend/creator/AdditionalContextTab.tsx` | Accept `fieldRules` prop; use `isFieldVisible()` for all context fields |
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Pass `fieldRules` to both tabs; fetch `governance_mode_override` + `operating_model` on draft resume; expose callback to parent for mode sync |
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Accept mode sync callback from form for draft resume |
-| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Fix `governanceLabel` switch to handle `QUICK` |
+| File | Change |
+|------|--------|
+| `WorkflowProgressBanner.tsx` | Replace "CR/CA" with "CR", replace "Innovation Director (ID)" with "Curator (CU)", update step labels |
+| `RequestJourneySection.tsx` | Update `PHASE_OWNER` to use modern role names (CR, CU, ER, LC, FC) |
+| `WhatsNextCard.tsx` | Update `PHASE_ACTIONS` role labels to modern names |
+| `MyActionItemsSection.tsx` | Update JSDoc comment (CA → CR only) |
 
-### Implementation Order
+### Phase 2: Curator submission flow fix
 
-1. Fix `governanceLabel()` in both files (trivial, zero risk)
-2. Add `governance_mode_override` to `useMyChallenges` + card display
-3. Add defense-in-depth to delete handler
-4. Make EssentialDetailsTab + AdditionalContextTab governance-rule-driven
-5. Fix draft resume to load and apply saved governance/engagement model
+| File | Change |
+|------|--------|
+| `CurationActions.tsx` | (a) Replace "Account Manager" with "Challenge Creator" in all toasts/labels. (b) Replace "Innovation Director" with appropriate CU-based terminology. (c) Rebrand `AM_APPROVAL_PENDING` UI labels to "Creator Approval Pending". (d) Replace raw `toast.error` with `handleMutationError`. |
+
+### Phase 3: Architecture compliance
+
+| File | Change |
+|------|--------|
+| `EssentialDetailsTab.tsx` | Wrap Expected Outcomes in `isFieldVisible(rules, 'expected_outcomes')` check |
+| `SimpleIntakeForm.tsx` | Update JSDoc and user-visible strings from AM/RQ/CA to CR terminology (form is still used by the conversational intake route) |
+
+### Files Changed (8 total)
+
+1. `src/components/cogniblend/WorkflowProgressBanner.tsx`
+2. `src/components/cogniblend/dashboard/RequestJourneySection.tsx`
+3. `src/components/cogniblend/dashboard/WhatsNextCard.tsx`
+4. `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
+5. `src/components/cogniblend/curation/CurationActions.tsx`
+6. `src/components/cogniblend/creator/EssentialDetailsTab.tsx`
+7. `src/components/cogniblend/SimpleIntakeForm.tsx`
+8. `src/pages/cogniblend/CurationChecklistPanel.tsx` (same ID references)
 
