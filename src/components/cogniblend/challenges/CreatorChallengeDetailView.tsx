@@ -3,8 +3,12 @@
  * Vertical scrolling with search filter on section headings.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft, Building2, Globe, Search, Target, Layers, BookOpen,
   Info, Trophy, Clock, Tag, Briefcase, MapPin, ListChecks, BarChart3,
