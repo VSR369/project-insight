@@ -225,7 +225,7 @@ export default function CurationActions({
   });
   const amApprovalRequired = isMP && (extendedBrief?.am_approval_required !== false);
 
-  // For MP: update phase_status to AM_APPROVAL_PENDING instead of advancing phase
+  // For MP: update phase_status to CR_APPROVAL_PENDING instead of advancing phase
   const amApprovalMutation = useMutation({
     mutationFn: async () => {
       // Set phase_status to AM_APPROVAL_PENDING
