@@ -1,23 +1,50 @@
 
 
-# Restore "Fill Test Data" Button Visibility in Preview
+# Fix: My Challenges — Draft vs Submitted State & Resume Bug
 
-## Problem
-The "Fill Test Data" button is gated by `import.meta.env.DEV`, which is `false` in the Lovable preview (production build). The button exists in the code and the seed data is correctly formatted — it's just invisible in the preview.
+## Problem Summary
 
-## Solution
-Replace the `import.meta.env.DEV` check with a condition that also works in the Lovable preview environment. Two options:
+Two related bugs after submitting a challenge that was previously saved as a draft:
 
-1. **Use `import.meta.env.MODE !== 'production'`** — still won't work in Lovable preview (also production mode).
-2. **Show the button always but styled as a dev/test tool** — simplest and most practical. The button already uses `variant="ghost"` and muted styling, and is clearly labeled as test tooling. Since this is an internal platform in active development, showing it is safe.
+1. **Duplicate challenge created**: When submitting from a draft (`?draft=<id>`), the submit flow always calls `initialize_challenge` RPC to create a **new** challenge instead of using the existing draft. The old draft remains at Phase 1 ("Draft" status) while a new challenge is created at Phase 2.
 
-**Recommended:** Remove the `import.meta.env.DEV` gate entirely. The button is harmless (only pre-fills form fields) and critical for developer/tester productivity.
+2. **Resume shows empty form**: Clicking "Resume" on the old draft loads it, but since all form data was saved to the *new* challenge, the draft has no meaningful data.
 
-## Changes
+3. **Missing query invalidation**: `onSuccess` in `useSubmitSolutionRequest` doesn't invalidate `['cogni-my-challenges']`, so the list may show stale data.
+
+**Additionally**, the My Challenges page shows "Resume" for all drafts but doesn't distinguish between a true draft (never submitted) and a submitted challenge. Per the user's requirement:
+- **Draft (Phase 1, not submitted)** → "Resume" button + "Delete" button
+- **Submitted to Curator (Phase 2+)** → "View" button only
+
+## Plan
+
+### 1. Add `draftChallengeId` to `SubmitPayload` in `useSubmitSolutionRequest.ts`
+
+- Add optional `draftChallengeId?: string` to the `SubmitPayload` interface
+- When `draftChallengeId` is provided, **skip** `initialize_challenge` RPC and use the existing challenge ID directly
+- Update the challenge record with form data and call `complete_phase` on the existing draft
+- Add `['cogni-my-challenges']` to query invalidation in `onSuccess`
+
+### 2. Pass `draftChallengeId` from `ChallengeCreatorForm.tsx`
+
+- In `handleSubmit`, include `draftChallengeId` in the payload passed to `submitMutation.mutateAsync()`
+- This ensures drafts are promoted rather than duplicated
+
+### 3. Fix `MyChallengesPage.tsx` action buttons
+
+The current logic already correctly distinguishes draft vs non-draft:
+```
+isDraft = master_status === 'IN_PREPARATION' && current_phase === 1
+```
+- Draft → Resume + Delete (already correct)
+- Non-draft → View (already correct)
+
+No changes needed here since fixing bugs #1 and #2 will resolve the display issue — submitted challenges will properly advance to Phase 2 and show "View" instead of "Resume".
+
+## Files Changed
 
 | File | Change |
 |---|---|
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Remove `import.meta.env.DEV &&` wrapper around the Fill Test Data button (line 416). Keep the button styling as-is. |
-
-This is a single-line change — remove the conditional, keep everything else.
+| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Add `draftChallengeId` to payload; skip `initialize_challenge` when present; add `cogni-my-challenges` invalidation |
+| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Pass `draftChallengeId` in submit payload |
 
