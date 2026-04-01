@@ -1,110 +1,51 @@
 
 
-# Creator-Curator Format Alignment & Solution Maturity DB Integration
+# Update Fill Test Data & Creator Form Format Alignment
 
-## Problem Analysis
+## Problem
+The 2-tab `ChallengeCreatorForm` and its seed data (`creatorSeedContent.ts`) were NOT updated during the format alignment work. They still use:
+- `expected_outcomes` as a plain string (RichTextEditor) instead of `string[]` (line items)
+- Hardcoded `MATURITY_OPTIONS` with old codes (`blueprint`, `poc`, `prototype`, `pilot`) instead of DB-driven `md_solution_maturity`
+- Context fields (`root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`, `affected_stakeholders`) as plain strings instead of arrays/structured data
+- `submission_guidelines` missing entirely
 
-Three issues need resolution:
-
-### Issue 1: Solution Maturity — No DB Relationship
-The `challenges.maturity_level` column stores a plain string (`BLUEPRINT`, `POC`, `PROTOTYPE`, `PILOT`). The new `md_solution_maturity` table exists but has no FK relationship. The creator form uses hardcoded `MATURITY_OPTIONS` (4 items with old codes) instead of fetching from `md_solution_maturity`.
-
-### Issue 2: Creator → Curator Format Mismatches
-The curator's `SECTION_FORMAT_CONFIG` defines the authoritative format for each section. Several creator form fields use the **wrong input format**, causing data shape mismatches when content flows to the curator:
-
-| Creator Field | Creator Format | Curator Section | Curator Format | Status |
-|---|---|---|---|---|
-| `expected_outcomes` | RichTextEditor (string) | `expected_outcomes` | `line_items` (string[]) | **MISMATCH** |
-| `affected_stakeholders` | RichTextEditor (string) | `affected_stakeholders` | `table` (columns: stakeholder_name, role, impact_description, adoption_challenge) | **MISMATCH** |
-| `root_causes` | RichTextEditor (string) | `root_causes` | `line_items` (string[]) | **MISMATCH** |
-| `current_deficiencies` | RichTextEditor (string) | `current_deficiencies` | `line_items` (string[]) | **MISMATCH** |
-| `preferred_approach` | RichTextEditor (string) | `preferred_approach` | `line_items` (string[]) | **MISMATCH** |
-| `approaches_not_of_interest` | RichTextEditor (string) | `approaches_not_of_interest` | `line_items` (string[]) | **MISMATCH** |
-| `submission_guidelines` | Textarea (string) | `submission_guidelines` | `line_items` (string[]) | **MISMATCH** |
-| `problem_statement` | RichTextEditor | `problem_statement` | `rich_text` | OK |
-| `scope` | RichTextEditor | `scope` | `rich_text` | OK |
-| `deliverables` | Numbered list (string[]) | `deliverables` | `line_items` | OK |
-| `domain_tags` | Multi-select | `domain_tags` | `tag_input` | OK |
-| `maturity_level` | Radio cards | `maturity_level` | `checkbox_single` | OK (single select) |
-
-### Issue 3: No Documented Mapping Matrix
-No centralized config maps creator fields to curator sections with format enforcement.
-
----
+The wizard form (`challengeFormSchema.ts`) was updated, but the simplified Creator form was not.
 
 ## Plan
 
-### 1. Database Migration — FK + Solution Maturity Relationship
+### 1. Update `ChallengeCreatorForm.tsx` Schema (`buildCreatorSchema`)
+- Change `expected_outcomes` from `z.string()` to `z.array(z.string()).min(1)`
+- Change `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest` from `z.string()` to `z.array(z.string()).default([''])`
+- Change `affected_stakeholders` from `z.string()` to `z.array(z.object({...})).default([])`
+- Change `maturity_level` from `z.enum([...])` to `z.string().min(1)` — stores the maturity code from DB
+- Add `solution_maturity_id` field (UUID)
+- Update `CreatorFormValues` type and default values accordingly
 
-**Add FK column `solution_maturity_id` to `challenges` table:**
+### 2. Update `EssentialDetailsTab.tsx`
+- Remove hardcoded `MATURITY_OPTIONS`
+- Import `useSolutionMaturityList` hook, render maturity radio cards dynamically from DB
+- Replace `RichTextEditor` for `expected_outcomes` with `LineItemsInput` component
 
-```sql
-ALTER TABLE public.challenges
-  ADD COLUMN solution_maturity_id UUID REFERENCES public.md_solution_maturity(id);
+### 3. Update `AdditionalContextTab.tsx`
+- Replace `RichTextEditor` for `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest` with `LineItemsInput`
+- Replace `RichTextEditor` for `affected_stakeholders` with structured entry fields (name + role + impact + adoption challenge)
 
-CREATE INDEX idx_challenges_solution_maturity ON public.challenges(solution_maturity_id);
-```
+### 4. Update `creatorSeedContent.ts` — Seed Data
+Convert all affected fields from strings to proper formats:
+- `expected_outcomes`: `string` → `string[]` (split existing text into individual outcomes)
+- `maturity_level`: keep code but ensure it matches DB codes (`SOLUTION_PROTOTYPE`, `SOLUTION_POC`, etc.)
+- `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`: `string` → `string[]`
+- `affected_stakeholders`: `string` → `Array<{ stakeholder_name, role, impact_description, adoption_challenge }>`
 
-The existing `maturity_level` string column is kept for backward compatibility (used by rate cards, legal docs, normalizer). A DB trigger or application logic will sync `solution_maturity_id` ↔ `maturity_level` code.
+### 5. Update Submit/Save Logic in `ChallengeCreatorForm.tsx`
+- Serialize `expected_outcomes` as `{ items: [...] }` JSON for DB
+- Serialize line-item context fields as JSON arrays in `extended_brief`
+- Serialize `affected_stakeholders` as JSON array in `extended_brief`
+- Map `solution_maturity_id` when submitting
+- Update draft load logic to parse arrays back from DB
 
-### 2. Creator Form — Fetch Solution Maturity from DB
-
-**Modify `StepProblem.tsx`:**
-- Remove hardcoded `MATURITY_OPTIONS` array
-- Import `useSolutionMaturityList` hook
-- Render radio cards dynamically from `md_solution_maturity` active records (ordered by `display_order`)
-- Store `solution_maturity_id` (UUID) in form, derive `maturity_level` code on submit
-
-**Modify `challengeFormSchema.ts`:**
-- Change `maturity_level` from `z.enum([...])` to `z.string().min(1, 'Please select a maturity level')` (now stores the UUID)
-- Add `solution_maturity_id` field
-
-### 3. Fix Creator Format Mismatches (7 fields)
-
-Replace RichTextEditor with format-appropriate inputs for these fields:
-
-| Field | Change To | Component |
-|---|---|---|
-| `expected_outcomes` | Numbered line items (like deliverables) | Reuse deliverables-style drag list |
-| `root_causes` | Numbered line items | Same drag list component |
-| `current_deficiencies` | Numbered line items | Same drag list component |
-| `preferred_approach` | Numbered line items | Same drag list component |
-| `approaches_not_of_interest` | Numbered line items | Same drag list component |
-| `submission_guidelines` | Numbered line items | Same drag list component |
-| `affected_stakeholders` | Simplified structured entries | Name + Role + Impact fields per entry |
-
-**Schema changes in `challengeFormSchema.ts`:**
-- `expected_outcomes`: change from `z.string()` to `z.array(z.string()).default([''])`
-- `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`: same array pattern
-- `submission_guidelines`: change to `z.array(z.string()).default([''])`
-- `affected_stakeholders`: change to `z.array(z.object({ stakeholder_name, role, impact_description, adoption_challenge }))`
-
-### 4. Update Submit/Save Hooks — Serialize in Curator-Compatible Format
-
-**Modify `useSubmitSolutionRequest.ts` and `useSaveDraft`/`useUpdateDraft`:**
-- `expected_outcomes`: save as `JSON.stringify({ items: arrayValues.map(v => ({ name: v })) })` (already partially done)
-- Line item fields in `extended_brief`: save as JSON arrays instead of single strings
-- `affected_stakeholders` in `extended_brief`: save as JSON array of row objects
-- `submission_guidelines`: save as `JSON.stringify({ items: arrayValues.map(v => ({ name: v })) })`
-
-### 5. Create Centralized Creator→Curator Mapping Config
-
-**New file `src/lib/cogniblend/creatorCuratorFieldMap.ts`:**
-
-A mapping matrix defining:
-- Creator form field name → Curator section key
-- Expected format (must match `SECTION_FORMAT_CONFIG`)
-- DB column or JSONB path
-- Serialization function
-
-This becomes the authoritative reference for data flow between roles.
-
-### 6. Extract Reusable Line Items Input Component
-
-**New file `src/components/cogniblend/challenge-wizard/LineItemsInput.tsx`:**
-- Drag-to-reorder numbered list (extracted from deliverables pattern in StepProblem)
-- Props: `value: string[]`, `onChange`, `placeholder`, `label`, `minItems?`, `maxItems?`
-- Reused by all 6 line-item fields
+### 6. Update `SeedContent` Type
+- Change type definition to match new array-based fields
 
 ---
 
@@ -112,11 +53,8 @@ This becomes the authoritative reference for data flow between roles.
 
 | File | Action |
 |---|---|
-| `supabase/migrations/...` | Add `solution_maturity_id` FK column + index |
-| `src/components/cogniblend/challenge-wizard/LineItemsInput.tsx` | **NEW** — reusable line items input |
-| `src/components/cogniblend/challenge-wizard/StepProblem.tsx` | Fetch maturity from DB; replace RichTextEditor with line items for 6 fields; structured input for stakeholders |
-| `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts` | Update field types (string → array) for 6 fields; maturity_level to string UUID |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Serialize arrays in curator-compatible format |
-| `src/lib/cogniblend/creatorCuratorFieldMap.ts` | **NEW** — authoritative mapping matrix |
-| `src/integrations/supabase/types.ts` | Auto-updated after migration |
+| `src/components/cogniblend/creator/creatorSeedContent.ts` | Convert seed data fields to array formats |
+| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Update schema, type, defaults, submit/draft logic |
+| `src/components/cogniblend/creator/EssentialDetailsTab.tsx` | DB-driven maturity, LineItemsInput for outcomes |
+| `src/components/cogniblend/creator/AdditionalContextTab.tsx` | LineItemsInput for 4 fields, structured stakeholders |
 
