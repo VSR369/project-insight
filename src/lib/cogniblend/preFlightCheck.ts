@@ -253,6 +253,7 @@ function computeQualityPrediction(
 export function preFlightCheck(
   sections: Record<string, string | null | unknown>,
   operatingModel?: string,
+  orgProfile?: Record<string, any> | null,
 ): PreFlightResult {
   const missingMandatory: PreFlightItem[] = [];
   const warnings: PreFlightItem[] = [];
