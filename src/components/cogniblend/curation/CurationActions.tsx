@@ -7,6 +7,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { computeQualityScore } from "@/lib/cogniblend/computeQualityScore";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
 import { Button } from "@/components/ui/button";
@@ -337,6 +338,8 @@ export default function CurationActions({
           {
             onSuccess: () => {
               toast.success("Challenge approved and submitted for publication.");
+              // Non-blocking: compute AI quality metrics (Phase 10)
+              try { computeQualityScore([]); } catch { /* quality scoring is non-critical */ }
               setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
                 navigate("/cogni/curation");

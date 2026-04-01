@@ -252,6 +252,9 @@ const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagem
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
 const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallengesPage"));
 
+// AI Quality Dashboard (Phase 10)
+const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
+const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -799,6 +802,9 @@ const App = () => (
               {/* Admin Contact, Email Templates — permission: marketplace.manage_config */}
               <Route path="marketplace/admin-contact" element={<PermissionGuard permissionKey="marketplace.manage_config"><AdminContactProfilePage /></PermissionGuard>} />
               <Route path="marketplace/email-templates" element={<PermissionGuard permissionKey="marketplace.manage_config"><EmailTemplatesPage /></PermissionGuard>} />
+              {/* AI Quality Dashboard (Phase 10) — supervisor only */}
+              <Route path="ai-quality" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIQualityDashboardPage /></PermissionGuard>} />
+              <Route path="ai-quality/examples" element={<PermissionGuard permissionKey="supervisor.configure_system"><ExampleLibraryManagerPage /></PermissionGuard>} />
             </Route>
 
             {/* Reviewer Routes (all lazy loaded) */}

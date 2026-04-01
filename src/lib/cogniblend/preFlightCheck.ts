@@ -287,6 +287,23 @@ export function preFlightCheck(
   // Gap 4: Quality prediction
   const qualityPrediction = computeQualityPrediction(sections);
 
+  // Phase 10: Domain coverage check
+  const domainContent = getSectionContent(sections, 'domain_tags');
+  if (domainContent.length > 0) {
+    try {
+      const tags = typeof sections.domain_tags === 'string'
+        ? JSON.parse(sections.domain_tags)
+        : sections.domain_tags;
+      if (Array.isArray(tags) && tags.length > 5) {
+        warnings.push({
+          sectionId: 'domain_tags' as SectionKey,
+          sectionName: 'Domain Tags',
+          reason: `${tags.length} domain tags selected. Broad domain coverage may reduce AI specificity — consider narrowing to 3-5 core domains.`,
+        });
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
   return {
     canProceed: missingMandatory.length === 0 && alignment.errors.length === 0,
     missingMandatory,

@@ -86,6 +86,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
+import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { CHALLENGE_TEMPLATES } from "@/lib/challengeTemplates";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useSolutionTypes, groupSolutionTypes, derivePrimaryGroup, getSelectedGroups, useSolutionTypeMap, SOLUTION_TYPE_TO_PROFICIENCY_AREA } from "@/hooks/queries/useSolutionTypeMap";
@@ -4072,6 +4073,14 @@ export default function CurationReviewPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* AI Confidence Summary (Phase 10) */}
+          {challengeCtx && (
+            <AIConfidenceSummary
+              sectionKeys={GROUPS.flatMap(g => g.sectionKeys).filter(Boolean)}
+              context={challengeCtx}
+            />
+          )}
 
           {/* Challenge Completeness Checklist (Phase 7) */}
           <CompletenessChecklistCard
