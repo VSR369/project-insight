@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Shield, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { scoreConfidence, type ConfidenceScore, type RiskLevel } from '@/lib/cogniblend/validators/confidenceScorer';
+import { scoreConfidence, type RiskLevel } from '@/lib/cogniblend/validators/confidenceScorer';
 import type { ChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
 
 interface AIConfidenceSummaryProps {
   sectionKeys: string[];
-  context: ChallengeContext | null;
+  /** Accepts full ChallengeContext or a partial context object */
+  context: ChallengeContext | Record<string, unknown> | null;
   className?: string;
 }
 
