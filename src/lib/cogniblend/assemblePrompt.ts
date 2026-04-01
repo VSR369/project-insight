@@ -308,6 +308,9 @@ export function assemblePrompt(
   }
   parts.push('');
 
+  // ── Dynamic Examples (from section_example_library) ──
+  // Injected externally via injectDynamicExamples() after assemblePrompt()
+
   // ── Layer 5: Runtime Context ──
   parts.push('### Challenge Context');
   parts.push(`Today: ${context.todaysDate}`);
