@@ -65,7 +65,8 @@ export function useGovernanceFieldRules(governanceMode: GovernanceMode | null | 
 /* ── Helpers ───────────────────────────────────────────── */
 
 /** Check if a field should be shown (not hidden) */
-export function isFieldVisible(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldVisible(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return true; // Rules not yet loaded — default to visible
   const rule = rules[fieldKey];
   if (!rule) return true; // Default: show if not configured
   // 'auto' fields are silently assigned — hide from form and detail view
@@ -73,30 +74,35 @@ export function isFieldVisible(rules: FieldRulesMap, fieldKey: string): boolean 
 }
 
 /** Check if a field is required */
-export function isFieldRequired(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldRequired(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return false;
   const rule = rules[fieldKey];
   if (!rule) return false;
   return rule.visibility === 'required';
 }
 
 /** Get min length for a text field */
-export function getFieldMinLength(rules: FieldRulesMap, fieldKey: string, fallback: number): number {
+export function getFieldMinLength(rules: FieldRulesMap | undefined | null, fieldKey: string, fallback: number): number {
+  if (!rules) return fallback;
   return rules[fieldKey]?.minLength ?? fallback;
 }
 
 /** Get max length for a text field */
-export function getFieldMaxLength(rules: FieldRulesMap, fieldKey: string, fallback: number): number {
+export function getFieldMaxLength(rules: FieldRulesMap | undefined | null, fieldKey: string, fallback: number): number {
+  if (!rules) return fallback;
   return rules[fieldKey]?.maxLength ?? fallback;
 }
 
 /** Check if field is auto-populated */
-export function isFieldAuto(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldAuto(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return false;
   const rule = rules[fieldKey];
   return rule?.visibility === 'auto';
 }
 
 /** Check if field is AI-drafted */
-export function isFieldAIDrafted(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldAIDrafted(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return false;
   const rule = rules[fieldKey];
   return rule?.visibility === 'ai_drafted';
 }
