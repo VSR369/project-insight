@@ -1539,6 +1539,7 @@ serve(async (req) => {
               content: att.extracted_text.substring(0, 50000),
               summary: att.extracted_summary ?? undefined,
               keyData: att.extracted_key_data as Record<string, unknown> ?? undefined,
+              resourceType: att.resource_type ?? undefined,
               sharedWithSolver: att.shared_with_solver ?? false,
             });
           }
