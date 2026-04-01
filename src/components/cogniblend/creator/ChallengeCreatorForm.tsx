@@ -121,6 +121,7 @@ export type CreatorFormValues = {
 interface ChallengeCreatorFormProps {
   engagementModel: string;
   governanceMode: GovernanceMode;
+  onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
 }
 
 function toFormMaturityCode(value: string | null | undefined): string {
