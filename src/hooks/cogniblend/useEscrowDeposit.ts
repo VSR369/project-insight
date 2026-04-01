@@ -139,15 +139,15 @@ export function useVerifyEscrow() {
       }
 
       // Notify the Innovation Director (ID)
-      // Find active ID for this challenge
-      const { data: idRoles } = await supabase
+      // Find active CU for this challenge
+      const { data: cuRoles } = await supabase
         .from('user_challenge_roles' as any)
         .select('user_id')
         .eq('challenge_id', challengeId)
-        .eq('role_code', 'ID')
+        .eq('role_code', 'CU')
         .eq('is_active', true);
 
-      const idUsers = ((idRoles ?? []) as unknown as Array<{ user_id: string }>);
+      const cuUsers = ((cuRoles ?? []) as unknown as Array<{ user_id: string }>);
       if (idUsers.length > 0) {
         const notifications = idUsers.map((r) => ({
           user_id: r.user_id,
