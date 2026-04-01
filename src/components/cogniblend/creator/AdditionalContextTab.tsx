@@ -165,9 +165,10 @@ export function AdditionalContextTab({
           <p className="text-xs text-destructive">{(errors as any).context_background.message}</p>
         )}
       </div>
+      )}
 
       {/* Line-item fields */}
-      {LINE_ITEM_FIELDS.map((cf) => {
+      {LINE_ITEM_FIELDS.filter((cf) => isFieldVisible(rules, cf.key)).map((cf) => {
         const fieldError = (errors as any)[cf.key];
         return (
           <Controller
