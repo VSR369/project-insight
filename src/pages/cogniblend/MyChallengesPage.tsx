@@ -35,7 +35,11 @@ interface StatusConfig {
   badgeClass: string;
 }
 
-function getStatusConfig(masterStatus: string, phase: number): StatusConfig {
+function getStatusConfig(masterStatus: string, phase: number, phaseStatus?: string | null): StatusConfig {
+  // CR_APPROVAL_PENDING — challenge awaiting creator sign-off
+  if (phaseStatus === 'CR_APPROVAL_PENDING') {
+    return { label: 'Awaiting Your Approval', icon: AlertCircle, badgeClass: 'bg-violet-50 text-violet-700 border-violet-300' };
+  }
   if (masterStatus === 'IN_PREPARATION' && phase === 1) {
     return { label: 'Draft', icon: Pencil, badgeClass: 'bg-muted text-muted-foreground border-border' };
   }
@@ -217,7 +221,8 @@ interface ChallengeCardProps {
 
 function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete }: ChallengeCardProps) {
   const isDraft = ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1;
-  const statusConfig = getStatusConfig(ch.master_status, ch.current_phase);
+  const isPendingApproval = ch.phase_status === 'CR_APPROVAL_PENDING';
+  const statusConfig = getStatusConfig(ch.master_status, ch.current_phase, ch.phase_status);
   const StatusIcon = statusConfig.icon;
 
   const formattedDate = ch.created_at
@@ -276,6 +281,10 @@ function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete 
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </>
+            ) : isPendingApproval ? (
+              <Button size="sm" onClick={onView} className="bg-violet-600 hover:bg-violet-700 text-white">
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Review & Approve
+              </Button>
             ) : (
               <Button size="sm" variant="outline" onClick={onView}>
                 <Eye className="h-3.5 w-3.5 mr-1" /> View

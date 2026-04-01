@@ -3,8 +3,12 @@
  * Vertical scrolling with search filter on section headings.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft, Building2, Globe, Search, Target, Layers, BookOpen,
   Info, Trophy, Clock, Tag, Briefcase, MapPin, ListChecks, BarChart3,
@@ -238,6 +242,8 @@ interface CreatorChallengeDetailViewProps {
 
 export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallengeDetailViewProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Resolve effective governance mode and fetch field rules
@@ -250,6 +256,64 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
   const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
+  const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
+
+  // Approve mutation — advances from CR_APPROVAL_PENDING to phase 4
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('challenges')
+        .update({ phase_status: 'COMPLETED' } as any)
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+
+      // Audit
+      await supabase.rpc('log_audit', {
+        p_user_id: user?.id ?? '',
+        p_challenge_id: challengeId,
+        p_solution_id: '',
+        p_action: 'CR_APPROVED_CURATION',
+        p_method: 'UI',
+        p_phase_from: 3,
+        p_phase_to: 3,
+        p_details: {} as any,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Challenge approved — proceeding to publication.');
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['public-challenge'] });
+    },
+    onError: (err: Error) => toast.error(`Approval failed: ${err.message}`),
+  });
+
+  // Request Changes mutation — set back to RETURNED
+  const requestChangesMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('challenges')
+        .update({ phase_status: 'RETURNED' } as any)
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+
+      await supabase.rpc('log_audit', {
+        p_user_id: user?.id ?? '',
+        p_challenge_id: challengeId,
+        p_solution_id: '',
+        p_action: 'CR_REQUESTED_CHANGES',
+        p_method: 'UI',
+        p_phase_from: 3,
+        p_phase_to: 3,
+        p_details: {} as any,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Returned to Curator for further refinement.');
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['public-challenge'] });
+    },
+    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+  });
 
   /* ── Build "My Version" sections from snapshot ── */
   const myVersionSections: SectionDef[] = useMemo(() => {
@@ -521,8 +585,45 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </div>
       </div>
 
+      {/* ── Creator Approval Banner ── */}
+      {isPendingApproval && (
+        <Card className="border-violet-300 bg-violet-50/50 dark:bg-violet-900/20">
+          <CardContent className="py-4 px-5">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-violet-800 dark:text-violet-300">
+                  Curator review complete — your approval is required
+                </p>
+                <p className="text-xs text-violet-600 dark:text-violet-400">
+                  Review the Curator Version below. Approve to proceed to publication, or request changes.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => requestChangesMutation.mutate()}
+                  disabled={requestChangesMutation.isPending || approveMutation.isPending}
+                  className="border-violet-300 text-violet-700 hover:bg-violet-100"
+                >
+                  Request Changes
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => approveMutation.mutate()}
+                  disabled={approveMutation.isPending || requestChangesMutation.isPending}
+                  className="bg-violet-600 hover:bg-violet-700 text-white"
+                >
+                  {approveMutation.isPending ? 'Approving…' : 'Approve & Publish'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Dual-tab view */}
-      <Tabs defaultValue={hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
+      <Tabs defaultValue={isPendingApproval ? 'curator-version' : hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <TabsList className="w-auto">
             <TabsTrigger value="my-version" className="gap-1.5 text-xs">
@@ -561,7 +662,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
         {/* Curator Version tab */}
         <TabsContent value="curator-version" className="space-y-4">
-          {((data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
+          {(isPendingApproval || (data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
             <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
             <Card className="border-dashed border-primary/30 bg-primary/5">
