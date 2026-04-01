@@ -13376,7 +13376,7 @@ export type Database = {
       validate_role_assignment: {
         Args: {
           p_challenge_id: string
-          p_governance_profile: string
+          p_governance_profile?: string
           p_new_role: string
           p_user_id: string
         }
