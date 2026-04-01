@@ -2,15 +2,14 @@
  * useFormCompletion — Computes per-step and overall field completion
  * for the Challenge Creation wizard.
  *
- * Required fields per step are governance-aware (3-mode system):
- *   QUICK: fewer required fields
- *   STRUCTURED: standard fields
- *   CONTROLLED: all fields required (strictest)
+ * Dynamically derives required fields from the FieldRulesMap (fetched from
+ * md_governance_field_rules) instead of hardcoding per-mode arrays.
+ * This eliminates drift between DB governance rules and UI completion tracking.
  */
 
 import { useMemo } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
-import type { GovernanceMode } from '@/lib/governanceMode';
+import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 interface StepCompletion {
@@ -24,70 +23,8 @@ export interface FormCompletion {
   totalRequired: number;
 }
 
-/** Field definitions per step — 3-mode governance-aware */
-function getRequiredFieldsByStep(mode: GovernanceMode): Array<Array<keyof ChallengeFormValues>> {
-  if (mode === 'QUICK') {
-    return [
-      // Step 0 — Mode
-      ['governance_mode'],
-      // Step 1 — Problem
-      ['title', 'problem_statement', 'domain_tags', 'maturity_level'],
-      // Step 2 — Evaluation
-      ['weighted_criteria'],
-      // Step 3 — Rewards
-      ['platinum_award'],
-      // Step 4 — Timeline
-      ['expected_timeline'],
-      // Step 5 — Eligibility
-      ['eligibility'],
-      // Step 6 — Templates
-      [],
-      // Step 7 — Review
-      [],
-    ];
-  }
-
-  if (mode === 'CONTROLLED') {
-    return [
-      // Step 0 — Mode
-      ['governance_mode'],
-      // Step 1 — Problem
-      ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
-      // Step 2 — Evaluation
-      ['weighted_criteria'],
-      // Step 3 — Rewards
-      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model'],
-      // Step 4 — Timeline
-      ['expected_timeline', 'review_duration'],
-      // Step 5 — Eligibility
-      ['eligibility'],
-      // Step 6 — Templates
-      [],
-      // Step 7 — Review
-      [],
-    ];
-  }
-
-  // STRUCTURED (default)
-  return [
-    // Step 0 — Mode
-    ['governance_mode'],
-    // Step 1 — Problem
-    ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
-    // Step 2 — Evaluation
-    ['weighted_criteria'],
-    // Step 3 — Rewards
-    ['platinum_award', 'gold_award', 'rejection_fee_pct'],
-    // Step 4 — Timeline
-    ['expected_timeline', 'review_duration'],
-    // Step 5 — Eligibility
-    ['eligibility'],
-    // Step 6 — Templates
-    [],
-    // Step 7 — Review
-    [],
-  ];
-}
+/** Total number of wizard steps (0-indexed: Mode, Problem, Evaluation, Rewards, Timeline, Eligibility, Templates, Review) */
+const WIZARD_STEP_COUNT = 8;
 
 function isFieldFilled(value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -108,14 +45,42 @@ function isFieldFilled(value: unknown): boolean {
   return false;
 }
 
+/**
+ * Derives required fields per wizard step from the FieldRulesMap.
+ * Groups fields by their wizard_step and filters for visibility === 'required'.
+ */
+function getRequiredFieldsByStepFromRules(
+  fieldRules: FieldRulesMap | undefined | null,
+): Array<Array<keyof ChallengeFormValues>> {
+  if (!fieldRules) {
+    // Fallback: return empty arrays — completion will show 0/0 until rules load
+    return Array.from({ length: WIZARD_STEP_COUNT }, () => []);
+  }
+
+  // Group required fields by wizard_step
+  const stepMap = new Map<number, Array<keyof ChallengeFormValues>>();
+
+  for (const [fieldKey, rule] of Object.entries(fieldRules)) {
+    if (rule.visibility === 'required' && rule.wizardStep >= 0 && rule.wizardStep < WIZARD_STEP_COUNT) {
+      if (!stepMap.has(rule.wizardStep)) {
+        stepMap.set(rule.wizardStep, []);
+      }
+      stepMap.get(rule.wizardStep)!.push(fieldKey as keyof ChallengeFormValues);
+    }
+  }
+
+  // Build ordered array
+  return Array.from({ length: WIZARD_STEP_COUNT }, (_, i) => stepMap.get(i) ?? []);
+}
+
 export function useFormCompletion(
   form: UseFormReturn<ChallengeFormValues>,
-  governanceMode: GovernanceMode,
+  fieldRules: FieldRulesMap | undefined | null,
 ): FormCompletion {
   const values = form.watch();
 
   return useMemo(() => {
-    const stepFields = getRequiredFieldsByStep(governanceMode);
+    const stepFields = getRequiredFieldsByStepFromRules(fieldRules);
     const steps: StepCompletion[] = stepFields.map((fields) => {
       const filled = fields.filter((field) => isFieldFilled(values[field])).length;
       return { filled, total: fields.length };
@@ -125,5 +90,5 @@ export function useFormCompletion(
     const totalRequired = steps.reduce((s, step) => s + step.total, 0);
 
     return { steps, totalFilled, totalRequired };
-  }, [values, governanceMode]);
+  }, [values, fieldRules]);
 }

@@ -167,7 +167,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const { data: fieldRules, isLoading: fieldRulesLoading } = useGovernanceFieldRules(governanceMode);
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
-  const formCompletion = useFormCompletion(form, governanceMode);
+  const formCompletion = useFormCompletion(form, fieldRules);
 
   // ═══════ Hooks — mutations ═══════
   const createChallengeMutation = useSubmitSolutionRequest();
