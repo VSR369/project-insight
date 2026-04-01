@@ -33,7 +33,7 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'mp_lightweight',
     title: 'MP Lightweight Org',
-    description: 'Creates org + 1 user with all roles (AM, CR, CU, ID, ER, FC)',
+    description: 'Creates org + 1 user with all roles (CR, CU, ER, LC, FC)',
     model: 'Marketplace',
     governance: 'Lightweight',
     userCount: 1,
