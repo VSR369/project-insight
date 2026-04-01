@@ -320,23 +320,31 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
       </div>
 
       {/* ── 4. Context & Background (rich_text — matches curator) ── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Context & Background <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="context_background"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              placeholder="Provide context about the challenge background, industry landscape, and why this problem matters."
-              storagePath="context-background"
-            />
+      {!isQuick && (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Context & Background{' '}
+            {isRequired('context_background')
+              ? <span className="text-destructive">*</span>
+              : <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
+          </Label>
+          <Controller
+            name="context_background"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Provide context about the challenge background, industry landscape, and why this problem matters."
+                storagePath="context-background"
+              />
+            )}
+          />
+          {errors.context_background && (
+            <p className="text-xs text-destructive">{errors.context_background.message}</p>
           )}
-        />
-      </div>
+        </div>
+      )}
 
       {/* ── 5. Problem Statement (rich_text — matches curator) ── */}
       <div className="space-y-1.5">
