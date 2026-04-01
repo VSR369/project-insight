@@ -44,8 +44,8 @@ PHASE 5: CONTROLLED MODE — ROLE SEPARATION
   5.1 DB: validate_role_separation fn      ✅ DONE (validate_role_assignment RPC with HARD_BLOCK/SOFT_WARN/ALLOWED)
 
 PHASE 6: GOVERNANCE-AWARE PHASE GATING
-  6.1 DB: validate_gate_03 function        ❌ NOT DONE
-  6.2 Wire gate into complete_phase        ❌ NOT DONE
+  6.1 DB: validate_gate_03 function        ✅ DONE (Gate A: CR approval, Gate B: LC docs, Gate C: Escrow)
+  6.2 Wire gate into complete_phase        ✅ DONE (Phase 3 gate check added before Phase 4 gate)
 ```
 
 ---
