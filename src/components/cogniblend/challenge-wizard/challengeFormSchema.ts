@@ -131,19 +131,27 @@ export function createChallengeFormSchema(
           .trim(),
     domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
     taxonomy_tags: z.string().max(500).optional().or(z.literal('')),
-    maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
-      errorMap: () => ({ message: 'Please select a maturity level' }),
-    }),
+    maturity_level: z.string().min(1, 'Please select a maturity level'),
+    solution_maturity_id: z.string().optional().or(z.literal('')),
 
     // Step 1 — Rich-text fields
     context_background: z.string().max(5000).optional().or(z.literal('')),
     detailed_description: z.string().max(5000).optional().or(z.literal('')),
-    root_causes: z.string().max(5000).optional().or(z.literal('')),
-    affected_stakeholders: z.string().max(5000).optional().or(z.literal('')),
-    current_deficiencies: z.string().max(5000).optional().or(z.literal('')),
-    expected_outcomes: z.string().max(5000).optional().or(z.literal('')),
-    preferred_approach: z.string().max(5000).optional().or(z.literal('')),
-    approaches_not_of_interest: z.string().max(5000).optional().or(z.literal('')),
+
+    // Step 1 — Line items (aligned with curator line_items format)
+    root_causes: z.array(z.string()).default(['']),
+    current_deficiencies: z.array(z.string()).default(['']),
+    expected_outcomes: z.array(z.string()).default(['']),
+    preferred_approach: z.array(z.string()).default(['']),
+    approaches_not_of_interest: z.array(z.string()).default(['']),
+
+    // Step 1 — Structured table (aligned with curator table format)
+    affected_stakeholders: z.array(z.object({
+      stakeholder_name: z.string().max(200).default(''),
+      role: z.string().max(200).default(''),
+      impact_description: z.string().max(500).default(''),
+      adoption_challenge: z.string().max(500).default(''),
+    })).default([]),
 
     // Step 1 — Selectors
     industry_segment_id: z.string().optional().or(z.literal('')),
@@ -151,7 +159,7 @@ export function createChallengeFormSchema(
 
     // Step 1 — Deliverables
     deliverables_list: z.array(z.string()).default(['']),
-    submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
+    submission_guidelines: z.array(z.string()).default(['']),
 
     // Step 2 — Evaluation
     weighted_criteria: z.array(z.object({
