@@ -1,105 +1,96 @@
 
-# Phase 10: AI Quality Assurance System — 8 Prompts
 
-## Summary
+# Phase 10 Gap Analysis
 
-3 new DB tables, 3 validators, 3 hooks, 5 new lib files, 6 new components/pages, and 7 modified files. All changes are additive — the existing AI pipeline, wave structure, curation store, and approval flow remain unchanged.
-
----
-
-## Prompt 10.1 — DB Migration: 3 Tables
-
-Single migration creating:
-
-1. **`curation_quality_metrics`** — per-challenge quality score (UNIQUE on challenge_id), generated `ai_accuracy_percent` column, timing columns, metadata (governance_mode, maturity_level, domain_tags)
-2. **`solver_challenge_feedback`** — solver clarity ratings (1-5) for overall, problem, deliverables, evaluation + optional `missing_info` text. UNIQUE on (challenge_id, solver_id)
-3. **`section_example_library`** — harvested examples with section_key, quality_tier (excellent/good/poor), content, source metadata. Index on (section_key, quality_tier, is_active)
-
-RLS: Authenticated SELECT on all. INSERT on solver_challenge_feedback with `solver_id = auth.uid()` guard. Service role writes for the other two.
+I reviewed every file created/modified against the spec document. Here are the gaps found:
 
 ---
 
-## Prompt 10.2 — 3 New Post-LLM Validators
+## Gap 1: Dynamic Example Injection into AI Prompts (Prompt 10.6 Part 3) -- NOT DONE
 
-| File | Lines | Purpose |
-|------|:-----:|---------|
-| `src/lib/cogniblend/validators/formatValidator.ts` | ~90 | Rule 6: Validate section output matches SECTION_FORMAT_CONFIG (table→JSON array, line_items→array, checkbox_single→master data) |
-| `src/lib/cogniblend/validators/contradictionDetector.ts` | ~140 | Rule 7: 6 cross-section checks (budget/deliverables, maturity/deliverable type, timeline/phases, scope/deliverables trace, multi-domain split, budget/expertise) |
-| `src/lib/cogniblend/validators/confidenceScorer.ts` | ~110 | Rule 8: Score 0-100 per section based on context availability, returns riskLevel (low/medium/high) |
+The spec requires `assemblePrompt.ts` to fetch and inject up to 2 dynamic examples from `section_example_library` matched by domain + maturity. Currently `harvestExamples.ts` writes to the table, but **nothing reads from it during prompt assembly**. No `fetchRelevantExamples` function exists.
 
-**Edit:** `postLlmValidation.ts` — Import and call all three after existing 5 rules. Extend `ValidationResult` with optional `confidenceScore` and `contradictions` fields.
+**Fix:** Add `fetchRelevantExamples()` function and wire it into `assemblePrompt.ts` after existing static example injection.
 
 ---
 
-## Prompt 10.3 — Curator Edit Tracking
+## Gap 2: Solver Feedback Not Wired into SolutionSubmitPage (Prompt 10.5 Part 3) -- NOT DONE
 
-| File | Lines | Purpose |
-|------|:-----:|---------|
-| `src/lib/cogniblend/editDistance.ts` | ~50 | Word-level diff: strip HTML, compute match ratio |
-| `src/hooks/cogniblend/useCuratorEditTracking.ts` | ~140 | Track per-section: AI hash, curator action, edit distance, time spent, confidence score. Accumulate in memory, flush on Submit |
+`ChallengeClarityFeedback.tsx` exists but is **never rendered**. The spec says: after successful solution submit, show feedback card (skippable, once per solver per challenge). `SolutionSubmitPage.tsx` has no reference to `ChallengeClarityFeedback`.
 
-Tracking logic: AI hash stored on review complete. Accept without edit → `accepted_unchanged`. Edit+save → compute edit distance: <15% = `accepted_with_edits`, >=15% = `rejected_rewritten`. Time = focus→save delta.
+**Fix:** Import and render `ChallengeClarityFeedback` in the success state of `SolutionSubmitPage.tsx`.
 
 ---
 
-## Prompt 10.4 — Quality Score + Admin Dashboard
+## Gap 3: Domain Coverage Scorer Not Wired into PreFlight (Prompt 10.7) -- PARTIAL
 
-| File | Lines | Purpose |
-|------|:-----:|---------|
-| `src/lib/cogniblend/computeQualityScore.ts` | ~90 | Aggregate edit records → accuracy/assist/rewrite rates, grade A-D, INSERT to curation_quality_metrics |
-| `src/hooks/queries/useAIQualityMetrics.ts` | ~80 | React Query hooks for aggregated metrics + section breakdown |
-| `src/pages/admin/AIQualityDashboardPage.tsx` | ~190 | Avg accuracy, trend, worst sections, grade distribution, section heatmap, filters |
+The spec requires `scoreDomainCoverage()` to be called in `preFlightCheck.ts` with the actual domain tags, producing a coverage level warning. Currently, preFlightCheck only checks if `tags.length > 5` — it does **not call `scoreDomainCoverage()`** and does not warn about "thin" domains.
+
+**Fix:** Import and call `scoreDomainCoverage()` in `preFlightCheck.ts`, adding a RECOMMENDED warning when coverage is `thin` or `moderate`.
 
 ---
 
-## Prompt 10.5 — Solver Feedback Survey
+## Gap 4: Org Context Scorer Not Wired Anywhere (Prompt 10.7) -- NOT DONE
 
-| File | Lines | Purpose |
-|------|:-----:|---------|
-| `src/components/cogniblend/solver/ChallengeClarityFeedback.tsx` | ~140 | Star ratings (4 dimensions) + optional text + Submit/Skip |
-| `src/hooks/cogniblend/useSolverFeedback.ts` | ~70 | Submit mutation, summary query, has-submitted check |
+`scoreOrgContext()` exists but is **never called**. The spec requires:
+1. Show org context score in pre-flight check panel
+2. Show org context score badge in the `OrgContextPanel` on CurationReviewPage
 
-**Edit:** `SolutionSubmitPage.tsx` — After successful submit, show feedback card (conditional, skippable, once per solver per challenge).
-**Edit:** `AIQualityDashboardPage.tsx` — Add solver feedback summary tab.
+**Fix:** Wire `scoreOrgContext()` into `preFlightCheck.ts` and add a score badge to `OrgContextPanel`.
 
 ---
 
-## Prompt 10.6 — Example Library Harvest + Admin UI
+## Gap 5: Section Heatmap Missing from Dashboard (Prompt 10.4) -- NOT DONE
 
-| File | Lines | Purpose |
-|------|:-----:|---------|
-| `src/lib/cogniblend/harvestExamples.ts` | ~90 | Auto-harvest on publish if grade A/B + solver clarity >= 4.0. Unchanged sections → excellent, rewritten → Curator=excellent + AI=poor |
-| `src/pages/admin/ExampleLibraryManagerPage.tsx` | ~190 | Table view, filters, toggle active, edit annotations, "Promote to AI Config" button |
+The spec describes a "27 sections x color" heatmap showing which sections are mostly accepted (green) vs rewritten (red). The dashboard only has grade distribution, recent challenges table, and solver feedback table. No heatmap.
 
-**Edit:** `assemblePrompt.ts` (after line ~302) — Inject up to 2 dynamic examples from `section_example_library` matched by domain + maturity, after existing static examples.
+**Fix:** Add a "Section Heatmap" tab to `AIQualityDashboardPage.tsx` that aggregates `section_breakdown` data to show per-section rewrite rates with color coding.
 
 ---
 
-## Prompt 10.7 — Domain Gap + Org Context Scoring
+## Gap 6: Dashboard Filters Missing (Prompt 10.4) -- NOT DONE
 
-| File | Lines | Purpose |
-|------|:-----:|---------|
-| `src/lib/cogniblend/domainCoverageScorer.ts` | ~90 | Well-covered vs thin domain sets, returns coverage level + recommendation |
-| `src/lib/cogniblend/orgContextScorer.ts` | ~70 | Scores org profile 0-100 based on 9 fields, returns missing list + recommendation |
+The spec requires "Filter by: governance mode, domain, maturity level, time period." The dashboard has no filters.
 
-**Edit:** `preFlightCheck.ts` — Add domain coverage as RECOMMENDED warning. Add org context score.
-**Edit:** CurationReviewPage OrgContextPanel — Show org context score badge.
+**Fix:** Add filter dropdowns above the tabs in `AIQualityDashboardPage.tsx` and pass filter params to the query hooks.
 
 ---
 
-## Prompt 10.8 — Wire Into Existing Flow
+## Gap 7: "Promote to AI Config" Button Missing (Prompt 10.6 Part 2) -- NEEDS VERIFICATION
 
-| File | Change |
-|------|--------|
-| **New:** `AIConfidenceSummary.tsx` (~90 lines) | Right-rail card showing per-section confidence badges, high-risk sections first |
-| **New:** `SectionQualityBadge.tsx` (~70 lines) | Per-section badge (green/yellow/red) + contradiction/format warnings |
-| **Edit:** `CurationReviewPage.tsx` | Add AIConfidenceSummary card + SectionQualityBadge per section |
-| **Edit:** `CurationActions.tsx` | On Submit, call computeQualityScore (non-blocking) |
-| **Edit:** `AdminSidebar.tsx` | Add "AI Quality" link under new group |
-| **Edit:** `App.tsx` | Add routes: `/admin/ai-quality`, `/admin/ai-quality/examples` |
+The spec says ExampleLibraryManagerPage should have a "Promote to AI Config" button that copies an excellent example to `ai_review_section_config.example_good`. Need to verify if this exists in the current `ExampleLibraryManagerPage.tsx`.
 
 ---
 
-## Unchanged Systems
+## Gap 8: Confidence Scorer Factors Don't Match Spec (Prompt 10.2) -- DEVIATION
 
-AI pipeline, wave executor, two-pass architecture, section renderers, curation Zustand store, approval flow, governance model, Context Intelligence, legal/escrow gates.
+The spec's scoring formula is:
+- Creator input present: +30 pts
+- Reference materials: +20 pts  
+- Context digest: +15 pts
+- Master data constrained: +20 pts
+- Rich text unconstrained: -10 pts
+- Strong domain: +15 pts
+- Niche domain: -15 pts
+
+Current implementation uses a different formula (baseline 50, cross-section context +25, problem statement +10, etc.). The overall intent is met but the weights don't match the spec.
+
+**Fix:** Align scoring weights to match the spec's formula.
+
+---
+
+## Summary of Required Changes
+
+| # | Gap | Severity | Files to Change |
+|---|-----|----------|----------------|
+| 1 | Dynamic example injection | High | `assemblePrompt.ts` + new fetch function |
+| 2 | Solver feedback not wired | High | `SolutionSubmitPage.tsx` |
+| 3 | Domain scorer not wired | Medium | `preFlightCheck.ts` |
+| 4 | Org context scorer not wired | Medium | `preFlightCheck.ts`, `OrgContextPanel.tsx` |
+| 5 | Section heatmap missing | Medium | `AIQualityDashboardPage.tsx` |
+| 6 | Dashboard filters missing | Medium | `AIQualityDashboardPage.tsx` |
+| 7 | Promote to AI Config button | Low | `ExampleLibraryManagerPage.tsx` |
+| 8 | Confidence scorer weights | Low | `confidenceScorer.ts` |
+
+All gaps are additive changes — no existing functionality needs to be modified or broken.
+
