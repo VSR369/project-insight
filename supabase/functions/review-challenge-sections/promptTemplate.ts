@@ -1328,6 +1328,8 @@ Before returning your rewritten content, mentally verify:
 
 If ANY check fails, revise before returning.
 
+${buildProportionalityAnchor(challengeContext)}
+
 QUALITY BAR EXAMPLES (the standard to aim for):
 - Bad problem statement: "We need better data analytics to improve decision making."
 - Good problem statement: "Our supply chain planning team makes demand forecasts using 18-month-old statistical models in Excel, resulting in 23% forecast error (vs. industry benchmark of 12-15%). This drives $4.2M in annual excess inventory costs and 340 stockout events per quarter across our 12 distribution centers."
