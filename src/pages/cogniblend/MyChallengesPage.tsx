@@ -213,15 +213,20 @@ export default function MyChallengesPage() {
 
 interface ChallengeCardProps {
   challenge: MyChallengeItem;
+  isDuplicate?: boolean;
   onView: () => void;
   onResume: () => void;
   onDelete: () => void;
 }
 
-function ChallengeCard({ challenge: ch, onView, onResume, onDelete }: ChallengeCardProps) {
+function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete }: ChallengeCardProps) {
   const isDraft = ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1;
   const statusConfig = getStatusConfig(ch.master_status, ch.current_phase);
   const StatusIcon = statusConfig.icon;
+
+  const formattedDate = ch.created_at
+    ? format(new Date(ch.created_at), 'MMM d, yyyy · h:mm a')
+    : null;
 
   return (
     <Card className="border-border hover:border-primary/30 transition-colors">
@@ -250,7 +255,18 @@ function ChallengeCard({ challenge: ch, onView, onResume, onDelete }: ChallengeC
               <Badge variant="secondary" className="text-[10px]">
                 Phase {ch.current_phase}
               </Badge>
+              {isDuplicate && (
+                <Badge variant="destructive" className="text-[10px]">
+                  <AlertTriangle className="h-3 w-3 mr-0.5" />
+                  Possible duplicate
+                </Badge>
+              )}
             </div>
+            {formattedDate && (
+              <p className="text-[11px] text-muted-foreground ml-6">
+                Created {formattedDate}
+              </p>
+            )}
           </div>
 
           {/* Right: actions */}
