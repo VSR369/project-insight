@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { handleMutationError } from "@/lib/errorHandler";
 import type { Json } from "@/integrations/supabase/types";
 
 interface StaleSectionInfo {
