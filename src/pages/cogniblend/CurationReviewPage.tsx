@@ -4118,6 +4118,14 @@ export default function CurationReviewPage() {
             onNavigateToSection={handleNavigateToSection}
           />
 
+          {/* Context Library Card (Phase 7) */}
+          {challengeId && (
+            <ContextLibraryCard
+              challengeId={challengeId}
+              onOpenLibrary={() => setContextLibraryOpen(true)}
+            />
+          )}
+
           {/* Per-section AI Review button */}
           <Button
             variant="outline"
