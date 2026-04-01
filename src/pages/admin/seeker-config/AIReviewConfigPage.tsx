@@ -194,6 +194,7 @@ function SectionEditor({
           web_search_queries: form.web_search_queries as any,
           industry_frameworks: form.industry_frameworks as any,
           analyst_sources: form.analyst_sources as any,
+          discovery_directives: form.discovery_directives as any,
           wave_number: form.wave_number,
           tab_group: form.tab_group,
           updated_at: new Date().toISOString(),
