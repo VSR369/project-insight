@@ -1718,7 +1718,9 @@ ${additionalData}`;
       // Append reference materials (files + URLs) to user prompt
       if (Object.keys(attachmentsBySection).length > 0) {
         let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
+        const batchKeySet = new Set(batch.map(b => b.key));
         for (const [sk, refs] of Object.entries(attachmentsBySection)) {
+          if (!batchKeySet.has(sk)) continue;
           for (const ref of refs) {
             const typeTag = ref.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
             const shareTag = ref.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY (solvers cannot see this)';
