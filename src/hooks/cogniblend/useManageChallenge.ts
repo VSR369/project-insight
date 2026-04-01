@@ -128,13 +128,13 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
           : amendmentMap.get(v.version_number) ?? null,
       }));
 
-      // 5. Permission check — can current user extend deadline? (ID role)
+      // 5. Permission check — can current user extend deadline? (CU role)
       let canExtendDeadline = false;
       if (userId) {
         const { data: perm } = await supabase.rpc('can_perform', {
           p_user_id: userId,
           p_challenge_id: challengeId,
-          p_required_role: 'ID',
+          p_required_role: 'CU',
         });
         canExtendDeadline = perm === true;
       }
