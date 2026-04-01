@@ -58,6 +58,22 @@ export default function ExampleLibraryManagerPage() {
     },
   });
 
+  const promoteToConfig = useMutation({
+    mutationFn: async ({ sectionKey, content }: { sectionKey: string; content: string }) => {
+      const { error } = await supabase
+        .from('ai_review_section_config')
+        .update({ example_good: content })
+        .eq('section_key', sectionKey);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success('Example promoted to AI config (example_good)');
+    },
+    onError: (err: Error) => {
+      toast.error(`Promote failed: ${err.message}`);
+    },
+  });
+
   const uniqueSections = [...new Set((examples ?? []).map((e: any) => e.section_key))].sort();
 
   if (isLoading) {
