@@ -2,6 +2,9 @@
  * EssentialDetailsTab — Tab 1 of Challenge Creator Form.
  * Governance-aware: QUICK hides scope/IP/outcomes as optional,
  * STRUCTURED shows all 8, CONTROLLED shows all 8 required.
+ *
+ * Solution maturity fetched dynamically from md_solution_maturity.
+ * Expected outcomes use LineItemsInput (string[]) matching curator format.
  */
 
 import { Controller, useFormContext } from 'react-hook-form';
@@ -16,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Info } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
+import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
+import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
 const CURRENCY_OPTIONS = [
@@ -34,13 +39,6 @@ const IP_OPTIONS = [
   { value: 'IP-NONE', label: 'No transfer (advisory)', desc: 'Consulting only' },
 ] as const;
 
-const MATURITY_OPTIONS = [
-  { value: 'blueprint', label: 'A strategic recommendation (Blueprint)', desc: 'Strategy, analysis, or roadmap' },
-  { value: 'poc', label: 'A working prototype (POC)', desc: 'Proof of concept or demo' },
-  { value: 'prototype', label: 'A functional demo (Prototype)', desc: 'End-to-end working demonstration' },
-  { value: 'pilot', label: 'A production-ready system (Pilot)', desc: 'Deployable solution' },
-] as const;
-
 interface EssentialDetailsTabProps {
   engagementModel: string;
   industrySegments: Array<{ id: string; name: string }>;
@@ -51,6 +49,8 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
   const { control, register, formState: { errors } } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
   const isQuick = governanceMode === 'QUICK';
+
+  const { data: maturityOptions = [], isLoading: maturityLoading } = useSolutionMaturityList();
 
   return (
     <div className="space-y-6">
@@ -114,31 +114,38 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      {/* Solution Depth */}
+      {/* Solution Depth — Dynamic from DB */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">
           What kind of solution do you need? <span className="text-destructive">*</span>
         </Label>
-        <Controller
-          name="maturity_level"
-          control={control}
-          render={({ field }) => (
-            <RadioGroup value={field.value} onValueChange={field.onChange} className="space-y-2">
-              {MATURITY_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
-                >
-                  <RadioGroupItem value={opt.value} className="mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                    <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                  </div>
-                </label>
-              ))}
-            </RadioGroup>
-          )}
-        />
+        {maturityLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading solution types…
+          </div>
+        ) : (
+          <Controller
+            name="maturity_level"
+            control={control}
+            render={({ field }) => (
+              <RadioGroup value={field.value} onValueChange={field.onChange} className="space-y-2">
+                {maturityOptions.map((opt) => (
+                  <label
+                    key={opt.id}
+                    className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+                  >
+                    <RadioGroupItem value={opt.code} className="mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{opt.label}</p>
+                      {opt.description && <p className="text-xs text-muted-foreground">{opt.description}</p>}
+                    </div>
+                  </label>
+                ))}
+              </RadioGroup>
+            )}
+          />
+        )}
         {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
       </div>
 
@@ -280,27 +287,24 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      {/* Expected Results — mandatory for all modes */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          What results do you expect? <span className="text-destructive">*</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          What does success look like? Include numbers and metrics if possible.
-        </p>
-        <Controller
-          name="expected_outcomes"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              placeholder="Describe the expected outcomes..."
-            />
-          )}
-        />
-        {errors.expected_outcomes?.message && <p className="text-xs text-destructive">{String(errors.expected_outcomes.message)}</p>}
-      </div>
+      {/* Expected Results — LineItemsInput (string[]) */}
+      <Controller
+        name="expected_outcomes"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={field.value ?? ['']}
+            onChange={field.onChange}
+            label="What results do you expect?"
+            placeholder="Describe one expected outcome..."
+            required
+            minItems={1}
+            maxItems={10}
+            addLabel="Add Outcome"
+            error={errors.expected_outcomes?.message ? String(errors.expected_outcomes.message) : undefined}
+          />
+        )}
+      />
     </div>
   );
 }
