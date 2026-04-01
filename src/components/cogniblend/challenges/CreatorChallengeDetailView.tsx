@@ -586,7 +586,20 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
         {/* Curator Version tab */}
         <TabsContent value="curator-version" className="space-y-4">
-          <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+          {(data.current_phase ?? 1) >= 3 ? (
+            <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+          ) : (
+            <Card className="border-dashed border-primary/30 bg-primary/5">
+              <CardContent className="py-12 text-center">
+                <BookOpen className="h-10 w-10 text-primary/50 mx-auto mb-3" />
+                <p className="text-base font-semibold text-foreground">Under Review by Curator</p>
+                <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
+                  This challenge is currently being reviewed and refined by the Curator.
+                  The curated version will be available once the review is complete and submitted for approval.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
