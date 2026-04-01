@@ -1,77 +1,64 @@
 
 
-# Fix: Curator Version Visibility Gate + Content Rendering
+# Fix: Curator Version Gate Logic + Phase Auto-Completion Mystery
 
-## Two Problems
+## Root Cause Analysis
 
-1. **Curator Version shown before curation is complete** — The "Curator Version" tab always renders live DB columns, even when the curator hasn't touched the challenge yet. Creators see raw/unrefined data.
+The "mystery" of why the Curator Version shows content for a new challenge is now fully explained:
 
-2. **Distorted/junk content** — Line-item fields (`expected_outcomes`, `root_causes`, `submission_guidelines`, etc.) are stored as `{ items: [{ name: "..." }] }` objects but rendered via `RichTextSection` (expects HTML string) or raw `String()` cast, producing `[object Object]` or JSON blobs.
+### Phase Auto-Completion Chain
+When the Creator clicks "Submit to Curator", the `complete_phase` RPC executes recursively:
+
+```text
+Phase 1 (requires CR) → Creator has CR → ✅ complete
+  ↓ auto-advance to Phase 2
+Phase 2 (requires CR) → SAME_ACTOR → ✅ auto-complete
+  ↓ auto-advance to Phase 3
+Phase 3 (requires CU) → different actor → hand off, set phase_status = 'ACTIVE'
+```
+
+Result: `current_phase = 3, phase_status = 'ACTIVE'`
+
+This is correct behavior — Phase 3 ACTIVE means "waiting for the Curator to start/complete their work." No AI engine is running automatically; the phase advancement is a governance chain reaction, not content generation.
+
+### Why the Gate Failed
+The current gate logic is:
+```typescript
+(data.current_phase ?? 1) >= 3
+```
+
+This passes because `current_phase = 3`, but this only means "the ball is in the Curator's court." The Curator hasn't done anything yet. The Curator Version tab should only show content **after** the Curator has completed Phase 3.
 
 ## Fix
 
-### 1. Gate Curator Version tab on phase progression
+### File: `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
 
-The Curator Version should only be visible once the curator has completed their review. The `current_phase` field on the challenge indicates progress:
-- Phase 1-2: Creator/intake phase — curator hasn't started or is still working
-- Phase 3+: Curator has submitted their work
+**Change the gate logic** from checking `current_phase >= 3` to checking whether the Curator has actually completed their phase. The correct condition is:
 
-**Logic:** If `current_phase <= 2`, replace the Curator Version tab content with an "Under Review" placeholder message. The tab remains visible but shows: "This challenge is currently under review by the Curator. The refined version will be available once the review is complete."
+```typescript
+// Curator has finished when: current_phase > 3 (moved past curation)
+// OR current_phase === 3 AND phase_status === 'COMPLETED'
+const curatorCompleted = 
+  (data.current_phase ?? 1) > 3 || 
+  ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED');
+```
 
-### 2. Fix content rendering for structured data
+This means:
+- Phase 3 + ACTIVE → "Under Review by Curator" (curator hasn't finished)
+- Phase 3 + COMPLETED → Show Curator Version (curator submitted)
+- Phase 4+ → Show Curator Version (already past curation)
 
-The Curator Version sections render line-item fields (`expected_outcomes`, `root_causes`, `current_deficiencies`, `preferred_approach`, `approaches_not_of_interest`, `submission_guidelines`) through `RichTextSection` which calls `SafeHtmlRenderer`. These fields are JSONB objects, not HTML strings.
+**Also need to add `phase_status` to the data model** — check if `usePublicChallenge` already fetches it.
 
-**Fixes in `CreatorChallengeDetailView.tsx`:**
+### Data Model Check
+The `usePublicChallenge` hook needs to include `phase_status` in its query if not already present.
 
-| Field | Current renderer | Fix |
-|-------|-----------------|-----|
-| `expected_outcomes` | Already uses `ListSection` | OK but needs fallback parsing |
-| `root_causes` (extended_brief) | `RichTextSection` | Parse `{ items: [{name}] }` → `ListSection` |
-| `current_deficiencies` (extended_brief) | `RichTextSection` | Parse → `ListSection` |
-| `preferred_approach` (extended_brief) | `RichTextSection` | Parse → `ListSection` |
-| `approaches_not_of_interest` (extended_brief) | `RichTextSection` | Parse → `ListSection` |
-| `affected_stakeholders` (extended_brief) | `RichTextSection` | Parse structured table rows |
-| `submission_guidelines` | Attempts `.content`/`.guidelines` keys | Parse `{ items: [{name}] }` → `ListSection` |
-| Snapshot `expected_outcomes` | `String()` cast | Parse `{ items: [{name}] }` → list |
-
-Add a helper function `parseItems(value)` that handles:
-- `{ items: [{ name: "..." }] }` → extract names
-- `string[]` → use directly  
-- `string` (JSON) → parse then extract
-- `string` (plain) → wrap as single item
-
-### 3. "My Version" snapshot line-item fields
-
-Same parsing fix for snapshot fields that may contain structured JSONB (e.g., `expected_outcomes`, `root_causes` in `extended_brief`).
-
-## Files Changed
+### Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Add phase gate for Curator tab, add `parseItems` helper, fix all structured field renderers in both tabs |
+| `CreatorChallengeDetailView.tsx` | Update gate from `current_phase >= 3` to `current_phase > 3 OR (current_phase === 3 AND phase_status === 'COMPLETED')` |
+| `usePublicChallenge.ts` | Add `phase_status` to the select query and `PublicChallengeData` type (if missing) |
 
-## Technical Detail
-
-```typescript
-// Helper to extract displayable items from various stored formats
-function parseItems(value: unknown): Array<{ name: string }> | null {
-  if (!value) return null;
-  let parsed = value;
-  if (typeof parsed === 'string') {
-    try { parsed = JSON.parse(parsed); } catch { return [{ name: parsed }]; }
-  }
-  if (Array.isArray(parsed)) {
-    return parsed.map(item => ({ name: typeof item === 'string' ? item : item?.name ?? JSON.stringify(item) }));
-  }
-  if (typeof parsed === 'object' && parsed !== null && 'items' in parsed) {
-    const items = (parsed as any).items;
-    if (Array.isArray(items)) return items.map(i => ({ name: typeof i === 'string' ? i : i?.name ?? '' }));
-  }
-  return null;
-}
-
-// Curator Version gate
-const curatorReady = (data.current_phase ?? 1) >= 3;
-```
+No database changes needed. No AI engine is running — the phase auto-advancement is by design in `complete_phase`.
 
