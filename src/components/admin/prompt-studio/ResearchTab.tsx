@@ -177,6 +177,12 @@ export function ResearchTab({
           placeholder="e.g., Gartner, Forrester, McKinsey"
         />
       </div>
+
+      {/* Discovery Directives */}
+      <DiscoveryDirectivesEditor
+        value={discoveryDirectives}
+        onChange={onDiscoveryDirectivesChange}
+      />
     </div>
   );
 }
