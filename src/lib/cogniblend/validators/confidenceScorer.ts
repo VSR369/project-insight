@@ -75,7 +75,7 @@ export function scoreConfidence(
   }
 
   // Factor 6: Context digest available (+5)
-  if (context.contextDigest && context.contextDigest.length > 100) {
+  if (context.sections && Object.keys(context.sections).length > 5) {
     score += 5;
   }
 

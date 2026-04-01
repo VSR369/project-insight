@@ -152,7 +152,7 @@ function checkMultiDomainBudget(
   contradictions: Contradiction[],
 ): void {
   const pool = context.totalPrizePool ?? 0;
-  const domains = context.domainTags ?? [];
+  const domains = context.masterData?.validDomainTags ?? [];
   if (domains.length <= 3 || pool <= 0) return;
 
   const perDomain = pool / domains.length;
