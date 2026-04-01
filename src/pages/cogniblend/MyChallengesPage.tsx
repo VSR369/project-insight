@@ -77,6 +77,16 @@ export default function MyChallengesPage() {
   /* ── Grouped data ── */
   const items = challengesData?.items ?? [];
 
+  /* ── Duplicate detection by title ── */
+  const duplicateTitles = useMemo(() => {
+    const titleCounts = new Map<string, number>();
+    for (const c of items) {
+      const t = c.title.trim().toLowerCase();
+      titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
+    }
+    return new Set([...titleCounts.entries()].filter(([, n]) => n > 1).map(([t]) => t));
+  }, [items]);
+
   const filteredItems = useMemo(() => {
     if (activeTab === 'all') return items;
     if (activeTab === 'drafts') return items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase === 1);
