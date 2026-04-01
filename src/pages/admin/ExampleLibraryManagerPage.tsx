@@ -162,6 +162,21 @@ export default function ExampleLibraryManagerPage() {
                       />
                     </td>
                     <td className="py-2 text-muted-foreground">{ex.usage_count}</td>
+                    <td className="py-2">
+                      {ex.quality_tier === 'excellent' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => promoteToConfig.mutate({ sectionKey: ex.section_key, content: ex.content })}
+                          disabled={promoteToConfig.isPending}
+                          title="Promote to AI Config example_good"
+                        >
+                          <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
+                          Promote
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {(!examples || examples.length === 0) && (
