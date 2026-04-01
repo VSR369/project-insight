@@ -398,19 +398,22 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
       </div>
 
       {/* ── 7. Root Causes (line_items — matches curator) ── */}
-      <Controller
-        name="root_causes"
-        control={control}
-        render={({ field }) => (
-          <LineItemsInput
-            value={Array.isArray(field.value) ? field.value : ['']}
-            onChange={field.onChange}
-            label="Root Causes"
-            placeholder="Identify an underlying root cause..."
-            addLabel="Add Root Cause"
-          />
-        )}
-      />
+      {!isQuick && (
+        <Controller
+          name="root_causes"
+          control={control}
+          render={({ field }) => (
+            <LineItemsInput
+              value={Array.isArray(field.value) ? field.value : ['']}
+              onChange={field.onChange}
+              label={`Root Causes${isRequired('root_causes') ? '' : ' (optional)'}`}
+              placeholder="Identify an underlying root cause..."
+              addLabel="Add Root Cause"
+              error={(errors as any).root_causes?.message}
+            />
+          )}
+        />
+      )}
 
       {/* ── 8. Scope Definition (rich_text — matches curator) ── */}
       {!isQuick ? (
