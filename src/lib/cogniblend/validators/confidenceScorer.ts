@@ -76,11 +76,9 @@ export function scoreConfidence(
     }
   } else if (!config?.masterDataTable) {
     // Rich text unconstrained section (-10 pts)
-    const format = config?.format;
-    if (format === 'rich_text' || format === 'text') {
-      score -= 10;
-      factors.push('Unconstrained rich text section');
-    }
+    // Sections without master data constraints are unconstrained
+    score -= 10;
+    factors.push('Unconstrained rich text section');
   }
 
   // Factor 5: Strong domain coverage (+15 pts) or Niche domain (-15 pts)
