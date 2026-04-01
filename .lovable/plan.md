@@ -1,91 +1,106 @@
 
 
-# Audit: Governance Compliance Gaps in Data Pipeline
+# Creator Functionality Audit: Governance + Engagement + Tier + CRUD Alignment
 
-## Findings
+## Audit Summary
 
-### Issue 1: `domain_tags` bypasses governance filtering entirely
+After reviewing all Creator-related files end-to-end, the pipeline is **largely correct** post-recent fixes, but **7 issues remain** ranging from display bugs to data integrity gaps.
 
-**`FORM_FIELD_TO_GOVERNANCE_KEY`** does NOT include `domain_tags`. So even though the detail view has `fieldKey: 'domain_tags'` for display filtering, the following bypass governance:
+---
 
-- **Fill Test Data** (line 438): `domain_tags: domainIds` is always injected AFTER `filterSeedByGovernance()` runs
-- **Submission** (line 220): `domain_tags: payload.domainTags` uses the raw `payload`, not `filteredPayload`
-- **Snapshot** (line 255): `domain_tags: payload.domainTags` — same bypass
+## Issues Found
 
-### Issue 2: Several submission fields use raw `payload` instead of `filteredPayload`
+### Issue 1: `governanceLabel()` in MyChallengesPage doesn't handle `QUICK`
 
-In `useSubmitSolutionRequest.ts`, these lines reference the unfiltered `payload` object, defeating governance filtering:
+**File:** `MyChallengesPage.tsx` line 56-63
 
-| Line | Field | Uses |
-|------|-------|------|
-| 158-170 | `rewardStructure` (budget_min, budget_max, currency) | `payload.budgetMin`, `payload.budgetMax`, `payload.currency` |
-| 208 | `governance_mode_override` | `payload.governanceModeOverride` (fine — not content) |
-| 210-216 | `eligibility` JSON | `payload.domainTags`, `payload.urgency`, `payload.industrySegmentId`, etc. |
-| 220 | `domain_tags` | `payload.domainTags` |
-| 251 | snapshot `title` | `payload.title` (fine — always visible) |
-| 255 | snapshot `domain_tags` | `payload.domainTags` |
-| 257-259 | snapshot `budget_min/max/currency` | `payload.budgetMin/Max/currency` |
+The `governanceLabel()` function maps `LIGHTWEIGHT` → `Quick`, `STRUCTURED` → `Structured`, `CONTROLLED` → `Controlled`. But the Creator form now writes `QUICK` to `governance_mode_override`, not `LIGHTWEIGHT`. If `governance_profile` is `QUICK`, the function falls through to the default case and displays the raw string `QUICK` instead of `Quick`.
 
-Budget fields are governed by `platinum_award` field_key but the mapping doesn't include `budgetMin`/`budgetMax`/`budget_min`/`budget_max`.
+**Fix:** Add `case 'QUICK': return 'Quick';` to the switch.
 
-### Issue 3: Missing keys in `FORM_FIELD_TO_GOVERNANCE_KEY`
+Same issue exists in `CreatorChallengeDetailView.tsx` line 96-103 — identical switch with same gap.
 
-Fields that should be governance-aware but are missing from the mapping:
+---
 
-| Missing Key | Governance field_key | Impact |
-|-------------|---------------------|--------|
-| `domain_tags` | `domain_tags` | Always sent to DB and snapshot |
-| `budgetMin` / `budget_min` | `platinum_award` | Budget always persisted |
-| `budgetMax` / `budget_max` | `platinum_award` | Budget always persisted |
-| `expected_outcomes` / `expectedOutcomes` | `expected_outcomes` | Always sent (but is mandatory for all modes, so low risk) |
-| `maturity_level` | `maturity_level` | Always sent |
-| `deliverables_list` | `deliverables_list` | Curator-only field, not in Creator form |
-| `weighted_criteria` | `weighted_criteria` | Curator-only field |
+### Issue 2: EssentialDetailsTab field hiding is hardcoded, not governance-driven
 
-### Issue 4: Creator snapshot renders domain_tag UUIDs, not human-readable names
+**File:** `EssentialDetailsTab.tsx` lines 96, 270
 
-In the snapshot (line 255), `domain_tags: payload.domainTags` stores raw UUIDs (e.g., `["a1b2c3..."]`). The detail view (line 368) renders these UUIDs as badge text, showing cryptic IDs to the user instead of tag names like "Manufacturing" or "IoT".
+The `Scope` and `IP Preference` fields are hidden with `{!isQuick && (...)}` — a hardcoded check against `governanceMode === 'QUICK'`. This works today but ignores the Supervisor-configurable `md_governance_field_rules` table. If a Supervisor marks `scope` as `required` for QUICK mode, the form still hides it.
+
+Similarly, `Budget Range` always shows regardless of governance rules (no visibility check against `platinum_award` field_key).
+
+**Fix:** Pass `fieldRules` from the parent form and use `isFieldVisible(fieldRules, 'scope')` instead of `!isQuick`. Apply the same pattern to `ip_model` and `platinum_award` (budget fields).
+
+---
+
+### Issue 3: AdditionalContextTab field hiding is hardcoded
+
+**File:** `AdditionalContextTab.tsx`
+
+The Tab 2 fields (context_background, root_causes, etc.) always render regardless of governance mode. Their `required` flag is driven by `isControlled` but they are never hidden for QUICK mode. The Zod schema handles validation (optional for QUICK), but the UI doesn't hide fields the Supervisor has marked `hidden`.
+
+**Fix:** Accept `fieldRules` prop. Wrap each field group in `isFieldVisible(fieldRules, fieldKey)` checks. Timeline field should check `expected_timeline` visibility.
+
+---
+
+### Issue 4: `expected_timeline` location mismatch with memory
+
+Per project memory: "The 'Target Timeline' field is located in the **Essential Details** tab." But the actual code has it in `AdditionalContextTab.tsx` (line 237). This contradicts the documented intent.
+
+**Fix:** Either move `expected_timeline` to `EssentialDetailsTab` or update the memory. Recommend keeping it in Tab 2 as it's an optional enrichment field for most modes.
+
+---
+
+### Issue 5: Draft resume doesn't load `governance_mode_override`
+
+**File:** `ChallengeCreatorForm.tsx` lines 188-261
+
+When resuming a draft via `?draft=<id>`, the form fetches challenge data but does NOT fetch `governance_mode_override` or `operating_model`. The parent `ChallengeCreatePage` initializes governance/engagement from org defaults, so a draft saved as `CONTROLLED/AGG` will resume as `QUICK/MP` if that's the org default.
+
+**Fix:** Fetch `governance_mode_override` and `operating_model` in the draft load query. Expose a callback to the parent page to set the governance mode and engagement model from the loaded draft values.
+
+---
+
+### Issue 6: `useMyChallenges` doesn't fetch `governance_mode_override`
+
+**File:** `useMyChallenges.ts` line 39
+
+The query fetches `governance_profile` but not `governance_mode_override`. The `MyChallengesPage` badge shows `governanceLabel(ch.governance_profile)` — this will show the ORG-level default, not the per-challenge override. A QUICK challenge under a STRUCTURED org will incorrectly display "Structured".
+
+**Fix:** Add `governance_mode_override` to the select query and the `MyChallengeItem` interface. In the card, display `governance_mode_override ?? governance_profile`.
+
+---
+
+### Issue 7: Delete draft has no RLS guard for ownership
+
+**File:** `MyChallengesPage.tsx` lines 103-124
+
+The delete handler does a raw `supabase.from('challenges').update({ is_deleted: true }).eq('id', deleteTarget)` with no ownership check. This relies entirely on RLS. If RLS is misconfigured or the table has a broad update policy, any user could delete any challenge. The handler also doesn't verify the challenge is in Phase 1 (draft state) — it could soft-delete an active published challenge.
+
+**Fix:** Add `.eq('created_by', user.id)` and `.eq('current_phase', 1)` filters to the update query as defense-in-depth.
+
+---
 
 ## Fix Plan
 
-### 1. Add missing keys to `FORM_FIELD_TO_GOVERNANCE_KEY`
+### Files to Change
 
-**File: `src/lib/cogniblend/governanceFieldFilter.ts`**
+| File | Changes |
+|------|---------|
+| `src/pages/cogniblend/MyChallengesPage.tsx` | Fix `governanceLabel` switch; add `governance_mode_override` display; add ownership + phase guard to delete |
+| `src/hooks/cogniblend/useMyChallenges.ts` | Fetch `governance_mode_override`; add to interface |
+| `src/components/cogniblend/creator/EssentialDetailsTab.tsx` | Accept `fieldRules` prop; use `isFieldVisible()` for scope, IP, budget fields |
+| `src/components/cogniblend/creator/AdditionalContextTab.tsx` | Accept `fieldRules` prop; use `isFieldVisible()` for all context fields |
+| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Pass `fieldRules` to both tabs; fetch `governance_mode_override` + `operating_model` on draft resume; expose callback to parent for mode sync |
+| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Accept mode sync callback from form for draft resume |
+| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Fix `governanceLabel` switch to handle `QUICK` |
 
-Add `domain_tags`, `budgetMin`, `budgetMax`, `budget_min`, `budget_max`, `maturity_level`, and `expected_outcomes` mappings.
+### Implementation Order
 
-### 2. Fix submission to use `filteredPayload` consistently
-
-**File: `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
-
-- Change `domain_tags: payload.domainTags` to `domain_tags: filteredPayload.domainTags`
-- Build `rewardStructure` from `filteredPayload` budget values (fall back to 0 if stripped)
-- Build `eligibility` JSON from `filteredPayload`
-- Apply same fixes in snapshot construction
-- Apply same pattern in `useSaveDraft` and `useUpdateDraft`
-
-### 3. Fix Fill Test Data to respect governance for domain_tags
-
-**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
-
-Move `domain_tags: domainIds` into the seed BEFORE filtering so `filterSeedByGovernance` can strip it if hidden. Or conditionally add it only if `domain_tags` is visible per field rules.
-
-### 4. Resolve domain_tags UUID display issue
-
-**File: `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`**
-
-The snapshot stores UUIDs for domain_tags. Two options:
-- **Option A**: Store resolved tag names in the snapshot at submission time (preferred — snapshot is immutable)
-- **Option B**: Resolve UUIDs to names at display time via a lookup query
-
-Recommend Option A: resolve tag names during snapshot creation in `useSubmitSolutionRequest.ts` by querying the domain tag names before building the snapshot.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/lib/cogniblend/governanceFieldFilter.ts` | Add missing field mappings (domain_tags, budget, maturity_level) |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Use `filteredPayload` consistently; resolve domain tag names for snapshot |
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Governance-aware domain_tags in Fill Test Data |
-| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Handle UUID-based domain_tags gracefully (fallback display) |
+1. Fix `governanceLabel()` in both files (trivial, zero risk)
+2. Add `governance_mode_override` to `useMyChallenges` + card display
+3. Add defense-in-depth to delete handler
+4. Make EssentialDetailsTab + AdditionalContextTab governance-rule-driven
+5. Fix draft resume to load and apply saved governance/engagement model
 
