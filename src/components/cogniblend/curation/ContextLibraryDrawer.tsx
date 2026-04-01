@@ -48,9 +48,10 @@ import {
 
 interface ContextLibraryDrawerProps {
   challengeId: string;
-  challengeTitle: string;
+  challengeTitle?: string;
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const SECTION_LABELS: Record<string, string> = {
