@@ -118,6 +118,7 @@ export function createChallengeFormSchema(
     // Step 0 — Mode & Model Selection
     governance_mode: z.enum(['QUICK', 'STRUCTURED', 'CONTROLLED']).default('STRUCTURED'),
     operating_model: z.enum(['MP', 'AGG']).default('MP'),
+    creator_approval_required: z.boolean().default(mode !== 'QUICK'),
 
     // Step 1 — Challenge Brief
     title: z.string().min(1, 'Title is required').max(titleMax, `Title cannot exceed ${titleMax} characters`).trim(),
@@ -260,6 +261,7 @@ export type ChallengeFormValues = z.infer<typeof challengeFormSchema>;
 export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   governance_mode: 'STRUCTURED' as const,
   operating_model: 'MP' as const,
+  creator_approval_required: true,
   title: '',
   hook: '',
   description: '',
