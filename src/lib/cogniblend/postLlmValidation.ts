@@ -2,15 +2,21 @@
  * postLlmValidation — Programmatic checks run AFTER every AI response,
  * BEFORE showing results to the user.
  *
- * Five validation rules:
+ * Eight validation rules:
  * 1. Date validation (phase schedule — no past dates, sequential)
  * 2. Master data enforcement (suggested values must exist)
  * 3. Evaluation weights sum to 100%
  * 4. Reward rate floor check
  * 5. Prize tiers ≤ total pool
+ * 6. Format validation (table/line_items/checkbox structure)
+ * 7. Contradiction detection (cross-section logic checks)
+ * 8. Confidence scoring (context availability → risk level)
  */
 
 import type { ChallengeContext } from './challengeContextAssembler';
+import { validateFormat, type FormatValidationResult } from './validators/formatValidator';
+import { detectContradictions, type Contradiction } from './validators/contradictionDetector';
+import { scoreConfidence, type ConfidenceScore } from './validators/confidenceScorer';
 
 /* ── Public types ── */
 
@@ -27,6 +33,12 @@ export interface ValidationResult {
   isValid: boolean;
   corrections: ValidationCorrection[];
   passedChecks: string[];
+  /** Rule 8: Confidence score for this section */
+  confidenceScore?: ConfidenceScore;
+  /** Rule 7: Cross-section contradictions (only populated on full-challenge validation) */
+  contradictions?: Contradiction[];
+  /** Rule 6: Format validation result */
+  formatResult?: FormatValidationResult;
 }
 
 /* ── Main validator ── */
