@@ -6,6 +6,7 @@
 
 export const MATURITY_LABELS: Record<string, string> = {
   blueprint: 'An idea or concept',
+  demo: 'A working demonstration',
   poc: 'Proof it can work',
   prototype: 'A working demo',
   pilot: 'A real-world test',
@@ -14,6 +15,7 @@ export const MATURITY_LABELS: Record<string, string> = {
 /** Short descriptions for maturity level selector cards */
 export const MATURITY_DESCRIPTIONS: Record<string, string> = {
   blueprint: 'You have a concept, architecture, or design you want explored',
+  demo: 'You want a working demonstration that showcases the solution',
   poc: 'You need feasibility demonstrated with working evidence',
   prototype: 'You want a functional demo that proves the approach end-to-end',
   pilot: 'You need a real-world deployment test with measurable outcomes',

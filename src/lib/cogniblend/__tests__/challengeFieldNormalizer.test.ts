@@ -11,9 +11,13 @@ describe('normalizeChallengeFields', () => {
       expect(normalizeChallengeFields({ maturity_level: v }).maturity_level).toBe('BLUEPRINT');
     });
 
-    it.each(['poc', 'POC', 'prototype', 'PILOT'])('accepts valid values', (v) => {
+    it.each(['poc', 'POC', 'prototype', 'PILOT', 'demo', 'DEMO'])('accepts valid values', (v) => {
       const out = normalizeChallengeFields({ maturity_level: v });
       expect(out.maturity_level).toBe(v.toUpperCase());
+    });
+
+    it('normalizes SOLUTION_DEMO → DEMO', () => {
+      expect(normalizeChallengeFields({ maturity_level: 'SOLUTION_DEMO' }).maturity_level).toBe('DEMO');
     });
 
     it('throws for invalid value', () => {
