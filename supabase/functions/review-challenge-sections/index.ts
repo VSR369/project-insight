@@ -939,7 +939,7 @@ async function callAIBatchTwoPass(
   // ═══ PASS 2: Rewrite (conditional) ═══
   let suggestionMap: Map<string, string>;
   try {
-    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection);
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection, contextDigestText, useContextIntelligence);
   } catch (err: any) {
     // Pass 2 failure is non-fatal — return Pass 1 results without suggestions
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
