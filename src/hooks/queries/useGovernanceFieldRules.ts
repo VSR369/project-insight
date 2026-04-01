@@ -74,7 +74,8 @@ export function isFieldVisible(rules: FieldRulesMap | undefined | null, fieldKey
 }
 
 /** Check if a field is required */
-export function isFieldRequired(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldRequired(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return false;
   const rule = rules[fieldKey];
   if (!rule) return false;
   return rule.visibility === 'required';
