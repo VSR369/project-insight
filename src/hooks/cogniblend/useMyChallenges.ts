@@ -16,6 +16,7 @@ export interface MyChallengeItem {
   role_code: string;
   governance_profile: string;
   operating_model: string | null;
+  created_at: string;
 }
 
 export interface MyChallengesData {
