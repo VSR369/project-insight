@@ -753,7 +753,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
 
   // Bug 1: Prepend context intelligence for org/geography/industry awareness in Pass 2
   const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
-  pass2SystemPrompt = contextIntel + '\n\n' + pass2SystemPrompt;
+  pass2SystemPrompt = contextIntel + (contextDigestText || '') + '\n\n' + pass2SystemPrompt;
 
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
