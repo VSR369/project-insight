@@ -223,15 +223,15 @@ export default function CurationActions({
     enabled: !!challengeId,
     staleTime: 5 * 60_000,
   });
-  const amApprovalRequired = isMP && (extendedBrief?.am_approval_required !== false);
+  const crApprovalRequired = isMP && (extendedBrief?.creator_approval_required !== false);
 
   // For MP: update phase_status to CR_APPROVAL_PENDING instead of advancing phase
-  const amApprovalMutation = useMutation({
+  const crApprovalMutation = useMutation({
     mutationFn: async () => {
-      // Set phase_status to AM_APPROVAL_PENDING
+      // Set phase_status to CR_APPROVAL_PENDING
       const { error: updateError } = await supabase
         .from('challenges')
-        .update({ phase_status: 'AM_APPROVAL_PENDING' } as any)
+        .update({ phase_status: 'CR_APPROVAL_PENDING' } as any)
         .eq('id', challengeId);
       if (updateError) throw new Error(updateError.message);
 
@@ -309,8 +309,8 @@ export default function CurationActions({
     }
 
     // CR declined → resubmit, or MP model with CR approval required → route to CR
-    if (isAmDeclined || amApprovalRequired) {
-      amApprovalMutation.mutate();
+    if (isAmDeclined || crApprovalRequired) {
+      crApprovalMutation.mutate();
       return;
     }
 
@@ -442,7 +442,7 @@ export default function CurationActions({
           <Button
             className="w-full"
             onClick={handleSubmitClick}
-            disabled={completePhase.isPending || amApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
+            disabled={completePhase.isPending || crApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
             title={
               staleSections.length > 0
                 ? `${staleSections.length} stale section(s) need re-review`
@@ -451,14 +451,14 @@ export default function CurationActions({
                   : undefined
             }
           >
-            {(completePhase.isPending || amApprovalMutation.isPending) ? (
+            {(completePhase.isPending || crApprovalMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
             ) : (
               <Send className="h-4 w-4 mr-1.5" />
             )}
             {isAmDeclined
               ? 'Resubmit to Challenge Creator'
-              : amApprovalRequired
+              : crApprovalRequired
                 ? 'Send to Creator for Approval'
                 : 'Approve & Submit for Publication'}
           </Button>

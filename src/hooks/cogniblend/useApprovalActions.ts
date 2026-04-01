@@ -39,7 +39,7 @@ export function useReturnForModification() {
           challenge_id: params.challengeId,
           amendment_number: (count ?? 0) + 1,
           reason: params.reason,
-          initiated_by: 'ID',
+          initiated_by: 'CU',
           status: 'INITIATED',
           scope_of_change: 'RETURNED_FOR_MODIFICATION',
           created_by: params.userId,

@@ -56,9 +56,8 @@ async function notifyRoleHolders(
 
 /**
  * Determines if the current user can cancel based on phase + role rules:
- *   Phase 1 → AM or RQ (initiator)
- *   Phase 2 → CR (creator)
- *   Phase 3+ → CU (curator)
+ *   Phase 1–2 → CR (creator)
+ *   Phase 3+  → CU (curator)
  */
 export function canCancelChallenge(
   currentPhase: number,

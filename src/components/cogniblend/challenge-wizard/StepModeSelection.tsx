@@ -220,8 +220,8 @@ export function StepModeSelection({
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground">
             {selectedModel === 'AGG'
-              ? 'Aggregator model: solvers are curated and invited. An Account Manager (AM) role is not required.'
-              : 'Marketplace model: solvers discover and apply. An Account Manager (AM) role manages the process.'}
+              ? 'Aggregator model: solvers are curated and invited. The Curator manages the full lifecycle.'
+              : 'Marketplace model: solvers discover and apply. A Curator refines and publishes the challenge.'}
           </p>
         </div>
       </div>

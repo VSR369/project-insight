@@ -198,12 +198,12 @@ export function useWithdrawSolution() {
 
         const challengeTitle = challenge?.title ?? 'Challenge';
 
-        // Notify ID and ER role holders
+         // Notify CU and ER role holders
         const { data: roleHolders } = await supabase
           .from('user_challenge_roles')
           .select('user_id')
           .eq('challenge_id', challengeId)
-          .in('role_code', ['ID', 'ER'])
+          .in('role_code', ['CU', 'ER'])
           .eq('is_active', true);
 
         const notificationType = tier === 'PENALTY'
