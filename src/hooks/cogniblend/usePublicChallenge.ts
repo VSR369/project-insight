@@ -187,6 +187,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     status: c.status as string | null,
     master_status: c.master_status as string | null,
     current_phase: c.current_phase as number | null,
+    phase_status: c.phase_status as string | null,
     extended_brief: c.extended_brief as Record<string, unknown> | null,
     expected_outcomes: c.expected_outcomes as Record<string, unknown> | null,
     domain_tags: c.domain_tags as unknown[] | null,
