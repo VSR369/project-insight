@@ -221,7 +221,8 @@ interface ChallengeCardProps {
 
 function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete }: ChallengeCardProps) {
   const isDraft = ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1;
-  const statusConfig = getStatusConfig(ch.master_status, ch.current_phase);
+  const isPendingApproval = ch.phase_status === 'CR_APPROVAL_PENDING';
+  const statusConfig = getStatusConfig(ch.master_status, ch.current_phase, ch.phase_status);
   const StatusIcon = statusConfig.icon;
 
   const formattedDate = ch.created_at
