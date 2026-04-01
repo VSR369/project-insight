@@ -95,7 +95,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           operating_model, visibility, eligibility, currency_code,
           submission_deadline, published_at, tenant_id, ip_model,
           reward_structure, evaluation_criteria, deliverables, phase_schedule,
-          status, master_status, current_phase,
+          status, master_status, current_phase, phase_status,
           extended_brief, expected_outcomes, domain_tags,
           governance_profile, hook, effort_level, solution_type,
           data_resources_provided, success_metrics_kpis,
