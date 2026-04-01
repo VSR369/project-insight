@@ -18,5 +18,5 @@
 | # | Scope | Status |
 |---|-------|--------|
 | 7.8b | Wire Card + Drawer into CurationReviewPage + SectionReferencePanel link | ✅ Done |
-| 7.9 | Fix Pass 1 + inject digest + grounding rule in `review-challenge-sections` | 🔲 Todo |
+| 7.9 | Fix Pass 1 + inject digest + grounding rule in `review-challenge-sections` | 🔲 Todo (next) |
 | 7.10 | `DiscoveryDirectivesEditor.tsx` + wire into ResearchTab/AIReviewConfigPage | 🔲 Todo |
