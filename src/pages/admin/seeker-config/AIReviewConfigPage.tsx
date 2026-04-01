@@ -468,9 +468,11 @@ function SectionEditor({
             webSearchQueries={form.web_search_queries ?? []}
             industryFrameworks={form.industry_frameworks ?? []}
             analystSources={form.analyst_sources ?? []}
+            discoveryDirectives={form.discovery_directives ?? null}
             onQueriesChange={q => setForm(f => ({ ...f, web_search_queries: q }))}
             onFrameworksChange={fw => setForm(f => ({ ...f, industry_frameworks: fw }))}
             onSourcesChange={s => setForm(f => ({ ...f, analyst_sources: s }))}
+            onDiscoveryDirectivesChange={d => setForm(f => ({ ...f, discovery_directives: d }))}
           />
         </TabsContent>
 
