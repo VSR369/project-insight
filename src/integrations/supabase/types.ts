@@ -908,10 +908,15 @@ export type Database = {
       challenge_attachments: {
         Row: {
           challenge_id: string
+          confidence_score: number | null
           created_at: string | null
           description: string | null
+          discovery_source: string
+          discovery_status: string
           display_name: string | null
           display_order: number | null
+          extracted_key_data: Json | null
+          extracted_summary: string | null
           extracted_text: string | null
           extraction_error: string | null
           extraction_method: string | null
@@ -920,21 +925,29 @@ export type Database = {
           file_size: number | null
           id: string
           mime_type: string | null
+          relevance_explanation: string | null
+          resource_type: string | null
           section_key: string
           shared_with_solver: boolean
           source_type: string
           source_url: string | null
           storage_path: string | null
+          suggested_sections: string[] | null
           updated_at: string | null
           uploaded_by: string | null
           url_title: string | null
         }
         Insert: {
           challenge_id: string
+          confidence_score?: number | null
           created_at?: string | null
           description?: string | null
+          discovery_source?: string
+          discovery_status?: string
           display_name?: string | null
           display_order?: number | null
+          extracted_key_data?: Json | null
+          extracted_summary?: string | null
           extracted_text?: string | null
           extraction_error?: string | null
           extraction_method?: string | null
@@ -943,21 +956,29 @@ export type Database = {
           file_size?: number | null
           id?: string
           mime_type?: string | null
+          relevance_explanation?: string | null
+          resource_type?: string | null
           section_key: string
           shared_with_solver?: boolean
           source_type?: string
           source_url?: string | null
           storage_path?: string | null
+          suggested_sections?: string[] | null
           updated_at?: string | null
           uploaded_by?: string | null
           url_title?: string | null
         }
         Update: {
           challenge_id?: string
+          confidence_score?: number | null
           created_at?: string | null
           description?: string | null
+          discovery_source?: string
+          discovery_status?: string
           display_name?: string | null
           display_order?: number | null
+          extracted_key_data?: Json | null
+          extracted_summary?: string | null
           extracted_text?: string | null
           extraction_error?: string | null
           extraction_method?: string | null
@@ -966,11 +987,14 @@ export type Database = {
           file_size?: number | null
           id?: string
           mime_type?: string | null
+          relevance_explanation?: string | null
+          resource_type?: string | null
           section_key?: string
           shared_with_solver?: boolean
           source_type?: string
           source_url?: string | null
           storage_path?: string | null
+          suggested_sections?: string[] | null
           updated_at?: string | null
           uploaded_by?: string | null
           url_title?: string | null
@@ -980,6 +1004,41 @@ export type Database = {
             foreignKeyName: "challenge_attachments_challenge_id_fkey"
             columns: ["challenge_id"]
             isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_context_digest: {
+        Row: {
+          challenge_id: string
+          digest_text: string
+          generated_at: string
+          id: string
+          key_facts: Json | null
+          source_count: number
+        }
+        Insert: {
+          challenge_id: string
+          digest_text: string
+          generated_at?: string
+          id?: string
+          key_facts?: Json | null
+          source_count?: number
+        }
+        Update: {
+          challenge_id?: string
+          digest_text?: string
+          generated_at?: string
+          id?: string
+          key_facts?: Json | null
+          source_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_context_digest_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
