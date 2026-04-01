@@ -105,10 +105,14 @@ export function createChallengeFormSchema(
   const scopeMax = resolveMaxLength(fieldRules, 'scope', 3000);
   const titleMax = resolveMaxLength(fieldRules, 'title', TITLE_MAX);
 
+  // Governance mode flags
+  const isQuick = mode === 'QUICK';
+  const isControlled = mode === 'CONTROLLED';
+
   // Scope: required in STRUCTURED/CONTROLLED, optional in QUICK (unless DB overrides)
   const scopeIsOptional = fieldRules
     ? !isRequired(fieldRules, 'scope')
-    : mode === 'QUICK';
+    : isQuick;
 
   return z.object({
     // Step 0 — Mode & Model Selection
