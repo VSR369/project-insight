@@ -413,12 +413,10 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
-          {import.meta.env.DEV && (
-            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}>
-              <FlaskConical className="h-4 w-4 mr-1.5" />
-              Fill Test Data
-            </Button>
-          )}
+          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}>
+            <FlaskConical className="h-4 w-4 mr-1.5" />
+            Fill Test Data
+          </Button>
           <div className="flex items-center gap-3 ml-auto">
             <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={isBusy}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
