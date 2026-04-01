@@ -1,123 +1,161 @@
 
+# Gap Analysis: FINAL-MASTER-PLAN vs. Implementation
 
-# Gap Analysis: Context Intelligence Plan vs. Implementation
-
-## Summary
-
-All 10 prompts (7.1–7.10) have been implemented. I found **3 functional gaps** and **2 structural gaps**.
+All 34 prompts across 8 phases have been implemented. However, line-by-line comparison reveals **8 gaps** — 5 functional, 3 structural.
 
 ---
 
-## Gap 1 (FUNCTIONAL): Pass 1 batch-filtered attachments NOT implemented
+## Gap 1 (FUNCTIONAL): Feature flag `use_context_intelligence` missing
 
-**Plan says (Prompt 7.9, Change A):** Inside the batch loop, filter attachments so only sections in the current batch are included:
-```typescript
-const batchKeySet = new Set(batchKeys);
-for (const [sk, refs] of Object.entries(attachmentsBySection)) {
-  if (!batchKeySet.has(sk)) continue;
-```
+**Plan says (Prompt 7.1 item 2):** Add `use_context_intelligence BOOLEAN DEFAULT false` to `ai_review_global_config`. Prompt 7.9 says all context intelligence changes are **behind this flag** — when OFF, zero changes to code paths.
 
-**Reality (index.ts line 1717):** ALL attachments from every section are dumped into every batch prompt — no filtering by `batchKeys`.
+**Reality:** Column does not exist in DB. Edge function runs context intelligence unconditionally (no flag check). No rollback mechanism.
 
-**Impact:** Token waste, potential context window overflow, and cross-contamination of irrelevant references in batch prompts.
-
-**Fix:** Add `batchKeySet` filter at line 1717.
+**Fix:**
+1. DB migration: add `use_context_intelligence BOOLEAN DEFAULT false` to `ai_review_global_config`
+2. Edge function: fetch flag at start, gate digest fetch, enhanced attachment format, and grounding rule behind it
+3. Admin UI: add toggle in AI Review Config global settings
 
 ---
 
-## Gap 2 (FUNCTIONAL): Pass 2 missing context digest + grounding rule
+## Gap 2 (FUNCTIONAL): Tiered attachment injection in Pass 2 not implemented
 
-**Plan says (Prompt 7.9, Change B):** Inject `contextDigestText` into Pass 2 system prompt:
-```typescript
-pass2SystemPrompt = contextIntel + contextDigest + '\n\n' + pass2SystemPrompt;
-```
+**Plan says (Prompt 7.9 FIX D):** Pass 2 uses tiered injection:
+- TIER 2 (always): summary + keyData only (~350 tokens/attachment)
+- TIER 3 (conditional): fullContent only when solo batch, ≤2 attachments, or no summary available
+- Dynamic budget: truncate Tier 3 content if >30K tokens total
 
-**Reality (index.ts line 756):** Pass 2 only prepends `contextIntel` — no `contextDigestText`. The digest is only injected into Pass 1 (line 1710).
+**Reality (line 690-703):** Pass 2 always sends full content for every attachment — no tiering.
 
-**Plan also says:** Add grounding rule to Pass 2 user prompt.
-
-**Reality:** Grounding rule only appears in Pass 1 attachment block (line 1742). Pass 2 has no grounding rule.
-
-**Impact:** Pass 2 rewrites are ungrounded — AI generates content without the verified digest or grounding constraints, undermining the entire context intelligence system for the content generation step (which is the step that matters most).
-
-**Fix:** 
-1. Pass `contextDigestText` to the `buildPass2` call site and inject into Pass 2 system prompt.
-2. Add grounding rule to Pass 2 per-section attachment blocks.
+**Fix:** Update Pass 2 attachment block construction with tier logic: send summary+keyData by default, conditionally include full content.
 
 ---
 
-## Gap 3 (FUNCTIONAL): Pass 2 attachment format missing summary/keyData
+## Gap 3 (FUNCTIONAL): Pre-flight maturity-budget alignment check missing
 
-**Plan says (Prompt 7.9, Change C):** Pass 2 per-section attachment blocks should include `KEY POINTS`, `VERIFIED DATA`, and `resource_type`.
+**Plan says (Prompt 8.1 Part 1):** Add alignment validation:
+- Blueprint: $5K–$75K acceptable
+- POC: $5K–$200K acceptable  
+- Pilot: $25K+ acceptable
+- Below minimum → ERROR (blocks AI)
+- Above range for Blueprint → WARNING
 
-**Reality (index.ts line 690-694):** Pass 2 attachment rendering is basic — no summary, no keyData, no resourceType:
-```typescript
-`--- [${typeTag}] ${a.name} [${shareTag}] ---\n${a.sourceUrl ? ...}${a.content}`
-```
+**Reality:** `preFlightCheck.ts` only checks marketplace budget > 0. No maturity-budget range validation.
 
-**Impact:** Pass 2 rewrites miss AI-extracted summaries and structured data, reducing quality of generated content.
-
-**Fix:** Update Pass 2 attachment block construction to match Pass 1 format (include summary, keyData, resourceType).
-
----
-
-## Gap 4 (FUNCTIONAL): Digest fetch missing `key_facts` column
-
-**Plan says:** Context digest injection should include `key_facts`:
-```typescript
-`VERIFIED KEY FACTS:\n${JSON.stringify(digest.key_facts, null, 2)}`
-```
-
-**Reality (index.ts line 1546):** Query only selects `digest_text, source_count` — missing `key_facts`. The injected text has no key facts section.
-
-**Fix:** Add `key_facts` to the select query and include in the digest text block.
+**Fix:** Add `checkMaturityBudgetAlignment()` to preFlightCheck that cross-references maturity_level with budget_max and returns errors/warnings per the ranges above.
 
 ---
 
-## Gap 5 (STRUCTURAL): Component decomposition not done
+## Gap 4 (FUNCTIONAL): Pre-flight quality prediction missing
 
-Already identified in prior audit:
-- `DiscoveryDirectivesEditor.tsx` is 334 lines (plan says extract `DiscoveryResourceTypeCard.tsx`)
-- Section approval logic not extracted from `CurationReviewPage.tsx` into `SectionApprovalCard/List` + `useSectionApprovals` hook
+**Plan says (Prompt 8.1 Part 1):** Show quality prediction based on recommended section presence:
+- Both scope + outcomes → 95% quality, ~2-3 sections to edit
+- Outcomes only → 85%, ~5-7 sections
+- Scope only → 80%, ~5-7 sections
+- Neither → 65%, ~10-15 sections
 
-**Impact:** Functional — none. Maintainability — violates 300-line component rule.
+Plus quick-action buttons ("Add Expected Outcomes" / "Add Scope") that scroll to those sections.
 
----
+**Reality:** PreFlightResult has no quality prediction fields. PreFlightGateDialog shows no prediction or quick-action buttons.
 
-## Implementation Plan
-
-### Step 1: Fix Pass 1 batch filtering (Gap 1)
-File: `supabase/functions/review-challenge-sections/index.ts` line ~1717
-Add `batchKeySet` filter before iterating `attachmentsBySection`.
-
-### Step 2: Fix Pass 2 digest + grounding + attachment format (Gaps 2, 3, 4)
-File: `supabase/functions/review-challenge-sections/index.ts`
-1. Line ~1546: Add `key_facts` to digest select query
-2. Line ~1550: Include key_facts in digest text
-3. Line ~756: Inject `contextDigestText` into Pass 2 system prompt
-4. Lines ~690-696: Update Pass 2 attachment block to include summary, keyData, resourceType, and grounding rule
-
-### Step 3: Deploy edge function
-Redeploy `review-challenge-sections`.
-
-### Step 4: Extract DiscoveryResourceTypeCard (Gap 5)
-Extract resource type card from `DiscoveryDirectivesEditor.tsx` into `DiscoveryResourceTypeCard.tsx`.
-
-### Step 5: Extract section approval components (Gap 5)
-Extract from `CurationReviewPage.tsx` into `SectionApprovalCard.tsx`, `SectionApprovalList.tsx`, and `useSectionApprovals.ts`.
+**Fix:**
+1. Add `qualityPrediction` to `PreFlightResult` interface
+2. Compute prediction in `preFlightCheck()` based on scope/outcomes presence
+3. Update `PreFlightGateDialog.tsx` to display prediction and render quick-action scroll buttons
 
 ---
 
-## Files Changed: 4–6
+## Gap 5 (FUNCTIONAL): Edge function fail-safes not implemented
+
+**Plan says (Prompt 7.9):** Three fail-safes:
+1. Token overflow → strip attachments, digest-only fallback
+2. Timeout → 60s regular, 90s solo, retry with reduced context
+3. Output truncation → detect `finish_reason: 'length'`, split batch and retry
+
+**Reality:** No token estimation, no timeout differentiation, no finish_reason detection.
+
+**Fix:** Add token estimation before AI call, timeout configuration per batch type, and finish_reason check with retry logic.
+
+---
+
+## Gap 6 (STRUCTURAL): ContextLibraryDrawer is 512 lines (monolith)
+
+**Plan says (Prompt 7.7):** Decompose into 5 components:
+1. `ContextLibraryDrawer.tsx` (<120 lines) — Sheet orchestrator
+2. `ContextSourceList.tsx` (<250 lines) — left panel, grouped sources, filters
+3. `ContextSourceDetail.tsx` (<200 lines) — right panel, tabs, metadata
+4. `ContextDigestPanel.tsx` (<100 lines) — bottom collapsible digest
+5. `ContextSuggestionCard.tsx` (<80 lines) — single AI suggestion card
+
+**Reality:** Single 512-line file.
+
+**Fix:** Extract into 5 files under `src/components/cogniblend/curation/context-library/`.
+
+---
+
+## Gap 7 (STRUCTURAL): SectionApprovalCard/List not extracted
+
+**Plan says (Prompt 4.5):** Build 3 standalone components:
+- `SectionApprovalCard.tsx` (<150 lines)
+- `SectionApprovalList.tsx` (<200 lines)
+- `useSectionApprovals.ts` (<100 lines)
+
+**Reality:** `useSectionApprovals.ts` exists (extracted). But `SectionApprovalCard` and `SectionApprovalList` do not — approval UI is still inline in `CurationReviewPage.tsx`.
+
+**Fix:** Extract approval card rendering and list with progress bar into dedicated components.
+
+---
+
+## Gap 8 (STRUCTURAL): Pass 1 sends per-section attachments (should be digest-only)
+
+**Plan says (Prompt 7.9 FIX B):** "Pass 1 gets Context Digest in system prompt only — no per-section attachments."
+
+**Reality (line 1728-1763):** Pass 1 still includes batch-filtered per-section attachments with full content.
+
+**Fix:** When feature flag is ON, remove per-section attachment injection from Pass 1. Keep only the digest in system prompt. Attachments are reserved for Pass 2 with tiered injection.
+
+---
+
+## Implementation Plan (4 Implementation Rounds)
+
+### Round 1: DB + Feature Flag + Pre-flight (Gaps 1, 3, 4)
 
 | File | Action |
 |------|--------|
-| `supabase/functions/review-challenge-sections/index.ts` | Fix batch filter + Pass 2 digest/grounding/attachments + key_facts |
-| `src/components/admin/prompt-studio/DiscoveryResourceTypeCard.tsx` | NEW — extract from DiscoveryDirectivesEditor |
-| `src/components/admin/prompt-studio/DiscoveryDirectivesEditor.tsx` | Refactor to use DiscoveryResourceTypeCard |
-| `src/components/cogniblend/approval/SectionApprovalCard.tsx` | NEW — extract from CurationReviewPage |
-| `src/components/cogniblend/approval/SectionApprovalList.tsx` | NEW — extract from CurationReviewPage |
-| `src/hooks/cogniblend/useSectionApprovals.ts` | NEW — extract from CurationReviewPage |
+| New migration | Add `use_context_intelligence` to `ai_review_global_config` |
+| `src/lib/cogniblend/preFlightCheck.ts` | Add maturity-budget alignment + quality prediction |
+| `src/components/cogniblend/curation/PreFlightGateDialog.tsx` | Show prediction + quick-action scroll buttons |
 
-**Risk:** Steps 1–3 are additive changes to the edge function. Steps 4–5 are pure refactors with no functional change.
+### Round 2: Edge Function Fixes (Gaps 2, 5, 8)
 
+| File | Action |
+|------|--------|
+| `supabase/functions/review-challenge-sections/index.ts` | Feature flag gate, tiered Pass 2 attachments, Pass 1 digest-only, fail-safes (token estimation, timeout config, finish_reason retry) |
+
+### Round 3: Component Decomposition — Context Library (Gap 6)
+
+| File | Action |
+|------|--------|
+| `context-library/ContextLibraryDrawer.tsx` | NEW — orchestrator (<120 lines) |
+| `context-library/ContextSourceList.tsx` | NEW — left panel (<250 lines) |
+| `context-library/ContextSourceDetail.tsx` | NEW — right panel (<200 lines) |
+| `context-library/ContextDigestPanel.tsx` | NEW — digest section (<100 lines) |
+| `context-library/ContextSuggestionCard.tsx` | NEW — suggestion card (<80 lines) |
+| Old `ContextLibraryDrawer.tsx` | Delete after extraction |
+
+### Round 4: Component Decomposition — Approvals (Gap 7)
+
+| File | Action |
+|------|--------|
+| `approval/SectionApprovalCard.tsx` | NEW — extract from CurationReviewPage |
+| `approval/SectionApprovalList.tsx` | NEW — extract from CurationReviewPage |
+| `CurationReviewPage.tsx` | Import new approval components |
+
+---
+
+## Risk Assessment
+
+- **Rounds 1-2:** Feature-flagged changes. Flag defaults to OFF, so zero impact on existing behavior.
+- **Rounds 3-4:** Pure structural refactors — no functional change.
+- **Total files changed:** ~12
+- **Breaking changes:** 0
