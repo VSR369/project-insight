@@ -110,8 +110,9 @@ export async function fetchGovernanceFieldRules(
 /* ── Strip hidden fields from a flat payload ────────────── */
 
 /**
- * Removes keys from `payload` whose governance field_key visibility is 'hidden'.
+ * Removes keys from `payload` whose governance field_key visibility is 'hidden' or 'auto'.
  * Uses `fieldKeyMap` to translate payload keys → governance field_keys.
+ * 'auto' fields are silently assigned defaults — they should not appear in user-facing snapshots.
  */
 export function stripHiddenFields<T extends Record<string, unknown>>(
   payload: T,
@@ -121,7 +122,8 @@ export function stripHiddenFields<T extends Record<string, unknown>>(
   const result = { ...payload };
 
   for (const [payloadKey, fieldKey] of Object.entries(fieldKeyMap)) {
-    if (payloadKey in result && rules[fieldKey]?.visibility === 'hidden') {
+    const vis = rules[fieldKey]?.visibility;
+    if (payloadKey in result && (vis === 'hidden' || vis === 'auto')) {
       delete result[payloadKey];
     }
   }
