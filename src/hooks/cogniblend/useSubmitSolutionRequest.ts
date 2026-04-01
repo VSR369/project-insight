@@ -234,7 +234,7 @@ interface DraftPayload {
   operatingModel: string;
   title?: string;
   businessProblem: string;
-  expectedOutcomes: string;
+  expectedOutcomes: string[];
   constraints?: string;
   currency: string;
   budgetMin: number;
@@ -249,15 +249,17 @@ interface DraftPayload {
   templateId?: string;
   governanceModeOverride?: string;
   contextBackground?: string;
-  rootCauses?: string;
-  affectedStakeholders?: string;
+  rootCauses?: string[];
+  affectedStakeholders?: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
   scopeDefinition?: string;
-  preferredApproach?: string;
-  approachesNotOfInterest?: string;
+  preferredApproach?: string[];
+  approachesNotOfInterest?: string[];
   solutionExpectations?: string;
-  currentDeficiencies?: string;
+  currentDeficiencies?: string[];
   maturityLevel?: string;
+  solutionMaturityId?: string;
   ipModel?: string;
+  submissionGuidelines?: string[];
 }
 
 export function useSaveDraft() {
