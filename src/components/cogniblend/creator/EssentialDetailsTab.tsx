@@ -23,6 +23,7 @@ import { Info, Loader2 } from 'lucide-react';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
