@@ -45,7 +45,7 @@ interface AttachmentRow {
   display_order: number | null;
 }
 
-export function SectionReferencePanel({ challengeId, sectionKey, disabled = false }: SectionReferencePanelProps) {
+export function SectionReferencePanel({ challengeId, sectionKey, disabled = false, onOpenLibrary }: SectionReferencePanelProps) {
   const config = SECTION_UPLOAD_CONFIG[sectionKey];
 
   const queryClient = useQueryClient();
