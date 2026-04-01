@@ -187,7 +187,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
     (async () => {
       const { data: challenge } = await supabase
         .from('challenges')
-        .select('title, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule')
+        .select('title, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model')
         .eq('id', draftChallengeId)
         .maybeSingle();
 
