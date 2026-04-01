@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Paperclip, Upload, Link2, FileText, Globe, Trash2, Loader2,
-  CheckCircle2, XCircle, ChevronDown, Eye, EyeOff, AlertCircle,
+  CheckCircle2, XCircle, ChevronDown, Eye, EyeOff, AlertCircle, BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
