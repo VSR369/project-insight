@@ -234,12 +234,18 @@ function EmptyPlaceholder({ message }: { message: string }) {
 
 /* ─── Search + Filter ────────────────────────────────────── */
 
-function FilteredSections({ sections, searchTerm }: { sections: SectionDef[]; searchTerm: string }) {
+function FilteredSections({ sections, searchTerm, fieldRules }: { sections: SectionDef[]; searchTerm: string; fieldRules?: FieldRulesMap }) {
   const filtered = useMemo(() => {
-    if (!searchTerm.trim()) return sections.filter((s) => s.content !== null);
-    const lower = searchTerm.toLowerCase();
-    return sections.filter((s) => s.content !== null && s.title.toLowerCase().includes(lower));
-  }, [sections, searchTerm]);
+    return sections.filter((s) => {
+      if (s.content === null) return false;
+      // Hide sections whose governance field rule is 'hidden'
+      if (s.fieldKey && fieldRules && !isFieldVisible(fieldRules, s.fieldKey)) return false;
+      if (searchTerm.trim()) {
+        return s.title.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      return true;
+    });
+  }, [sections, searchTerm, fieldRules]);
 
   if (filtered.length === 0) {
     return <EmptyPlaceholder message={searchTerm ? `No sections matching "${searchTerm}"` : 'No content available.'} />;
