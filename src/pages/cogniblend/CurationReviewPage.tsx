@@ -1260,6 +1260,9 @@ export default function CurationReviewPage() {
   const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
   const [budgetShortfall, setBudgetShortfall] = useState<BudgetShortfallResult | null>(null);
 
+  // ── Phase 7: Context Library drawer state ──
+  const [contextLibraryOpen, setContextLibraryOpen] = useState(false);
+
   // Expand / collapse all sections in the active group
   const handleExpandCollapseAll = useCallback((expand: boolean) => {
     const groupDef = GROUPS.find((g) => g.id === activeGroup);
