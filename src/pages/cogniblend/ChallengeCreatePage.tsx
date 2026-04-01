@@ -315,6 +315,7 @@ export default function ChallengeCreatePage() {
 
       {/* Challenge Creator Form — governance-aware */}
       <ChallengeCreatorForm
+        key={`${governanceMode}-${engagementModel}`}
         engagementModel={engagementModel}
         governanceMode={governanceMode}
         onDraftModeSync={handleDraftModeSync}
