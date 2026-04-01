@@ -94,13 +94,15 @@ export function getFieldMaxLength(rules: FieldRulesMap | undefined | null, field
 }
 
 /** Check if field is auto-populated */
-export function isFieldAuto(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldAuto(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return false;
   const rule = rules[fieldKey];
   return rule?.visibility === 'auto';
 }
 
 /** Check if field is AI-drafted */
-export function isFieldAIDrafted(rules: FieldRulesMap, fieldKey: string): boolean {
+export function isFieldAIDrafted(rules: FieldRulesMap | undefined | null, fieldKey: string): boolean {
+  if (!rules) return false;
   const rule = rules[fieldKey];
   return rule?.visibility === 'ai_drafted';
 }
