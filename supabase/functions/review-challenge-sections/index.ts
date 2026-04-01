@@ -1872,6 +1872,8 @@ GROUNDING RULE (CRITICAL):
           masterDataOptions,
           orgContext,
           attachmentsBySection,
+          contextDigestText,
+          useContextIntelligence,
         );
         // Tag each result with prompt source
         for (const r of batchResults) {
