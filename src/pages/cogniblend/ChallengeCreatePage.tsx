@@ -219,11 +219,15 @@ export default function ChallengeCreatePage() {
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
     const demoGov = sessionStorage.getItem('cogni_demo_governance') as GovernanceMode | null;
-    if (demoGov && ['QUICK', 'STRUCTURED', 'CONTROLLED'].includes(demoGov)) {
-      setGovernanceMode(demoGov);
-      sessionStorage.removeItem('cogni_demo_governance');
-    } else if (currentOrg) {
-      setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
+    sessionStorage.removeItem('cogni_demo_governance');
+
+    if (currentOrg) {
+      const available = getAvailableGovernanceModes(currentOrg.tierCode);
+      if (demoGov && available.includes(demoGov)) {
+        setGovernanceMode(demoGov);
+      } else {
+        setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
+      }
     }
   }, [currentOrg]);
 

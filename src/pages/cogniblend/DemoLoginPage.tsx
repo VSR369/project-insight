@@ -113,7 +113,7 @@ const GOVERNANCE_CARDS: Array<{
 export default function DemoLoginPage() {
   const navigate = useNavigate();
   const [loadingEmail, setLoadingEmail] = useState<string | null>(null);
-  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
 
   const handleLogin = useCallback(async (demoUser: DemoUser) => {
