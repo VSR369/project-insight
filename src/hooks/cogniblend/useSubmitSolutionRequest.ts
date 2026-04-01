@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
+import { serializeLineItems, serializeStakeholders } from '@/lib/cogniblend/creatorCuratorFieldMap';
 
 interface SubmitPayload {
   orgId: string;
@@ -17,7 +18,7 @@ interface SubmitPayload {
   operatingModel: string;
   title?: string;
   businessProblem: string;
-  expectedOutcomes: string;
+  expectedOutcomes: string[];
   constraints?: string;
   currency: string;
   budgetMin: number;
@@ -33,16 +34,18 @@ interface SubmitPayload {
   governanceModeOverride?: string;
   // Extended brief context fields from Creator
   contextBackground?: string;
-  rootCauses?: string;
-  affectedStakeholders?: string;
+  rootCauses?: string[];
+  affectedStakeholders?: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
   scopeDefinition?: string;
-  preferredApproach?: string;
-  approachesNotOfInterest?: string;
+  preferredApproach?: string[];
+  approachesNotOfInterest?: string[];
   solutionExpectations?: string;
-  currentDeficiencies?: string;
+  currentDeficiencies?: string[];
   referenceUrls?: string[];
   maturityLevel?: string;
+  solutionMaturityId?: string;
   ipModel?: string;
+  submissionGuidelines?: string[];
 }
 
 interface SubmitResult {
@@ -95,9 +98,8 @@ export function useSubmitSolutionRequest() {
         .update({
           problem_statement: payload.businessProblem,
           scope: payload.constraints || null,
-          expected_outcomes: payload.expectedOutcomes
-            ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] })
-            : null,
+          expected_outcomes: serializeLineItems(payload.expectedOutcomes),
+          submission_guidelines: payload.submissionGuidelines ? serializeLineItems(payload.submissionGuidelines) : null,
           reward_structure: rewardStructure,
           phase_schedule: phaseSchedule,
           governance_mode_override: payload.governanceModeOverride ?? null,
@@ -110,6 +112,7 @@ export function useSubmitSolutionRequest() {
             specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
           maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          solution_maturity_id: payload.solutionMaturityId || null,
           ip_model: payload.ipModel || null,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
@@ -118,13 +121,13 @@ export function useSubmitSolutionRequest() {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
             ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-            ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
-            ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+            ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
+            ...(payload.affectedStakeholders?.length ? { affected_stakeholders: payload.affectedStakeholders.filter(s => s.stakeholder_name.trim()) } : {}),
             ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-            ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
-            ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+            ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
+            ...(payload.approachesNotOfInterest?.filter(Boolean).length ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
+            ...(payload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) } : {}),
             ...(payload.referenceUrls?.length ? { reference_urls: payload.referenceUrls } : {}),
           },
         } as any)
@@ -231,7 +234,7 @@ interface DraftPayload {
   operatingModel: string;
   title?: string;
   businessProblem: string;
-  expectedOutcomes: string;
+  expectedOutcomes: string[];
   constraints?: string;
   currency: string;
   budgetMin: number;
@@ -246,15 +249,17 @@ interface DraftPayload {
   templateId?: string;
   governanceModeOverride?: string;
   contextBackground?: string;
-  rootCauses?: string;
-  affectedStakeholders?: string;
+  rootCauses?: string[];
+  affectedStakeholders?: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
   scopeDefinition?: string;
-  preferredApproach?: string;
-  approachesNotOfInterest?: string;
+  preferredApproach?: string[];
+  approachesNotOfInterest?: string[];
   solutionExpectations?: string;
-  currentDeficiencies?: string;
+  currentDeficiencies?: string[];
   maturityLevel?: string;
+  solutionMaturityId?: string;
   ipModel?: string;
+  submissionGuidelines?: string[];
 }
 
 export function useSaveDraft() {
@@ -285,9 +290,8 @@ export function useSaveDraft() {
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           problem_statement: payload.businessProblem || null,
           scope: payload.constraints || null,
-          expected_outcomes: payload.expectedOutcomes
-            ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] })
-            : null,
+          expected_outcomes: serializeLineItems(payload.expectedOutcomes),
+          submission_guidelines: payload.submissionGuidelines ? serializeLineItems(payload.submissionGuidelines) : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,
@@ -307,6 +311,7 @@ export function useSaveDraft() {
             expected_timeline: payload.expectedTimeline,
           },
           maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          solution_maturity_id: payload.solutionMaturityId || null,
           ip_model: payload.ipModel || null,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
@@ -322,13 +327,13 @@ export function useSaveDraft() {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
             ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-            ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
-            ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+            ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
+            ...(payload.affectedStakeholders?.length ? { affected_stakeholders: payload.affectedStakeholders.filter(s => s.stakeholder_name.trim()) } : {}),
             ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-            ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
-            ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+            ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
+            ...(payload.approachesNotOfInterest?.filter(Boolean).length ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
+            ...(payload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) } : {}),
           },
         } as any)
         .eq('id', challengeId);
@@ -362,9 +367,8 @@ export function useUpdateDraft() {
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           problem_statement: payload.businessProblem || null,
           scope: payload.constraints || null,
-          expected_outcomes: payload.expectedOutcomes
-            ? JSON.stringify({ items: [{ name: payload.expectedOutcomes }] })
-            : null,
+          expected_outcomes: serializeLineItems(payload.expectedOutcomes),
+          submission_guidelines: payload.submissionGuidelines ? serializeLineItems(payload.submissionGuidelines) : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
             currency: payload.currency,
@@ -384,6 +388,7 @@ export function useUpdateDraft() {
             expected_timeline: payload.expectedTimeline,
           },
           maturity_level: payload.maturityLevel?.toUpperCase() || null,
+          solution_maturity_id: payload.solutionMaturityId || null,
           ip_model: payload.ipModel || null,
           domain_tags: payload.domainTags || null,
           industry_segment_id: payload.industrySegmentId || null,
@@ -397,13 +402,13 @@ export function useUpdateDraft() {
             ...(payload.beneficiariesMapping ? { beneficiaries_mapping: payload.beneficiariesMapping } : {}),
             ...(payload.templateId ? { challenge_template_id: payload.templateId } : {}),
             ...(payload.contextBackground ? { context_background: payload.contextBackground } : {}),
-            ...(payload.rootCauses ? { root_causes: payload.rootCauses } : {}),
-            ...(payload.affectedStakeholders ? { affected_stakeholders: payload.affectedStakeholders } : {}),
+            ...(payload.rootCauses?.filter(Boolean).length ? { root_causes: payload.rootCauses.filter(Boolean) } : {}),
+            ...(payload.affectedStakeholders?.length ? { affected_stakeholders: payload.affectedStakeholders.filter(s => s.stakeholder_name.trim()) } : {}),
             ...(payload.scopeDefinition ? { scope_definition: payload.scopeDefinition } : {}),
-            ...(payload.preferredApproach ? { preferred_approach: payload.preferredApproach } : {}),
-            ...(payload.approachesNotOfInterest ? { approaches_not_of_interest: payload.approachesNotOfInterest } : {}),
+            ...(payload.preferredApproach?.filter(Boolean).length ? { preferred_approach: payload.preferredApproach.filter(Boolean) } : {}),
+            ...(payload.approachesNotOfInterest?.filter(Boolean).length ? { approaches_not_of_interest: payload.approachesNotOfInterest.filter(Boolean) } : {}),
             ...(payload.solutionExpectations ? { solution_expectations: payload.solutionExpectations } : {}),
-            ...(payload.currentDeficiencies ? { current_deficiencies: payload.currentDeficiencies } : {}),
+            ...(payload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: payload.currentDeficiencies.filter(Boolean) } : {}),
           },
         } as any)
         .eq('id', payload.challengeId);

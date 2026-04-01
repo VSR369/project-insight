@@ -1,24 +1,13 @@
 /**
  * Step 1 — Challenge Brief
  *
- * Fields:
- *   1. Challenge Title
- *   2. Industry Segment — dropdown from master data
- *   3. Experience Countries — multi-select from master data
- *   4. Context & Background — rich text
- *   5. Problem Statement — rich text
- *   6. Detailed Description — rich text
- *   7. Root Causes — rich text
- *   8. Scope Definition — rich text
- *   9. Deliverables — numbered list
- *  10. Affected Stakeholders — rich text
- *  11. Current Deficiencies — rich text
- *  12. Expected Outcomes — rich text
- *  13. Preferred Approach — rich text
- *  14. Approaches NOT of Interest — rich text
- *  15. Submission Guidelines — textarea
- *  16. Domain Tags — multi-select with search + custom entry
- *  17. Solution Maturity Level — 2×2 radio card grid
+ * Fields aligned with curator SECTION_FORMAT_CONFIG:
+ *   - rich_text: problem_statement, scope, context_background, detailed_description
+ *   - line_items: deliverables, expected_outcomes, root_causes, current_deficiencies,
+ *                 preferred_approach, approaches_not_of_interest, submission_guidelines
+ *   - table: affected_stakeholders
+ *   - checkbox_single: maturity_level (from md_solution_maturity DB)
+ *   - tag_input: domain_tags
  */
 
 import { useState, useCallback } from 'react';
@@ -27,10 +16,6 @@ import { UseFormReturn, Controller } from 'react-hook-form';
 import {
   ChevronDown,
   ChevronRight,
-  FileText,
-  FlaskConical,
-  Code,
-  Rocket,
   Search,
   X,
   Plus,
@@ -38,9 +23,9 @@ import {
   GripVertical,
   CheckCircle,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -52,11 +37,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useCountries } from '@/hooks/queries/useMasterData';
+import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import { AiFieldAssist } from './AiFieldAssist';
+import { LineItemsInput } from './LineItemsInput';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Constants ──────────────────────────────────────────── */
@@ -83,13 +69,6 @@ const TAG_COLORS: Record<string, string> = {
   'Sustainability': 'bg-teal-100 text-teal-700 border-teal-200',
 };
 
-const MATURITY_OPTIONS = [
-  { value: 'blueprint' as const, name: 'An idea or concept', description: 'You have a concept, architecture, or design you want explored', Icon: FileText },
-  { value: 'poc' as const, name: 'Proof it can work', description: 'You need feasibility demonstrated with working evidence', Icon: FlaskConical },
-  { value: 'prototype' as const, name: 'A working demo', description: 'You want a functional demo that proves the approach end-to-end', Icon: Code },
-  { value: 'pilot' as const, name: 'A real-world test', description: 'You need a real-world deployment test with measurable outcomes', Icon: Rocket },
-] as const;
-
 /* ─── Props ──────────────────────────────────────────────── */
 
 interface StepProblemProps {
@@ -110,6 +89,7 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
   // Master data hooks
   const { data: industrySegments = [], isLoading: loadingSegments } = useIndustrySegmentOptions();
   const { data: countriesList = [], isLoading: loadingCountries } = useCountries();
+  const { data: maturityOptions = [], isLoading: loadingMaturity } = useSolutionMaturityList();
 
   const titleValue = watch('title') ?? '';
   const titleLen = titleValue.length;
@@ -174,6 +154,23 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
   };
 
   const getCountryName = (id: string) => countriesList.find((c) => c.id === id)?.name ?? id;
+
+  // Affected stakeholders table
+  const stakeholders = watch('affected_stakeholders') ?? [];
+  const addStakeholder = () => {
+    setValue('affected_stakeholders', [
+      ...stakeholders,
+      { stakeholder_name: '', role: '', impact_description: '', adoption_challenge: '' },
+    ]);
+  };
+  const removeStakeholder = (index: number) => {
+    setValue('affected_stakeholders', stakeholders.filter((_, i) => i !== index));
+  };
+  const updateStakeholder = (index: number, field: string, val: string) => {
+    const updated = [...stakeholders];
+    updated[index] = { ...updated[index], [field]: val };
+    setValue('affected_stakeholders', updated);
+  };
 
   return (
     <div className="space-y-6">
@@ -243,11 +240,10 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
             compact
           />
         </div>
-        <Textarea
+        <Input
           id="description"
           placeholder="Provide a short summary description of the challenge"
-          rows={3}
-          className="text-base resize-none"
+          className="text-base"
           {...register('description')}
         />
       </div>
@@ -323,7 +319,7 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         </div>
       </div>
 
-      {/* ── 4. Context & Background ───────────────────── */}
+      {/* ── 4. Context & Background (rich_text — matches curator) ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           Context & Background <span className="text-xs text-muted-foreground ml-1">(optional)</span>
@@ -342,7 +338,7 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         />
       </div>
 
-      {/* ── 5. Problem Statement ──────────────────────── */}
+      {/* ── 5. Problem Statement (rich_text — matches curator) ── */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium">
@@ -371,7 +367,7 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         />
       </div>
 
-      {/* ── 6. Detailed Description ──────────────────── */}
+      {/* ── 6. Detailed Description (rich_text) ──────── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           Detailed Description <span className="text-xs text-muted-foreground ml-1">(optional)</span>
@@ -390,26 +386,22 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         />
       </div>
 
-      {/* ── 7. Root Causes ────────────────────────────── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Root Causes <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="root_causes"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              placeholder="Identify the underlying root causes of the problem."
-              storagePath="root-causes"
-            />
-          )}
-        />
-      </div>
+      {/* ── 7. Root Causes (line_items — matches curator) ── */}
+      <Controller
+        name="root_causes"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={Array.isArray(field.value) ? field.value : ['']}
+            onChange={field.onChange}
+            label="Root Causes"
+            placeholder="Identify an underlying root cause..."
+            addLabel="Add Root Cause"
+          />
+        )}
+      />
 
-      {/* ── 8. Scope Definition ──────────────────────── */}
+      {/* ── 8. Scope Definition (rich_text — matches curator) ── */}
       {!isQuick ? (
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
@@ -465,7 +457,7 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         </div>
       )}
 
-      {/* ── 9. Deliverables ──────────────────────────── */}
+      {/* ── 9. Deliverables (line_items — matches curator) ── */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           Deliverables <span className="text-destructive">*</span>
@@ -509,89 +501,133 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         </Button>
       </div>
 
-      {/* ── 10. Affected Stakeholders ─────────────────── */}
-      <div className="space-y-1.5">
+      {/* ── 10. Affected Stakeholders (table — matches curator) ── */}
+      <div className="space-y-2">
         <Label className="text-sm font-medium">
           Affected Stakeholders <span className="text-xs text-muted-foreground ml-1">(optional)</span>
         </Label>
-        <Controller
-          name="affected_stakeholders"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Who are the stakeholders affected by this problem?" storagePath="affected-stakeholders" />
-          )}
-        />
+        <p className="text-xs text-muted-foreground">
+          Identify stakeholders affected by this problem.
+        </p>
+        {stakeholders.length > 0 && (
+          <div className="space-y-3">
+            {stakeholders.map((s, i) => (
+              <div key={i} className="rounded-lg border border-border bg-background p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Stakeholder {i + 1}</span>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeStakeholder(i)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Stakeholder name"
+                    value={s.stakeholder_name ?? ''}
+                    onChange={(e) => updateStakeholder(i, 'stakeholder_name', e.target.value)}
+                    className="text-sm"
+                  />
+                  <Input
+                    placeholder="Role"
+                    value={s.role ?? ''}
+                    onChange={(e) => updateStakeholder(i, 'role', e.target.value)}
+                    className="text-sm"
+                  />
+                  <Input
+                    placeholder="Impact description"
+                    value={s.impact_description ?? ''}
+                    onChange={(e) => updateStakeholder(i, 'impact_description', e.target.value)}
+                    className="text-sm"
+                  />
+                  <Input
+                    placeholder="Adoption challenge"
+                    value={s.adoption_challenge ?? ''}
+                    onChange={(e) => updateStakeholder(i, 'adoption_challenge', e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button type="button" variant="ghost" size="sm" onClick={addStakeholder} className="text-primary hover:text-primary/80">
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Stakeholder
+        </Button>
       </div>
 
-      {/* ── 11. Current Deficiencies ──────────────────── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Current Deficiencies <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="current_deficiencies"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe the gaps in current solutions or approaches." storagePath="current-deficiencies" />
-          )}
-        />
-      </div>
+      {/* ── 11. Current Deficiencies (line_items — matches curator) ── */}
+      <Controller
+        name="current_deficiencies"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={Array.isArray(field.value) ? field.value : ['']}
+            onChange={field.onChange}
+            label="Current Deficiencies"
+            placeholder="Describe a gap in current solutions..."
+            addLabel="Add Deficiency"
+          />
+        )}
+      />
 
-      {/* ── 12. Expected Outcomes ─────────────────────── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Expected Outcomes <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="expected_outcomes"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="What outcomes do you expect from the challenge solutions?" storagePath="expected-outcomes" />
-          )}
-        />
-      </div>
+      {/* ── 12. Expected Outcomes (line_items — matches curator) ── */}
+      <Controller
+        name="expected_outcomes"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={Array.isArray(field.value) ? field.value : ['']}
+            onChange={field.onChange}
+            label="Expected Outcomes"
+            placeholder="What outcome do you expect?"
+            addLabel="Add Outcome"
+          />
+        )}
+      />
 
-      {/* ── 13. Preferred Approach ────────────────────── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Preferred Approach <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="preferred_approach"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe any preferred methodologies or approaches." storagePath="preferred-approach" />
-          )}
-        />
-      </div>
+      {/* ── 13. Preferred Approach (line_items — matches curator) ── */}
+      <Controller
+        name="preferred_approach"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={Array.isArray(field.value) ? field.value : ['']}
+            onChange={field.onChange}
+            label="Preferred Approach"
+            placeholder="Describe a preferred methodology..."
+            addLabel="Add Approach"
+          />
+        )}
+      />
 
-      {/* ── 14. Approaches NOT of Interest ────────────── */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Approaches NOT of Interest <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Controller
-          name="approaches_not_of_interest"
-          control={control}
-          render={({ field }) => (
-            <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe approaches or solutions that should NOT be submitted." storagePath="approaches-not-of-interest" />
-          )}
-        />
-      </div>
+      {/* ── 14. Approaches NOT of Interest (line_items — matches curator) ── */}
+      <Controller
+        name="approaches_not_of_interest"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={Array.isArray(field.value) ? field.value : ['']}
+            onChange={field.onChange}
+            label="Approaches NOT of Interest"
+            placeholder="Describe an approach that should NOT be submitted..."
+            addLabel="Add Excluded Approach"
+          />
+        )}
+      />
 
-      {/* ── 15. Submission Guidelines ─────────────────── */}
-      <div className="space-y-1.5">
-        <Label htmlFor="submission_guidelines" className="text-sm font-medium">
-          Submission Guidelines <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-        </Label>
-        <Textarea
-          id="submission_guidelines"
-          placeholder="Any specific instructions for solvers about how to prepare and submit their solutions."
-          rows={4}
-          className="text-base resize-none"
-          {...register('submission_guidelines')}
-        />
-      </div>
+      {/* ── 15. Submission Guidelines (line_items — matches curator) ── */}
+      <Controller
+        name="submission_guidelines"
+        control={control}
+        render={({ field }) => (
+          <LineItemsInput
+            value={Array.isArray(field.value) ? field.value : ['']}
+            onChange={field.onChange}
+            label="Submission Guidelines"
+            placeholder="Specific instruction for solvers..."
+            addLabel="Add Guideline"
+          />
+        )}
+      />
 
       {/* ── 16. Domain Tags — with custom entry ─────── */}
       <Controller
@@ -621,15 +657,20 @@ export function StepProblem({ form, mandatoryFields, isQuick }: StepProblemProps
         <p className="text-xs text-muted-foreground">Used for advanced classification and search indexing</p>
       </div>
 
-      {/* ── 17. Solution Maturity Level ───────────────── */}
+      {/* ── 17. Solution Maturity Level — Dynamic from DB ── */}
       <Controller
         name="maturity_level"
         control={control}
         render={({ field }) => (
           <MaturityRadioCards
             value={field.value}
-            onChange={field.onChange}
+            onChange={(code, id) => {
+              field.onChange(code);
+              setValue('solution_maturity_id', id);
+            }}
             error={errors.maturity_level?.message}
+            options={maturityOptions}
+            loading={loadingMaturity}
           />
         )}
       />
@@ -748,38 +789,56 @@ function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: D
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Maturity Level Radio Cards (2×2 grid)
+   Maturity Level Radio Cards — Dynamic from DB
    ═══════════════════════════════════════════════════════════ */
 
 interface MaturityRadioCardsProps {
   value: string | undefined;
-  onChange: (value: string) => void;
+  onChange: (code: string, id: string) => void;
   error?: string;
+  options: Array<{ id: string; code: string; label: string; description: string | null }>;
+  loading?: boolean;
 }
 
-function MaturityRadioCards({ value, onChange, error }: MaturityRadioCardsProps) {
+function MaturityRadioCards({ value, onChange, error, options, loading }: MaturityRadioCardsProps) {
+  if (loading) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">
+          Solution Maturity Level <span className="text-destructive">*</span>
+        </Label>
+        <div className="flex items-center gap-2 py-4 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm">Loading maturity levels...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-medium">
         Solution Maturity Level <span className="text-destructive">*</span>
       </Label>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {MATURITY_OPTIONS.map((opt) => {
-          const isSelected = value === opt.value;
+        {options.map((opt) => {
+          const isSelected = value === opt.code;
           return (
             <button
-              key={opt.value}
+              key={opt.id}
               type="button"
-              onClick={() => onChange(opt.value)}
+              onClick={() => onChange(opt.code, opt.id)}
               className={cn(
                 'flex flex-col items-center text-center rounded-lg p-4 transition-all cursor-pointer border-2',
-                isSelected ? 'border-[#378ADD] bg-[#F0F7FF]' : 'border-border bg-card hover:border-muted-foreground/30',
+                isSelected ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-muted-foreground/30',
                 error && !value && 'border-destructive',
               )}
             >
-              <opt.Icon className={cn('h-6 w-6 mb-2', isSelected ? 'text-[#378ADD]' : 'text-muted-foreground')} />
-              <span className={cn('text-sm font-semibold', isSelected ? 'text-[#378ADD]' : 'text-foreground')}>{opt.name}</span>
-              <span className="text-xs text-muted-foreground mt-0.5 leading-snug">{opt.description}</span>
+              {isSelected && <Check className="h-5 w-5 text-primary mb-1" />}
+              <span className={cn('text-sm font-semibold', isSelected ? 'text-primary' : 'text-foreground')}>{opt.label}</span>
+              {opt.description && (
+                <span className="text-xs text-muted-foreground mt-0.5 leading-snug">{opt.description}</span>
+              )}
             </button>
           );
         })}

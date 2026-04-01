@@ -1501,6 +1501,7 @@ export type Database = {
           reward_structure: Json | null
           scope: string | null
           shadow_fee_amount: number | null
+          solution_maturity_id: string | null
           solution_type: string | null
           solution_types: Json | null
           solutions_awarded: number
@@ -1580,6 +1581,7 @@ export type Database = {
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
+          solution_maturity_id?: string | null
           solution_type?: string | null
           solution_types?: Json | null
           solutions_awarded?: number
@@ -1659,6 +1661,7 @@ export type Database = {
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
+          solution_maturity_id?: string | null
           solution_type?: string | null
           solution_types?: Json | null
           solutions_awarded?: number
@@ -1708,6 +1711,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_solution_maturity_id_fkey"
+            columns: ["solution_maturity_id"]
+            isOneToOne: false
+            referencedRelation: "md_solution_maturity"
             referencedColumns: ["id"]
           },
           {
