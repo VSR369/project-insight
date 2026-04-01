@@ -41,7 +41,7 @@ PHASE 4: CREATOR APPROVAL FLOW
   4.5 Add approval banner to DetailView    ✅ DONE (violet banner with Approve/Request Changes + curator tab auto-select)
 
 PHASE 5: CONTROLLED MODE — ROLE SEPARATION
-  5.1 DB: validate_role_separation fn      ❌ NOT DONE
+  5.1 DB: validate_role_separation fn      ✅ DONE (validate_role_assignment RPC with HARD_BLOCK/SOFT_WARN/ALLOWED)
 
 PHASE 6: GOVERNANCE-AWARE PHASE GATING
   6.1 DB: validate_gate_03 function        ❌ NOT DONE
