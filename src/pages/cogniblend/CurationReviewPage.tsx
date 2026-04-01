@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
+import { useSectionApprovals } from "@/hooks/cogniblend/useSectionApprovals";
 import { useComplexityParams, ComplexityParam as MasterComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
 import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
