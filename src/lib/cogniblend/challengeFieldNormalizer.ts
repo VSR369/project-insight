@@ -11,7 +11,7 @@
 
 /* ─── Valid DB values ───────────────────────────────── */
 
-const VALID_MATURITY = ['BLUEPRINT', 'POC', 'PROTOTYPE', 'PILOT'] as const;
+const VALID_MATURITY = ['BLUEPRINT', 'POC', 'PROTOTYPE', 'PILOT', 'DEMO'] as const;
 
 const VALID_IP_MODELS = ['IP-EA', 'IP-NEL', 'IP-EL', 'IP-JO', 'IP-NONE'] as const;
 
