@@ -43,6 +43,7 @@ export interface PublicChallengeData {
   status: string | null;
   master_status: string | null;
   current_phase: number | null;
+  phase_status: string | null;
   extended_brief: Record<string, unknown> | null;
   expected_outcomes: Record<string, unknown> | null;
   domain_tags: unknown[] | null;
@@ -94,7 +95,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           operating_model, visibility, eligibility, currency_code,
           submission_deadline, published_at, tenant_id, ip_model,
           reward_structure, evaluation_criteria, deliverables, phase_schedule,
-          status, master_status, current_phase,
+          status, master_status, current_phase, phase_status,
           extended_brief, expected_outcomes, domain_tags,
           governance_profile, hook, effort_level, solution_type,
           data_resources_provided, success_metrics_kpis,
@@ -186,6 +187,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     status: c.status as string | null,
     master_status: c.master_status as string | null,
     current_phase: c.current_phase as number | null,
+    phase_status: c.phase_status as string | null,
     extended_brief: c.extended_brief as Record<string, unknown> | null,
     expected_outcomes: c.expected_outcomes as Record<string, unknown> | null,
     domain_tags: c.domain_tags as unknown[] | null,
