@@ -281,6 +281,10 @@ function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete 
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </>
+            ) : isPendingApproval ? (
+              <Button size="sm" onClick={onView} className="bg-violet-600 hover:bg-violet-700 text-white">
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Review & Approve
+              </Button>
             ) : (
               <Button size="sm" variant="outline" onClick={onView}>
                 <Eye className="h-3.5 w-3.5 mr-1" /> View
