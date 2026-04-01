@@ -442,7 +442,7 @@ export default function CurationActions({
           <Button
             className="w-full"
             onClick={handleSubmitClick}
-            disabled={completePhase.isPending || amApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
+            disabled={completePhase.isPending || crApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
             title={
               staleSections.length > 0
                 ? `${staleSections.length} stale section(s) need re-review`
@@ -451,14 +451,14 @@ export default function CurationActions({
                   : undefined
             }
           >
-            {(completePhase.isPending || amApprovalMutation.isPending) ? (
+            {(completePhase.isPending || crApprovalMutation.isPending) ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
             ) : (
               <Send className="h-4 w-4 mr-1.5" />
             )}
             {isAmDeclined
               ? 'Resubmit to Challenge Creator'
-              : amApprovalRequired
+              : crApprovalRequired
                 ? 'Send to Creator for Approval'
                 : 'Approve & Submit for Publication'}
           </Button>
