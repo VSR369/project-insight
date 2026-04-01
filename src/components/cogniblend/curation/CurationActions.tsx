@@ -250,10 +250,10 @@ export default function CurationActions({
          await supabase.from('cogni_notifications').insert({
            user_id: crUserId,
           challenge_id: challengeId,
-          notification_type: 'am_approval_requested',
-          title: 'Challenge ready for your approval',
-          message: 'The Curator has completed the challenge review. Please review and approve before it goes to the Innovation Director.',
-        });
+           notification_type: 'cr_approval_requested',
+           title: 'Challenge ready for your approval',
+           message: 'The Curator has completed the challenge review. Please review and approve before publication.',
+         });
       }
 
       // Audit
