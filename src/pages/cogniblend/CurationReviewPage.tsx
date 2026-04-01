@@ -4075,8 +4075,11 @@ export default function CurationReviewPage() {
           </Card>
 
           {/* AI Confidence Summary (Phase 10) */}
-          {challengeId && challenge && (
-            <AIConfidenceSummary challengeId={challengeId} challenge={challenge} />
+          {challengeCtx && (
+            <AIConfidenceSummary
+              sectionKeys={GROUPS.flatMap(g => g.sectionKeys).filter(Boolean)}
+              context={challengeCtx}
+            />
           )}
 
           {/* Challenge Completeness Checklist (Phase 7) */}
