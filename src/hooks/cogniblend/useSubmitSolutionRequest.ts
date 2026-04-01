@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
+import { serializeLineItems, serializeStakeholders } from '@/lib/cogniblend/creatorCuratorFieldMap';
 
 interface SubmitPayload {
   orgId: string;
@@ -17,7 +18,7 @@ interface SubmitPayload {
   operatingModel: string;
   title?: string;
   businessProblem: string;
-  expectedOutcomes: string;
+  expectedOutcomes: string[];
   constraints?: string;
   currency: string;
   budgetMin: number;
@@ -33,16 +34,18 @@ interface SubmitPayload {
   governanceModeOverride?: string;
   // Extended brief context fields from Creator
   contextBackground?: string;
-  rootCauses?: string;
-  affectedStakeholders?: string;
+  rootCauses?: string[];
+  affectedStakeholders?: Array<{ stakeholder_name: string; role: string; impact_description: string; adoption_challenge: string }>;
   scopeDefinition?: string;
-  preferredApproach?: string;
-  approachesNotOfInterest?: string;
+  preferredApproach?: string[];
+  approachesNotOfInterest?: string[];
   solutionExpectations?: string;
-  currentDeficiencies?: string;
+  currentDeficiencies?: string[];
   referenceUrls?: string[];
   maturityLevel?: string;
+  solutionMaturityId?: string;
   ipModel?: string;
+  submissionGuidelines?: string[];
 }
 
 interface SubmitResult {
