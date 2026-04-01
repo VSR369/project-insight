@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { BookOpen, Filter } from 'lucide-react';
+import { BookOpen, Filter, ArrowUpCircle } from 'lucide-react';
 
 const TIER_COLORS: Record<string, string> = {
   excellent: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
@@ -55,6 +55,22 @@ export default function ExampleLibraryManagerPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['section-examples'] });
       toast.success('Example updated');
+    },
+  });
+
+  const promoteToConfig = useMutation({
+    mutationFn: async ({ sectionKey, content }: { sectionKey: string; content: string }) => {
+      const { error } = await supabase
+        .from('ai_review_section_config')
+        .update({ example_good: content })
+        .eq('section_key', sectionKey);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success('Example promoted to AI config (example_good)');
+    },
+    onError: (err: Error) => {
+      toast.error(`Promote failed: ${err.message}`);
     },
   });
 
@@ -122,6 +138,7 @@ export default function ExampleLibraryManagerPage() {
                   <th className="pb-2 font-medium text-muted-foreground">Annotation</th>
                   <th className="pb-2 font-medium text-muted-foreground">Active</th>
                   <th className="pb-2 font-medium text-muted-foreground">Uses</th>
+                  <th className="pb-2 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,11 +162,26 @@ export default function ExampleLibraryManagerPage() {
                       />
                     </td>
                     <td className="py-2 text-muted-foreground">{ex.usage_count}</td>
+                    <td className="py-2">
+                      {ex.quality_tier === 'excellent' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => promoteToConfig.mutate({ sectionKey: ex.section_key, content: ex.content })}
+                          disabled={promoteToConfig.isPending}
+                          title="Promote to AI Config example_good"
+                        >
+                          <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
+                          Promote
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {(!examples || examples.length === 0) && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
                       No examples yet. Examples are harvested when high-quality challenges are published.
                     </td>
                   </tr>
