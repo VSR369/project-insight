@@ -523,7 +523,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
           creatorId: user.id,
           operatingModel: 'MP',
           businessProblem: values.problem_statement || values.title,
-          expectedOutcomes: values.scope || '',
+          expectedOutcomes: Array.isArray(values.expected_outcomes) ? values.expected_outcomes : (values.expected_outcomes ? [values.expected_outcomes as unknown as string] : []),
           currency: values.currency_code,
           budgetMin: values.platinum_award,
           budgetMax: values.platinum_award,
