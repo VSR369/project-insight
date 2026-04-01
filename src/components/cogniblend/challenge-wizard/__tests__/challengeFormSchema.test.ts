@@ -15,6 +15,7 @@ function validBase(overrides: Record<string, unknown> = {}) {
     scope: 'x'.repeat(200),
     domain_tags: ['ai'],
     maturity_level: 'poc',
+    industry_segment_id: 'some-segment-id',
     deliverables_list: ['Report'],
     weighted_criteria: [{ name: 'Quality', weight: 100 }],
     platinum_award: 1000,
