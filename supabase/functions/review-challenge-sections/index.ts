@@ -1498,20 +1498,24 @@ serve(async (req) => {
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────
+    // Phase 7: Filter out AI-suggested sources that haven't been accepted
     let attachmentsBySection: Record<string, {
       name: string;
       sourceType: 'file' | 'url';
       sourceUrl?: string;
       content: string;
+      summary?: string;
+      keyData?: Record<string, unknown>;
       sharedWithSolver: boolean;
     }[]> = {};
     if (resolvedContext === "curation") {
       try {
         const { data: attachments } = await adminClient
           .from('challenge_attachments')
-          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extraction_status, shared_with_solver')
+          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extracted_summary, extracted_key_data, extraction_status, shared_with_solver, discovery_status')
           .eq('challenge_id', challenge_id)
-          .eq('extraction_status', 'completed');
+          .eq('extraction_status', 'completed')
+          .in('discovery_status', ['accepted', 'manual']);
 
         if (attachments?.length) {
           for (const att of attachments) {
@@ -1523,12 +1527,29 @@ serve(async (req) => {
                 : (att.file_name || 'Unnamed file'),
               sourceType: att.source_type || 'file',
               sourceUrl: att.source_url ?? undefined,
-              content: att.extracted_text.substring(0, 5000),
+              content: att.extracted_text.substring(0, 50000),
+              summary: att.extracted_summary ?? undefined,
+              keyData: att.extracted_key_data as Record<string, unknown> ?? undefined,
               sharedWithSolver: att.shared_with_solver ?? false,
             });
           }
         }
       } catch { /* attachments are optional — graceful fallback */ }
+    }
+
+    // ── Phase 7: Fetch context digest ─────────────────────────────────────
+    let contextDigestText = '';
+    if (resolvedContext === "curation") {
+      try {
+        const { data: digest } = await adminClient
+          .from('challenge_context_digest')
+          .select('digest_text, source_count')
+          .eq('challenge_id', challenge_id)
+          .maybeSingle();
+        if (digest?.digest_text) {
+          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}\n`;
+        }
+      } catch { /* digest is optional */ }
     }
 
     // ── Separate complexity from standard batch ─────────────
