@@ -876,7 +876,7 @@ async function callAIBatchTwoPass(
   providedComments?: any[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
   orgContext?: any,
-  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; sharedWithSolver: boolean }[]>,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; sharedWithSolver: boolean }[]>,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
