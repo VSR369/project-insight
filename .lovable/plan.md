@@ -1,37 +1,41 @@
 
 
-# Verification Report: Fill Test Data Maturity Fix & My Challenges View
+# Fix: "You do not have permission for this phase" — Phase 1 Permission Failure
 
-## Finding 1: Fill Test Data Maturity — CODE IS FIXED ✅
+## Root Cause (5 Whys)
 
-The code changes are correct:
-- `handleFillTestData` (line 402-418) now looks up `solutionMaturityOptions` to match seed maturity codes to actual `md_solution_maturity` records
-- Both `maturity_level` (the UI code like `SOLUTION_PROTOTYPE`) and `solution_maturity_id` (the UUID) are set
-- The normalizer (`challengeFieldNormalizer.ts`) includes `DEMO` in `VALID_MATURITY`
-- All three mutation paths (`useSubmitSolutionRequest`, `useSaveDraft`, `useUpdateDraft`) call `normalizeConstrainedChallengeFields` which strips `SOLUTION_` prefix before DB write
+1. **Why** does "complete_phase" fail? → `can_perform` returns false for phase 1.
+2. **Why** does `can_perform` return false? → It checks if the user holds role `'AM'` (Account Manager).
+3. **Why** does it check for `'AM'`? → `get_phase_required_role(1)` returns `'AM'`.
+4. **Why** doesn't `roles_equivalent` match `'AM'` to `'CR'`? → It only maps CR↔CA, not AM→CR.
+5. **Why** is `'AM'` still in the system? → Legacy role codes were not fully migrated in the database functions. The memory confirms AM, RQ, CA, and ID are all deprecated and should resolve to CR or CU.
 
-**However**: The current draft in the database (`bc92ae14...`) still has `maturity_level: NULL` and `solution_maturity_id: NULL`. This means you haven't used "Fill Test Data" since the fix was deployed, or the draft was created before the fix. You need to click "Fill Test Data" again on this draft to populate the maturity field.
+## Fix: Single Database Migration
 
-## Finding 2: My Challenges "View" Empty Screen — CANNOT REPRODUCE YET
+Update two functions:
 
-There are **zero submitted challenges** in the database. All 5 challenges are phase 1 drafts (4 soft-deleted, 1 active). The "View" button only appears for non-draft challenges (submitted, phase 2+). Since no challenge has been submitted yet, this issue cannot currently occur.
+### 1. `get_phase_required_role` — Replace all legacy codes
 
-The "View" route (`/cogni/challenges/:id/view`) renders `PublicChallengeDetailPage`, which has a potential issue:
+| Phase | Current (broken) | Fixed |
+|-------|-----------------|-------|
+| 1 | `AM` | `CR` |
+| 2 | `CR` | `CR` (no change) |
+| 3 | `CU` | `CU` (no change) |
+| 4 | `ID` | `CU` |
+| 5 | `ID` | `CU` |
+| 6 | `ID` | `CU` |
+| 11 | `ID` | `CU` |
+| 13 | `ID` | `CU` |
 
-**Potential bug identified**: The `getMaturityLabel` function in `PublicChallengeDetailPage.tsx` (line 55-63) uses lowercase keys (`'blueprint'`, `'poc'`, `'prototype'`, `'pilot'`) but the DB stores UPPERCASE (`'BLUEPRINT'`, `'POC'`). There is a centralized `getMaturityLabel` in `maturityLabels.ts` that handles this with a `.toLowerCase()` fallback, but the inline function in the detail page does NOT. This won't cause an empty screen but would show raw uppercase codes instead of labels.
+### 2. `roles_equivalent` — Add legacy mappings
 
-## Recommended Next Steps
+Add: AM→CR, RQ→CR, ID→CU equivalences so any remaining legacy data in `user_challenge_roles` still works.
 
-1. **Test end-to-end**: Click "Fill Test Data" on the current draft, verify maturity radio is selected, then submit to curator
-2. **Fix inline `getMaturityLabel`** in `PublicChallengeDetailPage.tsx` and `CreatorChallengeDetailView.tsx` — replace inline functions with the centralized import from `@/lib/maturityLabels`
-3. After successful submission, verify the "View" button works on My Challenges page
+## Changes
 
-## Changes Required
+| Layer | What |
+|-------|------|
+| Database migration | `CREATE OR REPLACE FUNCTION get_phase_required_role` + `CREATE OR REPLACE FUNCTION roles_equivalent` |
 
-| File | Change |
-|---|---|
-| `src/pages/cogniblend/PublicChallengeDetailPage.tsx` | Replace inline `getMaturityLabel` with import from `@/lib/maturityLabels` |
-| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Replace inline `getMaturityLabel` with import from `@/lib/maturityLabels` |
-
-These are minor fixes. The main maturity normalization pipeline is already working correctly.
+No frontend changes needed — the client code is correct, only the DB functions use stale legacy role codes.
 
