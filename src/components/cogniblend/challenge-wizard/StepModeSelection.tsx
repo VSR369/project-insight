@@ -8,11 +8,10 @@
 
 import { Controller } from 'react-hook-form';
 import type { UseFormReturn } from 'react-hook-form';
-import { Info, Zap, Settings2, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Info, Zap, Settings2, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
