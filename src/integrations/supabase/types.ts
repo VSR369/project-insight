@@ -2191,6 +2191,86 @@ export type Database = {
         }
         Relationships: []
       }
+      curation_quality_metrics: {
+        Row: {
+          ai_accuracy_percent: number
+          ai_assist_rate_percent: number
+          ai_rewrite_rate_percent: number
+          avg_edit_distance_percent: number | null
+          avg_time_spent_seconds: number | null
+          challenge_id: string
+          computed_at: string
+          created_at: string
+          created_by: string | null
+          domain_tags: Json | null
+          governance_mode: string | null
+          grade: string
+          id: string
+          maturity_level: string | null
+          section_breakdown: Json
+          sections_accepted_unchanged: number
+          sections_accepted_with_edits: number
+          sections_rejected_rewritten: number
+          total_sections_reviewed: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ai_accuracy_percent?: number
+          ai_assist_rate_percent?: number
+          ai_rewrite_rate_percent?: number
+          avg_edit_distance_percent?: number | null
+          avg_time_spent_seconds?: number | null
+          challenge_id: string
+          computed_at?: string
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          governance_mode?: string | null
+          grade?: string
+          id?: string
+          maturity_level?: string | null
+          section_breakdown?: Json
+          sections_accepted_unchanged?: number
+          sections_accepted_with_edits?: number
+          sections_rejected_rewritten?: number
+          total_sections_reviewed?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ai_accuracy_percent?: number
+          ai_assist_rate_percent?: number
+          ai_rewrite_rate_percent?: number
+          avg_edit_distance_percent?: number | null
+          avg_time_spent_seconds?: number | null
+          challenge_id?: string
+          computed_at?: string
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          governance_mode?: string | null
+          grade?: string
+          id?: string
+          maturity_level?: string | null
+          section_breakdown?: Json
+          sections_accepted_unchanged?: number
+          sections_accepted_with_edits?: number
+          sections_rejected_rewritten?: number
+          total_sections_reviewed?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curation_quality_metrics_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_section_actions: {
         Row: {
           action_type: string
@@ -9859,6 +9939,68 @@ export type Database = {
           },
         ]
       }
+      section_example_library: {
+        Row: {
+          annotation: string | null
+          content: Json
+          created_at: string
+          created_by: string | null
+          domain_tags: Json | null
+          id: string
+          is_active: boolean
+          maturity_level: string | null
+          quality_tier: string
+          section_key: string
+          source_challenge_id: string | null
+          source_type: string
+          updated_at: string | null
+          updated_by: string | null
+          usage_count: number
+        }
+        Insert: {
+          annotation?: string | null
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          id?: string
+          is_active?: boolean
+          maturity_level?: string | null
+          quality_tier: string
+          section_key: string
+          source_challenge_id?: string | null
+          source_type?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          usage_count?: number
+        }
+        Update: {
+          annotation?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          id?: string
+          is_active?: boolean
+          maturity_level?: string | null
+          quality_tier?: string
+          section_key?: string
+          source_challenge_id?: string | null
+          source_type?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "section_example_library_source_challenge_id_fkey"
+            columns: ["source_challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeker_billing_info: {
         Row: {
           bank_name: string | null
@@ -11827,6 +11969,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "solutions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solver_challenge_feedback: {
+        Row: {
+          challenge_id: string
+          clarity_deliverables: number | null
+          clarity_evaluation: number | null
+          clarity_overall: number
+          clarity_problem: number | null
+          created_at: string
+          id: string
+          missing_info: string | null
+          solver_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          challenge_id: string
+          clarity_deliverables?: number | null
+          clarity_evaluation?: number | null
+          clarity_overall: number
+          clarity_problem?: number | null
+          created_at?: string
+          id?: string
+          missing_info?: string | null
+          solver_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          clarity_deliverables?: number | null
+          clarity_evaluation?: number | null
+          clarity_overall?: number
+          clarity_problem?: number | null
+          created_at?: string
+          id?: string
+          missing_info?: string | null
+          solver_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solver_challenge_feedback_challenge_id_fkey"
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
