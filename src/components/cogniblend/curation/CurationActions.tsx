@@ -336,7 +336,7 @@ export default function CurationActions({
           { challengeId, userId: user.id },
           {
             onSuccess: () => {
-              toast.success("Challenge submitted to Innovation Director for review.");
+              toast.success("Challenge approved and submitted for publication.");
               setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
                 navigate("/cogni/curation");
