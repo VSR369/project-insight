@@ -915,6 +915,10 @@ export function buildStructuredBatchPrompt(
   parts.push(INTELLIGENCE_DIRECTIVE);
   parts.push('');
 
+  // Proportionality Anchor — calibrates AI output scale to budget/maturity/timeline
+  parts.push(buildProportionalityAnchor(clientContext));
+  parts.push('');
+
   // FIX 6 + GAP 3: Domain-specific framework injection (scans tags, problem_statement, scope)
   {
     const frameworks = detectDomainFrameworks(
