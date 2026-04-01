@@ -287,53 +287,43 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
     return [
       {
-        title: 'Problem Statement',
-        icon: Target,
+        title: 'Problem Statement', icon: Target, fieldKey: 'problem_statement',
         content: snapshot.problem_statement ? <RichTextSection title="Problem Statement" html={snapshot.problem_statement as string} icon={Target} /> : null,
       },
       {
-        title: 'Scope / Constraints',
-        icon: Layers,
+        title: 'Scope / Constraints', icon: Layers, fieldKey: 'scope',
         content: snapshot.scope ? <RichTextSection title="Scope / Constraints" html={snapshot.scope as string} icon={Layers} /> : null,
       },
       {
-        title: 'Expected Outcomes',
-        icon: ListChecks,
+        title: 'Expected Outcomes', icon: ListChecks, fieldKey: 'expected_outcomes',
         content: parseItems(snapshot.expected_outcomes) ? <ListSection title="Expected Outcomes" icon={ListChecks} items={parseItems(snapshot.expected_outcomes)!} /> : null,
       },
       {
-        title: 'Context & Background',
-        icon: BookOpen,
+        title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background',
         content: eb.context_background ? <RichTextSection title="Context & Background" html={eb.context_background as string} icon={BookOpen} /> : null,
       },
       {
-        title: 'Root Causes',
-        icon: Info,
+        title: 'Root Causes', icon: Info, fieldKey: 'root_causes',
         content: parseItems(eb.root_causes) ? <ListSection title="Root Causes" icon={Info} items={parseItems(eb.root_causes)!} /> : null,
       },
       {
-        title: 'Affected Stakeholders',
-        icon: Info,
+        title: 'Affected Stakeholders', icon: Info, fieldKey: 'affected_stakeholders',
         content: parseStakeholders(eb.affected_stakeholders) ? <ListSection title="Affected Stakeholders" icon={Info} items={parseStakeholders(eb.affected_stakeholders)!} /> : null,
       },
       {
-        title: 'Current Deficiencies',
-        icon: Info,
+        title: 'Current Deficiencies', icon: Info, fieldKey: 'current_deficiencies',
         content: parseItems(eb.current_deficiencies) ? <ListSection title="Current Deficiencies" icon={Info} items={parseItems(eb.current_deficiencies)!} /> : null,
       },
       {
-        title: 'Preferred Approach',
-        icon: Info,
+        title: 'Preferred Approach', icon: Info, fieldKey: 'preferred_approach',
         content: parseItems(eb.preferred_approach) ? <ListSection title="Preferred Approach" icon={Info} items={parseItems(eb.preferred_approach)!} /> : null,
       },
       {
-        title: 'Approaches Not of Interest',
-        icon: Info,
+        title: 'Approaches Not of Interest', icon: Info, fieldKey: 'approaches_not_of_interest',
         content: parseItems(eb.approaches_not_of_interest) ? <ListSection title="Approaches Not of Interest" icon={Info} items={parseItems(eb.approaches_not_of_interest)!} /> : null,
       },
       {
-        title: 'Budget Range',
-        icon: Trophy,
+        title: 'Budget Range', icon: Trophy, fieldKey: 'platinum_award',
         content: (budgetMin > 0 || budgetMax > 0) ? (
           <Card className="border-border">
             <CardHeader className="pb-2">
@@ -352,8 +342,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         ) : null,
       },
       {
-        title: 'Expected Timeline',
-        icon: Clock,
+        title: 'Expected Timeline', icon: Clock, fieldKey: 'expected_timeline',
         content: snapshot.expected_timeline ? (
           <Card className="border-border">
             <CardContent className="p-4 flex items-center gap-3">
@@ -367,18 +356,15 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         ) : null,
       },
       {
-        title: 'Maturity Level',
-        icon: Layers,
+        title: 'Maturity Level', icon: Layers, fieldKey: 'maturity_level',
         content: snapshot.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(snapshot.maturity_level as string)} /> : null,
       },
       {
-        title: 'IP Model',
-        icon: Briefcase,
+        title: 'IP Model', icon: Briefcase, fieldKey: 'ip_model',
         content: snapshot.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={(snapshot.ip_model as string).replace(/_/g, ' ')} /> : null,
       },
       {
-        title: 'Domain Tags',
-        icon: Tag,
+        title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags',
         content: (snapshot.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={snapshot.domain_tags as string[]} /> : null,
       },
     ];
