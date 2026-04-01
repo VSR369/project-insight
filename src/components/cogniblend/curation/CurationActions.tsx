@@ -314,7 +314,7 @@ export default function CurationActions({
       return;
     }
 
-    // AGG model: submit directly to Innovation Director
+    // AGG model: submit directly — Curator has full approval authority
     supabase
       .rpc("log_audit", {
         p_user_id: user.id,
