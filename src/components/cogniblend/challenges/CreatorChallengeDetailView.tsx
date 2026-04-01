@@ -265,6 +265,14 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Resolve effective governance mode and fetch field rules
+  const effectiveGovernance = resolveChallengeGovernance(
+    data.governance_mode_override,
+    data.governance_profile,
+    null // tier ceiling not needed for display filtering
+  );
+  const { data: fieldRules } = useGovernanceFieldRules(effectiveGovernance);
+
   const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
 
