@@ -365,7 +365,14 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       },
       {
         title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags',
-        content: (snapshot.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={snapshot.domain_tags as string[]} /> : null,
+        content: (() => {
+          const tags = snapshot.domain_tags as string[] | undefined;
+          if (!tags?.length) return null;
+          // If tags look like UUIDs (36-char hex with dashes), show fallback text
+          const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+          const displayTags = tags.map((t) => isUuid(t) ? `Tag ${t.substring(0, 6)}…` : t);
+          return <TagsSection title="Domain Tags" tags={displayTags} />;
+        })(),
       },
     ];
   }, [snapshot]);

@@ -156,17 +156,17 @@ export function useSubmitSolutionRequest() {
       const normalizedConstrainedFields = normalizeConstrainedChallengeFields(filteredPayload);
 
       const rewardStructure = {
-        currency: payload.currency,
-        budget_min: payload.budgetMin,
-        budget_max: payload.budgetMax,
+        currency: filteredPayload.currency ?? payload.currency,
+        budget_min: filteredPayload.budgetMin ?? 0,
+        budget_max: filteredPayload.budgetMax ?? 0,
         source_role: 'CR',
         source_date: new Date().toISOString(),
         upstream_source: {
           role: 'CR',
           date: new Date().toISOString(),
-          budget_min: payload.budgetMin,
-          budget_max: payload.budgetMax,
-          currency: payload.currency,
+          budget_min: filteredPayload.budgetMin ?? 0,
+          budget_max: filteredPayload.budgetMax ?? 0,
+          currency: filteredPayload.currency ?? payload.currency,
         },
       };
 
@@ -207,18 +207,18 @@ export function useSubmitSolutionRequest() {
           phase_schedule: phaseSchedule,
           governance_mode_override: payload.governanceModeOverride ?? null,
           eligibility: JSON.stringify({
-            domain_tags: payload.domainTags,
-            urgency: payload.urgency,
+            domain_tags: filteredPayload.domainTags,
+            urgency: filteredPayload.urgency,
             constraints: filteredPayload.constraints || undefined,
-            industry_segment_id: payload.industrySegmentId || undefined,
-            sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
-            specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
+            industry_segment_id: filteredPayload.industrySegmentId || undefined,
+            sub_domain_ids: filteredPayload.subDomainIds?.length ? filteredPayload.subDomainIds : undefined,
+            specialty_tags: filteredPayload.specialtyTags?.length ? filteredPayload.specialtyTags : undefined,
           }),
           maturity_level: normalizedConstrainedFields.maturity_level,
           solution_maturity_id: filteredPayload.solutionMaturityId || null,
           ip_model: normalizedConstrainedFields.ip_model,
-          domain_tags: payload.domainTags || null,
-          industry_segment_id: payload.industrySegmentId || null,
+          domain_tags: filteredPayload.domainTags || null,
+          industry_segment_id: filteredPayload.industrySegmentId || null,
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           extended_brief: filteredExtendedBrief,
         } as any)
@@ -241,6 +241,16 @@ export function useSubmitSolutionRequest() {
       };
       const filteredSnapshotBrief = stripHiddenExtendedBriefFields(rawSnapshotBrief, governanceRules);
 
+      // Resolve domain tag UUIDs to human-readable names for immutable snapshot
+      let resolvedDomainTagNames: string[] = [];
+      if (filteredPayload.domainTags?.length) {
+        const { data: tagRows } = await supabase
+          .from('industry_segments')
+          .select('id, name')
+          .in('id', filteredPayload.domainTags);
+        resolvedDomainTagNames = (tagRows ?? []).map((t) => t.name);
+      }
+
       const creatorSnapshot = {
         problem_statement: filteredPayload.businessProblem,
         scope: filteredPayload.constraints || null,
@@ -252,11 +262,12 @@ export function useSubmitSolutionRequest() {
         maturity_level: normalizedConstrainedFields.maturity_level,
         solution_maturity_id: filteredPayload.solutionMaturityId || null,
         ip_model: normalizedConstrainedFields.ip_model,
-        domain_tags: payload.domainTags,
-        industry_segment_id: payload.industrySegmentId || null,
-        budget_min: payload.budgetMin,
-        budget_max: payload.budgetMax,
-        currency: payload.currency,
+        domain_tags: resolvedDomainTagNames,
+        domain_tag_ids: filteredPayload.domainTags,
+        industry_segment_id: filteredPayload.industrySegmentId || null,
+        budget_min: filteredPayload.budgetMin ?? 0,
+        budget_max: filteredPayload.budgetMax ?? 0,
+        currency: filteredPayload.currency ?? payload.currency,
         expected_timeline: filteredPayload.expectedTimeline,
       };
 
@@ -366,17 +377,17 @@ export function useSaveDraft() {
           submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
-            currency: payload.currency,
-            budget_min: payload.budgetMin,
-            budget_max: payload.budgetMax,
+            currency: fp.currency ?? payload.currency,
+            budget_min: fp.budgetMin ?? 0,
+            budget_max: fp.budgetMax ?? 0,
             source_role: 'CR',
             source_date: new Date().toISOString(),
             upstream_source: {
               role: 'CR',
               date: new Date().toISOString(),
-              budget_min: payload.budgetMin,
-              budget_max: payload.budgetMax,
-              currency: payload.currency,
+              budget_min: fp.budgetMin ?? 0,
+              budget_max: fp.budgetMax ?? 0,
+              currency: fp.currency ?? payload.currency,
             },
           },
           phase_schedule: {
@@ -385,15 +396,15 @@ export function useSaveDraft() {
           maturity_level: normalizedConstrainedFields.maturity_level,
           solution_maturity_id: fp.solutionMaturityId || null,
           ip_model: normalizedConstrainedFields.ip_model,
-          domain_tags: payload.domainTags || null,
-          industry_segment_id: payload.industrySegmentId || null,
+          domain_tags: fp.domainTags || null,
+          industry_segment_id: fp.industrySegmentId || null,
           eligibility: JSON.stringify({
-            domain_tags: payload.domainTags,
-            urgency: payload.urgency,
+            domain_tags: fp.domainTags,
+            urgency: fp.urgency,
             constraints: fp.constraints || undefined,
-            industry_segment_id: payload.industrySegmentId || undefined,
-            sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
-            specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
+            industry_segment_id: fp.industrySegmentId || undefined,
+            sub_domain_ids: fp.subDomainIds?.length ? fp.subDomainIds : undefined,
+            specialty_tags: fp.specialtyTags?.length ? fp.specialtyTags : undefined,
           }),
           extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
         } as any)
@@ -455,17 +466,17 @@ export function useUpdateDraft() {
           submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
           governance_mode_override: payload.governanceModeOverride ?? null,
           reward_structure: {
-            currency: payload.currency,
-            budget_min: payload.budgetMin,
-            budget_max: payload.budgetMax,
+            currency: fp.currency ?? payload.currency,
+            budget_min: fp.budgetMin ?? 0,
+            budget_max: fp.budgetMax ?? 0,
             source_role: 'CR',
             source_date: new Date().toISOString(),
             upstream_source: {
               role: 'CR',
               date: new Date().toISOString(),
-              budget_min: payload.budgetMin,
-              budget_max: payload.budgetMax,
-              currency: payload.currency,
+              budget_min: fp.budgetMin ?? 0,
+              budget_max: fp.budgetMax ?? 0,
+              currency: fp.currency ?? payload.currency,
             },
           },
           phase_schedule: {
@@ -474,13 +485,13 @@ export function useUpdateDraft() {
           maturity_level: normalizedConstrainedFields.maturity_level,
           solution_maturity_id: fp.solutionMaturityId || null,
           ip_model: normalizedConstrainedFields.ip_model,
-          domain_tags: payload.domainTags || null,
-          industry_segment_id: payload.industrySegmentId || null,
+          domain_tags: fp.domainTags || null,
+          industry_segment_id: fp.industrySegmentId || null,
           eligibility: JSON.stringify({
-            domain_tags: payload.domainTags,
-            urgency: payload.urgency,
+            domain_tags: fp.domainTags,
+            urgency: fp.urgency,
             constraints: fp.constraints || undefined,
-            industry_segment_id: payload.industrySegmentId || undefined,
+            industry_segment_id: fp.industrySegmentId || undefined,
           }),
           extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
         } as any)

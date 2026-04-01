@@ -425,18 +425,21 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
       m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase()
     );
 
-    // Filter seed by governance rules — strip hidden fields
-    const filteredSeed = fieldRules
-      ? filterSeedByGovernance(seed, fieldRules)
-      : seed;
-
-    form.reset({
-      ...filteredSeed,
+    // Include domain_tags in seed BEFORE governance filtering so it can be stripped if hidden
+    const seedWithDomainTags = {
+      ...seed,
+      domain_tags: domainIds,
       maturity_level: maturityMatch?.code ?? seed.maturity_level,
       solution_maturity_id: maturityMatch?.id ?? '',
       industry_segment_id: industrySegments[0]?.id ?? '',
-      domain_tags: domainIds,
-    } as CreatorFormValues);
+    };
+
+    // Filter seed by governance rules — strip hidden fields (including domain_tags if hidden)
+    const filteredSeed = fieldRules
+      ? filterSeedByGovernance(seedWithDomainTags, fieldRules)
+      : seedWithDomainTags;
+
+    form.reset(filteredSeed as CreatorFormValues);
   }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules]);
 
   return (

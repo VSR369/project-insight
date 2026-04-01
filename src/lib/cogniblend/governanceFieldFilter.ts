@@ -28,6 +28,23 @@ export const FORM_FIELD_TO_GOVERNANCE_KEY: Record<string, string> = {
   expected_timeline: 'expected_timeline',
   expectedTimeline: 'expected_timeline',
 
+  // Domain tags
+  domain_tags: 'domain_tags',
+  domainTags: 'domain_tags',
+
+  // Budget fields (governed by platinum_award field_key)
+  budgetMin: 'platinum_award',
+  budgetMax: 'platinum_award',
+  budget_min: 'platinum_award',
+  budget_max: 'platinum_award',
+  currency: 'platinum_award',
+
+  // Maturity & expected outcomes
+  maturity_level: 'maturity_level',
+  maturityLevel: 'maturity_level',
+  expected_outcomes: 'expected_outcomes',
+  expectedOutcomes: 'expected_outcomes',
+
   // Extended brief fields
   context_background: 'context_background',
   contextBackground: 'context_background',
