@@ -275,7 +275,7 @@ export default function CurationActions({
       });
     },
     onSuccess: () => {
-      toast.success("Challenge sent to Account Manager for approval.");
+      toast.success("Challenge sent to Challenge Creator for approval.");
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
         navigate("/cogni/curation");
