@@ -109,7 +109,7 @@ function checkTimelinePhases(
   const phases = parseJsonSafe(sections.phase_schedule);
   if (!phases || phases.length === 0) return;
 
-  const totalDays = phases.reduce((sum: number, p: any) => {
+  const totalDays = phases.reduce<number>((sum, p: any) => {
     return sum + (Number(p.duration_days ?? p.durationDays ?? 0));
   }, 0);
 
