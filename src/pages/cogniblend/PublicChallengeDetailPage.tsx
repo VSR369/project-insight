@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
+import { getMaturityLabel } from '@/lib/maturityLabels';
 import { usePublicChallengeLegal } from '@/hooks/cogniblend/usePublicChallengeLegal';
 import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';

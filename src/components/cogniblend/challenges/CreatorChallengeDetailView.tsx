@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
+import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 
 /* ─── Helpers ────────────────────────────────────────────── */
