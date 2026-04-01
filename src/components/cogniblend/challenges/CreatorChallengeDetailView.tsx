@@ -662,7 +662,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
         {/* Curator Version tab */}
         <TabsContent value="curator-version" className="space-y-4">
-          {((data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
+          {(isPendingApproval || (data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
             <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
             <Card className="border-dashed border-primary/30 bg-primary/5">
