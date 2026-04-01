@@ -853,6 +853,23 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     timestamp: new Date().toISOString(),
   }));
 
+  // Gap 5: Detect finish_reason: 'length' (output truncation)
+  const finishReason = result.choices?.[0]?.finish_reason;
+  if (finishReason === 'length') {
+    console.warn(JSON.stringify({
+      event: 'ai_review_truncated',
+      pass: 'pass2_rewrite',
+      sectionKeys: sectionsNeedingSuggestion.map((s: any) => s.section_key),
+      model: result.model || model,
+      timestamp: new Date().toISOString(),
+    }));
+    // If more than 1 section, the output was likely truncated — return empty to let batch split retry
+    if (sectionsNeedingSuggestion.length > 1) {
+      console.error("Pass 2 output truncated with multiple sections — retry with smaller batches");
+      return new Map();
+    }
+  }
+
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) {
     console.error("Pass 2: AI did not return structured output");
