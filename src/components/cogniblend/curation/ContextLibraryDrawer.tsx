@@ -177,7 +177,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
     s.display_name || s.url_title || s.file_name || s.source_url?.substring(0, 60) || 'Untitled';
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <SheetContent side="right" className="w-[900px] sm:max-w-[900px] p-0 flex flex-col overflow-hidden">
         {/* Header */}
         <SheetHeader className="shrink-0 p-4 pb-3 border-b">
