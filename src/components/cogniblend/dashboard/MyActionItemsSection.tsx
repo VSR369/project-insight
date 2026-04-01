@@ -1,7 +1,7 @@
 /**
  * MyActionItemsSection — Unified action items queue.
- * Shows: AM_APPROVAL_PENDING, DRAFT, RETURNED items for the active role.
- * For CA/CR: also shows unread lifecycle notifications (SLA, amendments, etc.)
+ * Shows: CR_APPROVAL_PENDING, DRAFT, RETURNED items for the active role.
+ * For CR: also shows unread lifecycle notifications (SLA, amendments, etc.)
  */
 
 import { useMemo, useCallback } from 'react';

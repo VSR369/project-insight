@@ -36,10 +36,10 @@ const PHASE_LABELS: Record<number, string> = {
 };
 
 const PHASE_OWNER: Record<number, string> = {
-  1: 'You (AM)', 2: 'Challenge Creator / Architect', 3: 'Legal Coordinator', 4: 'Curator',
-  5: 'Innovation Director', 6: 'Innovation Director', 7: 'Solvers (Open)',
-  8: 'Evaluation Reviewer', 9: 'Innovation Director', 10: 'Finance Controller',
-  11: 'Legal Compliance', 12: 'Finance Controller', 13: 'Challenge Creator / Architect',
+  1: 'Challenge Creator (CR)', 2: 'Challenge Creator (CR)', 3: 'Legal Coordinator (LC)', 4: 'Curator (CU)',
+  5: 'Curator (CU)', 6: 'Curator (CU)', 7: 'Solvers (Open)',
+  8: 'Evaluation Reviewer (ER)', 9: 'Curator (CU)', 10: 'Finance Controller (FC)',
+  11: 'Legal Coordinator (LC)', 12: 'Finance Controller (FC)', 13: 'Challenge Creator (CR)',
 };
 
 const ALL_PHASES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];

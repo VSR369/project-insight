@@ -787,7 +787,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
     );
   }
 
-  // ═══════ AM (Marketplace) Render ═══════
+  // ═══════ MP (Marketplace) Render ═══════
   return (
     <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
