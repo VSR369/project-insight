@@ -70,7 +70,7 @@ const TIMELINE_OPTIONS = [
 
 /* ── Schemas ── */
 
-/** AGG (RQ) schema — template card + single idea field */
+/** AGG schema — template card + single idea field */
 const aggSchema = z.object({
   selected_template: z.string().min(1, 'Please select a challenge type'),
   problem_summary: z.string().trim().min(10, 'Please describe your idea (at least 10 characters)').max(5000, 'Keep your idea under 5000 characters'),
