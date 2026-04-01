@@ -57,6 +57,7 @@ export interface PublicChallengeData {
   functional_area: string | null;
   target_geography: string | null;
   creator_snapshot: Record<string, unknown> | null;
+  governance_mode_override: string | null;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
