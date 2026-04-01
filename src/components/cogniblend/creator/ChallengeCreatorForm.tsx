@@ -28,6 +28,8 @@ import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { supabase } from '@/integrations/supabase/client';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
+import { filterSeedByGovernance } from '@/lib/cogniblend/governanceFieldFilter';
 
 import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
