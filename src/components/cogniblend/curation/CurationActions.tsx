@@ -191,7 +191,7 @@ export default function CurationActions({
   const maxCycles = 3;
   const isMP = operatingModel === 'MP';
 
-  /* ── Fetch AM decline reason (latest) ───────────────── */
+  /* ── Fetch CR decline reason (latest) ───────────────── */
   const { data: amDeclineReason } = useQuery({
     queryKey: ['am-decline-reason', challengeId],
     queryFn: async () => {
