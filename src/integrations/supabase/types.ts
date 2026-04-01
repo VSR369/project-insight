@@ -12909,7 +12909,10 @@ export type Database = {
       }
       get_my_admin_profile_id: { Args: never; Returns: string }
       get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
-      get_phase_required_role: { Args: { p_phase: number }; Returns: string }
+      get_phase_required_role: {
+        Args: { phase_number: number }
+        Returns: string
+      }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
@@ -13058,6 +13061,7 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: undefined
       }
+      normalize_role_code: { Args: { code: string }; Returns: string }
       notify_escalation: {
         Args: {
           p_challenge_id: string
@@ -13222,7 +13226,7 @@ export type Database = {
         Returns: string
       }
       roles_equivalent: {
-        Args: { p_actual: string; p_required: string }
+        Args: { role_a: string; role_b: string }
         Returns: boolean
       }
       select_reviewers_weighted: {
