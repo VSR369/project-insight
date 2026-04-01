@@ -43,6 +43,7 @@ export interface PublicChallengeData {
   status: string | null;
   master_status: string | null;
   current_phase: number | null;
+  phase_status: string | null;
   extended_brief: Record<string, unknown> | null;
   expected_outcomes: Record<string, unknown> | null;
   domain_tags: unknown[] | null;
