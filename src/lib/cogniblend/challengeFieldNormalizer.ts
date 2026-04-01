@@ -47,9 +47,13 @@ export function normalizeChallengeFields(
   const out = { ...fields };
   const errors: string[] = [];
 
-  // 1. maturity_level
+  // 1. maturity_level — accept SOLUTION_* prefixed aliases from md_solution_maturity codes
   if (out.maturity_level != null && out.maturity_level !== '') {
-    const upper = String(out.maturity_level).toUpperCase();
+    let upper = String(out.maturity_level).toUpperCase();
+    // Strip "SOLUTION_" prefix used by md_solution_maturity codes
+    if (upper.startsWith('SOLUTION_')) {
+      upper = upper.replace('SOLUTION_', '');
+    }
     if ((VALID_MATURITY as readonly string[]).includes(upper)) {
       out.maturity_level = upper;
     } else {
