@@ -1,12 +1,12 @@
 /**
  * TW1-04: Section completion bar shows correct percentage
  *
- * Unit-tests the pure logic behind useFormCompletion without rendering a component.
- * We extract the helper functions and test them directly.
+ * Unit-tests the pure logic behind useFormCompletion.
+ * Tests use mock FieldRulesMap to verify dynamic derivation.
  */
 
 import { describe, it, expect } from 'vitest';
-import type { GovernanceMode } from '@/lib/governanceMode';
+import type { FieldRulesMap, FieldRule } from '@/hooks/queries/useGovernanceFieldRules';
 
 /* ── Re-implement the pure helpers (same logic as useFormCompletion.ts) ── */
 
@@ -26,48 +26,40 @@ function isFieldFilled(value: unknown): boolean {
   return false;
 }
 
-type FieldKey = string;
+const WIZARD_STEP_COUNT = 8;
 
-function getRequiredFieldsByStep(mode: GovernanceMode): FieldKey[][] {
-  if (mode === 'QUICK') {
-    return [
-      ['governance_mode'],
-      ['title', 'problem_statement', 'domain_tags', 'maturity_level'],
-      ['weighted_criteria'],
-      ['platinum_award'],
-      ['expected_timeline'],
-      ['eligibility'],
-      [],
-      [],
-    ];
-  }
-  if (mode === 'CONTROLLED') {
-    return [
-      ['governance_mode'],
-      ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
-      ['weighted_criteria'],
-      ['platinum_award', 'gold_award', 'rejection_fee_pct', 'ip_model'],
-      ['expected_timeline', 'review_duration'],
-      ['eligibility', 'challenge_enrollment', 'challenge_submission'],
-      [],
-      [],
-    ];
-  }
-  // STRUCTURED
-  return [
-    ['governance_mode'],
-    ['title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level'],
-    ['weighted_criteria'],
-    ['platinum_award', 'gold_award', 'rejection_fee_pct'],
-    ['expected_timeline', 'review_duration'],
-    ['eligibility'],
-    [],
-    [],
-  ];
+function makeRule(fieldKey: string, wizardStep: number, visibility: string): FieldRule {
+  return {
+    fieldKey,
+    wizardStep,
+    visibility: visibility as any,
+    minLength: null,
+    maxLength: null,
+    defaultValue: null,
+    displayOrder: 0,
+  };
 }
 
-function computeCompletion(values: Record<string, unknown>, mode: GovernanceMode) {
-  const stepFields = getRequiredFieldsByStep(mode);
+function buildRulesMap(rules: FieldRule[]): FieldRulesMap {
+  const map: FieldRulesMap = {};
+  for (const r of rules) map[r.fieldKey] = r;
+  return map;
+}
+
+function getRequiredFieldsByStepFromRules(fieldRules: FieldRulesMap | null): string[][] {
+  if (!fieldRules) return Array.from({ length: WIZARD_STEP_COUNT }, () => []);
+  const stepMap = new Map<number, string[]>();
+  for (const [fieldKey, rule] of Object.entries(fieldRules)) {
+    if (rule.visibility === 'required' && rule.wizardStep >= 0 && rule.wizardStep < WIZARD_STEP_COUNT) {
+      if (!stepMap.has(rule.wizardStep)) stepMap.set(rule.wizardStep, []);
+      stepMap.get(rule.wizardStep)!.push(fieldKey);
+    }
+  }
+  return Array.from({ length: WIZARD_STEP_COUNT }, (_, i) => stepMap.get(i) ?? []);
+}
+
+function computeCompletion(values: Record<string, unknown>, fieldRules: FieldRulesMap | null) {
+  const stepFields = getRequiredFieldsByStepFromRules(fieldRules);
   const steps = stepFields.map((fields) => {
     const filled = fields.filter((f) => isFieldFilled(values[f])).length;
     return { filled, total: fields.length };
@@ -77,18 +69,70 @@ function computeCompletion(values: Record<string, unknown>, mode: GovernanceMode
   return { steps, totalFilled, totalRequired, pct: totalRequired > 0 ? Math.round((totalFilled / totalRequired) * 100) : 0 };
 }
 
+/* ── Mock rule sets simulating QUICK / STRUCTURED / CONTROLLED ── */
+
+const QUICK_RULES = buildRulesMap([
+  makeRule('governance_mode', 0, 'required'),
+  makeRule('title', 1, 'required'),
+  makeRule('problem_statement', 1, 'required'),
+  makeRule('domain_tags', 1, 'required'),
+  makeRule('maturity_level', 1, 'required'),
+  makeRule('weighted_criteria', 2, 'required'),
+  makeRule('platinum_award', 3, 'required'),
+  makeRule('gold_award', 3, 'optional'),
+  makeRule('expected_timeline', 4, 'required'),
+  makeRule('submission_deadline', 4, 'required'),
+  makeRule('eligibility', 5, 'required'),
+  makeRule('scope', 1, 'hidden'),
+  makeRule('rejection_fee_pct', 3, 'auto'),
+]);
+
+const STRUCTURED_RULES = buildRulesMap([
+  makeRule('governance_mode', 0, 'required'),
+  makeRule('title', 1, 'required'),
+  makeRule('problem_statement', 1, 'required'),
+  makeRule('scope', 1, 'required'),
+  makeRule('domain_tags', 1, 'required'),
+  makeRule('maturity_level', 1, 'required'),
+  makeRule('weighted_criteria', 2, 'required'),
+  makeRule('platinum_award', 3, 'required'),
+  makeRule('gold_award', 3, 'required'),
+  makeRule('rejection_fee_pct', 3, 'required'),
+  makeRule('expected_timeline', 4, 'required'),
+  makeRule('review_duration', 4, 'optional'),
+  makeRule('eligibility', 5, 'required'),
+]);
+
+const CONTROLLED_RULES = buildRulesMap([
+  makeRule('governance_mode', 0, 'required'),
+  makeRule('title', 1, 'required'),
+  makeRule('problem_statement', 1, 'required'),
+  makeRule('scope', 1, 'required'),
+  makeRule('domain_tags', 1, 'required'),
+  makeRule('maturity_level', 1, 'required'),
+  makeRule('weighted_criteria', 2, 'required'),
+  makeRule('platinum_award', 3, 'required'),
+  makeRule('gold_award', 3, 'required'),
+  makeRule('rejection_fee_pct', 3, 'required'),
+  makeRule('ip_model', 3, 'required'),
+  makeRule('expected_timeline', 4, 'required'),
+  makeRule('review_duration', 4, 'required'),
+  makeRule('eligibility', 5, 'required'),
+  makeRule('challenge_enrollment', 5, 'required'),
+  makeRule('challenge_submission', 5, 'required'),
+]);
+
 /* ═══════════════════════════════════════════════════════════
    TW1-04  Section completion bar shows correct percentage
    ═══════════════════════════════════════════════════════════ */
-describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
+describe('TW1-04 — Form completion percentage (dynamic FieldRulesMap)', () => {
   it('returns 0% when all fields are empty (QUICK)', () => {
-    const result = computeCompletion({}, 'QUICK');
+    const result = computeCompletion({}, QUICK_RULES);
     expect(result.pct).toBe(0);
-    // Step 0: 1, Step 1: 4, Step 2: 1, Step 3: 1, Step 4: 1, Step 5: 1 = 9
-    expect(result.totalRequired).toBe(9);
+    expect(result.totalRequired).toBe(10); // governance_mode + 4 problem + 1 eval + 1 reward + 2 timeline + 1 eligibility
   });
 
-  it('returns 100% when all QUICK fields are filled', () => {
+  it('returns 100% when all QUICK required fields are filled', () => {
     const values: Record<string, unknown> = {
       governance_mode: 'QUICK',
       title: 'My Challenge',
@@ -98,51 +142,41 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
       weighted_criteria: [{ name: 'Quality', weight: 100 }],
       platinum_award: 1000,
       expected_timeline: '3 months',
+      submission_deadline: '2026-06-01',
       eligibility: 'Open to all',
     };
-    const result = computeCompletion(values, 'QUICK');
+    const result = computeCompletion(values, QUICK_RULES);
     expect(result.pct).toBe(100);
   });
 
   it('returns correct partial percentage (STRUCTURED)', () => {
-    // STRUCTURED: 1+5+1+3+3+1 = 14 required fields
     const values: Record<string, unknown> = {
       governance_mode: 'STRUCTURED',
       title: 'Title',
       problem_statement: 'Statement',
       domain_tags: ['ai'],
       maturity_level: 'poc',
-      // Step 2: weighted_criteria
       weighted_criteria: [{ name: 'Q', weight: 100 }],
-      // Step 3: only platinum
       platinum_award: 500,
     };
-    const result = computeCompletion(values, 'STRUCTURED');
-    // filled: step0=1/1, step1=4/5, step2=1/1, step3=1/3, step4=0/2, step5=0/1 → 7/13 = 53%
+    const result = computeCompletion(values, STRUCTURED_RULES);
+    // filled: step0=1/1, step1=4/5, step2=1/1, step3=1/3, step4=0/1, step5=0/1 → 7/12
     expect(result.totalFilled).toBe(7);
-    expect(result.totalRequired).toBe(13);
-    expect(result.pct).toBe(54);
+    expect(result.totalRequired).toBe(12);
+    expect(result.pct).toBe(58);
   });
 
   it('CONTROLLED has more required fields than STRUCTURED', () => {
-    const controlled = computeCompletion({}, 'CONTROLLED');
-    const structured = computeCompletion({}, 'STRUCTURED');
+    const controlled = computeCompletion({}, CONTROLLED_RULES);
+    const structured = computeCompletion({}, STRUCTURED_RULES);
     expect(controlled.totalRequired).toBeGreaterThan(structured.totalRequired);
   });
 
-  it('per-step counts match expected totals (QUICK)', () => {
-    const result = computeCompletion({}, 'QUICK');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 4, 1, 1, 1, 1, 0, 0]);
-  });
-
-  it('per-step counts match expected totals (STRUCTURED)', () => {
-    const result = computeCompletion({}, 'STRUCTURED');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 3, 2, 1, 0, 0]);
-  });
-
-  it('per-step counts match expected totals (CONTROLLED)', () => {
-    const result = computeCompletion({}, 'CONTROLLED');
-    expect(result.steps.map((s) => s.total)).toEqual([1, 5, 1, 4, 2, 3, 0, 0]);
+  it('returns 0/0 when fieldRules is null (loading state)', () => {
+    const result = computeCompletion({}, null);
+    expect(result.totalRequired).toBe(0);
+    expect(result.totalFilled).toBe(0);
+    expect(result.pct).toBe(0);
   });
 
   it('treats empty arrays as not filled', () => {
@@ -155,5 +189,16 @@ describe('TW1-04 — Form completion percentage (3-mode governance)', () => {
 
   it('treats weighted_criteria with empty names as not filled', () => {
     expect(isFieldFilled([{ name: '', weight: 0 }])).toBe(false);
+  });
+
+  it('hidden and auto fields are excluded from required count', () => {
+    const result = computeCompletion({}, QUICK_RULES);
+    // scope is hidden, rejection_fee_pct is auto — neither should count
+    const allStepFields = result.steps.flatMap((_, i) => {
+      const fields = getRequiredFieldsByStepFromRules(QUICK_RULES);
+      return fields[i];
+    });
+    expect(allStepFields).not.toContain('scope');
+    expect(allStepFields).not.toContain('rejection_fee_pct');
   });
 });
