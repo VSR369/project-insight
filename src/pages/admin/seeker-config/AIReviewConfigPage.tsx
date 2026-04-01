@@ -624,6 +624,21 @@ export default function AIReviewConfigPage() {
                       Max sections per batch
                     </p>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Context Intelligence</Label>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Switch
+                        checked={useContextIntelligence}
+                        onCheckedChange={setUseContextIntelligence}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {useContextIntelligence ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Enable digest, grounding rules, and tiered attachments in AI reviews
+                    </p>
+                  </div>
                   <Button onClick={handleSaveGlobal} disabled={globalSaving} className="w-fit">
                     <Save className="h-4 w-4 mr-1" />
                     {globalSaving ? 'Saving...' : 'Save Global Settings'}
