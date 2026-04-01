@@ -140,6 +140,8 @@ import { cn } from "@/lib/utils";
 import { normalizeChallengeFields } from "@/lib/cogniblend/challengeFieldNormalizer";
 import { useCompletenessCheckDefs, useRunCompletenessCheck } from "@/hooks/queries/useCompletenessChecks";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
+import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
+import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
@@ -1257,6 +1259,9 @@ export default function CurationReviewPage() {
   const [preFlightResult, setPreFlightResult] = useState<PreFlightResult | null>(null);
   const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
   const [budgetShortfall, setBudgetShortfall] = useState<BudgetShortfallResult | null>(null);
+
+  // ── Phase 7: Context Library drawer state ──
+  const [contextLibraryOpen, setContextLibraryOpen] = useState(false);
 
   // Expand / collapse all sections in the active group
   const handleExpandCollapseAll = useCallback((expand: boolean) => {
@@ -4116,6 +4121,14 @@ export default function CurationReviewPage() {
             onNavigateToSection={handleNavigateToSection}
           />
 
+          {/* Context Library Card (Phase 7) */}
+          {challengeId && (
+            <ContextLibraryCard
+              challengeId={challengeId}
+              onOpenLibrary={() => setContextLibraryOpen(true)}
+            />
+          )}
+
           {/* Per-section AI Review button */}
           <Button
             variant="outline"
@@ -4388,6 +4401,16 @@ export default function CurationReviewPage() {
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
+
+      {/* Context Library Drawer (Phase 7) */}
+      {challengeId && (
+        <ContextLibraryDrawer
+          challengeId={challengeId}
+          challengeTitle={challenge?.title}
+          open={contextLibraryOpen}
+          onOpenChange={setContextLibraryOpen}
+        />
       )}
     </div>
   );
