@@ -281,18 +281,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       {
         title: 'Expected Outcomes',
         icon: ListChecks,
-        content: snapshot.expected_outcomes ? (
-          <Card className="border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <ListChecks className="h-3.5 w-3.5 text-primary" /> Expected Outcomes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{String(snapshot.expected_outcomes)}</p>
-            </CardContent>
-          </Card>
-        ) : null,
+        content: parseItems(snapshot.expected_outcomes) ? <ListSection title="Expected Outcomes" icon={ListChecks} items={parseItems(snapshot.expected_outcomes)!} /> : null,
       },
       {
         title: 'Context & Background',
