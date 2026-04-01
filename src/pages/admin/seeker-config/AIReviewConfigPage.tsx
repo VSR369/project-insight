@@ -541,6 +541,7 @@ export default function AIReviewConfigPage() {
           default_model: globalModel,
           critical_model: criticalModel.trim() || null,
           batch_split_threshold: batchThreshold,
+          use_context_intelligence: useContextIntelligence,
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
         })
