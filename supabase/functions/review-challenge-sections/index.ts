@@ -1706,6 +1706,11 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 
 ${additionalData}`;
 
+      // Phase 7: Inject context digest before reference materials
+      if (contextDigestText) {
+        userPrompt += contextDigestText;
+      }
+
       // Append reference materials (files + URLs) to user prompt
       if (Object.keys(attachmentsBySection).length > 0) {
         let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
@@ -1717,6 +1722,13 @@ ${additionalData}`;
             if (ref.sourceType === 'url' && ref.sourceUrl) {
               attachmentBlock += `Source: ${ref.sourceUrl}\n`;
             }
+            // Phase 7: Include AI summary if available, then full content
+            if (ref.summary) {
+              attachmentBlock += `AI Summary: ${ref.summary}\n`;
+            }
+            if (ref.keyData && Object.keys(ref.keyData).length > 0) {
+              attachmentBlock += `Key Data: ${JSON.stringify(ref.keyData)}\n`;
+            }
             attachmentBlock += ref.content + '\n';
           }
         }
@@ -1726,6 +1738,11 @@ REFERENCE MATERIAL USAGE RULES:
 - SHARED materials: Solvers will also see these. You may reference them directly in section content ("As detailed in the attached architecture diagram..." or "Refer to our API docs at [url]...").
 - AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself. Write "Our current defect rate is 4.2%" — NOT "Per the attached audit report..." The information must stand alone in the section.
 - WEB PAGES: These represent the org's public presence, industry context, or technical documentation. Use them to validate challenge content against actual capabilities.
+
+GROUNDING RULE (CRITICAL):
+- When your suggestion includes a specific claim, data point, or statistic, it MUST be traceable to the Context Digest, a Reference Material, or the challenge's own content.
+- If you infer or estimate a value that is NOT directly stated in any source, you MUST tag it with [INFERENCE] — e.g., "The estimated market size is $2.4B [INFERENCE]".
+- Never fabricate statistics, benchmarks, or proper nouns. If you cannot verify a claim, say so explicitly.
 `;
         userPrompt += attachmentBlock;
       }
