@@ -442,6 +442,7 @@ export type Database = {
           computation_rules: Json | null
           content_templates: Json | null
           cross_references: Json | null
+          discovery_directives: Json | null
           donts: string | null
           dos: string | null
           example_good: string | null
@@ -474,6 +475,7 @@ export type Database = {
           computation_rules?: Json | null
           content_templates?: Json | null
           cross_references?: Json | null
+          discovery_directives?: Json | null
           donts?: string | null
           dos?: string | null
           example_good?: string | null
@@ -506,6 +508,7 @@ export type Database = {
           computation_rules?: Json | null
           content_templates?: Json | null
           cross_references?: Json | null
+          discovery_directives?: Json | null
           donts?: string | null
           dos?: string | null
           example_good?: string | null
