@@ -26,6 +26,7 @@ const ITEMS: MyChallengeItem[] = [
     governance_profile: 'LIGHTWEIGHT',
     role_code: 'CR',
     operating_model: 'MP',
+    created_at: '2025-06-01T10:00:00Z',
   },
   {
     challenge_id: 'c2',
@@ -36,6 +37,7 @@ const ITEMS: MyChallengeItem[] = [
     governance_profile: 'ENTERPRISE',
     role_code: 'CU',
     operating_model: 'MP',
+    created_at: '2025-06-02T10:00:00Z',
   },
   {
     challenge_id: 'c3',
@@ -46,6 +48,7 @@ const ITEMS: MyChallengeItem[] = [
     governance_profile: 'LIGHTWEIGHT',
     role_code: 'CR',
     operating_model: 'AGG',
+    created_at: '2025-06-03T10:00:00Z',
   },
 ];
 

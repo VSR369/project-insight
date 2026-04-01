@@ -16,6 +16,7 @@ export interface MyChallengeItem {
   role_code: string;
   governance_profile: string;
   operating_model: string | null;
+  created_at: string;
 }
 
 export interface MyChallengesData {
@@ -35,7 +36,7 @@ export function useMyChallenges(userId: string | undefined) {
           role_code,
           challenge_id,
           challenges!user_challenge_roles_challenge_id_fkey (
-            id, title, current_phase, master_status, phase_status, governance_profile, operating_model, is_deleted
+            id, title, current_phase, master_status, phase_status, governance_profile, operating_model, is_deleted, created_at
           )
         `)
         .eq('user_id', userId)
@@ -62,6 +63,7 @@ export function useMyChallenges(userId: string | undefined) {
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
           operating_model: ch.operating_model ?? null,
+          created_at: ch.created_at ?? '',
         });
       }
 

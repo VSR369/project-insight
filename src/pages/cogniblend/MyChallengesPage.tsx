@@ -8,8 +8,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Folder, Eye, Pencil, Trash2, Loader2,
-  Clock, CheckCircle2, XCircle, AlertCircle,
+  Clock, CheckCircle2, XCircle, AlertCircle, AlertTriangle,
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges, type MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,6 +76,16 @@ export default function MyChallengesPage() {
 
   /* ── Grouped data ── */
   const items = challengesData?.items ?? [];
+
+  /* ── Duplicate detection by title ── */
+  const duplicateTitles = useMemo(() => {
+    const titleCounts = new Map<string, number>();
+    for (const c of items) {
+      const t = c.title.trim().toLowerCase();
+      titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
+    }
+    return new Set([...titleCounts.entries()].filter(([, n]) => n > 1).map(([t]) => t));
+  }, [items]);
 
   const filteredItems = useMemo(() => {
     if (activeTab === 'all') return items;
@@ -166,6 +177,7 @@ export default function MyChallengesPage() {
               <ChallengeCard
                 key={`${ch.challenge_id}-${ch.role_code}`}
                 challenge={ch}
+                isDuplicate={duplicateTitles.has(ch.title.trim().toLowerCase())}
                 onView={() => navigate(`/cogni/challenges/${ch.challenge_id}/view`)}
                 onResume={() => navigate(`/cogni/challenges/create?draft=${ch.challenge_id}`)}
                 onDelete={() => setDeleteTarget(ch.challenge_id)}
@@ -201,15 +213,20 @@ export default function MyChallengesPage() {
 
 interface ChallengeCardProps {
   challenge: MyChallengeItem;
+  isDuplicate?: boolean;
   onView: () => void;
   onResume: () => void;
   onDelete: () => void;
 }
 
-function ChallengeCard({ challenge: ch, onView, onResume, onDelete }: ChallengeCardProps) {
+function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete }: ChallengeCardProps) {
   const isDraft = ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1;
   const statusConfig = getStatusConfig(ch.master_status, ch.current_phase);
   const StatusIcon = statusConfig.icon;
+
+  const formattedDate = ch.created_at
+    ? format(new Date(ch.created_at), 'MMM d, yyyy · h:mm a')
+    : null;
 
   return (
     <Card className="border-border hover:border-primary/30 transition-colors">
@@ -238,7 +255,18 @@ function ChallengeCard({ challenge: ch, onView, onResume, onDelete }: ChallengeC
               <Badge variant="secondary" className="text-[10px]">
                 Phase {ch.current_phase}
               </Badge>
+              {isDuplicate && (
+                <Badge variant="destructive" className="text-[10px]">
+                  <AlertTriangle className="h-3 w-3 mr-0.5" />
+                  Possible duplicate
+                </Badge>
+              )}
             </div>
+            {formattedDate && (
+              <p className="text-[11px] text-muted-foreground ml-6">
+                Created {formattedDate}
+              </p>
+            )}
           </div>
 
           {/* Right: actions */}
