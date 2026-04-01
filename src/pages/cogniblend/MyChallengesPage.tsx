@@ -13,6 +13,7 @@ import {
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges, type MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
+import { governanceLabel } from '@/lib/cogniblend/displayHelpers';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
