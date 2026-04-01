@@ -126,7 +126,7 @@ export default function CurationActions({
         .from("user_challenge_roles" as any)
         .select("user_id")
         .eq("challenge_id", challengeId)
-        .in("role_code", ["CR", "CA"])
+        .in("role_code", ["CR"])
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
