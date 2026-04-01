@@ -457,10 +457,10 @@ export default function CurationActions({
               <Send className="h-4 w-4 mr-1.5" />
             )}
             {isAmDeclined
-              ? 'Resubmit to Account Manager'
+              ? 'Resubmit to Challenge Creator'
               : amApprovalRequired
-                ? 'Send to Account Manager for Approval'
-                : 'Submit to Innovation Director'}
+                ? 'Send to Creator for Approval'
+                : 'Approve & Submit for Publication'}
           </Button>
 
           <Button
