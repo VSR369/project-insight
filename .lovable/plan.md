@@ -1,136 +1,160 @@
 
 
-# Business Analysis: Governance Field Segregation Review
+# Implementation Plan: FINAL EXECUTION PLAN Alignment
 
-## Current State (from DB)
+## Assessment: What's Already Done vs. What Remains
 
-Here is the complete field matrix across all 3 governance modes:
+After auditing every line of the uploaded document against the current codebase, here is the status:
 
-### Tab 1 — Challenge Brief (Step 1)
+```text
+PHASE 1: BUG FIXES + FOUNDATION
+  1.1 isFieldVisible for 'auto'          ✅ DONE (already handles 'auto')
+  1.2 MyChallengesPage operator fix       ✅ DONE (parentheses present on line 87)
+  1.3 Form key prop on mode change        ✅ DONE (key={governanceMode-engagementModel} on line 318)
+  1.4 Snapshot format (serializeLineItems) ⚠️  NEEDS VERIFICATION
+  1.5 useEffect dependency fix            ⚠️  NEEDS VERIFICATION
+  1.6 Solo mode threshold (>=6 → >=4)     ❌ NOT DONE (still >=6 on line 44)
+  
+PHASE 2: LEGACY ROLE CLEANUP
+  2.1 Remove CA from permissions          ❌ NOT DONE (CA still in useCogniPermissions)
+  2.2 Remove CA from CurationActions      ⚠️  NEEDS VERIFICATION
+  2.3 Replace ID with CU/CR in hooks      ❌ NOT DONE (ID still in 4 hooks)
+  2.4 DB: role_authority_matrix cleanup    ❌ NOT DONE
+  2.5 DB: notification_routing cleanup     ❌ NOT DONE
+  2.6 Delete dead code files              ✅ DONE (files don't exist)
+  2.7 Clean up legacy role text refs       ❌ NOT DONE
 
-| Field | QUICK | STRUCTURED | CONTROLLED | BA Assessment |
-|-------|-------|------------|------------|---------------|
-| Title | Required | Required | Required | Correct |
-| Hook (tagline) | Optional | Optional | Required | Correct |
-| Description | Optional | Optional | Required | Correct |
-| Problem Statement | Required | Required | Required | Correct |
-| Scope | **Hidden** | Required | Required | Correct |
-| Domain Tags | Required | Required | Required | Correct |
-| Taxonomy Tags | Optional | Optional | Optional | Correct |
-| Maturity Level | Required | Required | Required | Correct |
-| Context Background | Hidden | Optional | Required | Correct |
-| Detailed Description | Hidden | Optional | Required | Correct |
-| Root Causes | Hidden | Optional | Required | Correct |
-| Affected Stakeholders | Hidden | Optional | Required | Correct |
-| Current Deficiencies | Hidden | Optional | Required | Correct |
-| Expected Outcomes | Required | **Optional** | Required | **Issue — should be Required** |
-| Preferred Approach | Hidden | Optional | Optional | Correct |
-| Approaches Not of Interest | Hidden | Optional | Optional | Correct |
-| Industry Segment | Optional | Optional | Required | Correct |
-| Experience Countries | Optional | Optional | Required | Correct |
-| Deliverables List | Required | Required | Required | Correct |
-| Submission Guidelines | Optional | Optional | Required | Correct |
+PHASE 3: CREATOR FORM ALIGNMENT
+  3.1 DB: Fix governance field rules       ✅ PARTIALLY DONE (scope/outcomes done; 
+      recent migration fixed 6 more rules)
+  3.2 Align Creator form schema with DB    ❌ NOT DONE (title max 100, problemMin 
+      100/200, scope min 100, industry always required, lineItemRule wrong)
+  3.3 Hide QUICK fields in AdditionalCtx   ❌ NOT DONE (no isQuick guard)
+  3.4 Strip auto/hidden from snapshot      ✅ DONE (stripHiddenFields exists)
+  3.5 Extract displayHelpers              ✅ DONE (file exists, imports in place)
+  3.6 Extract shared draft payload builder ⚠️  NEEDS VERIFICATION
 
-### Tab/Step 2 — Evaluation
+PHASE 4: CREATOR APPROVAL FLOW
+  4.1 Add Creator Approval toggle to form  ❌ NOT DONE (no creator_approval_required)
+  4.2 DB: Create section_approvals table   ❌ NOT DONE
+  4.3 Update CurationActions for approval  ❌ NOT DONE (still am_approval_required)
+  4.4 Update MyChallengesPage for approval ❌ NOT DONE
+  4.5 Add approval banner to DetailView    ❌ NOT DONE
 
-| Field | QUICK | STRUCTURED | CONTROLLED |
-|-------|-------|------------|------------|
-| Weighted Criteria | Required | Required | Required | Correct |
+PHASE 5: CONTROLLED MODE — ROLE SEPARATION
+  5.1 DB: validate_role_separation fn      ❌ NOT DONE
 
-### Tab/Step 3 — Rewards & Payment
-
-| Field | QUICK | STRUCTURED | CONTROLLED | BA Assessment |
-|-------|-------|------------|------------|---------------|
-| Reward Type | Required | Required | Required | Correct |
-| Reward Description | Optional | Optional | Required | Correct |
-| Currency Code | Required | Required | Required | Correct |
-| Platinum Award | Required | Required | Required | Correct |
-| Gold Award | Required | Required | Required | **Issue — QUICK should be Optional** |
-| Silver Award | Optional | Optional | Required | Correct |
-| Num Rewarded Solutions | Required | Required | Required | Correct |
-| Effort Level | Optional | Optional | Required | Correct |
-| Rejection Fee % | Required | Required | Required | **Issue — QUICK should be Auto** |
-| Payment Mode | Hidden | Required | Required | Correct |
-| Payment Milestones | Hidden | Required | Required | Correct |
-| IP Model | **Auto** | Required | Required | Correct |
-
-### Tab/Step 4 — Timeline
-
-| Field | QUICK | STRUCTURED | CONTROLLED | BA Assessment |
-|-------|-------|------------|------------|---------------|
-| Submission Deadline | Optional | Required | Required | **Issue — QUICK should be Required** |
-| Expected Timeline | Optional | Optional | Required | **Issue — QUICK/STRUCTURED should be Required** |
-| Review Duration | Hidden | Optional | Required | Correct |
-| Phase Notes | Hidden | Optional | Optional | Correct |
-| Phase Durations | Optional | Required | Required | Correct |
-| Complexity Notes | Optional | Optional | Optional | Correct |
-| Complexity Params | Hidden | Required | Required | Correct |
-
-### Tab/Step 5 — Provider Eligibility
-
-| Field | QUICK | STRUCTURED | CONTROLLED | BA Assessment |
-|-------|-------|------------|------------|---------------|
-| Participation Modes | Optional | Required | Required | Correct |
-| Solver Eligibility | Optional | Optional | Required | Correct |
-| Solver Eligibility IDs | Optional | Required | Required | Correct |
-| Challenge Visibility | Required | Required | Required | Correct |
-| Challenge Enrollment | Required | Required | Required | Correct |
-| Challenge Submission | Required | Required | Required | Correct |
-| Required Expertise Level | Hidden | Optional | Required | Correct |
-| Required Proficiencies | Hidden | Optional | Required | Correct |
-| Required Sub-Domains | Hidden | Optional | Required | Correct |
-| Required Specialities | Hidden | Optional | Required | Correct |
-| Eligibility Text | Required | Required | Required | Correct |
-| Permitted Artifact Types | Optional | Required | Required | Correct |
-| Targeting Filters | Hidden | Optional | Required | Correct |
+PHASE 6: GOVERNANCE-AWARE PHASE GATING
+  6.1 DB: validate_gate_03 function        ❌ NOT DONE
+  6.2 Wire gate into complete_phase        ❌ NOT DONE
+```
 
 ---
 
-## Issues Found (6 items)
+## Phased Implementation Plan
 
-### 1. Expected Outcomes — STRUCTURED is Optional, should be Required
-**Impact**: High. Project memory states "Expected Outcomes is mandatory across all governance modes." The QUICK mode was already fixed in the last migration, but STRUCTURED was missed.
-**Fix**: Migration to update `expected_outcomes` for STRUCTURED from `optional` → `required`.
+### EXECUTION PHASE A — Remaining Bug Fixes (Low Risk)
 
-### 2. Gold Award — QUICK should be Optional, not Required
-**Impact**: Medium. In QUICK mode, the Creator sets a single prize (Platinum). Forcing Gold creates friction and confusion — a quick challenge shouldn't require a tiered prize structure.
-**Fix**: Migration to update `gold_award` for QUICK from `required` → `optional`.
-
-### 3. Rejection Fee % — QUICK should be Auto (10%), not Required
-**Impact**: Medium. QUICK mode creators shouldn't need to understand rejection fee mechanics. The platform should auto-assign the default 10% and hide this from the form, similar to how IP Model works.
-**Fix**: Migration to update `rejection_fee_pct` for QUICK from `required` → `auto`. Ensure `default_value` is set to `'10'`.
-
-### 4. Submission Deadline — QUICK should be Required, not Optional
-**Impact**: High. Every challenge needs a deadline. Without it, solvers have no urgency and the platform cannot manage lifecycle phases. Making this optional in QUICK mode is a business risk.
-**Fix**: Migration to update `submission_deadline` for QUICK from `optional` → `required`.
-
-### 5. Expected Timeline — QUICK and STRUCTURED should be Required
-**Impact**: Medium. Timeline expectation is critical for solver decision-making. "How long will this take?" is one of the first questions a solver asks. Leaving it optional means many challenges ship without this, degrading solver experience.
-**Fix**: Migration to update `expected_timeline` for QUICK from `optional` → `required` and for STRUCTURED from `optional` → `required`.
-
-### 6. useFormCompletion is out of sync with DB rules
-**Impact**: Low (cosmetic). The `getRequiredFieldsByStep()` function in `useFormCompletion.ts` hardcodes required fields per mode. These don't match the DB rules (e.g., it lists `expected_timeline` as required for QUICK but the DB says optional). This file should be refactored to derive required fields from the `FieldRulesMap` instead of hardcoding.
-**Fix**: Refactor `useFormCompletion.ts` to consume `FieldRulesMap` and compute completion dynamically.
+**Prompt A1: Fix solo mode threshold + verify snapshot/useEffect**
+- `CogniRoleContext.tsx` line 44: Change `>= 6` to `>= 4`
+- Verify `useSubmitSolutionRequest.ts` snapshot uses `serializeLineItems` for expected_outcomes
+- Verify `ChallengeCreatePage.tsx` useEffect dependency
 
 ---
 
-## Recommended Changes
+### EXECUTION PHASE B — Legacy Role Cleanup (Medium Risk)
 
-### Migration (DB)
-Update `md_governance_field_rules`:
-- `expected_outcomes` / STRUCTURED: `optional` → `required`
-- `gold_award` / QUICK: `required` → `optional`
-- `rejection_fee_pct` / QUICK: `required` → `auto`, set `default_value = '10'`
-- `submission_deadline` / QUICK: `optional` → `required`
-- `expected_timeline` / QUICK: `optional` → `required`
-- `expected_timeline` / STRUCTURED: `optional` → `required`
+**Prompt B1: Remove CA from useCogniPermissions**
+- Remove `'CA'` from `SEEKING_ORG_ROLES` set
+- Remove `'CA'` from all `sees()` and `can()` calls (6 locations)
 
-### Code
-- Refactor `useFormCompletion.ts` to derive required fields from `FieldRulesMap` instead of hardcoding per-mode arrays. This eliminates the drift between DB rules and UI completion tracking.
+**Prompt B2: Replace ID with CU/CR in 4 hooks**
+- `useApprovalActions.ts`: `initiated_by: 'ID'` → `'CU'`
+- `useEscrowDeposit.ts`: `.eq('role_code', 'ID')` → `'CU'`
+- `useManageChallenge.ts`: `p_required_role: 'ID'` → `'CU'`
+- `useWithdrawSolution.ts`: `.in('role_code', ['ID', 'ER'])` → `['CU', 'ER']`
 
-### Files Changed
-| File | Change |
-|------|--------|
-| Migration | 6 field rule updates |
-| `useFormCompletion.ts` | Refactor to use FieldRulesMap dynamically |
+**Prompt B3: Remove CA from CurationActions + Clean legacy text**
+- `CurationActions.tsx`: `.in("role_code", ["CR", "CA"])` → `.eq("role_code", "CR")`
+- `StepModeSelection.tsx`, `TestSetupPage.tsx`, `AIReviewInline.tsx`, `useCancelChallenge.ts`: Update text/comments
+
+**Prompt B4: DB migrations for role_authority_matrix + notification_routing**
+- Update `role_authority_matrix`: AM→CR, ID→CU/CR per phase
+- Update `notification_routing`: AM→CR, ID→CU in primary/escalation/cc arrays
+- Recreate `get_phase_required_role` function with modern role mapping
+
+---
+
+### EXECUTION PHASE C — Creator Form Alignment (Medium Risk)
+
+**Prompt C1: Align buildCreatorSchema with FINAL-EXECUTION-PLAN field matrix**
+- Title max: 100 → 200
+- Problem min: `isQuick ? 200 : isControlled ? 500 : 300`
+- Scope min: `isControlled ? 200 : 150` (QUICK already handled)
+- `industry_segment_id`: optional for QUICK, required for STRUCTURED/CONTROLLED
+- `preferred_approach` / `approaches_not_of_interest`: always optional (remove CONTROLLED enforcement)
+- `context_background` / `root_causes` / `current_deficiencies` / `affected_stakeholders`: keep CONTROLLED required
+
+**Prompt C2: Hide QUICK context fields in AdditionalContextTab**
+- Add `isQuick` guard to hide context_background, root_causes, affected_stakeholders, current_deficiencies, preferred_approach, approaches_not_of_interest
+- Keep Timeline, Reference Files, Reference URLs visible for ALL modes
+- Update info banner text for QUICK mode
+
+---
+
+### EXECUTION PHASE D — Creator Approval Flow (High Impact, New Feature)
+
+**Prompt D1: Add creator_approval_required toggle + schema**
+- Add `creator_approval_required: z.boolean()` to form schema
+- Add Switch to EssentialDetailsTab with governance-aware defaults
+- QUICK: default No; STRUCTURED: default Yes; CONTROLLED: forced Yes + disabled
+
+**Prompt D2: DB migration — challenge_section_approvals table**
+- Create table with challenge_id, section_key, status, reviewer_id, comment
+- RLS policies for authenticated read + challenge role holders manage
+
+**Prompt D3: Rewire CurationActions for creator approval**
+- Replace `am_approval_required` with `creator_approval_required` from extended_brief
+- Rename variables/audit actions: AM → CR
+- Update submit button label
+
+**Prompt D4: MyChallengesPage approval state + DetailView banner**
+- Add `CR_APPROVAL_PENDING` status config + action button in MyChallengesPage
+- Add approval banner to CreatorChallengeDetailView with Approve/Request Changes
+- Auto-select Curator Version tab; remove blocking placeholder when pending
+
+---
+
+### EXECUTION PHASE E — CONTROLLED Mode Enforcement (High Compliance)
+
+**Prompt E1: DB migration — validate_role_separation function**
+- CR+CU and CU+LC blocked for same user in CONTROLLED mode
+- LC and FC exempt from restrictions
+
+---
+
+### EXECUTION PHASE F — Governance-Aware Phase Gating (Final)
+
+**Prompt F1: DB migration — validate_gate_03 + wire into complete_phase**
+- Gate A: Creator approval check (STRUCTURED with toggle / CONTROLLED always)
+- Gate B: LC approval (CONTROLLED only)
+- Gate C: Escrow funded (CONTROLLED only)
+- Wire into `complete_phase` function before existing Phase 4 gate
+
+---
+
+## Summary
+
+| Phase | Prompts | Risk | Description |
+|-------|---------|------|-------------|
+| **A** | 1 | Low | Remaining bug fixes (solo threshold) |
+| **B** | 4 | Medium | Legacy role elimination (CA, AM, ID, RQ) |
+| **C** | 2 | Medium | Creator form schema + QUICK field hiding |
+| **D** | 4 | High | Creator Approval flow (new feature) |
+| **E** | 1 | Medium | CONTROLLED role separation enforcement |
+| **F** | 1 | Low | Phase gating DB functions |
+
+**Total: 13 prompts across 6 phases. ~15 files modified. 4 DB migrations. Zero breaking changes.**
+
+Each phase is self-contained — run one phase, verify, then proceed to the next. Approve this plan and I will start with Phase A.
 
