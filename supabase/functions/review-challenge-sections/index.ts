@@ -551,7 +551,7 @@ async function callAIPass2Rewrite(
   sectionConfigs?: SectionConfig[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
   orgContext?: any,
-  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; sharedWithSolver: boolean }[]>,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; sharedWithSolver: boolean }[]>,
 ): Promise<Map<string, string>> {
   // Filter to sections that need suggestions
   const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
@@ -876,7 +876,7 @@ async function callAIBatchTwoPass(
   providedComments?: any[],
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
   orgContext?: any,
-  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; sharedWithSolver: boolean }[]>,
+  attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; sharedWithSolver: boolean }[]>,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
@@ -1498,20 +1498,24 @@ serve(async (req) => {
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────
+    // Phase 7: Filter out AI-suggested sources that haven't been accepted
     let attachmentsBySection: Record<string, {
       name: string;
       sourceType: 'file' | 'url';
       sourceUrl?: string;
       content: string;
+      summary?: string;
+      keyData?: Record<string, unknown>;
       sharedWithSolver: boolean;
     }[]> = {};
     if (resolvedContext === "curation") {
       try {
         const { data: attachments } = await adminClient
           .from('challenge_attachments')
-          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extraction_status, shared_with_solver')
+          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extracted_summary, extracted_key_data, extraction_status, shared_with_solver, discovery_status')
           .eq('challenge_id', challenge_id)
-          .eq('extraction_status', 'completed');
+          .eq('extraction_status', 'completed')
+          .in('discovery_status', ['accepted', 'manual']);
 
         if (attachments?.length) {
           for (const att of attachments) {
@@ -1523,12 +1527,29 @@ serve(async (req) => {
                 : (att.file_name || 'Unnamed file'),
               sourceType: att.source_type || 'file',
               sourceUrl: att.source_url ?? undefined,
-              content: att.extracted_text.substring(0, 5000),
+              content: att.extracted_text.substring(0, 50000),
+              summary: att.extracted_summary ?? undefined,
+              keyData: att.extracted_key_data as Record<string, unknown> ?? undefined,
               sharedWithSolver: att.shared_with_solver ?? false,
             });
           }
         }
       } catch { /* attachments are optional — graceful fallback */ }
+    }
+
+    // ── Phase 7: Fetch context digest ─────────────────────────────────────
+    let contextDigestText = '';
+    if (resolvedContext === "curation") {
+      try {
+        const { data: digest } = await adminClient
+          .from('challenge_context_digest')
+          .select('digest_text, source_count')
+          .eq('challenge_id', challenge_id)
+          .maybeSingle();
+        if (digest?.digest_text) {
+          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}\n`;
+        }
+      } catch { /* digest is optional */ }
     }
 
     // ── Separate complexity from standard batch ─────────────
@@ -1685,6 +1706,11 @@ Solution Type: ${jsonBrief(relevantData.solution_type)}
 
 ${additionalData}`;
 
+      // Phase 7: Inject context digest before reference materials
+      if (contextDigestText) {
+        userPrompt += contextDigestText;
+      }
+
       // Append reference materials (files + URLs) to user prompt
       if (Object.keys(attachmentsBySection).length > 0) {
         let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
@@ -1696,6 +1722,13 @@ ${additionalData}`;
             if (ref.sourceType === 'url' && ref.sourceUrl) {
               attachmentBlock += `Source: ${ref.sourceUrl}\n`;
             }
+            // Phase 7: Include AI summary if available, then full content
+            if (ref.summary) {
+              attachmentBlock += `AI Summary: ${ref.summary}\n`;
+            }
+            if (ref.keyData && Object.keys(ref.keyData).length > 0) {
+              attachmentBlock += `Key Data: ${JSON.stringify(ref.keyData)}\n`;
+            }
             attachmentBlock += ref.content + '\n';
           }
         }
@@ -1705,6 +1738,11 @@ REFERENCE MATERIAL USAGE RULES:
 - SHARED materials: Solvers will also see these. You may reference them directly in section content ("As detailed in the attached architecture diagram..." or "Refer to our API docs at [url]...").
 - AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself. Write "Our current defect rate is 4.2%" — NOT "Per the attached audit report..." The information must stand alone in the section.
 - WEB PAGES: These represent the org's public presence, industry context, or technical documentation. Use them to validate challenge content against actual capabilities.
+
+GROUNDING RULE (CRITICAL):
+- When your suggestion includes a specific claim, data point, or statistic, it MUST be traceable to the Context Digest, a Reference Material, or the challenge's own content.
+- If you infer or estimate a value that is NOT directly stated in any source, you MUST tag it with [INFERENCE] — e.g., "The estimated market size is $2.4B [INFERENCE]".
+- Never fabricate statistics, benchmarks, or proper nouns. If you cannot verify a claim, say so explicitly.
 `;
         userPrompt += attachmentBlock;
       }
