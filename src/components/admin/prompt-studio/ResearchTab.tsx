@@ -16,13 +16,17 @@ import { Plus, Trash2, X } from 'lucide-react';
 import type { WebSearchDirective } from '@/lib/cogniblend/assemblePrompt';
 import { useState } from 'react';
 
+import { DiscoveryDirectivesEditor, type DiscoveryDirectives } from './DiscoveryDirectivesEditor';
+
 interface ResearchTabProps {
   webSearchQueries: WebSearchDirective[];
   industryFrameworks: string[];
   analystSources: string[];
+  discoveryDirectives: DiscoveryDirectives | null;
   onQueriesChange: (q: WebSearchDirective[]) => void;
   onFrameworksChange: (f: string[]) => void;
   onSourcesChange: (s: string[]) => void;
+  onDiscoveryDirectivesChange: (d: DiscoveryDirectives) => void;
 }
 
 function TagInput({
