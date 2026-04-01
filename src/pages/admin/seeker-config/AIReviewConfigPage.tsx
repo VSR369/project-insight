@@ -87,6 +87,7 @@ interface GlobalConfig {
   default_model: string;
   batch_split_threshold: number;
   critical_model?: string | null;
+  use_context_intelligence?: boolean;
   updated_at: string;
   updated_by: string | null;
 }
