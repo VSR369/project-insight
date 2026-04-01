@@ -252,6 +252,9 @@ const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagem
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
 const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallengesPage"));
 
+// AI Quality Dashboard (Phase 10)
+const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
+const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
