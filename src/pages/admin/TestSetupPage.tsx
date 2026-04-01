@@ -33,7 +33,7 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'mp_lightweight',
     title: 'MP Lightweight Org',
-    description: 'Creates org + 1 user with all roles (AM, CR, CU, ID, ER, FC)',
+    description: 'Creates org + 1 user with all roles (CR, CU, ER, LC, FC)',
     model: 'Marketplace',
     governance: 'Lightweight',
     userCount: 1,
@@ -43,7 +43,7 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'mp_enterprise_3',
     title: 'MP Enterprise Org with 3 Users',
-    description: 'Creates org + 3 users with split roles (CR/CU, ID/ER, AM/FC)',
+    description: 'Creates org + 3 users with split roles (CR/CU, ER/LC, FC)',
     model: 'Marketplace',
     governance: 'Enterprise',
     userCount: 3,
@@ -53,7 +53,7 @@ const SCENARIOS: ScenarioDef[] = [
   {
     key: 'agg_enterprise_8',
     title: 'AGG Enterprise Org with 8 Users',
-    description: 'Creates org + 8 users each with 1 role (AM, CR, CU, ID, ER×2, FC, LC)',
+    description: 'Creates org + 8 users each with 1 role (CR, CU, ER×2, LC, FC)',
     model: 'Aggregator',
     governance: 'Enterprise',
     userCount: 8,

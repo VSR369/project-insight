@@ -139,39 +139,26 @@ export function createChallengeFormSchema(
     maturity_level: z.string().min(1, 'Please select a maturity level'),
     solution_maturity_id: z.string().optional().or(z.literal('')),
 
-    // Step 1 — Rich-text fields (CONTROLLED: required; else optional)
-    context_background: isControlled
-      ? z.string().min(1, 'Context & Background is required for Controlled mode').max(5000).trim()
-      : z.string().max(5000).optional().or(z.literal('')),
+    // Step 1 — Rich-text fields (always optional per plan v2)
+    context_background: z.string().max(5000).optional().or(z.literal('')),
     detailed_description: z.string().max(5000).optional().or(z.literal('')),
 
     // Step 1 — Line items (aligned with curator line_items format)
-    // root_causes / current_deficiencies: required for CONTROLLED, optional otherwise
-    root_causes: isControlled
-      ? z.array(z.string()).refine((arr) => arr.some((s) => s.trim().length > 0), 'At least one root cause is required for Controlled mode')
-      : z.array(z.string()).default(['']),
-    current_deficiencies: isControlled
-      ? z.array(z.string()).refine((arr) => arr.some((s) => s.trim().length > 0), 'At least one deficiency is required for Controlled mode')
-      : z.array(z.string()).default(['']),
+    // root_causes / current_deficiencies: always optional per plan v2
+    root_causes: z.array(z.string()).default(['']),
+    current_deficiencies: z.array(z.string()).default(['']),
     expected_outcomes: z.array(z.string()).default(['']),
     // preferred_approach / approaches_not_of_interest: always optional
     preferred_approach: z.array(z.string()).default(['']),
     approaches_not_of_interest: z.array(z.string()).default(['']),
 
-    // Step 1 — Structured table (CONTROLLED: required; else optional)
-    affected_stakeholders: isControlled
-      ? z.array(z.object({
-          stakeholder_name: z.string().max(200).default(''),
-          role: z.string().max(200).default(''),
-          impact_description: z.string().max(500).default(''),
-          adoption_challenge: z.string().max(500).default(''),
-        })).refine((arr) => arr.some((s) => s.stakeholder_name.trim().length > 0), 'At least one stakeholder is required for Controlled mode')
-      : z.array(z.object({
-          stakeholder_name: z.string().max(200).default(''),
-          role: z.string().max(200).default(''),
-          impact_description: z.string().max(500).default(''),
-          adoption_challenge: z.string().max(500).default(''),
-        })).default([]),
+    // Step 1 — Structured table (always optional per plan v2)
+    affected_stakeholders: z.array(z.object({
+      stakeholder_name: z.string().max(200).default(''),
+      role: z.string().max(200).default(''),
+      impact_description: z.string().max(500).default(''),
+      adoption_challenge: z.string().max(500).default(''),
+    })).default([]),
 
     // Step 1 — Selectors
     // industry_segment_id: optional for QUICK, required for STRUCTURED/CONTROLLED
