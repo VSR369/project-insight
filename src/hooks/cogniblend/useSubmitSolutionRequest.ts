@@ -321,7 +321,8 @@ export function useSubmitSolutionRequest() {
         resolvedDomainTagNames = (tagRows ?? []).map((t) => t.name);
       }
 
-      const creatorSnapshot = {
+      // Build snapshot, then strip auto/hidden fields so only user-entered data appears in "My Version"
+      const rawSnapshot: Record<string, unknown> = {
         problem_statement: filteredPayload.businessProblem,
         scope: filteredPayload.constraints || null,
         expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
@@ -335,11 +336,12 @@ export function useSubmitSolutionRequest() {
         domain_tags: resolvedDomainTagNames,
         domain_tag_ids: filteredPayload.domainTags,
         industry_segment_id: filteredPayload.industrySegmentId || null,
-        budget_min: filteredPayload.budgetMin ?? 0,
-        budget_max: filteredPayload.budgetMax ?? 0,
+        budgetMin: filteredPayload.budgetMin ?? 0,
+        budgetMax: filteredPayload.budgetMax ?? 0,
         currency: filteredPayload.currency ?? payload.currency,
         expected_timeline: filteredPayload.expectedTimeline,
       };
+      const creatorSnapshot = stripHiddenFields(rawSnapshot, governanceRules, FORM_FIELD_TO_GOVERNANCE_KEY);
 
       await supabase.from('challenges').update({ creator_snapshot: creatorSnapshot } as any).eq('id', challengeId);
 
