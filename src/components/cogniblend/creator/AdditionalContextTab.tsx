@@ -193,6 +193,7 @@ export function AdditionalContextTab({
       })}
 
       {/* Affected Stakeholders — structured table */}
+      {isFieldVisible(rules, 'affected_stakeholders') && (
       <div className="space-y-3">
         <Label className="text-sm font-medium">
           Affected Stakeholders
