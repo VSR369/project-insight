@@ -338,10 +338,8 @@ export default function CurationActions({
           {
             onSuccess: () => {
               toast.success("Challenge approved and submitted for publication.");
-              // Non-blocking: compute and store AI quality metrics (Phase 10)
-              computeQualityScore(challengeId, []).catch(() => {
-                // Silently fail — quality scoring is non-critical
-              });
+              // Non-blocking: compute AI quality metrics (Phase 10)
+              try { computeQualityScore([]); } catch { /* quality scoring is non-critical */ }
               setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
                 navigate("/cogni/curation");
