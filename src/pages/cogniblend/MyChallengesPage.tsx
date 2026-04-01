@@ -248,7 +248,7 @@ function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete 
                 {statusConfig.label}
               </Badge>
               <Badge variant="outline" className="text-[10px]">
-                {governanceLabel(ch.governance_profile)}
+                {governanceLabel(ch.governance_mode_override ?? ch.governance_profile)}
               </Badge>
               {ch.operating_model && (
                 <Badge variant="outline" className="text-[10px]">

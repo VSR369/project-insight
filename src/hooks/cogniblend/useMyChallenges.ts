@@ -63,6 +63,7 @@ export function useMyChallenges(userId: string | undefined) {
           phase_status: ch.phase_status ?? 'ACTIVE',
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
+          governance_mode_override: ch.governance_mode_override ?? null,
           operating_model: ch.operating_model ?? null,
           created_at: ch.created_at ?? '',
         });

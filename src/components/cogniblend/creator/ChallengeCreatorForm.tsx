@@ -461,12 +461,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode }: Challe
               engagementModel={engagementModel}
               industrySegments={industrySegments}
               governanceMode={governanceMode}
+              fieldRules={fieldRules}
             />
           </TabsContent>
 
           <TabsContent value="context" className="mt-6">
             <AdditionalContextTab
               governanceMode={governanceMode}
+              fieldRules={fieldRules}
               attachedFiles={attachedFiles}
               onFilesChange={setAttachedFiles}
               referenceUrls={referenceUrls}

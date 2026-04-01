@@ -262,6 +262,7 @@ export function AdditionalContextTab({
           )}
         />
       </div>
+      )}
 
       {/* ── Reference Documents (File Upload) ── */}
       <div className="space-y-2">

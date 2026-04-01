@@ -272,8 +272,9 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
           </div>
         )}
       </div>
+      )}
 
-      {!isQuick && (
+      {showIpModel && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">
             IP Preference <span className="text-destructive">*</span>
