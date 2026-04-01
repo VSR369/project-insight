@@ -1726,8 +1726,9 @@ ${additionalData}`;
         userPrompt += contextDigestText;
       }
 
-      // Append reference materials (files + URLs) to user prompt
-      if (Object.keys(attachmentsBySection).length > 0) {
+      // Gap 8: When context intelligence flag is ON, Pass 1 gets digest-only (no per-section attachments).
+      // Attachments are reserved for Pass 2 with tiered injection.
+      if (!useContextIntelligence && Object.keys(attachmentsBySection).length > 0) {
         let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
         const batchKeySet = new Set(batch.map(b => b.key));
         for (const [sk, refs] of Object.entries(attachmentsBySection)) {
@@ -1739,7 +1740,6 @@ ${additionalData}`;
             if (ref.sourceType === 'url' && ref.sourceUrl) {
               attachmentBlock += `Source: ${ref.sourceUrl}\n`;
             }
-            // Phase 7: Include AI summary if available, then full content
             if (ref.summary) {
               attachmentBlock += `AI Summary: ${ref.summary}\n`;
             }
@@ -1752,14 +1752,14 @@ ${additionalData}`;
         attachmentBlock += `
 REFERENCE MATERIAL USAGE RULES:
 - Use ALL materials (files, web pages, shared and private) to inform your review and suggestions.
-- SHARED materials: Solvers will also see these. You may reference them directly in section content ("As detailed in the attached architecture diagram..." or "Refer to our API docs at [url]...").
-- AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself. Write "Our current defect rate is 4.2%" — NOT "Per the attached audit report..." The information must stand alone in the section.
-- WEB PAGES: These represent the org's public presence, industry context, or technical documentation. Use them to validate challenge content against actual capabilities.
+- SHARED materials: Solvers will also see these. You may reference them directly in section content.
+- AI-ONLY materials: Solvers will NOT see these. Extract key data INTO the section text itself.
+- WEB PAGES: These represent the org's public presence, industry context, or technical documentation.
 
 GROUNDING RULE (CRITICAL):
 - When your suggestion includes a specific claim, data point, or statistic, it MUST be traceable to the Context Digest, a Reference Material, or the challenge's own content.
-- If you infer or estimate a value that is NOT directly stated in any source, you MUST tag it with [INFERENCE] — e.g., "The estimated market size is $2.4B [INFERENCE]".
-- Never fabricate statistics, benchmarks, or proper nouns. If you cannot verify a claim, say so explicitly.
+- If you infer or estimate a value that is NOT directly stated in any source, you MUST tag it with [INFERENCE].
+- Never fabricate statistics, benchmarks, or proper nouns.
 `;
         userPrompt += attachmentBlock;
       }
