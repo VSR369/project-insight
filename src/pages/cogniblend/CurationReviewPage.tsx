@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
+import { useSectionApprovals } from "@/hooks/cogniblend/useSectionApprovals";
 import { useComplexityParams, ComplexityParam as MasterComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
 import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
@@ -1419,6 +1420,14 @@ export default function CurationReviewPage() {
     return sectionActions.filter(a => a.section_key === sectionKey);
   }, [sectionActions]);
 
+  // Section approval operations (extracted — Prompt 4.5)
+  const { handleApproveLockedSection, handleUndoApproval } = useSectionApprovals({
+    challengeId,
+    userId: user?.id,
+    aiReviews: aiReviews as any[],
+    sectionActions: sectionActions as any[],
+  });
+
   // ── Zustand store hydration & sync ──
   const { syncSectionToStore } = useCurationStoreHydration({
     challengeId: challengeId!,
@@ -1846,57 +1855,8 @@ export default function CurationReviewPage() {
     setSavingSection(false);
   }, [challengeId, user?.id, queryClient]);
 
-  /** Approve a locked section (Legal/Escrow) — with audit metadata */
-  const handleApproveLockedSection = useCallback(async (sectionKey: string) => {
-    if (!user?.id || !challengeId) return;
-
-    // Gather audit metadata
-    const aiReviewWasRun = aiReviews.some(r => r.section_key === sectionKey);
-    const commentsSentToCoordinator = sectionActions.some(
-      a => a.section_key === sectionKey && a.action_type === "modification_request"
-    );
-
-    const { error } = await supabase
-      .from("curator_section_actions" as any)
-      .insert({
-        challenge_id: challengeId,
-        section_key: sectionKey,
-        action_type: "approval",
-        status: "approved",
-        created_by: user.id,
-        comment_html: JSON.stringify({
-          ai_review_was_run: aiReviewWasRun,
-          comments_sent_to_coordinator: commentsSentToCoordinator,
-        }),
-      });
-    if (error) {
-      toast.error(`Failed to approve: ${error.message}`);
-    } else {
-      toast.success("Section accepted");
-      queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
-    }
-  }, [user?.id, challengeId, queryClient, aiReviews, sectionActions]);
-
-  /** Undo acceptance of a locked section */
-  const handleUndoApproval = useCallback(async (sectionKey: string) => {
-    if (!challengeId) return;
-    // Find the approval record and delete it
-    const approvalRecord = sectionActions.find(
-      a => a.section_key === sectionKey && a.action_type === "approval" && a.status === "approved"
-    );
-    if (!approvalRecord) return;
-
-    const { error } = await supabase
-      .from("curator_section_actions" as any)
-      .delete()
-      .eq("id", approvalRecord.id);
-    if (error) {
-      toast.error(`Failed to undo: ${error.message}`);
-    } else {
-      toast.success("Acceptance undone");
-      queryClient.invalidateQueries({ queryKey: ["curator-section-actions", challengeId] });
-    }
-  }, [challengeId, queryClient, sectionActions]);
+  /** Section approval operations — extracted to useSectionApprovals hook */
+  // (handleApproveLockedSection and handleUndoApproval are provided by the hook below)
 
   /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {

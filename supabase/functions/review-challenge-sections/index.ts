@@ -686,13 +686,21 @@ ${contentStr}
 ${depBlock}
     ${(() => {
       const sectionAtts = (attachmentsBySection || {})[r.section_key] || [];
-      return sectionAtts.length > 0
-        ? `\nREFERENCE MATERIALS for this section:\n${sectionAtts.map((a: any) => {
-            const typeTag = a.sourceType === 'url' ? 'WEB' : 'DOC';
-            const shareTag = a.sharedWithSolver ? 'SHARED' : 'AI-ONLY';
-            return `--- [${typeTag}] ${a.name} [${shareTag}] ---\n${a.sourceUrl ? `Source: ${a.sourceUrl}\n` : ''}${a.content}`;
-          }).join('\n')}\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.\n`
-        : '';
+      if (sectionAtts.length === 0) return '';
+      let block = '\nREFERENCE MATERIALS for this section:\n';
+      for (const a of sectionAtts) {
+        const typeTag = a.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
+        const shareTag = a.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY';
+        block += `--- [${typeTag}] ${a.name} [${shareTag}] ---\n`;
+        if (a.sourceUrl) block += `Source: ${a.sourceUrl}\n`;
+        if (a.resourceType) block += `Type: ${a.resourceType}\n`;
+        if (a.summary) block += `KEY POINTS:\n${a.summary}\n`;
+        if (a.keyData && Object.keys(a.keyData).length > 0) block += `VERIFIED DATA: ${JSON.stringify(a.keyData)}\n`;
+        block += `CONTENT:\n${a.content}\n`;
+      }
+      block += `\nUse these to inform your rewrite. For AI-ONLY items, embed key data into section content directly.`;
+      block += `\n\nGROUNDING RULE: Every factual claim, statistic, or benchmark MUST trace to the VERIFIED CONTEXT DIGEST or a REFERENCE MATERIAL. If a claim is NOT from these sources, prefix it with [INFERENCE] so the Curator can verify independently.\n`;
+      return block;
     })()}
 ${strengthBlock}
 ISSUES TO ADDRESS (${actionableComments ? actionableComments.split('\n').length : 0} items):
@@ -753,7 +761,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
 
   // Bug 1: Prepend context intelligence for org/geography/industry awareness in Pass 2
   const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
-  pass2SystemPrompt = contextIntel + '\n\n' + pass2SystemPrompt;
+  pass2SystemPrompt = contextIntel + (contextDigestText || '') + '\n\n' + pass2SystemPrompt;
 
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
@@ -1506,13 +1514,14 @@ serve(async (req) => {
       content: string;
       summary?: string;
       keyData?: Record<string, unknown>;
+      resourceType?: string;
       sharedWithSolver: boolean;
     }[]> = {};
     if (resolvedContext === "curation") {
       try {
         const { data: attachments } = await adminClient
           .from('challenge_attachments')
-          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extracted_summary, extracted_key_data, extraction_status, shared_with_solver, discovery_status')
+          .select('section_key, file_name, source_type, source_url, url_title, extracted_text, extracted_summary, extracted_key_data, extraction_status, shared_with_solver, discovery_status, resource_type')
           .eq('challenge_id', challenge_id)
           .eq('extraction_status', 'completed')
           .in('discovery_status', ['accepted', 'manual']);
@@ -1530,6 +1539,7 @@ serve(async (req) => {
               content: att.extracted_text.substring(0, 50000),
               summary: att.extracted_summary ?? undefined,
               keyData: att.extracted_key_data as Record<string, unknown> ?? undefined,
+              resourceType: att.resource_type ?? undefined,
               sharedWithSolver: att.shared_with_solver ?? false,
             });
           }
@@ -1543,11 +1553,15 @@ serve(async (req) => {
       try {
         const { data: digest } = await adminClient
           .from('challenge_context_digest')
-          .select('digest_text, source_count')
+          .select('digest_text, source_count, key_facts')
           .eq('challenge_id', challenge_id)
           .maybeSingle();
         if (digest?.digest_text) {
-          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}\n`;
+          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}`;
+          if (digest.key_facts) {
+            contextDigestText += `\n\nVERIFIED KEY FACTS:\n${JSON.stringify(digest.key_facts, null, 2)}`;
+          }
+          contextDigestText += '\n';
         }
       } catch { /* digest is optional */ }
     }
@@ -1714,7 +1728,9 @@ ${additionalData}`;
       // Append reference materials (files + URLs) to user prompt
       if (Object.keys(attachmentsBySection).length > 0) {
         let attachmentBlock = '\n\nREFERENCE MATERIALS (documents and web links provided by the seeking organization):\n';
+        const batchKeySet = new Set(batch.map(b => b.key));
         for (const [sk, refs] of Object.entries(attachmentsBySection)) {
+          if (!batchKeySet.has(sk)) continue;
           for (const ref of refs) {
             const typeTag = ref.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
             const shareTag = ref.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY (solvers cannot see this)';

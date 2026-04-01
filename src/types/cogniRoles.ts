@@ -89,7 +89,7 @@ export interface CogniRoleContextType {
   activeRole: string;
   /** All role codes the user holds (sorted by priority) */
   availableRoles: string[];
-  /** Whether user holds 6+ roles */
+  /** Whether user holds 4+ roles (solo mode — single user wears all hats) */
   isSoloMode: boolean;
   /** Map of challengeId → role codes for that challenge */
   challengeRoleMap: Map<string, string[]>;
