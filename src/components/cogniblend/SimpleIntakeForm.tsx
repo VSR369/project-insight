@@ -425,7 +425,7 @@ export function SimpleIntakeForm({ challengeId, mode = 'create' }: SimpleIntakeF
       operatingModel: orgContext?.operatingModel ?? 'AGG',
       title: derivedTitle,
       businessProblem: data.problem_summary,
-      expectedOutcomes: data.solution_expectations || '',
+      expectedOutcomes: data.solution_expectations ? [data.solution_expectations] : [],
       currency: data.currency,
       budgetMin: data.budget_min ?? 0,
       budgetMax: data.budget_max ?? 0,
