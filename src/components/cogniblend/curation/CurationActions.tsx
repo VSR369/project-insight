@@ -282,7 +282,7 @@ export default function CurationActions({
       }, 1500);
     },
     onError: (error: Error) => {
-      toast.error(`Failed to send for approval: ${error.message}`);
+      handleMutationError(error, { operation: 'curation_send_to_cr' });
     },
   });
 
