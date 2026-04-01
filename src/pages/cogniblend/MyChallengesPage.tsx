@@ -54,15 +54,7 @@ function getStatusConfig(masterStatus: string, phase: number): StatusConfig {
   return { label: masterStatus || 'Unknown', icon: AlertCircle, badgeClass: 'bg-muted text-muted-foreground border-border' };
 }
 
-function governanceLabel(profile: string): string {
-  switch (profile) {
-    case 'LIGHTWEIGHT':
-    case 'QUICK': return 'Quick';
-    case 'STRUCTURED': return 'Structured';
-    case 'CONTROLLED': return 'Controlled';
-    default: return profile;
-  }
-}
+/* governanceLabel imported from displayHelpers */
 
 /* ── Component ──────────────────────────────────────────── */
 
