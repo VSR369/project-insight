@@ -4035,6 +4035,7 @@ export default function CurationReviewPage() {
                           challengeId={challengeId!}
                           sectionKey={section.key}
                           disabled={isReadOnly}
+                          onOpenLibrary={() => setContextLibraryOpen(true)}
                         />
                       </CuratorSectionPanel>
                     </div>

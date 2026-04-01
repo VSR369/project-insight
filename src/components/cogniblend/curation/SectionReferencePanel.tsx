@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Paperclip, Upload, Link2, FileText, Globe, Trash2, Loader2,
-  CheckCircle2, XCircle, ChevronDown, Eye, EyeOff, AlertCircle,
+  CheckCircle2, XCircle, ChevronDown, Eye, EyeOff, AlertCircle, BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -23,6 +23,7 @@ interface SectionReferencePanelProps {
   challengeId: string;
   sectionKey: string;
   disabled?: boolean;
+  onOpenLibrary?: (sectionKey: string) => void;
 }
 
 interface AttachmentRow {
@@ -44,7 +45,7 @@ interface AttachmentRow {
   display_order: number | null;
 }
 
-export function SectionReferencePanel({ challengeId, sectionKey, disabled = false }: SectionReferencePanelProps) {
+export function SectionReferencePanel({ challengeId, sectionKey, disabled = false, onOpenLibrary }: SectionReferencePanelProps) {
   const config = SECTION_UPLOAD_CONFIG[sectionKey];
 
   const queryClient = useQueryClient();
@@ -296,6 +297,18 @@ export function SectionReferencePanel({ challengeId, sectionKey, disabled = fals
           {config.uploadPrompt}. All materials are read by AI.
           {config.sharingRecommendation === 'recommended' && ' Sharing with solvers is recommended for this section.'}
         </p>
+
+        {/* Context Library link */}
+        {onOpenLibrary && (
+          <button
+            type="button"
+            onClick={() => onOpenLibrary(sectionKey)}
+            className="flex items-center gap-1 text-[10px] text-primary hover:underline px-1 mt-1"
+          >
+            <BookOpen className="h-3 w-3" />
+            View all sources in Context Library
+          </button>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

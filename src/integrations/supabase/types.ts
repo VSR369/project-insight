@@ -13411,6 +13411,7 @@ export type Database = {
         Returns: Json
       }
       validate_gate_02: { Args: { p_challenge_id: string }; Returns: Json }
+      validate_gate_03: { Args: { p_challenge_id: string }; Returns: Json }
       validate_gate_04: { Args: { p_challenge_id: string }; Returns: Json }
       validate_lightweight_publication: {
         Args: { p_challenge_id: string }
@@ -13442,6 +13443,10 @@ export type Database = {
           p_new_role: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      validate_role_separation: {
+        Args: { p_challenge_id: string; p_new_role: string; p_user_id: string }
         Returns: Json
       }
       validate_tax_id: {
