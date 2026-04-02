@@ -149,7 +149,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
-
+import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
+import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 
 // ---------------------------------------------------------------------------
 // Extracted modules (Phase D1.1)
@@ -1641,273 +1642,40 @@ export default function CurationReviewPage() {
   // ══════════════════════════════════════
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/cogni/curation")} className="shrink-0">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-foreground truncate">
-            {isReadOnly ? 'Curation Preview' : 'Curation Review'}
-          </h1>
-          <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
-        </div>
-        {isReadOnly && (
-          <Badge variant="outline" className="text-xs shrink-0 gap-1">
-            <Eye className="h-3 w-3" />View Only
-          </Badge>
-        )}
-        <GovernanceProfileBadge profile={challenge.governance_profile} compact />
-        {orgTypeName && (
-          <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
-        )}
-        {/* Guided mode toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Switch
-            checked={guidedMode}
-            onCheckedChange={setGuidedMode}
-          />
-          <span className="text-xs text-muted-foreground">
-            {guidedMode ? 'Guided' : 'Free browse'}
-          </span>
-        </div>
-        {user?.id && !isReadOnly && (
-          <HoldResumeActions
-            challengeId={challengeId!}
-            challengeTitle={challenge.title}
-            currentPhase={challenge.current_phase ?? 3}
-            phaseStatus={challenge.phase_status ?? null}
-            userId={user.id}
-            userRoleCodes={userRoleCodes}
-          />
-        )}
-      </div>
-
-      {/* Sticky bulk action bar after AI review */}
-      {aiReviewCounts.hasReviews && (
-        <BulkActionBar
-          warningCount={aiReviewCounts.warning}
-          passCount={aiReviewCounts.pass}
-          inferredCount={aiReviewCounts.inferred}
-          totalCount={aiReviewCounts.pass + aiReviewCounts.warning + aiReviewCounts.inferred}
-          onAcceptAllPassing={handleAcceptAllPassing}
-          onReviewWarnings={handleReviewWarnings}
-        />
-      )}
-
-      {/* Read-only banner for Phase 1/2 */}
-      {isReadOnly && phaseDescription && (
-        <div className="flex items-start gap-3 rounded-lg border border-blue-400/40 bg-blue-50/60 dark:bg-blue-900/20 dark:border-blue-700/40 p-4">
-          <Eye className="h-5 w-5 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">
-              This challenge is in {phaseDescription} — view only.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Editing will be enabled once Legal & Finance review is complete and the challenge advances to Phase 3 (Curation).
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Governance-aware blocking banner (replaces old LEGAL_VERIFICATION_PENDING) */}
-      {legalEscrowBlocked && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50/60 dark:bg-amber-900/20 dark:border-amber-700/40 p-4">
-          <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">
-              {blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting.'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              You can continue editing and reviewing all sections. Submission to the next phase is blocked until the above is resolved.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Organization Context Panel moved to Tab 0 in progress strip */}
-
-      {/* ═══ ORIGINAL BRIEF (Seeding Data) ═══ */}
-      {challenge.problem_statement && (
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="original-brief" className="border border-border rounded-lg">
-            <AccordionTrigger className="px-4 py-2 text-sm font-semibold hover:no-underline gap-2">
-              <div className="flex items-center gap-2 flex-1 text-left">
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span>Original Brief from {challenge.operating_model === 'MP' ? 'Account Manager' : 'Challenge Requestor'}</span>
-                <Badge variant="outline" className="text-[10px] ml-auto">Read Only</Badge>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 space-y-3">
-              {/* Challenge Template */}
-              {(() => {
-                const extBrief = parseJson<any>(challenge.extended_brief);
-                const templateId = extBrief?.challenge_template_id;
-                const template = templateId ? CHALLENGE_TEMPLATES.find(t => t.id === templateId) : null;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Challenge Template</p>
-                    {template ? (
-                      <Badge variant="secondary" className="mt-1 text-xs">
-                        <span className="mr-1">{template.emoji}</span>{template.name}
-                      </Badge>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic mt-0.5">No template selected</p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Industry Segment */}
-              {(() => {
-                const segmentId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
-                const segmentName = industrySegments?.find(s => s.id === segmentId)?.name;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Industry Segment</p>
-                    {segmentName ? (
-                      <Badge variant="outline" className="mt-1 text-xs">{segmentName}</Badge>
-                    ) : (
-                      <p className="text-sm text-destructive/80 italic mt-0.5">Not set — required in Context &amp; Background</p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Problem Statement</p>
-                <p className="text-sm text-foreground mt-0.5">{challenge.problem_statement || '—'}</p>
-              </div>
-              {(() => {
-                const reward = parseJson<any>(challenge.reward_structure);
-                if (!reward) return null;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Budget Range</p>
-                    <p className="text-sm text-foreground mt-0.5">
-                      {reward.currency ?? 'USD'} {(reward.budget_min ?? 0).toLocaleString()} – {(reward.budget_max ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                );
-              })()}
-              {(() => {
-                const sched = parseJson<any>(challenge.phase_schedule);
-                if (!sched?.expected_timeline) return null;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Timeline Urgency</p>
-                    <p className="text-sm text-foreground mt-0.5">{sched.expected_timeline} months</p>
-                  </div>
-                );
-              })()}
-
-              {/* Solution Expectations */}
-              {(() => {
-                const extBrief = parseJson<any>(challenge.extended_brief);
-                const val = extBrief?.solution_expectations;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Solution Expectations</p>
-                    {val && String(val).trim() ? (
-                      <p className="text-sm text-foreground mt-0.5">{String(val)}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic mt-0.5">No content added</p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Beneficiaries Mapping */}
-              {(() => {
-                const extBrief = parseJson<any>(challenge.extended_brief);
-                const val = extBrief?.beneficiaries_mapping;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Beneficiaries Mapping</p>
-                    {val && String(val).trim() ? (
-                      <p className="text-sm text-foreground mt-0.5">{String(val)}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic mt-0.5">No content added</p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* AM Approval Required (MP only) */}
-              {challenge.operating_model === 'MP' && (() => {
-                const extBrief = parseJson<any>(challenge.extended_brief);
-                const amApproval = extBrief?.am_approval_required;
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">AM Approval Required</p>
-                    {amApproval ? (
-                      <Badge className="mt-1 text-[10px] bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">
-                        <AlertTriangle className="h-3 w-3 mr-1" />AM Gate Active
-                      </Badge>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic mt-0.5">No — direct to curation</p>
-                    )}
-                  </div>
-                );
-              })()}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      )}
-
-      {/* ═══ PROGRESS STRIP ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
-        {GROUPS.map((group) => {
-          const progress = groupProgress[group.id];
-          const done = progress?.done ?? 0;
-          const total = progress?.total ?? 0;
-          const isActive = activeGroup === group.id;
-          const allDone = done === total && total > 0;
-          const hasFlag = progress?.hasAIFlag ?? false;
-          const readiness = groupReadiness[group.id];
-
-          let statusColor = "bg-muted/50 text-muted-foreground border-border";
-          if (allDone) statusColor = group.colorDone;
-          else if (done > 0) statusColor = "bg-blue-50 text-blue-800 border-blue-300";
-          if (hasFlag && !allDone) statusColor = "bg-amber-50 text-amber-800 border-amber-300";
-
-          return (
-            <button
-              key={group.id}
-              onClick={() => handleGroupClick(group.id)}
-              className={cn(
-                "rounded-lg border-2 p-3 text-left transition-all",
-                statusColor,
-                isActive && "ring-2 ring-primary ring-offset-2",
-                readiness && !readiness.ready && !isActive && "opacity-60",
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-muted-foreground">{group.icon}</span>
-                  <span className="text-sm font-semibold">{group.label}</span>
-                  {readiness && !readiness.ready && (
-                    <span className="inline-flex items-center justify-center h-4 px-1.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold border border-orange-200" title={`Complete ${readiness.missingPrereqs.join(', ')} first`}>
-                      ⏳ {readiness.missingPrereqs[0]}
-                    </span>
-                  )}
-                  {staleCountByGroup[group.id] > 0 && (
-                    <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
-                      {staleCountByGroup[group.id]}
-                    </span>
-                  )}
-                </div>
-                {readiness?.ready && allDone && <CheckCircle2 className="h-4 w-4" />}
-                {hasFlag && !allDone && <AlertTriangle className="h-4 w-4" />}
-              </div>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Progress value={total > 0 ? (done / total) * 100 : 0} className="h-1.5 flex-1" />
-                <span className="text-xs font-medium">{done}/{total}</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <CurationHeaderBar
+        challengeId={challengeId!}
+        challengeTitle={challenge.title}
+        governanceProfile={challenge.governance_profile}
+        operatingModel={challenge.operating_model}
+        currentPhase={challenge.current_phase}
+        phaseStatus={challenge.phase_status}
+        problemStatement={challenge.problem_statement}
+        extendedBrief={challenge.extended_brief}
+        rewardStructure={challenge.reward_structure}
+        phaseSchedule={challenge.phase_schedule}
+        challenge={challenge as any}
+        isReadOnly={isReadOnly}
+        orgTypeName={orgTypeName}
+        onNavigateBack={() => navigate("/cogni/curation")}
+        guidedMode={guidedMode}
+        onGuidedModeChange={setGuidedMode}
+        userId={user?.id}
+        userRoleCodes={userRoleCodes}
+        aiReviewCounts={aiReviewCounts}
+        onAcceptAllPassing={handleAcceptAllPassing}
+        onReviewWarnings={handleReviewWarnings}
+        phaseDescription={phaseDescription}
+        legalEscrowBlocked={legalEscrowBlocked}
+        blockingReason={blockingReason}
+        groups={GROUPS}
+        groupProgress={groupProgress}
+        groupReadiness={groupReadiness}
+        activeGroup={activeGroup}
+        onGroupClick={handleGroupClick}
+        staleCountByGroup={staleCountByGroup}
+        optimisticIndustrySegId={optimisticIndustrySegId}
+        industrySegments={industrySegments}
+      />
 
       {/* ═══ MAIN LAYOUT: Content + Right Rail ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -1956,887 +1724,77 @@ export default function CurationReviewPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              {/* ═══ ORGANIZATION TAB — custom panel ═══ */}
-              {activeGroup === 'organization' && challenge.organization_id ? (
-                <OrgContextPanel
-                  challengeId={challenge.id}
-                  organizationId={challenge.organization_id}
-                  isReadOnly={isReadOnly}
-                />
-              ) : activeGroup === 'organization' ? (
-                <p className="text-sm text-muted-foreground italic py-4">No organization linked to this challenge.</p>
-              ) : (
-                <>
-              {/* Prerequisite guidance banner */}
-              {groupReadiness[activeGroupDef.id] && !groupReadiness[activeGroupDef.id].ready && !dismissedPrereqBanner.has(activeGroupDef.id) && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3 mb-4">
-                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-amber-800">
-                      Complete prerequisite sections first for best AI results
-                    </p>
-                    <p className="text-xs text-amber-600 mt-1">
-                      The sections in <strong>{groupReadiness[activeGroupDef.id]?.missingPrereqs.join(', ')}</strong> should be completed before this tab.
-                      AI review and suggestions will be more accurate when prerequisite content exists.
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {groupReadiness[activeGroupDef.id]?.missingPrereqSections.slice(0, 4).map(sk => {
-                        const sec = SECTION_MAP.get(sk);
-                        if (!sec) return null;
-                        return (
-                          <Button
-                            key={sk}
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
-                            onClick={() => {
-                              const targetGroup = GROUPS.find(g => g.sectionKeys.includes(sk));
-                              if (targetGroup) setActiveGroup(targetGroup.id);
-                            }}
-                          >
-                            → Complete {sec.label}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-amber-600 shrink-0"
-                    onClick={() => setDismissedPrereqBanner(prev => new Set([...prev, activeGroupDef.id]))}
-                  >
-                    Continue anyway
-                  </Button>
-                </div>
-              )}
-              <div className="space-y-3">
-                {activeGroupDef.sectionKeys
-                  .filter((sectionKey) => !showOnlyStale || staleKeySet.has(sectionKey))
-                  .map((sectionKey) => {
-                  const section = SECTION_MAP.get(sectionKey);
-                  if (!section) return null;
-
-                  const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
-                  const isLocked = LOCKED_SECTIONS.has(section.key);
-                  const isEditing = editingSection === section.key;
-                  const canEdit = !isReadOnly && !isLocked && (!!section.dbField || section.key === "complexity");
-                  const aiReview = aiReviews.find((r) => r.section_key === section.key);
-                  const isApproved = approvedSections[section.key] ?? false;
-                  const inlineFlags = sectionAIFlags[section.key];
-                  const isComplexity = section.key === "complexity";
-
-                  // Compute panel status from AI review
-                  let panelStatus: SectionStatus = "not_reviewed";
-                  if (isLocked) panelStatus = "view_only";
-                  else if (aiReview) {
-                    if (aiReview.addressed) panelStatus = "pass";
-                    else if (aiReview.status === "pass") panelStatus = "pass";
-                    else if (aiReview.status === "warning") panelStatus = "warning";
-                    else if (aiReview.status === "needs_revision") panelStatus = "needs_revision";
-                  }
-                  // Override with stale status if section is stale
-                  if (staleKeySet.has(section.key)) panelStatus = "stale";
-
-                  // Domain tag state
-                  const currentTags = section.key === "domain_tags"
-                    ? (() => { const t = parseJson<string[]>(challenge.domain_tags); return Array.isArray(t) ? t : []; })()
-                    : [];
-
-                  // Build section content using format-native renderers
-                  const sectionContent = (() => {
-                    const cancelEdit = () => setEditingSection(null);
-
-                    switch (section.key) {
-                      // ── Rich text sections ──
-                      case "problem_statement": {
-                        const resolvedSegIdPS = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
-                        const tfPS = parseJson<any>(challenge.targeting_filters);
-                        const segmentFromIntakePS = !!(tfPS?.industries?.length > 0) && !tfPS?.industry_segment_id;
-                        return (
-                          <>
-                            {/* Industry Segment — mandatory prerequisite field */}
-                            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5 mb-3">
-                              <div className="flex items-center gap-2">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
-                                {segmentFromIntakePS && resolvedSegIdPS && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
-                                )}
-                                {!resolvedSegIdPS && !isReadOnly && (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">Required</Badge>
-                                )}
-                              </div>
-
-                              {/* Read-only: from intake or viewer mode */}
-                              {resolvedSegIdPS && (segmentFromIntakePS || isReadOnly) && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {industrySegments?.find(s => s.id === resolvedSegIdPS)?.name ?? "Loading…"}
-                                </Badge>
-                              )}
-
-                              {/* Editable: curator-set, allow change */}
-                              {resolvedSegIdPS && !segmentFromIntakePS && !isReadOnly && (
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {industrySegments?.find(s => s.id === resolvedSegIdPS)?.name ?? "Loading…"}
-                                  </Badge>
-                                  <Select value={resolvedSegIdPS} onValueChange={handleIndustrySegmentChange}>
-                                    <SelectTrigger className="w-auto max-w-[220px] h-7 text-xs border-dashed">
-                                      <span className="text-muted-foreground">Change</span>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {(industrySegments ?? []).map(seg => (
-                                        <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              )}
-
-                              {/* Not set: mandatory dropdown */}
-                              {!resolvedSegIdPS && !isReadOnly && (
-                                <Select onValueChange={handleIndustrySegmentChange}>
-                                  <SelectTrigger className="w-full max-w-sm h-8 text-sm border-destructive/50">
-                                    <SelectValue placeholder="Select industry segment…" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(industrySegments ?? []).map(seg => (
-                                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-
-                              {!resolvedSegIdPS && isReadOnly && (
-                                <p className="text-sm text-destructive italic">No industry segment specified — required before review.</p>
-                              )}
-                            </div>
-
-                            <RichTextSectionRenderer
-                              value={getFieldValue(challenge, section.key)}
-                              readOnly={isReadOnly || isLocked}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
-                              onCancel={cancelEdit}
-                              onEdit={() => setEditingSection(section.key)}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-                      case "scope":
-                      case "hook":
-                        return (
-                          <>
-                            <RichTextSectionRenderer
-                              value={getFieldValue(challenge, section.key)}
-                              readOnly={isReadOnly || isLocked}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
-                              onCancel={cancelEdit}
-                              onEdit={() => setEditingSection(section.key)}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-                      // ── Deliverables (line items) ──
-                      case "deliverables":
-                        return (
-                          <>
-                            <LineItemsSectionRenderer
-                              items={getDeliverableItems(challenge)}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={handleSaveDeliverables}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              itemLabel="Deliverable"
-                              structuredItems={getDeliverableObjects(challenge)}
-                              onSaveStructured={handleSaveStructuredDeliverables}
-                              badgePrefix="D"
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-                      // ── Submission guidelines (structured cards) ──
-                      case "submission_guidelines": {
-                        const raw = parseJson<any>((challenge as any).submission_guidelines);
-                        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
-                        const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
-                        const finalItems = lineItems.length > 0 ? lineItems : ((challenge as any).submission_guidelines ? [] : (challenge.description?.trim() ? [challenge.description] : []));
-                        const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
-                        return (
-                          <>
-                            <LineItemsSectionRenderer
-                              items={finalItems}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(items) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "submission_guidelines", value: { items } });
-                              }}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              itemLabel="Guideline"
-                              structuredItems={structuredGuidelines}
-                              onSaveStructured={(items) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: items.map(({ name, description }) => ({ name, description })) } });
-                              }}
-                              badgePrefix="S"
-                              hideAcceptanceCriteria
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      // ── Expected outcomes (line items) ──
-                      case "expected_outcomes": {
-                        const eo = parseJson<any>(challenge.expected_outcomes);
-                        const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
-                        const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
-                        const structuredOutcomes = getExpectedOutcomeObjects(challenge);
-                        return (
-                          <>
-                            <LineItemsSectionRenderer
-                              items={outcomeItems}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(items) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items } });
-                              }}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              itemLabel="Outcome"
-                              structuredItems={structuredOutcomes}
-                              onSaveStructured={(items) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description }) => ({ name, description })) } });
-                              }}
-                              badgePrefix="O"
-                              hideAcceptanceCriteria
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      // ── IP Model (checkbox single from master data) ──
-                      case "ip_model":
-                        return (
-                          <>
-                            <CheckboxSingleSectionRenderer
-                              value={challenge.ip_model}
-                              options={masterData.ipModelOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveOrgPolicyField("ip_model", val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              getLabel={(v) => masterData.ipModelOptions.find(o => o.value === v)?.label ?? v}
-                              getDescription={(v) => masterData.ipModelOptions.find(o => o.value === v)?.description}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-                      // ── Eligibility (checkbox multi from solver tiers) ──
-                      case "eligibility": {
-                        const solverElig = parseJson<any>(challenge.solver_eligibility_types);
-                        const eligValues = Array.isArray(solverElig)
-                          ? solverElig.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
-                          : [];
-                        return (
-                          <>
-                            <CheckboxMultiSectionRenderer
-                              selectedValues={eligValues}
-                              options={masterData.eligibilityOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(values) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "solver_eligibility_types", value: values.map(v => ({ code: v, label: masterData.eligibilityOptions.find(o => o.value === v)?.label ?? v })) });
-                              }}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      // ── Visibility (checkbox multi from solver tiers) ──
-                      case "visibility": {
-                        const solverVis = parseJson<any>(challenge.solver_visibility_types);
-                        const visValues = Array.isArray(solverVis)
-                          ? solverVis.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
-                          : [];
-                        return (
-                          <>
-                            <CheckboxMultiSectionRenderer
-                              selectedValues={visValues}
-                              options={masterData.visibilityOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(values) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "solver_visibility_types", value: values.map(v => ({ code: v, label: masterData.visibilityOptions.find(o => o.value === v)?.label ?? v })) });
-                              }}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-                      // ── Evaluation criteria (rich editor) ──
-                      case "evaluation_criteria":
-                        return (
-                          <>
-                            <EvaluationCriteriaSection
-                              criteria={getEvalCriteria(challenge)}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={handleSaveEvalCriteria}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              aiStatus={panelStatus}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-                      // ── Reward structure (custom component) ──
-                      case "reward_structure":
-                        return (
-                          <RewardStructureDisplay
-                            ref={rewardStructureRef}
-                            rewardStructure={challenge.reward_structure}
-                            currencyCode={challenge.currency_code ?? undefined}
-                            challengeId={challenge.id}
-                            problemStatement={challenge.problem_statement}
-                            operatingModel={challenge.operating_model}
-                            challengeTitle={challenge.title}
-                            maturityLevel={challenge.maturity_level}
-                            complexityLevel={challenge.complexity_level}
-                          />
-                        );
-
-                      // ── Complexity (custom component) ──
-                      case "complexity":
-                        return (
-                          <ComplexityAssessmentModule
-                            ref={complexityModuleRef}
-                            challengeId={challengeId!}
-                            currentScore={challenge.complexity_score ?? null}
-                            currentLevel={challenge.complexity_level ?? null}
-                            currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
-                            complexityParams={complexityParams}
-                            solutionType={challenge.solution_type as any}
-                            onSave={handleSaveComplexity}
-                            onLock={handleLockComplexity}
-                            onUnlock={handleUnlockComplexity}
-                            isLocked={(challenge as any).complexity_locked === true}
-                            saving={savingSection}
-                            aiSuggestedRatings={aiSuggestedComplexity}
-                          />
-                        );
-
-                      // ── Solution Type (grouped multi-select checkboxes) ──
-                      case "solution_type": {
-                        const currentSolutionTypes: string[] = Array.isArray(challenge.solution_types) ? (challenge.solution_types as string[]) : [];
-                        return (
-                          <>
-                            {isEditing && !isReadOnly ? (
-                              <SolutionTypesEditor
-                                groups={solutionTypeGroups}
-                                selectedCodes={currentSolutionTypes}
-                                onSave={(codes) => {
-                                  handleSaveSolutionTypes(codes);
-                                  setEditingSection(null);
-                                }}
-                                onCancel={cancelEdit}
-                                saving={savingSection}
-                              />
-                            ) : (
-                              <>
-                                {currentSolutionTypes.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {solutionTypeGroups.filter(g => g.types.some(t => currentSolutionTypes.includes(t.code))).map(g => (
-                                      <div key={g.groupCode}>
-                                        <p className="text-xs font-medium text-muted-foreground mb-1">{g.groupLabel}</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {g.types.filter(t => currentSolutionTypes.includes(t.code)).map(t => (
-                                            <Badge key={t.code} variant="secondary" className="text-xs">{t.label}</Badge>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground italic">Not set — select solution types to drive deliverables and complexity</p>
-                                )}
-                                {canEdit && (
-                                  <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                    <Pencil className="h-3 w-3 mr-1" />Edit
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </>
-                        );
-                      }
-
-                      // ── Maturity level (checkbox single / select) ──
-                      case "maturity_level":
-                        return (
-                          <>
-                            <CheckboxSingleSectionRenderer
-                              value={challenge.maturity_level}
-                              options={masterData.maturityOptions}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => handleSaveMaturityLevel(val)}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              getLabel={getMaturityLabel}
-                              getDescription={(val) => masterData.maturityOptions.find(o => o.value.toLowerCase() === val.toLowerCase())?.description}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-                      // ── Phase schedule (schedule table) ──
-                      case "phase_schedule":
-                        return (
-                          <>
-                            <ScheduleTableSectionRenderer
-                              data={parseJson<any>(challenge.phase_schedule)}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(rows) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
-                                // Auto-derive submission_deadline from last phase end_date
-                                if (Array.isArray(rows) && rows.length > 0) {
-                                  const endDates = rows
-                                    .map((r: any) => r.end_date)
-                                    .filter(Boolean)
-                                    .map((d: string) => new Date(d).getTime())
-                                    .filter((t: number) => !isNaN(t));
-                                  if (endDates.length > 0) {
-                                    const maxEnd = new Date(Math.max(...endDates)).toISOString().split('T')[0];
-                                    saveSectionMutation.mutate({ field: "submission_deadline", value: maxEnd });
-                                  }
-                                }
-                              }}
-                              onCancel={() => setEditingSection(null)}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-
-                      // ── Legal docs (read-only table) ──
-                      case "legal_docs":
-                        return (
-                          <LegalDocsSectionRenderer
-                            documents={legalDetails}
-                            governanceMode={resolveGovernanceMode(challenge.governance_profile)}
-                            onAcceptAllDefaults={handleAcceptAllLegalDefaults}
-                            isAcceptingAll={isAcceptingAllLegal}
-                          />
-                        );
-
-                      // ── Escrow funding (structured fields, read-only) ──
-                      case "escrow_funding": {
-                        const gMode = resolveGovernanceMode(challenge.governance_profile);
-                        return (
-                          <StructuredFieldsSectionRenderer
-                            escrow={escrowRecord}
-                            isControlledMode={isControlledMode(gMode)}
-                            governanceMode={gMode}
-                            escrowEnabled={escrowEnabled}
-                            onEscrowToggle={setEscrowEnabled}
-                          />
-                        );
-                      }
-
-                      // ── Domain tags (tag input) ──
-                      case "domain_tags":
-                        return (
-                          <TagInputSectionRenderer
-                            tags={currentTags}
-                            readOnly={isReadOnly}
-                            onAdd={handleAddDomainTag}
-                            onRemove={handleRemoveDomainTag}
-                          />
-                        );
-
-                      // ── Solver expertise requirements ──
-                      case "solver_expertise": {
-                        const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
-                        return (
-                          <>
-                            <SolverExpertiseSection
-                              data={challenge.solver_expertise_requirements}
-                              industrySegmentId={industrySegId}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(expertiseData) => {
-                                setSavingSection(true);
-                                saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
-                                setEditingSection(null);
-                              }}
-                              saving={savingSection}
-                              onCancel={cancelEdit}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      // ── Extended Brief subsections ──
-                      case "context_and_background": {
-                        const eb = parseExtendedBrief(challenge.extended_brief);
-                        const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
-                          ? getSubsectionValue(eb, "context_and_background") as string : "";
-                        return (
-                          <>
-                            <RichTextSectionRenderer
-                              value={textVal}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(val) => {
-                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["context_and_background"]]: val };
-                                handleSaveExtendedBrief(updated);
-                              }}
-                              onCancel={cancelEdit}
-                              onEdit={() => setEditingSection(section.key)}
-                              saving={savingSection}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      case "root_causes":
-                      case "current_deficiencies":
-                      case "preferred_approach":
-                      case "approaches_not_of_interest": {
-                        const eb = parseExtendedBrief(challenge.extended_brief);
-                        const items = ensureStringArray(getSubsectionValue(eb, section.key));
-                        const itemLabel = section.key === "root_causes" ? "Root Cause"
-                          : section.key === "preferred_approach" ? "Approach"
-                          : section.key === "current_deficiencies" ? "Deficiency" : "Approach";
-                        return (
-                          <>
-                            {section.key === "approaches_not_of_interest" && items.length === 0 && !isEditing && (
-                              <p className="text-sm text-muted-foreground italic border border-dashed border-border rounded-md px-3 py-2">
-                                Add approaches you want solvers to avoid — e.g. specific technologies, vendor dependencies, or previously tried methods.
-                              </p>
-                            )}
-                            <LineItemsSectionRenderer
-                              items={items}
-                              readOnly={isReadOnly}
-                              editing={isEditing}
-                              onSave={(newItems) => {
-                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP[section.key]]: newItems };
-                                handleSaveExtendedBrief(updated);
-                              }}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                              itemLabel={itemLabel}
-                            />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      case "affected_stakeholders": {
-                        const eb = parseExtendedBrief(challenge.extended_brief);
-                        const rows = ensureStakeholderArray(getSubsectionValue(eb, "affected_stakeholders"));
-                        if (isEditing && !isReadOnly) {
-                          return (
-                            <StakeholderTableEditor
-                              rows={rows}
-                              onSave={(newRows) => {
-                                const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["affected_stakeholders"]]: newRows };
-                                handleSaveExtendedBrief(updated);
-                              }}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                          );
-                        }
-                        return (
-                          <>
-                            <StakeholderTableView rows={rows} />
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      case "data_resources_provided": {
-                        const raw = parseJson<Record<string, string>[]>((challenge as any).data_resources_provided) ?? [];
-                        if (isEditing && !isReadOnly) {
-                          return (
-                            <TableSectionEditor
-                              columns={[
-                                { key: "resource", label: "Resource" },
-                                { key: "type", label: "Type" },
-                                { key: "format", label: "Format" },
-                                { key: "size", label: "Size" },
-                                { key: "access_method", label: "Access Method" },
-                                { key: "restrictions", label: "Restrictions" },
-                              ]}
-                              initialRows={raw}
-                              onSave={(rows) => saveSectionMutation.mutate({ field: "data_resources_provided", value: rows })}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                          );
-                        }
-                        return (
-                          <>
-                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      case "success_metrics_kpis": {
-                        const raw = parseJson<Record<string, string>[]>((challenge as any).success_metrics_kpis) ?? [];
-                        if (isEditing && !isReadOnly) {
-                          return (
-                            <TableSectionEditor
-                              columns={[
-                                { key: "kpi", label: "KPI" },
-                                { key: "baseline", label: "Baseline" },
-                                { key: "target", label: "Target" },
-                                { key: "measurement_method", label: "Measurement Method" },
-                                { key: "timeframe", label: "Timeframe" },
-                              ]}
-                              initialRows={raw}
-                              onSave={(rows) => saveSectionMutation.mutate({ field: "success_metrics_kpis", value: rows })}
-                              onCancel={cancelEdit}
-                              saving={savingSection}
-                            />
-                          );
-                        }
-                        return (
-                          <>
-                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-
-                      // ── Fallback ──
-                      default:
-                        return (
-                          <>
-                            {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-                            {canEdit && !isEditing && (
-                              <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
-                                <Pencil className="h-3 w-3 mr-1" />Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                    }
-                  })();
-
-                  // Resolve masterDataOptions for this section
-                  const sectionMasterDataOptions = (() => {
-                    switch (section.key) {
-                      case "eligibility": return masterData.eligibilityOptions;
-                      case "visibility": return masterData.visibilityOptions;
-                      case "ip_model": return masterData.ipModelOptions;
-                      case "maturity_level": return masterData.maturityOptions;
-                      case "complexity": return masterData.complexityOptions;
-                      case "solution_type": return solutionTypeMap.map(m => ({ value: m.solution_type_code, label: m.proficiency_area_name }));
-                      default: return undefined;
-                    }
-                  })();
-
-                  // Determine coordinator props for locked sections
-                  const coordinatorRole = section.key === "legal_docs" ? "LC" as const : section.key === "escrow_funding" ? "FC" as const : undefined;
-                  const hasSentBefore = getSectionActions(section.key).some(
-                    a => a.action_type === "modification_request"
-                  );
-
-                  // Build AI review slot
-                  const secReadiness = sectionReadiness[section.key];
-                  const aiReviewContent = (
-                    <CurationAIReviewInline
-                      sectionKey={section.key}
-                      review={aiReview}
-                      currentContent={getSectionContent(challenge, section.key)}
-                      challengeId={challengeId!}
-                      challengeContext={challengeCtx}
-                      onAcceptRefinement={EXTENDED_BRIEF_FIELD_MAP[section.key] ? handleAcceptExtendedBriefRefinement : handleAcceptRefinement}
-                      onSingleSectionReview={handleSingleSectionReview}
-                      onMarkAddressed={handleMarkAddressed}
-                      defaultOpen={!aiReview?.addressed && (aiReview?.status === 'warning' || aiReview?.status === 'needs_revision')}
-                      masterDataOptions={sectionMasterDataOptions}
-                      isLockedSection={isLocked}
-                      coordinatorRole={coordinatorRole}
-                      hasSentBefore={hasSentBefore}
-                      onReReview={section.key === 'complexity' ? handleComplexityReReview : undefined}
-                      complexityRatings={section.key === 'complexity' ? (aiSuggestedComplexity ?? undefined) : undefined}
-                      prerequisitesReady={secReadiness?.ready ?? true}
-                      missingPrerequisites={secReadiness?.missing}
-                      onSendToCoordinator={isLocked ? (editedComments: string) => {
-                        const originalAiComments = (aiReview?.comments ?? []).map((c: any) => typeof c === 'string' ? c : c?.text ?? JSON.stringify(c)).join("\n\n");
-                        setLockedSendState({
-                          open: true,
-                          sectionKey: section.key,
-                          sectionLabel: section.label,
-                          initialComment: editedComments,
-                          aiOriginalComments: originalAiComments,
-                        });
-                      } : undefined}
-                    />
-                  );
-
-
-
-                  const isWarningHighlighted = highlightWarnings && aiReview && (aiReview.status === "warning" || aiReview.status === "needs_revision") && !aiReview.addressed;
-
-                  return (
-                    <div
-                      key={section.key}
-                      data-section-key={section.key}
-                      className={cn(
-                        isWarningHighlighted && "ring-2 ring-amber-400 ring-offset-2 rounded-xl animate-pulse"
-                      )}
-                    >
-                      <CuratorSectionPanel
-                        sectionKey={section.key}
-                        label={section.label}
-                        attribution={section.attribution}
-                        filled={filled}
-                        status={panelStatus}
-                        isLocked={isLocked}
-                        isReadOnly={isReadOnly}
-                        isApproved={isApproved}
-                        onToggleApproval={() => toggleSectionApproval(section.key)}
-                        onApproveSection={isLocked ? () => handleApproveLockedSection(section.key) : undefined}
-                        onUndoApproval={isLocked ? () => handleUndoApproval(section.key) : undefined}
-                        challengeId={challengeId!}
-                        inlineFlags={inlineFlags}
-                        defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === 'warning' || aiReview.status === 'needs_revision'))}
-                        aiReviewSlot={aiReviewContent}
-                        sectionActions={getSectionActions(section.key)}
-                        promptSource={aiReview?.prompt_source ?? null}
-                        expandVersion={expandVersion}
-                        staleBecauseOf={staleSections.find(s => s.key === section.key)?.staleBecauseOf}
-                        staleAt={staleSections.find(s => s.key === section.key)?.staleAt ?? null}
-                        aiAction={curationStore?.getState().getSectionEntry(section.key as SectionKey)?.aiAction ?? null}
-                      >
-                        {sectionContent}
-                        <SectionReferencePanel
-                          challengeId={challengeId!}
-                          sectionKey={section.key}
-                          disabled={isReadOnly}
-                          onOpenLibrary={() => setContextLibraryOpen(true)}
-                        />
-                      </CuratorSectionPanel>
-                    </div>
-                  );
-                })}
-                {showOnlyStale && staleCountByGroup[activeGroupDef.id] === 0 && (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
-                    <p className="text-sm font-medium text-muted-foreground">No stale sections in this tab</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 text-xs"
-                      onClick={() => setShowOnlyStale(false)}
-                    >
-                      Show All Sections
-                    </Button>
-                  </div>
-                )}
-              </div>
-              </>
-              )}
+              <CurationSectionList
+                challenge={challenge}
+                challengeId={challengeId!}
+                activeGroupDef={activeGroupDef}
+                activeGroup={activeGroup}
+                showOnlyStale={showOnlyStale}
+                staleKeySet={staleKeySet}
+                staleCountByGroup={staleCountByGroup}
+                setShowOnlyStale={setShowOnlyStale}
+                setActiveGroup={setActiveGroup}
+                editingSection={editingSection}
+                setEditingSection={setEditingSection}
+                savingSection={savingSection}
+                setSavingSection={setSavingSection}
+                isReadOnly={isReadOnly}
+                aiReviews={aiReviews}
+                approvedSections={approvedSections}
+                toggleSectionApproval={toggleSectionApproval}
+                sectionAIFlags={sectionAIFlags}
+                highlightWarnings={highlightWarnings}
+                aiSuggestedComplexity={aiSuggestedComplexity}
+                groupReadiness={groupReadiness}
+                sectionReadiness={sectionReadiness}
+                dismissedPrereqBanner={dismissedPrereqBanner}
+                setDismissedPrereqBanner={setDismissedPrereqBanner}
+                masterData={masterData}
+                complexityParams={complexityParams}
+                industrySegments={industrySegments}
+                solutionTypeGroups={solutionTypeGroups}
+                solutionTypesData={solutionTypesData}
+                solutionTypeMap={solutionTypeMap}
+                handleSaveText={handleSaveText}
+                handleSaveDeliverables={handleSaveDeliverables}
+                handleSaveStructuredDeliverables={handleSaveStructuredDeliverables}
+                handleSaveEvalCriteria={handleSaveEvalCriteria}
+                handleSaveOrgPolicyField={handleSaveOrgPolicyField}
+                handleSaveMaturityLevel={handleSaveMaturityLevel}
+                handleSaveSolutionTypes={handleSaveSolutionTypes}
+                handleSaveExtendedBrief={handleSaveExtendedBrief}
+                handleSaveComplexity={handleSaveComplexity}
+                handleLockComplexity={handleLockComplexity}
+                handleUnlockComplexity={handleUnlockComplexity}
+                handleAcceptRefinement={handleAcceptRefinement}
+                handleAcceptExtendedBriefRefinement={handleAcceptExtendedBriefRefinement}
+                handleSingleSectionReview={handleSingleSectionReview}
+                handleMarkAddressed={handleMarkAddressed}
+                handleComplexityReReview={handleComplexityReReview}
+                handleApproveLockedSection={handleApproveLockedSection}
+                handleUndoApproval={handleUndoApproval}
+                handleAddDomainTag={handleAddDomainTag}
+                handleRemoveDomainTag={handleRemoveDomainTag}
+                handleIndustrySegmentChange={handleIndustrySegmentChange}
+                handleAcceptAllLegalDefaults={handleAcceptAllLegalDefaults}
+                saveSectionMutation={saveSectionMutation}
+                challengeCtx={challengeCtx}
+                optimisticIndustrySegId={optimisticIndustrySegId}
+                escrowEnabled={escrowEnabled}
+                setEscrowEnabled={setEscrowEnabled}
+                isAcceptingAllLegal={isAcceptingAllLegal}
+                legalDocs={legalDocs}
+                legalDetails={legalDetails}
+                escrowRecord={escrowRecord}
+                rewardStructureRef={rewardStructureRef}
+                complexityModuleRef={complexityModuleRef}
+                curationStore={curationStore}
+                staleSections={staleSections}
+                getSectionActions={getSectionActions}
+                setLockedSendState={setLockedSendState}
+                setContextLibraryOpen={setContextLibraryOpen}
+                expandVersion={expandVersion}
+              />
             </CardContent>
           </Card>
         </div>
