@@ -1,51 +1,34 @@
 
 
-# Update Fill Test Data to Include Organization Context
+# Auto-Save After Fill Test Data
 
-## What Changed
-The "Fill Test Data" button currently populates only challenge form fields (title, problem statement, scope, etc.) but leaves the Organization Context card empty. We will add Mahindra & Mahindra sample org data so that clicking "Fill Test Data" also populates the org profile fields (description, website, LinkedIn, Twitter, tagline).
+## What's Happening Now
+- "Fill Test Data" populates the form locally (no DB write)
+- User must manually click "Submit to Curator" to persist and advance
 
-## Challenge
-The org context fields live in `CreatorOrgContextCard` — a separate component with its own state that auto-saves to `seeker_organizations`. The challenge form's `handleFillTestData` cannot directly set those fields because they are not part of the form schema.
+## Proposed Enhancement
+After "Fill Test Data" populates the form, automatically trigger "Save Draft" so the data is immediately persisted in the database. The user can then review and click "Submit to Curator" when ready.
 
-## Approach
+**Why not auto-submit?** Submitting advances the challenge to Phase 2 (Curation) immediately — the user should review the seeded data first and consciously submit.
 
-### 1. Add org seed data to `creatorSeedContent.ts`
-Add a new exported object with Mahindra & Mahindra sample data for internal testing:
+## Changes
 
-```ts
-export const ORG_SEED = {
-  organization_description: "Mahindra & Mahindra Limited is a multinational conglomerate...(200+ chars describing their automotive, farm equipment, IT, financial services, and real estate businesses)",
-  website_url: "https://www.mahindra.com",
-  linkedin_url: "https://www.linkedin.com/company/mahindra-and-mahindra",
-  twitter_url: "https://x.com/MahijndraRise",
-  tagline: "Rise.",
-};
-```
+### 1. `ChallengeCreatorForm.tsx`
+After `form.reset(filteredSeed)` in `handleFillTestData`, automatically call `handleSaveDraft()` so the filled data is persisted as a Phase 1 draft. Show a toast: "Test data filled & saved as draft."
 
-### 2. Expose a fill method from `CreatorOrgContextCard`
-Add an imperative handle (via `useImperativeHandle` + `forwardRef`) or simpler: emit a custom event / use a callback prop so the parent can trigger org field population.
+### 2. Flow After Fill
+1. User clicks "Fill Test Data"
+2. Form populates with seed content + org context saves to `seeker_organizations`
+3. Draft auto-saves to `challenges` table (Phase 1)
+4. User reviews → clicks "Submit to Curator" → advances to Phase 2
 
-**Simpler approach**: Add an `onFillTestData` event pattern:
-- `CreatorOrgContextCard` accepts an optional `fillTrigger` counter prop
-- When `fillTrigger` increments, the card reads `ORG_SEED` and populates its local state + triggers auto-save
-- This avoids tight coupling while keeping the card self-contained
-
-### 3. Wire it in `ChallengeCreatorForm.tsx`
-- Import `ORG_SEED` from `creatorSeedContent`
-- Add a `fillTrigger` state counter
-- In `handleFillTestData`, increment the counter alongside existing form reset
-- Pass `fillTrigger` to `CreatorOrgContextCard`
-
-### Files Modified
+## Files Modified
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/creator/creatorSeedContent.ts` | Add `ORG_SEED` with M&M data |
-| `src/components/cogniblend/creator/CreatorOrgContextCard.tsx` | Accept `fillTrigger` prop, populate fields + auto-save when triggered |
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Add `fillTrigger` state, pass to org card, increment on fill |
+| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Call `handleSaveDraft()` after `form.reset()` in `handleFillTestData` |
 
-### Technical Detail
-- The org card's `useEffect` watches `fillTrigger` and sets all 5 fields from `ORG_SEED`, then calls `saveToOrg()` to persist
-- Both MP and AGG seeds use the same org data (M&M example) since it is org-level, not challenge-level
-- The card auto-opens when filled to show the populated data
+## Technical Detail
+- `handleSaveDraft` already handles both new draft creation (`useSaveDraft`) and existing draft update (`useUpdateDraft`)
+- The auto-save uses the same mutation path, so error handling and query invalidation are already wired
+- A small `setTimeout` (100ms) ensures the form state is fully committed before reading values for the draft payload
 
