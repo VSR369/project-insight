@@ -33,7 +33,7 @@ interface CreatorOrgContextCardProps {
   challengeId?: string;
 }
 
-export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0 }: CreatorOrgContextCardProps) {
+export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0, challengeId }: CreatorOrgContextCardProps) {
   // ═══════ State ═══════
   const [isOpen, setIsOpen] = useState(governanceMode !== 'QUICK');
   const [description, setDescription] = useState('');
