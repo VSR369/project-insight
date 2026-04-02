@@ -1,54 +1,48 @@
 
+# Phase D2.1 — Extract Data Hook from CurationReviewPage
 
-# Phase D1.1 Implementation — Extract Constants + Helpers from CurationReviewPage
+## What We're Doing
 
-## What gets created (3 files)
+Extract all `useState` declarations (lines 188-244) and `useQuery` calls (lines 254-373) from `CurationReviewPage.tsx` into a new custom hook `useCurationPageData`. This is a pure "cut-and-paste" extraction — no logic changes.
 
-### File 1: `src/lib/cogniblend/curationTypes.ts` (~95 lines)
-All interfaces extracted from lines 158-236 + 268-275 + 901-909 + 1191-1194:
-- `ChallengeData`, `LegalDocSummary`, `LegalDocDetail`, `EscrowRecord`, `ComplexityParam`
-- `AIQualitySummary`, `SectionDef`, `GroupDef`
+## File Created
 
-### File 2: `src/lib/cogniblend/curationHelpers.ts` (~200 lines)
-Pure functions from lines 241-259 + 991-1212:
-- `parseJson<T>()` — generic JSON parser
-- `getFieldValue()` — extract field value for editing
-- `getDeliverableItems()`, `getDeliverableObjects()`, `getExpectedOutcomeObjects()`, `getSubmissionGuidelineObjects()` — structured data extractors
-- `getEvalCriteria()` — evaluation criteria parser
-- `getSectionContent()` — content resolver for AI refinement
-- `computeAutoChecks()` — checklist auto-check logic
-- `resolveIndustrySegmentId()` — industry segment resolver
-- `GAP_FIELD_TO_SECTION` constant, `CHECKLIST_LABELS` constant
+### `src/hooks/cogniblend/useCurationPageData.ts` (~200 lines)
 
-Imports needed: types from `curationTypes.ts`, `parseDeliverables` from `@/utils/parseDeliverableItem`, `EXTENDED_BRIEF_FIELD_MAP` from `@/lib/cogniblend/curationSectionFormats`, `unwrapEvalCriteria`, `unwrapArray`, `isJsonFilled`, `parseJson as jsonParse` from `@/lib/cogniblend/jsonbUnwrap`, `isControlledMode`, `resolveGovernanceMode` from `@/lib/governanceMode`
+Receives `challengeId: string | undefined` and returns every state variable, setter, and query result as a flat object.
 
-### File 3: `src/lib/cogniblend/curationSectionDefs.tsx` (~680 lines)
-The SECTIONS array (lines 277-899), GROUPS array (lines 912-983), SECTION_MAP, LcStatusBadge component, LOCKED_SECTIONS and TEXT_SECTIONS constants.
+**Moves from CurationReviewPage:**
+- ~35 `useState` declarations (lines 188-244): `activeGroup`, `editingSection`, `savingSection`, `approvedSections`, `aiReviews`, `aiReviewsLoaded`, `aiReviewLoading`, `phase2Progress`, `phase2Status`, `aiSuggestedComplexity`, `triageTotalCount`, `manualOverrides`, `expandVersion`, `highlightWarnings`, `showOnlyStale`, `guidedMode`, `dismissedPrereqBanner`, `optimisticIndustrySegId`, `escrowEnabled`, `isAcceptingAllLegal`, `preFlightResult`, `preFlightDialogOpen`, `budgetShortfall`, `contextLibraryOpen`, `aiQuality`, `aiQualityLoading`, `lockedSendState`
+- 5 `useQuery` calls (lines 254-373): challenge query, orgTypeName query, legalDocs query, legalDetails query, escrowRecord query, sectionActions query
+- `masterData` hook call (line 346)
 
-**Note on size**: The SECTIONS array alone is 622 lines — a pure data/config array that cannot be split without restructuring. This is acceptable as a data file with no business logic. Further decomposition would violate the "MOVE, don't REWRITE" safety rule.
+**Imports:** Types from `curationTypes.ts`, supabase client, React Query, CACHE_STANDARD, etc.
 
-Imports needed: types from `curationTypes.ts`, helpers from `curationHelpers.ts`, plus React components used in render callbacks (AiContentRenderer, Badge, DeliverableCardRenderer, RewardStructureDisplay, Table components, lucide icons, getMaturityLabel, isControlledMode, resolveGovernanceMode).
+## File Modified
 
-## What gets modified
+### `CurationReviewPage.tsx` — Remove ~190 lines, add 1 import + destructure
 
-### `CurationReviewPage.tsx` — Remove ~950 lines, add 3 imports
-- Remove lines 154-1212 (types, section defs, helpers, constants)
-- Add imports:
+Replace the moved declarations with:
 ```typescript
-import { ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord, ComplexityParam, AIQualitySummary } from '@/lib/cogniblend/curationTypes';
-import { SECTIONS, GROUPS, SECTION_MAP, LOCKED_SECTIONS, TEXT_SECTIONS } from '@/lib/cogniblend/curationSectionDefs';
-import { parseJson, getFieldValue, getDeliverableItems, getDeliverableObjects, getExpectedOutcomeObjects, getSubmissionGuidelineObjects, getEvalCriteria, getSectionContent, computeAutoChecks, resolveIndustrySegmentId, GAP_FIELD_TO_SECTION, CHECKLIST_LABELS } from '@/lib/cogniblend/curationHelpers';
+import { useCurationPageData } from '@/hooks/cogniblend/useCurationPageData';
+
+// Inside component:
+const pageData = useCurationPageData(challengeId);
+const {
+  activeGroup, setActiveGroup,
+  editingSection, setEditingSection,
+  // ... all ~35 state vars + 6 query results
+} = pageData;
 ```
-- Keep the mid-file import of `complexityScoring` since it's used elsewhere in the component
-- CurationReviewPage drops from 4,402 to ~3,450 lines
+
+Remaining code uses the same variable names — zero changes needed downstream.
 
 ## Risk Assessment
-- **ZERO risk** — pure data arrays and pure functions with no state, no closures, no side effects
+- **LOW risk** — `useState` and `useQuery` are declaration-only with no closure dependencies on later-defined callbacks
+- Hook ordering preserved: all hooks move together, maintaining call order
 - No exported interfaces change
 - No React Query keys change
-- No Supabase references change
-- The page renders identically before and after
+- CurationReviewPage drops from ~3,356 to ~3,166 lines
 
 ## Verification
-After implementation: open any challenge from /cogni/curation, verify all 6 section groups render, section content displays, no console errors, no TypeScript errors.
-
+After implementation: open any challenge from /cogni/curation, verify all section groups render, queries load data, state changes work (editing, approvals, etc.), no console errors.
