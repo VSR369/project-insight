@@ -849,6 +849,17 @@ ${maturity === 'BLUEPRINT' || maturity === 'blueprint' ? 'Blueprint = strategic 
     if (geoBlock) parts.push(geoBlock);
   }
 
+  // Phase 11: Industry + Geography Intelligence
+  if (challengeContext?._industryPack || challengeContext?._geoContext) {
+    prompt += buildIndustryIntelligence(
+      challengeContext._industryPack,
+      challengeContext._geoContext,
+      challengeContext._regionCode,
+      sectionConfigs.map(c => c.section_key),
+    );
+    prompt += buildGeographyContext(challengeContext._geoContext);
+  }
+
 
 /**
  * Sanitize AI suggestion for table-format sections.
