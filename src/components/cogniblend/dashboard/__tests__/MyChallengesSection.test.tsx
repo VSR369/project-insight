@@ -25,7 +25,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 2,
     governance_profile: 'LIGHTWEIGHT',
     governance_mode_override: null,
-    role_code: 'CR',
+    role_codes: ['CR'],
     operating_model: 'MP',
     created_at: '2025-06-01T10:00:00Z',
   },
