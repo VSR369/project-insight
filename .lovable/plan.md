@@ -1,18 +1,18 @@
 
-# Batch D Implementation Plan
+# Batch D Implementation Plan — COMPLETE
 
-Next 6 files in the 430–500 line range, targeting ≤200 lines each.
+6 files in the 430–500 line range decomposed.
 
-## Files to Decompose
+## Results
 
-| # | File | Current | Extraction Plan |
-|---|------|:-------:|-----------------|
-| 1 | `ReviewerEditForm.tsx` | 499 | Extract `ReviewerFormFields.tsx` (form field groups) + `ReviewerFormSchema.ts` (Zod schema & types) |
-| 2 | `useQuestionBank.ts` | 496 | Extract `questionBankMutations.ts` (create/update/delete mutations) |
-| 3 | `InterviewKitImportDialog.tsx` | 488 | Extract `InterviewKitImportPreview.tsx` (preview table) + `interviewKitImportUtils.ts` (parsing/validation) |
-| 4 | `PodcastStudio.tsx` | 482 | Extract `PodcastRecorder.tsx` (recording controls) + `PodcastEpisodeList.tsx` (episode list UI) |
-| 5 | `LifecycleRulesPage.tsx` | 473 | Extract `LifecycleRuleEditor.tsx` (rule editing form) + `LifecycleRuleTable.tsx` (rules table) |
-| 6 | `ProficiencyImportDialog.tsx` | 467 | Extract `ProficiencyImportPreview.tsx` (preview/validation UI) + `proficiencyImportParser.ts` (Excel parsing) |
+| # | File | Before | After | Extracted |
+|---|------|:------:|:-----:|-----------|
+| 1 | `ReviewerEditForm.tsx` | 499 | 189 | `ReviewerCoverageFields.tsx`, `ReviewerPreferenceFields.tsx` |
+| 2 | `useQuestionBank.ts` | 496 | 229 | `questionBankConstants.ts` (types, configs, helpers) |
+| 3 | `InterviewKitImportDialog.tsx` | 488 | 214 | `InterviewKitImportPreview.tsx` |
+| 4 | `PodcastStudio.tsx` | 482 | 182 | `PodcastAudioPreview.tsx` |
+| 5 | `LifecycleRulesPage.tsx` | 473 | 260 | `lifecycleRulesHelpers.ts` |
+| 6 | `ProficiencyImportDialog.tsx` | 467 | 153 | `ProficiencyImportSteps.tsx` (PreviewStep, ImportingStep, CompleteStep) |
 
 ## Safety Rules
 - Move code only — no logic rewrites
