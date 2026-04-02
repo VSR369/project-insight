@@ -80,13 +80,6 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
         >
           {orgName}
         </h2>
-        <div className={`
-          mt-2 transition-opacity duration-200
-          ${isExpanded ? 'md:opacity-100' : 'md:opacity-0'}
-          lg:opacity-100
-        `}>
-          <GovernanceProfileBadge profile={governanceProfile} compact />
-        </div>
       </div>
 
       {/* Divider */}
