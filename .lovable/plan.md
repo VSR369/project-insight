@@ -1,92 +1,148 @@
 
 
-# Phase D2.1 — Extract Data Hook from CurationReviewPage
+# Full Decomposition Plan — Phases D2.2 through D6.3
 
-## Summary
-Move all `useState` declarations (lines 188-244) and `useQuery` calls (lines 254-373 + masterData at line 346) from `CurationReviewPage.tsx` into a new custom hook `useCurationPageData.ts`. Pure cut-and-paste — no logic changes.
+## Current State
+- **D1.1 DONE**: `curationTypes.ts`, `curationHelpers.ts`, `curationSectionDefs.tsx` extracted
+- **D2.1 DONE**: `useCurationPageData.ts` hook extracted
+- **CurationReviewPage.tsx**: 3,205 lines (target: ~180)
+- **review-challenge-sections/index.ts**: 1,995 lines (target: ~1,200)
+- **promptTemplate.ts**: 1,675 lines (target: ~50 barrel)
+- **AIReviewResultPanel.tsx**: ~1,355 lines (target: ~180)
+- **13 remaining phases** to implement
 
-## File Created
+## Implementation Sequence
 
-### `src/hooks/cogniblend/useCurationPageData.ts` (~230 lines)
+### Phase D2.2 — Extract edge function helpers from review-challenge-sections/index.ts
 
-**Receives:** `challengeId: string | undefined`
+Create 3 new files inside `supabase/functions/review-challenge-sections/`:
 
-**Moves from CurationReviewPage (lines 188-373):**
+1. **`masterData.ts`** — Move `fetchMasterDataOptions` function (~45 lines)
+2. **`aiCalls.ts`** — Move `callAIPass1Analyze` + `callAIPass2Rewrite` (~545 lines)
+3. **`complexity.ts`** — Move `callComplexityAI` + `executeComplexityAssessment` (~165 lines)
 
-State declarations (~30 useState calls):
-- `activeGroup`, `editingSection`, `savingSection`, `approvedSections`
-- `aiReviews`, `aiReviewsLoaded`, `aiReviewLoading`
-- `phase2Progress`, `phase2Status`, `aiSuggestedComplexity`
-- `triageTotalCount`, `manualOverrides`, `expandVersion`
-- `highlightWarnings`, `showOnlyStale`, `guidedMode`, `dismissedPrereqBanner`
-- `optimisticIndustrySegId`, `escrowEnabled`, `isAcceptingAllLegal`
-- `preFlightResult`, `preFlightDialogOpen`, `budgetShortfall`
-- `contextLibraryOpen`, `aiQuality`, `aiQualityLoading`, `lockedSendState`
+Update `index.ts` to import from these modules. Drops index.ts to ~1,200 lines.
 
-Query declarations (6 useQuery + 1 hook):
-- `challenge` query (curation-review)
-- `orgTypeName` query (curation-org-type)
-- `legalDocs` query (curation-legal-summary)
-- `legalDetails` query (curation-legal-details)
-- `escrowRecord` query (curation-escrow)
-- `sectionActions` query (curator-section-actions)
-- `masterData` via `useCurationMasterData()`
+### Phase D3.1 — Extract CurationRightRail
 
-**Does NOT move** (stays in CurationReviewPage because they have closure dependencies):
-- `handleExpandCollapseAll` callback (line 224) — depends on `activeGroup` + `GROUPS`
-- All other hooks that depend on returned state (useSectionApprovals, useCurationStoreHydration, etc.)
+Create `src/components/cogniblend/curation/CurationRightRail.tsx`. Move the right-rail JSX block (~362 lines) from CurationReviewPage into this component with all required props. If over 200 lines, split into individual card sub-components. Page drops to ~2,850 lines.
 
-**Returns:** flat object with every state variable, setter, and query result — enabling zero-change destructuring in the parent.
+### Phase D3.2 — Extract CurationSectionList
 
-**Exports:** `CurationPageState` interface for type safety.
+Create `src/components/cogniblend/curation/CurationSectionList.tsx` and `CurationSectionItem.tsx`. Move the ~930-line section rendering loop. This is the highest-risk extraction due to ~25 closure dependencies. Page drops to ~1,920 lines.
 
-## File Modified
+### Phase D3.3 — Extract CurationHeaderBar
 
-### `CurationReviewPage.tsx`
+Create `src/components/cogniblend/curation/CurationHeaderBar.tsx`. Move the header, group navigation strip, breadcrumbs, and top action bar (~273 lines). Page drops to ~1,650 lines.
 
-1. Add import:
-```typescript
-import { useCurationPageData } from '@/hooks/cogniblend/useCurationPageData';
-```
+### Phase D4.1 — Extract section save/edit callbacks
 
-2. Replace lines 188-373 (the useState + useQuery block) with:
-```typescript
-const {
-  activeGroup, setActiveGroup, editingSection, setEditingSection,
-  savingSection, setSavingSection, approvedSections, setApprovedSections,
-  aiReviews, setAiReviews, aiReviewsLoaded, setAiReviewsLoaded,
-  aiReviewLoading, setAiReviewLoading, phase2Progress, setPhase2Progress,
-  phase2Status, setPhase2Status, aiSuggestedComplexity, setAiSuggestedComplexity,
-  triageTotalCount, setTriageTotalCount, manualOverrides, setManualOverrides,
-  expandVersion, setExpandVersion, highlightWarnings, setHighlightWarnings,
-  showOnlyStale, setShowOnlyStale, guidedMode, setGuidedMode,
-  dismissedPrereqBanner, setDismissedPrereqBanner,
-  optimisticIndustrySegId, setOptimisticIndustrySegId,
-  escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, setIsAcceptingAllLegal,
-  preFlightResult, setPreFlightResult, preFlightDialogOpen, setPreFlightDialogOpen,
-  budgetShortfall, setBudgetShortfall, contextLibraryOpen, setContextLibraryOpen,
-  aiQuality, setAiQuality, aiQualityLoading, setAiQualityLoading,
-  lockedSendState, setLockedSendState,
-  challenge, isLoading, orgTypeName,
-  legalDocs, legalDetails, escrowRecord, masterData, sectionActions,
-} = useCurationPageData(challengeId);
-```
+Create `src/hooks/cogniblend/useCurationSectionActions.ts`. Move `handleSaveSection`, `handleStartEditing`, `handleCancelEditing`, `handleToggleApproval`, `handleAcceptSuggestion`, `handleRejectSuggestion` callbacks. Page drops to ~1,450 lines.
 
-3. Keep `handleExpandCollapseAll` (moves right after the destructure since it depends on `activeGroup`).
+### Phase D4.2 — Extract AI review callbacks
 
-4. Remove now-unused imports: `CACHE_STANDARD` (if only used by moved queries), `useCurationMasterData` (now imported in hook).
+Create `src/hooks/cogniblend/useCurationAIActions.ts`. Move `handleWaveSectionReviewed`, complexity callbacks, triage callbacks, AI re-review callbacks. Page drops to ~1,250 lines.
+
+### Phase D5.1 — Decompose AIReviewResultPanel (1,355 lines)
+
+Create 4 new files in `src/components/cogniblend/curation/ai-review/`:
+1. `ReviewCommentList.tsx` — comment rendering logic
+2. `SuggestionPanel.tsx` — suggestion display with accept/reject
+3. `CrossSectionIssues.tsx` — cross-section issues list
+4. `ReviewConfigs.ts` — constants + `categorizeComment` helper
+
+AIReviewResultPanel becomes thin orchestrator (~180 lines).
+
+### Phase D5.2 — Decompose promptTemplate.ts (1,675 lines)
+
+Create 4 new files in `supabase/functions/review-challenge-sections/`:
+1. `promptBuilders.ts` — `buildStructuredBatchPrompt`, `buildConfiguredBatchPrompt`, `buildSmartBatchPrompt`
+2. `pass2Prompt.ts` — `buildPass2SystemPrompt`
+3. `industryGeoPrompt.ts` — `buildIndustryIntelligence`, `buildGeographyContext`, `resolveIndustryCode`, `countryToRegion`
+4. `contextIntelligence.ts` — `buildContextIntelligence`, `INTELLIGENCE_DIRECTIVE`, `detectDomainFrameworks`
+
+promptTemplate.ts becomes a barrel re-export (~50 lines).
+
+### Phase D5.3 — Decompose ComplexityAssessmentModule (945 lines) + AIReviewInline (884 lines)
+
+**ComplexityAssessmentModule:**
+1. `ComplexityRatingSliders.tsx` — 5-dimension slider UI
+2. `ComplexityResultCard.tsx` — summary result display
+3. `useComplexityScoring.ts` — scoring logic hook
+
+**AIReviewInline:**
+1. `AIReviewHeader.tsx` — run/cancel/status header
+2. `AIReviewSectionResults.tsx` — section-by-section results
+3. `useAIReviewRunner.ts` — review execution logic
+
+Both originals become orchestrators (~180 lines each).
+
+### Phase D5.4 — Decompose 8 Priority 2 files (500-711 lines each)
+
+Extract 1-2 sub-components from each so parent drops below 200 lines:
+- RewardStructureDisplay → RewardTierEditor + RewardSummaryCard
+- CreatorChallengeDetailView → CreatorApprovalSection + CreatorProgressSection
+- CuratorSectionPanel → SectionPanelToolbar + SectionContentRenderer
+- CurationChecklistPanel → ChecklistGroupCard
+- ExtendedBriefDisplay → BriefFieldRenderer
+- CurationActions → SubmitForApprovalDialog + ReturnToDraftDialog
+- SolverExpertiseSection → ExpertiseTagEditor
+- OrgContextPanel → OrgDetailCards
+
+### Phase D6.1 — Decompose 6 Priority 3 files (300-440 lines each)
+
+- SectionReferencePanel → FileUploadCard + UrlReferenceCard
+- EvaluationCriteriaSection → CriteriaRowEditor + WeightDistributionBar
+- useWaveExecutor → waveExecutionLoop.ts
+- curationFormStore → curationSelectors.ts
+- CurationSectionEditor → EditorToolbar
+- AICurationQualityPanel → QualityMetricCard
+
+### Phase D6.2 — Verify CurationReviewPage under 200 lines
+
+Final pass to ensure the page is a thin orchestrator importing hooks + components.
+
+### Phase D6.3 — Full regression test + cleanup
+
+Run the complete 13-point regression contract across all decomposed files.
 
 ## Technical Details
 
-- All hook calls maintain identical order (useState first, then useQuery) — no hook ordering violations
-- All React Query keys unchanged
-- All Supabase table/column references unchanged
-- The `orgTypeName` query depends on `challenge?.organization_id` which is returned by the challenge query within the same hook — this is safe since both are `useQuery` calls in the same render cycle
+- **Total files created**: ~44 new focused files
+- **Total files modified**: ~20 existing files refactored
+- **Files deleted**: 0
+- **Interfaces changed**: 0
+- **DB changes**: 0
+- **Business logic changes**: 0
+- **Safety rule**: MOVE code only, never REWRITE. Cut-and-paste with exact same props/closures.
+- **Hook ordering**: All useState before useQuery before useEffect — maintained in every extraction.
+- **Edge functions**: After modifying, will deploy via `supabase--deploy_edge_functions`.
 
 ## Risk Assessment
-- **LOW risk** — pure declaration extraction, no closures, no side effects
-- CurationReviewPage drops from ~3,356 to ~3,170 lines (~186 lines removed)
 
-## Verification
-Open any challenge from /cogni/curation → all 6 section groups render → section content displays → editing works → no console errors → no TypeScript errors.
+| Phase | Risk | Mitigation |
+|-------|------|-----------|
+| D2.2 | LOW | Pure async functions, no shared state |
+| D3.1 | MODERATE | ~15 props to identify |
+| D3.2 | MODERATE-HIGH | ~25 closure dependencies |
+| D3.3 | MODERATE | ~15 props, manageable |
+| D4.1-4.2 | MODERATE-HIGH | Must trace every closure variable |
+| D5.1-5.3 | LOW-MODERATE | Leaf components, single parent |
+| D5.4 | MODERATE | 8 files in batch, but each is simple |
+| D6.1-6.3 | LOW | Small files, cleanup only |
+
+## Expected Outcome
+
+| File | Before | After |
+|------|--------|-------|
+| CurationReviewPage.tsx | 3,205 | ~180 |
+| review-challenge-sections/index.ts | 1,995 | ~1,200 |
+| promptTemplate.ts | 1,675 | ~50 |
+| AIReviewResultPanel.tsx | 1,355 | ~180 |
+| ComplexityAssessmentModule.tsx | 945 | ~180 |
+| AIReviewInline.tsx | 884 | ~180 |
+| 8 Priority 2 files | ~4,890 | ~1,440 |
+| 6 Priority 3 files | ~2,153 | ~1,200 |
+
+**74% reduction in monolithic code. All files under 200 lines.**
 
