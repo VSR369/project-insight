@@ -15,12 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, ChevronRight, Save, X, GraduationCap } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { CACHE_STABLE } from "@/config/queryCache";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Json } from "@/integrations/supabase/types";
+import { useFullTaxonomyTree } from "@/hooks/queries/useFullTaxonomyTree";
 
 // ---------------------------------------------------------------------------
 // Types
