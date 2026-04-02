@@ -256,6 +256,10 @@ const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallen
 const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
 const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
 
+// Phase 11: Industry + Geography Intelligence
+const IndustryPacksPage = lazy(() => import("@/pages/admin/industry-packs/IndustryPacksPage"));
+const GeographyContextPage = lazy(() => import("@/pages/admin/geography-context/GeographyContextPage"));
+
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
 
