@@ -61,16 +61,6 @@ function getModelForRequest(sectionKeys: string[], globalConfig: any): string {
   return globalConfig?.default_model || 'google/gemini-3-flash-preview';
 }
 
-/* ── Change 4: Clean literal escape sequences from AI output ── */
-function cleanAIOutput(text: string | null | undefined): string | null {
-  if (!text || typeof text !== 'string') return null;
-  return text
-    .replace(/\\n/g, '\n')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\')
-    .trim();
-}
 
 /* ── FIX 3: Helper functions for curated prompts ── */
 
