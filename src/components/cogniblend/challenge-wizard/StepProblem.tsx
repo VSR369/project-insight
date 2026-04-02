@@ -54,21 +54,6 @@ const PROBLEM_MIN_QUICK = 200;
 const SCOPE_MIN_ENTERPRISE = 200;
 const SCOPE_MIN_QUICK = 100;
 
-const DOMAIN_TAGS = [
-  'AI/ML', 'Biotech', 'Clean Energy', 'Materials Science',
-  'Digital Health', 'Manufacturing', 'Software', 'Sustainability',
-] as const;
-
-const TAG_COLORS: Record<string, string> = {
-  'AI/ML': 'bg-violet-100 text-violet-700 border-violet-200',
-  'Biotech': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  'Clean Energy': 'bg-green-100 text-green-700 border-green-200',
-  'Materials Science': 'bg-sky-100 text-sky-700 border-sky-200',
-  'Digital Health': 'bg-pink-100 text-pink-700 border-pink-200',
-  'Manufacturing': 'bg-orange-100 text-orange-700 border-orange-200',
-  'Software': 'bg-blue-100 text-blue-700 border-blue-200',
-  'Sustainability': 'bg-teal-100 text-teal-700 border-teal-200',
-};
 
 /* ─── Props ──────────────────────────────────────────────── */
 
