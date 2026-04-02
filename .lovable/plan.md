@@ -1,32 +1,20 @@
 
+# Batch C Implementation Plan
 
-# Batch B Implementation Plan
-
-You're right — let's proceed batch by batch. Here's the concrete plan for **Batch B** (the next set of 6 files in the 400-560 line range).
+Next 6 files in the 400-484 line range, targeting ≤200 lines each.
 
 ## Files to Decompose
 
-| # | File | Current | Target | Extraction |
-|---|------|:-------:|:------:|------------|
-| 1 | `useCurationPageOrchestrator.ts` (560) | 560 | ~200 | Extract `useCurationEffects.ts` + `useCurationMutations.ts` |
-| 2 | `OrgContextPanel.tsx` (519) | 519 | ~180 | Wire already-created `OrgFormFields.tsx` + `OrgAttachmentList.tsx` |
-| 3 | `ComplexityAssessmentModule.tsx` (503) | 503 | ~180 | Extract `ComplexityRatingSliders.tsx` + `ComplexityResultCard.tsx` |
-| 4 | `CurationActions.tsx` (496) | 496 | ~180 | Extract `ActionButtonGroup.tsx` |
-| 5 | `CreatorChallengeDetailView.tsx` (478) | 478 | ~180 | Extract `CreatorTabContent.tsx` |
-| 6 | `useCurationAcceptRefinement.ts` (433) | 433 | ~200 | Wire already-created `normalizeAIContent.ts` |
-
-## Approach
-
-1. Read each file to understand its structure
-2. Identify extractable blocks (pure functions, sub-components, effect groups)
-3. Create new focused files — MOVE code only, no logic changes
-4. Update parent files to import and delegate
-5. Verify TypeScript compilation after each file
+| # | File | Current | Extraction Plan |
+|---|------|:-------:|-----------------|
+| 1 | `StepRequirements.tsx` | 484 | Extract `RequirementsFieldGroups.tsx` (form field sections) |
+| 2 | `useSubmitSolutionRequest.ts` | 473 | Extract `solutionSubmitHelpers.ts` (validation/transform logic) |
+| 3 | `EscrowManagementPage.tsx` | 452 | Extract `EscrowDetailPanel.tsx` + `EscrowTable.tsx` |
+| 4 | `CogniLoginPage.tsx` | 446 | Extract `CogniLoginForm.tsx` + `CogniLoginLayout.tsx` |
+| 5 | `SolverExpertiseSection.tsx` | 426 | Extract `ExpertiseDisplayCards.tsx` + `ExpertiseEditor.tsx` |
+| 6 | `CurationRightRail.tsx` | 425 | Extract `RightRailSections.tsx` (panel sub-sections) |
 
 ## Safety Rules
-
-- Move code only — no rewrites
+- Move code only — no logic rewrites
 - No interface changes
-- Hook order preserved (useState → useQuery → useEffect → conditional returns)
-- Files #2 and #6 already have extraction targets created — just need wiring
-
+- Hook order preserved
