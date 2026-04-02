@@ -30,6 +30,7 @@ interface CreatorOrgContextCardProps {
   organizationId: string;
   governanceMode: GovernanceMode;
   fillTrigger?: number;
+  challengeId?: string;
 }
 
 export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0 }: CreatorOrgContextCardProps) {
