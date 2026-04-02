@@ -56,6 +56,7 @@ const ITEMS: MyChallengeItem[] = [
 ];
 
 const ROLE_COUNTS: Record<string, number> = { CR: 2, CU: 1, ER: 0, ID: 0 };
+const AVAILABLE_ROLES = ['CR', 'CU', 'ER'];
 
 describe('TW1-06 — MyChallengesSection filter tabs', () => {
   it('renders all 5 tabs with correct labels', () => {
