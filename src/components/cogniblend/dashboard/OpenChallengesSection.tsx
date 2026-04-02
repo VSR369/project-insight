@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CACHE_FREQUENT } from '@/config/queryCache';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Clock, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
@@ -32,6 +33,8 @@ interface OpenChallenge {
   currency_code: string | null;
   submission_deadline: string | null;
   complexity_level: string | null;
+  governance_profile: string | null;
+  governance_mode_override: string | null;
   md_challenge_complexity: { complexity_label: string; complexity_level: number } | null;
   md_engagement_models: { name: string } | null;
 }
@@ -44,6 +47,7 @@ function useOpenChallenges() {
         .from('challenges')
         .select(`
           id, title, total_fee, currency_code, submission_deadline, complexity_level,
+          governance_profile, governance_mode_override,
           md_challenge_complexity(complexity_label, complexity_level),
           md_engagement_models(name)
         `)
@@ -124,6 +128,7 @@ export function OpenChallengesSection() {
                 <span className={`rounded-full px-2.5 py-0.5 text-[10px] lg:text-xs font-medium ${cxStyle}`}>
                   {cxLabel}
                 </span>
+                <GovernanceProfileBadge profile={c.governance_mode_override ?? c.governance_profile} compact />
               </div>
 
               {/* Award amount */}
