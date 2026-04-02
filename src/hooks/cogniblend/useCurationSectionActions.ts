@@ -24,7 +24,6 @@ interface MasterDataOptions {
   complexityOptions: Array<{ value: string; label: string }>;
   eligibilityOptions: Array<{ value: string; label: string }>;
   visibilityOptions: Array<{ value: string; label: string }>;
-  [key: string]: unknown;
 }
 
 interface UseCurationSectionActionsOptions {
