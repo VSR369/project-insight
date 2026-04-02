@@ -328,6 +328,7 @@ export default function ChallengeCreatePage() {
         governanceMode={governanceMode}
         onDraftModeSync={handleDraftModeSync}
         onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
+        onDraftIdChange={setDraftChallengeId}
       />
     </div>
   );
