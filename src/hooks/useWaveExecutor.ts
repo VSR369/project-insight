@@ -203,7 +203,7 @@ export function useWaveExecutor({
       }
 
       const wave = EXECUTION_WAVES[i];
-      options.onProgress?.onWaveStart?.(i + 1);
+      onProgress?.onWaveStart?.(i + 1);
 
       // Mark wave as running
       setWaveProgress((prev) => ({
