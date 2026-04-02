@@ -246,7 +246,7 @@ export function useWaveExecutor({
             : w
         ),
       }));
-      options.onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
+      onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
       // Refresh context for next wave — re-read store sections
       context = buildChallengeContext(buildContextOptions());
