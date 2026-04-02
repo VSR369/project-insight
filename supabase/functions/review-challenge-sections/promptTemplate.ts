@@ -1004,6 +1004,21 @@ export function buildStructuredBatchPrompt(
     }
   }
 
+  // Phase 11: Industry + Geography Intelligence (structured batch)
+  if (clientContext?._industryPack || clientContext?._geoContext) {
+    const industryBlock = buildIndustryIntelligence(
+      clientContext._industryPack,
+      clientContext._geoContext,
+      clientContext._regionCode,
+      configs.map(c => c.section_key),
+    );
+    if (industryBlock) parts.push(industryBlock);
+
+    const geoBlock = buildGeographyContext(clientContext._geoContext);
+    if (geoBlock) parts.push(geoBlock);
+  }
+
+
   parts.push(`## OUTPUT FORMAT (PASS 1 — ANALYSIS ONLY)
 For each section, return a JSON object via the review_sections function with:
 
