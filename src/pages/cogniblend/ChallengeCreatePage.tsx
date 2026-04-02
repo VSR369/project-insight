@@ -6,12 +6,11 @@
  * Then 2-tab ChallengeCreatorForm with governance-aware validation.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, Building2, Zap, ShieldCheck, Info,
+  ArrowLeft, Building2, Info,
 } from 'lucide-react';
-import { Settings2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
