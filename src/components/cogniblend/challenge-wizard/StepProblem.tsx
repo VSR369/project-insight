@@ -22,8 +22,6 @@ import {
   Trash2,
   GripVertical,
   CheckCircle,
-  Check,
-  Loader2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
