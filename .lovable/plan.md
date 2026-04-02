@@ -1,40 +1,34 @@
 
 
-# Add Org Profile Document Upload to Creator's Organization Context Card
+# Restore Tier-Gated Governance Mode Selector
 
-## What
-The Curation side already supports org profile document uploads (via `OrgAttachmentList` + `useOrgContextData` using `challenge_attachments` with `section_key='org_profile'`). The Creator's `CreatorOrgContextCard` currently only has text fields. We will add the same document upload capability so Creators can share org/department profile documents (annual reports, capability decks, department overviews) alongside their challenge — these are about the **organization**, not the challenge itself.
+## What Was Wrong
+The previous change removed the Governance Mode selector entirely, replacing it with a read-only badge saying "configured by your Platform Supervisor." This is only correct for **Basic** tier (locked to QUICK). For Standard/Premium/Enterprise tiers, the Creator should be able to choose the governance mode per challenge from the modes their tier allows.
 
-## Approach
+## Correct UX Rules
 
-Since `CreatorOrgContextCard` does its own direct Supabase calls (no hook extraction), we will add a lightweight upload section at the bottom of the card. The upload will store files to `challenge_attachments` with `section_key='org_profile'` — the same table/key the Curation side reads — so documents flow through seamlessly.
+| Tier | Available Modes | UI Behavior |
+|------|----------------|-------------|
+| Basic | QUICK only | Read-only badge: "Your tier uses Quick governance" — no selector |
+| Standard | QUICK, STRUCTURED | Dropdown with 2 options |
+| Premium | QUICK, STRUCTURED, CONTROLLED | Dropdown with 3 options |
+| Enterprise | QUICK, STRUCTURED, CONTROLLED | Dropdown with 3 options |
 
-**However**, there is a subtlety: the Creator card does not have a `challengeId` prop (it only has `organizationId`). Org profile uploads currently go into `challenge_attachments` which requires a `challengeId`. Two options:
+## Changes
 
-1. Pass `challengeId` into `CreatorOrgContextCard` and use the existing pattern
-2. Store org docs at the organization level (a new approach)
+### `ChallengeCreatePage.tsx`
+Replace the current `EngagementModelSelector` component with a combined `GovernanceEngagementSelector` that:
 
-Option 1 is simpler and consistent with how Curation already works. We will pass the `challengeId` through.
+1. Reads `getAvailableGovernanceModes(currentOrg.tierCode)` to get allowed modes
+2. If only 1 mode available (Basic tier) → show read-only info badge with the mode name
+3. If 2+ modes available → show a dropdown/card selector for governance mode, using `GOVERNANCE_MODE_CONFIG` for labels, colors, and tooltips
+4. Keep the Engagement Model (MP/AGG) dropdown below as-is
+5. Each governance mode option shows its label + short description from config
 
-## Files Modified
+The governance mode selection fires `setGovernanceMode()` which already flows into the form via props. No other files need changes — the downstream logic (`resolveChallengeGovernance`, field rules, validation) already handles all three modes.
 
+### Files Modified
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/creator/CreatorOrgContextCard.tsx` | Add `challengeId` prop, add file upload query/handlers, render `OrgAttachmentList` at bottom |
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Pass `challengeId` (from draft) to `CreatorOrgContextCard` |
-
-## Technical Detail
-
-### CreatorOrgContextCard changes
-- Add `challengeId?: string` to props interface
-- Add a query for existing org profile attachments: `challenge_attachments` where `section_key='org_profile'` and `challenge_id=challengeId`
-- Add upload handler (upload to `challenge-attachments` storage bucket, insert row with `section_key='org_profile'`)
-- Add delete handler
-- Render `OrgAttachmentList` (reuse existing component from curation) below the editable fields, inside the collapsible content
-- Only show the upload section when `challengeId` is available (draft must be saved first)
-- Show a small hint: "Upload org or department profile documents — these help AI understand your organization, not the specific challenge"
-
-### ChallengeCreatePage changes
-- Pass the current `challengeId` (from saved draft state) to `CreatorOrgContextCard`
-- If no draft exists yet, the upload section will be hidden with a note: "Save draft first to upload documents"
+| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Restore governance mode selector with tier-gating logic |
 
