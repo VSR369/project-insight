@@ -105,6 +105,24 @@ export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrig
     setIsOpen(governanceMode !== 'QUICK');
   }, [governanceMode]);
 
+  // ═══════ Fill Test Data trigger ═══════
+  useEffect(() => {
+    if (fillTrigger === 0) return;
+    setDescription(ORG_SEED.organization_description);
+    setWebsite(ORG_SEED.website_url);
+    setLinkedin(ORG_SEED.linkedin_url);
+    setTwitter(ORG_SEED.twitter_url);
+    setTagline(ORG_SEED.tagline);
+    setIsOpen(true);
+    saveToOrg({
+      organization_description: ORG_SEED.organization_description,
+      website_url: ORG_SEED.website_url,
+      linkedin_url: ORG_SEED.linkedin_url,
+      twitter_url: ORG_SEED.twitter_url,
+      tagline: ORG_SEED.tagline,
+    });
+  }, [fillTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ═══════ Auto-save with debounce ═══════
   const saveToOrg = useCallback(
     (updates: Record<string, string | null>) => {

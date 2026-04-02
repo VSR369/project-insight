@@ -454,7 +454,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
       : seedWithDomainTags;
 
     form.reset(filteredSeed as CreatorFormValues);
-  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules]);
+    onFillTestData?.();
+  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData]);
 
   return (
     <FormProvider {...form}>
