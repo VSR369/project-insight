@@ -21,20 +21,20 @@ interface TestUser {
 }
 
 const MP_USERS: TestUser[] = [
-  { email: "mp-solo@cognitest.dev",      firstName: "MP",  lastName: "Solo Founder",  orgRoles: ["R2","R3","R5_MP","R6_MP","R7_MP","R8","R9"], challengeRoles: ["AM","CR","CU","ID","ER","LC","FC"] },
+  { email: "mp-solo@cognitest.dev",      firstName: "MP",  lastName: "Solo Founder",  orgRoles: ["R2","R3","R5_MP","R6_MP","R7_MP","R8","R9"], challengeRoles: ["CR","CU","ER","LC","FC"] },
   { email: "mp-architect@cognitest.dev",  firstName: "MP",  lastName: "Architect",     orgRoles: ["R3"],       challengeRoles: ["CR"] },
   { email: "mp-curator@cognitest.dev",    firstName: "MP",  lastName: "Curator",       orgRoles: ["R5_MP"],    challengeRoles: ["CU"] },
-  { email: "mp-director@cognitest.dev",   firstName: "MP",  lastName: "Director",      orgRoles: ["R6_MP"],    challengeRoles: ["ID"] },
+  { email: "mp-director@cognitest.dev",   firstName: "MP",  lastName: "Curator 2",     orgRoles: ["R6_MP"],    challengeRoles: ["CU"] },
   { email: "mp-reviewer@cognitest.dev",   firstName: "MP",  lastName: "Reviewer",      orgRoles: ["R7_MP"],    challengeRoles: ["ER"] },
   { email: "mp-finance@cognitest.dev",    firstName: "MP",  lastName: "Finance",       orgRoles: ["R8"],       challengeRoles: ["FC"] },
   { email: "mp-legal@cognitest.dev",      firstName: "MP",  lastName: "Legal",         orgRoles: ["R9"],       challengeRoles: ["LC"] },
 ];
 
 const AGG_USERS: TestUser[] = [
-  { email: "agg-solo@cognitest.dev",     firstName: "AGG", lastName: "Solo Founder",  orgRoles: ["R2","R4","R5_AGG","R6_AGG","R7_AGG","R8","R9","R10_CR"], challengeRoles: ["RQ","CR","CU","ID","ER","LC","FC"] },
+  { email: "agg-solo@cognitest.dev",     firstName: "AGG", lastName: "Solo Founder",  orgRoles: ["R2","R4","R5_AGG","R6_AGG","R7_AGG","R8","R9","R10_CR"], challengeRoles: ["CR","CU","ER","LC","FC"] },
   { email: "agg-creator@cognitest.dev",  firstName: "AGG", lastName: "Creator",       orgRoles: ["R4"],        challengeRoles: ["CR"] },
   { email: "agg-curator@cognitest.dev",  firstName: "AGG", lastName: "Curator",       orgRoles: ["R5_AGG"],    challengeRoles: ["CU"] },
-  { email: "agg-director@cognitest.dev", firstName: "AGG", lastName: "Director",      orgRoles: ["R6_AGG"],    challengeRoles: ["ID"] },
+  { email: "agg-director@cognitest.dev", firstName: "AGG", lastName: "Curator 2",     orgRoles: ["R6_AGG"],    challengeRoles: ["CU"] },
   { email: "agg-reviewer@cognitest.dev", firstName: "AGG", lastName: "Reviewer",      orgRoles: ["R7_AGG"],    challengeRoles: ["ER"] },
   { email: "agg-finance@cognitest.dev",  firstName: "AGG", lastName: "Finance",       orgRoles: ["R8"],        challengeRoles: ["FC"] },
   { email: "agg-legal@cognitest.dev",    firstName: "AGG", lastName: "Legal",         orgRoles: ["R9"],        challengeRoles: ["LC"] },

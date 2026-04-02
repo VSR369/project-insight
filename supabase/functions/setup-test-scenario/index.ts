@@ -27,7 +27,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: false,
     users: [
-      { email: "mp-quick-admin@testsetup.dev", displayName: "MP Quick Admin", roles: ["AM", "CA", "CU", "ID", "ER", "FC"] },
+      { email: "mp-quick-admin@testsetup.dev", displayName: "MP Quick Admin", roles: ["CR", "CU", "ER", "LC", "FC"] },
     ],
   },
   mp_enterprise_3: {
@@ -38,9 +38,9 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "mp-ent-creator@testsetup.dev", displayName: "MP Ent Architect", roles: ["CA", "CU"] },
-      { email: "mp-ent-director@testsetup.dev", displayName: "MP Ent Director", roles: ["ID", "ER"] },
-      { email: "mp-ent-ops@testsetup.dev", displayName: "MP Ent Ops", roles: ["AM", "FC"] },
+      { email: "mp-ent-creator@testsetup.dev", displayName: "MP Ent Creator", roles: ["CR", "CU"] },
+      { email: "mp-ent-director@testsetup.dev", displayName: "MP Ent Reviewer", roles: ["CU", "ER"] },
+      { email: "mp-ent-ops@testsetup.dev", displayName: "MP Ent Ops", roles: ["LC", "FC"] },
     ],
   },
   agg_enterprise_8: {
@@ -51,10 +51,8 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "agg-ent-rq@testsetup.dev", displayName: "AGG Requestor", roles: ["RQ"] },
       { email: "agg-ent-cr@testsetup.dev", displayName: "AGG Creator", roles: ["CR"] },
       { email: "agg-ent-cu@testsetup.dev", displayName: "AGG Curator", roles: ["CU"] },
-      { email: "agg-ent-id@testsetup.dev", displayName: "AGG Innov Director", roles: ["ID"] },
       { email: "agg-ent-er1@testsetup.dev", displayName: "AGG Reviewer 1", roles: ["ER"] },
       { email: "agg-ent-er2@testsetup.dev", displayName: "AGG Reviewer 2", roles: ["ER"] },
       { email: "agg-ent-fc@testsetup.dev", displayName: "AGG Finance", roles: ["FC"] },
@@ -69,7 +67,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: true,
     isEnterprise: false,
     users: [
-      { email: "agg-quick-admin@testsetup.dev", displayName: "AGG Quick Admin", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "agg-quick-admin@testsetup.dev", displayName: "AGG Quick Admin", roles: ["CR", "CU", "ER", "LC", "FC"] },
     ],
   },
   new_horizon_demo: {
@@ -335,7 +333,7 @@ serve(async (req) => {
       is_deleted: false,
       is_qa_closed: false,
       solutions_awarded: 0,
-      description: "Demo MP challenge — AM intake for CR/CA spec review.",
+      description: "Demo MP challenge — Creator spec review.",
       problem_statement: "Our manufacturing floor experiences unplanned equipment failures that cost $2.3M annually in downtime. Current preventive maintenance schedules are time-based rather than condition-based, leading to both unexpected breakdowns and unnecessary maintenance on healthy equipment. We need a predictive maintenance solution that uses IoT sensor data and machine learning to forecast equipment failures 48-72 hours in advance.",
       scope: "The solution should: (1) integrate with existing SCADA and PLC systems across 12 production lines, (2) provide a real-time dashboard for maintenance teams, (3) generate automated work orders when failure probability exceeds threshold, (4) reduce unplanned downtime by at least 40% within 6 months of deployment, and (5) include a mobile app for field technicians.",
       reward_structure: { currency: "USD", budget_min: 25000, budget_max: 75000 },
@@ -375,7 +373,7 @@ serve(async (req) => {
       is_deleted: false,
       is_qa_closed: false,
       solutions_awarded: 0,
-      description: "Demo AGG challenge — RQ intake for CR/CA spec review.",
+      description: "Demo AGG challenge — Creator spec review.",
       problem_statement: "Administrative overhead in our patient intake and claims processing workflows consumes 35% of staff time. Manual data entry errors result in a 12% claims rejection rate, and average processing time is 14 business days. We believe automation and AI-assisted document processing could significantly reduce costs and improve accuracy, but we need expert guidance on the best approach.",
       scope: null,
       reward_structure: {},
@@ -396,9 +394,7 @@ serve(async (req) => {
     results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
 
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
-    // MP roles (AM, CA) → MP challenge only; AGG roles (RQ, CR) → AGG challenge only
-    // Shared roles (CU, ID, ER, LC, FC) → both challenges
-    // All modern roles are shared across both challenges
+    // All modern roles (CR, CU, ER, LC, FC) are assigned to both challenges
     const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
 
     for (const u of userIds) {
