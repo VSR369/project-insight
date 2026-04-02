@@ -199,7 +199,7 @@ async function persistAssignment(
 
   const { error: assignError } = await supabase
     .from("challenge_role_assignments")
-    .insert([assignmentData] as unknown as Record<string, unknown>[]);
+    .insert(assignmentData as any);
 
   if (assignError) {
     logWarning("Auto-assign: assignment insert failed", {
