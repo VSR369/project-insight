@@ -1438,8 +1438,11 @@ serve(async (req) => {
             orgContext.functionalAreas = org.functional_areas ?? [];
 
             if (org.hq_country_id) {
-              const { data: ctry } = await adminClient.from('countries').select('name').eq('id', org.hq_country_id).single();
-              if (ctry) orgContext.hqCountry = ctry.name;
+              const { data: ctry } = await adminClient.from('countries').select('name, code').eq('id', org.hq_country_id).single();
+              if (ctry) {
+                orgContext.hqCountry = ctry.name;
+                orgContext.hqCountryCode = ctry.code;
+              }
             }
             if (org.organization_type_id) {
               const { data: ot } = await adminClient.from('organization_types').select('name').eq('id', org.organization_type_id).single();
