@@ -123,6 +123,7 @@ interface ChallengeCreatorFormProps {
   governanceMode: GovernanceMode;
   onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
   onFillTestData?: () => void;
+  onDraftIdChange?: (id: string) => void;
 }
 
 function toFormMaturityCode(value: string | null | undefined): string {
@@ -133,7 +134,7 @@ function toFormMaturityCode(value: string | null | undefined): string {
   return `SOLUTION_${upper}`;
 }
 
-export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync, onFillTestData }: ChallengeCreatorFormProps) {
+export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync, onFillTestData, onDraftIdChange }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -149,7 +150,11 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
-  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(searchParams.get('draft'));
+  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(() => {
+    const urlDraft = searchParams.get('draft');
+    if (urlDraft) onDraftIdChange?.(urlDraft);
+    return urlDraft;
+  });
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
 
@@ -418,6 +423,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
       } else {
         const result = await draftMutation.mutateAsync(baseDraftPayload);
         setDraftChallengeId(result.challengeId);
+        onDraftIdChange?.(result.challengeId);
       }
 
       toast.success(draftChallengeId ? 'Draft updated' : 'Draft saved');

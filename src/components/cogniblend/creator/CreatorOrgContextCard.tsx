@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileText } from 'lucide-react';
 import {
   Building2, Globe, Linkedin, Twitter, ChevronDown, ChevronUp,
   AlertTriangle, Info, Users, Calendar, MapPin, DollarSign, Sparkles,
@@ -22,14 +23,17 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { ORG_SEED } from './creatorSeedContent';
+import { OrgAttachmentList } from '@/components/cogniblend/curation/OrgAttachmentList';
+import { useCreatorOrgAttachments } from '@/hooks/mutations/useCreatorOrgAttachments';
 
 interface CreatorOrgContextCardProps {
   organizationId: string;
   governanceMode: GovernanceMode;
   fillTrigger?: number;
+  challengeId?: string;
 }
 
-export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0 }: CreatorOrgContextCardProps) {
+export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0, challengeId }: CreatorOrgContextCardProps) {
   // ═══════ State ═══════
   const [isOpen, setIsOpen] = useState(governanceMode !== 'QUICK');
   const [description, setDescription] = useState('');
@@ -41,6 +45,7 @@ export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrig
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
+  const { attachments, upload, remove } = useCreatorOrgAttachments(challengeId);
 
   // ═══════ Queries ═══════
   const { data: org, isLoading: orgLoading } = useQuery({
@@ -365,11 +370,31 @@ export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrig
               </div>
             </div>
 
+            {/* ─── Org Profile Documents ─── */}
+            {challengeId ? (
+              <OrgAttachmentList
+                attachments={attachments}
+                isReadOnly={false}
+                onUpload={upload}
+                onDelete={remove}
+              />
+            ) : (
+              <div className="space-y-1 pt-3 border-t border-border">
+                <label className="text-xs font-medium flex items-center gap-1.5">
+                  <FileText className="h-3 w-3" />Organization Profile Documents
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Save as draft first to upload org/department documents (annual reports, capability decks, etc.)
+                </p>
+              </div>
+            )}
+
             {/* Info footer */}
             <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-2.5">
               <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 This context helps AI generate better challenge specs. Edits here update your org profile for all challenges.
+                {challengeId && ' Uploaded documents help AI understand your organization — not the specific challenge.'}
               </p>
             </div>
           </div>

@@ -212,6 +212,7 @@ export default function ChallengeCreatePage() {
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
   const [orgFillTrigger, setOrgFillTrigger] = useState(0);
+  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(null);
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
@@ -317,6 +318,7 @@ export default function ChallengeCreatePage() {
         organizationId={currentOrg.organizationId}
         governanceMode={governanceMode}
         fillTrigger={orgFillTrigger}
+        challengeId={draftChallengeId ?? undefined}
       />
 
       {/* Challenge Creator Form — governance-aware */}
@@ -326,6 +328,7 @@ export default function ChallengeCreatePage() {
         governanceMode={governanceMode}
         onDraftModeSync={handleDraftModeSync}
         onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
+        onDraftIdChange={setDraftChallengeId}
       />
     </div>
   );
