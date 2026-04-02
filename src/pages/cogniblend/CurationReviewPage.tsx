@@ -148,7 +148,7 @@ import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLi
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
-
+import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
 
 
 // ---------------------------------------------------------------------------
@@ -2842,294 +2842,87 @@ export default function CurationReviewPage() {
         </div>
 
         {/* RIGHT RAIL (1/4) */}
-        <div className="space-y-4">
-          {/* AI Quality Summary (compact) */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  AI Quality
-                </CardTitle>
-                <Button
-                  size="sm"
-                  variant={aiQuality ? "ghost" : "outline"}
-                  onClick={handleAIQualityAnalysis}
-                  disabled={aiQualityLoading}
-                  className="text-xs h-7 px-2"
-                >
-                  {aiQualityLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : aiQuality ? (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  ) : (
-                    "Analyze"
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {aiQuality ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "text-2xl font-bold",
-                      aiQuality.overall_score >= 80 ? "text-primary" :
-                      aiQuality.overall_score >= 60 ? "text-amber-600" :
-                      "text-destructive"
-                    )}>
-                      {aiQuality.overall_score}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {aiQuality.gaps.length} gap{aiQuality.gaps.length !== 1 ? "s" : ""} found
-                    </div>
-                  </div>
-                  <Progress value={aiQuality.overall_score} className="h-1.5" />
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Run analysis to get quality scores and identify gaps.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* AI Confidence Summary (Phase 10) */}
-          {challengeCtx && (
-            <AIConfidenceSummary
-              sectionKeys={GROUPS.flatMap(g => g.sectionKeys).filter(Boolean)}
-              context={challengeCtx}
-            />
-          )}
-
-          {/* Challenge Completeness Checklist (Phase 7) */}
-          <CompletenessChecklistCard
-            result={completenessResult}
-            checkDefs={completenessCheckDefs}
-            isRunning={completenessRunning}
-            onRun={runCompletenessCheck}
-            onNavigateToSection={handleNavigateToSection}
-          />
-
-          {/* Context Library Card (Phase 7) */}
-          {challengeId && (
-            <ContextLibraryCard
-              challengeId={challengeId}
-              onOpenLibrary={() => setContextLibraryOpen(true)}
-            />
-          )}
-
-          {/* Per-section AI Review button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAIReview}
-            disabled={aiReviewLoading}
-            className="w-full"
-          >
-            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-            Review Sections by AI
-          </Button>
-
-          {/* Wave Progress Panel (Phase 5) */}
-          <WaveProgressPanel progress={waveProgress} onCancel={cancelReview} />
-
-          {/* Budget Revision Panel (Phase 5) */}
-          {budgetShortfall && (
-            <BudgetRevisionPanel
-              shortfall={budgetShortfall}
-              currencyCode={challenge?.currency_code ?? 'USD'}
-              onAcceptAndSendToAM={async () => {
-                try {
-                  // 1. Apply revised reward to store
-                  if (curationStore && budgetShortfall) {
-                    const existingReward = curationStore.getState().getSectionEntry('reward_structure' as SectionKey);
-                    const updatedData = {
-                      ...(typeof existingReward.data === 'object' && existingReward.data ? existingReward.data : {}),
-                      _budgetRevised: true,
-                      _revisedReward: budgetShortfall.originalBudget,
-                      _revisionStrategy: budgetShortfall.strategy,
-                    };
-                    curationStore.getState().setSectionData('reward_structure' as SectionKey, updatedData as Record<string, unknown>);
-                  }
-
-                   // 2. Look up CR user for this challenge
-                   const { data: crRoles } = await supabase
-                     .from('user_challenge_roles')
-                     .select('user_id')
-                     .eq('challenge_id', challengeId!)
-                     .eq('role_code', 'CR')
-                     .limit(1);
-
-                   const crUserId = crRoles?.[0]?.user_id;
-                   if (crUserId) {
-                     // 3. Insert notification for CR
-                    await supabase.from('cogni_notifications').insert({
-                      user_id: crUserId,
-                      challenge_id: challengeId!,
-                      notification_type: 'budget_revision',
-                      title: 'Budget Revision Requires Approval',
-                      message: `Budget shortfall detected (${budgetShortfall!.gapPercentage}% gap). Strategy: ${budgetShortfall!.strategy}. Original: ${budgetShortfall!.originalBudget}, Minimum: ${budgetShortfall!.minimumViableReward}.`,
-                    });
-                  }
-
-                  toast.success('Revision accepted. Notification sent to Account Manager.');
-                } catch (err) {
-                  toast.error('Failed to send notification to Account Manager.');
-                }
-                setBudgetShortfall(null);
-              }}
-              onModifyManually={() => {
-                const group = GROUPS.find(g => g.sectionKeys.includes('reward_structure'));
-                if (group) setActiveGroup(group.id);
-                setBudgetShortfall(null);
-              }}
-              onReject={() => setBudgetShortfall(null)}
-            />
-          )}
-
-          {/* Completion Banner — shows after AI review finishes */}
-          {phase2Status === 'completed' && triageTotalCount > 0 && (() => {
-            const counts = { pass: 0, warning: 0, needs_revision: 0 };
-            aiReviews.forEach((r) => { counts[r.status as keyof typeof counts] = (counts[r.status as keyof typeof counts] || 0) + 1; });
-            return (
-              <Card className="border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30">
-                <CardContent className="pt-3 pb-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">AI Review Complete</p>
-                  <Progress value={100} className="h-2" />
-                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    All {triageTotalCount} sections reviewed
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
-                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
-                    <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* AI Review Summary */}
-          {aiReviews.length > 0 && (() => {
-            const counts = { pass: 0, warning: 0, needs_revision: 0 };
-            aiReviews.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1; });
-            const revisionSections = aiReviews.filter((r) => r.status === "needs_revision");
-            const warningSections = aiReviews.filter((r) => r.status === "warning");
-            return (
-              <Card className="border-border">
-                <CardContent className="pt-3 pb-3 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">{counts.pass} Pass</Badge>
-                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">{counts.warning} Warning</Badge>
-                    <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px]">{counts.needs_revision} Needs Revision</Badge>
-                    {staleSections.length > 0 && (
-                      <Badge className="bg-amber-50 text-amber-700 border-amber-400 text-[10px]">
-                        <AlertTriangle className="h-3 w-3 mr-0.5" />
-                        {staleSections.length} Stale
-                      </Badge>
-                    )}
-                  </div>
-                  {staleSections.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Stale (re-review needed)</p>
-                      {staleSections.map((s) => (
-                        <button
-                          key={s.key}
-                          className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
-                          onClick={() => {
-                            setShowOnlyStale(true);
-                            const group = GROUPS.find((g) => g.sectionKeys.includes(s.key));
-                            if (group) setActiveGroup(group.id);
-                          }}
-                        >
-                          • {getSectionDisplayName(s.key)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {revisionSections.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-medium text-destructive uppercase tracking-wide">Needs Revision</p>
-                      {revisionSections.map((r) => {
-                        const section = SECTION_MAP.get(r.section_key);
-                        return (
-                          <button
-                            key={r.section_key}
-                            className="text-xs text-destructive hover:underline block text-left w-full truncate"
-                            onClick={() => {
-                              const group = GROUPS.find((g) => g.sectionKeys.includes(r.section_key));
-                              if (group) setActiveGroup(group.id);
-                            }}
-                          >
-                            • {section?.label ?? r.section_key}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {warningSections.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Warnings</p>
-                      {warningSections.map((r) => {
-                        const section = SECTION_MAP.get(r.section_key);
-                        return (
-                          <button
-                            key={r.section_key}
-                            className="text-xs text-amber-700 hover:underline block text-left w-full truncate"
-                            onClick={() => {
-                              const group = GROUPS.find((g) => g.sectionKeys.includes(r.section_key));
-                              if (group) setActiveGroup(group.id);
-                            }}
-                          >
-                            • {section?.label ?? r.section_key}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* Action buttons + return modal + modification cycle */}
-          <CurationActions
-            challengeId={challengeId!}
-            phaseStatus={challenge.phase_status ?? null}
-            allComplete={allComplete}
-            checklistSummary={checklistSummary}
-            completedCount={completedCount}
-            totalCount={15}
-            operatingModel={challenge.operating_model}
-            readOnly={isReadOnly}
-            legalEscrowBlocked={legalEscrowBlocked}
-            blockingReason={blockingReason}
-            staleSections={staleSections.map(s => ({
-              key: s.key,
-              name: getSectionDisplayName(s.key),
-              causes: s.staleBecauseOf.map(c => getSectionDisplayName(c)),
-              staleAt: s.staleAt ?? new Date().toISOString(),
-            }))}
-            unreviewedSections={aiReviews
-              .filter(r => r.status === 'needs_revision')
-              .map(r => ({ key: r.section_key, name: SECTION_MAP.get(r.section_key)?.label ?? r.section_key }))}
-            onNavigateToStale={() => {
-              if (staleSections.length > 0) {
-                setShowOnlyStale(true);
-                const firstKey = staleSections[0].key;
-                const group = GROUPS.find(g => g.sectionKeys.includes(firstKey));
-                if (group) setActiveGroup(group.id);
+        <CurationRightRail
+          challengeId={challengeId!}
+          challengeCurrencyCode={challenge?.currency_code ?? 'USD'}
+          phaseStatus={challenge.phase_status ?? null}
+          operatingModel={challenge.operating_model}
+          isReadOnly={isReadOnly}
+          aiQuality={aiQuality}
+          aiQualityLoading={aiQualityLoading}
+          onAIQualityAnalysis={handleAIQualityAnalysis}
+          challengeCtx={challengeCtx}
+          allSectionKeys={GROUPS.flatMap(g => g.sectionKeys).filter(Boolean)}
+          completenessResult={completenessResult}
+          completenessCheckDefs={completenessCheckDefs}
+          completenessRunning={completenessRunning}
+          onRunCompletenessCheck={runCompletenessCheck}
+          onNavigateToSection={handleNavigateToSection}
+          onOpenContextLibrary={() => setContextLibraryOpen(true)}
+          aiReviewLoading={aiReviewLoading}
+          onAIReview={handleAIReview}
+          waveProgress={waveProgress}
+          onCancelReview={cancelReview}
+          budgetShortfall={budgetShortfall}
+          curationStore={curationStore}
+          onDismissBudgetShortfall={() => setBudgetShortfall(null)}
+          onModifyRewardManually={() => {
+            const group = GROUPS.find(g => g.sectionKeys.includes('reward_structure'));
+            if (group) setActiveGroup(group.id);
+            setBudgetShortfall(null);
+          }}
+          onAcceptBudgetRevision={async (shortfall) => {
+            try {
+              if (curationStore && shortfall) {
+                const existingReward = curationStore.getState().getSectionEntry('reward_structure' as SectionKey);
+                const updatedData = {
+                  ...(typeof existingReward.data === 'object' && existingReward.data ? existingReward.data : {}),
+                  _budgetRevised: true,
+                  _revisedReward: shortfall.originalBudget,
+                  _revisionStrategy: shortfall.strategy,
+                };
+                curationStore.getState().setSectionData('reward_structure' as SectionKey, updatedData as Record<string, unknown>);
               }
-            }}
-            onReReviewStale={async () => {
-              setAiReviewLoading(true);
-              try { await reReviewStale(); } finally { setAiReviewLoading(false); }
-            }}
-          />
-
-          {/* Modification Points Tracker */}
-          <ModificationPointsTracker challengeId={challengeId!} mode={isReadOnly ? "readonly" : "curator"} />
-        </div>
+              const { data: crRoles } = await supabase
+                .from('user_challenge_roles')
+                .select('user_id')
+                .eq('challenge_id', challengeId!)
+                .eq('role_code', 'CR')
+                .limit(1);
+              const crUserId = crRoles?.[0]?.user_id;
+              if (crUserId) {
+                await supabase.from('cogni_notifications').insert({
+                  user_id: crUserId,
+                  challenge_id: challengeId!,
+                  notification_type: 'budget_revision',
+                  title: 'Budget Revision Requires Approval',
+                  message: `Budget shortfall detected (${shortfall.gapPercentage}% gap). Strategy: ${shortfall.strategy}. Original: ${shortfall.originalBudget}, Minimum: ${shortfall.minimumViableReward}.`,
+                });
+              }
+              toast.success('Revision accepted. Notification sent to Account Manager.');
+            } catch (err) {
+              toast.error('Failed to send notification to Account Manager.');
+            }
+            setBudgetShortfall(null);
+          }}
+          phase2Status={phase2Status}
+          triageTotalCount={triageTotalCount}
+          aiReviews={aiReviews}
+          staleSections={staleSections}
+          showOnlyStale={showOnlyStale}
+          setShowOnlyStale={setShowOnlyStale}
+          groups={GROUPS}
+          sectionMap={SECTION_MAP}
+          getSectionDisplayName={getSectionDisplayName}
+          setActiveGroup={setActiveGroup}
+          allComplete={allComplete}
+          checklistSummary={checklistSummary}
+          completedCount={completedCount}
+          legalEscrowBlocked={legalEscrowBlocked}
+          blockingReason={blockingReason}
+          onReReviewStale={reReviewStale}
+          setAiReviewLoading={setAiReviewLoading}
+        />
       </div>
 
       {/* Send to LC/FC Modal for locked sections */}
