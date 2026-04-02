@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CACHE_FREQUENT } from '@/config/queryCache';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Clock, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
