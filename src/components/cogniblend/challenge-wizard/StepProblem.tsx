@@ -43,6 +43,7 @@ import { useCountries } from '@/hooks/queries/useMasterData';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import { AiFieldAssist } from './AiFieldAssist';
 import { LineItemsInput } from './LineItemsInput';
+import { DomainTagSelect, MaturityRadioCards } from './StepProblemSubComponents';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Constants ──────────────────────────────────────────── */
