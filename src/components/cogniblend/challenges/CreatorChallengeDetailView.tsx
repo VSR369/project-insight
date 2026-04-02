@@ -587,41 +587,21 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </div>
       </div>
 
-      {/* ── Creator Approval Banner ── */}
+      {/* ── Curation Progress Tracker (live, shown during curation only) ── */}
+      {data.current_phase != null && data.current_phase >= 2 && data.current_phase <= 3
+        && data.phase_status !== 'CR_APPROVAL_PENDING' && (
+        <CurationProgressTracker challengeId={challengeId} />
+      )}
+
+      {/* ── Creator Tiered Approval View ── */}
       {isPendingApproval && (
-        <Card className="border-violet-300 bg-violet-50/50 dark:bg-violet-900/20">
-          <CardContent className="py-4 px-5">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-violet-800 dark:text-violet-300">
-                  Curator review complete — your approval is required
-                </p>
-                <p className="text-xs text-violet-600 dark:text-violet-400">
-                  Review the Curator Version below. Approve to proceed to publication, or request changes.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => requestChangesMutation.mutate()}
-                  disabled={requestChangesMutation.isPending || approveMutation.isPending}
-                  className="border-violet-300 text-violet-700 hover:bg-violet-100"
-                >
-                  Request Changes
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => approveMutation.mutate()}
-                  disabled={approveMutation.isPending || requestChangesMutation.isPending}
-                  className="bg-violet-600 hover:bg-violet-700 text-white"
-                >
-                  {approveMutation.isPending ? 'Approving…' : 'Approve & Publish'}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <TieredApprovalView
+          challengeId={challengeId}
+          challengeData={data as unknown as Record<string, unknown>}
+          creatorSnapshot={snapshot as Record<string, unknown> | null}
+          governanceMode={effectiveGovernance}
+          sectionLabels={SECTION_LABELS}
+        />
       )}
 
       {/* Dual-tab view */}
