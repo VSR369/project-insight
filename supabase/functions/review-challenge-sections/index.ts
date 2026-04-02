@@ -1466,6 +1466,47 @@ serve(async (req) => {
         } catch (err) { console.warn('Org intel fetch failed:', err); }
       }
 
+      // ── Phase 11: Fetch industry knowledge pack + geography context ──
+      let industryPack: any = null;
+      let geoContext: any = null;
+      let regionCode: string | null = null;
+
+      try {
+        const rawIndustryCode = orgContext?.industries?.[0]?.code || null;
+        const industryCode = resolveIndustryCode(rawIndustryCode);
+
+        if (industryCode) {
+          const { data } = await adminClient
+            .from('industry_knowledge_packs')
+            .select('*')
+            .eq('industry_code', industryCode)
+            .eq('is_active', true)
+            .maybeSingle();
+          industryPack = data;
+        }
+
+        const countryCode = orgContext?.hqCountryCode || null;
+        regionCode = countryToRegion(countryCode);
+
+        if (regionCode) {
+          const { data } = await adminClient
+            .from('geography_context')
+            .select('*')
+            .eq('region_code', regionCode)
+            .single();
+          geoContext = data;
+        }
+      } catch (e) {
+        console.warn('Industry/geography fetch failed (non-blocking):', e);
+      }
+
+      // Attach to clientContext so prompt builders can access them
+      if (clientContext) {
+        clientContext._industryPack = industryPack;
+        clientContext._geoContext = geoContext;
+        clientContext._regionCode = regionCode;
+      }
+
       // Extract extended_brief fields for intake/spec
       if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
         const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
