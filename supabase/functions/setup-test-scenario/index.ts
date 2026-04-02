@@ -27,7 +27,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: false,
     users: [
-      { email: "mp-quick-admin@testsetup.dev", displayName: "MP Quick Admin", roles: ["AM", "CA", "CU", "ID", "ER", "FC"] },
+      { email: "mp-quick-admin@testsetup.dev", displayName: "MP Quick Admin", roles: ["CR", "CU", "ER", "LC", "FC"] },
     ],
   },
   mp_enterprise_3: {
