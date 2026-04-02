@@ -140,7 +140,7 @@ export function MyChallengesSection({
 
   const filteredItems = useMemo(() => {
     if (activeTab === 'ALL') return items;
-    return items.filter((item) => item.role_code === activeTab);
+    return items.filter((item) => item.role_codes.includes(activeTab));
   }, [items, activeTab]);
 
   /** Group filtered items by master_status, sorted by group order */
