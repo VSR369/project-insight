@@ -4,6 +4,7 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
+import { IncompleteItemsModal, ReturnToCreatorModal } from "./CurationActionModals";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,16 +12,6 @@ import { computeQualityScore } from "@/lib/cogniblend/computeQualityScore";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   Send,
   RotateCcw,
@@ -485,86 +476,21 @@ export default function CurationActions({
         </div>
       )}
 
-      {/* Incomplete Items Modal */}
-      <Dialog open={showIncompleteModal} onOpenChange={setShowIncompleteModal}>
-        <DialogContent className="w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Cannot Submit — Incomplete Items</DialogTitle>
-            <DialogDescription>
-              All 15 checklist items must be complete before submitting.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-2">
-            {uncheckedItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-                <span className="text-sm text-foreground">
-                  {item.id}. {item.label}
-                </span>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowIncompleteModal(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IncompleteItemsModal
+        open={showIncompleteModal}
+        onOpenChange={setShowIncompleteModal}
+        uncheckedItems={uncheckedItems}
+      />
 
-      {/* Return to Creator Modal */}
-      <Dialog open={showReturnModal} onOpenChange={setShowReturnModal}>
-        <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Return to Creator</DialogTitle>
-            <DialogDescription>
-              Provide the reason for returning this challenge for revision.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3">
-            {isFinalCycle && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  This is the final modification cycle. The challenge will be rejected if not
-                  resolved after this return.
-                </p>
-              </div>
-            )}
-            <div>
-              <Label htmlFor="return-reason">Reason for Return *</Label>
-              <Textarea
-                id="return-reason"
-                value={returnReason}
-                onChange={(e) => setReturnReason(e.target.value)}
-                placeholder="Describe what needs to be corrected (min 10 characters)..."
-                className="mt-2"
-                rows={5}
-              />
-              {returnReason.trim().length > 0 && returnReason.trim().length < 10 && (
-                <p className="text-xs text-destructive mt-1">
-                  Reason must be at least 10 characters.
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReturnModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleReturnSubmit}
-              disabled={returnReason.trim().length < 10 || returnMutation.isPending}
-              className="border-amber-500 bg-amber-500 text-white hover:bg-amber-600"
-            >
-              {returnMutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-              )}
-              Return
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ReturnToCreatorModal
+        open={showReturnModal}
+        onOpenChange={setShowReturnModal}
+        returnReason={returnReason}
+        onReturnReasonChange={setReturnReason}
+        onSubmit={handleReturnSubmit}
+        isPending={returnMutation.isPending}
+        isFinalCycle={isFinalCycle}
+      />
     </>
   );
 }
