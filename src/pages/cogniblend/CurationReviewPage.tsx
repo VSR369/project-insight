@@ -149,7 +149,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
-
+import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
+import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 
 // ---------------------------------------------------------------------------
 // Extracted modules (Phase D1.1)
