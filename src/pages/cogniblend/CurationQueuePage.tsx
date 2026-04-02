@@ -342,7 +342,7 @@ export default function CurationQueuePage() {
     );
   }
 
-  if (!hasPermission) {
+  if (!canSeeCurationQueue) {
     return (
       <div className="p-6 text-center text-muted-foreground">
         You do not have the Curator (CU) role required to access this page.
