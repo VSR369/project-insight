@@ -188,17 +188,15 @@ export default function ChallengeCreatePage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">New Challenge</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure governance and engagement, then fill out the challenge details.
+          Fill out the challenge details below. Governance mode is managed by your Platform Supervisor.
         </p>
       </div>
 
-      {/* Governance & Engagement Selectors */}
-      <GovernanceEngagementSelector
-        governanceMode={governanceMode}
-        onGovernanceModeChange={setGovernanceMode}
+      {/* Engagement Model Selector */}
+      <EngagementModelSelector
         engagementModel={engagementModel}
         onEngagementModelChange={setEngagementModel}
-        tierCode={currentOrg.tierCode}
+        governanceMode={governanceMode}
       />
 
       {/* Organization Context Card */}
