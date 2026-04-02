@@ -19,8 +19,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  parseItems,
+  parseStakeholders,
+  RichTextSection,
+  BadgeSection,
+  ListSection,
+  WeightedCriteriaSection,
+  TagsSection,
+  EmptyPlaceholder,
+  FilteredSections,
+  type SectionDef,
+} from './CreatorSectionRenderers';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
