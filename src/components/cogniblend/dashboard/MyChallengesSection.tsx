@@ -140,7 +140,7 @@ export function MyChallengesSection({
 
   const filteredItems = useMemo(() => {
     if (activeTab === 'ALL') return items;
-    return items.filter((item) => item.role_code === activeTab);
+    return items.filter((item) => item.role_codes.includes(activeTab));
   }, [items, activeTab]);
 
   /** Group filtered items by master_status, sorted by group order */
@@ -246,12 +246,11 @@ export function MyChallengesSection({
               {/* Items */}
               <div className="space-y-2">
                 {groupItems.map((item) => {
-                  const roleStyle = ROLE_STYLE[item.role_code];
                   const statusStyle = STATUS_STYLE[item.master_status] ?? STATUS_STYLE.DRAFT;
 
                   return (
                     <div
-                      key={`${item.challenge_id}-${item.role_code}`}
+                      key={item.challenge_id}
                       className="rounded-xl border border-border bg-card p-3 lg:p-4 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4"
                     >
                       <div className="flex-1 min-w-0">
@@ -275,14 +274,19 @@ export function MyChallengesSection({
                               Phase 1: Bypassed
                             </span>
                           )}
-                          {roleStyle && (
-                            <span
-                              className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                              style={{ backgroundColor: roleStyle.bg, color: roleStyle.color }}
-                            >
-                              {item.role_code}
-                            </span>
-                          )}
+                          {item.role_codes.map((rc) => {
+                            const rs = ROLE_STYLE[rc];
+                            if (!rs) return null;
+                            return (
+                              <span
+                                key={rc}
+                                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                                style={{ backgroundColor: rs.bg, color: rs.color }}
+                              >
+                                {rc}
+                              </span>
+                            );
+                          })}
                           <GovernanceProfileBadge profile={item.governance_profile} compact />
                         </div>
                       </div>

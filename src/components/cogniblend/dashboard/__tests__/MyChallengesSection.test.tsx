@@ -25,7 +25,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 2,
     governance_profile: 'LIGHTWEIGHT',
     governance_mode_override: null,
-    role_code: 'CR',
+    role_codes: ['CR'],
     operating_model: 'MP',
     created_at: '2025-06-01T10:00:00Z',
   },
@@ -37,7 +37,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 1,
     governance_profile: 'ENTERPRISE',
     governance_mode_override: null,
-    role_code: 'CU',
+    role_codes: ['CU'],
     operating_model: 'MP',
     created_at: '2025-06-02T10:00:00Z',
   },
@@ -49,33 +49,33 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 3,
     governance_profile: 'LIGHTWEIGHT',
     governance_mode_override: null,
-    role_code: 'CR',
+    role_codes: ['CR'],
     operating_model: 'AGG',
     created_at: '2025-06-03T10:00:00Z',
   },
 ];
 
 const ROLE_COUNTS: Record<string, number> = { CR: 2, CU: 1, ER: 0, ID: 0 };
+const AVAILABLE_ROLES = ['CR', 'CU', 'ER'];
 
 describe('TW1-06 — MyChallengesSection filter tabs', () => {
-  it('renders all 5 tabs with correct labels', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+  it('renders tabs for available roles with correct labels', () => {
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('As Creator')).toBeInTheDocument();
     expect(screen.getByText('As Curator')).toBeInTheDocument();
     expect(screen.getByText('As Reviewer')).toBeInTheDocument();
-    expect(screen.getByText('As Approver')).toBeInTheDocument();
   });
 
   it('shows all items by default (All tab)', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     expect(screen.getByText('AI Safety Research')).toBeInTheDocument();
     expect(screen.getByText('Quantum Computing')).toBeInTheDocument();
     expect(screen.getByText('Green Energy')).toBeInTheDocument();
   });
 
   it('filters to Creator items when As Creator tab is clicked', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     fireEvent.click(screen.getByText('As Creator'));
     expect(screen.getByText('AI Safety Research')).toBeInTheDocument();
     expect(screen.getByText('Green Energy')).toBeInTheDocument();
@@ -83,16 +83,16 @@ describe('TW1-06 — MyChallengesSection filter tabs', () => {
   });
 
   it('filters to Curator items when As Curator tab is clicked', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     fireEvent.click(screen.getByText('As Curator'));
     expect(screen.getByText('Quantum Computing')).toBeInTheDocument();
     expect(screen.queryByText('AI Safety Research')).not.toBeInTheDocument();
   });
 
   it('shows empty state when a role has no items', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     fireEvent.click(screen.getByText('As Reviewer'));
-    expect(screen.getByText('No challenges for this role.')).toBeInTheDocument();
+    expect(screen.getByText(/No challenges for/i)).toBeInTheDocument();
   });
 
   it('displays badge counts matching roleCounts', () => {
