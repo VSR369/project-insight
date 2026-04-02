@@ -287,7 +287,7 @@ export function MyChallengesSection({
                               </span>
                             );
                           })}
-                          <GovernanceProfileBadge profile={item.governance_profile} compact />
+                          <GovernanceProfileBadge profile={item.governance_mode_override ?? item.governance_profile} compact />
                         </div>
                       </div>
                       <Button
