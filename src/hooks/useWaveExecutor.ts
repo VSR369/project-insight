@@ -8,16 +8,12 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getCurationFormStore, selectStaleSections } from '@/store/curationFormStore';
-import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
-import { parseSuggestionForSection } from '@/lib/cogniblend/parseSuggestion';
-import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
 import { buildChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
-import type { ChallengeContext, BuildChallengeContextOptions } from '@/lib/cogniblend/challengeContextAssembler';
-import type { SectionKey } from '@/types/sections';
+import type { BuildChallengeContextOptions } from '@/lib/cogniblend/challengeContextAssembler';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
+import { useWaveReviewSection } from '@/hooks/useWaveReviewSection';
 import {
   EXECUTION_WAVES,
   determineSectionAction,
@@ -35,26 +31,17 @@ interface WaveProgressCallbacks {
 
 interface UseWaveExecutorOptions {
   challengeId: string;
-  /** Function to rebuild the challenge context (from page-level data) */
   buildContextOptions: () => BuildChallengeContextOptions;
-  /** Callback to update the page-level AI reviews state */
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
-  /** Callback when complexity suggestion arrives */
   onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
-  /** Optional progress callbacks for curation progress tracking */
   onProgress?: WaveProgressCallbacks;
 }
 
 interface UseWaveExecutorReturn {
-  /** Execute all 6 waves sequentially */
   executeWaves: () => Promise<void>;
-  /** Re-review only stale sections in wave order */
   reReviewStale: () => Promise<void>;
-  /** Cancel after current wave completes */
   cancelReview: () => void;
-  /** Current wave progress state */
   waveProgress: WaveProgress;
-  /** Whether any wave is currently running */
   isRunning: boolean;
 }
 
@@ -69,112 +56,11 @@ export function useWaveExecutor({
   const cancelRef = useRef(false);
   const inFlightRef = useRef(false);
 
-  const reviewSingleSection = useCallback(async (
-    sectionKey: SectionKey,
-    action: SectionAction,
-    context: ChallengeContext,
-  ): Promise<'success' | 'error' | 'skipped'> => {
-    if (action === 'skip') return 'skipped';
-
-    const store = getCurationFormStore(challengeId);
-    store.getState().setReviewStatus(sectionKey, 'pending');
-
-    try {
-      const currentContent = context.sections[sectionKey] ?? null;
-      const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
-        body: {
-          challenge_id: challengeId,
-          section_key: sectionKey,
-          role_context: 'curation',
-          current_content: currentContent,
-          context,
-          wave_action: action, // Tell edge function whether to generate or review
-        },
-      });
-
-      if (error) throw new Error(error.message);
-
-      if (data?.success && data.data?.sections) {
-        const reviewResult = (data.data.sections as SectionReview[])[0];
-        if (reviewResult) {
-          const normalized = normalizeSectionReview(reviewResult);
-
-          // Extract complexity suggestion if applicable
-          if (sectionKey === 'complexity') {
-            const rawSection = (data.data.sections as any[])[0];
-            if (rawSection?.suggested_complexity && onComplexitySuggestion) {
-              onComplexitySuggestion({ ...rawSection.suggested_complexity });
-            }
-          }
-
-          // Parse suggestion into native format before storing
-          const rawSuggestion = (normalized as any).suggestion ?? null;
-          const parsedSuggestion = rawSuggestion && typeof rawSuggestion === 'string'
-            ? parseSuggestionForSection(sectionKey, rawSuggestion)
-            : rawSuggestion;
-
-          store.getState().setAiReview(
-            sectionKey,
-            normalized.comments ?? [],
-            parsedSuggestion,
-          );
-          store.getState().clearStaleness(sectionKey);
-
-          // AI suggestions are stored in review state (setAiReview above).
-          // We do NOT write to setSectionData — that requires explicit Accept action.
-          // Writing here would corrupt table sections if AI returns prose.
-          //
-          // EXCEPTION: For GENERATED sections (empty → AI created content), write to section data
-          // so downstream waves can reference it. Safe: no human content to corrupt.
-          if ((normalized as any).status === 'generated' && parsedSuggestion != null) {
-            store.getState().setSectionData(sectionKey, parsedSuggestion);
-          }
-
-          // Post-LLM validation
-          if (context.todaysDate) {
-            const validationResult = validateAIOutput(
-              sectionKey,
-              (normalized as any).suggestion ?? normalized,
-              context,
-            );
-            store.getState().setValidationResult(sectionKey, validationResult);
-          }
-
-          onSectionReviewed(sectionKey, { ...normalized, addressed: false });
-          return 'success';
-        }
-      } else if (data?.success && data.data) {
-        store.getState().setAiReview(
-          sectionKey,
-          data.data.comments ?? [],
-          data.data.suggestion ?? data.data,
-        );
-        store.getState().clearStaleness(sectionKey);
-
-        if (context.todaysDate) {
-          const validationResult = validateAIOutput(
-            sectionKey,
-            data.data.suggestion ?? data.data,
-            context,
-          );
-          store.getState().setValidationResult(sectionKey, validationResult);
-        }
-
-        onSectionReviewed(sectionKey, {
-          section_key: sectionKey,
-          status: 'warning',
-          comments: data.data.comments ?? [],
-          addressed: false,
-        } as SectionReview);
-        return 'success';
-      }
-
-      throw new Error('Unexpected response shape');
-    } catch (err: any) {
-      store.getState().setReviewStatus(sectionKey, 'error');
-      return 'error';
-    }
-  }, [challengeId, onSectionReviewed, onComplexitySuggestion]);
+  const reviewSingleSection = useWaveReviewSection({
+    challengeId,
+    onSectionReviewed,
+    onComplexitySuggestion,
+  });
 
   const executeWaves = useCallback(async () => {
     if (inFlightRef.current) {
@@ -205,7 +91,6 @@ export function useWaveExecutor({
       const wave = EXECUTION_WAVES[i];
       onProgress?.onWaveStart?.(i + 1);
 
-      // Mark wave as running
       setWaveProgress((prev) => ({
         ...prev,
         currentWave: wave.waveNumber,
@@ -214,16 +99,13 @@ export function useWaveExecutor({
         ),
       }));
 
-      // Determine actions for each section in this wave
       const sectionActions = wave.sectionIds.map((id) => ({
         sectionId: id,
         action: determineSectionAction(id, context.sections[id]),
       }));
 
-      // Process all sections in this wave
       const sectionResults: WaveResult['sections'] = [];
       for (const sa of sectionActions) {
-        // Record the AI action type in the store
         const store = getCurationFormStore(challengeId);
         store.getState().setAiAction(sa.sectionId, sa.action);
 
@@ -235,7 +117,6 @@ export function useWaveExecutor({
         });
       }
 
-      // Update wave result
       const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
       const totalReviewedSoFar = EXECUTION_WAVES.slice(0, i + 1).reduce((sum, w) => sum + w.sectionIds.length, 0);
       setWaveProgress((prev) => ({
@@ -248,16 +129,13 @@ export function useWaveExecutor({
       }));
       onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
-      // Refresh context for next wave — re-read store sections
       context = buildChallengeContext(buildContextOptions());
 
-      // Rate-limit pause between waves
       if (i < EXECUTION_WAVES.length - 1) {
         await new Promise((r) => setTimeout(r, 500));
       }
     }
 
-    // Mark overall completion
     if (!cancelRef.current) {
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
       onProgress?.onAllComplete?.();
@@ -292,7 +170,6 @@ export function useWaveExecutor({
 
     const initialProgress = createInitialWaveProgress();
     initialProgress.overallStatus = 'running';
-    // Mark non-affected waves as completed/skipped
     initialProgress.waves = initialProgress.waves.map((w) => {
       const isAffected = affectedWaves.some((aw) => aw.waveNumber === w.waveNumber);
       return isAffected ? w : { ...w, status: 'completed' as const, sections: w.sections.map((s) => ({ ...s, status: 'skipped' as const })) };
@@ -320,7 +197,6 @@ export function useWaveExecutor({
         sectionResults.push({ sectionId, action: 'review', status: result });
       }
 
-      // Non-stale sections in this wave are skipped
       const skippedSections = wave.sectionIds
         .filter((id) => !staleIds.has(id))
         .map((id) => ({ sectionId: id, action: 'skip' as SectionAction, status: 'skipped' as const }));

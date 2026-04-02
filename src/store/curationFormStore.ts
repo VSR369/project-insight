@@ -3,12 +3,6 @@
  *
  * Single source of truth for section form data, AI review state,
  * and suggestions. Persisted to localStorage per challengeId.
- *
- * Key semantics:
- * - accept() → deep merge suggestion into data, clear aiComments/aiSuggestion to null
- * - reject() → clear aiComments/aiSuggestion to null, reviewStatus → 'idle'
- * - acceptAiSuggestion is a no-op if aiSuggestion is null or reviewStatus is not 'reviewed'
- * - hydrate() migrates legacy array items missing `id` fields
  */
 
 import { create } from 'zustand';
@@ -19,13 +13,15 @@ import type { SectionKey, SectionStoreEntry, ReviewStatus, AiActionType } from '
 import type { ValidationResult } from '@/lib/cogniblend/postLlmValidation';
 import { createEmptySectionEntry } from '@/types/sections';
 
+// Re-export selectors for backward compatibility
+export { selectIsAnyReviewPending, selectStaleSections } from './curationSelectors';
+
 /* ── Store shape ── */
 
 interface CurationFormState {
   challengeId: string | null;
   sections: Partial<Record<SectionKey, SectionStoreEntry>>;
 
-  /* Actions */
   setChallengeId: (id: string) => void;
   getSectionEntry: (key: SectionKey) => SectionStoreEntry;
   setSectionData: (key: SectionKey, data: SectionStoreEntry['data']) => void;
@@ -34,39 +30,16 @@ interface CurationFormState {
   acceptAiSuggestion: (key: SectionKey) => void;
   rejectAiSuggestion: (key: SectionKey) => void;
   markAddressed: (key: SectionKey) => void;
-  /** Mark a section as saved — clears own staleness, propagates to dependents. Returns staled keys. */
   markSectionSaved: (key: SectionKey) => SectionKey[];
-  /** Clear staleness for a section (after AI re-review or manual edit+save) */
   clearStaleness: (key: SectionKey) => void;
-  /** Store validation results for a section */
   setValidationResult: (key: SectionKey, result: ValidationResult | null) => void;
-  /** Record the AI action type from wave execution */
   setAiAction: (key: SectionKey, action: AiActionType) => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
 
-/* ── Selectors ── */
-
-export const selectIsAnyReviewPending = (state: CurationFormState): boolean =>
-  Object.values(state.sections).some((s) => s?.reviewStatus === 'pending');
-
-export const selectStaleSections = (state: CurationFormState): Array<{
-  key: SectionKey;
-  staleBecauseOf: string[];
-  staleAt: string | null;
-}> =>
-  Object.entries(state.sections)
-    .filter(([, s]) => s?.isStale)
-    .map(([key, s]) => ({
-      key: key as SectionKey,
-      staleBecauseOf: s!.staleBecauseOf,
-      staleAt: s!.staleAt,
-    }));
-
 /**
  * Create a curation form store scoped to a specific challenge.
- * Uses localStorage persistence keyed by challengeId.
  */
 export function createCurationFormStore(challengeId: string) {
   return create<CurationFormState>()(
@@ -77,18 +50,13 @@ export function createCurationFormStore(challengeId: string) {
 
         setChallengeId: (id) => set({ challengeId: id }),
 
-        getSectionEntry: (key) => {
-          return get().sections[key] ?? createEmptySectionEntry();
-        },
+        getSectionEntry: (key) => get().sections[key] ?? createEmptySectionEntry(),
 
         setSectionData: (key, data) =>
           set((state) => ({
             sections: {
               ...state.sections,
-              [key]: {
-                ...(state.sections[key] ?? createEmptySectionEntry()),
-                data,
-              },
+              [key]: { ...(state.sections[key] ?? createEmptySectionEntry()), data },
             },
           })),
 
@@ -110,26 +78,18 @@ export function createCurationFormStore(challengeId: string) {
           set((state) => ({
             sections: {
               ...state.sections,
-              [key]: {
-                ...(state.sections[key] ?? createEmptySectionEntry()),
-                reviewStatus: status,
-              },
+              [key]: { ...(state.sections[key] ?? createEmptySectionEntry()), reviewStatus: status },
             },
           })),
 
         acceptAiSuggestion: (key) =>
           set((state) => {
             const entry = state.sections[key];
-            // No-op guard: prevent crash from double-click or stale state
-            if (!entry?.aiSuggestion || entry.reviewStatus !== 'reviewed') {
-              return state;
-            }
+            if (!entry?.aiSuggestion || entry.reviewStatus !== 'reviewed') return state;
 
             const suggestion = entry.aiSuggestion;
             let finalData: SectionStoreEntry['data'];
 
-            // Only deep-merge when both current data and suggestion are plain objects.
-            // For strings, arrays, or type mismatches — replace entirely.
             const currentIsObject = entry.data !== null && typeof entry.data === 'object' && !Array.isArray(entry.data);
             const suggestionIsObject = suggestion !== null && typeof suggestion === 'object' && !Array.isArray(suggestion);
 
@@ -139,7 +99,6 @@ export function createCurationFormStore(challengeId: string) {
                 suggestion as Record<string, unknown>,
               );
             } else {
-              // String, array, or mismatched types — suggestion replaces entirely
               finalData = suggestion;
             }
 
@@ -189,7 +148,6 @@ export function createCurationFormStore(challengeId: string) {
           const now = new Date().toISOString();
           const updatedSections = { ...state.sections };
 
-          // Clear own staleness and update lastEditedAt
           const existing = updatedSections[key] ?? createEmptySectionEntry();
           updatedSections[key] = {
             ...existing,
@@ -199,10 +157,8 @@ export function createCurationFormStore(challengeId: string) {
             staleAt: null,
           };
 
-          // Compute transitive dependents
           const affectedKeys = getTransitiveDependents(key);
 
-          // Mark each dependent as stale (accumulate causes)
           for (const depKey of affectedKeys) {
             const depEntry = updatedSections[depKey as SectionKey] ?? createEmptySectionEntry();
             const existingCauses = depEntry.staleBecauseOf ?? [];
@@ -263,13 +219,11 @@ export function createCurationFormStore(challengeId: string) {
               const sectionKey = key as SectionKey;
               const existing = hydrated[sectionKey];
 
-              // Migrate legacy data: ensure array items have IDs
               const migratedData = (data && typeof data === 'object' && !Array.isArray(data))
                 ? ensureArrayItemIds(data as Record<string, unknown>)
                 : data;
 
               if (existing) {
-                // Preserve existing review state, just update data
                 hydrated[sectionKey] = { ...existing, data: migratedData as SectionStoreEntry['data'] };
               } else {
                 hydrated[sectionKey] = {
@@ -300,10 +254,6 @@ export function createCurationFormStore(challengeId: string) {
 
 const storeCache = new Map<string, ReturnType<typeof createCurationFormStore>>();
 
-/**
- * Get or create the curation form store for a specific challenge.
- * Returns the same store instance for the same challengeId.
- */
 export function getCurationFormStore(challengeId: string) {
   let store = storeCache.get(challengeId);
   if (!store) {
@@ -313,10 +263,6 @@ export function getCurationFormStore(challengeId: string) {
   return store;
 }
 
-/**
- * React hook to use the curation form store for a specific challenge.
- * Returns the bound store hook.
- */
 export function useCurationFormStore(challengeId: string) {
   return getCurationFormStore(challengeId);
 }
