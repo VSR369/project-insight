@@ -63,6 +63,7 @@ export function useWaveExecutor({
   buildContextOptions,
   onSectionReviewed,
   onComplexitySuggestion,
+  onProgress,
 }: UseWaveExecutorOptions): UseWaveExecutorReturn {
   const [waveProgress, setWaveProgress] = useState<WaveProgress>(createInitialWaveProgress);
   const cancelRef = useRef(false);
