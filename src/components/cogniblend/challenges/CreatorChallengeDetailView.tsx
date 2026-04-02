@@ -35,10 +35,7 @@ import {
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
-import { useGovernanceFieldRules, isFieldVisible } from '@/hooks/queries/useGovernanceFieldRules';
-import { resolveChallengeGovernance } from '@/lib/governanceMode';
-import { formatCurrency, governanceLabel, complexityColor } from '@/lib/cogniblend/displayHelpers';
-import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
+import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
 import { SECTION_LABELS } from '@/components/cogniblend/curation/context-library/types';
 import { CurationProgressTracker } from '@/components/cogniblend/progress/CurationProgressTracker';
 import { TieredApprovalView } from '@/components/cogniblend/approval/TieredApprovalView';
