@@ -59,13 +59,12 @@ const ROLE_COUNTS: Record<string, number> = { CR: 2, CU: 1, ER: 0, ID: 0 };
 const AVAILABLE_ROLES = ['CR', 'CU', 'ER'];
 
 describe('TW1-06 — MyChallengesSection filter tabs', () => {
-  it('renders all 5 tabs with correct labels', () => {
+  it('renders tabs for available roles with correct labels', () => {
     render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('As Creator')).toBeInTheDocument();
     expect(screen.getByText('As Curator')).toBeInTheDocument();
     expect(screen.getByText('As Reviewer')).toBeInTheDocument();
-    expect(screen.getByText('As Approver')).toBeInTheDocument();
   });
 
   it('shows all items by default (All tab)', () => {
