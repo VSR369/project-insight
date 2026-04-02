@@ -333,7 +333,7 @@ serve(async (req) => {
       is_deleted: false,
       is_qa_closed: false,
       solutions_awarded: 0,
-      description: "Demo MP challenge — AM intake for CR/CA spec review.",
+      description: "Demo MP challenge — Creator spec review.",
       problem_statement: "Our manufacturing floor experiences unplanned equipment failures that cost $2.3M annually in downtime. Current preventive maintenance schedules are time-based rather than condition-based, leading to both unexpected breakdowns and unnecessary maintenance on healthy equipment. We need a predictive maintenance solution that uses IoT sensor data and machine learning to forecast equipment failures 48-72 hours in advance.",
       scope: "The solution should: (1) integrate with existing SCADA and PLC systems across 12 production lines, (2) provide a real-time dashboard for maintenance teams, (3) generate automated work orders when failure probability exceeds threshold, (4) reduce unplanned downtime by at least 40% within 6 months of deployment, and (5) include a mobile app for field technicians.",
       reward_structure: { currency: "USD", budget_min: 25000, budget_max: 75000 },
