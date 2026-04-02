@@ -23,7 +23,7 @@ interface AssignmentInput {
   challengeId: string;
   roleCode: string;
   engagementModel?: string;
-  industrySegmentId: string;
+  industrySegmentId?: string;
   proficiencyAreaIds?: string[];
   subDomainIds?: string[];
   specialityIds?: string[];
@@ -119,7 +119,7 @@ function filterAndScore(
 
       const scope = m.domain_scope ?? {};
       const industryIds: string[] = scope.industry_segment_ids ?? [];
-      if (industryIds.length > 0 && !industryIds.includes(input.industrySegmentId)) {
+      if (input.industrySegmentId && industryIds.length > 0 && !industryIds.includes(input.industrySegmentId)) {
         return false;
       }
       return true;

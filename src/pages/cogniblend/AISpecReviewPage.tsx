@@ -64,7 +64,7 @@ import DomainTargetingCard from '@/components/cogniblend/spec/DomainTargetingCar
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
-import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
+import { resolveChallengeGovernance, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/solverAutoAssign';
@@ -74,6 +74,7 @@ import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { autoAssignChallengeRole } from '@/hooks/cogniblend/useAutoAssignChallengeRoles';
+import { logWarning } from '@/lib/errorHandler';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
@@ -854,7 +855,12 @@ export default function AISpecReviewPage() {
   }, []);
 
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
-  const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
+  const challengeGovRecord = challenge as unknown as Record<string, unknown> | undefined;
+  const govMode: GovernanceMode = resolveChallengeGovernance(
+    (challengeGovRecord?.governance_mode_override as string | null) ?? null,
+    (challengeGovRecord?.governance_profile as string | null) ?? currentOrg?.governanceProfile,
+    currentOrg?.tierCode,
+  );
 
   // ═══════ Effect — load persisted AI reviews ═══════
   useEffect(() => {
@@ -1326,21 +1332,24 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
 
-    // Auto-assign CU and ID roles using taxonomy
-    if (industrySegmentId && challengeId && user?.id) {
+    // Auto-assign CU role using taxonomy
+    if (challengeId && user?.id) {
       try {
         await autoAssignChallengeRole({
           challengeId,
           roleCode: 'CU',
           engagementModel: challenge?.operating_model === 'AGG' ? 'aggregator' : 'marketplace',
-          industrySegmentId,
+          industrySegmentId: industrySegmentId || undefined,
           proficiencyAreaIds: selectedProfAreaIds,
           subDomainIds: selectedSubDomainIds,
           specialityIds: selectedSpecialityIds,
           assignedBy: user.id,
         });
-      } catch {
-        // Non-blocking — assignments may not find matches
+      } catch (err) {
+        logWarning('Auto-assign CU failed', {
+          operation: 'auto_assign_challenge_role',
+          additionalData: { challengeId, error: String(err) },
+        });
       }
     }
 
@@ -1422,21 +1431,24 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
 
-    // Auto-assign CU and ID roles using taxonomy
-    if (industrySegmentId && challengeId && user?.id) {
+    // Auto-assign CU role using taxonomy
+    if (challengeId && user?.id) {
       try {
         await autoAssignChallengeRole({
           challengeId,
           roleCode: 'CU',
           engagementModel: challenge?.operating_model === 'AGG' ? 'aggregator' : 'marketplace',
-          industrySegmentId,
+          industrySegmentId: industrySegmentId || undefined,
           proficiencyAreaIds: selectedProfAreaIds,
           subDomainIds: selectedSubDomainIds,
           specialityIds: selectedSpecialityIds,
           assignedBy: user.id,
         });
-      } catch {
-        // Non-blocking — assignments may not find matches
+      } catch (err) {
+        logWarning('Auto-assign CU failed', {
+          operation: 'auto_assign_challenge_role',
+          additionalData: { challengeId, error: String(err) },
+        });
       }
     }
 
