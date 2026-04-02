@@ -128,6 +128,7 @@ export function OpenChallengesSection() {
                 <span className={`rounded-full px-2.5 py-0.5 text-[10px] lg:text-xs font-medium ${cxStyle}`}>
                   {cxLabel}
                 </span>
+                <GovernanceProfileBadge profile={c.governance_mode_override ?? c.governance_profile} compact />
               </div>
 
               {/* Award amount */}
