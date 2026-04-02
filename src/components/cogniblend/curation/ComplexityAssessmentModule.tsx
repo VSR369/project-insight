@@ -13,17 +13,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
 import { Save, X, Bot, SlidersHorizontal, Zap, Lock, Unlock } from "lucide-react";
+import { DirtyConfirmDialog, LockConfirmDialog, SolutionTypeResetDialog } from "./complexity/ComplexityDialogs";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { useComplexityDimensions } from "@/hooks/queries/useComplexityDimensions";
 import type { SolutionType } from "@/lib/cogniblend/challengeContextAssembler";
@@ -397,68 +388,19 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         </div>
       )}
 
-      {/* Dirty-state Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Switching will discard them. Continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelSwitch}>Stay</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSwitch}>Discard & Switch</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DirtyConfirmDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog} onStay={handleCancelSwitch} onDiscard={handleConfirmSwitch} />
 
-      {/* Lock Confirmation Dialog */}
-      <AlertDialog open={showLockConfirm} onOpenChange={setShowLockConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Lock Complexity Assessment?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will finalize the complexity assessment. All tabs will become read-only.
-              The locked values will be used as the basis for downstream pricing and reward calculations.
-              You can unlock it later if corrections are needed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowLockConfirm(false); onLock?.(); }}>
-              <Lock className="h-3.5 w-3.5 mr-1" />Lock Assessment
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <LockConfirmDialog open={showLockConfirm} onOpenChange={setShowLockConfirm} onLock={() => { setShowLockConfirm(false); onLock?.(); }} />
 
-      {/* Solution Type Reset Dialog */}
-      <AlertDialog open={showSolutionTypeResetDialog} onOpenChange={setShowSolutionTypeResetDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Solution Type Changed</AlertDialogTitle>
-            <AlertDialogDescription>
-              The solution type has changed. Complexity dimensions are different for each solution type.
-              Existing scores will be reset. Continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowSolutionTypeResetDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              const fresh = buildDraftFromExisting(null, effectiveParams);
-              setAiDraft(fresh);
-              setManualDraft(fresh);
-              setEditableParams(new Set());
-              setAiJustifications({});
-              setOverrideLevel(null);
-              setShowSolutionTypeResetDialog(false);
-            }}>
-              Reset Scores
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SolutionTypeResetDialog open={showSolutionTypeResetDialog} onOpenChange={setShowSolutionTypeResetDialog} onReset={() => {
+        const fresh = buildDraftFromExisting(null, effectiveParams);
+        setAiDraft(fresh);
+        setManualDraft(fresh);
+        setEditableParams(new Set());
+        setAiJustifications({});
+        setOverrideLevel(null);
+        setShowSolutionTypeResetDialog(false);
+      }} />
 
       {/* 3-Tab Card Selector */}
       <div className="grid grid-cols-3 gap-2">
