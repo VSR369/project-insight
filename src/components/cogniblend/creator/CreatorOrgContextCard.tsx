@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileText } from 'lucide-react';
 import {
   Building2, Globe, Linkedin, Twitter, ChevronDown, ChevronUp,
   AlertTriangle, Info, Users, Calendar, MapPin, DollarSign, Sparkles,
