@@ -74,7 +74,7 @@ import { parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// Phase D4.1 / D4.2 — Extracted callback hooks
+// Phase D4.1 / D4.2 / D6.2 — Extracted hooks
 import { useCurationSectionActions } from "@/hooks/cogniblend/useCurationSectionActions";
 import { useCurationAIActions } from "@/hooks/cogniblend/useCurationAIActions";
 
