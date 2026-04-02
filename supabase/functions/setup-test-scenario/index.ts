@@ -51,10 +51,8 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "agg-ent-rq@testsetup.dev", displayName: "AGG Requestor", roles: ["RQ"] },
       { email: "agg-ent-cr@testsetup.dev", displayName: "AGG Creator", roles: ["CR"] },
       { email: "agg-ent-cu@testsetup.dev", displayName: "AGG Curator", roles: ["CU"] },
-      { email: "agg-ent-id@testsetup.dev", displayName: "AGG Innov Director", roles: ["ID"] },
       { email: "agg-ent-er1@testsetup.dev", displayName: "AGG Reviewer 1", roles: ["ER"] },
       { email: "agg-ent-er2@testsetup.dev", displayName: "AGG Reviewer 2", roles: ["ER"] },
       { email: "agg-ent-fc@testsetup.dev", displayName: "AGG Finance", roles: ["FC"] },
