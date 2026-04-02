@@ -455,7 +455,13 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
 
     form.reset(filteredSeed as CreatorFormValues);
     onFillTestData?.();
-  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData]);
+
+    // Auto-save draft after a short delay to let form state settle
+    setTimeout(async () => {
+      await handleSaveDraft();
+      toast.success('Test data filled & saved as draft');
+    }, 150);
+  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData, handleSaveDraft]);
 
   return (
     <FormProvider {...form}>
