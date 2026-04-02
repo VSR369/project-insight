@@ -63,15 +63,17 @@ serve(async (req) => {
       .eq("id", challenge.organization_id)
       .single();
 
-    // Get industry segment name
+    // Get industry segment name and code
     let industryName = "";
+    let industryCode = "";
     if (org?.industry_segment_id) {
       const { data: segment } = await adminClient
         .from("industry_segments")
-        .select("name")
+        .select("name, code")
         .eq("id", org.industry_segment_id)
         .single();
       industryName = segment?.name ?? "";
+      industryCode = segment?.code ?? "";
     }
 
     // 3. Fetch discovery directives
@@ -129,6 +131,64 @@ serve(async (req) => {
         JSON.stringify({ success: true, suggestions: [], count: 0 }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // Phase 11: Merge industry-specific preferred sources into discovery directives
+    try {
+      if (industryCode) {
+        const { data: industryPack } = await adminClient
+          .from('industry_knowledge_packs')
+          .select('preferred_analyst_sources, regulatory_landscape')
+          .eq('industry_code', industryCode)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (industryPack?.preferred_analyst_sources?.length) {
+          for (const directive of activeDirectives) {
+            const d = directive.discovery_directives;
+            if (d?.resource_types) {
+              for (const rt of d.resource_types) {
+                rt.preferred_sources = [
+                  ...new Set([
+                    ...(rt.preferred_sources || []),
+                    ...industryPack.preferred_analyst_sources,
+                  ]),
+                ];
+              }
+            }
+          }
+        }
+        // Add regulatory terms to context for regulatory-related sections
+        if (industryPack?.regulatory_landscape) {
+          const COUNTRY_TO_REGION: Record<string, string> = {
+            IN: 'india', US: 'us', DE: 'eu', FR: 'eu', IT: 'eu', ES: 'eu',
+            NL: 'eu', BE: 'eu', SE: 'eu', PL: 'eu', AT: 'eu', IE: 'eu',
+            GB: 'uk', AE: 'middle_east', SA: 'middle_east', QA: 'middle_east',
+            SG: 'singapore', AU: 'australia', NZ: 'australia',
+            JP: 'apac_other', KR: 'apac_other', MY: 'apac_other',
+          };
+          const countryCode = org?.country?.toUpperCase?.() || '';
+          const regionCode = COUNTRY_TO_REGION[countryCode] || null;
+          const globalRegs = industryPack.regulatory_landscape.global || [];
+          const regionalRegs = regionCode
+            ? (industryPack.regulatory_landscape[regionCode] || [])
+            : [];
+          const regTerms = [...globalRegs, ...regionalRegs].join(', ');
+          if (regTerms) {
+            for (const directive of activeDirectives) {
+              const sKey = directive.section_key;
+              if (['deliverables', 'evaluation_criteria', 'solver_expertise',
+                   'submission_guidelines', 'ip_model'].includes(sKey)) {
+                const d = directive.discovery_directives;
+                d.discovery_context = (d.discovery_context || '') +
+                  ` Relevant regulations: ${regTerms}.`;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Industry source merge failed (non-blocking):', e);
     }
 
     // 5. Fetch existing URLs to deduplicate

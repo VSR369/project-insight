@@ -2876,6 +2876,99 @@ export type Database = {
         }
         Relationships: []
       }
+      geography_context: {
+        Row: {
+          business_culture: string | null
+          country_codes: string[]
+          currency_context: string | null
+          data_privacy_laws: string[] | null
+          government_initiatives: string[] | null
+          region_code: string
+          region_name: string
+          talent_market: string | null
+          technology_maturity: string | null
+        }
+        Insert: {
+          business_culture?: string | null
+          country_codes?: string[]
+          currency_context?: string | null
+          data_privacy_laws?: string[] | null
+          government_initiatives?: string[] | null
+          region_code: string
+          region_name: string
+          talent_market?: string | null
+          technology_maturity?: string | null
+        }
+        Update: {
+          business_culture?: string | null
+          country_codes?: string[]
+          currency_context?: string | null
+          data_privacy_laws?: string[] | null
+          government_initiatives?: string[] | null
+          region_code?: string
+          region_name?: string
+          talent_market?: string | null
+          technology_maturity?: string | null
+        }
+        Relationships: []
+      }
+      industry_knowledge_packs: {
+        Row: {
+          common_certifications: string[] | null
+          common_frameworks: string[] | null
+          common_kpis: string[] | null
+          created_at: string
+          id: string
+          industry_code: string
+          industry_name: string
+          industry_overview: string | null
+          is_active: boolean | null
+          preferred_analyst_sources: string[] | null
+          regulatory_landscape: Json | null
+          section_hints: Json | null
+          technology_landscape: string | null
+          typical_budget_ranges: Json | null
+          typical_timelines: Json | null
+          updated_at: string
+        }
+        Insert: {
+          common_certifications?: string[] | null
+          common_frameworks?: string[] | null
+          common_kpis?: string[] | null
+          created_at?: string
+          id?: string
+          industry_code: string
+          industry_name: string
+          industry_overview?: string | null
+          is_active?: boolean | null
+          preferred_analyst_sources?: string[] | null
+          regulatory_landscape?: Json | null
+          section_hints?: Json | null
+          technology_landscape?: string | null
+          typical_budget_ranges?: Json | null
+          typical_timelines?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          common_certifications?: string[] | null
+          common_frameworks?: string[] | null
+          common_kpis?: string[] | null
+          created_at?: string
+          id?: string
+          industry_code?: string
+          industry_name?: string
+          industry_overview?: string | null
+          is_active?: boolean | null
+          preferred_analyst_sources?: string[] | null
+          regulatory_landscape?: Json | null
+          section_hints?: Json | null
+          technology_landscape?: string | null
+          typical_budget_ranges?: Json | null
+          typical_timelines?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       industry_segments: {
         Row: {
           code: string

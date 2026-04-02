@@ -27,7 +27,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, buildContextIntelligence, SECTION_WAVE_CONTEXT, type SectionConfig } from "./promptTemplate.ts";
+import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, buildContextIntelligence, SECTION_WAVE_CONTEXT, resolveIndustryCode, countryToRegion, buildIndustryIntelligence, buildGeographyContext, type SectionConfig } from "./promptTemplate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1438,8 +1438,11 @@ serve(async (req) => {
             orgContext.functionalAreas = org.functional_areas ?? [];
 
             if (org.hq_country_id) {
-              const { data: ctry } = await adminClient.from('countries').select('name').eq('id', org.hq_country_id).single();
-              if (ctry) orgContext.hqCountry = ctry.name;
+              const { data: ctry } = await adminClient.from('countries').select('name, code').eq('id', org.hq_country_id).single();
+              if (ctry) {
+                orgContext.hqCountry = ctry.name;
+                orgContext.hqCountryCode = ctry.code;
+              }
             }
             if (org.organization_type_id) {
               const { data: ot } = await adminClient.from('organization_types').select('name').eq('id', org.organization_type_id).single();
@@ -1450,16 +1453,58 @@ serve(async (req) => {
               .eq('organization_id', challengeData.organization_id);
             if (orgIndustries?.length) {
               const ids = orgIndustries.map((oi: any) => oi.industry_id);
-              const { data: segs } = await adminClient.from('industry_segments').select('id, name').in('id', ids);
+              const { data: segs } = await adminClient.from('industry_segments').select('id, name, code').in('id', ids);
               if (segs) {
                 orgContext.industries = segs.map((s: any) => ({
                   name: s.name,
+                  code: s.code,
                   isPrimary: orgIndustries.find((oi: any) => oi.industry_id === s.id)?.is_primary ?? false,
                 }));
               }
             }
           }
         } catch (err) { console.warn('Org intel fetch failed:', err); }
+      }
+
+      // ── Phase 11: Fetch industry knowledge pack + geography context ──
+      let industryPack: any = null;
+      let geoContext: any = null;
+      let regionCode: string | null = null;
+
+      try {
+        const rawIndustryCode = orgContext?.industries?.[0]?.code || null;
+        const industryCode = resolveIndustryCode(rawIndustryCode);
+
+        if (industryCode) {
+          const { data } = await adminClient
+            .from('industry_knowledge_packs')
+            .select('*')
+            .eq('industry_code', industryCode)
+            .eq('is_active', true)
+            .maybeSingle();
+          industryPack = data;
+        }
+
+        const countryCode = orgContext?.hqCountryCode || null;
+        regionCode = countryToRegion(countryCode);
+
+        if (regionCode) {
+          const { data } = await adminClient
+            .from('geography_context')
+            .select('*')
+            .eq('region_code', regionCode)
+            .single();
+          geoContext = data;
+        }
+      } catch (e) {
+        console.warn('Industry/geography fetch failed (non-blocking):', e);
+      }
+
+      // Attach to clientContext so prompt builders can access them
+      if (clientContext) {
+        clientContext._industryPack = industryPack;
+        clientContext._geoContext = geoContext;
+        clientContext._regionCode = regionCode;
       }
 
       // Extract extended_brief fields for intake/spec
