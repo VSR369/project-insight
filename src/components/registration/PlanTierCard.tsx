@@ -16,7 +16,7 @@ interface TierFeature {
   tier_id: string;
   feature_name: string;
   access_type: string;
-  usage_limit: string | null;
+  usage_limit: string | number | null;
 }
 
 interface BaseFeeRow {
