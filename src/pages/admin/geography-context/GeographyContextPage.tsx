@@ -50,7 +50,6 @@ export default function GeographyContextPage() {
       <PageHeader
         title="Geography Context"
         description="Manage region-specific context injected into AI review prompts"
-        icon={Globe2}
       />
 
       <Card>

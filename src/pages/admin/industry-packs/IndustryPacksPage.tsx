@@ -57,7 +57,6 @@ export default function IndustryPacksPage() {
       <PageHeader
         title="Industry Knowledge Packs"
         description="Manage industry-specific intelligence injected into AI review prompts"
-        icon={Factory}
       />
 
       <Card>
