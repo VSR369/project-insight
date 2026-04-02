@@ -398,8 +398,8 @@ serve(async (req) => {
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
     // MP roles (AM, CA) → MP challenge only; AGG roles (RQ, CR) → AGG challenge only
     // Shared roles (CU, ID, ER, LC, FC) → both challenges
-    const MP_ONLY_ROLES = new Set(["AM", "CA"]);
-    const AGG_ONLY_ROLES = new Set(["RQ", "CR"]);
+    // All modern roles are shared across both challenges
+    const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
 
     for (const u of userIds) {
       for (const roleCode of u.roles) {
