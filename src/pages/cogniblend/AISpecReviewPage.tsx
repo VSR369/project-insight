@@ -64,7 +64,7 @@ import DomainTargetingCard from '@/components/cogniblend/spec/DomainTargetingCar
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
-import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
+import { resolveChallengeGovernance, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/solverAutoAssign';
