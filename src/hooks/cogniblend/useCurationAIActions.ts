@@ -12,6 +12,7 @@ import { detectBudgetShortfall, type BudgetShortfallResult } from '@/lib/cognibl
 import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import { GROUPS } from '@/lib/cogniblend/curationSectionDefs';
 import { resolveIndustrySegmentId, parseJson } from '@/lib/cogniblend/curationHelpers';
+import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
 import { parseJson as jsonParse } from '@/lib/cogniblend/jsonbUnwrap';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
