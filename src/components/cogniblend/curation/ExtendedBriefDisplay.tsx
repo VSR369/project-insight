@@ -1,22 +1,20 @@
 /**
  * ExtendedBriefDisplay — Nested panel architecture for Extended Brief subsections.
- * Stakeholder table and subsection content rendering extracted to separate files.
+ * Industry segment field extracted to BriefIndustrySegmentField.
  */
 
-import React, { useState, useCallback, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, AlertCircle } from "lucide-react";
+import React, { useState, useCallback } from "react";
+import { Sparkles } from "lucide-react";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import {
   EXTENDED_BRIEF_SUBSECTION_KEYS,
   EXTENDED_BRIEF_FIELD_MAP,
-  SECTION_FORMAT_CONFIG,
 } from "@/lib/cogniblend/curationSectionFormats";
 import type { Json } from "@/integrations/supabase/types";
 import { BriefSubsectionContent } from "./BriefSubsectionContent";
+import { BriefIndustrySegmentField } from "./BriefIndustrySegmentField";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,7 +51,7 @@ const SUBSECTION_META: Record<string, { label: string; attribution?: string }> =
 };
 
 // ---------------------------------------------------------------------------
-// Helpers (kept here for backward compat exports)
+// Helpers
 // ---------------------------------------------------------------------------
 
 export function parseExtendedBrief(val: Json | null): Record<string, unknown> {
@@ -89,7 +87,6 @@ export function ensureStringArray(val: unknown): string[] {
   return [];
 }
 
-// Re-export stakeholder types for backward compat
 export type { StakeholderRow } from "./ExtendedBriefStakeholderTable";
 export { StakeholderTableEditor, StakeholderTableView, ensureStakeholderArray } from "./ExtendedBriefStakeholderTable";
 
@@ -113,8 +110,7 @@ export default function ExtendedBriefDisplay({
     (subsectionKey: string, value: unknown) => {
       const jsonbField = EXTENDED_BRIEF_FIELD_MAP[subsectionKey];
       if (!jsonbField) return;
-      const updated = { ...brief, [jsonbField]: value };
-      onSave(updated);
+      onSave({ ...brief, [jsonbField]: value });
       setEditingKey(null);
     },
     [brief, onSave],
@@ -137,45 +133,14 @@ export default function ExtendedBriefDisplay({
 
   return (
     <div className="space-y-2">
-      {/* Industry Segment Field */}
-      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
-          {industrySegmentFromIntake && industrySegmentId && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
-          )}
-          {!industrySegmentId && !readOnly && (
-            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">
-              <AlertCircle className="h-2.5 w-2.5 mr-0.5" />Required
-            </Badge>
-          )}
-        </div>
-
-        {industrySegmentId && (industrySegmentFromIntake || readOnly) && (
-          <Badge variant="secondary" className="text-xs">{resolvedSegmentName ?? "Loading…"}</Badge>
-        )}
-
-        {industrySegmentId && !industrySegmentFromIntake && !readOnly && (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">{resolvedSegmentName ?? "Loading…"}</Badge>
-            <Select value={industrySegmentId} onValueChange={(val) => onIndustrySegmentChange?.(val)}>
-              <SelectTrigger className="w-auto max-w-[220px] h-7 text-xs border-dashed"><span className="text-muted-foreground">Change</span></SelectTrigger>
-              <SelectContent>{(industrySegments ?? []).map(seg => <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {!industrySegmentId && !readOnly && (
-          <Select onValueChange={(val) => onIndustrySegmentChange?.(val)}>
-            <SelectTrigger className="w-full max-w-sm h-8 text-sm border-destructive/50"><SelectValue placeholder="Select industry segment…" /></SelectTrigger>
-            <SelectContent>{(industrySegments ?? []).map(seg => <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-
-        {!industrySegmentId && readOnly && (
-          <p className="text-sm text-destructive italic">No industry segment specified — required before review.</p>
-        )}
-      </div>
+      <BriefIndustrySegmentField
+        industrySegmentId={industrySegmentId}
+        industrySegmentFromIntake={industrySegmentFromIntake}
+        readOnly={readOnly}
+        resolvedSegmentName={resolvedSegmentName}
+        industrySegments={industrySegments ?? []}
+        onIndustrySegmentChange={onIndustrySegmentChange}
+      />
 
       {EXTENDED_BRIEF_SUBSECTION_KEYS.map((subsectionKey) => {
         const meta = SUBSECTION_META[subsectionKey];
@@ -205,20 +170,6 @@ export default function ExtendedBriefDisplay({
           return null;
         })();
 
-        const aiReviewContent = (
-          <CurationAIReviewInline
-            sectionKey={subsectionKey}
-            review={aiReview}
-            currentContent={currentContent}
-            challengeId={challengeId}
-            challengeContext={challengeContext}
-            onAcceptRefinement={onAcceptRefinement}
-            onSingleSectionReview={onSingleSectionReview}
-            onMarkAddressed={onMarkAddressed}
-            defaultOpen={!aiReview?.addressed && (aiReview?.status === "warning" || aiReview?.status === "needs_revision")}
-          />
-        );
-
         return (
           <CuratorSectionPanel
             key={subsectionKey}
@@ -233,18 +184,21 @@ export default function ExtendedBriefDisplay({
             onToggleApproval={() => {}}
             challengeId={challengeId}
             defaultExpanded={!!(aiReview && !aiReview.addressed && (aiReview.status === "warning" || aiReview.status === "needs_revision"))}
-            aiReviewSlot={aiReviewContent}
+            aiReviewSlot={
+              <CurationAIReviewInline
+                sectionKey={subsectionKey} review={aiReview} currentContent={currentContent}
+                challengeId={challengeId} challengeContext={challengeContext}
+                onAcceptRefinement={onAcceptRefinement} onSingleSectionReview={onSingleSectionReview}
+                onMarkAddressed={onMarkAddressed}
+                defaultOpen={!aiReview?.addressed && (aiReview?.status === "warning" || aiReview?.status === "needs_revision")}
+              />
+            }
             expandVersion={expandVersion}
           >
             <BriefSubsectionContent
-              subsectionKey={subsectionKey}
-              rawVal={rawVal}
-              readOnly={readOnly}
-              isEditing={isEditing}
-              saving={saving}
-              onSave={handleSubsectionSave}
-              onEdit={setEditingKey}
-              onCancelEdit={cancelEdit}
+              subsectionKey={subsectionKey} rawVal={rawVal} readOnly={readOnly}
+              isEditing={isEditing} saving={saving}
+              onSave={handleSubsectionSave} onEdit={setEditingKey} onCancelEdit={cancelEdit}
             />
           </CuratorSectionPanel>
         );
