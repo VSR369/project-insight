@@ -37,7 +37,7 @@ const PHASE_LABELS: Record<number, string> = {
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-muted text-muted-foreground' },
   RETURNED: { label: 'Returned', className: 'bg-orange-100 text-orange-700' },
-  AM_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-violet-100 text-violet-700' },
+  CR_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-violet-100 text-violet-700' },
   IN_PREPARATION: { label: 'In Progress', className: 'bg-blue-100 text-blue-700' },
   ACTIVE: { label: 'Active', className: 'bg-blue-100 text-blue-700' },
   SLA_BREACH: { label: 'SLA Breach', className: 'bg-destructive/10 text-destructive' },
