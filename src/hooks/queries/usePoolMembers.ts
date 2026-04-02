@@ -102,7 +102,7 @@ export function useCreatePoolMember() {
       const withAudit = await withCreatedBy(data);
       const { data: result, error } = await supabase
         .from("platform_provider_pool")
-        .insert([withAudit] as Record<string, unknown>[])
+        .insert([withAudit] as unknown as Record<string, unknown>[])
         .select("id, full_name, availability_status, created_at")
         .single();
       if (error) throw new Error(error.message);
