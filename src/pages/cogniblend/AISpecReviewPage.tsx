@@ -74,6 +74,7 @@ import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { autoAssignChallengeRole } from '@/hooks/cogniblend/useAutoAssignChallengeRoles';
+import { logWarning } from '@/lib/errorHandler';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
