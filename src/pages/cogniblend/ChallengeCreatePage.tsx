@@ -30,9 +30,11 @@ import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import {
   getAvailableGovernanceModes,
   getDefaultGovernanceMode,
+  resolveGovernanceMode,
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /* ── Governance + Engagement Selector ── */
