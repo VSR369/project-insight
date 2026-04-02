@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { ORG_SEED } from './creatorSeedContent';
+import { OrgAttachmentList } from '@/components/cogniblend/curation/OrgAttachmentList';
+import { useCreatorOrgAttachments } from '@/hooks/mutations/useCreatorOrgAttachments';
 
 interface CreatorOrgContextCardProps {
   organizationId: string;
