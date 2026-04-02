@@ -20,16 +20,17 @@ import { useCurationStoreSync } from '@/hooks/useCurationStoreSync';
 import { useCurationSectionActions } from '@/hooks/cogniblend/useCurationSectionActions';
 import { useCurationAIActions } from '@/hooks/cogniblend/useCurationAIActions';
 import { useCurationComputedValues } from '@/hooks/cogniblend/useCurationComputedValues';
+import { useCurationEffects } from '@/hooks/cogniblend/useCurationEffects';
+import { useCurationCallbacks } from '@/hooks/cogniblend/useCurationCallbacks';
 import { useWaveExecutor } from '@/hooks/useWaveExecutor';
 import { useCompletenessCheckDefs, useRunCompletenessCheck } from '@/hooks/queries/useCompletenessChecks';
 import { useSolutionTypes, groupSolutionTypes, useSolutionTypeMap } from '@/hooks/queries/useSolutionTypeMap';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
-import { normalizeSectionReview, normalizeSectionReviews } from '@/lib/cogniblend/normalizeSectionReview';
+import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
 import { loadExpandState, saveExpandState } from '@/components/cogniblend/curation/CuratorSectionPanel';
 import { getCurationFormStore, selectStaleSections } from '@/store/curationFormStore';
 import { getSectionDisplayName } from '@/lib/cogniblend/sectionDependencies';
 import { buildChallengeContext, type BuildChallengeContextOptions } from '@/lib/cogniblend/challengeContextAssembler';
-import { findCorruptedFields } from '@/utils/migrateCorruptedContent';
 import { GROUPS } from '@/lib/cogniblend/curationSectionDefs';
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
 import { toast } from 'sonner';
@@ -163,52 +164,14 @@ export function useCurationPageOrchestrator() {
   const rewardStructureRef = useRef<RewardStructureDisplayHandle>(null);
   const complexityModuleRef = useRef<ComplexityModuleHandle>(null);
 
-  // ── AI review hydration effect ──
-  useEffect(() => {
-    if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
-      let stored: SectionReview[] = [];
-      if (Array.isArray(challenge.ai_section_reviews)) {
-        stored = normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[]);
-      } else if (challenge.ai_section_reviews && typeof challenge.ai_section_reviews === 'object') {
-        const objMap = challenge.ai_section_reviews as Record<string, any>;
-        const converted: SectionReview[] = [];
-        for (const [key, val] of Object.entries(objMap)) {
-          if (val && typeof val === 'object' && 'section_key' in val) {
-            converted.push({
-              section_key: val.section_key ?? key,
-              status: val.status ?? 'pass',
-              comments: Array.isArray(val.comments) ? val.comments : [],
-              reviewed_at: val.reviewed_at,
-              addressed: val.addressed ?? false,
-            });
-          }
-        }
-        if (converted.length > 0) {
-          stored = normalizeSectionReviews(converted);
-          saveSectionMutation.mutate({ field: 'ai_section_reviews', value: stored });
-        }
-      }
-      if (stored.length > 0) setAiReviews(stored);
-      setAiReviewsLoaded(true);
-    }
-  }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
-
-  // ── Content migration effect ──
-  const contentMigrationRanRef = useRef(false);
-  useEffect(() => {
-    if (!challenge || contentMigrationRanRef.current) return;
-    contentMigrationRanRef.current = true;
-    const targets = [
-      { dbField: 'problem_statement', content: challenge.problem_statement as string | null },
-      { dbField: 'scope', content: challenge.scope as string | null },
-      { dbField: 'hook', content: challenge.hook as string | null },
-      { dbField: 'description', content: challenge.description as string | null },
-    ];
-    const corrupted = findCorruptedFields(targets);
-    corrupted.forEach(({ dbField, fixed }) => {
-      saveSectionMutationRef.current.mutate({ field: dbField, value: fixed });
-    });
-  }, [challenge]);
+  // ── Extracted effects (AI review hydration + content migration) ──
+  useCurationEffects({
+    challenge: challenge as Record<string, any> | null,
+    aiReviewsLoaded,
+    setAiReviews,
+    setAiReviewsLoaded,
+    saveSectionMutation,
+  });
 
   // ── Section action callbacks (D4.1) ──
   const sectionActionsHook = useCurationSectionActions({
@@ -333,16 +296,6 @@ export function useCurationPageOrchestrator() {
     prevWaveStatusRef.current = currentStatus;
   }, [waveProgress?.overallStatus]);
 
-  // ── Navigation helpers ──
-  const handleNavigateToSection = useCallback((sectionKey: string) => {
-    const group = GROUPS.find((g) => g.sectionKeys.includes(sectionKey));
-    if (group) setActiveGroup(group.id);
-  }, []);
-
-  const handleGroupClick = useCallback((groupId: string) => {
-    setActiveGroup(groupId);
-  }, []);
-
   // ── Computed values ──
   const computedValues = useCurationComputedValues({
     challenge: challenge as ChallengeData | null,
@@ -357,7 +310,17 @@ export function useCurationPageOrchestrator() {
 
   const activeGroupDef = GROUPS.find((g) => g.id === activeGroup) ?? GROUPS[0];
 
-  // ── Derived state (post-conditional) ──
+  // ── Extracted callbacks (navigation, budget, guided mode) ──
+  const callbacks = useCurationCallbacks({
+    challengeId,
+    activeGroup,
+    setActiveGroup,
+    curationStore,
+    setBudgetShortfall,
+    groupProgress: computedValues.groupProgress,
+  });
+
+  // ── Derived state ──
   const isLegalAccepted = sectionActions.some(
     a => a.section_key === 'legal_docs' && a.action_type === 'approval' && a.status === 'approved'
   );
@@ -383,73 +346,6 @@ export function useCurationPageOrchestrator() {
     : challenge?.current_phase === 2
       ? 'Legal & Finance Review (Phase 2)'
       : '';
-
-  // ── Budget revision handler ──
-  const handleAcceptBudgetRevision = useCallback(async (shortfall: any) => {
-    try {
-      if (curationStore && shortfall) {
-        const existingReward = curationStore.getState().getSectionEntry('reward_structure' as SectionKey);
-        const updatedData = {
-          ...(typeof existingReward.data === 'object' && existingReward.data ? existingReward.data : {}),
-          _budgetRevised: true,
-          _revisedReward: shortfall.originalBudget,
-          _revisionStrategy: shortfall.strategy,
-        };
-        curationStore.getState().setSectionData('reward_structure' as SectionKey, updatedData as Record<string, unknown>);
-      }
-      const { data: crRoles } = await supabase
-        .from('user_challenge_roles')
-        .select('user_id')
-        .eq('challenge_id', challengeId!)
-        .eq('role_code', 'CR')
-        .limit(1);
-      const crUserId = crRoles?.[0]?.user_id;
-      if (crUserId) {
-        await supabase.from('cogni_notifications').insert({
-          user_id: crUserId,
-          challenge_id: challengeId!,
-          notification_type: 'budget_revision',
-          title: 'Budget Revision Requires Approval',
-          message: `Budget shortfall detected (${shortfall.gapPercentage}% gap). Strategy: ${shortfall.strategy}. Original: ${shortfall.originalBudget}, Minimum: ${shortfall.minimumViableReward}.`,
-        });
-      }
-      toast.success('Revision accepted. Notification sent to Account Manager.');
-    } catch {
-      toast.error('Failed to send notification to Account Manager.');
-    }
-    setBudgetShortfall(null);
-  }, [curationStore, challengeId, setBudgetShortfall]);
-
-  // ── Guided mode next handler ──
-  const handleGuidedNext = useCallback(() => {
-    const currentIdx = GROUPS.findIndex(g => g.id === activeGroup);
-    for (let i = currentIdx + 1; i < GROUPS.length; i++) {
-      const gp = computedValues.groupProgress[GROUPS[i].id];
-      if (gp && gp.done < gp.total) {
-        setActiveGroup(GROUPS[i].id);
-        return;
-      }
-    }
-    toast.success('All tabs reviewed!');
-  }, [activeGroup, computedValues.groupProgress]);
-
-  const guidedNextLabel = useMemo(() => {
-    const currentIdx = GROUPS.findIndex(g => g.id === activeGroup);
-    for (let i = currentIdx + 1; i < GROUPS.length; i++) {
-      const gp = computedValues.groupProgress[GROUPS[i].id];
-      if (gp && gp.done < gp.total) return GROUPS[i].label;
-    }
-    return 'All Complete';
-  }, [activeGroup, computedValues.groupProgress]);
-
-  const handlePreFlightGoToSection = useCallback((sectionKey: string) => {
-    const group = GROUPS.find(g => g.sectionKeys.includes(sectionKey));
-    if (group) setActiveGroup(group.id);
-    setTimeout(() => {
-      const el = document.getElementById(`section-${sectionKey}`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-  }, []);
 
   return {
     // IDs & navigation
@@ -542,18 +438,13 @@ export function useCurationPageOrchestrator() {
     executeWavesWithBudgetCheck: aiActionsHook.executeWavesWithBudgetCheck,
 
     // Navigation & UI handlers
-    handleGroupClick,
-    handleNavigateToSection,
+    ...callbacks,
     handleExpandCollapseAll,
     handleApproveLockedSection,
     handleUndoApproval,
     getSectionActions: getSectionActionsForKey,
     phase2Status,
     triageTotalCount,
-    handleAcceptBudgetRevision,
-    handleGuidedNext,
-    guidedNextLabel,
-    handlePreFlightGoToSection,
     setAiReviewLoading: pageData.setAiReviewLoading,
     setActiveGroup: pageData.setActiveGroup,
   };
