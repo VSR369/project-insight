@@ -6,7 +6,7 @@
  * Then 2-tab ChallengeCreatorForm with governance-aware validation.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Zap, ShieldCheck, Info,
