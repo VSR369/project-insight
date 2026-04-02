@@ -13,7 +13,7 @@ export interface MyChallengeItem {
   current_phase: number;
   master_status: string;
   phase_status: string;
-  role_code: string;
+  role_codes: string[];
   governance_profile: string;
   governance_mode_override: string | null;
   operating_model: string | null;
