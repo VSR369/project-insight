@@ -8,10 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import { getPoolCodesForGovernanceRole } from "@/constants/roleCodeMapping.constants";
 import type { DomainScope } from "@/hooks/queries/useDelegatedAdmins";
 
 export interface PoolMemberRow {
   id: string;
+  user_id: string | null;
   full_name: string;
   email: string;
   phone: string | null;
@@ -38,19 +40,15 @@ export function usePoolMembers(filters: PoolMemberFilters = {}) {
   return useQuery({
     queryKey: ["pool-members", filters.role, filters.industry, filters.proficiency, filters.availability],
     queryFn: async () => {
-      let query = supabase
+      const query = supabase
         .from("platform_provider_pool")
-        .select("id, full_name, email, phone, role_codes, domain_scope, max_concurrent, current_assignments, availability_status, is_active, created_at, updated_at, created_by, updated_by")
+        .select("id, user_id, full_name, email, phone, role_codes, domain_scope, max_concurrent, current_assignments, availability_status, is_active, created_at, updated_at, created_by, updated_by")
         .eq("is_active", true)
         .order("full_name", { ascending: true })
         .limit(200);
 
       if (filters.availability) {
-        query = query.eq("availability_status", filters.availability);
-      }
-
-      if (filters.role) {
-        query = query.contains("role_codes", [filters.role]);
+        query.eq("availability_status", filters.availability);
       }
 
       const { data, error } = await query;
@@ -58,18 +56,26 @@ export function usePoolMembers(filters: PoolMemberFilters = {}) {
 
       let results = (data ?? []) as unknown as PoolMemberRow[];
 
+      // Role filter: convert governance code to SLM pool codes, then client-side filter
+      if (filters.role) {
+        const poolCodes = getPoolCodesForGovernanceRole(filters.role);
+        results = results.filter((m) =>
+          m.role_codes.some((code) => poolCodes.includes(code)),
+        );
+      }
+
       // Client-side JSONB filtering for industry and proficiency
       // Empty array = ALL → always matches any filter value
       if (filters.industry) {
         results = results.filter((m) =>
           m.domain_scope?.industry_segment_ids?.length === 0 ||
-          m.domain_scope?.industry_segment_ids?.includes(filters.industry!)
+          m.domain_scope?.industry_segment_ids?.includes(filters.industry!),
         );
       }
       if (filters.proficiency) {
         results = results.filter((m) =>
           m.domain_scope?.proficiency_area_ids?.length === 0 ||
-          m.domain_scope?.proficiency_area_ids?.includes(filters.proficiency!)
+          m.domain_scope?.proficiency_area_ids?.includes(filters.proficiency!),
         );
       }
 
@@ -115,9 +121,7 @@ export function useCreatePoolMember() {
             role_names: variables.role_codes,
           },
         });
-      } catch (emailErr) {
-        // Non-blocking: log but don't fail the mutation
-        console.warn("Welcome email could not be sent:", emailErr);
+      } catch {
         toast.warning("Pool member added, but welcome email could not be sent.");
       }
     },
@@ -134,7 +138,7 @@ export function useUpdatePoolMember() {
       const withAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("platform_provider_pool")
-        .update(withAudit as any)
+        .update(withAudit as Record<string, unknown>)
         .eq("id", id)
         .select("id, full_name")
         .single();
@@ -163,11 +167,10 @@ export function useDeactivatePoolMember() {
       const withAudit = await withUpdatedBy({ is_active: false });
       const { error } = await supabase
         .from("platform_provider_pool")
-        .update(withAudit as any)
+        .update(withAudit as Record<string, unknown>)
         .eq("id", id);
       if (error) throw new Error(error.message);
 
-      // BR-PP-002: Notify Supervisor when Senior Admin deactivates supervisor-created member
       if (notifySupervisor && createdByTier === "supervisor") {
         const { data: { user } } = await supabase.auth.getUser();
         await supabase.from("admin_notifications").insert({
