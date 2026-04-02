@@ -1,96 +1,68 @@
 
 
-# Phase 10 Gap Analysis
+# Fix: Demo Roles All Showing Creator Screens
 
-I reviewed every file created/modified against the spec document. Here are the gaps found:
+## Problem
 
----
+When logging in as different demo roles (Curator, Legal, Evaluator, Finance), all users see Creator (CR) screens and navigation instead of their role-specific UX. Two root causes:
 
-## Gap 1: Dynamic Example Injection into AI Prompts (Prompt 10.6 Part 3) -- NOT DONE
+### Root Cause 1: Legacy Role Codes Not Resolved
+The seed function (`setup-test-scenario`) assigns legacy role codes like `CA`, `ID`, `AM`, `RQ` to `user_challenge_roles`. But `useCogniUserRoles.ts` reads raw codes from the database and adds them to `allRoleCodes` without mapping through `resolveRoleCode()`. Since `ROLE_PRIORITY` only contains modern codes (`CR`, `CU`, `ER`, `LC`, `FC`), legacy codes like `CA` and `ID` are filtered out in `CogniRoleContext`, leaving the set empty.
 
-The spec requires `assemblePrompt.ts` to fetch and inject up to 2 dynamic examples from `section_example_library` matched by domain + maturity. Currently `harvestExamples.ts` writes to the table, but **nothing reads from it during prompt assembly**. No `fetchRelevantExamples` function exists.
+### Root Cause 2: Empty Roles Default to CR
+When `allRoleCodes` is empty (because legacy codes were filtered out), line 51-53 of `useCogniUserRoles.ts` unconditionally adds `CR` as a fallback. This means every user — Curator, Legal, Finance — gets Creator navigation and screens.
 
-**Fix:** Add `fetchRelevantExamples()` function and wire it into `assemblePrompt.ts` after existing static example injection.
+## Plan
 
----
+### Step 1: Resolve legacy codes in `useCogniUserRoles.ts`
+**File:** `src/hooks/cogniblend/useCogniUserRoles.ts`
 
-## Gap 2: Solver Feedback Not Wired into SolutionSubmitPage (Prompt 10.5 Part 3) -- NOT DONE
+- Import `resolveRoleCode` from `@/types/cogniRoles`
+- When building `allRoleCodes` from RPC results, run each code through `resolveRoleCode()` before adding to the Set
+- Also resolve codes in each `row.role_codes` array so `challengeRoleMap` uses modern codes
+- Remove the unconditional CR fallback (line 51-53). If the user genuinely has no challenge roles, the set should be empty — they should see the appropriate empty state, not a false CR workspace
 
-`ChallengeClarityFeedback.tsx` exists but is **never rendered**. The spec says: after successful solution submit, show feedback card (skippable, once per solver per challenge). `SolutionSubmitPage.tsx` has no reference to `ChallengeClarityFeedback`.
+### Step 2: Update seed scenario to use modern role codes
+**File:** `supabase/functions/setup-test-scenario/index.ts`
 
-**Fix:** Import and render `ChallengeClarityFeedback` in the success state of `SolutionSubmitPage.tsx`.
+- Replace legacy codes in the `new_horizon_demo` scenario:
+  - `CA` → `CR` (Chris Rivera, Sam Solo)
+  - `AM` → `CR` (Alex Morgan, Sam Solo)
+  - `RQ` → `CR` (Alex Morgan, Sam Solo)
+  - `ID` → `CU` (Dana Irving, Sam Solo)
+- This ensures new seed runs produce modern codes. Existing seeded data will be fixed by Step 1's runtime resolution.
 
----
+### Step 3: Update DemoLoginPage user definitions to match
+**File:** `src/pages/cogniblend/DemoLoginPage.tsx`
 
-## Gap 3: Domain Coverage Scorer Not Wired into PreFlight (Prompt 10.7) -- PARTIAL
+- Update `buildDemoUsers()` to use modern role codes and correct destinations:
+  - `nh-cr` already has `['CR']` — correct
+  - `nh-cu` already has `['CU']` — correct, destination `/cogni/curation` — correct  
+  - `nh-lc` already has `['LC']` — correct
+  - `nh-er1`/`nh-er2` already have `['ER']` — correct
+  - `nh-fc` already has `['FC']` — correct
+  - `nh-solo` already has all roles — correct
+- Remove the separate `nh-am` and `nh-rq` entries since AM/RQ map to CR (redundant with `nh-cr`)
 
-The spec requires `scoreDomainCoverage()` to be called in `preFlightCheck.ts` with the actual domain tags, producing a coverage level warning. Currently, preFlightCheck only checks if `tags.length > 5` — it does **not call `scoreDomainCoverage()`** and does not warn about "thin" domains.
+### Step 4: Fix CurationQueuePage permission fallback
+**File:** `src/pages/cogniblend/CurationQueuePage.tsx`
 
-**Fix:** Import and call `scoreDomainCoverage()` in `preFlightCheck.ts`, adding a RECOMMENDED warning when coverage is `thin` or `moderate`.
+- The existing permission check (querying `user_challenge_roles` for `CU`) is correct and will work once legacy codes are resolved at the DB level (Step 2 for new seeds). For existing seeded data with legacy `CU` codes, the query already works since `CU` was never a legacy code — it's already modern.
 
----
+### Step 5: Redeploy edge function
+- The `setup-test-scenario` edge function must be redeployed after the code change so re-seeding produces correct modern codes.
 
-## Gap 4: Org Context Scorer Not Wired Anywhere (Prompt 10.7) -- NOT DONE
+## Technical Details
 
-`scoreOrgContext()` exists but is **never called**. The spec requires:
-1. Show org context score in pre-flight check panel
-2. Show org context score badge in the `OrgContextPanel` on CurationReviewPage
+**Key mapping (legacy → modern):**
+- `AM` (Admin/Manager) → `CR` (Creator)
+- `RQ` (Requestor) → `CR` (Creator)  
+- `CA` (Challenge Architect) → `CR` (Creator)
+- `ID` (Innovation Director) → `CU` (Curator)
 
-**Fix:** Wire `scoreOrgContext()` into `preFlightCheck.ts` and add a score badge to `OrgContextPanel`.
-
----
-
-## Gap 5: Section Heatmap Missing from Dashboard (Prompt 10.4) -- NOT DONE
-
-The spec describes a "27 sections x color" heatmap showing which sections are mostly accepted (green) vs rewritten (red). The dashboard only has grade distribution, recent challenges table, and solver feedback table. No heatmap.
-
-**Fix:** Add a "Section Heatmap" tab to `AIQualityDashboardPage.tsx` that aggregates `section_breakdown` data to show per-section rewrite rates with color coding.
-
----
-
-## Gap 6: Dashboard Filters Missing (Prompt 10.4) -- NOT DONE
-
-The spec requires "Filter by: governance mode, domain, maturity level, time period." The dashboard has no filters.
-
-**Fix:** Add filter dropdowns above the tabs in `AIQualityDashboardPage.tsx` and pass filter params to the query hooks.
-
----
-
-## Gap 7: "Promote to AI Config" Button Missing (Prompt 10.6 Part 2) -- NEEDS VERIFICATION
-
-The spec says ExampleLibraryManagerPage should have a "Promote to AI Config" button that copies an excellent example to `ai_review_section_config.example_good`. Need to verify if this exists in the current `ExampleLibraryManagerPage.tsx`.
-
----
-
-## Gap 8: Confidence Scorer Factors Don't Match Spec (Prompt 10.2) -- DEVIATION
-
-The spec's scoring formula is:
-- Creator input present: +30 pts
-- Reference materials: +20 pts  
-- Context digest: +15 pts
-- Master data constrained: +20 pts
-- Rich text unconstrained: -10 pts
-- Strong domain: +15 pts
-- Niche domain: -15 pts
-
-Current implementation uses a different formula (baseline 50, cross-section context +25, problem statement +10, etc.). The overall intent is met but the weights don't match the spec.
-
-**Fix:** Align scoring weights to match the spec's formula.
-
----
-
-## Summary of Required Changes
-
-| # | Gap | Severity | Files to Change |
-|---|-----|----------|----------------|
-| 1 | Dynamic example injection | High | `assemblePrompt.ts` + new fetch function |
-| 2 | Solver feedback not wired | High | `SolutionSubmitPage.tsx` |
-| 3 | Domain scorer not wired | Medium | `preFlightCheck.ts` |
-| 4 | Org context scorer not wired | Medium | `preFlightCheck.ts`, `OrgContextPanel.tsx` |
-| 5 | Section heatmap missing | Medium | `AIQualityDashboardPage.tsx` |
-| 6 | Dashboard filters missing | Medium | `AIQualityDashboardPage.tsx` |
-| 7 | Promote to AI Config button | Low | `ExampleLibraryManagerPage.tsx` |
-| 8 | Confidence scorer weights | Low | `confidenceScorer.ts` |
-
-All gaps are additive changes — no existing functionality needs to be modified or broken.
+**Files changed:** 3 source files + 1 edge function
+- `src/hooks/cogniblend/useCogniUserRoles.ts` — resolve legacy codes, remove CR fallback
+- `src/pages/cogniblend/DemoLoginPage.tsx` — clean up demo user list
+- `supabase/functions/setup-test-scenario/index.ts` — use modern codes
+- Edge function redeployment required
 
