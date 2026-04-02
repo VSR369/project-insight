@@ -1,12 +1,6 @@
 /**
  * SolverExpertiseSection — Taxonomy tree-based expertise requirement selector.
- *
- * Shows the challenge's industry segment (read-only) and lets curators select
- * expertise levels, proficiency areas, sub-domains, and specialities that
- * solvers must possess.
- * When nothing is selected at any level = "All applicable" (no restriction).
- *
- * Uses useFullTaxonomyTree hook to fetch the tree for each expertise level.
+ * Uses useFullTaxonomyTree hook. View mode extracted to SolverExpertiseViewMode.
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
@@ -19,15 +13,11 @@ import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Json } from "@/integrations/supabase/types";
 import { useFullTaxonomyTree } from "@/hooks/queries/useFullTaxonomyTree";
+import { SolverExpertiseViewMode } from "./SolverExpertiseViewMode";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+/* ── Types ── */
 
-interface SelectedItem {
-  id: string;
-  name: string;
-}
+interface SelectedItem { id: string; name: string; }
 
 export interface SolverExpertiseData {
   expertise_levels?: SelectedItem[];
@@ -46,40 +36,20 @@ interface SolverExpertiseSectionProps {
   onCancel?: () => void;
 }
 
-// useFullTaxonomyTree is now imported from @/hooks/queries/useFullTaxonomyTree
-
-// ---------------------------------------------------------------------------
-// Parse helper
-// ---------------------------------------------------------------------------
-
 function parseSolverExpertise(val: Json | null): SolverExpertiseData {
   if (!val) return {};
-  if (typeof val === "string") {
-    try { return JSON.parse(val); } catch { return {}; }
-  }
+  if (typeof val === "string") { try { return JSON.parse(val); } catch { return {}; } }
   return val as unknown as SolverExpertiseData;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+/* ── Component ── */
 
 export default function SolverExpertiseSection({
-  data,
-  industrySegmentId,
-  readOnly = false,
-  editing: externalEditing,
-  onSave,
-  saving,
-  onCancel: externalOnCancel,
+  data, industrySegmentId, readOnly = false, editing: externalEditing, onSave, saving, onCancel: externalOnCancel,
 }: SolverExpertiseSectionProps) {
   const parsed = parseSolverExpertise(data);
 
-  // ══════════════════════════════════════
-  // SECTION 1: useState hooks
-  // ══════════════════════════════════════
   const [internalEditing, setInternalEditing] = useState(false);
-  // localSelectedSegmentId removed — industry segment is now set upstream in Context & Background
   const [selectedELs, setSelectedELs] = useState<Set<string>>(new Set((parsed.expertise_levels ?? []).map(i => i.id)));
   const [selectedPAs, setSelectedPAs] = useState<Set<string>>(new Set((parsed.proficiency_areas ?? []).map(i => i.id)));
   const [selectedSDs, setSelectedSDs] = useState<Set<string>>(new Set((parsed.sub_domains ?? []).map(i => i.id)));
@@ -88,26 +58,17 @@ export default function SolverExpertiseSection({
   const [expandedPAs, setExpandedPAs] = useState<Set<string>>(new Set());
   const [expandedSDs, setExpandedSDs] = useState<Set<string>>(new Set());
 
-  // ══════════════════════════════════════
-  // SECTION 2: Derived state & hooks
-  // ══════════════════════════════════════
   const editing = externalEditing ?? internalEditing;
   const { data: industrySegments } = useIndustrySegments();
-
   const effectiveSegmentId = industrySegmentId;
   const industryName = industrySegments?.find(s => s.id === effectiveSegmentId)?.name;
-
   const { tree, expertiseLevels: allExpertiseLevels, isLoading } = useFullTaxonomyTree(effectiveSegmentId ?? undefined);
 
-  // Filter tree by selected expertise levels
   const filteredTree = useMemo(() => {
-    if (selectedELs.size === 0) return tree; // None selected = ALL
+    if (selectedELs.size === 0) return tree;
     return tree.filter(el => selectedELs.has(el.id));
   }, [tree, selectedELs]);
 
-  // ══════════════════════════════════════
-  // SECTION 5: useEffect hooks
-  // ══════════════════════════════════════
   useEffect(() => {
     if (editing) {
       const p = parseSolverExpertise(data);
@@ -118,188 +79,55 @@ export default function SolverExpertiseSection({
     }
   }, [editing, data]);
 
-  // ══════════════════════════════════════
-  // SECTION 7: Event handlers
-  // ══════════════════════════════════════
-  const handleCancel = () => {
-    setInternalEditing(false);
-    externalOnCancel?.();
-  };
+  const handleCancel = () => { setInternalEditing(false); externalOnCancel?.(); };
 
   const handleSave = useCallback(() => {
-    // Build named selections from tree
-    const elItems: SelectedItem[] = [];
-    const paItems: SelectedItem[] = [];
-    const sdItems: SelectedItem[] = [];
-    const spItems: SelectedItem[] = [];
-
-    // Expertise levels
-    allExpertiseLevels.forEach(el => {
-      if (selectedELs.has(el.id)) elItems.push({ id: el.id, name: el.name });
-    });
-
+    const elItems: SelectedItem[] = []; const paItems: SelectedItem[] = [];
+    const sdItems: SelectedItem[] = []; const spItems: SelectedItem[] = [];
+    allExpertiseLevels.forEach(el => { if (selectedELs.has(el.id)) elItems.push({ id: el.id, name: el.name }); });
     tree.forEach(el => {
       el.proficiencyAreas.forEach(pa => {
         if (selectedPAs.has(pa.id)) paItems.push({ id: pa.id, name: pa.name });
         pa.subDomains.forEach(sd => {
           if (selectedSDs.has(sd.id)) sdItems.push({ id: sd.id, name: sd.name });
-          sd.specialities.forEach(sp => {
-            if (selectedSPs.has(sp.id)) spItems.push({ id: sp.id, name: sp.name });
-          });
+          sd.specialities.forEach(sp => { if (selectedSPs.has(sp.id)) spItems.push({ id: sp.id, name: sp.name }); });
         });
       });
     });
-
-    const savePayload: SolverExpertiseData = {
+    onSave({
       expertise_levels: elItems.length > 0 ? elItems : undefined,
       proficiency_areas: paItems.length > 0 ? paItems : undefined,
       sub_domains: sdItems.length > 0 ? sdItems : undefined,
       specialities: spItems.length > 0 ? spItems : undefined,
-    };
-    onSave(savePayload);
+    });
     setInternalEditing(false);
   }, [tree, allExpertiseLevels, selectedELs, selectedPAs, selectedSDs, selectedSPs, onSave]);
 
-  const toggleEL = (id: string) => setSelectedELs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const togglePA = (id: string) => setSelectedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const toggleSD = (id: string) => setSelectedSDs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const toggleSP = (id: string) => setSelectedSPs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const toggleLevel = (id: string) => setExpandedLevels(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const togglePAExpand = (id: string) => setExpandedPAs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const toggleSDExpand = (id: string) => setExpandedSDs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggle = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (id: string) =>
+    setter(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const hasAnySelection =
-    (parsed.expertise_levels?.length ?? 0) +
-    (parsed.proficiency_areas?.length ?? 0) +
-    (parsed.sub_domains?.length ?? 0) +
-    (parsed.specialities?.length ?? 0) > 0;
+  const toggleEL = toggle(setSelectedELs); const togglePA = toggle(setSelectedPAs);
+  const toggleSD = toggle(setSelectedSDs); const toggleSP = toggle(setSelectedSPs);
+  const toggleLevel = toggle(setExpandedLevels); const togglePAExpand = toggle(setExpandedPAs);
+  const toggleSDExpand = toggle(setExpandedSDs);
 
-  // ══════════════════════════════════════
-  // SECTION 8: Render — NO early returns that would hide parent's Edit button
-  // ══════════════════════════════════════
-
-  // ── View mode ──
+  // View mode
   if (!editing) {
-    // No industry segment and not editing — show prompt inline (no early return)
-    if (!effectiveSegmentId) {
-      return (
-        <div className="text-sm text-muted-foreground italic py-2">
-          No industry segment configured yet. Click <strong>Edit</strong> to select one and configure expertise requirements.
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm">
-          <GraduationCap className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Industry:</span>
-          <Badge variant="outline">{industryName ?? "Loading..."}</Badge>
-        </div>
-
-        {!hasAnySelection ? (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">All Applicable</Badge>
-            <span className="text-xs text-muted-foreground">No specific expertise restrictions — all solver expertise levels qualify.</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {/* Expertise Levels */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Expertise Levels</p>
-              {(!parsed.expertise_levels || parsed.expertise_levels.length === 0) ? (
-                <Badge variant="secondary" className="text-xs">All Levels</Badge>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.expertise_levels.map(el => (
-                    <Badge key={el.id} variant="outline" className="text-xs">{el.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Proficiency Areas */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Proficiency Areas</p>
-              {(!parsed.proficiency_areas || parsed.proficiency_areas.length === 0) ? (
-                <Badge variant="secondary" className="text-xs">All Areas</Badge>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.proficiency_areas.map(pa => (
-                    <Badge key={pa.id} variant="secondary" className="text-xs">{pa.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Sub-domains */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Sub-domains</p>
-              {(!parsed.sub_domains || parsed.sub_domains.length === 0) ? (
-                <Badge variant="secondary" className="text-xs">All Sub-domains</Badge>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.sub_domains.map(sd => (
-                    <Badge key={sd.id} variant="outline" className="text-xs">{sd.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Specialities */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Specialities</p>
-              {(!parsed.specialities || parsed.specialities.length === 0) ? (
-                <Badge variant="secondary" className="text-xs">All Specialities</Badge>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.specialities.map(sp => (
-                    <Badge key={sp.id} className="text-xs bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">{sp.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
+    return <SolverExpertiseViewMode parsed={parsed} industryName={industryName} effectiveSegmentId={effectiveSegmentId} />;
   }
 
-  // ── Edit mode ──
-
-  // Industry segment selector (shown inline when no segment, NOT as early return)
+  // Edit mode — no segment
   if (!effectiveSegmentId) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          No industry segment configured. Please set it in <strong>Context &amp; Background</strong> (Tab 1) first.
-        </p>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={handleCancel}>
-            <X className="h-3 w-3 mr-1" />Cancel
-          </Button>
-        </div>
+        <p className="text-sm text-muted-foreground">No industry segment configured. Please set it in <strong>Context &amp; Background</strong> (Tab 1) first.</p>
+        <div className="flex gap-2"><Button variant="ghost" size="sm" onClick={handleCancel}><X className="h-3 w-3 mr-1" />Cancel</Button></div>
       </div>
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-
-  if (tree.length === 0) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">No taxonomy data available for industry "{industryName}". All expertise levels will apply.</p>
-        <Button variant="ghost" size="sm" onClick={handleCancel}>Cancel</Button>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="space-y-2"><Skeleton className="h-6 w-48" /><Skeleton className="h-32 w-full" /></div>;
+  if (tree.length === 0) return <div className="space-y-3"><p className="text-sm text-muted-foreground">No taxonomy data available for industry "{industryName}".</p><Button variant="ghost" size="sm" onClick={handleCancel}>Cancel</Button></div>;
 
   return (
     <div className="space-y-3">
@@ -308,47 +136,31 @@ export default function SolverExpertiseSection({
         <span className="text-muted-foreground">Industry:</span>
         <Badge variant="outline">{industryName}</Badge>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        Select expertise levels, proficiency areas, sub-domains, and specialities. <strong>Unchecked = All applicable</strong> at that level.
-      </p>
+      <p className="text-xs text-muted-foreground">Select expertise levels, proficiency areas, sub-domains, and specialities. <strong>Unchecked = All applicable</strong> at that level.</p>
 
       {/* Expertise Level Checkboxes */}
       <div className="border rounded-md p-3 space-y-2">
         <p className="text-xs font-medium text-muted-foreground">Expertise Levels</p>
         <div className="flex flex-wrap gap-3">
-          {/* All Levels checkbox */}
           <label className="flex items-center gap-2 cursor-pointer font-medium">
-            <Checkbox
-              checked={allExpertiseLevels.length > 0 && selectedELs.size === allExpertiseLevels.length}
-              onCheckedChange={(checked) => {
-                if (checked) setSelectedELs(new Set(allExpertiseLevels.map(el => el.id)));
-                else setSelectedELs(new Set());
-              }}
-            />
+            <Checkbox checked={allExpertiseLevels.length > 0 && selectedELs.size === allExpertiseLevels.length}
+              onCheckedChange={(checked) => { if (checked) setSelectedELs(new Set(allExpertiseLevels.map(el => el.id))); else setSelectedELs(new Set()); }} />
             <span className="text-sm">All Levels</span>
           </label>
           <span className="text-border">|</span>
           {allExpertiseLevels.map(el => (
             <label key={el.id} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                checked={selectedELs.has(el.id)}
-                onCheckedChange={() => toggleEL(el.id)}
-              />
+              <Checkbox checked={selectedELs.has(el.id)} onCheckedChange={() => toggleEL(el.id)} />
               <span className="text-sm">{el.name}</span>
             </label>
           ))}
         </div>
-        {selectedELs.size === 0 && (
-          <p className="text-[11px] text-muted-foreground italic">No levels checked — select levels to view and configure the taxonomy tree below.</p>
-        )}
+        {selectedELs.size === 0 && <p className="text-[11px] text-muted-foreground italic">No levels checked — select levels to view the taxonomy tree below.</p>}
       </div>
 
-      {/* Taxonomy Tree — only shown after expertise level selection */}
+      {/* Taxonomy Tree */}
       {selectedELs.size === 0 ? (
-        <p className="text-sm text-muted-foreground italic border rounded-md p-4 text-center">
-          Select expertise levels above to view the taxonomy tree.
-        </p>
+        <p className="text-sm text-muted-foreground italic border rounded-md p-4 text-center">Select expertise levels above to view the taxonomy tree.</p>
       ) : (
         <div className="border rounded-md divide-y max-h-[400px] overflow-y-auto">
           {filteredTree.map(el => (
@@ -360,53 +172,31 @@ export default function SolverExpertiseSection({
               </CollapsibleTrigger>
               <CollapsibleContent className="pl-4">
                 {el.proficiencyAreas.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic px-3 py-2">No proficiency areas for this level in the selected industry.</p>
-                ) : (
-                  el.proficiencyAreas.map(pa => (
-                    <div key={pa.id} className="border-l border-border ml-2">
-                      <div className="flex items-center gap-2 px-3 py-1.5">
-                        <Checkbox
-                          checked={selectedPAs.has(pa.id)}
-                          onCheckedChange={() => togglePA(pa.id)}
-                          id={`pa-${pa.id}`}
-                        />
-                        <label htmlFor={`pa-${pa.id}`} className="text-sm cursor-pointer flex-1">{pa.name}</label>
-                        {pa.subDomains.length > 0 && (
-                          <button onClick={() => togglePAExpand(pa.id)} className="text-muted-foreground hover:text-foreground">
-                            {expandedPAs.has(pa.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                          </button>
-                        )}
-                      </div>
-                      {expandedPAs.has(pa.id) && pa.subDomains.map(sd => (
-                        <div key={sd.id} className="border-l border-border ml-6">
-                          <div className="flex items-center gap-2 px-3 py-1">
-                            <Checkbox
-                              checked={selectedSDs.has(sd.id)}
-                              onCheckedChange={() => toggleSD(sd.id)}
-                              id={`sd-${sd.id}`}
-                            />
-                            <label htmlFor={`sd-${sd.id}`} className="text-xs cursor-pointer flex-1">{sd.name}</label>
-                            {sd.specialities.length > 0 && (
-                              <button onClick={() => toggleSDExpand(sd.id)} className="text-muted-foreground hover:text-foreground">
-                                {expandedSDs.has(sd.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                              </button>
-                            )}
-                          </div>
-                          {expandedSDs.has(sd.id) && sd.specialities.map(sp => (
-                            <div key={sp.id} className="flex items-center gap-2 px-3 py-1 ml-6">
-                              <Checkbox
-                                checked={selectedSPs.has(sp.id)}
-                                onCheckedChange={() => toggleSP(sp.id)}
-                                id={`sp-${sp.id}`}
-                              />
-                              <label htmlFor={`sp-${sp.id}`} className="text-[11px] cursor-pointer text-muted-foreground">{sp.name}</label>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
+                  <p className="text-xs text-muted-foreground italic px-3 py-2">No proficiency areas for this level.</p>
+                ) : el.proficiencyAreas.map(pa => (
+                  <div key={pa.id} className="border-l border-border ml-2">
+                    <div className="flex items-center gap-2 px-3 py-1.5">
+                      <Checkbox checked={selectedPAs.has(pa.id)} onCheckedChange={() => togglePA(pa.id)} id={`pa-${pa.id}`} />
+                      <label htmlFor={`pa-${pa.id}`} className="text-sm cursor-pointer flex-1">{pa.name}</label>
+                      {pa.subDomains.length > 0 && <button onClick={() => togglePAExpand(pa.id)} className="text-muted-foreground hover:text-foreground">{expandedPAs.has(pa.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</button>}
                     </div>
-                  ))
-                )}
+                    {expandedPAs.has(pa.id) && pa.subDomains.map(sd => (
+                      <div key={sd.id} className="border-l border-border ml-6">
+                        <div className="flex items-center gap-2 px-3 py-1">
+                          <Checkbox checked={selectedSDs.has(sd.id)} onCheckedChange={() => toggleSD(sd.id)} id={`sd-${sd.id}`} />
+                          <label htmlFor={`sd-${sd.id}`} className="text-xs cursor-pointer flex-1">{sd.name}</label>
+                          {sd.specialities.length > 0 && <button onClick={() => toggleSDExpand(sd.id)} className="text-muted-foreground hover:text-foreground">{expandedSDs.has(sd.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}</button>}
+                        </div>
+                        {expandedSDs.has(sd.id) && sd.specialities.map(sp => (
+                          <div key={sp.id} className="flex items-center gap-2 px-3 py-1 ml-6">
+                            <Checkbox checked={selectedSPs.has(sp.id)} onCheckedChange={() => toggleSP(sp.id)} id={`sp-${sp.id}`} />
+                            <label htmlFor={`sp-${sp.id}`} className="text-[11px] cursor-pointer text-muted-foreground">{sp.name}</label>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </CollapsibleContent>
             </Collapsible>
           ))}
@@ -414,12 +204,8 @@ export default function SolverExpertiseSection({
       )}
 
       <div className="flex gap-2">
-        <Button size="sm" disabled={saving} onClick={handleSave}>
-          <Save className="h-3 w-3 mr-1" />{saving ? "Saving…" : "Save"}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={handleCancel}>
-          <X className="h-3 w-3 mr-1" />Cancel
-        </Button>
+        <Button size="sm" disabled={saving} onClick={handleSave}><Save className="h-3 w-3 mr-1" />{saving ? "Saving…" : "Save"}</Button>
+        <Button variant="ghost" size="sm" onClick={handleCancel}><X className="h-3 w-3 mr-1" />Cancel</Button>
       </div>
     </div>
   );

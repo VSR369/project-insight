@@ -9,97 +9,24 @@
  *   5. IP Model — dropdown with info tooltips
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
-import {
-  Plus,
-  Trash2,
-  GripVertical,
-  Info,
-  Upload,
-  FileText,
-  X,
-} from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { Plus, Trash2, GripVertical, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ChallengeFormValues } from './challengeFormSchema';
-
-/* ─── Constants ──────────────────────────────────────── */
-
-const ARTIFACT_TIERS: Record<string, string[]> = {
-  blueprint: ['Document (PDF, DOCX)', 'Presentation (PPTX)', 'Diagram'],
-  poc: ['Document (PDF, DOCX)', 'Presentation (PPTX)', 'Diagram', 'Data/Evidence', 'Video Demo'],
-  prototype: [
-    'Document (PDF, DOCX)', 'Presentation (PPTX)', 'Diagram',
-    'Data/Evidence', 'Video Demo',
-    'Source Code', 'Hardware Specs', 'API Documentation',
-  ],
-  pilot: [
-    'Document (PDF, DOCX)', 'Presentation (PPTX)', 'Diagram',
-    'Data/Evidence', 'Video Demo',
-    'Source Code', 'Hardware Specs', 'API Documentation',
-    'Field Data', 'Deployment Guide', 'Metrics Report',
-  ],
-};
-
-const IP_OPTIONS = [
-  {
-    value: 'IP-EA',
-    label: 'Exclusive Assignment',
-    short: 'You acquire full IP ownership',
-    tooltip: 'The solver transfers all intellectual property rights to you upon acceptance. They may not use, license, or sell the solution to anyone else.',
-  },
-  {
-    value: 'IP-NEL',
-    label: 'Non-Exclusive License',
-    short: 'Solver keeps IP, you get license',
-    tooltip: 'The solver retains ownership but grants you a perpetual, non-exclusive license to use the solution. The solver may license it to others.',
-  },
-  {
-    value: 'IP-EL',
-    label: 'Exclusive License',
-    short: 'Solver keeps IP, exclusive use for you',
-    tooltip: 'The solver retains ownership but grants you an exclusive license. No other party (including the solver) may use or license the solution.',
-  },
-  {
-    value: 'IP-JO',
-    label: 'Joint Ownership',
-    short: 'Both parties co-own',
-    tooltip: 'Both you and the solver share ownership of the intellectual property. Either party may use or license it, subject to the agreement terms.',
-  },
-  {
-    value: 'IP-NONE',
-    label: 'No Transfer',
-    short: 'Advisory only',
-    tooltip: 'No intellectual property transfer occurs. The engagement is advisory in nature — the solver provides guidance, recommendations, or consulting only.',
-  },
-] as const;
-
-const MATURITY_IP_DEFAULTS: Record<string, string> = {
-  blueprint: 'IP-NEL',
-  poc: 'IP-NEL',
-  prototype: 'IP-EA',
-  pilot: 'IP-EA',
-};
+import { SubmissionTemplateUpload } from './SubmissionTemplateUpload';
+import { ARTIFACT_TIERS, IP_OPTIONS, MATURITY_IP_DEFAULTS } from './requirementsConstants';
 
 /* ─── Props ──────────────────────────────────────────── */
 
@@ -150,7 +77,6 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
   const selectedArtifacts = watch('permitted_artifact_types') ?? [];
   const availableArtifacts = ARTIFACT_TIERS[maturityLevel] ?? [];
 
-  // Auto-select all artifacts when maturity changes
   useEffect(() => {
     if (maturityLevel && ARTIFACT_TIERS[maturityLevel]) {
       setValue('permitted_artifact_types', [...ARTIFACT_TIERS[maturityLevel]]);
@@ -199,27 +125,12 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
                 dragIndex === index && 'shadow-md ring-2 ring-primary/30',
               )}
             >
-              <button
-                type="button"
-                className="cursor-grab shrink-0 p-1 text-muted-foreground hover:text-foreground active:cursor-grabbing"
-                tabIndex={-1}
-              >
+              <button type="button" className="cursor-grab shrink-0 p-1 text-muted-foreground hover:text-foreground active:cursor-grabbing" tabIndex={-1}>
                 <GripVertical className="h-4 w-4" />
               </button>
-              <Input
-                placeholder="Describe a specific deliverable..."
-                value={item}
-                onChange={(e) => updateDeliverable(index, e.target.value)}
-                className="border-0 shadow-none focus-visible:ring-0 text-base"
-              />
+              <Input placeholder="Describe a specific deliverable..." value={item} onChange={(e) => updateDeliverable(index, e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-base" />
               {deliverablesList.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeDeliverable(index)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                >
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeDeliverable(index)} className="shrink-0 text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
@@ -227,13 +138,7 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
           ))}
         </div>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={addDeliverable}
-          className="text-primary hover:text-primary/80"
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={addDeliverable} className="text-primary hover:text-primary/80">
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Deliverable
         </Button>
 
@@ -245,30 +150,14 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
       {/* ── 2. Permitted Artifact Types ── */}
       {maturityLevel && availableArtifacts.length > 0 && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            Permitted Artifact Types
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Auto-populated based on maturity level. Uncheck any you don't need.
-          </p>
-
+          <Label className="text-sm font-medium">Permitted Artifact Types</Label>
+          <p className="text-xs text-muted-foreground">Auto-populated based on maturity level. Uncheck any you don't need.</p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {availableArtifacts.map((artifact) => {
               const checked = selectedArtifacts.includes(artifact);
               return (
-                <label
-                  key={artifact}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors',
-                    checked
-                      ? 'border-primary/30 bg-primary/5'
-                      : 'border-border bg-background hover:bg-muted/50',
-                  )}
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => toggleArtifact(artifact)}
-                  />
+                <label key={artifact} className={cn('flex items-center gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors', checked ? 'border-primary/30 bg-primary/5' : 'border-border bg-background hover:bg-muted/50')}>
+                  <Checkbox checked={checked} onCheckedChange={() => toggleArtifact(artifact)} />
                   <span className="text-sm">{artifact}</span>
                 </label>
               );
@@ -281,49 +170,32 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
       <div className="space-y-1.5">
         <Label htmlFor="submission_guidelines" className="text-sm font-medium">
           Submission Guidelines{' '}
-          {!isQuick && isRequired('submission_guidelines') && (
-            <span className="text-destructive">*</span>
-          )}
-          {isQuick && (
-            <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-          )}
+          {!isQuick && isRequired('submission_guidelines') && <span className="text-destructive">*</span>}
+          {isQuick && <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
         </Label>
-        <Textarea
-          id="submission_guidelines"
-          placeholder="Any specific instructions for solvers about how to prepare and submit their solutions."
-          rows={4}
-          className="text-base resize-none"
-          {...register('submission_guidelines')}
-        />
-        {errors.submission_guidelines && (
-          <p className="text-xs text-destructive">{errors.submission_guidelines.message}</p>
-        )}
+        <Textarea id="submission_guidelines" placeholder="Any specific instructions for solvers about how to prepare and submit their solutions." rows={4} className="text-base resize-none" {...register('submission_guidelines')} />
+        {errors.submission_guidelines && <p className="text-xs text-destructive">{errors.submission_guidelines.message}</p>}
       </div>
 
       {/* ── 3b. Upload Submission Template ── */}
       <SubmissionTemplateUpload form={form} />
 
-      {/* ── 4. Solver Eligibility (moved to Step 5 — showing read-only note) ── */}
+      {/* ── 4. Solver Eligibility note ── */}
       <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
         <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
           Solver eligibility is configured in <strong>Step 5 — Provider Eligibility & Matchmaking</strong>.
         </p>
       </div>
+
+      {/* ── 5. IP Model ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           IP Model{' '}
-          {!isQuick && isRequired('ip_model') && (
-            <span className="text-destructive">*</span>
-          )}
-          {isQuick && (
-            <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-          )}
+          {!isQuick && isRequired('ip_model') && <span className="text-destructive">*</span>}
+          {isQuick && <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
         </Label>
-        <p className="text-xs text-muted-foreground">
-          Select how intellectual property will be handled
-        </p>
-
+        <p className="text-xs text-muted-foreground">Select how intellectual property will be handled</p>
         <Controller
           name="ip_model"
           control={control}
@@ -343,9 +215,7 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
                           <TooltipTrigger asChild>
                             <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-xs text-xs">
-                            {opt.tooltip}
-                          </TooltipContent>
+                          <TooltipContent side="right" className="max-w-xs text-xs">{opt.tooltip}</TooltipContent>
                         </Tooltip>
                       </div>
                     </SelectItem>
@@ -355,130 +225,8 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
             </Select>
           )}
         />
-        {errors.ip_model && (
-          <p className="text-xs text-destructive">{errors.ip_model.message}</p>
-        )}
+        {errors.ip_model && <p className="text-xs text-destructive">{errors.ip_model.message}</p>}
       </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Submission Template Upload
-   ═══════════════════════════════════════════════════════════ */
-
-const TEMPLATE_ALLOWED_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-];
-const TEMPLATE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
-
-function SubmissionTemplateUpload({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const templateUrl = form.watch('submission_template_url') ?? '';
-  const fileName = templateUrl ? templateUrl.split('/').pop() : '';
-
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!TEMPLATE_ALLOWED_TYPES.includes(file.type)) {
-      toast.error('Only PDF and DOCX files are allowed.');
-      return;
-    }
-    if (file.size > TEMPLATE_MAX_SIZE) {
-      toast.error('File must be under 10 MB.');
-      return;
-    }
-
-    setUploading(true);
-    const ext = file.name.split('.').pop() ?? 'pdf';
-    const path = `submission-templates/${crypto.randomUUID()}.${ext}`;
-
-    const { error: uploadErr } = await supabase.storage
-      .from('challenge-assets')
-      .upload(path, file, { contentType: file.type });
-
-    if (uploadErr) {
-      toast.error(`Upload failed: ${uploadErr.message}`);
-      setUploading(false);
-      return;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('challenge-assets')
-      .getPublicUrl(path);
-
-    if (urlData?.publicUrl) {
-      form.setValue('submission_template_url', urlData.publicUrl, { shouldDirty: true });
-      toast.success('Template uploaded successfully');
-    }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [form]);
-
-  const handleRemove = useCallback(() => {
-    form.setValue('submission_template_url', '', { shouldDirty: true });
-  }, [form]);
-
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm font-medium">
-        Submission Template{' '}
-        <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-      </Label>
-      <p className="text-xs text-muted-foreground">
-        Upload a PDF or DOCX template for solvers to use when preparing submissions.
-      </p>
-
-      {templateUrl ? (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
-          <FileText className="h-4 w-4 text-primary shrink-0" />
-          <a
-            href={templateUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline truncate flex-1 min-w-0"
-          >
-            {fileName}
-          </a>
-          <button
-            type="button"
-            onClick={handleRemove}
-            className="p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
-          className={cn(
-            'flex items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed px-4 py-4 transition-colors',
-            uploading
-              ? 'border-muted bg-muted/20 cursor-wait'
-              : 'border-border hover:border-primary/40 hover:bg-muted/30 cursor-pointer',
-          )}
-        >
-          <Upload className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {uploading ? 'Uploading…' : 'Click to upload PDF or DOCX (max 10 MB)'}
-          </span>
-        </button>
-      )}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.doc,.docx"
-        className="hidden"
-        onChange={handleUpload}
-      />
     </div>
   );
 }
