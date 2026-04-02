@@ -289,15 +289,15 @@ function OriginalBriefAccordion({
   optimisticIndustrySegId,
   industrySegments,
 }: OriginalBriefAccordionProps) {
-  const extBrief = parseJson<any>(extendedBrief);
+  const extBrief = parseJson<any>(extendedBrief as any);
   const templateId = extBrief?.challenge_template_id;
   const template = templateId ? CHALLENGE_TEMPLATES.find((t) => t.id === templateId) : null;
 
   const segmentId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge as any);
   const segmentName = industrySegments?.find((s) => s.id === segmentId)?.name;
 
-  const reward = parseJson<any>(rewardStructure);
-  const sched = parseJson<any>(phaseSchedule);
+  const reward = parseJson<any>(rewardStructure as any);
+  const sched = parseJson<any>(phaseSchedule as any);
 
   const solExpectations = extBrief?.solution_expectations;
   const beneficiaries = extBrief?.beneficiaries_mapping;
