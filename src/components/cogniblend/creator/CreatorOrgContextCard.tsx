@@ -21,13 +21,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { ORG_SEED } from './creatorSeedContent';
 
 interface CreatorOrgContextCardProps {
   organizationId: string;
   governanceMode: GovernanceMode;
+  fillTrigger?: number;
 }
 
-export function CreatorOrgContextCard({ organizationId, governanceMode }: CreatorOrgContextCardProps) {
+export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0 }: CreatorOrgContextCardProps) {
   // ═══════ State ═══════
   const [isOpen, setIsOpen] = useState(governanceMode !== 'QUICK');
   const [description, setDescription] = useState('');
@@ -102,6 +104,24 @@ export function CreatorOrgContextCard({ organizationId, governanceMode }: Creato
   useEffect(() => {
     setIsOpen(governanceMode !== 'QUICK');
   }, [governanceMode]);
+
+  // ═══════ Fill Test Data trigger ═══════
+  useEffect(() => {
+    if (fillTrigger === 0) return;
+    setDescription(ORG_SEED.organization_description);
+    setWebsite(ORG_SEED.website_url);
+    setLinkedin(ORG_SEED.linkedin_url);
+    setTwitter(ORG_SEED.twitter_url);
+    setTagline(ORG_SEED.tagline);
+    setIsOpen(true);
+    saveToOrg({
+      organization_description: ORG_SEED.organization_description,
+      website_url: ORG_SEED.website_url,
+      linkedin_url: ORG_SEED.linkedin_url,
+      twitter_url: ORG_SEED.twitter_url,
+      tagline: ORG_SEED.tagline,
+    });
+  }, [fillTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ═══════ Auto-save with debounce ═══════
   const saveToOrg = useCallback(

@@ -211,3 +211,16 @@ export const AGG_SEED: SeedContent = {
   expected_timeline: '20w',
   industry_segment_id: '',
 };
+
+/**
+ * ORG_SEED — Mahindra & Mahindra sample org data for internal testing.
+ * Used by "Fill Test Data" to populate the Organization Context card.
+ */
+export const ORG_SEED = {
+  organization_description:
+    'Mahindra & Mahindra Limited is a USD 21 billion multinational conglomerate headquartered in Mumbai, India. The Group operates across 20+ key industries including automotive, farm equipment, information technology, financial services, and real estate. With over 260,000 employees across 100+ countries, Mahindra is one of the largest vehicle manufacturers by production in India and the world\'s largest tractor company by volume. The company is a leader in utility vehicles, electric mobility, and sustainable business practices, driving innovation through its "Rise" philosophy.',
+  website_url: 'https://www.mahindra.com',
+  linkedin_url: 'https://www.linkedin.com/company/mahindra-and-mahindra',
+  twitter_url: 'https://x.com/MahindraRise',
+  tagline: 'Rise.',
+};

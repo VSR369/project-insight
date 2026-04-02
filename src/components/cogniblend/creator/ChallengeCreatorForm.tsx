@@ -122,6 +122,7 @@ interface ChallengeCreatorFormProps {
   engagementModel: string;
   governanceMode: GovernanceMode;
   onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
+  onFillTestData?: () => void;
 }
 
 function toFormMaturityCode(value: string | null | undefined): string {
@@ -132,7 +133,7 @@ function toFormMaturityCode(value: string | null | undefined): string {
   return `SOLUTION_${upper}`;
 }
 
-export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync }: ChallengeCreatorFormProps) {
+export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync, onFillTestData }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -453,7 +454,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
       : seedWithDomainTags;
 
     form.reset(filteredSeed as CreatorFormValues);
-  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules]);
+    onFillTestData?.();
+  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData]);
 
   return (
     <FormProvider {...form}>
