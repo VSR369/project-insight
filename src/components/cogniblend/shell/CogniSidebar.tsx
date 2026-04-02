@@ -24,7 +24,7 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
   const { data: currentOrg } = useCurrentOrg();
 
   const orgName = currentOrg?.orgName ?? 'Organization';
-  const governanceProfile = currentOrg?.governanceProfile ?? 'STRUCTURED';
+  
 
   const handleDashboardNav = () => {
     navigate('/cogni/dashboard');
