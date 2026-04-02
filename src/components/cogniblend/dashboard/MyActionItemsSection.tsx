@@ -37,7 +37,7 @@ const PHASE_LABELS: Record<number, string> = {
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'bg-muted text-muted-foreground' },
   RETURNED: { label: 'Returned', className: 'bg-orange-100 text-orange-700' },
-  AM_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-violet-100 text-violet-700' },
+  CR_APPROVAL_PENDING: { label: 'Awaiting Your Approval', className: 'bg-violet-100 text-violet-700' },
   IN_PREPARATION: { label: 'In Progress', className: 'bg-blue-100 text-blue-700' },
   ACTIVE: { label: 'Active', className: 'bg-blue-100 text-blue-700' },
   SLA_BREACH: { label: 'SLA Breach', className: 'bg-destructive/10 text-destructive' },
@@ -151,17 +151,17 @@ export function MyActionItemsSection() {
       // Include if user has any role on this challenge (no activeRole filter)
       if (roles.length === 0 && !(ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1)) continue;
 
-      // Standard action items: draft (IN_PREPARATION phase 1), RETURNED, AM_APPROVAL_PENDING
+      // Standard action items: draft (IN_PREPARATION phase 1), RETURNED, CR_APPROVAL_PENDING
       const needsAction =
         (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ||
         ch.phase_status === 'RETURNED' ||
-        ch.phase_status === 'AM_APPROVAL_PENDING';
+        ch.phase_status === 'CR_APPROVAL_PENDING';
 
       if (needsAction) {
         items.push({
           id: ch.challenge_id,
           title: ch.title,
-          status: ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING'
+          status: ch.phase_status === 'CR_APPROVAL_PENDING' ? 'CR_APPROVAL_PENDING'
             : (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ? 'DRAFT'
             : ch.phase_status === 'RETURNED' ? 'RETURNED' : ch.master_status,
           phase: ch.current_phase,
