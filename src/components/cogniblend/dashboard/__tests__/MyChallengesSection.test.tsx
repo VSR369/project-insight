@@ -76,7 +76,7 @@ describe('TW1-06 — MyChallengesSection filter tabs', () => {
   });
 
   it('filters to Creator items when As Creator tab is clicked', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     fireEvent.click(screen.getByText('As Creator'));
     expect(screen.getByText('AI Safety Research')).toBeInTheDocument();
     expect(screen.getByText('Green Energy')).toBeInTheDocument();
