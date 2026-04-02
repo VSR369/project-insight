@@ -21,13 +21,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { ORG_SEED } from './creatorSeedContent';
 
 interface CreatorOrgContextCardProps {
   organizationId: string;
   governanceMode: GovernanceMode;
+  fillTrigger?: number;
 }
 
-export function CreatorOrgContextCard({ organizationId, governanceMode }: CreatorOrgContextCardProps) {
+export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrigger = 0 }: CreatorOrgContextCardProps) {
   // ═══════ State ═══════
   const [isOpen, setIsOpen] = useState(governanceMode !== 'QUICK');
   const [description, setDescription] = useState('');
