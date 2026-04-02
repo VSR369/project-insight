@@ -60,7 +60,7 @@ const AVAILABLE_ROLES = ['CR', 'CU', 'ER'];
 
 describe('TW1-06 — MyChallengesSection filter tabs', () => {
   it('renders all 5 tabs with correct labels', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('As Creator')).toBeInTheDocument();
     expect(screen.getByText('As Curator')).toBeInTheDocument();
