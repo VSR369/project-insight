@@ -1,91 +1,50 @@
 
 
-# Fix: Creator → Curator Assignment Pipeline
+# Fix: Assign CU Roles to Existing Challenges + Verify Pipeline
 
-## Root Cause Analysis
+## Current State
 
-### Root Cause 1: Governance override set AFTER role assignment
-The `initialize_challenge` RPC calls `auto_assign_roles_on_creation` internally. At that point, `governance_mode_override` has NOT been set yet (it's set later by `useSubmitSolutionRequest` in the `.update()` call). So `resolve_challenge_governance` inside `auto_assign_roles_on_creation` reads the org's default profile (CONTROLLED) → assigns only CR, even when the Creator selected QUICK.
+The Curation Queue page queries ALL org challenges in phases 1-3 regardless of CU assignment — so challenges **are visible** in the queue. However, they show as "Unassigned" because no CU rows exist in `user_challenge_roles` or `challenge_role_assignments`.
 
-**Timeline:**
-```text
-initialize_challenge()          ← governance_mode_override is NULL
-  └── auto_assign_roles_on_creation()
-        └── resolve_challenge_governance() → reads CONTROLLED → assigns CR only
-.update({ governance_mode_override: 'QUICK' })   ← too late
-complete_phase()                ← advances phase, but no CU assigned
-```
+The `initialize_challenge` fix we deployed only applies to **new** challenges. The 3 existing challenges were created before the fix and have only CR assigned.
 
-### Root Cause 2: No CU pool assignment in `useSubmitSolutionRequest`
-After `complete_phase` succeeds, `useSubmitSolutionRequest` does NOT call `autoAssignChallengeRole` for CU. The auto-assignment code only exists in `AISpecReviewPage.tsx`, which is a separate page the Creator visits for spec review — not part of the main submission flow.
+## What Needs to Happen
 
-### Root Cause 3: For QUICK mode, Creator needs all 5 roles
-QUICK governance means the Creator wears all hats (CR, CU, ER, LC, FC). But because of Root Cause 1, only CR gets assigned. `complete_phase` then tries to advance phases but `can_perform(user, challenge, 'CU')` fails at phase 3 because CU was never assigned.
+### Step 1: Data Fix — Assign CU to existing QUICK-mode challenges
 
----
+For QUICK governance, the Creator IS the Curator. We need to insert CU (and other missing roles) for the Creator on these 3 challenges.
 
-## Implementation Plan
-
-### Step 1: DB Migration — Fix `initialize_challenge` to accept governance override
-
-Alter `initialize_challenge` to accept an optional `p_governance_mode_override TEXT DEFAULT NULL` parameter. Set `governance_mode_override` on the challenge row BEFORE calling `auto_assign_roles_on_creation`. This ensures QUICK mode gets all 5 roles assigned to the Creator at creation time.
+For the two Phase 3 challenges (`170e577a...` and `0f5d6315...`), also insert into `challenge_role_assignments` so the auto-assign RPC records are consistent.
 
 ```sql
--- Add parameter p_governance_mode_override TEXT DEFAULT NULL
--- Before INSERT, if override provided, set it on the row
--- This ensures auto_assign_roles_on_creation sees the correct mode
+-- Insert missing QUICK-mode roles (CU, ER, LC, FC) for the Creator
+INSERT INTO user_challenge_roles (user_id, challenge_id, role_code, is_active, auto_assigned)
+SELECT '376d7eb8-ce4f-48bd-ac35-4a666756af69', c.id, r.code, true, true
+FROM challenges c
+CROSS JOIN (VALUES ('CU'), ('ER'), ('LC'), ('FC')) AS r(code)
+WHERE c.id IN ('170e577a-...', '0f5d6315-...', '256477ec-...')
+  AND c.governance_mode_override = 'QUICK'
+ON CONFLICT DO NOTHING;
 ```
 
-### Step 2: DB Migration — Fix `can_perform` legacy AM/RQ check
+### Step 2: Verify the Curator Queue visibility
 
-`can_perform` still has stale logic:
-```sql
-IF p_required_role = 'AM' AND v_operating_model = 'AGG' THEN RETURN false;
-IF p_required_role = 'RQ' AND v_operating_model = 'MP' THEN RETURN false;
-```
-These reference removed codes (AM, RQ). While `roles_equivalent` handles the mapping, the operating model checks block valid users. Remove these two checks since `get_phase_required_role` already uses modern codes.
+After the data fix, log in as `nh-cu@testsetup.dev` (Casey) and check:
+- The Curation Queue shows all 3 challenges
+- For QUICK-mode challenges created by the Creator, they show as "Assigned to Me" when viewed by the Creator (who holds CU)
+- Casey sees them as "Unassigned" (correct — QUICK mode means Creator self-curates)
 
-### Step 3: Client — Pass governance override to `initialize_challenge`
+### Step 3: End-to-end test — Create a NEW challenge
 
-Update `useSubmitSolutionRequest` to pass `p_governance_mode_override` when calling `initialize_challenge` RPC. This is a one-line addition to the RPC call.
-
-### Step 4: Client — Add CU auto-assignment after `complete_phase`
-
-In `useSubmitSolutionRequest`, after `complete_phase` succeeds, add CU pool auto-assignment for STRUCTURED/CONTROLLED modes (where CU is a different person from the pool). For QUICK mode, this is unnecessary since the Creator already has the CU role.
-
-```typescript
-// After complete_phase succeeds:
-if (effectiveGovernance !== 'QUICK') {
-  try {
-    await autoAssignChallengeRole({
-      challengeId,
-      roleCode: 'CU',
-      engagementModel: payload.operatingModel === 'AGG' ? 'aggregator' : 'marketplace',
-      industrySegmentId: payload.industrySegmentId || undefined,
-      assignedBy: payload.creatorId,
-    });
-  } catch (err) {
-    logWarning('Auto-assign CU after submit failed', { ... });
-  }
-}
-```
-
-### Step 5: Verify Casey's pool entry
-
-Already confirmed: Casey (user_id: `5c67ff44...`) has `role_codes: ['R5_MP', 'R5_AGG']`, `domain_scope: {}` (wildcard), `is_active: true`, `availability_status: 'available'`. No changes needed.
-
----
+Create a new challenge as the Creator to verify the `initialize_challenge` fix:
+- QUICK mode → Creator gets all 5 roles immediately
+- Non-QUICK mode → Creator gets CR, then `autoAssignChallengeRole` assigns Casey as CU
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| DB Migration | Alter `initialize_challenge` to accept `p_governance_mode_override`, set it before `auto_assign_roles_on_creation` |
-| DB Migration | Clean `can_perform` — remove stale AM/RQ operating model checks |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Pass governance override to `initialize_challenge`; add CU auto-assignment after `complete_phase` for non-QUICK modes |
+| DB Migration | Insert missing CU/ER/LC/FC roles for existing QUICK-mode challenges |
 
-## Expected Result
-
-1. **QUICK mode**: Creator creates challenge → `initialize_challenge` sets override → `auto_assign_roles_on_creation` sees QUICK → assigns all 5 roles to Creator → `complete_phase` auto-advances through CR/CU phases → Creator sees all workspaces
-2. **STRUCTURED/CONTROLLED mode**: Creator creates challenge → only CR assigned → `complete_phase` advances to phase 2 → `autoAssignChallengeRole` finds Casey in pool → RPC creates CU role for Casey → Casey sees challenge in Curation Queue
+No code changes needed — the client-side fixes from the previous implementation handle new challenges correctly.
 
