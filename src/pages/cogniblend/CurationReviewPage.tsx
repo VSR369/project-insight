@@ -77,6 +77,7 @@ import { cn } from "@/lib/utils";
 // Phase D4.1 / D4.2 / D6.2 — Extracted hooks
 import { useCurationSectionActions } from "@/hooks/cogniblend/useCurationSectionActions";
 import { useCurationAIActions } from "@/hooks/cogniblend/useCurationAIActions";
+import { useCurationComputedValues } from "@/hooks/cogniblend/useCurationComputedValues";
 
 // Complexity scoring imported from shared utility — single source of truth
 import {
