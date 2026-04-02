@@ -242,11 +242,13 @@ export default function ChallengeCreatePage() {
         </p>
       </div>
 
-      {/* Engagement Model Selector */}
-      <EngagementModelSelector
+      {/* Governance + Engagement Selector */}
+      <GovernanceEngagementSelector
+        governanceMode={governanceMode}
+        onGovernanceModeChange={setGovernanceMode}
         engagementModel={engagementModel}
         onEngagementModelChange={setEngagementModel}
-        governanceMode={governanceMode}
+        tierCode={currentOrg.tierCode}
       />
 
       {/* Organization Context Card */}
