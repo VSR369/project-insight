@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Info,
 } from 'lucide-react';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 
 import { Button } from '@/components/ui/button';
 
@@ -238,9 +239,15 @@ export default function ChallengeCreatePage() {
 
       {/* Page Header */}
       <div>
-        <h1 className="text-xl font-bold text-foreground">
-          New Challenge
-        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-bold text-foreground">New Challenge</h1>
+          <span className="text-muted-foreground font-medium">::</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wide">Org level:</span>
+          <GovernanceProfileBadge profile={currentOrg.governanceProfile} compact />
+          <span className="text-muted-foreground font-medium">;</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wide">Challenge level:</span>
+          <GovernanceProfileBadge profile={governanceMode} compact />
+        </div>
         <p className="text-sm text-muted-foreground mt-1">
           Select your governance mode and engagement model, then fill out the challenge details.
         </p>
