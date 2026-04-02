@@ -67,7 +67,8 @@ export function OrgAttachmentList({ attachments, isReadOnly, onUpload, onDelete 
         <FileUploadZone
           config={{
             maxSizeBytes: ORG_DOC_CONFIG.maxSizeBytes,
-            allowedMimeTypes: [...ORG_DOC_CONFIG.allowedTypes],
+            maxSizeMB: ORG_DOC_CONFIG.maxSizeMB,
+            allowedTypes: [...ORG_DOC_CONFIG.allowedTypes],
             allowedExtensions: [...ORG_DOC_CONFIG.allowedExtensions],
             label: ORG_DOC_CONFIG.label,
           }}
