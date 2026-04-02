@@ -66,7 +66,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const orgName = currentOrg?.orgName ?? 'Acme Innovation Labs';
-  const governanceProfile = currentOrg?.governanceProfile ?? null;
+  
   const initials = getInitials(userName);
 
   // ═══════════════════════════════════════════
