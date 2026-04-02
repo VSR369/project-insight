@@ -236,6 +236,7 @@ export function useWaveExecutor({
 
       // Update wave result
       const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
+      const totalReviewedSoFar = EXECUTION_WAVES.slice(0, i + 1).reduce((sum, w) => sum + w.sectionIds.length, 0);
       setWaveProgress((prev) => ({
         ...prev,
         waves: prev.waves.map((w) =>
@@ -244,6 +245,7 @@ export function useWaveExecutor({
             : w
         ),
       }));
+      options.onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
       // Refresh context for next wave — re-read store sections
       context = buildChallengeContext(buildContextOptions());
