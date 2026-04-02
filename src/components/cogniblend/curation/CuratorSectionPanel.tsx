@@ -1,57 +1,20 @@
 /**
  * CuratorSectionPanel — Collapsible panel shell for each curator section.
- *
- * Features:
- * - Inline expand/collapse with chevron toggle
- * - Fullscreen modal overlay (⤢ button)
- * - Status badge (gray/amber/red/green/blue/teal)
- * - Accept Section button in HEADER for locked sections
- * - Confirmation dialog for Accept + Undo after acceptance
- * - localStorage persistence of expand state per challenge ID
- * - Auto-expand for sections with warnings/blocks
+ * Header extracted to SectionPanelHeader.tsx.
+ * Fullscreen modal extracted to SectionFullscreenModal.tsx.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import type { AiActionType } from "@/types/sections";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  ChevronDown,
-  ChevronRight,
-  Maximize2,
-  Lock,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Eye,
-  ShieldCheck,
-  Clock,
-  Undo2,
-  Sparkles,
-} from "lucide-react";
-import { SECTION_FORMAT_CONFIG, AI_REVIEW_DISABLED_SECTIONS } from "@/lib/cogniblend/curationSectionFormats";
-import { getSectionDisplayName, getLockedSectionRole } from "@/lib/cogniblend/sectionDependencies";
-import { SectionEmptyState } from "@/components/cogniblend/curation/SectionEmptyState";
-import { ValidationResultsBar } from "@/components/cogniblend/curation/ValidationResultsBar";
+import { AlertTriangle, Clock, Sparkles } from "lucide-react";
+import { SectionPanelHeader } from "./SectionPanelHeader";
+import { SectionFullscreenModal } from "./SectionFullscreenModal";
+import { ValidationResultsBar } from "./ValidationResultsBar";
 import type { ValidationResult } from "@/lib/cogniblend/postLlmValidation";
 
 // ---------------------------------------------------------------------------
@@ -59,413 +22,139 @@ import type { ValidationResult } from "@/lib/cogniblend/postLlmValidation";
 // ---------------------------------------------------------------------------
 
 export type SectionStatus =
-  | "not_reviewed"
-  | "pass"
-  | "warning"
-  | "needs_revision"
-  | "view_only"
-  | "ai_reviewed"
-  | "pending_response"
-  | "response_received"
-  | "accepted"
-  | "stale"
-  // Legacy (kept for backward compat)
-  | "pending_modification"
-  | "curator_approved";
+  | "not_reviewed" | "pass" | "warning" | "needs_revision" | "view_only"
+  | "ai_reviewed" | "pending_response" | "response_received" | "accepted"
+  | "stale" | "pending_modification" | "curator_approved";
 
 export interface SectionActionRecord {
-  id: string;
-  action_type: string;
-  status: string;
-  addressed_to: string | null;
-  priority: string | null;
-  comment_html: string | null;
-  created_at: string;
-  responded_at: string | null;
-  response_html: string | null;
+  id: string; action_type: string; status: string; addressed_to: string | null;
+  priority: string | null; comment_html: string | null; created_at: string;
+  responded_at: string | null; response_html: string | null;
 }
 
 export interface CuratorSectionPanelProps {
-  sectionKey: string;
-  label: string;
-  attribution?: string;
-  filled: boolean;
-  status: SectionStatus;
-  isLocked: boolean;
-  isReadOnly: boolean;
-  isApproved: boolean;
-  onToggleApproval: () => void;
-  onApproveSection?: () => void;
-  onUndoApproval?: () => void;
-  challengeId: string;
-  inlineFlags?: string[];
-  /** Content rendered inside the panel body */
-  children: React.ReactNode;
-  /** AI review content rendered below the main content */
-  aiReviewSlot?: React.ReactNode;
-  /** Default open override (e.g. for sections with warnings) */
-  defaultExpanded?: boolean;
-  /** Existing section action records for this section */
-  sectionActions?: SectionActionRecord[];
-  /** Whether AI used supervisor-configured or default prompt */
-  promptSource?: "supervisor" | "default" | null;
-  /** Increment to force re-read expand state from localStorage (for expand/collapse all) */
-  expandVersion?: number;
-  /** Staleness: upstream section keys that caused this section to become stale */
-  staleBecauseOf?: string[];
-  /** Staleness: when this section became stale (ISO timestamp) */
-  staleAt?: string | null;
-  /** Post-LLM validation results */
-  validationResult?: ValidationResult | null;
-  /** AI wave action for this section (generate vs review) */
-  aiAction?: AiActionType;
+  sectionKey: string; label: string; attribution?: string; filled: boolean;
+  status: SectionStatus; isLocked: boolean; isReadOnly: boolean; isApproved: boolean;
+  onToggleApproval: () => void; onApproveSection?: () => void; onUndoApproval?: () => void;
+  challengeId: string; inlineFlags?: string[]; children: React.ReactNode;
+  aiReviewSlot?: React.ReactNode; defaultExpanded?: boolean;
+  sectionActions?: SectionActionRecord[]; promptSource?: "supervisor" | "default" | null;
+  expandVersion?: number; staleBecauseOf?: string[]; staleAt?: string | null;
+  validationResult?: ValidationResult | null; aiAction?: AiActionType;
 }
 
-// Export localStorage helpers so parent can bulk-update expand state
 export { loadExpandState, saveExpandState };
 
-// ---------------------------------------------------------------------------
-// localStorage helpers
-// ---------------------------------------------------------------------------
-
-function getStorageKey(challengeId: string) {
-  return `curator_panel_state_${challengeId}`;
-}
+function getStorageKey(challengeId: string) { return `curator_panel_state_${challengeId}`; }
 
 function loadExpandState(challengeId: string): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(getStorageKey(challengeId));
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  try { const raw = localStorage.getItem(getStorageKey(challengeId)); return raw ? JSON.parse(raw) : {}; }
+  catch { return {}; }
 }
 
 function saveExpandState(challengeId: string, state: Record<string, boolean>) {
-  try {
-    localStorage.setItem(getStorageKey(challengeId), JSON.stringify(state));
-  } catch {
-    // Silently fail if localStorage is full
-  }
+  try { localStorage.setItem(getStorageKey(challengeId), JSON.stringify(state)); } catch {}
 }
 
-// ---------------------------------------------------------------------------
-// Status badge component
-// ---------------------------------------------------------------------------
-
-import { StatusBadge } from "./CuratorSectionStatusBadge";
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function CuratorSectionPanel({
-  sectionKey,
-  label,
-  attribution,
-  filled,
-  status,
-  isLocked,
-  isReadOnly,
-  isApproved,
-  onToggleApproval,
-  onApproveSection,
-  onUndoApproval,
-  challengeId,
-  inlineFlags,
-  children,
-  aiReviewSlot,
-  defaultExpanded,
-  sectionActions,
-  promptSource,
-  expandVersion,
-  staleBecauseOf,
-  staleAt,
-  validationResult,
-  aiAction,
+  sectionKey, label, attribution, filled, status, isLocked, isReadOnly, isApproved,
+  onToggleApproval, onApproveSection, onUndoApproval, challengeId, inlineFlags,
+  children, aiReviewSlot, defaultExpanded, sectionActions, promptSource,
+  expandVersion, staleBecauseOf, staleAt, validationResult, aiAction,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
-
-  // ── Expand/collapse state with localStorage persistence ──
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = loadExpandState(challengeId);
     if (saved[sectionKey] !== undefined) return saved[sectionKey];
-    if (defaultExpanded) return true;
-    return false;
+    return defaultExpanded ?? false;
   });
-
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Persist expand state changes
   const toggleExpand = useCallback(() => {
     setIsExpanded((prev) => {
       const next = !prev;
-      const state = loadExpandState(challengeId);
-      state[sectionKey] = next;
-      saveExpandState(challengeId, state);
+      const s = loadExpandState(challengeId);
+      s[sectionKey] = next;
+      saveExpandState(challengeId, s);
       return next;
     });
   }, [challengeId, sectionKey]);
 
-  // Auto-expand on status change to warning/needs_revision — only if user hasn't
-  // explicitly set this section's state in localStorage
   useEffect(() => {
     if (defaultExpanded) {
       const saved = loadExpandState(challengeId);
-      // Only auto-expand if there's no explicit user choice persisted
       if (saved[sectionKey] === undefined) {
         setIsExpanded(true);
         saved[sectionKey] = true;
         saveExpandState(challengeId, saved);
       }
     }
-  }, [defaultExpanded]); // intentionally limited deps
+  }, [defaultExpanded]);
 
-  // Re-sync from localStorage when parent triggers expand/collapse all
   useEffect(() => {
     if (expandVersion === undefined) return;
     const saved = loadExpandState(challengeId);
-    if (saved[sectionKey] !== undefined) {
-      setIsExpanded(saved[sectionKey]);
-    }
+    if (saved[sectionKey] !== undefined) setIsExpanded(saved[sectionKey]);
   }, [expandVersion, challengeId, sectionKey]);
 
-  // Derive effective status from action records
+  // Derived state
   const effectiveStatus: SectionStatus = (() => {
     if (isLocked) {
-      const approved = sectionActions?.find(a => a.action_type === "approval" && a.status === "approved");
-      if (approved) return "accepted";
-      const responded = sectionActions?.find(a => a.action_type === "modification_request" && a.status === "responded");
-      if (responded) return "response_received";
-      const pendingMod = sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"));
-      if (pendingMod) return "pending_response";
-      // Check if AI review was run for this section (status comes from parent)
+      if (sectionActions?.find(a => a.action_type === "approval" && a.status === "approved")) return "accepted";
+      if (sectionActions?.find(a => a.action_type === "modification_request" && a.status === "responded")) return "response_received";
+      if (sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"))) return "pending_response";
       if (status === "pass" || status === "warning" || status === "needs_revision") return "ai_reviewed";
       return "view_only";
     }
     return status;
   })();
 
-  const isCuratorAccepted = sectionActions?.some(
-    a => a.action_type === "approval" && a.status === "approved"
-  ) ?? false;
+  const isCuratorAccepted = sectionActions?.some(a => a.action_type === "approval" && a.status === "approved") ?? false;
+  const pendingModification = sectionActions?.find(a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending"));
 
-  const pendingModification = sectionActions?.find(
-    a => a.action_type === "modification_request" && (a.status === "sent" || a.status === "pending")
-  );
+  const handleAcceptClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); setShowAcceptConfirm(true); }, []);
+  const handleConfirmAccept = useCallback(() => { setShowAcceptConfirm(false); onApproveSection?.(); }, [onApproveSection]);
+  const handleUndoClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); onUndoApproval?.(); }, [onUndoApproval]);
 
-  const handleAcceptClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowAcceptConfirm(true);
-  }, []);
+  const staleTimeAgo = staleAt ? (() => {
+    const diff = Date.now() - new Date(staleAt).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    return hrs < 24 ? `${hrs}h ago` : `${Math.floor(hrs / 24)}d ago`;
+  })() : null;
 
-  const handleConfirmAccept = useCallback(() => {
-    setShowAcceptConfirm(false);
-    onApproveSection?.();
-  }, [onApproveSection]);
+  const accentClass = (() => {
+    switch (effectiveStatus) {
+      case "pass": case "accepted": case "curator_approved": return "border-l-emerald-400";
+      case "warning": return "border-l-amber-400";
+      case "needs_revision": return "border-l-red-400";
+      case "stale": return "border-l-amber-500";
+      case "view_only": case "ai_reviewed": return "border-l-blue-400";
+      default: return "border-l-transparent";
+    }
+  })();
 
-  const handleUndoClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onUndoApproval?.();
-  }, [onUndoApproval]);
+  return (
+    <>
+      <div className={cn("rounded-xl shadow-sm hover:shadow-md transition-shadow border border-border/60 bg-card mb-4 overflow-hidden border-l-4", accentClass)}>
+        <SectionPanelHeader
+          sectionKey={sectionKey} label={label} attribution={attribution} filled={filled}
+          effectiveStatus={effectiveStatus} isExpanded={isExpanded} isLocked={isLocked}
+          isReadOnly={isReadOnly} isApproved={isApproved} isCuratorAccepted={isCuratorAccepted}
+          onToggleApproval={onToggleApproval} onToggleExpand={toggleExpand}
+          onFullscreen={() => setIsFullscreen(true)} onAcceptClick={handleAcceptClick}
+          onUndoClick={handleUndoClick} onUndoApproval={onUndoApproval}
+          promptSource={promptSource} inlineFlags={inlineFlags} status={status}
+          staleBecauseOf={staleBecauseOf} staleAt={staleAt} staleTimeAgo={staleTimeAgo}
+          aiAction={aiAction}
+        />
 
-  // Detect if content is empty for placeholder display
-  const isContentEmpty = !filled;
-
-    // Status-based accent color
-    const accentClass = (() => {
-      switch (effectiveStatus) {
-        case "pass":
-        case "accepted":
-        case "curator_approved":
-          return "border-l-emerald-400";
-        case "warning":
-          return "border-l-amber-400";
-        case "needs_revision":
-          return "border-l-red-400";
-        case "stale":
-          return "border-l-amber-500";
-        case "view_only":
-        case "ai_reviewed":
-          return "border-l-blue-400";
-        default:
-          return "border-l-transparent";
-      }
-    })();
-
-    // Time ago helper for stale display
-    const staleTimeAgo = staleAt ? (() => {
-      const diff = Date.now() - new Date(staleAt).getTime();
-      const mins = Math.floor(diff / 60000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return `${mins} min ago`;
-      const hrs = Math.floor(mins / 60);
-      if (hrs < 24) return `${hrs}h ago`;
-      return `${Math.floor(hrs / 24)}d ago`;
-    })() : null;
-
-    return (
-      <>
-        <div className={cn(
-          "rounded-xl shadow-sm hover:shadow-md transition-shadow border border-border/60 bg-card mb-4 overflow-hidden border-l-4",
-          accentClass
-        )}>
-          {/* ── Panel Header ── */}
-          <button
-            type="button"
-            onClick={toggleExpand}
-            className={cn(
-              "w-full flex flex-col gap-0 px-4 py-3 text-left transition-colors",
-              "hover:bg-muted/40",
-              isExpanded && "bg-muted/20",
-            )}
-          >
-            {/* Row 1: Primary — chevron, checkbox, fill icon, label, status, actions */}
-            <div className="flex items-center gap-2 w-full">
-              {/* Chevron */}
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              )}
-
-              {/* Approval checkbox */}
-              <div onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  checked={isApproved}
-                  onCheckedChange={onToggleApproval}
-                  className="shrink-0"
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              {/* Filled indicator */}
-              {filled ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              ) : (
-                <XCircle className="h-4 w-4 text-destructive shrink-0" />
-              )}
-
-              {/* Label */}
-              <span className="text-sm font-medium truncate flex-1">{label}</span>
-
-              {/* Status badge */}
-              <StatusBadge status={effectiveStatus} />
-
-              {/* AI Generated badge — distinct from reviewed */}
-              {aiAction === 'generate' && (
-                <Badge className="gap-1 text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border-transparent">
-                  <Sparkles className="h-3 w-3" />
-                  AI Generated
-                </Badge>
-              )}
-
-              {/* Fullscreen expand button */}
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsFullscreen(true);
-                }}
-                className="shrink-0"
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  tabIndex={-1}
-                  type="button"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-
-              {/* Accept Section button — locked sections only */}
-              {isLocked && (
-                <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                  {isCuratorAccepted ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-muted-foreground font-medium">Accepted</span>
-                      {onUndoApproval && (
-                        <button
-                          type="button"
-                          className="text-[11px] text-muted-foreground underline hover:text-foreground transition-colors"
-                          onClick={handleUndoClick}
-                        >
-                          <Undo2 className="h-3 w-3 inline mr-0.5" />Undo
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-[11px] px-2"
-                      onClick={handleAcceptClick}
-                      type="button"
-                    >
-                      <ShieldCheck className="h-3 w-3 mr-1" />
-                      Accept Section
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Row 2: Secondary metadata — attribution, prompt source, inline flags */}
-            {(attribution || promptSource || (inlineFlags && inlineFlags.length > 0) || isLocked || (status === "stale" && staleBecauseOf && staleBecauseOf.length > 0)) && (
-              <div className="flex flex-col gap-1 ml-[4.5rem] mt-1">
-                <div className="flex items-center gap-2">
-                  {attribution && (
-                    <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted shrink-0">
-                      {attribution}
-                    </Badge>
-                  )}
-
-                  {promptSource === "supervisor" && (
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] px-1.5 py-0 hover:bg-emerald-50 shrink-0">
-                      ✅ Supervisor
-                    </Badge>
-                  )}
-                  {promptSource === "default" && (
-                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-1.5 py-0 hover:bg-amber-50 shrink-0">
-                      ⚠️ Default AI
-                    </Badge>
-                  )}
-
-                  {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-
-                  {inlineFlags && inlineFlags.length > 0 && (
-                    <span className="text-[11px] text-amber-700 truncate shrink min-w-0 max-w-[200px]">
-                      <AlertTriangle className="h-3 w-3 inline mr-0.5" />
-                      {inlineFlags[0]}
-                    </span>
-                  )}
-                </div>
-
-                {/* Stale reason line */}
-                {status === "stale" && staleBecauseOf && staleBecauseOf.length > 0 && (
-                  <span className="text-[11px] text-amber-600 flex items-center gap-1">
-                    <span className="opacity-70">Changed upstream:</span>{' '}
-                    {staleBecauseOf.map(k => getSectionDisplayName(k)).join(', ')}
-                    {staleTimeAgo && <span className="opacity-60">({staleTimeAgo})</span>}
-                    {isLocked && getLockedSectionRole(sectionKey) && (
-                      <span className="ml-1 text-amber-700 font-medium">
-                        — requires {getLockedSectionRole(sectionKey)} re-review
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-            )}
-          </button>
-
-        {/* ── Panel Body (collapsible) ── */}
         {isExpanded && (
           <div className="px-4 pb-4 pt-2 border-t border-border/40">
-            {/* Empty state placeholder */}
             {children}
 
-            {/* Pending modification banner — informational only */}
             {isLocked && pendingModification && (
               <div className="mt-3 flex items-start gap-2 rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-3 py-2">
                 <Clock className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" />
@@ -478,21 +167,16 @@ export function CuratorSectionPanel({
               </div>
             )}
 
-            {/* Visual divider between content and AI review */}
             {aiReviewSlot && (
               <div className="relative my-5">
                 <div className="border-t border-border" />
                 <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  AI Analysis
+                  <Sparkles className="h-3 w-3" />AI Analysis
                 </span>
               </div>
             )}
-
-            {/* AI Review slot */}
             {aiReviewSlot}
 
-            {/* Post-LLM Validation Results */}
             {validationResult && (validationResult.corrections.length > 0 || validationResult.passedChecks.length > 0) && (
               <ValidationResultsBar result={validationResult} />
             )}
@@ -500,8 +184,7 @@ export function CuratorSectionPanel({
               <div className="mt-2 space-y-1">
                 {inlineFlags.slice(1).map((flag, i) => (
                   <p key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
-                    <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                    {flag}
+                    <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />{flag}
                   </p>
                 ))}
               </div>
@@ -510,58 +193,14 @@ export function CuratorSectionPanel({
         )}
       </div>
 
-      {/* ── Fullscreen Modal ── */}
-      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="w-[calc(100vw-80px)] max-w-none h-[calc(100vh-80px)] flex flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="flex items-center gap-2">
-              {label}
-              {attribution && (
-                <Badge className="bg-muted text-muted-foreground border-border text-[11px] px-1.5 py-0 hover:bg-muted">
-                  {attribution}
-                </Badge>
-              )}
-              <StatusBadge status={effectiveStatus} />
-            </DialogTitle>
-          </DialogHeader>
+      <SectionFullscreenModal
+        open={isFullscreen} onOpenChange={setIsFullscreen}
+        label={label} attribution={attribution} effectiveStatus={effectiveStatus}
+        isLocked={isLocked} aiReviewSlot={aiReviewSlot} validationResult={validationResult}
+      >
+        {children}
+      </SectionFullscreenModal>
 
-          {/* Read-only banner for locked sections */}
-          {isLocked && (
-            <div className="flex items-center gap-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-2 shrink-0">
-              <Eye className="h-4 w-4 text-blue-600 shrink-0" />
-              <p className="text-sm text-blue-800 dark:text-blue-300">
-                This section is view-only. Use the Accept Section button in the panel header to approve.
-              </p>
-            </div>
-          )}
-
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
-            <div className="min-h-[500px]">
-              {children}
-            </div>
-
-            {/* Visual divider */}
-            {aiReviewSlot && (
-              <div className="relative my-5">
-                <div className="border-t border-border" />
-                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 py-0.5 text-[11px] font-medium text-muted-foreground border border-border rounded-full inline-flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  AI Analysis
-                </span>
-              </div>
-            )}
-
-            {aiReviewSlot}
-
-            {/* Post-LLM Validation Results (fullscreen) */}
-            {validationResult && (validationResult.corrections.length > 0 || validationResult.passedChecks.length > 0) && (
-              <ValidationResultsBar result={validationResult} />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Accept Section Confirmation Dialog ── */}
       <AlertDialog open={showAcceptConfirm} onOpenChange={setShowAcceptConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
