@@ -553,7 +553,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         <div className="flex flex-wrap items-center gap-2">
           {data.master_status === 'IN_PREPARATION' && (
             <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 bg-amber-50">
-              {data.current_phase === 1 ? 'Draft' : 'In Curation'}
+              {data.current_phase === 1 ? 'Draft' : (
+                data.phase_status === 'CR_APPROVAL_PENDING' ? 'Awaiting Your Approval' : 'In Curation'
+              )}
             </Badge>
           )}
           {data.master_status === 'ACTIVE' && (
