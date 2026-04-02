@@ -373,7 +373,7 @@ serve(async (req) => {
       is_deleted: false,
       is_qa_closed: false,
       solutions_awarded: 0,
-      description: "Demo AGG challenge — RQ intake for CR/CA spec review.",
+      description: "Demo AGG challenge — Creator spec review.",
       problem_statement: "Administrative overhead in our patient intake and claims processing workflows consumes 35% of staff time. Manual data entry errors result in a 12% claims rejection rate, and average processing time is 14 business days. We believe automation and AI-assisted document processing could significantly reduce costs and improve accuracy, but we need expert guidance on the best approach.",
       scope: null,
       reward_structure: {},
