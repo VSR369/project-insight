@@ -833,8 +833,21 @@ ${maturity === 'BLUEPRINT' || maturity === 'blueprint' ? 'Blueprint = strategic 
 
 **COMPETITIVE INTELLIGENCE**: Benchmark THIS challenge against similar challenges on InnoCentive/Wazoku, HeroX, Kaggle, TopCoder. Is the scope, timeline, reward, and deliverables competitive?
 `;
-}
+  }
 
+  // Phase 11: Industry + Geography Intelligence
+  if (clientContext?._industryPack || clientContext?._geoContext) {
+    const industryBlock = buildIndustryIntelligence(
+      clientContext._industryPack,
+      clientContext._geoContext,
+      clientContext._regionCode,
+      configs.map(c => c.section_key),
+    );
+    if (industryBlock) parts.push(industryBlock);
+
+    const geoBlock = buildGeographyContext(clientContext._geoContext);
+    if (geoBlock) parts.push(geoBlock);
+  }
 
 
 /**
