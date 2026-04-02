@@ -12,6 +12,7 @@ import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCogniPermissions } from "@/hooks/cogniblend/useCogniPermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentOrg } from "@/hooks/queries/useCurrentOrg";
 import { Badge } from "@/components/ui/badge";
@@ -195,24 +196,9 @@ export default function CurationQueuePage() {
   const organizationId = currentOrg?.organizationId;
 
   // ══════════════════════════════════════
-  // SECTION 2: Permission check — user must hold at least one active CU role
+  // SECTION 2: Permission check — platform-level CU capability
   // ══════════════════════════════════════
-  const { data: hasPermission, isLoading: permLoading } = useQuery({
-    queryKey: ["curation-permission", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_challenge_roles")
-        .select("challenge_id")
-        .eq("user_id", user!.id)
-        .eq("role_code", "CU")
-        .eq("is_active", true)
-        .limit(1);
-      if (error) return false;
-      return (data ?? []).length > 0;
-    },
-    enabled: !!user?.id,
-    staleTime: 60_000,
-  });
+  const { canSeeCurationQueue } = useCogniPermissions();
 
   // ══════════════════════════════════════
   // SECTION 3: Query — ALL org challenges in phases 1-3
@@ -342,7 +328,7 @@ export default function CurationQueuePage() {
   // ══════════════════════════════════════
   // SECTION 5: Conditional returns
   // ══════════════════════════════════════
-  if (isLoading || permLoading) {
+  if (isLoading) {
     return (
       <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
         <Skeleton className="h-7 w-48" />
@@ -356,7 +342,7 @@ export default function CurationQueuePage() {
     );
   }
 
-  if (!hasPermission) {
+  if (!canSeeCurationQueue) {
     return (
       <div className="p-6 text-center text-muted-foreground">
         You do not have the Curator (CU) role required to access this page.
