@@ -134,7 +134,7 @@ function toFormMaturityCode(value: string | null | undefined): string {
   return `SOLUTION_${upper}`;
 }
 
-export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync, onFillTestData }: ChallengeCreatorFormProps) {
+export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftModeSync, onFillTestData, onDraftIdChange }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
