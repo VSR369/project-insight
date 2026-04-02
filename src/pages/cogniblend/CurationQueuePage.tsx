@@ -12,6 +12,7 @@ import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCogniPermissions } from "@/hooks/cogniblend/useCogniPermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentOrg } from "@/hooks/queries/useCurrentOrg";
 import { Badge } from "@/components/ui/badge";
