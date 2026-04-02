@@ -21,10 +21,10 @@ interface TestUser {
 }
 
 const MP_USERS: TestUser[] = [
-  { email: "mp-solo@cognitest.dev",      firstName: "MP",  lastName: "Solo Founder",  orgRoles: ["R2","R3","R5_MP","R6_MP","R7_MP","R8","R9"], challengeRoles: ["AM","CR","CU","ID","ER","LC","FC"] },
+  { email: "mp-solo@cognitest.dev",      firstName: "MP",  lastName: "Solo Founder",  orgRoles: ["R2","R3","R5_MP","R6_MP","R7_MP","R8","R9"], challengeRoles: ["CR","CU","ER","LC","FC"] },
   { email: "mp-architect@cognitest.dev",  firstName: "MP",  lastName: "Architect",     orgRoles: ["R3"],       challengeRoles: ["CR"] },
   { email: "mp-curator@cognitest.dev",    firstName: "MP",  lastName: "Curator",       orgRoles: ["R5_MP"],    challengeRoles: ["CU"] },
-  { email: "mp-director@cognitest.dev",   firstName: "MP",  lastName: "Director",      orgRoles: ["R6_MP"],    challengeRoles: ["ID"] },
+  { email: "mp-director@cognitest.dev",   firstName: "MP",  lastName: "Curator 2",     orgRoles: ["R6_MP"],    challengeRoles: ["CU"] },
   { email: "mp-reviewer@cognitest.dev",   firstName: "MP",  lastName: "Reviewer",      orgRoles: ["R7_MP"],    challengeRoles: ["ER"] },
   { email: "mp-finance@cognitest.dev",    firstName: "MP",  lastName: "Finance",       orgRoles: ["R8"],       challengeRoles: ["FC"] },
   { email: "mp-legal@cognitest.dev",      firstName: "MP",  lastName: "Legal",         orgRoles: ["R9"],       challengeRoles: ["LC"] },
