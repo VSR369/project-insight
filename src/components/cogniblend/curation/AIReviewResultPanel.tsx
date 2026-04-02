@@ -1,38 +1,23 @@
 /**
  * AIReviewResultPanel — Format-native display of AI review results.
  *
- * Renders:
- *  - Summary badge + status
- *  - Comments with severity badges and blockquote applies_to
- *  - AI Suggested Version — always editable inline
- *  - Accept / Reject actions
- *
- * Sub-components extracted to ai-review/ directory:
+ * Sub-components:
  *  - ReviewConfigs.ts (types, constants, parse helpers)
+ *  - useAIReviewEditState.ts (edit state hook)
  *  - SuggestionEditors.tsx (editable sub-components)
  *  - ReviewCommentList.tsx (comment checklist)
  *  - SuggestionVersionDisplay.tsx (format-aware suggestion rendering)
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, X, AlertTriangle, Sparkles, CheckCircle2 } from "lucide-react";
 import { ExpandableAIComment } from "@/components/curator/ExpandableAIComment";
-import { SECTION_FORMAT_CONFIG } from "@/lib/cogniblend/curationSectionFormats";
 import { cn } from "@/lib/utils";
 
-// Extracted modules
 import type { AIReviewResultPanelProps } from "./ai-review/ReviewConfigs";
-import {
-  COMMENT_TYPE_CONFIG,
-  SEVERITY_TO_TYPE,
-  STATUS_BADGE,
-  parseComment,
-  parseTableRows,
-  isScheduleFormat,
-  parseDateFromSuggestion,
-} from "./ai-review/ReviewConfigs";
+import { STATUS_BADGE } from "./ai-review/ReviewConfigs";
+import { useAIReviewEditState } from "./ai-review/useAIReviewEditState";
 import { ComplexityParameterTable } from "./ai-review/SuggestionEditors";
 import { ReviewCommentList } from "./ai-review/ReviewCommentList";
 import { SuggestionVersionDisplay } from "./ai-review/SuggestionVersionDisplay";
@@ -43,174 +28,20 @@ export type { ReviewComment, CrossSectionIssue, AIReviewResult, AIReviewResultPa
 /* ── Component ─────────────────────────────────────────── */
 
 export function AIReviewResultPanel({
-  sectionKey,
-  result,
-  isRefining = false,
-  structuredItems,
-  selectedItems,
-  onToggleItem,
-  onSelectAllItems,
-  onClearItems,
-  onAccept,
-  onDiscard,
-  isStructured,
-  isMasterData = false,
-  suggestedCodes,
-  masterDataOptions,
-  onSuggestedVersionChange,
-  deliverableItems,
-  onDeliverableItemsChange,
-  badgePrefix = "D",
-  confidence,
-  onConfirmPass,
-  onFlagForReview,
-  complexityRatings,
+  sectionKey, result, isRefining = false,
+  structuredItems, selectedItems, onToggleItem, onSelectAllItems, onClearItems,
+  onAccept, onDiscard, isStructured,
+  isMasterData = false, suggestedCodes, masterDataOptions,
+  onSuggestedVersionChange, deliverableItems, onDeliverableItemsChange,
+  badgePrefix = "D", confidence, onConfirmPass, onFlagForReview, complexityRatings,
 }: AIReviewResultPanelProps) {
-
-  // Local edit state for each format type
-  const [editedRichText, setEditedRichText] = useState<string | null>(null);
-  const [editedLineItems, setEditedLineItems] = useState<string[] | null>(null);
-  const [editedTableRows, setEditedTableRows] = useState<Record<string, unknown>[] | null>(null);
-  const [editedScheduleRows, setEditedScheduleRows] = useState<Record<string, unknown>[] | null>(null);
-  const [editedDate, setEditedDate] = useState<string | null>(null);
-
-  const parsedDate = useMemo(() => parseDateFromSuggestion(sectionKey, result.suggested_version), [sectionKey, result.suggested_version]);
+  const state = useAIReviewEditState({
+    sectionKey, result, isMasterData, isStructured: isStructured ?? false,
+    structuredItems, suggestedCodes, masterDataOptions, deliverableItems,
+    onSuggestedVersionChange,
+  });
 
   const statusBadge = STATUS_BADGE[result.status] ?? STATUS_BADGE.warning;
-  const parsedComments = useMemo(() => result.comments.map(parseComment), [result.comments]);
-
-  // For reward_structure, parse structured object
-  const rewardData = useMemo(() => {
-    if (sectionKey !== "reward_structure" || !result.suggested_version) return null;
-    const cleaned = result.suggested_version.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-    try {
-      const parsed = JSON.parse(cleaned);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && (parsed.type || parsed.monetary || parsed.nonMonetary)) {
-        return parsed as { type?: string; monetary?: { tiers?: Record<string, number>; currency?: string; justification?: string }; nonMonetary?: { items?: string[] } };
-      }
-    } catch {}
-    return null;
-  }, [sectionKey, result.suggested_version]);
-
-  // For solver_expertise, parse structured tree data
-  const solverExpertiseData = useMemo(() => {
-    if (sectionKey !== "solver_expertise" || !result.suggested_version) return null;
-    const cleaned = result.suggested_version.trim().replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-    try {
-      const parsed = JSON.parse(cleaned);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
-    } catch {}
-    return null;
-  }, [sectionKey, result.suggested_version]);
-
-  const tableRows = useMemo(() => {
-    const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
-    if (fmt === 'table' && result.suggested_version) return parseTableRows(result.suggested_version);
-    return null;
-  }, [sectionKey, result.suggested_version]);
-
-  const scheduleRows = useMemo(() => {
-    if (isScheduleFormat(sectionKey) && result.suggested_version) return parseTableRows(result.suggested_version);
-    return null;
-  }, [sectionKey, result.suggested_version]);
-
-  const resolvedCodes = useMemo(() => {
-    if (!isMasterData || !suggestedCodes) return null;
-    const optMap = new Map((masterDataOptions ?? []).map(o => [o.value, o]));
-    return suggestedCodes.map(code => ({
-      code,
-      label: optMap.get(code)?.label ?? code.replace(/_/g, " "),
-      description: optMap.get(code)?.description,
-      isValid: optMap.size === 0 || optMap.has(code),
-    }));
-  }, [isMasterData, suggestedCodes, masterDataOptions]);
-
-  const hasDeliverableCards = deliverableItems && deliverableItems.length > 0;
-
-  const hasSuggestedVersion = !!(
-    result.suggested_version || hasDeliverableCards ||
-    (isStructured && structuredItems && structuredItems.length > 0) ||
-    (isMasterData && resolvedCodes && resolvedCodes.length > 0) ||
-    tableRows || scheduleRows || rewardData || solverExpertiseData || parsedDate
-  );
-
-  const suggestedFormat = useMemo(() => {
-    if (isMasterData) return "master_data";
-    if (rewardData) return "reward_custom";
-    if (solverExpertiseData) return "solver_expertise";
-    if (scheduleRows) return "schedule_table";
-    if (tableRows) return "table";
-    const sectionFmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
-    if ((sectionFmt === 'table' || sectionFmt === 'schedule_table') && result.suggested_version) return "table_fallback";
-    if (isStructured && structuredItems && structuredItems.length > 0) {
-      const fmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
-      if (fmt === "line_items") return "line_items";
-    }
-    if (parsedDate) return "date";
-    if (result.suggested_version) return "rich_text";
-    return null;
-  }, [isMasterData, rewardData, solverExpertiseData, isStructured, structuredItems, scheduleRows, tableRows, result.suggested_version, sectionKey]);
-
-  // Auto-seed edit state
-  useEffect(() => {
-    if (suggestedFormat === "rich_text" && result.suggested_version) {
-      setEditedRichText(result.suggested_version);
-      onSuggestedVersionChange?.(result.suggested_version);
-    }
-  }, [suggestedFormat, result.suggested_version]);
-
-  useEffect(() => {
-    if (suggestedFormat === "line_items" && structuredItems && structuredItems.length > 0) {
-      setEditedLineItems([...structuredItems]);
-      onSuggestedVersionChange?.([...structuredItems]);
-    }
-  }, [suggestedFormat, structuredItems]);
-
-  useEffect(() => {
-    if (suggestedFormat === "table" && tableRows) {
-      setEditedTableRows(tableRows.map(r => ({ ...r })));
-      onSuggestedVersionChange?.(tableRows);
-    }
-  }, [suggestedFormat, tableRows]);
-
-  useEffect(() => {
-    if (suggestedFormat === "schedule_table" && scheduleRows) {
-      setEditedScheduleRows(scheduleRows.map(r => ({ ...r })));
-      onSuggestedVersionChange?.(scheduleRows);
-    }
-  }, [suggestedFormat, scheduleRows]);
-
-  useEffect(() => {
-    if (suggestedFormat === "reward_custom" && rewardData) onSuggestedVersionChange?.(rewardData);
-  }, [suggestedFormat, rewardData]);
-
-  useEffect(() => {
-    if (suggestedFormat === "solver_expertise" && solverExpertiseData) onSuggestedVersionChange?.(JSON.stringify(solverExpertiseData));
-  }, [suggestedFormat, solverExpertiseData]);
-
-  useEffect(() => {
-    if (suggestedFormat === "date" && parsedDate) {
-      setEditedDate(parsedDate);
-      onSuggestedVersionChange?.(parsedDate);
-    }
-  }, [suggestedFormat, parsedDate]);
-
-  const handleRichTextChange = useCallback((val: string) => { setEditedRichText(val); onSuggestedVersionChange?.(val); }, [onSuggestedVersionChange]);
-  const handleLineItemsChange = useCallback((items: string[]) => { setEditedLineItems(items); onSuggestedVersionChange?.(items.filter(i => i.trim())); }, [onSuggestedVersionChange]);
-  const handleTableRowsChange = useCallback((rows: Record<string, unknown>[]) => { setEditedTableRows(rows); onSuggestedVersionChange?.(rows); }, [onSuggestedVersionChange]);
-  const handleScheduleRowsChange = useCallback((rows: Record<string, unknown>[]) => { setEditedScheduleRows(rows); onSuggestedVersionChange?.(rows); }, [onSuggestedVersionChange]);
-  const handleDateChange = useCallback((val: string) => { setEditedDate(val); onSuggestedVersionChange?.(val); }, [onSuggestedVersionChange]);
-
-  const [selectedComments, setSelectedComments] = useState<Set<number>>(() => new Set(parsedComments.map((_, i) => i)));
-  const toggleComment = useCallback((index: number) => {
-    setSelectedComments(prev => { const next = new Set(prev); next.has(index) ? next.delete(index) : next.add(index); return next; });
-  }, []);
-  const allCommentsSelected = selectedComments.size === parsedComments.length;
-  const toggleAllComments = useCallback(() => {
-    if (allCommentsSelected) setSelectedComments(new Set());
-    else setSelectedComments(new Set(parsedComments.map((_, i) => i)));
-  }, [allCommentsSelected, parsedComments]);
-
   const StatusIcon = statusBadge.icon;
 
   // ── Pass confirmation shortcut ──
@@ -256,16 +87,14 @@ export function AIReviewResultPanel({
 
         {result.summary && <ExpandableAIComment content={result.summary} />}
 
-        {/* ── Comments as styled checklist ── */}
         <ReviewCommentList
-          parsedComments={parsedComments}
-          selectedComments={selectedComments}
-          onToggleComment={toggleComment}
-          onToggleAll={toggleAllComments}
-          allSelected={allCommentsSelected}
+          parsedComments={state.parsedComments}
+          selectedComments={state.selectedComments}
+          onToggleComment={state.toggleComment}
+          onToggleAll={state.toggleAllComments}
+          allSelected={state.allCommentsSelected}
         />
 
-        {/* ── Domain Guidelines ── */}
         {result.guidelines && result.guidelines.length > 0 && (
           <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800/40">
             <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-1.5">Domain Guidelines</p>
@@ -275,7 +104,6 @@ export function AIReviewResultPanel({
           </div>
         )}
 
-        {/* ── Cross-Section Issues ── */}
         {result.cross_section_issues && result.cross_section_issues.length > 0 && (
           <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800/40">
             <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1.5">Cross-Section Issues</p>
@@ -292,48 +120,45 @@ export function AIReviewResultPanel({
         )}
       </div>
 
-      {/* ── Complexity Parameter Table ── */}
       {complexityRatings && Object.keys(complexityRatings).length > 0 && (
         <ComplexityParameterTable ratings={complexityRatings} />
       )}
 
-      {/* ── AI Suggested Version ── */}
-      {hasSuggestedVersion && !complexityRatings && (
+      {state.hasSuggestedVersion && !complexityRatings && (
         <SuggestionVersionDisplay
-          suggestedFormat={suggestedFormat}
+          suggestedFormat={state.suggestedFormat}
           suggestedVersion={result.suggested_version}
           isMasterData={isMasterData}
           isStructured={isStructured ?? false}
-          resolvedCodes={resolvedCodes}
+          resolvedCodes={state.resolvedCodes}
           selectedItems={selectedItems ?? new Set()}
           onToggleItem={onToggleItem ?? (() => {})}
           onSelectAllItems={onSelectAllItems ?? (() => {})}
           onClearItems={onClearItems ?? (() => {})}
-          rewardData={rewardData}
-          solverExpertiseData={solverExpertiseData}
-          hasDeliverableCards={!!hasDeliverableCards}
+          rewardData={state.rewardData}
+          solverExpertiseData={state.solverExpertiseData}
+          hasDeliverableCards={state.hasDeliverableCards}
           deliverableItems={deliverableItems}
           badgePrefix={badgePrefix}
-          scheduleRows={scheduleRows}
-          editedScheduleRows={editedScheduleRows}
-          onScheduleRowsChange={handleScheduleRowsChange}
+          scheduleRows={state.scheduleRows}
+          editedScheduleRows={state.editedScheduleRows}
+          onScheduleRowsChange={state.handleScheduleRowsChange}
           structuredItems={structuredItems ?? null}
-          editedLineItems={editedLineItems}
-          onLineItemsChange={handleLineItemsChange}
-          tableRows={tableRows}
-          editedTableRows={editedTableRows}
-          onTableRowsChange={handleTableRowsChange}
+          editedLineItems={state.editedLineItems}
+          onLineItemsChange={state.handleLineItemsChange}
+          tableRows={state.tableRows}
+          editedTableRows={state.editedTableRows}
+          onTableRowsChange={state.handleTableRowsChange}
           sectionKey={sectionKey}
-          parsedDate={parsedDate}
-          editedDate={editedDate}
-          onDateChange={handleDateChange}
-          editedRichText={editedRichText}
-          onRichTextChange={handleRichTextChange}
+          parsedDate={state.parsedDate}
+          editedDate={state.editedDate}
+          onDateChange={state.handleDateChange}
+          editedRichText={state.editedRichText}
+          onRichTextChange={state.handleRichTextChange}
         />
       )}
 
-      {/* ── Skeleton loader ── */}
-      {isRefining && !hasSuggestedVersion && (
+      {isRefining && !state.hasSuggestedVersion && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-indigo-600" />
@@ -352,17 +177,16 @@ export function AIReviewResultPanel({
         </div>
       )}
 
-      {/* ── Accept / Keep original actions ── */}
-      {(hasSuggestedVersion || isRefining || (complexityRatings && Object.keys(complexityRatings).length > 0)) && (
+      {(state.hasSuggestedVersion || isRefining || (complexityRatings && Object.keys(complexityRatings).length > 0)) && (
         <div className="sticky bottom-0 bg-card flex gap-3 justify-end pt-3 pb-1 border-t border-border -mx-4 px-4">
           <Button variant="outline" size="sm" className="h-10 text-sm border-border text-foreground hover:bg-muted rounded-lg px-5" onClick={onDiscard} disabled={isRefining}>
             Keep original
           </Button>
-          <Button size="sm" className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5" onClick={onAccept} disabled={isRefining || suggestedFormat === "table_fallback"}>
+          <Button size="sm" className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5" onClick={onAccept} disabled={isRefining || state.suggestedFormat === "table_fallback"}>
             <Check className="h-4 w-4 mr-1.5" />
             {complexityRatings && Object.keys(complexityRatings).length > 0
               ? "Accept complexity ratings"
-              : isMasterData && resolvedCodes
+              : isMasterData && state.resolvedCodes
               ? `Accept ${(selectedItems?.size ?? 0)} selection${(selectedItems?.size ?? 0) !== 1 ? "s" : ""}`
               : isStructured && structuredItems
                 ? `Accept ${(selectedItems?.size ?? 0)} item${(selectedItems?.size ?? 0) !== 1 ? "s" : ""}`
