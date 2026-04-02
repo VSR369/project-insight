@@ -1,69 +1,70 @@
 
 
-# Fix: Governance Mode Not Correctly Applied to Challenges
+# Assessment: Governance Mode Assignment & UX Adaptation
 
-## Problem Summary
+## Current State — What Works
 
-Your organization ("New Horizon Company") is configured as **CONTROLLED** governance with a **premium** tier. However, all 3 existing challenges were created with `governance_mode_override: QUICK`, which caused the system to assign all 5 roles (CR, CU, ER, LC, FC) to a single user — violating CONTROLLED mode's role separation rules.
+### 1. Challenge Creation (FIXED)
+`ChallengeCreatePage.tsx` now initializes governance as `'STRUCTURED'` (safe default), then resolves correctly from org profile once loaded. The `governance_mode_override` is saved to the DB via `initialize_challenge` RPC. **This is now correct.**
 
-There are **two bugs** causing this:
+### 2. Per-Challenge Pages (CORRECT)
+These pages resolve governance per-challenge using `resolveChallengeGovernance(override, orgProfile, tier)`:
+- **ChallengeWizardPage** — adapts field visibility/requirements via `useGovernanceFieldRules`
+- **AISpecReviewPage** — adapts review UX (1-click confirm vs section edit vs manual entry)
+- **CurationChecklistPanel** — escrow required only for CONTROLLED
+- **LegalDocumentAttachmentPage** — auto-attach in QUICK, manual in others
+- **SolutionSubmitPage** — adapts submission flow
+- **PublicationReadinessPage** — adjusts readiness checks
 
-### Bug 1: Wrong initial governance default (race condition)
-In `ChallengeCreatePage.tsx` line 150, the governance mode state initializes as `'QUICK'`:
-```ts
-const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
-```
-A `useEffect` later corrects it to CONTROLLED once the org data loads, but the initial value is wrong. If a challenge is created before the effect fires (or if the form was submitted quickly), the challenge gets `QUICK` as its override.
+### 3. My Challenges List (FIXED)
+`useMyChallenges` fetches `governance_profile` + `governance_mode_override` per challenge. Deduplication is working.
 
-### Bug 2: Previous data fix was governance-blind
-The migration we ran earlier blindly inserted CU, ER, LC, FC roles for the Creator on all 3 challenges — without checking whether those challenges actually needed multi-role assignment. For CONTROLLED mode, only CR should be assigned to the Creator; other roles must go to different users.
+---
 
-## Root Cause in DB
+## What Does NOT Adapt by Governance Mode
 
-All 3 challenges have:
-- `governance_mode_override: QUICK` (wrong — should be CONTROLLED or null)
-- `governance_profile: CONTROLLED` (correct — from org)
-- All 5 roles assigned to user `376d7eb8...` (wrong for CONTROLLED)
+### Sidebar Navigation — Role-Based, NOT Governance-Based
+The sidebar (`CogniSidebarNav.tsx`) is driven entirely by **org-level roles** via `useCogniPermissions`. It shows/hides menu items based on whether the user holds CR, CU, ER, LC, FC roles — it does NOT change based on the governance mode of any challenge.
 
-## Plan
+**This is architecturally correct** — the sidebar is an org-level shell. A user might have QUICK challenges AND CONTROLLED challenges simultaneously. The sidebar should show all sections the user's roles grant access to.
 
-### Step 1: Fix initial governance state
-**File: `src/pages/cogniblend/ChallengeCreatePage.tsx`**
-- Change `useState<GovernanceMode>('QUICK')` to compute the correct default eagerly, or use a sentinel value that prevents form interaction until the org loads
-- Simplest fix: initialize as `'STRUCTURED'` (safe middle-ground) and let the effect correct it, OR derive from `currentOrg` synchronously
+### Dashboard — No Governance Filtering
+The dashboard shows all challenges regardless of governance mode. Each challenge card could show its governance badge, but doesn't currently filter or group by mode.
 
-### Step 2: Data fix — correct existing challenges
-**Database migration:**
-- Update the 3 existing challenges: set `governance_mode_override` to match the org's `governance_profile` (`CONTROLLED`)
-- Remove the incorrectly assigned CU, ER, LC, FC roles from the Creator (user `376d7eb8...`) — in CONTROLLED mode, the Creator should only hold CR
-- These roles should later be assigned to separate users via auto-assignment or manual assignment
+### Governance Badge in Sidebar
+The `GovernanceProfileBadge` in `CogniSidebar.tsx` shows the **org-level** governance profile (from `currentOrg.governanceProfile`), not per-challenge. This is correct for the shell — it reflects the org default.
 
-```sql
--- Fix governance override
-UPDATE challenges
-SET governance_mode_override = 'CONTROLLED'
-WHERE id IN ('170e577a-...', '0f5d6315-...', '256477ec-...')
-  AND governance_mode_override = 'QUICK';
+---
 
--- Remove non-CR roles from Creator (CONTROLLED = role separation)
-DELETE FROM user_challenge_roles
-WHERE user_id = '376d7eb8-...'
-  AND challenge_id IN ('170e577a-...', '0f5d6315-...', '256477ec-...')
-  AND role_code IN ('CU', 'ER', 'LC', 'FC');
-```
+## Real Remaining Issue: Role Separation Enforcement
 
-### Step 3: Trigger auto-assignment for CU role
-After removing the incorrectly merged roles, the challenges need proper CU assignment from the provider pool (Casey / `nh-cu@testsetup.dev`). This will happen automatically when the Creator submits or can be triggered manually.
+The governance mode IS correctly stored per challenge now. But the **critical gap** is:
 
-## Files Modified
+**For CONTROLLED challenges, the system should prevent the Creator from also being assigned CU/ER/LC/FC.** The DB has a `validate_role_separation` function, but it's only checked during phase transitions — not during initial role assignment in `auto_assign_challenge_role`.
 
-| File | Change |
-|------|--------|
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Fix initial `useState` default to avoid QUICK race condition |
-| DB Migration | Correct `governance_mode_override` and remove invalid role assignments for existing challenges |
+Currently, when a QUICK challenge is created, all 5 roles are correctly merged to the Creator. When a CONTROLLED challenge is created, only CR should be assigned to the Creator — the other roles must go to separate pool users. This logic lives in the `auto_assign_challenge_role` RPC, which we should verify is governance-aware.
 
-## Impact
-- Existing CONTROLLED challenges will correctly show only the CR role for the Creator
-- CU, ER, LC, FC will need to be assigned to separate users (enforced by role separation rules)
-- New challenges will initialize with the correct governance mode from the org profile
+---
+
+## Verdict
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Governance mode saved to DB | Working | `governance_mode_override` set correctly |
+| Per-challenge UX adaptation | Working | Field rules, checklists, legal, escrow all adapt |
+| Sidebar navigation | Correct (role-based) | Should NOT change per governance mode |
+| Dashboard governance badges | Missing | Could show per-challenge governance badge on cards |
+| Role assignment by governance | Needs verification | `auto_assign_challenge_role` RPC must be governance-aware |
+| Role separation enforcement | Partially implemented | `validate_role_separation` exists but may not block assignment |
+
+## Recommended Next Steps
+
+### Step 1: Verify `auto_assign_challenge_role` RPC is governance-aware
+Check if the RPC reads `governance_mode_override` to decide whether to merge roles (QUICK) or separate them (CONTROLLED). If not, this is the root bug.
+
+### Step 2: Add governance badge to challenge cards
+In `MyChallengesPage` and dashboard challenge cards, show the resolved governance mode badge (QUICK/STRUCTURED/CONTROLLED) so users can see which mode each challenge uses.
+
+### Step 3: No sidebar changes needed
+The sidebar correctly operates at the org/role level. Per-challenge governance adaptation happens inside challenge-specific pages, which is the correct architecture.
 
