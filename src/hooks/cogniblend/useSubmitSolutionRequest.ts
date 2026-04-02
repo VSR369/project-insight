@@ -178,8 +178,7 @@ export function useSubmitSolutionRequest() {
       }
 
       // Auto-attach legal docs for Quick/Lightweight mode
-      const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
-      if (effectiveGovernance.toUpperCase() === 'QUICK' || effectiveGovernance.toUpperCase() === 'LIGHTWEIGHT') {
+      if (normalizedGov === 'QUICK' || normalizedGov === 'LIGHTWEIGHT') {
         try {
           const { data: defaultTemplates } = await supabase
             .from('legal_document_templates' as any).select('document_type, document_name, description').eq('tier', 'TIER_1').eq('is_active', true);
