@@ -1,18 +1,18 @@
 
-# Batch C Implementation Plan
+# Batch D Implementation Plan
 
-Next 6 files in the 400-484 line range, targeting ≤200 lines each.
+Next 6 files in the 430–500 line range, targeting ≤200 lines each.
 
 ## Files to Decompose
 
 | # | File | Current | Extraction Plan |
 |---|------|:-------:|-----------------|
-| 1 | `StepRequirements.tsx` | 484 | Extract `RequirementsFieldGroups.tsx` (form field sections) |
-| 2 | `useSubmitSolutionRequest.ts` | 473 | Extract `solutionSubmitHelpers.ts` (validation/transform logic) |
-| 3 | `EscrowManagementPage.tsx` | 452 | Extract `EscrowDetailPanel.tsx` + `EscrowTable.tsx` |
-| 4 | `CogniLoginPage.tsx` | 446 | Extract `CogniLoginForm.tsx` + `CogniLoginLayout.tsx` |
-| 5 | `SolverExpertiseSection.tsx` | 426 | Extract `ExpertiseDisplayCards.tsx` + `ExpertiseEditor.tsx` |
-| 6 | `CurationRightRail.tsx` | 425 | Extract `RightRailSections.tsx` (panel sub-sections) |
+| 1 | `ReviewerEditForm.tsx` | 499 | Extract `ReviewerFormFields.tsx` (form field groups) + `ReviewerFormSchema.ts` (Zod schema & types) |
+| 2 | `useQuestionBank.ts` | 496 | Extract `questionBankMutations.ts` (create/update/delete mutations) |
+| 3 | `InterviewKitImportDialog.tsx` | 488 | Extract `InterviewKitImportPreview.tsx` (preview table) + `interviewKitImportUtils.ts` (parsing/validation) |
+| 4 | `PodcastStudio.tsx` | 482 | Extract `PodcastRecorder.tsx` (recording controls) + `PodcastEpisodeList.tsx` (episode list UI) |
+| 5 | `LifecycleRulesPage.tsx` | 473 | Extract `LifecycleRuleEditor.tsx` (rule editing form) + `LifecycleRuleTable.tsx` (rules table) |
+| 6 | `ProficiencyImportDialog.tsx` | 467 | Extract `ProficiencyImportPreview.tsx` (preview/validation UI) + `proficiencyImportParser.ts` (Excel parsing) |
 
 ## Safety Rules
 - Move code only — no logic rewrites
