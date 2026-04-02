@@ -238,7 +238,7 @@ export default function ChallengeCreatePage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">New Challenge</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Fill out the challenge details below. Governance mode is managed by your Platform Supervisor.
+          Select your governance mode and engagement model, then fill out the challenge details.
         </p>
       </div>
 
