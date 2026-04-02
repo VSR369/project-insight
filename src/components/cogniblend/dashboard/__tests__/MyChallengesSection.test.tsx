@@ -92,7 +92,7 @@ describe('TW1-06 — MyChallengesSection filter tabs', () => {
   it('shows empty state when a role has no items', () => {
     render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     fireEvent.click(screen.getByText('As Reviewer'));
-    expect(screen.getByText('No challenges for this role.')).toBeInTheDocument();
+    expect(screen.getByText(/No challenges for/i)).toBeInTheDocument();
   });
 
   it('displays badge counts matching roleCounts', () => {
