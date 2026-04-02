@@ -43,7 +43,7 @@ interface UseCurationSectionActionsOptions {
   aiReviews: SectionReview[];
   masterData: MasterDataOptions;
   complexityParams: Array<{ param_key: string; name: string; weight: number; [k: string]: unknown }>;
-  solutionTypesData: Array<{ code: string; proficiency_group: string; proficiency_group_label?: string; [k: string]: unknown }>;
+  solutionTypesData: any[];
   solutionTypeMap: Array<{ solution_type_code: string; proficiency_area_name: string; [k: string]: unknown }>;
   rewardStructureRef: React.RefObject<RewardStructureDisplayHandle | null>;
   complexityModuleRef: React.RefObject<ComplexityModuleHandle | null>;

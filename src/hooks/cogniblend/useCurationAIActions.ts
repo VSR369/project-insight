@@ -119,7 +119,7 @@ export function useCurationAIActions({
       sectionContents['industry_segment'] = null;
     }
 
-    const pfResult = preFlightCheck(sectionContents, challenge.operating_model);
+    const pfResult = preFlightCheck(sectionContents, challenge.operating_model as string | null);
 
     if (!industrySegId) {
       pfResult.missingMandatory.push({
