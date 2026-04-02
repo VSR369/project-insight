@@ -394,9 +394,7 @@ serve(async (req) => {
     results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
 
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
-    // MP roles (AM, CA) → MP challenge only; AGG roles (RQ, CR) → AGG challenge only
-    // Shared roles (CU, ID, ER, LC, FC) → both challenges
-    // All modern roles are shared across both challenges
+    // All modern roles (CR, CU, ER, LC, FC) are assigned to both challenges
     const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
 
     for (const u of userIds) {

@@ -31,10 +31,10 @@ const MP_USERS: TestUser[] = [
 ];
 
 const AGG_USERS: TestUser[] = [
-  { email: "agg-solo@cognitest.dev",     firstName: "AGG", lastName: "Solo Founder",  orgRoles: ["R2","R4","R5_AGG","R6_AGG","R7_AGG","R8","R9","R10_CR"], challengeRoles: ["RQ","CR","CU","ID","ER","LC","FC"] },
+  { email: "agg-solo@cognitest.dev",     firstName: "AGG", lastName: "Solo Founder",  orgRoles: ["R2","R4","R5_AGG","R6_AGG","R7_AGG","R8","R9","R10_CR"], challengeRoles: ["CR","CU","ER","LC","FC"] },
   { email: "agg-creator@cognitest.dev",  firstName: "AGG", lastName: "Creator",       orgRoles: ["R4"],        challengeRoles: ["CR"] },
   { email: "agg-curator@cognitest.dev",  firstName: "AGG", lastName: "Curator",       orgRoles: ["R5_AGG"],    challengeRoles: ["CU"] },
-  { email: "agg-director@cognitest.dev", firstName: "AGG", lastName: "Director",      orgRoles: ["R6_AGG"],    challengeRoles: ["ID"] },
+  { email: "agg-director@cognitest.dev", firstName: "AGG", lastName: "Curator 2",     orgRoles: ["R6_AGG"],    challengeRoles: ["CU"] },
   { email: "agg-reviewer@cognitest.dev", firstName: "AGG", lastName: "Reviewer",      orgRoles: ["R7_AGG"],    challengeRoles: ["ER"] },
   { email: "agg-finance@cognitest.dev",  firstName: "AGG", lastName: "Finance",       orgRoles: ["R8"],        challengeRoles: ["FC"] },
   { email: "agg-legal@cognitest.dev",    firstName: "AGG", lastName: "Legal",         orgRoles: ["R9"],        challengeRoles: ["LC"] },
