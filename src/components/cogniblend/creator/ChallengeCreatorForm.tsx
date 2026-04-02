@@ -123,6 +123,7 @@ interface ChallengeCreatorFormProps {
   governanceMode: GovernanceMode;
   onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
   onFillTestData?: () => void;
+  onDraftIdChange?: (id: string) => void;
 }
 
 function toFormMaturityCode(value: string | null | undefined): string {
