@@ -69,7 +69,7 @@ describe('TW1-06 — MyChallengesSection filter tabs', () => {
   });
 
   it('shows all items by default (All tab)', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     expect(screen.getByText('AI Safety Research')).toBeInTheDocument();
     expect(screen.getByText('Quantum Computing')).toBeInTheDocument();
     expect(screen.getByText('Green Energy')).toBeInTheDocument();
