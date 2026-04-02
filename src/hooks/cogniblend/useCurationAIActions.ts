@@ -115,7 +115,7 @@ export function useCurationAIActions({
     if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
     if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
 
-    const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
+    const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge as unknown as ChallengeData);
     if (!industrySegId) {
       sectionContents['industry_segment'] = null;
     }
