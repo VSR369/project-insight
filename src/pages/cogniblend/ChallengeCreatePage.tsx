@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Info,
 } from 'lucide-react';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 
 import { Button } from '@/components/ui/button';
 
