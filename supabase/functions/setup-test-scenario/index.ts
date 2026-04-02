@@ -389,7 +389,7 @@ serve(async (req) => {
         beneficiaries_mapping: "Primary: Revenue Cycle Management team (28 staff), Secondary: Clinical Administration (15 coordinators), Tertiary: Patients (reduced wait times and billing errors)",
         am_approval_required: false,
       },
-      created_by: rqUser?.userId ?? userIds[0]?.userId ?? null,
+      created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
     });
     if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
     challengeIds.push(aggChallengeId);
