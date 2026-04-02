@@ -238,6 +238,7 @@ export function useCurationComputedValues({
     completedCount,
     allComplete,
     checklistSummary,
+    staleKeySet,
     staleCountByGroup,
     groupProgress,
     groupReadiness,

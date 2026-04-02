@@ -436,7 +436,7 @@ export default function CurationReviewPage() {
 
   const {
     aiReviewCounts, checklistItems, completedCount, allComplete,
-    checklistSummary, staleCountByGroup, groupProgress,
+    checklistSummary, staleKeySet, staleCountByGroup, groupProgress,
     groupReadiness, sectionReadiness, sectionAIFlags, challengeCtx,
   } = useCurationComputedValues({
     challenge: challenge as ChallengeData | null,
@@ -445,7 +445,7 @@ export default function CurationReviewPage() {
     escrowRecord,
     aiQuality,
     aiReviews,
-    staleKeySet,
+    staleSections,
     manualOverrides,
   });
 
