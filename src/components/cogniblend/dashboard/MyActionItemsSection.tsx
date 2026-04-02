@@ -151,11 +151,11 @@ export function MyActionItemsSection() {
       // Include if user has any role on this challenge (no activeRole filter)
       if (roles.length === 0 && !(ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1)) continue;
 
-      // Standard action items: draft (IN_PREPARATION phase 1), RETURNED, AM_APPROVAL_PENDING
+      // Standard action items: draft (IN_PREPARATION phase 1), RETURNED, CR_APPROVAL_PENDING
       const needsAction =
         (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ||
         ch.phase_status === 'RETURNED' ||
-        ch.phase_status === 'AM_APPROVAL_PENDING';
+        ch.phase_status === 'CR_APPROVAL_PENDING';
 
       if (needsAction) {
         items.push({
