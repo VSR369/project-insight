@@ -220,7 +220,7 @@ async function persistAssignment(
 
   const { error: roleError } = await supabase
     .from("user_challenge_roles")
-    .insert([roleData] as unknown as Record<string, unknown>[]);
+    .insert(roleData as any);
 
   if (roleError) {
     logWarning("Auto-assign: user_challenge_roles insert failed", {
