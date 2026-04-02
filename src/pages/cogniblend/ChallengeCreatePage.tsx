@@ -316,6 +316,7 @@ export default function ChallengeCreatePage() {
       <CreatorOrgContextCard
         organizationId={currentOrg.organizationId}
         governanceMode={governanceMode}
+        fillTrigger={orgFillTrigger}
       />
 
       {/* Challenge Creator Form — governance-aware */}
@@ -324,6 +325,7 @@ export default function ChallengeCreatePage() {
         engagementModel={engagementModel}
         governanceMode={governanceMode}
         onDraftModeSync={handleDraftModeSync}
+        onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
       />
     </div>
   );
