@@ -35,31 +35,81 @@ import {
 } from '@/lib/governanceMode';
 import { Skeleton } from '@/components/ui/skeleton';
 
-/* ── Engagement Model Selector ── */
+/* ── Governance + Engagement Selector ── */
 
-interface EngagementModelSelectorProps {
+interface GovernanceEngagementSelectorProps {
+  governanceMode: GovernanceMode;
+  onGovernanceModeChange: (mode: GovernanceMode) => void;
   engagementModel: string;
   onEngagementModelChange: (model: string) => void;
-  governanceMode: GovernanceMode;
+  tierCode: string | null;
 }
 
-function EngagementModelSelector({
+function GovernanceEngagementSelector({
+  governanceMode,
+  onGovernanceModeChange,
   engagementModel,
   onEngagementModelChange,
-  governanceMode,
-}: EngagementModelSelectorProps) {
+  tierCode,
+}: GovernanceEngagementSelectorProps) {
+  const availableModes = getAvailableGovernanceModes(tierCode);
+  const isLocked = availableModes.length <= 1;
   const cfg = GOVERNANCE_MODE_CONFIG[governanceMode];
 
   return (
     <div className="space-y-6">
-      {/* Read-only governance badge */}
-      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
-        <Info className="h-4 w-4 text-muted-foreground shrink-0" />
-        <p className="text-xs text-muted-foreground">
-          Governance mode{' '}
-          <span className="font-semibold" style={{ color: cfg.color }}>{cfg.label}</span>{' '}
-          is configured by your Platform Supervisor.
-        </p>
+      {/* Governance Mode */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Governance Mode</h3>
+          <p className="text-sm text-muted-foreground">
+            Controls review rigor, role separation, and compliance requirements for this challenge.
+          </p>
+        </div>
+
+        {isLocked ? (
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+            <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Your tier uses{' '}
+              <span
+                className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold"
+                style={{ backgroundColor: cfg.bg, color: cfg.color }}
+              >
+                {cfg.label}
+              </span>{' '}
+              governance. Upgrade your subscription to access additional modes.
+            </p>
+          </div>
+        ) : (
+          <Select
+            value={governanceMode}
+            onValueChange={(v) => onGovernanceModeChange(v as GovernanceMode)}
+          >
+            <SelectTrigger className="w-full max-w-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableModes.map((mode) => {
+                const mc = GOVERNANCE_MODE_CONFIG[mode];
+                return (
+                  <SelectItem key={mode} value={mode}>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ backgroundColor: mc.color }}
+                      />
+                      {mc.label}
+                      <span className="text-muted-foreground text-xs ml-1">
+                        — {mc.tooltip.split(': ')[1] ?? mc.tooltip}
+                      </span>
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Engagement Model */}
@@ -188,15 +238,17 @@ export default function ChallengeCreatePage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">New Challenge</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Fill out the challenge details below. Governance mode is managed by your Platform Supervisor.
+          Select your governance mode and engagement model, then fill out the challenge details.
         </p>
       </div>
 
-      {/* Engagement Model Selector */}
-      <EngagementModelSelector
+      {/* Governance + Engagement Selector */}
+      <GovernanceEngagementSelector
+        governanceMode={governanceMode}
+        onGovernanceModeChange={setGovernanceMode}
         engagementModel={engagementModel}
         onEngagementModelChange={setEngagementModel}
-        governanceMode={governanceMode}
+        tierCode={currentOrg.tierCode}
       />
 
       {/* Organization Context Card */}
