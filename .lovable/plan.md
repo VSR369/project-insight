@@ -1,18 +1,18 @@
 
-# Batch C Implementation Plan
+# Batch D Implementation Plan — COMPLETE
 
-Next 6 files in the 400-484 line range, targeting ≤200 lines each.
+6 files in the 430–500 line range decomposed.
 
-## Files to Decompose
+## Results
 
-| # | File | Current | Extraction Plan |
-|---|------|:-------:|-----------------|
-| 1 | `StepRequirements.tsx` | 484 | Extract `RequirementsFieldGroups.tsx` (form field sections) |
-| 2 | `useSubmitSolutionRequest.ts` | 473 | Extract `solutionSubmitHelpers.ts` (validation/transform logic) |
-| 3 | `EscrowManagementPage.tsx` | 452 | Extract `EscrowDetailPanel.tsx` + `EscrowTable.tsx` |
-| 4 | `CogniLoginPage.tsx` | 446 | Extract `CogniLoginForm.tsx` + `CogniLoginLayout.tsx` |
-| 5 | `SolverExpertiseSection.tsx` | 426 | Extract `ExpertiseDisplayCards.tsx` + `ExpertiseEditor.tsx` |
-| 6 | `CurationRightRail.tsx` | 425 | Extract `RightRailSections.tsx` (panel sub-sections) |
+| # | File | Before | After | Extracted |
+|---|------|:------:|:-----:|-----------|
+| 1 | `ReviewerEditForm.tsx` | 499 | 189 | `ReviewerCoverageFields.tsx`, `ReviewerPreferenceFields.tsx` |
+| 2 | `useQuestionBank.ts` | 496 | 229 | `questionBankConstants.ts` (types, configs, helpers) |
+| 3 | `InterviewKitImportDialog.tsx` | 488 | 214 | `InterviewKitImportPreview.tsx` |
+| 4 | `PodcastStudio.tsx` | 482 | 182 | `PodcastAudioPreview.tsx` |
+| 5 | `LifecycleRulesPage.tsx` | 473 | 260 | `lifecycleRulesHelpers.ts` |
+| 6 | `ProficiencyImportDialog.tsx` | 467 | 153 | `ProficiencyImportSteps.tsx` (PreviewStep, ImportingStep, CompleteStep) |
 
 ## Safety Rules
 - Move code only — no logic rewrites
