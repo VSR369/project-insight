@@ -44,6 +44,7 @@ export function useSubmitSolutionRequest() {
           p_creator_id: payload.creatorId,
           p_title: title,
           p_operating_model: payload.operatingModel,
+          p_governance_mode_override: payload.governanceModeOverride ?? null,
         });
         if (initError) throw new Error(initError.message);
         if (!newId) throw new Error('Failed to create challenge');
