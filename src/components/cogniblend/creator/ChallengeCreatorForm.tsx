@@ -150,7 +150,11 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
-  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(searchParams.get('draft'));
+  const [draftChallengeId, setDraftChallengeId] = useState<string | null>(() => {
+    const urlDraft = searchParams.get('draft');
+    if (urlDraft) onDraftIdChange?.(urlDraft);
+    return urlDraft;
+  });
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
 
