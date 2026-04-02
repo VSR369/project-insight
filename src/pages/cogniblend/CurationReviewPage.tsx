@@ -136,7 +136,7 @@ import { SectionReferencePanel } from "@/components/cogniblend/curation/SectionR
 import { getCurationFormStore, selectStaleSections } from "@/store/curationFormStore";
 import { getSectionDisplayName, getUpstreamDependencies } from "@/lib/cogniblend/sectionDependencies";
 import type { Json } from "@/integrations/supabase/types";
-import { CACHE_STANDARD } from "@/config/queryCache";
+
 import { unwrapArray, unwrapEvalCriteria, isJsonFilled, parseJson as jsonParse } from "@/lib/cogniblend/jsonbUnwrap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
