@@ -7010,6 +7010,7 @@ export type Database = {
           role_codes: string[]
           updated_at: string | null
           updated_by: string | null
+          user_id: string | null
         }
         Insert: {
           availability_status?: string
@@ -7026,6 +7027,7 @@ export type Database = {
           role_codes?: string[]
           updated_at?: string | null
           updated_by?: string | null
+          user_id?: string | null
         }
         Update: {
           availability_status?: string
@@ -7042,6 +7044,7 @@ export type Database = {
           role_codes?: string[]
           updated_at?: string | null
           updated_by?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
