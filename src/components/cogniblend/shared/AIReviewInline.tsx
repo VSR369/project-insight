@@ -19,6 +19,17 @@ import { parseDeliverables, type DeliverableItem } from "@/utils/parseDeliverabl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  DELIVERABLE_LIKE_SECTIONS,
+  STATUS_STYLES,
+  getDeliverableBadgePrefix,
+  isStructuredSection,
+  getSectionFormatType,
+  isMasterDataSection,
+  parseStructuredItems,
+  parseRawStructuredArray,
+  parseMasterDataCodes,
+} from "./aiReviewInlineHelpers";
 
 /** Comment can be a plain string (legacy) or structured object (multi-tier) */
 export type SectionComment = string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string };
@@ -46,35 +57,6 @@ export interface SectionReview {
 
 export type RoleContext = "intake" | "spec" | "curation";
 
-/** Sections that should render as structured deliverable cards */
-const DELIVERABLE_LIKE_SECTIONS = new Set(['deliverables', 'expected_outcomes', 'submission_guidelines']);
-
-function getDeliverableBadgePrefix(sectionKey: string): string {
-  if (sectionKey === 'expected_outcomes') return 'O';
-  if (sectionKey === 'submission_guidelines') return 'S';
-  return 'D';
-}
-
-/** Determine if a section returns structured JSON arrays from AI refinement.
- *  table/schedule_table are excluded — they have dedicated parsers in AIReviewResultPanel. */
-function isStructuredSection(sectionKey: string): boolean {
-  const fmt = SECTION_FORMAT_CONFIG[sectionKey];
-  if (!fmt) return false;
-  return fmt.format === 'line_items';
-}
-
-/** Determine the format type of a section */
-function getSectionFormatType(sectionKey: string): string | null {
-  return SECTION_FORMAT_CONFIG[sectionKey]?.format ?? null;
-}
-
-/** Determine if a section is a master-data selection (codes, not prose) */
-function isMasterDataSection(sectionKey: string): boolean {
-  const fmt = SECTION_FORMAT_CONFIG[sectionKey];
-  if (!fmt) return false;
-  return ['checkbox_multi', 'checkbox_single', 'select', 'radio'].includes(fmt.format);
-}
-
 interface MasterDataOption {
   value: string;
   label: string;
@@ -86,146 +68,22 @@ interface AIReviewInlineProps {
   review: SectionReview | undefined;
   currentContent: string | null;
   challengeId: string;
-  /** Full challenge context — forwarded to edge function for re-review */
   challengeContext: Record<string, any>;
   onAcceptRefinement: (sectionKey: string, newContent: string) => void;
   onSingleSectionReview?: (sectionKey: string, review: SectionReview) => void;
   onMarkAddressed?: (sectionKey: string) => void;
   defaultOpen?: boolean;
-  /** Role context for edge function — tailors review & refinement prompts */
   roleContext?: RoleContext;
-  /** Master data options for this section (if applicable) */
   masterDataOptions?: MasterDataOption[];
-  /** When true, hides Refine/Accept/Discard and shows Send to LC/FC instead */
   isLockedSection?: boolean;
-  /** Callback when curator clicks "Send to LC" or "Send to FC" — receives edited comments text */
   onSendToCoordinator?: (editedComments: string) => void;
-  /** Which coordinator role to display: "LC" or "FC" */
   coordinatorRole?: "LC" | "FC";
-  /** Whether comments have been sent before (changes button to "Send Follow-up") */
   hasSentBefore?: boolean;
-  /** Custom re-review handler (e.g. for complexity which uses a different edge function) */
   onReReview?: (sectionKey: string) => Promise<void>;
-  /** Pre-built suggestion content (e.g. complexity markdown summary) — skips auto-refine */
   initialRefinedContent?: string | null;
-  /** Structured complexity ratings from AI — renders parameter table instead of text suggestion */
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
-  /** Whether upstream prerequisite sections are filled (soft guidance) */
   prerequisitesReady?: boolean;
-  /** Labels of missing prerequisite sections (for warning toast) */
   missingPrerequisites?: string[];
-}
-
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  pass: { label: "Pass", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  warning: { label: "Warning", className: "bg-amber-100 text-amber-800 border-amber-300" },
-  needs_revision: { label: "Needs Revision", className: "bg-red-100 text-red-800 border-red-300" },
-  inferred: { label: "AI Inferred", className: "bg-violet-100 text-violet-800 border-violet-300" },
-};
-
-/**
- * Parse AI refinement output into structured data.
- * Format-aware: preserves row objects for table/schedule_table, returns strings for line_items.
- */
-function parseStructuredItems(content: string, sectionKey: string): string[] | null {
-  const trimmed = content.trim();
-  const cleaned = trimmed.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-
-  try {
-    const parsed = JSON.parse(cleaned);
-    // Guard: reject requires_human_input payloads (legacy junk from edge function)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.requires_human_input) {
-      return null;
-    }
-    if (Array.isArray(parsed)) {
-      // For line_items: flatten to strings
-      const fmt = getSectionFormatType(sectionKey);
-      if (fmt === 'line_items') {
-        return parsed.map((item: any) =>
-          typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
-        );
-      }
-      // For table/schedule_table: store as JSON strings to preserve row structure
-      return parsed.map((item: any) =>
-        typeof item === "string" ? item : JSON.stringify(item)
-      );
-    }
-    const wrapperKey = sectionKey === "evaluation_criteria" ? "criteria" : "items";
-    if (parsed && typeof parsed === "object" && Array.isArray(parsed[wrapperKey])) {
-      const items = parsed[wrapperKey];
-      const fmt = getSectionFormatType(sectionKey);
-      if (fmt === 'line_items') {
-        return items.map((item: any) =>
-          typeof item === "string" ? item : item?.name ?? item?.criterion_name ?? JSON.stringify(item)
-        );
-      }
-      return items.map((item: any) =>
-        typeof item === "string" ? item : JSON.stringify(item)
-      );
-    }
-  } catch {
-    // Not JSON — try line-based parsing
-  }
-
-  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
-  const listItems = lines
-    .map(l => l.replace(/^(?:\d+[\.\)]\s*|[-*•]\s*)/, '').trim())
-    .filter(l => l.length > 0);
-
-  if (listItems.length >= 2) return listItems;
-  return null;
-}
-
-/**
- * Get the raw parsed JSON array from refined content (for table/schedule sections).
- * Returns null if not parseable.
- */
-function parseRawStructuredArray(content: string): any[] | null {
-  const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed?.criteria && Array.isArray(parsed.criteria)) return parsed.criteria;
-    if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
-    if (parsed?.rows && Array.isArray(parsed.rows)) return parsed.rows;
-  } catch { /* not JSON */ }
-  return null;
-}
-
-/**
- * Parse AI output as master-data code(s).
- * For multi-select: returns array of code strings.
- * For single-select: returns array with one code string.
- */
-function parseMasterDataCodes(content: string, sectionKey: string): string[] | null {
-  const cleaned = content.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-
-  // Try JSON parse (array or object)
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((v: any) => typeof v === "string" && v.trim().length > 0);
-    }
-    // checkbox_single returns {"selected_id":"PILOT","rationale":"..."}
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const code = parsed.selected_id ?? parsed.id ?? parsed.code ?? parsed.value;
-      if (code && typeof code === 'string') return [code];
-    }
-  } catch {
-    // Not valid JSON
-  }
-
-  // For single-code sections, treat the whole string as a code (strip quotes)
-  const singleCode = cleaned.replace(/^["']|["']$/g, '').trim();
-  if (singleCode.length > 0 && !singleCode.includes(' ')) {
-    return [singleCode];
-  }
-
-  // Try comma-separated
-  const parts = singleCode.split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-  if (parts.length > 0) return parts;
-
-  return null;
 }
 
 export function AIReviewInline({
@@ -260,11 +118,8 @@ export function AIReviewInline({
   const [isOpen, setIsOpen] = useState(defaultOpen && !(review?.addressed ?? false));
   const [prereqWarningShown, setPrereqWarningShown] = useState(false);
 
-  // Structured items state (for deliverables, eval criteria, line_items)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [editedSuggestedContent, setEditedSuggestedContent] = useState<any>(null);
-
-  // Structured deliverable items state (for deliverables/expected_outcomes card rendering)
   const [editedDeliverableItems, setEditedDeliverableItems] = useState<DeliverableItem[] | null>(null);
 
   const isStructured = isStructuredSection(sectionKey);
@@ -275,11 +130,10 @@ export function AIReviewInline({
     if (defaultOpen && !isAddressed) setIsOpen(true);
   }, [defaultOpen, isAddressed]);
 
-  // Sync refinedContent from initialRefinedContent prop (e.g. complexity re-review)
   useEffect(() => {
     if (initialRefinedContent != null) {
       setRefinedContent(initialRefinedContent);
-      autoRefineTriggered.current = true; // prevent auto-refine from overwriting
+      autoRefineTriggered.current = true;
     }
   }, [initialRefinedContent]);
 
@@ -291,9 +145,7 @@ export function AIReviewInline({
     }
   }, [comments.length]);
 
-  // ── Auto-refine: trigger refinement automatically after review arrives with comments ──
-  // Skip for complexity — it uses structured parameter table, not text refinement
-  // Skip if the review already includes an inline suggestion (Change 4: no redundant refine call)
+  // Auto-refine trigger
   const autoRefineTriggered = React.useRef(false);
   useEffect(() => {
     if (
@@ -310,7 +162,6 @@ export function AIReviewInline({
     ) {
       autoRefineTriggered.current = true;
 
-      // If the review already returned an inline suggestion, use it directly — no second LLM call
       if (review.suggestion != null) {
         const suggestionStr = typeof review.suggestion === 'string'
           ? review.suggestion
@@ -321,7 +172,6 @@ export function AIReviewInline({
         }
       }
 
-      // For pass sections, only skip refine if all comments are informational (no action needed)
       if (review.status === 'pass') {
         const hasActionable = review.comments?.some((c: any) => {
           const type = typeof c === 'string' ? 'warning' : (c.type || c.severity || 'warning');
@@ -330,7 +180,6 @@ export function AIReviewInline({
         if (!hasActionable) return;
       }
 
-      // No inline suggestion — fall back to separate refine call
       const timer = setTimeout(() => {
         handleRefineWithAI();
       }, 300);
@@ -338,8 +187,7 @@ export function AIReviewInline({
     }
   }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size, sectionKey]);
 
-  // Reset auto-refine flag AND stale suggestion state when review changes (e.g. re-review or new deep review)
-  // Use content-based signature (not just count) to detect changes even when comment count stays the same
+  // Reset auto-refine on review change
   const prevReviewSignature = React.useRef<string | null>(null);
   useEffect(() => {
     const commentHash = (review?.comments ?? []).map((c: any) =>
@@ -347,7 +195,6 @@ export function AIReviewInline({
     ).join('\x1f');
     const sig = `${review?.reviewed_at}|${review?.status}|${commentHash}`;
     if (prevReviewSignature.current !== null && prevReviewSignature.current !== sig) {
-      // Review changed — clear stale refinement/suggestion state
       autoRefineTriggered.current = false;
       setRefinedContent(null);
       setEditedSuggestedContent(null);
@@ -363,7 +210,6 @@ export function AIReviewInline({
     return parseStructuredItems(refinedContent, sectionKey);
   }, [isStructured, refinedContent, sectionKey]);
 
-  // Parse deliverable objects from refined content (for deliverables/expected_outcomes)
   const parsedDeliverableObjects = useMemo(() => {
     if (!isDeliverableLike || !refinedContent) return null;
     const cleaned = refinedContent.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
@@ -374,24 +220,21 @@ export function AIReviewInline({
         const prefix = getDeliverableBadgePrefix(sectionKey);
         return parseDeliverables(arr, prefix);
       }
-    } catch { /* not JSON — fall through */ }
+    } catch { /* not JSON */ }
     return null;
   }, [isDeliverableLike, refinedContent, sectionKey]);
 
-  // Parse master-data codes from refined content
   const suggestedCodes = useMemo(() => {
     if (!isMasterData || !refinedContent) return null;
     return parseMasterDataCodes(refinedContent, sectionKey);
   }, [isMasterData, refinedContent, sectionKey]);
 
-  // Select all structured items by default when they appear
   useEffect(() => {
     if (structuredItems && structuredItems.length > 0) {
       setSelectedItems(new Set(structuredItems.map((_, i) => i)));
     }
   }, [structuredItems]);
 
-  // Select all master-data codes by default when they appear
   useEffect(() => {
     if (suggestedCodes && suggestedCodes.length > 0) {
       setSelectedItems(new Set(suggestedCodes.map((_, i) => i)));
@@ -409,7 +252,6 @@ export function AIReviewInline({
     setEditedComments((prev) => {
       const updated = [...prev];
       const original = prev[index] ?? (review?.comments?.[index]);
-      // Preserve structured comment metadata (type, field, reasoning) when only editing text
       updated[index] = (original && typeof original === 'object')
         ? { ...original, text: value }
         : value;
@@ -447,7 +289,6 @@ export function AIReviewInline({
 
   const handleReReview = useCallback(async () => {
     if (!challengeId) return;
-    // Soft prereq warning — first click warns, second click proceeds
     if (prerequisitesReady === false && !prereqWarningShown) {
       const names = missingPrerequisites?.slice(0, 3).join(', ') ?? 'prerequisite sections';
       toast.warning(
@@ -460,10 +301,8 @@ export function AIReviewInline({
     setPrereqWarningShown(false);
     setIsReReviewing(true);
     try {
-      // Delegate to custom re-review handler if provided (e.g. complexity uses assess-complexity)
       if (onReReview) {
         await onReReview(sectionKey);
-        // Force reset local state — same as normal path — so stale comments/suggestion clear
         setIsAddressed(false);
         setEditedComments([]);
         setSelectedComments(new Set());
@@ -499,7 +338,6 @@ export function AIReviewInline({
       if (data?.success && data.data?.sections) {
         const freshReview = (data.data.sections as SectionReview[])[0];
         if (freshReview) {
-          // Reset all local state so fresh review renders cleanly
           setIsAddressed(false);
           setEditedComments([]);
           setSelectedComments(new Set(freshReview.comments.map((_, i) => i)));
@@ -509,26 +347,22 @@ export function AIReviewInline({
           setSelectedItems(new Set());
           autoRefineTriggered.current = false;
 
-          // Persist the review via parent callback
           onSingleSectionReview?.(sectionKey, freshReview);
 
-          // Update signature immediately so the reset effect doesn't overwrite refinedContent
           const freshHash = freshReview.comments.map((c: any) =>
             typeof c === 'string' ? c : c.text
           ).join('\x1f');
           prevReviewSignature.current = `${freshReview.reviewed_at}|${freshReview.status}|${freshHash}`;
 
-          // If the re-review returned an inline suggestion, use it immediately
           if (freshReview.suggestion != null) {
             const suggestionStr = typeof freshReview.suggestion === 'string'
               ? freshReview.suggestion
               : JSON.stringify(freshReview.suggestion);
             if (suggestionStr.trim().length > 0) {
               setRefinedContent(suggestionStr);
-              autoRefineTriggered.current = true; // prevent auto-refine from re-triggering
+              autoRefineTriggered.current = true;
             }
           }
-          // Otherwise auto-refine effect will trigger naturally since we reset the ref
 
           const hasIssues = freshReview.comments.length > 0;
           toast.success(hasIssues ? "Re-review complete — see updated comments." : "Section looks good — no issues found.");
@@ -562,7 +396,6 @@ export function AIReviewInline({
     setRefinedContent(null);
 
     try {
-      // Change 3: Call review-challenge-sections with skip_analysis instead of refine-challenge-section
       const selectedCommentObjects = comments
         .filter((_, i) => selectedComments.has(i))
         .map(c => {
@@ -606,7 +439,6 @@ export function AIReviewInline({
         throw new Error(msg);
       }
 
-      // Extract suggestion from the batch response
       const sectionResult = data?.data?.sections?.find((s: any) => s.section_key === sectionKey);
       if (data?.success && sectionResult?.suggestion) {
         setRefinedContent(sectionResult.suggestion);
@@ -622,7 +454,7 @@ export function AIReviewInline({
   }, [challengeId, sectionKey, currentContent, comments, selectedComments, challengeContext, roleContext]);
 
   const handleAccept = useCallback(() => {
-    // Complexity section: accept structured ratings (no refinedContent needed)
+    // Complexity section: accept structured ratings
     if (sectionKey === 'complexity' && complexityRatings && Object.keys(complexityRatings).length > 0) {
       onAcceptRefinement(sectionKey, JSON.stringify(complexityRatings));
       setRefinedContent(null);
@@ -637,7 +469,6 @@ export function AIReviewInline({
     }
 
     if (!refinedContent) {
-      // For pass sections with no suggestion, accept is a no-op — just mark addressed
       if (review?.status === 'pass') {
         setIsAddressed(true);
         setIsOpen(false);
@@ -648,10 +479,9 @@ export function AIReviewInline({
       return;
     }
 
-    // If user edited the suggestion, use the edited version
     const hasEdits = editedSuggestedContent != null;
 
-    // Deliverable-like sections: serialize as structured objects
+    // Deliverable-like sections
     if (isDeliverableLike && (editedDeliverableItems || parsedDeliverableObjects)) {
       const items = editedDeliverableItems ?? parsedDeliverableObjects;
       if (!items || items.length === 0) {
@@ -660,7 +490,7 @@ export function AIReviewInline({
       }
       onAcceptRefinement(sectionKey, JSON.stringify({ items }));
     }
-    // Master-data sections: validate codes against options and pass as JSON array
+    // Master-data sections
     else if (isMasterData && suggestedCodes && suggestedCodes.length > 0) {
       const accepted = suggestedCodes.filter((_, i) => selectedItems.has(i));
       if (accepted.length === 0) {
@@ -684,14 +514,11 @@ export function AIReviewInline({
         onAcceptRefinement(sectionKey, JSON.stringify(accepted));
       }
     } else if (hasEdits) {
-      // Guard: if this is a table section but editedSuggestedContent is a string (prose fallback),
-      // block the accept to prevent saving corrupt data
       const editFmt = SECTION_FORMAT_CONFIG[sectionKey]?.format;
       if ((editFmt === 'table' || editFmt === 'schedule_table') && typeof editedSuggestedContent === 'string') {
         toast.error("AI returned text instead of table data. Please re-review this section.");
         return;
       }
-      // User manually edited the suggestion — use edited content
       if (typeof editedSuggestedContent === "string") {
         onAcceptRefinement(sectionKey, editedSuggestedContent);
       } else if (Array.isArray(editedSuggestedContent)) {
@@ -867,7 +694,7 @@ export function AIReviewInline({
                   />
                 )}
 
-                {/* Re-review button — always available after initial review for non-locked sections */}
+                {/* Re-review button */}
                 {!isLockedSection && (
                   <Button size="sm" variant="outline" className="w-full text-xs h-7 mt-2" onClick={handleReReview} disabled={isReReviewing}>
                     {isReReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
