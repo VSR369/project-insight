@@ -13,63 +13,21 @@ import { SECTION_FORMAT_CONFIG, EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblen
 import { SECTION_MAP } from '@/lib/cogniblend/curationSectionDefs';
 import { parseJson } from '@/lib/cogniblend/curationHelpers';
 import { derivePrimaryGroup, getSelectedGroups } from '@/hooks/queries/useSolutionTypeMap';
+import {
+  stripCodeFences,
+  parseJsonSafe,
+  extractJson,
+  normalizeRewardStructure,
+  normalizeEvalCriteria,
+  normalizeSuccessMetrics,
+  normalizeDataResources,
+  normalizeDomainTags,
+} from '@/lib/cogniblend/normalizeAIContent';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { RewardStructureDisplayHandle } from '@/components/cogniblend/curation/RewardStructureDisplay';
 import type { ComplexityModuleHandle } from '@/components/cogniblend/curation/ComplexityAssessmentModule';
 import type { UseMutationResult } from '@tanstack/react-query';
-
-interface MasterDataOptions {
-  ipModelOptions: Array<{ value: string; label: string }>;
-  maturityOptions: Array<{ value: string; label: string }>;
-  complexityOptions: Array<{ value: string; label: string }>;
-  eligibilityOptions: Array<{ value: string; label: string }>;
-  visibilityOptions: Array<{ value: string; label: string }>;
-}
-
-interface UseCurationAcceptRefinementOptions {
-  challenge: Record<string, any> | null;
-  saveSectionMutation: UseMutationResult<void, Error, { field: string; value: any }>;
-  syncSectionToStore: (key: SectionKey, data: any) => void;
-  setSavingSection: (v: boolean) => void;
-  masterData: MasterDataOptions;
-  solutionTypesData: any[];
-  solutionTypeMap: Array<{ solution_type_code: string; proficiency_area_name: string }>;
-  rewardStructureRef: React.RefObject<RewardStructureDisplayHandle | null>;
-  complexityModuleRef: React.RefObject<ComplexityModuleHandle | null>;
-  handleSaveSolutionTypes: (codes: string[]) => Promise<void>;
-}
-
-/** Strip markdown code fences from AI output */
-function stripCodeFences(raw: string): string {
-  return raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-}
-
-/** Attempt to parse JSON, with repair for trailing commas */
-function parseJsonSafe(raw: string): any | null {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    const repaired = raw.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}');
-    try {
-      return JSON.parse(repaired);
-    } catch {
-      return null;
-    }
-  }
-}
-
-/** Extract leading JSON from a string that may have trailing text */
-function extractJson(raw: string): string {
-  let cleaned = raw;
-  const jsonStartIndex = cleaned.search(/[\[{]/);
-  if (jsonStartIndex > 0) cleaned = cleaned.substring(jsonStartIndex);
-  const jsonEndBracket = cleaned.lastIndexOf(']');
-  const jsonEndBrace = cleaned.lastIndexOf('}');
-  const jsonEnd = Math.max(jsonEndBracket, jsonEndBrace);
-  if (jsonEnd > 0 && jsonEnd < cleaned.length - 1) cleaned = cleaned.substring(0, jsonEnd + 1);
-  return cleaned;
-}
 
 export function useCurationAcceptRefinement({
   challenge,
