@@ -65,10 +65,13 @@ export function OrgAttachmentList({ attachments, isReadOnly, onUpload, onDelete 
 
       {!isReadOnly && (
         <FileUploadZone
-          onUpload={onUpload}
-          maxSizeBytes={ORG_DOC_CONFIG.maxSizeBytes}
-          allowedTypes={ORG_DOC_CONFIG.allowedTypes as unknown as string[]}
-          label={`Upload org profile document (max ${ORG_DOC_CONFIG.maxSizeMB}MB)`}
+          config={{
+            maxSizeBytes: ORG_DOC_CONFIG.maxSizeBytes,
+            allowedMimeTypes: [...ORG_DOC_CONFIG.allowedTypes],
+            allowedExtensions: [...ORG_DOC_CONFIG.allowedExtensions],
+            label: ORG_DOC_CONFIG.label,
+          }}
+          onChange={(file) => { if (file) onUpload(file); }}
         />
       )}
     </div>
