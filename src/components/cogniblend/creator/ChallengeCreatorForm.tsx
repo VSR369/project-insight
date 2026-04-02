@@ -419,6 +419,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
       } else {
         const result = await draftMutation.mutateAsync(baseDraftPayload);
         setDraftChallengeId(result.challengeId);
+        onDraftIdChange?.(result.challengeId);
       }
 
       toast.success(draftChallengeId ? 'Draft updated' : 'Draft saved');
