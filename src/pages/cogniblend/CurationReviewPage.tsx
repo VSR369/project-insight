@@ -148,7 +148,7 @@ import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLi
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curation/OrgContextPanel";
-
+import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
 
 
 // ---------------------------------------------------------------------------
