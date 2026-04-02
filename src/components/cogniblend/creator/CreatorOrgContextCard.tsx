@@ -45,6 +45,7 @@ export function CreatorOrgContextCard({ organizationId, governanceMode, fillTrig
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
+  const { attachments, upload, remove } = useCreatorOrgAttachments(challengeId);
 
   // ═══════ Queries ═══════
   const { data: org, isLoading: orgLoading } = useQuery({
