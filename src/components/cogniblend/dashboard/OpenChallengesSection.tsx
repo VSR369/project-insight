@@ -46,6 +46,7 @@ function useOpenChallenges() {
         .from('challenges')
         .select(`
           id, title, total_fee, currency_code, submission_deadline, complexity_level,
+          governance_profile, governance_mode_override,
           md_challenge_complexity(complexity_label, complexity_level),
           md_engagement_models(name)
         `)
