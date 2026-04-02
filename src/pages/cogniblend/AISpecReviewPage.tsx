@@ -855,10 +855,10 @@ export default function AISpecReviewPage() {
   }, []);
 
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
-  const challengeRecord = challenge as unknown as Record<string, unknown> | undefined;
+  const challengeGovRecord = challenge as unknown as Record<string, unknown> | undefined;
   const govMode: GovernanceMode = resolveChallengeGovernance(
-    (challengeRecord?.governance_mode_override as string | null) ?? null,
-    (challengeRecord?.governance_profile as string | null) ?? currentOrg?.governanceProfile,
+    (challengeGovRecord?.governance_mode_override as string | null) ?? null,
+    (challengeGovRecord?.governance_profile as string | null) ?? currentOrg?.governanceProfile,
     currentOrg?.tierCode,
   );
 
