@@ -32,6 +32,8 @@ interface OpenChallenge {
   currency_code: string | null;
   submission_deadline: string | null;
   complexity_level: string | null;
+  governance_profile: string | null;
+  governance_mode_override: string | null;
   md_challenge_complexity: { complexity_label: string; complexity_level: number } | null;
   md_engagement_models: { name: string } | null;
 }
