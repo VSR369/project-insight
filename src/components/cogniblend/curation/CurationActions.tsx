@@ -236,6 +236,14 @@ export default function CurationActions({
         .eq('id', challengeId);
       if (updateError) throw new Error(updateError.message);
 
+      // Update curation progress to sent_for_approval
+      try {
+        await supabase
+          .from('curation_progress' as any)
+          .update({ status: 'sent_for_approval', updated_at: new Date().toISOString() } as any)
+          .eq('challenge_id', challengeId);
+      } catch { /* non-blocking */ }
+
        // Find the CR user for notification
        const { data: crRole } = await supabase
          .from('user_challenge_roles')

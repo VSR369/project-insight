@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
 import { useSectionApprovals } from "@/hooks/cogniblend/useSectionApprovals";
+import { useUpdateCurationProgress } from "@/hooks/cogniblend/useCurationProgress";
 import { useComplexityParams, ComplexityParam as MasterComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
 import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
@@ -1582,11 +1583,25 @@ export default function CurationReviewPage() {
     saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: merged });
   }, [aiReviews]);
 
+  const updateProgress = useUpdateCurationProgress();
   const { executeWaves, reReviewStale, cancelReview, waveProgress, isRunning: isWaveRunning } = useWaveExecutor({
     challengeId: challengeId!,
     buildContextOptions,
     onSectionReviewed: handleWaveSectionReviewed,
     onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
+    onProgress: {
+      onWaveStart: (waveNum) => updateProgress.mutate({
+        challengeId: challengeId!, status: 'ai_review', current_wave: waveNum,
+        ...(waveNum === 1 ? { ai_review_started_at: new Date().toISOString() } : {}),
+      }),
+      onWaveComplete: (_waveNum, _count, total) => updateProgress.mutate({
+        challengeId: challengeId!, sections_reviewed: total,
+      }),
+      onAllComplete: () => updateProgress.mutate({
+        challengeId: challengeId!, status: 'curator_editing',
+        ai_review_completed_at: new Date().toISOString(), sections_reviewed: 27,
+      }),
+    },
   });
 
   // ── Phase 7: Completeness check ──

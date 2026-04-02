@@ -2191,6 +2191,62 @@ export type Database = {
         }
         Relationships: []
       }
+      curation_progress: {
+        Row: {
+          ai_review_completed_at: string | null
+          ai_review_started_at: string | null
+          challenge_id: string
+          context_sources_count: number | null
+          curator_editing_started_at: string | null
+          current_wave: number | null
+          digest_generated: boolean | null
+          estimated_minutes_remaining: number | null
+          last_section_saved_at: string | null
+          sections_reviewed: number
+          sections_total: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_review_completed_at?: string | null
+          ai_review_started_at?: string | null
+          challenge_id: string
+          context_sources_count?: number | null
+          curator_editing_started_at?: string | null
+          current_wave?: number | null
+          digest_generated?: boolean | null
+          estimated_minutes_remaining?: number | null
+          last_section_saved_at?: string | null
+          sections_reviewed?: number
+          sections_total?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_review_completed_at?: string | null
+          ai_review_started_at?: string | null
+          challenge_id?: string
+          context_sources_count?: number | null
+          curator_editing_started_at?: string | null
+          current_wave?: number | null
+          digest_generated?: boolean | null
+          estimated_minutes_remaining?: number | null
+          last_section_saved_at?: string | null
+          sections_reviewed?: number
+          sections_total?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curation_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curation_quality_metrics: {
         Row: {
           ai_accuracy_percent: number

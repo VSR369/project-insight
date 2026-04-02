@@ -27,6 +27,12 @@ import {
   type SectionAction,
 } from '@/lib/cogniblend/waveConfig';
 
+interface WaveProgressCallbacks {
+  onWaveStart?: (waveNum: number) => void;
+  onWaveComplete?: (waveNum: number, sectionsInWave: number, totalReviewed: number) => void;
+  onAllComplete?: () => void;
+}
+
 interface UseWaveExecutorOptions {
   challengeId: string;
   /** Function to rebuild the challenge context (from page-level data) */
@@ -35,6 +41,8 @@ interface UseWaveExecutorOptions {
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
   /** Callback when complexity suggestion arrives */
   onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
+  /** Optional progress callbacks for curation progress tracking */
+  onProgress?: WaveProgressCallbacks;
 }
 
 interface UseWaveExecutorReturn {
@@ -55,6 +63,7 @@ export function useWaveExecutor({
   buildContextOptions,
   onSectionReviewed,
   onComplexitySuggestion,
+  onProgress,
 }: UseWaveExecutorOptions): UseWaveExecutorReturn {
   const [waveProgress, setWaveProgress] = useState<WaveProgress>(createInitialWaveProgress);
   const cancelRef = useRef(false);
@@ -194,6 +203,7 @@ export function useWaveExecutor({
       }
 
       const wave = EXECUTION_WAVES[i];
+      onProgress?.onWaveStart?.(i + 1);
 
       // Mark wave as running
       setWaveProgress((prev) => ({
@@ -227,6 +237,7 @@ export function useWaveExecutor({
 
       // Update wave result
       const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
+      const totalReviewedSoFar = EXECUTION_WAVES.slice(0, i + 1).reduce((sum, w) => sum + w.sectionIds.length, 0);
       setWaveProgress((prev) => ({
         ...prev,
         waves: prev.waves.map((w) =>
@@ -235,6 +246,7 @@ export function useWaveExecutor({
             : w
         ),
       }));
+      onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
       // Refresh context for next wave — re-read store sections
       context = buildChallengeContext(buildContextOptions());
@@ -248,6 +260,7 @@ export function useWaveExecutor({
     // Mark overall completion
     if (!cancelRef.current) {
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
+      onProgress?.onAllComplete?.();
       toast.success('All section reviews complete.');
     } else {
       toast.warning('AI review cancelled after completing current wave.');
