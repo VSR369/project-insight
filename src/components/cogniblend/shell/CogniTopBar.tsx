@@ -10,7 +10,7 @@ import { Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+
 import { RoleSwitcher } from './RoleSwitcher';
 import { DevRoleSwitcher } from './DevRoleSwitcher';
 
