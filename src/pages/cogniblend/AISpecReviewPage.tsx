@@ -1332,21 +1332,24 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
 
-    // Auto-assign CU and ID roles using taxonomy
-    if (industrySegmentId && challengeId && user?.id) {
+    // Auto-assign CU role using taxonomy
+    if (challengeId && user?.id) {
       try {
         await autoAssignChallengeRole({
           challengeId,
           roleCode: 'CU',
           engagementModel: challenge?.operating_model === 'AGG' ? 'aggregator' : 'marketplace',
-          industrySegmentId,
+          industrySegmentId: industrySegmentId || undefined,
           proficiencyAreaIds: selectedProfAreaIds,
           subDomainIds: selectedSubDomainIds,
           specialityIds: selectedSpecialityIds,
           assignedBy: user.id,
         });
-      } catch {
-        // Non-blocking — assignments may not find matches
+      } catch (err) {
+        logWarning('Auto-assign CU failed', {
+          operation: 'auto_assign_challenge_role',
+          additionalData: { challengeId, error: String(err) },
+        });
       }
     }
 
