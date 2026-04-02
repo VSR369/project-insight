@@ -147,7 +147,7 @@ function GovernanceEngagementSelector({
 /* ── Main Page ── */
 export default function ChallengeCreatePage() {
   // ═══════ Hooks — state ═══════
-  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
+  const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
   const [orgFillTrigger, setOrgFillTrigger] = useState(0);
   const [draftChallengeId, setDraftChallengeId] = useState<string | null>(null);
