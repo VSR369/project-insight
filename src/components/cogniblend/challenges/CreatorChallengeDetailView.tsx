@@ -28,6 +28,9 @@ import { useGovernanceFieldRules, isFieldVisible } from '@/hooks/queries/useGove
 import { resolveChallengeGovernance } from '@/lib/governanceMode';
 import { formatCurrency, governanceLabel, complexityColor } from '@/lib/cogniblend/displayHelpers';
 import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
+import { SECTION_LABELS } from '@/components/cogniblend/curation/context-library/types';
+import { CurationProgressTracker } from '@/components/cogniblend/progress/CurationProgressTracker';
+import { TieredApprovalView } from '@/components/cogniblend/approval/TieredApprovalView';
 
 /* ─── parseItems: robust JSONB → displayable list helper ── */
 
