@@ -157,6 +157,26 @@ export function useSubmitSolutionRequest() {
       });
       if (phaseError) throw new Error(phaseError.message);
 
+      // Auto-assign CU from pool for STRUCTURED/CONTROLLED modes
+      const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
+      const normalizedGov = effectiveGovernance.toUpperCase();
+      if (normalizedGov !== 'QUICK' && normalizedGov !== 'LIGHTWEIGHT') {
+        try {
+          await autoAssignChallengeRole({
+            challengeId,
+            roleCode: 'CU',
+            engagementModel: payload.operatingModel === 'AGG' ? 'aggregator' : 'marketplace',
+            industrySegmentId: payload.industrySegmentId || undefined,
+            assignedBy: payload.creatorId,
+          });
+        } catch (err) {
+          logWarning('Auto-assign CU after submit failed', {
+            operation: 'auto_assign_challenge_role',
+            additionalData: { challengeId, error: String(err) },
+          });
+        }
+      }
+
       // Auto-attach legal docs for Quick/Lightweight mode
       const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
       if (effectiveGovernance.toUpperCase() === 'QUICK' || effectiveGovernance.toUpperCase() === 'LIGHTWEIGHT') {
