@@ -1453,10 +1453,11 @@ serve(async (req) => {
               .eq('organization_id', challengeData.organization_id);
             if (orgIndustries?.length) {
               const ids = orgIndustries.map((oi: any) => oi.industry_id);
-              const { data: segs } = await adminClient.from('industry_segments').select('id, name').in('id', ids);
+              const { data: segs } = await adminClient.from('industry_segments').select('id, name, code').in('id', ids);
               if (segs) {
                 orgContext.industries = segs.map((s: any) => ({
                   name: s.name,
+                  code: s.code,
                   isPrimary: orgIndustries.find((oi: any) => oi.industry_id === s.id)?.is_primary ?? false,
                 }));
               }
