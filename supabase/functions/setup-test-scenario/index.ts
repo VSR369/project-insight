@@ -67,7 +67,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: true,
     isEnterprise: false,
     users: [
-      { email: "agg-quick-admin@testsetup.dev", displayName: "AGG Quick Admin", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "agg-quick-admin@testsetup.dev", displayName: "AGG Quick Admin", roles: ["CR", "CU", "ER", "LC", "FC"] },
     ],
   },
   new_horizon_demo: {
