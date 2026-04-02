@@ -25,7 +25,7 @@ export interface RewardDisplayContentProps {
   rewardType: RewardType | null;
   rewardData: any;
   tierStates: Record<string, TierState>;
-  nmItems: NMItemState[];
+  nmItems: any[];
   currency: string;
   totalPool: number;
   errors: any[];
