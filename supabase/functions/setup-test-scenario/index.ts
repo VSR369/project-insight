@@ -313,8 +313,8 @@ serve(async (req) => {
 
     // Helper to find a user by role code
     const findUserByRole = (role: string) => userIds.find(u => u.roles.includes(role));
-    const amUser = findUserByRole("AM");
-    const rqUser = findUserByRole("RQ");
+    const crUser = findUserByRole("CR");
+    const cuUser = findUserByRole("CU");
 
     // Challenge A — MP model (AM-submitted)
     const mpChallengeId = crypto.randomUUID();
