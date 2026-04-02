@@ -23,7 +23,7 @@ interface AssignmentInput {
   challengeId: string;
   roleCode: string;
   engagementModel?: string;
-  industrySegmentId: string;
+  industrySegmentId?: string;
   proficiencyAreaIds?: string[];
   subDomainIds?: string[];
   specialityIds?: string[];
