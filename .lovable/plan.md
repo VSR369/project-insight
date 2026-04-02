@@ -1,113 +1,159 @@
 
-
-# Final Gap Closure — 7 Prompts Implementation Plan
+# Curator Monolith Decomposition Plan
 
 ## Overview
-Bug fix (AM_APPROVAL_PENDING → CR_APPROVAL_PENDING) + Phase 9 curation progress tracking and tiered Creator approval UI. 14 new/modified files, 1 DB migration.
+Pure code-movement refactor of 20 oversized files (~18,300 lines total) into ~44 focused files, each under 200 lines. Zero logic changes, zero interface changes, zero DB changes. The code moves but behavior stays identical.
+
+## Safety Contract
+Every step follows: **MOVE code, never REWRITE code.** No logic changes, no renaming, no query key changes, no Supabase reference changes. After each phase, the page must render identically.
 
 ---
 
-## Step 1: Bug Fix — MyActionItemsSection
-**File:** `src/components/cogniblend/dashboard/MyActionItemsSection.tsx`
+## Phase D1: Zero-Risk Constant Extraction
 
-Replace 4 occurrences of `AM_APPROVAL_PENDING` with `CR_APPROVAL_PENDING`:
-- Line 40: status config key
-- Line 154: comment
-- Line 158: filter condition
-- Line 164: status assignment
+### Step 1 (D1.1) — Extract SECTION_DEFS + GROUPS + helpers from CurationReviewPage
+**Files created:**
+- `src/lib/cogniblend/curationSectionDefs.ts` — SECTIONS array, GROUPS array, SECTION_MAP, SectionDef/GroupDef interfaces, LOCKED_SECTIONS, TEXT_SECTIONS constants (~lines 261-986 of CurationReviewPage)
+- `src/lib/cogniblend/curationHelpers.ts` — parseJson, LcStatusBadge, getFieldValue, getDeliverableItems, getDeliverableObjects, getExpectedOutcomeObjects, getSubmissionGuidelineObjects, getEvalCriteria, getSectionContent, computeAutoChecks, resolveIndustrySegmentId (~lines 241-1212)
 
----
+**Files modified:** CurationReviewPage.tsx — remove ~950 lines, add 2 imports
 
-## Step 2: DB Migration — curation_progress table
-Create migration with:
-- `curation_progress` table (challenge_id PK, status, sections_reviewed/total, current_wave, timestamps, estimated_minutes_remaining)
-- RLS: authenticated read/write
-- Trigger `trg_init_curation_progress`: auto-creates row when `current_phase` transitions to 2
-- Add table to `supabase_realtime` publication
+**Risk:** ZERO — pure data arrays and pure functions with no state dependencies
 
 ---
 
-## Step 3: Hook — useCurationProgress
-**New file:** `src/hooks/cogniblend/useCurationProgress.ts` (~120 lines)
+## Phase D2: Data Hook Extraction
 
-- `useCurationProgress(challengeId)`: React Query + Supabase Realtime subscription for live updates
-- `useUpdateCurationProgress()`: mutation to upsert progress rows
-- Realtime channel pattern: subscribe to `postgres_changes` on `curation_progress` filtered by challenge_id
+### Step 2 (D2.1) — Extract data fetching hook from CurationReviewPage
+**File created:** `src/hooks/cogniblend/useCurationPageData.ts` — all ~40 useState declarations + ~9 useQuery/useMutation calls (~lines 1234-1520)
 
----
+**File modified:** CurationReviewPage.tsx — remove ~300 lines, add hook call + destructure
 
-## Step 4: Wire Progress into Wave Executor + Curation Actions
-**Modified files:**
-1. `src/hooks/useWaveExecutor.ts` — Add optional `onProgress` callback to options interface with `onWaveStart`, `onWaveComplete`, `onAllComplete`. Fire at wave boundaries.
-2. `src/pages/cogniblend/CurationReviewPage.tsx` — Import `useUpdateCurationProgress`, pass `onProgress` handlers to `useWaveExecutor` call at line 1585.
-3. `src/components/cogniblend/curation/CurationActions.tsx` — After `crApprovalMutation` success (line 232-237), also update `curation_progress` status to `sent_for_approval`.
+**Risk:** LOW — declarations only, no closure dependencies
 
----
+### Step 3 (D2.2) — Extract edge function helper modules
+**Files created:**
+- `supabase/functions/review-challenge-sections/masterData.ts` — fetchMasterDataOptions
+- `supabase/functions/review-challenge-sections/aiCalls.ts` — callAIPass1Analyze, callAIPass2Rewrite
+- `supabase/functions/review-challenge-sections/complexity.ts` — callComplexityAI, executeComplexityAssessment
 
-## Step 5: Creator Progress Tracker Components
-**3 new files + 1 modification:**
+**File modified:** index.ts (1,995 lines → ~1,200 lines)
 
-1. `src/components/cogniblend/progress/ProgressStepper.tsx` (<100 lines) — 5-step horizontal indicator (Submit → Research → AI Review → Curator Editing → Ready). Maps `status` to active step with pulse animation.
-
-2. `src/components/cogniblend/progress/ProgressDetailCard.tsx` (<100 lines) — Status message, last activity time (date-fns `formatDistanceToNow`), estimated time remaining, helpful context text. Uses `Card`.
-
-3. `src/components/cogniblend/progress/CurationProgressTracker.tsx` (<80 lines) — Orchestrator composing Stepper + DetailCard. Uses `useCurationProgress` hook. Skeleton loading state.
-
-4. `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` — Update status badge (line 556) to show "Awaiting Your Approval" for CR_APPROVAL_PENDING. Add `CurationProgressTracker` below badges when phase 2-3 and not pending approval.
+**Risk:** LOW — self-contained async functions. **Requires edge function redeployment.**
 
 ---
 
-## Step 6: Approval Tier Constants + Hook
-**2 new files:**
+## Phase D3: JSX Section Extraction
 
-1. `src/lib/cogniblend/approvalTiers.ts` (<80 lines) — `APPROVAL_TIERS` array with 3 tiers: "Your Challenge" (5 core sections), "How It'll Work" (5 operational sections), "AI-Generated Details" (17 AI sections). `getTierForSection()` helper.
+### Step 4 (D3.1) — Extract Right Rail
+**File created:** `src/components/cogniblend/curation/CurationRightRail.tsx` — the 6 right-rail cards (AI Quality, Org Context, Budget, Context Library, Wave Progress, Actions). May split into sub-card files if over 200 lines.
 
-2. `src/hooks/cogniblend/useApprovalTiers.ts` (<100 lines) — Computes `TierSummary[]` from challenge data + creator snapshot + `challenge_section_approvals` table. Filters to sections with content. Note: needs a new query hook since existing `useSectionApprovals` is curator-side only — will add a `useQuery` for `challenge_section_approvals` within this hook.
+**File modified:** CurationReviewPage.tsx — replace ~362 lines with single component
 
----
+**Risk:** MODERATE — must identify ~15 closure variables and pass as props
 
-## Step 7: Tiered Approval UI Components
-**4 new files + 1 modification:**
+### Step 5 (D3.2) — Extract Section List
+**Files created:**
+- `src/components/cogniblend/curation/CurationSectionList.tsx` — orchestrator
+- `src/components/cogniblend/curation/CurationSectionItem.tsx` — single section rendering
 
-1. `src/components/cogniblend/approval/ApprovalSectionCard.tsx` (<150 lines) — Section card showing Creator original (collapsible) vs Curator version, approval status badge, Approve/Request Change buttons with comment textarea.
+**File modified:** CurationReviewPage.tsx — replace ~930 lines
 
-2. `src/components/cogniblend/approval/ApprovalTierGroup.tsx` (<120 lines) — Collapsible tier group wrapping multiple section cards. Shows approved count badge. Tier 3 gets "AI handled these" label.
+**Risk:** MODERATE-HIGH — largest closure dependency set (~25+ callbacks + state). This is the highest-risk step.
 
-3. `src/components/cogniblend/approval/ApprovalProgressBar.tsx` (<80 lines) — Bottom bar with progress indicator, "Approve All Remaining" button (hidden in Controlled mode), "Submit Feedback" button.
+### Step 6 (D3.3) — Extract Header + Group Navigation
+**File created:** `src/components/cogniblend/curation/CurationHeaderBar.tsx` — breadcrumb, title, governance badge, group tabs, action buttons
 
-4. `src/components/cogniblend/approval/TieredApprovalView.tsx` (<150 lines) — Main orchestrator composing all approval components. Uses `useApprovalTiers`. Handles approve/requestChange mutations against `challenge_section_approvals` table.
+**File modified:** CurationReviewPage.tsx — replace ~273 lines
 
-5. `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` — Replace the existing flat approval banner (lines 588-623) with `TieredApprovalView` when `isPendingApproval` is true. Import `SECTION_LABELS` from existing `src/components/cogniblend/curation/context-library/types.ts`.
-
----
-
-## Key Design Decisions
-
-- **useSectionApprovals conflict**: The existing hook is curator-side (operates on `curator_section_actions`). The new `useApprovalTiers` hook will query `challenge_section_approvals` directly for CR-side approval state — no naming collision.
-- **CurationReviewPage size (4387 lines)**: Only adding 2 lines (import + onProgress param). No decomposition in this scope.
-- **Realtime**: Uses same pattern as existing `useNotificationRealtime` — channel subscription with query cache invalidation.
-- **SECTION_LABELS**: Reuse the existing mapping from `src/components/cogniblend/curation/context-library/types.ts` rather than creating a duplicate.
+**Risk:** MODERATE — manageable ~15 props
 
 ---
 
-## File Summary
+## Phase D4: Callback Extraction
 
-| Action | File | Lines |
-|--------|------|-------|
-| Modify | `MyActionItemsSection.tsx` | 4 replacements |
-| Create | Migration: `curation_progress` table | ~40 SQL lines |
-| Create | `useCurationProgress.ts` | ~120 |
-| Modify | `useWaveExecutor.ts` | +15 lines |
-| Modify | `CurationReviewPage.tsx` | +12 lines |
-| Modify | `CurationActions.tsx` | +5 lines |
-| Create | `ProgressStepper.tsx` | ~95 |
-| Create | `ProgressDetailCard.tsx` | ~95 |
-| Create | `CurationProgressTracker.tsx` | ~70 |
-| Create | `approvalTiers.ts` | ~75 |
-| Create | `useApprovalTiers.ts` | ~95 |
-| Create | `ApprovalSectionCard.tsx` | ~145 |
-| Create | `ApprovalTierGroup.tsx` | ~115 |
-| Create | `ApprovalProgressBar.tsx` | ~75 |
-| Create | `TieredApprovalView.tsx` | ~145 |
-| Modify | `CreatorChallengeDetailView.tsx` | ~20 lines changed |
+### Step 7 (D4.1) — Extract section save/edit callbacks
+**File created:** `src/hooks/cogniblend/useCurationSectionActions.ts` — handleSaveSection, handleStartEditing, handleCancelEditing, handleToggleApproval, handleAcceptSuggestion, handleRejectSuggestion
 
+**File modified:** CurationReviewPage.tsx — remove ~200 lines
+
+**Risk:** MODERATE-HIGH — callbacks close over state; must pass all referenced state as hook params
+
+### Step 8 (D4.2) — Extract AI review callbacks
+**File created:** `src/hooks/cogniblend/useCurationAIActions.ts` — handleWaveSectionReviewed, complexity callbacks, triage callbacks, AI re-review callbacks
+
+**File modified:** CurationReviewPage.tsx — remove ~200 lines
+
+**Risk:** MODERATE
+
+---
+
+## Phase D5: Remaining Component Extraction
+
+### Step 9 (D5.1) — Decompose AIReviewResultPanel (1,355 lines)
+**Files created:**
+- `src/components/cogniblend/curation/ai-review/ReviewCommentList.tsx`
+- `src/components/cogniblend/curation/ai-review/SuggestionPanel.tsx`
+- `src/components/cogniblend/curation/ai-review/CrossSectionIssues.tsx`
+- `src/components/cogniblend/curation/ai-review/ReviewConfigs.ts`
+
+**AIReviewResultPanel.tsx becomes ~180-line orchestrator**
+
+### Step 10 (D5.2) — Decompose promptTemplate.ts (1,675 lines)
+**Files created:**
+- `supabase/functions/review-challenge-sections/promptBuilders.ts`
+- `supabase/functions/review-challenge-sections/pass2Prompt.ts`
+- `supabase/functions/review-challenge-sections/industryGeoPrompt.ts`
+- `supabase/functions/review-challenge-sections/contextIntelligence.ts`
+
+**promptTemplate.ts becomes ~50-line barrel re-export. Requires edge function redeployment.**
+
+### Step 11 (D5.3) — Decompose ComplexityAssessmentModule + AIReviewInline
+**Files created (6):**
+- ComplexityRatingSliders.tsx, ComplexityResultCard.tsx, useComplexityScoring.ts
+- AIReviewHeader.tsx, AIReviewSectionResults.tsx, useAIReviewRunner.ts
+
+### Step 12 (D5.4) — Decompose 8 Priority 2 files (500-711 lines each)
+**Files created (12):** RewardTierEditor, RewardSummaryCard, CreatorApprovalSection, CreatorProgressSection, SectionPanelToolbar, SectionContentRenderer, ChecklistGroupCard, BriefFieldRenderer, SubmitForApprovalDialog, ReturnToDraftDialog, ExpertiseTagEditor, OrgDetailCards
+
+---
+
+## Phase D6: Final Cleanup
+
+### Step 13 (D6.1) — Decompose 6 Priority 3 files (300-440 lines each)
+**Files created (8):** FileUploadCard, UrlReferenceCard, CriteriaRowEditor, WeightDistributionBar, waveExecutionLoop, curationSelectors, EditorToolbar, QualityMetricCard
+
+### Step 14 (D6.2) — Verify CurationReviewPage is under 200 lines
+Final thin orchestrator with imports from extracted modules
+
+### Step 15 (D6.3) — Full regression test
+12-point verification across all decomposed files
+
+---
+
+## Execution Order
+
+| Step | Prompt | Risk | CurationReviewPage After |
+|------|--------|------|--------------------------|
+| 1 | D1.1 Constants | ZERO | ~3,450 lines |
+| 2 | D2.1 Data hook | LOW | ~3,150 lines |
+| 3 | D2.2 Edge fn modules | LOW | N/A (edge fn) |
+| 4 | D3.1 Right Rail | MODERATE | ~2,790 lines |
+| 5 | D3.2 Section List | MOD-HIGH | ~1,860 lines |
+| 6 | D3.3 Header | MODERATE | ~1,590 lines |
+| 7 | D4.1 Section callbacks | MOD-HIGH | ~1,390 lines |
+| 8 | D4.2 AI callbacks | MODERATE | ~1,190 lines |
+| 9-12 | D5.1-D5.4 | LOW-MOD | Other files |
+| 13-15 | D6.1-D6.3 | LOW | ~180 lines final |
+
+## Key Risks and Mitigations
+
+1. **D3.2 (Section List)** is the highest-risk step due to ~25+ closure dependencies. Will carefully audit every variable reference before extraction.
+2. **D2.2 and D5.2** touch edge functions — require redeployment after changes.
+3. **No file will be created over 200 lines.** If extraction exceeds limit, sub-split immediately.
+4. **All exported interfaces preserved exactly.** No downstream consumer changes needed.
+
+## Totals
+- ~44 files created, ~20 files modified, 0 deleted
+- 0 interface changes, 0 DB changes, 0 business logic changes
+- ~74% reduction in monolithic code (18,300 → ~4,600 lines across same files)
