@@ -37,7 +37,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 1,
     governance_profile: 'ENTERPRISE',
     governance_mode_override: null,
-    role_code: 'CU',
+    role_codes: ['CU'],
     operating_model: 'MP',
     created_at: '2025-06-02T10:00:00Z',
   },
