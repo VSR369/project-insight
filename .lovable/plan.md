@@ -5,11 +5,14 @@
 ## Current State
 - **D1.1 DONE**: `curationTypes.ts`, `curationHelpers.ts`, `curationSectionDefs.tsx` extracted
 - **D2.1 DONE**: `useCurationPageData.ts` hook extracted
-- **CurationReviewPage.tsx**: 3,205 lines (target: ~180)
-- **review-challenge-sections/index.ts**: 1,995 lines (target: ~1,200)
-- **promptTemplate.ts**: 1,675 lines (target: ~50 barrel)
-- **AIReviewResultPanel.tsx**: ~1,355 lines (target: ~180)
-- **13 remaining phases** to implement
+- **D2.2 DONE**: Edge function helpers extracted (masterData, aiCalls, complexity)
+- **D3.1–D3.3 DONE**: CurationRightRail, CurationSectionList, CurationHeaderBar extracted
+- **D4.1–D4.2 DONE**: useCurationSectionActions, useCurationAIActions extracted
+- **D5.1–D5.4 DONE**: AIReviewResultPanel, promptTemplate, ComplexityAssessmentModule, Priority 2 files decomposed
+- **D6.1–D6.2 DONE**: Priority 3 files decomposed, useCurationComputedValues + useCurationPageOrchestrator extracted
+- **CurationReviewPage.tsx**: 282 lines (was 3,205 → target ~180, close enough — remaining is prop wiring)
+- **review-challenge-sections/index.ts**: ~1,200 lines (target met)
+- **0 remaining phases** except D6.3 (regression test)
 
 ## Implementation Sequence
 
