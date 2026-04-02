@@ -27,7 +27,7 @@ import { useSectionApprovals } from "@/hooks/cogniblend/useSectionApprovals";
 import { useUpdateCurationProgress } from "@/hooks/cogniblend/useCurationProgress";
 import { useComplexityParams, ComplexityParam as MasterComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { getMaturityLabel } from "@/lib/maturityLabels";
-import { useCurationMasterData } from "@/hooks/cogniblend/useCurationMasterData";
+import { useCurationPageData } from "@/hooks/cogniblend/useCurationPageData";
 import { contentRequiresHumanInput } from "@/lib/cogniblend/creatorDataTransformer";
 import { findCorruptedFields } from "@/utils/migrateCorruptedContent";
 import { Badge } from "@/components/ui/badge";
