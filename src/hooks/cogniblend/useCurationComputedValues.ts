@@ -26,8 +26,10 @@ interface UseCurationComputedValuesInput {
 
 export function useCurationComputedValues({
   challenge, legalDocs, legalDetails, escrowRecord,
-  aiQuality, aiReviews, staleKeySet, manualOverrides,
+  aiQuality, aiReviews, staleSections, manualOverrides,
 }: UseCurationComputedValuesInput) {
+
+  const staleKeySet = useMemo(() => new Set(staleSections.map(s => s.key)), [staleSections]);
 
   const aiReviewCounts = useMemo(() => {
     if (!aiReviews.length) return { pass: 0, warning: 0, inferred: 0, needsRevision: 0, hasReviews: false };
