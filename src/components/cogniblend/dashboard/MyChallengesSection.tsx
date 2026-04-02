@@ -246,12 +246,11 @@ export function MyChallengesSection({
               {/* Items */}
               <div className="space-y-2">
                 {groupItems.map((item) => {
-                  const roleStyle = ROLE_STYLE[item.role_code];
                   const statusStyle = STATUS_STYLE[item.master_status] ?? STATUS_STYLE.DRAFT;
 
                   return (
                     <div
-                      key={`${item.challenge_id}-${item.role_code}`}
+                      key={item.challenge_id}
                       className="rounded-xl border border-border bg-card p-3 lg:p-4 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4"
                     >
                       <div className="flex-1 min-w-0">
