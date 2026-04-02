@@ -27,6 +27,12 @@ import {
   type SectionAction,
 } from '@/lib/cogniblend/waveConfig';
 
+interface WaveProgressCallbacks {
+  onWaveStart?: (waveNum: number) => void;
+  onWaveComplete?: (waveNum: number, sectionsInWave: number, totalReviewed: number) => void;
+  onAllComplete?: () => void;
+}
+
 interface UseWaveExecutorOptions {
   challengeId: string;
   /** Function to rebuild the challenge context (from page-level data) */
@@ -35,6 +41,8 @@ interface UseWaveExecutorOptions {
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
   /** Callback when complexity suggestion arrives */
   onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
+  /** Optional progress callbacks for curation progress tracking */
+  onProgress?: WaveProgressCallbacks;
 }
 
 interface UseWaveExecutorReturn {
