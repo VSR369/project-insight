@@ -211,6 +211,7 @@ export default function ChallengeCreatePage() {
   // ═══════ Hooks — state ═══════
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('QUICK');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
+  const [orgFillTrigger, setOrgFillTrigger] = useState(0);
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
