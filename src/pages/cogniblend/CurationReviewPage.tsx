@@ -154,7 +154,7 @@ import { OrgContextPanel, isOrgTabComplete } from "@/components/cogniblend/curat
 // ---------------------------------------------------------------------------
 // Extracted modules (Phase D1.1)
 // ---------------------------------------------------------------------------
-import type { ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord, ComplexityParam, AIQualitySummary } from '@/lib/cogniblend/curationTypes';
+import type { ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord, ComplexityParam, AIQualitySummary, SectionDef } from '@/lib/cogniblend/curationTypes';
 import { SECTIONS, GROUPS, SECTION_MAP, LOCKED_SECTIONS, TEXT_SECTIONS } from '@/lib/cogniblend/curationSectionDefs';
 import { parseJson, getFieldValue, getDeliverableItems, getDeliverableObjects, getExpectedOutcomeObjects, getSubmissionGuidelineObjects, getEvalCriteria, getSectionContent, computeAutoChecks, resolveIndustrySegmentId, GAP_FIELD_TO_SECTION, CHECKLIST_LABELS } from '@/lib/cogniblend/curationHelpers';
 
