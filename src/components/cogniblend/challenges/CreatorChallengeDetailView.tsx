@@ -28,10 +28,10 @@ import {
   ListSection,
   WeightedCriteriaSection,
   TagsSection,
-  EmptyPlaceholder,
   FilteredSections,
   type SectionDef,
 } from './CreatorSectionRenderers';
+import { buildMyVersionSections, buildCuratorSections } from './CreatorSectionBuilders';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
