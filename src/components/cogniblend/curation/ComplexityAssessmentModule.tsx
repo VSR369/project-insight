@@ -13,7 +13,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -24,19 +23,23 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { Save, X, Pencil, Bot, SlidersHorizontal, Zap, Check, Lock, Unlock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Save, X, Bot, SlidersHorizontal, Zap, Lock, Unlock } from "lucide-react";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { useComplexityDimensions } from "@/hooks/queries/useComplexityDimensions";
 import type { SolutionType } from "@/lib/cogniblend/challengeContextAssembler";
 import {
-  COMPLEXITY_THRESHOLDS,
   deriveComplexityLevel,
   deriveComplexityLabel,
   getLabelForLevel,
   LEVEL_COLORS,
-  LEVEL_CARD_COLORS,
 } from "@/lib/cogniblend/complexityScoring";
+import {
+  TabCard,
+  AIReviewTab,
+  ManualParamsTab,
+  QuickSelectTab,
+  buildDraftFromExisting,
+} from "./complexity/ComplexitySubComponents";
 
 /* ─── Types ─── */
 
@@ -107,7 +110,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showLockConfirm, setShowLockConfirm] = useState(false);
 
-  // Separate drafts: AI Review and Manual Params are isolated
   const [aiDraft, setAiDraft] = useState<Record<string, number>>(() =>
     buildDraftFromExisting(currentParams, complexityParams),
   );
@@ -141,7 +143,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
 
   const { data: solutionDimensions } = useComplexityDimensions(solutionType ?? null);
 
-  // Build effective params: overlay solution-type dimensions onto generic params
   const effectiveParams = useMemo<ComplexityParam[]>(() => {
     if (!solutionDimensions || solutionDimensions.length === 0) return complexityParams;
     return solutionDimensions.map((dim) => ({
@@ -157,7 +158,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
 
   // ══════ Section 5: useEffect hooks ══════
 
-  // Detect solutionType change → prompt reset
   useEffect(() => {
     if (prevSolutionType !== undefined && solutionType !== prevSolutionType) {
       const hasScores = Object.values(aiDraft).some(v => v !== 5) || Object.values(manualDraft).some(v => v !== 5);
@@ -172,31 +172,23 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     setPrevSolutionType(solutionType);
   }, [solutionType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rehydrate drafts from DB values when currentParams/currentScore change after save
   const prevCurrentParamsRef = useRef(currentParams);
   useEffect(() => {
-    // Only rehydrate when currentParams actually changes (post-mutation refetch)
     if (currentParams === prevCurrentParamsRef.current) return;
     prevCurrentParamsRef.current = currentParams;
-
-    // Don't overwrite if user has pending AI ratings that haven't been saved yet
     if (aiDraftRef.current && Object.keys(aiDraftRef.current).length > 0) {
-      // AI draft is preserved from AI suggestions — don't overwrite
+      // AI draft preserved — don't overwrite
     }
-
-    // Rehydrate manualDraft from DB values
     const freshManual = buildDraftFromExisting(currentParams, effectiveParams);
     setManualDraft(freshManual);
   }, [currentParams, effectiveParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // AI suggested ratings → update ONLY aiDraft, never manualDraft
   useEffect(() => {
     if (!aiSuggestedRatings || Object.keys(aiSuggestedRatings).length === 0) return;
 
     const newAiDraft: Record<string, number> = {};
     const justifications: Record<string, string> = {};
     const sources: Record<string, "ai" | "curator" | "default"> = {};
-    let matchedKeys = 0;
 
     effectiveParams.forEach((p) => {
       const r = aiSuggestedRatings[p.param_key];
@@ -204,14 +196,12 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         newAiDraft[p.param_key] = Math.max(1, Math.min(10, Math.round(r.rating)));
         if (r.justification) justifications[p.param_key] = r.justification;
         sources[p.param_key] = "ai";
-        matchedKeys++;
       } else {
         newAiDraft[p.param_key] = aiDraft[p.param_key] ?? 5;
         sources[p.param_key] = aiParamSources[p.param_key] ?? "default";
       }
     });
 
-    // Log key alignment for debugging
     const aiKeys = Object.keys(aiSuggestedRatings);
     const effectiveKeys = effectiveParams.map(p => p.param_key);
     const unmatchedAiKeys = aiKeys.filter(k => !effectiveKeys.includes(k));
@@ -232,7 +222,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     setEditableParams(new Set());
   }, [aiSuggestedRatings]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ══════ Derived scores (separate for each draft) ══════
+  // ══════ Derived scores ══════
 
   const activeDraft = activeTab === "ai_review" ? aiDraft : manualDraft;
 
@@ -250,7 +240,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     };
   }, [activeDraft, effectiveParams]);
 
-  // AI score computed independently for reference on Manual tab
   const aiScoreRef_ = useMemo(() => {
     if (Object.keys(aiDraft).length === 0) return null;
     const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
@@ -262,17 +251,11 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
   const aiLabelRef_ = aiScoreRef_ != null ? deriveComplexityLabel(aiScoreRef_) : null;
   const hasAiRatings = !!aiSuggestedRatings && Object.keys(aiSuggestedRatings).length > 0;
 
-  // Display values: use active draft score for AI/Manual tabs, override for Quick Select
   const displayScore = activeTab === "quick_select" ? 0 : weightedScore;
-  const displayLevel = activeTab === "quick_select" && overrideLevel
-    ? overrideLevel
-    : derivedLevel;
-  const displayLabel = activeTab === "quick_select" && overrideLevel
-    ? getLabelForLevel(overrideLevel)
-    : derivedLabel;
+  const displayLevel = activeTab === "quick_select" && overrideLevel ? overrideLevel : derivedLevel;
+  const displayLabel = activeTab === "quick_select" && overrideLevel ? getLabelForLevel(overrideLevel) : derivedLabel;
   const levelColor = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L3;
 
-  // Dirty state
   const isDirty = useMemo(() => {
     if (activeTab === "ai_review") return editableParams.size > 0;
     if (activeTab === "manual_params") {
@@ -292,19 +275,14 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
       setShowConfirmDialog(true);
     } else {
       setActiveTab(tab);
-      if (tab === "manual_params") {
-        setEditableParams(new Set());
-      }
-      if (tab !== "quick_select") {
-        setOverrideLevel(null);
-      }
+      if (tab === "manual_params") setEditableParams(new Set());
+      if (tab !== "quick_select") setOverrideLevel(null);
     }
   }, [activeTab, isDirty]);
 
   const handleConfirmSwitch = useCallback(() => {
     if (!pendingTab) return;
     setActiveTab(pendingTab);
-    // Reset only the draft for the tab being switched TO; preserve AI draft independently
     if (pendingTab === "manual_params") {
       const fresh = buildDraftFromExisting(currentParams, effectiveParams);
       setManualDraft(fresh);
@@ -320,13 +298,11 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     setShowConfirmDialog(false);
   }, []);
 
-  // AI Review tab slider change → only aiDraft
   const handleAiSliderChange = useCallback((paramKey: string, val: number) => {
     setAiDraft((prev) => ({ ...prev, [paramKey]: val }));
     setAiParamSources((prev) => ({ ...prev, [paramKey]: "curator" }));
   }, []);
 
-  // Manual Params tab slider change → only manualDraft
   const handleManualSliderChange = useCallback((paramKey: string, val: number) => {
     setManualDraft((prev) => ({ ...prev, [paramKey]: val }));
     setManualParamSources((prev) => ({ ...prev, [paramKey]: "curator" }));
@@ -350,7 +326,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     const finalLevel = activeTab === "quick_select" && overrideLevel ? overrideLevel : derivedLevel;
     const finalScore = activeTab === "quick_select" ? 0 : weightedScore;
     const draftToSave = activeTab === "ai_review" ? aiDraft : manualDraft;
-    // Build resolvedParams from effectiveParams so the save handler gets correct dimension keys/weights
     const resolvedParams: ResolvedParam[] = effectiveParams.map((p) => ({
       param_key: p.param_key,
       name: p.name,
@@ -362,7 +337,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     setEditableParams(new Set());
   }, [activeTab, aiDraft, manualDraft, weightedScore, derivedLevel, onSave, overrideLevel, effectiveParams]);
 
-  // ══════ Imperative handle: expose saveAiDraft for external Accept trigger ══════
   useImperativeHandle(ref, () => ({
     saveAiDraft: () => {
       const totalWeight = effectiveParams.reduce((s, p) => s + p.weight, 0);
@@ -383,7 +357,6 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
 
   const handleCancel = useCallback(() => {
     const fresh = buildDraftFromExisting(currentParams, effectiveParams);
-    // Restore AI draft from preserved ref (AI-suggested values), NOT from currentParams (which may have manual values)
     setAiDraft(aiDraftRef.current ?? fresh);
     setManualDraft(fresh);
     setActiveTab("ai_review");
@@ -403,13 +376,12 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     (activeTab === "quick_select" && overrideLevel !== null)
   );
 
-  // Whether lock button should show (data exists)
   const hasExistingAssessment = currentScore != null || currentLevel != null;
 
   // ══════ Section 8: Render ══════
   return (
     <div className="space-y-4">
-      {/* ── Locked Banner ── */}
+      {/* Locked Banner */}
       {isLocked && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
           <div className="flex items-center gap-2">
@@ -425,7 +397,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         </div>
       )}
 
-      {/* ── Dirty-state Confirmation Dialog ── */}
+      {/* Dirty-state Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -441,7 +413,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Lock Confirmation Dialog ── */}
+      {/* Lock Confirmation Dialog */}
       <AlertDialog open={showLockConfirm} onOpenChange={setShowLockConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -461,7 +433,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Solution Type Reset Dialog ── */}
+      {/* Solution Type Reset Dialog */}
       <AlertDialog open={showSolutionTypeResetDialog} onOpenChange={setShowSolutionTypeResetDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -488,82 +460,25 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── 3-Tab Card Selector ── */}
+      {/* 3-Tab Card Selector */}
       <div className="grid grid-cols-3 gap-2">
-        <TabCard
-          icon={<Bot className="h-4 w-4" />}
-          title="AI Review"
-          subtitle="Recommended"
-          active={activeTab === "ai_review"}
-          onClick={() => handleTabSwitch("ai_review")}
-          disabled={isLocked}
-        />
-        <TabCard
-          icon={<SlidersHorizontal className="h-4 w-4" />}
-          title="Manual Params"
-          subtitle="Adjust each slider"
-          active={activeTab === "manual_params"}
-          onClick={() => handleTabSwitch("manual_params")}
-          disabled={isLocked}
-        />
-        <TabCard
-          icon={<Zap className="h-4 w-4" />}
-          title="Quick Select"
-          subtitle="Pick a level"
-          active={activeTab === "quick_select"}
-          onClick={() => handleTabSwitch("quick_select")}
-          disabled={isLocked}
-        />
+        <TabCard icon={<Bot className="h-4 w-4" />} title="AI Review" subtitle="Recommended" active={activeTab === "ai_review"} onClick={() => handleTabSwitch("ai_review")} disabled={isLocked} />
+        <TabCard icon={<SlidersHorizontal className="h-4 w-4" />} title="Manual Params" subtitle="Adjust each slider" active={activeTab === "manual_params"} onClick={() => handleTabSwitch("manual_params")} disabled={isLocked} />
+        <TabCard icon={<Zap className="h-4 w-4" />} title="Quick Select" subtitle="Pick a level" active={activeTab === "quick_select"} onClick={() => handleTabSwitch("quick_select")} disabled={isLocked} />
       </div>
 
-      {/* ── Tab Content ── */}
+      {/* Tab Content */}
       {activeTab === "ai_review" && (
-        <AIReviewTab
-          complexityParams={effectiveParams}
-          draft={aiDraft}
-          paramSources={aiParamSources}
-          aiJustifications={aiJustifications}
-          editableParams={editableParams}
-          displayScore={displayScore}
-          displayLevel={displayLevel}
-          displayLabel={displayLabel}
-          levelColor={levelColor}
-          saving={saving}
-          readOnly={isLocked}
-          onSliderChange={handleAiSliderChange}
-          onToggleEdit={handleToggleParamEdit}
-        />
+        <AIReviewTab complexityParams={effectiveParams} draft={aiDraft} paramSources={aiParamSources} aiJustifications={aiJustifications} editableParams={editableParams} displayScore={displayScore} displayLevel={displayLevel} displayLabel={displayLabel} levelColor={levelColor} saving={saving} readOnly={isLocked} onSliderChange={handleAiSliderChange} onToggleEdit={handleToggleParamEdit} />
       )}
-
       {activeTab === "manual_params" && (
-        <ManualParamsTab
-          complexityParams={effectiveParams}
-          draft={manualDraft}
-          paramSources={manualParamSources}
-          aiJustifications={aiJustifications}
-          weightedScore={weightedScore}
-          derivedLevel={derivedLevel}
-          derivedLabel={derivedLabel}
-          levelColor={LEVEL_COLORS[derivedLevel] ?? LEVEL_COLORS.L3}
-          saving={saving}
-          readOnly={isLocked}
-          onSliderChange={handleManualSliderChange}
-          aiScoreRef={hasAiRatings ? aiScoreRef_ : null}
-          aiLevelRef={hasAiRatings ? aiLevelRef_ : null}
-          aiLabelRef={hasAiRatings ? aiLabelRef_ : null}
-        />
+        <ManualParamsTab complexityParams={effectiveParams} draft={manualDraft} paramSources={manualParamSources} aiJustifications={aiJustifications} weightedScore={weightedScore} derivedLevel={derivedLevel} derivedLabel={derivedLabel} levelColor={LEVEL_COLORS[derivedLevel] ?? LEVEL_COLORS.L3} saving={saving} readOnly={isLocked} onSliderChange={handleManualSliderChange} aiScoreRef={hasAiRatings ? aiScoreRef_ : null} aiLevelRef={hasAiRatings ? aiLevelRef_ : null} aiLabelRef={hasAiRatings ? aiLabelRef_ : null} />
       )}
-
       {activeTab === "quick_select" && (
-        <QuickSelectTab
-          overrideLevel={overrideLevel}
-          saving={saving}
-          readOnly={isLocked}
-          onSelectLevel={handleQuickSelectLevel}
-        />
+        <QuickSelectTab overrideLevel={overrideLevel} saving={saving} readOnly={isLocked} onSelectLevel={handleQuickSelectLevel} />
       )}
 
-      {/* ── Save / Cancel / Lock ── */}
+      {/* Save / Cancel / Lock */}
       {!isLocked && (
         <div className="flex gap-2 justify-end border-t border-border pt-3">
           {showActions && (
@@ -577,13 +492,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
             </>
           )}
           {hasExistingAssessment && onLock && !showActions && (
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => setShowLockConfirm(true)}
-              disabled={saving}
-              className="bg-primary/90 hover:bg-primary"
-            >
+            <Button size="sm" variant="default" onClick={() => setShowLockConfirm(true)} disabled={saving} className="bg-primary/90 hover:bg-primary">
               <Lock className="h-3.5 w-3.5 mr-1" />Lock Complexity
             </Button>
           )}
@@ -592,354 +501,3 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     </div>
   );
 });
-
-/* ═══════════════════════════════════════════════
-   Sub-components
-   ═══════════════════════════════════════════════ */
-
-/** Tab card selector button */
-function TabCard({
-  icon,
-  title,
-  subtitle,
-  active,
-  onClick,
-  disabled,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled && !active}
-      className={cn(
-        "flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-all",
-        disabled && !active
-          ? "opacity-50 cursor-not-allowed border-border bg-muted"
-          : "cursor-pointer",
-        active
-          ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
-          : !disabled && "border-border bg-card hover:border-primary/40 hover:bg-accent/50",
-      )}
-    >
-      <span className={cn("flex items-center gap-1.5 text-sm font-medium", active ? "text-primary" : "text-foreground")}>
-        {icon} {title}
-      </span>
-      <span className="text-[10px] text-muted-foreground">{subtitle}</span>
-    </button>
-  );
-}
-
-/** Tab 1: AI Review — read-only bars with per-param inline edit */
-function AIReviewTab({
-  complexityParams,
-  draft,
-  paramSources,
-  aiJustifications,
-  editableParams,
-  displayScore,
-  displayLevel,
-  displayLabel,
-  levelColor,
-  saving,
-  readOnly,
-  onSliderChange,
-  onToggleEdit,
-}: {
-  complexityParams: ComplexityParam[];
-  draft: Record<string, number>;
-  paramSources: Record<string, "ai" | "curator" | "default">;
-  aiJustifications: Record<string, string>;
-  editableParams: Set<string>;
-  displayScore: number;
-  displayLevel: string;
-  displayLabel: string;
-  levelColor: string;
-  saving: boolean;
-  readOnly?: boolean;
-  onSliderChange: (key: string, val: number) => void;
-  onToggleEdit: (key: string) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      {/* Score badge */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-foreground">Complexity Score:</span>
-        <span className="text-xl font-bold text-primary">{displayScore.toFixed(2)}</span>
-        <Badge className={`text-xs border ${levelColor}`}>
-          {displayLevel} — {displayLabel}
-        </Badge>
-      </div>
-
-      {/* Parameter bars */}
-      <div className="space-y-3">
-        {complexityParams.map((param) => {
-          const value = draft[param.param_key] ?? 5;
-          const barWidth = `${(value / 10) * 100}%`;
-          const justification = aiJustifications[param.param_key];
-          const isEditable = !readOnly && editableParams.has(param.param_key);
-          const source = paramSources[param.param_key];
-
-          return (
-            <div key={param.param_key} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-sm font-medium text-foreground">{param.name}</label>
-                  {source === "ai" && !isEditable && (
-                    <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">AI</span>
-                  )}
-                  {(source === "curator" || isEditable) && (
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-amber-50 text-amber-600 border-amber-200">
-                      <Pencil className="h-2 w-2" />Curator
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-primary">{value}</span>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleEdit(param.param_key)}
-                      className={cn(
-                        "p-1 rounded-md transition-colors",
-                        isEditable
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                      )}
-                      title={isEditable ? "Lock parameter" : "Edit this parameter"}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              {param.description && (
-                <p className="text-xs text-muted-foreground">{param.description}</p>
-              )}
-
-              {isEditable ? (
-                <>
-                  <Slider
-                    value={[value]}
-                    onValueChange={([val]) => onSliderChange(param.param_key, val)}
-                    min={1}
-                    max={10}
-                    step={1}
-                    className="w-full"
-                    disabled={saving}
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Low (1)</span>
-                    <span>Weight: {(param.weight * 100).toFixed(0)}%</span>
-                    <span>High (10)</span>
-                  </div>
-                </>
-              ) : (
-                <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: barWidth }} />
-                </div>
-              )}
-
-              {justification && (
-                <p className="text-[11px] text-muted-foreground italic pl-1 border-l-2 border-primary/30">
-                  {justification}
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/** Tab 2: Manual Parameters — all sliders interactive */
-function ManualParamsTab({
-  complexityParams,
-  draft,
-  paramSources,
-  aiJustifications,
-  weightedScore,
-  derivedLevel,
-  derivedLabel,
-  levelColor,
-  saving,
-  readOnly,
-  onSliderChange,
-  aiScoreRef,
-  aiLevelRef,
-  aiLabelRef,
-}: {
-  complexityParams: ComplexityParam[];
-  draft: Record<string, number>;
-  paramSources: Record<string, "ai" | "curator" | "default">;
-  aiJustifications: Record<string, string>;
-  weightedScore: number;
-  derivedLevel: string;
-  derivedLabel: string;
-  levelColor: string;
-  saving: boolean;
-  readOnly?: boolean;
-  onSliderChange: (key: string, val: number) => void;
-  aiScoreRef?: number | null;
-  aiLevelRef?: string | null;
-  aiLabelRef?: string | null;
-}) {
-  return (
-    <div className="space-y-4">
-      {/* AI score reference */}
-      {aiScoreRef != null && aiLevelRef && aiLabelRef && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Bot className="h-3 w-3" />
-          <span>AI recommended: {aiScoreRef.toFixed(2)} ({aiLevelRef} — {aiLabelRef})</span>
-        </div>
-      )}
-      {/* Live score */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-foreground">Weighted Score:</span>
-        <span className="text-xl font-bold text-primary">{weightedScore.toFixed(2)}</span>
-        <Badge className={`text-xs border ${levelColor}`}>
-          {derivedLevel} — {derivedLabel}
-        </Badge>
-      </div>
-
-      {/* All sliders */}
-      <div className="space-y-3">
-        {complexityParams.map((param) => {
-          const value = draft[param.param_key] ?? 5;
-          const justification = aiJustifications[param.param_key];
-          const source = paramSources[param.param_key];
-
-          return (
-            <div key={param.param_key} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-sm font-medium text-foreground">{param.name}</label>
-                  {source === "ai" && (
-                    <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">AI</span>
-                  )}
-                  {source === "curator" && (
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border bg-amber-50 text-amber-600 border-amber-200">
-                      <Pencil className="h-2 w-2" />Curator
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm font-semibold text-primary">{value}</span>
-              </div>
-              {param.description && (
-                <p className="text-xs text-muted-foreground">{param.description}</p>
-              )}
-
-              <Slider
-                value={[value]}
-                onValueChange={([val]) => onSliderChange(param.param_key, val)}
-                min={1}
-                max={10}
-                step={1}
-                className="w-full"
-                disabled={saving || readOnly}
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Low (1)</span>
-                <span>Weight: {(param.weight * 100).toFixed(0)}%</span>
-                <span>High (10)</span>
-              </div>
-
-              {justification && (
-                <p className="text-[11px] text-muted-foreground italic pl-1 border-l-2 border-primary/30">
-                  {justification}
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/** Tab 3: Quick Select — descriptive level cards, no score/sliders */
-function QuickSelectTab({
-  overrideLevel,
-  saving,
-  readOnly,
-  onSelectLevel,
-}: {
-  overrideLevel: string | null;
-  saving: boolean;
-  readOnly?: boolean;
-  onSelectLevel: (level: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm text-muted-foreground">
-        Select a complexity level directly. This overrides the calculated score.
-      </p>
-      <div className="grid grid-cols-1 gap-2">
-        {COMPLEXITY_THRESHOLDS.map((t) => {
-          const isSelected = overrideLevel === t.level;
-          const colors = LEVEL_CARD_COLORS[t.level];
-
-          return (
-            <button
-              key={t.level}
-              type="button"
-              disabled={saving || readOnly}
-              onClick={() => onSelectLevel(t.level)}
-              className={cn(
-                "flex items-start gap-3 rounded-lg border p-3 text-left transition-all",
-                readOnly && "opacity-70 cursor-not-allowed",
-                isSelected
-                  ? `${colors.bg} ${colors.ring} ring-2 border-transparent`
-                  : "border-border bg-card hover:bg-accent/50",
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-sm font-semibold", isSelected ? colors.text : "text-foreground")}>
-                    {t.level} — {t.label}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    Score {t.min}–{t.max}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
-              </div>
-              {isSelected && (
-                <div className={cn("shrink-0 rounded-full p-0.5", colors.bg)}>
-                  <Check className={cn("h-4 w-4", colors.text)} />
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Helper: build draft from existing challenge params ─── */
-
-function buildDraftFromExisting(
-  existing: ComplexityAssessmentModuleProps["currentParams"],
-  masterParams: ComplexityParam[],
-): Record<string, number> {
-  const draft: Record<string, number> = {};
-  if (Array.isArray(existing)) {
-    existing.forEach((p: any) => {
-      if (p._meta) return;
-      const key = p.param_key ?? p.key ?? "";
-      if (key) draft[key] = Number(p.value ?? p.score ?? 5);
-    });
-  }
-  masterParams.forEach((p) => {
-    if (!(p.param_key in draft)) draft[p.param_key] = 5;
-  });
-  return draft;
-}
