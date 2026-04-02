@@ -122,6 +122,7 @@ interface ChallengeCreatorFormProps {
   engagementModel: string;
   governanceMode: GovernanceMode;
   onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
+  onFillTestData?: () => void;
 }
 
 function toFormMaturityCode(value: string | null | undefined): string {
