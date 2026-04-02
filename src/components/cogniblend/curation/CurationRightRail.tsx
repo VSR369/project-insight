@@ -258,7 +258,7 @@ export interface CurationRightRailProps {
 
   // Submission gating
   allComplete: boolean;
-  checklistSummary: string;
+  checklistSummary: Array<{ id: number; label: string; passed: boolean; method: string }>;
   completedCount: number;
   legalEscrowBlocked: boolean;
   blockingReason: string;
