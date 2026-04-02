@@ -10,7 +10,7 @@ import { Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+
 import { RoleSwitcher } from './RoleSwitcher';
 import { DevRoleSwitcher } from './DevRoleSwitcher';
 
@@ -66,7 +66,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const orgName = currentOrg?.orgName ?? 'Acme Innovation Labs';
-  const governanceProfile = currentOrg?.governanceProfile ?? null;
+  
   const initials = getInitials(userName);
 
   // ═══════════════════════════════════════════
@@ -90,11 +90,6 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
       <h1 className="font-bold text-foreground text-sm lg:text-base truncate">
         {pageTitle}
       </h1>
-
-      {/* Governance Profile Badge */}
-      {governanceProfile && (
-        <GovernanceProfileBadge profile={governanceProfile} />
-      )}
 
       {/* Role Switcher — visible on all breakpoints */}
       <RoleSwitcher />

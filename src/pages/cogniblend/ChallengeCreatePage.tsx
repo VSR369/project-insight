@@ -34,7 +34,7 @@ import {
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+
 import { Skeleton } from '@/components/ui/skeleton';
 
 /* ── Governance + Engagement Selector ── */
@@ -238,16 +238,8 @@ export default function ChallengeCreatePage() {
 
       {/* Page Header */}
       <div>
-        <h1 className="text-xl font-bold text-foreground flex flex-wrap items-center gap-2">
+        <h1 className="text-xl font-bold text-foreground">
           New Challenge
-          <span className="text-sm font-normal text-muted-foreground">::</span>
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-            Org level: <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
-          </span>
-          <span className="text-sm font-normal text-muted-foreground">;</span>
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-            Challenge level: <GovernanceProfileBadge profile={governanceMode} compact />
-          </span>
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Select your governance mode and engagement model, then fill out the challenge details.

@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, X } from 'lucide-react';
 import { CogniSidebarNav } from './CogniSidebarNav';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 
 interface CogniSidebarProps {
@@ -24,7 +24,7 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
   const { data: currentOrg } = useCurrentOrg();
 
   const orgName = currentOrg?.orgName ?? 'Organization';
-  const governanceProfile = currentOrg?.governanceProfile ?? 'STRUCTURED';
+  
 
   const handleDashboardNav = () => {
     navigate('/cogni/dashboard');
@@ -80,13 +80,6 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
         >
           {orgName}
         </h2>
-        <div className={`
-          mt-2 transition-opacity duration-200
-          ${isExpanded ? 'md:opacity-100' : 'md:opacity-0'}
-          lg:opacity-100
-        `}>
-          <GovernanceProfileBadge profile={governanceProfile} compact />
-        </div>
       </div>
 
       {/* Divider */}
