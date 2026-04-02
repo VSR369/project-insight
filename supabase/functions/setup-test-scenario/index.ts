@@ -80,16 +80,13 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "nh-rq@testsetup.dev", displayName: "Alex Morgan", roles: ["RQ"] },
-      { email: "nh-am@testsetup.dev", displayName: "Alex Morgan", roles: ["AM"] },
-      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CA"] },
+      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CR"] },
       { email: "nh-cu@testsetup.dev", displayName: "Casey Underwood", roles: ["CU"] },
-      { email: "nh-id@testsetup.dev", displayName: "Dana Irving", roles: ["ID"] },
       { email: "nh-er1@testsetup.dev", displayName: "Evelyn Rhodes", roles: ["ER"] },
       { email: "nh-er2@testsetup.dev", displayName: "Ethan Russell", roles: ["ER"] },
       { email: "nh-lc@testsetup.dev", displayName: "Leslie Chen", roles: ["LC"] },
       { email: "nh-fc@testsetup.dev", displayName: "Frank Coleman", roles: ["FC"] },
-      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["AM", "RQ", "CA", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["CR", "CU", "ER", "LC", "FC"] },
     ],
   },
 };
@@ -316,8 +313,8 @@ serve(async (req) => {
 
     // Helper to find a user by role code
     const findUserByRole = (role: string) => userIds.find(u => u.roles.includes(role));
-    const amUser = findUserByRole("AM");
-    const rqUser = findUserByRole("RQ");
+    const crUser = findUserByRole("CR");
+    const cuUser = findUserByRole("CU");
 
     // Challenge A — MP model (AM-submitted)
     const mpChallengeId = crypto.randomUUID();
@@ -353,7 +350,7 @@ serve(async (req) => {
         am_approval_required: true,
         beneficiaries_mapping: "Primary: Plant Operations Team (45 technicians), Secondary: Production Planning (12 managers), Tertiary: Executive Leadership (quarterly reporting)",
       },
-      created_by: amUser?.userId ?? userIds[0]?.userId ?? null,
+      created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
     });
     if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
     challengeIds.push(mpChallengeId);
@@ -392,7 +389,7 @@ serve(async (req) => {
         beneficiaries_mapping: "Primary: Revenue Cycle Management team (28 staff), Secondary: Clinical Administration (15 coordinators), Tertiary: Patients (reduced wait times and billing errors)",
         am_approval_required: false,
       },
-      created_by: rqUser?.userId ?? userIds[0]?.userId ?? null,
+      created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
     });
     if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
     challengeIds.push(aggChallengeId);
@@ -401,21 +398,15 @@ serve(async (req) => {
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
     // MP roles (AM, CA) → MP challenge only; AGG roles (RQ, CR) → AGG challenge only
     // Shared roles (CU, ID, ER, LC, FC) → both challenges
-    const MP_ONLY_ROLES = new Set(["AM", "CA"]);
-    const AGG_ONLY_ROLES = new Set(["RQ", "CR"]);
+    // All modern roles are shared across both challenges
+    const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
 
     for (const u of userIds) {
       for (const roleCode of u.roles) {
         const targetChallengeIds: string[] = [];
 
-        if (MP_ONLY_ROLES.has(roleCode)) {
-          targetChallengeIds.push(mpChallengeId);
-        } else if (AGG_ONLY_ROLES.has(roleCode)) {
-          targetChallengeIds.push(aggChallengeId);
-        } else {
-          // Shared roles go on both challenges
-          targetChallengeIds.push(mpChallengeId, aggChallengeId);
-        }
+        // All modern roles are assigned to both challenges
+        targetChallengeIds.push(mpChallengeId, aggChallengeId);
 
         for (const cId of targetChallengeIds) {
           const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({

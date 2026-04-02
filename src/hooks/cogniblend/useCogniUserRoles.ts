@@ -1,11 +1,15 @@
 /**
  * useCogniUserRoles — Fetches all challenge role_codes for the current user
  * via the get_user_all_challenge_roles RPC and returns a flat Set of role codes.
+ *
+ * Legacy codes (AM, RQ, CA, ID) are resolved to modern equivalents (CR, CU)
+ * before being added to the role set.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { resolveRoleCode } from '@/types/cogniRoles';
 
 export interface UserChallengeRoleRow {
   challenge_id: string;
@@ -28,7 +32,13 @@ export function useCogniUserRoles() {
         p_user_id: user.id,
       });
       if (error) throw new Error(error.message);
-      return (data ?? []) as UserChallengeRoleRow[];
+
+      // Resolve legacy role codes in each row
+      const rows = (data ?? []) as UserChallengeRoleRow[];
+      return rows.map((row) => ({
+        ...row,
+        role_codes: (row.role_codes ?? []).map(resolveRoleCode),
+      }));
     },
     enabled: !!user?.id,
     staleTime: 30_000,
@@ -45,11 +55,6 @@ export function useCogniUserRoles() {
         }
       }
     }
-  }
-
-  // Default: if user has no challenge roles yet, grant baseline CR visibility
-  if (allRoleCodes.size === 0 && user?.id) {
-    allRoleCodes.add('CR');
   }
 
   // Badge counts derived from challenge data
