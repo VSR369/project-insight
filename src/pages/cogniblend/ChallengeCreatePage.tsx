@@ -318,6 +318,7 @@ export default function ChallengeCreatePage() {
         organizationId={currentOrg.organizationId}
         governanceMode={governanceMode}
         fillTrigger={orgFillTrigger}
+        challengeId={draftChallengeId ?? undefined}
       />
 
       {/* Challenge Creator Form — governance-aware */}
