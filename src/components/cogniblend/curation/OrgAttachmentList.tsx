@@ -4,8 +4,10 @@
  */
 
 import React from 'react';
-import { FileText, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, X, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 
@@ -51,10 +53,23 @@ export function OrgAttachmentList({ attachments, isReadOnly, onUpload, onDelete 
                   {att.file_size ? `${(att.file_size / 1024).toFixed(1)} KB` : ''}
                 </p>
               </div>
-              {att.extraction_status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
-              {att.extraction_status === 'failed' && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+              {att.extraction_status === 'completed' && (
+                <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-200 shrink-0">
+                  <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Extracted
+                </Badge>
+              )}
+              {att.extraction_status === 'pending' && (
+                <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-200 shrink-0">
+                  <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />Processing
+                </Badge>
+              )}
+              {att.extraction_status === 'failed' && (
+                <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 shrink-0">
+                  <AlertCircle className="h-2.5 w-2.5 mr-0.5" />Failed
+                </Badge>
+              )}
               {!isReadOnly && (
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDelete(att)}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onDelete(att)}>
                   <X className="h-3 w-3" />
                 </Button>
               )}
