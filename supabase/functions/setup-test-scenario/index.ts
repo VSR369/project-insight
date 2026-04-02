@@ -350,7 +350,7 @@ serve(async (req) => {
         am_approval_required: true,
         beneficiaries_mapping: "Primary: Plant Operations Team (45 technicians), Secondary: Production Planning (12 managers), Tertiary: Executive Leadership (quarterly reporting)",
       },
-      created_by: amUser?.userId ?? userIds[0]?.userId ?? null,
+      created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
     });
     if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
     challengeIds.push(mpChallengeId);
