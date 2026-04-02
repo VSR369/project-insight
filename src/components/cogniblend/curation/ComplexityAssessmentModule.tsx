@@ -13,17 +13,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
 import { Save, X, Bot, SlidersHorizontal, Zap, Lock, Unlock } from "lucide-react";
+import { DirtyConfirmDialog, LockConfirmDialog, SolutionTypeResetDialog } from "./complexity/ComplexityDialogs";
 import type { ComplexityParam } from "@/hooks/queries/useComplexityParams";
 import { useComplexityDimensions } from "@/hooks/queries/useComplexityDimensions";
 import type { SolutionType } from "@/lib/cogniblend/challengeContextAssembler";
