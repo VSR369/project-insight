@@ -1,151 +1,99 @@
 
 
-# Full Decomposition Plan — Phases D2.2 through D6.3
+# Decomposition Gap Analysis and Fix Plan
 
-## Current State
-- **D1.1 DONE**: `curationTypes.ts`, `curationHelpers.ts`, `curationSectionDefs.tsx` extracted
-- **D2.1 DONE**: `useCurationPageData.ts` hook extracted
-- **D2.2 DONE**: Edge function helpers extracted (masterData, aiCalls, complexity)
-- **D3.1–D3.3 DONE**: CurationRightRail, CurationSectionList, CurationHeaderBar extracted
-- **D4.1–D4.2 DONE**: useCurationSectionActions, useCurationAIActions extracted
-- **D5.1–D5.4 DONE**: AIReviewResultPanel, promptTemplate, ComplexityAssessmentModule, Priority 2 files decomposed
-- **D6.1–D6.2 DONE**: Priority 3 files decomposed, useCurationComputedValues + useCurationPageOrchestrator extracted
-- **CurationReviewPage.tsx**: 282 lines (was 3,205 → target ~180, close enough — remaining is prop wiring)
-- **review-challenge-sections/index.ts**: ~1,200 lines (target met)
-- **0 remaining phases** except D6.3 (regression test)
+## Current State vs Target — Files Still Over 200 Lines
 
-## Implementation Sequence
+| # | File | Current | Target | Status |
+|---|------|:-------:|:------:|--------|
+| 1 | CurationSectionList.tsx | 1,053 | ~200 | GAP — needs further decomposition |
+| 2 | AIReviewInline.tsx | 711 | ~180 | GAP — only helpers extracted, still huge |
+| 3 | RewardStructureDisplay.tsx | 711 | ~180 | GAP — untouched |
+| 4 | aiCalls.ts (edge fn) | 750 | ~200 | GAP — extracted but still large |
+| 5 | CurationChecklistPanel.tsx | 639 | ~180 | GAP — untouched |
+| 6 | CuratorSectionPanel.tsx | 581 | ~180 | GAP — only StatusBadge extracted |
+| 7 | ExtendedBriefDisplay.tsx | 580 | ~180 | GAP — untouched |
+| 8 | useCurationPageOrchestrator.ts | 560 | ~200 | GAP — newly created but oversized |
+| 9 | AIReviewResultPanel.tsx | 556 | ~180 | GAP — only ReviewConfigs extracted |
+| 10 | ComplexityAssessmentModule.tsx | 503 | ~180 | GAP — only sub-components extracted |
+| 11 | CurationActions.tsx | 496 | ~180 | GAP — only modals extracted |
+| 12 | CreatorChallengeDetailView.tsx | 478 | ~180 | GAP — only renderers extracted |
+| 13 | useCurationAcceptRefinement.ts | 433 | ~200 | GAP — newly created but oversized |
+| 14 | SolverExpertiseSection.tsx | 426 | ~180 | GAP — only hook extracted |
+| 15 | CurationRightRail.tsx | 425 | ~200 | GAP — extracted but not split further |
+| 16 | CurationHeaderBar.tsx | 392 | ~200 | GAP — extracted but not split further |
+| 17 | promptBuilders.ts (edge fn) | 376 | ~200 | GAP — extracted but still large |
+| 18 | useCurationPageData.ts | 329 | ~200 | GAP — needs selector extraction |
+| 19 | useCurationSectionActions.ts | 328 | ~200 | GAP — still over target |
+| 20 | OrgContextPanel.tsx | 519 | ~180 | GAP — untouched |
+| 21 | AICurationQualityPanel.tsx | 304 | ~200 | GAP — untouched |
+| 22 | SectionReferencePanel.tsx | 280 | ~200 | Borderline — AttachmentCard extracted |
+| 23 | EvaluationCriteriaSection.tsx | 289 | ~200 | Borderline — sub-components extracted |
+| 24 | useCurationAIActions.ts | 265 | ~200 | Borderline |
+| 25 | useCurationComputedValues.ts | 249 | ~200 | Borderline |
 
-### Phase D2.2 — Extract edge function helpers from review-challenge-sections/index.ts
+## Files Meeting Target
 
-Create 3 new files inside `supabase/functions/review-challenge-sections/`:
+| File | Lines | Status |
+|------|:-----:|--------|
+| CurationReviewPage.tsx | 282 | DONE (was 4,402) |
+| review-challenge-sections/index.ts | 929 | Improved (was 1,995) |
+| promptTemplate.ts | 52 | DONE (barrel) |
+| useWaveExecutor.ts | 235 | Improved |
+| curationFormStore.ts | 268 | Improved |
 
-1. **`masterData.ts`** — Move `fetchMasterDataOptions` function (~45 lines)
-2. **`aiCalls.ts`** — Move `callAIPass1Analyze` + `callAIPass2Rewrite` (~545 lines)
-3. **`complexity.ts`** — Move `callComplexityAI` + `executeComplexityAssessment` (~165 lines)
+## Implementation Plan — 6 Batches
 
-Update `index.ts` to import from these modules. Drops index.ts to ~1,200 lines.
+### Batch 1: CurationSectionList (1,053 lines — largest gap)
 
-### Phase D3.1 — Extract CurationRightRail
+Extract `CurationSectionItem.tsx` (~200 lines) containing the per-section rendering logic (panel + editor + AI review slot assembly). Extract `SectionGroupHeader.tsx` (~80 lines) for group dividers. The list becomes a thin map-and-delegate orchestrator (~200 lines).
 
-Create `src/components/cogniblend/curation/CurationRightRail.tsx`. Move the right-rail JSX block (~362 lines) from CurationReviewPage into this component with all required props. If over 200 lines, split into individual card sub-components. Page drops to ~2,850 lines.
+### Batch 2: AIReviewResultPanel (556) + AIReviewInline (711)
 
-### Phase D3.2 — Extract CurationSectionList
+**AIReviewResultPanel**: Extract `ReviewCommentList.tsx` (comment rendering loop) and `SuggestionPanel.tsx` (suggestion display with accept/reject). Parent becomes ~180 lines.
 
-Create `src/components/cogniblend/curation/CurationSectionList.tsx` and `CurationSectionItem.tsx`. Move the ~930-line section rendering loop. This is the highest-risk extraction due to ~25 closure dependencies. Page drops to ~1,920 lines.
+**AIReviewInline**: Extract `AIReviewSectionRunner.tsx` (the run/cancel/status UI) and `AIReviewSuggestionRenderer.tsx` (format-aware suggestion display). Parent becomes ~180 lines.
 
-### Phase D3.3 — Extract CurationHeaderBar
+### Batch 3: Priority 2 files still untouched
 
-Create `src/components/cogniblend/curation/CurationHeaderBar.tsx`. Move the header, group navigation strip, breadcrumbs, and top action bar (~273 lines). Page drops to ~1,650 lines.
+- **RewardStructureDisplay (711)**: Extract `RewardTierEditor.tsx` + `RewardSummaryCard.tsx`
+- **CurationChecklistPanel (639)**: Extract `ChecklistGroupCard.tsx` + `ChecklistProgressBar.tsx`
+- **CuratorSectionPanel (581)**: Extract `SectionPanelToolbar.tsx` (action buttons, accept/undo) + `SectionFullscreenModal.tsx`
+- **ExtendedBriefDisplay (580)**: Extract `BriefFieldRenderer.tsx` (individual field display)
+- **OrgContextPanel (519)**: Extract `OrgDetailCards.tsx`
+- **CurationActions (496)**: Further extract `ActionButtonGroup.tsx`
+- **CreatorChallengeDetailView (478)**: Extract `CreatorTabContent.tsx`
+- **SolverExpertiseSection (426)**: Extract `ExpertiseTagEditor.tsx`
 
-### Phase D4.1 — Extract section save/edit callbacks
+### Batch 4: Extracted components that are themselves oversized
 
-Create `src/hooks/cogniblend/useCurationSectionActions.ts`. Move `handleSaveSection`, `handleStartEditing`, `handleCancelEditing`, `handleToggleApproval`, `handleAcceptSuggestion`, `handleRejectSuggestion` callbacks. Page drops to ~1,450 lines.
+- **CurationRightRail (425)**: Split into `RightRailCards.tsx` (individual card components)
+- **CurationHeaderBar (392)**: Extract `GroupNavigationStrip.tsx` + `CurationBanners.tsx`
+- **ComplexityAssessmentModule (503)**: Further extract tab content components
+- **AICurationQualityPanel (304)**: Extract `QualityMetricCard.tsx`
 
-### Phase D4.2 — Extract AI review callbacks
+### Batch 5: Oversized hooks
 
-Create `src/hooks/cogniblend/useCurationAIActions.ts`. Move `handleWaveSectionReviewed`, complexity callbacks, triage callbacks, AI re-review callbacks. Page drops to ~1,250 lines.
+- **useCurationPageOrchestrator (560)**: Extract `useCurationEffects.ts` (useEffect blocks) and `useCurationMutations.ts` (mutation definitions)
+- **useCurationAcceptRefinement (433)**: Extract `normalizeAIContent.ts` (pure normalization functions — no hooks needed)
+- **useCurationPageData (329)**: Extract query definitions into `curationQueries.ts`
+- **useCurationSectionActions (328)**: Extract pure helpers into `sectionActionHelpers.ts`
 
-### Phase D5.1 — Decompose AIReviewResultPanel (1,355 lines)
+### Batch 6: Edge function oversized modules
 
-Create 4 new files in `src/components/cogniblend/curation/ai-review/`:
-1. `ReviewCommentList.tsx` — comment rendering logic
-2. `SuggestionPanel.tsx` — suggestion display with accept/reject
-3. `CrossSectionIssues.tsx` — cross-section issues list
-4. `ReviewConfigs.ts` — constants + `categorizeComment` helper
-
-AIReviewResultPanel becomes thin orchestrator (~180 lines).
-
-### Phase D5.2 — Decompose promptTemplate.ts (1,675 lines)
-
-Create 4 new files in `supabase/functions/review-challenge-sections/`:
-1. `promptBuilders.ts` — `buildStructuredBatchPrompt`, `buildConfiguredBatchPrompt`, `buildSmartBatchPrompt`
-2. `pass2Prompt.ts` — `buildPass2SystemPrompt`
-3. `industryGeoPrompt.ts` — `buildIndustryIntelligence`, `buildGeographyContext`, `resolveIndustryCode`, `countryToRegion`
-4. `contextIntelligence.ts` — `buildContextIntelligence`, `INTELLIGENCE_DIRECTIVE`, `detectDomainFrameworks`
-
-promptTemplate.ts becomes a barrel re-export (~50 lines).
-
-### Phase D5.3 — Decompose ComplexityAssessmentModule (945 lines) + AIReviewInline (884 lines)
-
-**ComplexityAssessmentModule:**
-1. `ComplexityRatingSliders.tsx` — 5-dimension slider UI
-2. `ComplexityResultCard.tsx` — summary result display
-3. `useComplexityScoring.ts` — scoring logic hook
-
-**AIReviewInline:**
-1. `AIReviewHeader.tsx` — run/cancel/status header
-2. `AIReviewSectionResults.tsx` — section-by-section results
-3. `useAIReviewRunner.ts` — review execution logic
-
-Both originals become orchestrators (~180 lines each).
-
-### Phase D5.4 — Decompose 8 Priority 2 files (500-711 lines each)
-
-Extract 1-2 sub-components from each so parent drops below 200 lines:
-- RewardStructureDisplay → RewardTierEditor + RewardSummaryCard
-- CreatorChallengeDetailView → CreatorApprovalSection + CreatorProgressSection
-- CuratorSectionPanel → SectionPanelToolbar + SectionContentRenderer
-- CurationChecklistPanel → ChecklistGroupCard
-- ExtendedBriefDisplay → BriefFieldRenderer
-- CurationActions → SubmitForApprovalDialog + ReturnToDraftDialog
-- SolverExpertiseSection → ExpertiseTagEditor
-- OrgContextPanel → OrgDetailCards
-
-### Phase D6.1 — Decompose 6 Priority 3 files (300-440 lines each)
-
-- SectionReferencePanel → FileUploadCard + UrlReferenceCard
-- EvaluationCriteriaSection → CriteriaRowEditor + WeightDistributionBar
-- useWaveExecutor → waveExecutionLoop.ts
-- curationFormStore → curationSelectors.ts
-- CurationSectionEditor → EditorToolbar
-- AICurationQualityPanel → QualityMetricCard
-
-### Phase D6.2 — Verify CurationReviewPage under 200 lines
-
-Final pass to ensure the page is a thin orchestrator importing hooks + components.
-
-### Phase D6.3 — Full regression test + cleanup
-
-Run the complete 13-point regression contract across all decomposed files.
+- **aiCalls.ts (750)**: Split `callAIPass1Analyze` and `callAIPass2Rewrite` into separate files
+- **promptBuilders.ts (376)**: Split into `batchPrompt.ts` and `configuredPrompt.ts`
 
 ## Technical Details
 
-- **Total files created**: ~44 new focused files
-- **Total files modified**: ~20 existing files refactored
-- **Files deleted**: 0
-- **Interfaces changed**: 0
-- **DB changes**: 0
-- **Business logic changes**: 0
-- **Safety rule**: MOVE code only, never REWRITE. Cut-and-paste with exact same props/closures.
-- **Hook ordering**: All useState before useQuery before useEffect — maintained in every extraction.
-- **Edge functions**: After modifying, will deploy via `supabase--deploy_edge_functions`.
+- Total files to create: ~30 new focused files
+- Total files to modify: ~25 existing files
+- Safety rule: MOVE code only, never REWRITE
+- No interface changes, no DB changes, no behavior changes
+- Hook ordering maintained: useState → useQuery → useEffect → conditional returns
+- Edge functions must be redeployed after Batch 6
 
-## Risk Assessment
+## Priority Order
 
-| Phase | Risk | Mitigation |
-|-------|------|-----------|
-| D2.2 | LOW | Pure async functions, no shared state |
-| D3.1 | MODERATE | ~15 props to identify |
-| D3.2 | MODERATE-HIGH | ~25 closure dependencies |
-| D3.3 | MODERATE | ~15 props, manageable |
-| D4.1-4.2 | MODERATE-HIGH | Must trace every closure variable |
-| D5.1-5.3 | LOW-MODERATE | Leaf components, single parent |
-| D5.4 | MODERATE | 8 files in batch, but each is simple |
-| D6.1-6.3 | LOW | Small files, cleanup only |
-
-## Expected Outcome
-
-| File | Before | After |
-|------|--------|-------|
-| CurationReviewPage.tsx | 3,205 | ~180 |
-| review-challenge-sections/index.ts | 1,995 | ~1,200 |
-| promptTemplate.ts | 1,675 | ~50 |
-| AIReviewResultPanel.tsx | 1,355 | ~180 |
-| ComplexityAssessmentModule.tsx | 945 | ~180 |
-| AIReviewInline.tsx | 884 | ~180 |
-| 8 Priority 2 files | ~4,890 | ~1,440 |
-| 6 Priority 3 files | ~2,153 | ~1,200 |
-
-**74% reduction in monolithic code. All files under 200 lines.**
+Batch 1 first (biggest single file at 1,053 lines), then Batch 2 (two large UI components), then Batch 3 (8 untouched Priority 2 files), then Batches 4-6.
 
