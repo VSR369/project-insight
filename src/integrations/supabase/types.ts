@@ -13477,15 +13477,26 @@ export type Database = {
         }
         Returns: boolean
       }
-      initialize_challenge: {
-        Args: {
-          p_creator_id: string
-          p_operating_model: string
-          p_org_id: string
-          p_title: string
-        }
-        Returns: string
-      }
+      initialize_challenge:
+        | {
+            Args: {
+              p_creator_id: string
+              p_operating_model: string
+              p_org_id: string
+              p_title: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_creator_id: string
+              p_governance_mode_override?: string
+              p_operating_model: string
+              p_org_id: string
+              p_title: string
+            }
+            Returns: string
+          }
       is_email_domain_blocked: { Args: { p_email: string }; Returns: boolean }
       is_primary_org_admin: { Args: { p_org_id: string }; Returns: boolean }
       is_pulse_provider_owner: {

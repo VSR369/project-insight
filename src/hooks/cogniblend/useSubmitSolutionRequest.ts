@@ -9,8 +9,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { handleMutationError } from '@/lib/errorHandler';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';
+import { autoAssignChallengeRole } from '@/hooks/cogniblend/useAutoAssignChallengeRoles';
 import {
   fetchGovernanceFieldRules,
   stripHiddenFields,
@@ -43,6 +44,7 @@ export function useSubmitSolutionRequest() {
           p_creator_id: payload.creatorId,
           p_title: title,
           p_operating_model: payload.operatingModel,
+          p_governance_mode_override: payload.governanceModeOverride ?? null,
         });
         if (initError) throw new Error(initError.message);
         if (!newId) throw new Error('Failed to create challenge');
@@ -155,9 +157,28 @@ export function useSubmitSolutionRequest() {
       });
       if (phaseError) throw new Error(phaseError.message);
 
-      // Auto-attach legal docs for Quick/Lightweight mode
+      // Auto-assign CU from pool for STRUCTURED/CONTROLLED modes
       const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
-      if (effectiveGovernance.toUpperCase() === 'QUICK' || effectiveGovernance.toUpperCase() === 'LIGHTWEIGHT') {
+      const normalizedGov = effectiveGovernance.toUpperCase();
+      if (normalizedGov !== 'QUICK' && normalizedGov !== 'LIGHTWEIGHT') {
+        try {
+          await autoAssignChallengeRole({
+            challengeId,
+            roleCode: 'CU',
+            engagementModel: payload.operatingModel === 'AGG' ? 'aggregator' : 'marketplace',
+            industrySegmentId: payload.industrySegmentId || undefined,
+            assignedBy: payload.creatorId,
+          });
+        } catch (err) {
+          logWarning('Auto-assign CU after submit failed', {
+            operation: 'auto_assign_challenge_role',
+            additionalData: { challengeId, error: String(err) },
+          });
+        }
+      }
+
+      // Auto-attach legal docs for Quick/Lightweight mode
+      if (normalizedGov === 'QUICK' || normalizedGov === 'LIGHTWEIGHT') {
         try {
           const { data: defaultTemplates } = await supabase
             .from('legal_document_templates' as any).select('document_type, document_name, description').eq('tier', 'TIER_1').eq('is_active', true);
@@ -201,6 +222,7 @@ export function useSaveDraft() {
 
       const { data: challengeId, error: initError } = await supabase.rpc('initialize_challenge', {
         p_org_id: payload.orgId, p_creator_id: payload.creatorId, p_title: title, p_operating_model: payload.operatingModel,
+        p_governance_mode_override: payload.governanceModeOverride ?? null,
       });
       if (initError) throw new Error(initError.message);
       if (!challengeId) throw new Error('Failed to create draft');
