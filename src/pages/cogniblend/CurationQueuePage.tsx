@@ -196,24 +196,9 @@ export default function CurationQueuePage() {
   const organizationId = currentOrg?.organizationId;
 
   // ══════════════════════════════════════
-  // SECTION 2: Permission check — user must hold at least one active CU role
+  // SECTION 2: Permission check — platform-level CU capability
   // ══════════════════════════════════════
-  const { data: hasPermission, isLoading: permLoading } = useQuery({
-    queryKey: ["curation-permission", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_challenge_roles")
-        .select("challenge_id")
-        .eq("user_id", user!.id)
-        .eq("role_code", "CU")
-        .eq("is_active", true)
-        .limit(1);
-      if (error) return false;
-      return (data ?? []).length > 0;
-    },
-    enabled: !!user?.id,
-    staleTime: 60_000,
-  });
+  const { canSeeCurationQueue } = useCogniPermissions();
 
   // ══════════════════════════════════════
   // SECTION 3: Query — ALL org challenges in phases 1-3
