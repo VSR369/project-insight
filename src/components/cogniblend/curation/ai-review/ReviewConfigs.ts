@@ -38,12 +38,8 @@ export interface MasterDataOption {
   description?: string;
 }
 
-export interface DeliverableItem {
-  name: string;
-  description?: string;
-  acceptance_criteria?: string;
-  format?: string;
-}
+import type { DeliverableItem } from "@/utils/parseDeliverableItem";
+export type { DeliverableItem };
 
 export type AIReviewResultPanelProps = {
   sectionKey: string;
