@@ -1332,13 +1332,13 @@ export default function AISpecReviewPage() {
         await autoAssignChallengeRole({
           challengeId,
           roleCode: 'CU',
+          engagementModel: challenge?.operating_model === 'AGG' ? 'aggregator' : 'marketplace',
           industrySegmentId,
           proficiencyAreaIds: selectedProfAreaIds,
           subDomainIds: selectedSubDomainIds,
           specialityIds: selectedSpecialityIds,
           assignedBy: user.id,
         });
-        // ID role removed per Role Architecture v2 — CU already assigned above
       } catch {
         // Non-blocking — assignments may not find matches
       }
