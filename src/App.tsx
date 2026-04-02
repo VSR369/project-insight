@@ -256,6 +256,10 @@ const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallen
 const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
 const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
 
+// Phase 11: Industry + Geography Intelligence
+const IndustryPacksPage = lazy(() => import("@/pages/admin/industry-packs/IndustryPacksPage"));
+const GeographyContextPage = lazy(() => import("@/pages/admin/geography-context/GeographyContextPage"));
+
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
 
@@ -805,6 +809,9 @@ const App = () => (
               {/* AI Quality Dashboard (Phase 10) — supervisor only */}
               <Route path="ai-quality" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIQualityDashboardPage /></PermissionGuard>} />
               <Route path="ai-quality/examples" element={<PermissionGuard permissionKey="supervisor.configure_system"><ExampleLibraryManagerPage /></PermissionGuard>} />
+              {/* Phase 11: Industry + Geography Intelligence — supervisor only */}
+              <Route path="industry-packs" element={<PermissionGuard permissionKey="supervisor.configure_system"><IndustryPacksPage /></PermissionGuard>} />
+              <Route path="geography-context" element={<PermissionGuard permissionKey="supervisor.configure_system"><GeographyContextPage /></PermissionGuard>} />
             </Route>
 
             {/* Reviewer Routes (all lazy loaded) */}

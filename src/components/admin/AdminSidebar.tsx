@@ -57,6 +57,8 @@ import {
   UserCog,
   BookOpen,
   BrainCircuit,
+  Factory,
+  Globe2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -699,6 +701,33 @@ export function AdminSidebar() {
                   >
                     <BrainCircuit className="h-4 w-4" />
                     <span>AI Quality</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Phase 11: Industry + Geography Intelligence — supervisor only */}
+              {hasPermission('supervisor.configure_system') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/industry-packs')}
+                    onMouseEnter={() => handleMouseEnter('/admin/industry-packs')}
+                    isActive={location.pathname.startsWith('/admin/industry-packs')}
+                  >
+                    <Factory className="h-4 w-4" />
+                    <span>Industry Packs</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {hasPermission('supervisor.configure_system') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/geography-context')}
+                    onMouseEnter={() => handleMouseEnter('/admin/geography-context')}
+                    isActive={location.pathname.startsWith('/admin/geography-context')}
+                  >
+                    <Globe2 className="h-4 w-4" />
+                    <span>Geography Context</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
