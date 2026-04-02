@@ -47,32 +47,40 @@ export function useMyChallenges(userId: string | undefined) {
 
       if (error) throw new Error(error.message);
 
-      const items: MyChallengeItem[] = [];
       const roleCounts: Record<string, number> = {};
+      const challengeMap = new Map<string, MyChallengeItem>();
 
       // NOTE: is_deleted cannot be filtered server-side on joined tables in PostgREST. Client-side filter is intentional.
       for (const row of data ?? []) {
-        const ch = row.challenges as any;
+        const ch = row.challenges as unknown as Record<string, unknown>;
         if (!ch || ch.is_deleted) continue;
 
         const roleCode = row.role_code;
         roleCounts[roleCode] = (roleCounts[roleCode] ?? 0) + 1;
 
-        items.push({
-          challenge_id: ch.id,
-          title: ch.title,
-          current_phase: ch.current_phase ?? 1,
-          master_status: ch.master_status ?? 'IN_PREPARATION',
-          phase_status: ch.phase_status ?? 'ACTIVE',
-          role_code: roleCode,
-          governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
-          governance_mode_override: ch.governance_mode_override ?? null,
-          operating_model: ch.operating_model ?? null,
-          created_at: ch.created_at ?? '',
-        });
+        const cid = ch.id as string;
+        const existing = challengeMap.get(cid);
+        if (existing) {
+          if (!existing.role_codes.includes(roleCode)) {
+            existing.role_codes.push(roleCode);
+          }
+        } else {
+          challengeMap.set(cid, {
+            challenge_id: cid,
+            title: (ch.title as string) ?? '',
+            current_phase: (ch.current_phase as number) ?? 1,
+            master_status: (ch.master_status as string) ?? 'IN_PREPARATION',
+            phase_status: (ch.phase_status as string) ?? 'ACTIVE',
+            role_codes: [roleCode],
+            governance_profile: (ch.governance_profile as string) ?? 'LIGHTWEIGHT',
+            governance_mode_override: (ch.governance_mode_override as string | null) ?? null,
+            operating_model: (ch.operating_model as string | null) ?? null,
+            created_at: (ch.created_at as string) ?? '',
+          });
+        }
       }
 
-      return { items, roleCounts };
+      return { items: Array.from(challengeMap.values()), roleCounts };
     },
     enabled: !!userId,
     ...CACHE_FREQUENT,

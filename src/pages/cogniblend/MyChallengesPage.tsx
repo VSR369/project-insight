@@ -175,7 +175,7 @@ export default function MyChallengesPage() {
           ) : (
             filteredItems.map((ch) => (
               <ChallengeCard
-                key={`${ch.challenge_id}-${ch.role_code}`}
+                key={ch.challenge_id}
                 challenge={ch}
                 isDuplicate={duplicateTitles.has(ch.title.trim().toLowerCase())}
                 onView={() => navigate(`/cogni/challenges/${ch.challenge_id}/view`)}

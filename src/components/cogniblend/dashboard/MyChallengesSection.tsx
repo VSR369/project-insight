@@ -274,14 +274,19 @@ export function MyChallengesSection({
                               Phase 1: Bypassed
                             </span>
                           )}
-                          {roleStyle && (
-                            <span
-                              className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                              style={{ backgroundColor: roleStyle.bg, color: roleStyle.color }}
-                            >
-                              {item.role_code}
-                            </span>
-                          )}
+                          {item.role_codes.map((rc) => {
+                            const rs = ROLE_STYLE[rc];
+                            if (!rs) return null;
+                            return (
+                              <span
+                                key={rc}
+                                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                                style={{ backgroundColor: rs.bg, color: rs.color }}
+                              >
+                                {rc}
+                              </span>
+                            );
+                          })}
                           <GovernanceProfileBadge profile={item.governance_profile} compact />
                         </div>
                       </div>
