@@ -20,7 +20,7 @@ interface UseCurationComputedValuesInput {
   escrowRecord: EscrowRecord | null;
   aiQuality: AIQualitySummary | null;
   aiReviews: SectionReview[];
-  staleKeySet: Set<string>;
+  staleSections: Array<{ key: string }>;
   manualOverrides: Record<number, boolean>;
 }
 
