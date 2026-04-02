@@ -31,13 +31,13 @@ export function useCurationProgress(challengeId: string | undefined) {
     queryKey,
     queryFn: async () => {
       if (!challengeId) return null;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('curation_progress' as any)
         .select('*')
         .eq('challenge_id', challengeId)
-        .maybeSingle();
+        .maybeSingle() as any);
       if (error) throw error;
-      return data as CurationProgress | null;
+      return (data as CurationProgress) ?? null;
     },
     enabled: !!challengeId,
     staleTime: 10_000,

@@ -259,6 +259,7 @@ export function useWaveExecutor({
     // Mark overall completion
     if (!cancelRef.current) {
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
+      options.onProgress?.onAllComplete?.();
       toast.success('All section reviews complete.');
     } else {
       toast.warning('AI review cancelled after completing current wave.');
