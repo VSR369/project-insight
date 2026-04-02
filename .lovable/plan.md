@@ -1,20 +1,13 @@
 
-# Batch D Implementation Plan — COMPLETE
+# Batch E Implementation Plan
 
-6 files in the 430–500 line range decomposed.
+6 large files targeted for decomposition toward ≤200 lines. Safety rules: move code only, no logic rewrites, no interface changes, hook order preserved.
 
-## Results
-
-| # | File | Before | After | Extracted |
-|---|------|:------:|:-----:|-----------|
-| 1 | `ReviewerEditForm.tsx` | 499 | 189 | `ReviewerCoverageFields.tsx`, `ReviewerPreferenceFields.tsx` |
-| 2 | `useQuestionBank.ts` | 496 | 229 | `questionBankConstants.ts` (types, configs, helpers) |
-| 3 | `InterviewKitImportDialog.tsx` | 488 | 214 | `InterviewKitImportPreview.tsx` |
-| 4 | `PodcastStudio.tsx` | 482 | 182 | `PodcastAudioPreview.tsx` |
-| 5 | `LifecycleRulesPage.tsx` | 473 | 260 | `lifecycleRulesHelpers.ts` |
-| 6 | `ProficiencyImportDialog.tsx` | 467 | 153 | `ProficiencyImportSteps.tsx` (PreviewStep, ImportingStep, CompleteStep) |
-
-## Safety Rules
-- Move code only — no logic rewrites
-- No interface changes
-- Hook order preserved
+| # | File | Lines | Extraction Plan |
+|---|------|:-----:|-----------------|
+| 1 | `Register.tsx` | 992 | Extract `RegisterFormFields.tsx` (form field groups), `RegisterTermsSection.tsx` (terms/agreement UI), and `registerSchema.ts` (Zod schema + types) |
+| 2 | `PlanSelectionForm.tsx` | 915 | Extract `PlanCard.tsx` (individual plan display), `planSelectionConstants.ts` (plan data/config) |
+| 3 | `StepProblem.tsx` | 878 | Extract `ProblemStatementFields.tsx` (core fields), `ProblemScopeFields.tsx` (scope/geography/domain) |
+| 4 | `BillingForm.tsx` | 864 | Extract `BillingAddressFields.tsx` (address inputs), `BillingPaymentFields.tsx` (payment method UI), `billingSchema.ts` (Zod schema) |
+| 5 | `SolutionSubmitPage.tsx` | 856 | Extract `SolutionSubmitForm.tsx` (form content), `SolutionFileUpload.tsx` (file handling), `solutionSubmitSchema.ts` |
+| 6 | `Dashboard.tsx` | 787 | Extract `DashboardStatsCards.tsx` (stat cards), `DashboardRecentActivity.tsx` (activity feed) |
