@@ -854,7 +854,11 @@ export default function AISpecReviewPage() {
   }, []);
 
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
-  const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
+  const govMode: GovernanceMode = resolveChallengeGovernance(
+    (challenge as Record<string, unknown>)?.governance_mode_override as string | null,
+    (challenge as Record<string, unknown>)?.governance_profile as string | null ?? currentOrg?.governanceProfile,
+    currentOrg?.tierCode,
+  );
 
   // ═══════ Effect — load persisted AI reviews ═══════
   useEffect(() => {
