@@ -26,7 +26,7 @@ import { ChallengeCreatorForm } from '@/components/cogniblend/creator/ChallengeC
 import { CreatorOrgContextCard } from '@/components/cogniblend/creator/CreatorOrgContextCard';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { cn } from '@/lib/utils';
+
 import {
   getAvailableGovernanceModes,
   getDefaultGovernanceMode,
