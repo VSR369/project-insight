@@ -1,34 +1,53 @@
 
 
-# Restore Tier-Gated Governance Mode Selector
+# Fix: Curator Queue Permission Gate (Chicken-and-Egg Problem)
 
-## What Was Wrong
-The previous change removed the Governance Mode selector entirely, replacing it with a read-only badge saying "configured by your Platform Supervisor." This is only correct for **Basic** tier (locked to QUICK). For Standard/Premium/Enterprise tiers, the Creator should be able to choose the governance mode per challenge from the modes their tier allows.
+## Root Cause
 
-## Correct UX Rules
+The `CurationQueuePage` permission check (lines 200-215) queries `user_challenge_roles` for any row where `role_code = 'CU'` and `is_active = true`. Since no CU has ever been assigned to the challenge (only CR exists), the query returns empty and the page shows "You do not have the Curator (CU) role."
 
-| Tier | Available Modes | UI Behavior |
-|------|----------------|-------------|
-| Basic | QUICK only | Read-only badge: "Your tier uses Quick governance" — no selector |
-| Standard | QUICK, STRUCTURED | Dropdown with 2 options |
-| Premium | QUICK, STRUCTURED, CONTROLLED | Dropdown with 3 options |
-| Enterprise | QUICK, STRUCTURED, CONTROLLED | Dropdown with 3 options |
+This is a chicken-and-egg problem: the Curator needs to see the queue to claim challenges, but the queue blocks them because they haven't been assigned to any challenge yet.
 
-## Changes
+## Fix
 
-### `ChallengeCreatePage.tsx`
-Replace the current `EngagementModelSelector` component with a combined `GovernanceEngagementSelector` that:
+### File: `src/pages/cogniblend/CurationQueuePage.tsx`
 
-1. Reads `getAvailableGovernanceModes(currentOrg.tierCode)` to get allowed modes
-2. If only 1 mode available (Basic tier) → show read-only info badge with the mode name
-3. If 2+ modes available → show a dropdown/card selector for governance mode, using `GOVERNANCE_MODE_CONFIG` for labels, colors, and tooltips
-4. Keep the Engagement Model (MP/AGG) dropdown below as-is
-5. Each governance mode option shows its label + short description from config
+**Replace** the database-based permission check (lines 200-215) with the existing `useCogniPermissions()` hook:
 
-The governance mode selection fires `setGovernanceMode()` which already flows into the form via props. No other files need changes — the downstream logic (`resolveChallengeGovernance`, field rules, validation) already handles all three modes.
+```typescript
+// BEFORE (broken):
+const { data: hasPermission, isLoading: permLoading } = useQuery({
+  queryKey: ["curation-permission", user?.id],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from("user_challenge_roles")
+      .select("challenge_id")
+      .eq("user_id", user!.id)
+      .eq("role_code", "CU")
+      .eq("is_active", true)
+      .limit(1);
+    return (data ?? []).length > 0;
+  },
+  ...
+});
+
+// AFTER (fixed):
+const { canSeeCurationQueue } = useCogniPermissions();
+```
+
+Then update the conditional return (line 359) from `if (!hasPermission)` to `if (!canSeeCurationQueue)`, and remove the `permLoading` reference from the loading check.
+
+This uses the platform-level role context (`availableRoles` from `CogniRoleContext`) which checks if the user holds the CU capability at the org level — independent of whether they're assigned to any specific challenge yet.
 
 ### Files Modified
+
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Restore governance mode selector with tier-gating logic |
+| `src/pages/cogniblend/CurationQueuePage.tsx` | Replace DB permission query with `useCogniPermissions().canSeeCurationQueue`; remove `permLoading` |
+
+### No Other Changes Needed
+
+- The data query (lines 220-235) already fetches all org challenges in phases 1-3 regardless of CU assignment — correct as-is
+- The challenge row shows "Unassigned" badge when no CU is assigned — correct as-is
+- The existing `useCogniPermissions` hook and `CogniRoleContext` already provide the right permission model
 
