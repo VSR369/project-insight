@@ -173,14 +173,14 @@ export function useDeactivatePoolMember() {
 
       if (notifySupervisor && createdByTier === "supervisor") {
         const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("admin_notifications").insert({
+        await supabase.from("admin_notifications").insert([{
           admin_id: user?.id ?? "",
           type: "pool_member_deactivated_by_senior",
           title: "Pool Member Deactivated",
           body: `Senior Admin deactivated pool member "${memberName ?? "Unknown"}" who was created by a Supervisor-tier admin.`,
           deep_link: "/admin/marketplace/resource-pool",
           metadata: { pool_member_id: id, deactivated_by: user?.id },
-        } as Record<string, unknown>);
+        }] as Record<string, unknown>[]);
       }
     },
     onSuccess: () => {
