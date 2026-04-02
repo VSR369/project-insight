@@ -161,7 +161,7 @@ export function MyActionItemsSection() {
         items.push({
           id: ch.challenge_id,
           title: ch.title,
-          status: ch.phase_status === 'AM_APPROVAL_PENDING' ? 'AM_APPROVAL_PENDING'
+          status: ch.phase_status === 'CR_APPROVAL_PENDING' ? 'CR_APPROVAL_PENDING'
             : (ch.master_status === 'IN_PREPARATION' && ch.current_phase === 1) ? 'DRAFT'
             : ch.phase_status === 'RETURNED' ? 'RETURNED' : ch.master_status,
           phase: ch.current_phase,
