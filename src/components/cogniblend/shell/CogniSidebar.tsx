@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, X } from 'lucide-react';
 import { CogniSidebarNav } from './CogniSidebarNav';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 
 interface CogniSidebarProps {

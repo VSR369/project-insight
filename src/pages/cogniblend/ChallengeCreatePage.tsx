@@ -34,7 +34,7 @@ import {
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+
 import { Skeleton } from '@/components/ui/skeleton';
 
 /* ── Governance + Engagement Selector ── */
