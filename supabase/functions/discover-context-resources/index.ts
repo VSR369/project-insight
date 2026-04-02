@@ -63,15 +63,17 @@ serve(async (req) => {
       .eq("id", challenge.organization_id)
       .single();
 
-    // Get industry segment name
+    // Get industry segment name and code
     let industryName = "";
+    let industryCode = "";
     if (org?.industry_segment_id) {
       const { data: segment } = await adminClient
         .from("industry_segments")
-        .select("name")
+        .select("name, code")
         .eq("id", org.industry_segment_id)
         .single();
       industryName = segment?.name ?? "";
+      industryCode = segment?.code ?? "";
     }
 
     // 3. Fetch discovery directives
