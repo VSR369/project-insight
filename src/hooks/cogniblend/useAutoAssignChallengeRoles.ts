@@ -9,12 +9,12 @@
  *           └── Speciality (optional — empty = ALL)
  *
  * Ranks by highest taxonomy match score, then lowest workload.
+ * Persists via `auto_assign_challenge_role` SECURITY DEFINER RPC.
  *
  * BRD Ref: BR-MP-ASSIGN-001–005, MOD-02 Tech Spec
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { withCreatedBy } from "@/lib/auditFields";
 import { validateRoleAssignment } from "@/hooks/cogniblend/useValidateRoleAssignment";
 import { getPoolCodesForGovernanceRole } from "@/constants/roleCodeMapping.constants";
 import { logWarning } from "@/lib/errorHandler";
@@ -52,11 +52,21 @@ interface PoolRow {
 interface ScoredCandidate extends PoolRow {
   matchScore: number;
   workload: number;
+  matchedSlmCode: string;
 }
+
+/** Governance role → assignment_phase mapping */
+const PHASE_MAP: Record<string, string | null> = {
+  CU: "curation",
+  ER: "abstract_screening",
+  LC: "legal_review",
+  FC: "finance_review",
+  CR: null,
+};
 
 /**
  * Find the best-fit pool member for a given role and taxonomy context,
- * then insert into challenge_role_assignments and user_challenge_roles.
+ * then persist via the auto_assign_challenge_role RPC.
  */
 export async function autoAssignChallengeRole(
   input: AssignmentInput,
@@ -91,8 +101,8 @@ export async function autoAssignChallengeRole(
   const winner = await findValidCandidate(candidates, input);
   if (!winner) return null;
 
-  // 5. Persist assignment
-  return persistAssignment(winner, input);
+  // 5. Persist via SECURITY DEFINER RPC
+  return persistViaRpc(winner, input);
 }
 
 function filterAndScore(
@@ -137,7 +147,11 @@ function filterAndScore(
           : input.specialityIds.filter((id) => memberSpecs.includes(id)).length * 2;
       }
 
-      return { ...m, matchScore: score, workload: m.current_assignments ?? 0 };
+      // Track which SLM code matched for this candidate
+      const codes: string[] = Array.isArray(m.role_codes) ? m.role_codes : [];
+      const matchedSlmCode = codes.find((c) => poolCodes.includes(c)) ?? poolCodes[0];
+
+      return { ...m, matchScore: score, workload: m.current_assignments ?? 0, matchedSlmCode };
     })
     .sort((a, b) => b.matchScore !== a.matchScore
       ? b.matchScore - a.matchScore
@@ -179,77 +193,39 @@ async function findValidCandidate(
   return null;
 }
 
-async function persistAssignment(
+async function persistViaRpc(
   winner: ScoredCandidate,
   input: AssignmentInput,
 ): Promise<AssignmentResult | null> {
-  const phaseMap: Record<string, string> = {
-    CU: "PHASE_3", CR: "PHASE_2", ER: "PHASE_4", LC: "PHASE_4", FC: "PHASE_4",
-  };
+  const assignmentPhase = PHASE_MAP[input.roleCode] ?? null;
 
-  const assignmentData = await withCreatedBy({
-    challenge_id: input.challengeId,
-    pool_member_id: winner.id,
-    role_code: input.roleCode,
-    assigned_by: input.assignedBy,
-    assigned_at: new Date().toISOString(),
-    status: "ACTIVE",
-    assignment_phase: phaseMap[input.roleCode] ?? "PHASE_4",
+  const { data, error } = await supabase.rpc("auto_assign_challenge_role", {
+    p_challenge_id: input.challengeId,
+    p_pool_member_id: winner.id,
+    p_user_id: winner.user_id!,
+    p_slm_role_code: winner.matchedSlmCode,
+    p_governance_role_code: input.roleCode,
+    p_assigned_by: input.assignedBy,
+    p_assignment_phase: assignmentPhase,
   });
 
-  const { error: assignError } = await supabase
-    .from("challenge_role_assignments")
-    .insert(assignmentData as any);
-
-  if (assignError) {
-    logWarning("Auto-assign: assignment insert failed", {
+  if (error) {
+    logWarning("Auto-assign: RPC call failed", {
       operation: "auto_assign_challenge_role",
-      additionalData: { error: assignError.message, challengeId: input.challengeId },
+      additionalData: { error: error.message, challengeId: input.challengeId },
     });
     return null;
   }
 
-  // Insert into user_challenge_roles (uses governance code, not SLM code)
-  const roleData = await withCreatedBy({
-    challenge_id: input.challengeId,
-    user_id: winner.user_id,
-    role_code: input.roleCode,
-    assigned_at: new Date().toISOString(),
-    is_active: true,
-  });
+  const result = data as { success: boolean; assignment_id?: string; error?: string } | null;
 
-  const { error: roleError } = await supabase
-    .from("user_challenge_roles")
-    .insert(roleData as any);
-
-  if (roleError) {
-    logWarning("Auto-assign: user_challenge_roles insert failed", {
+  if (!result?.success) {
+    logWarning("Auto-assign: RPC returned failure", {
       operation: "auto_assign_challenge_role",
-      additionalData: { error: roleError.message, challengeId: input.challengeId },
+      additionalData: { rpcError: result?.error, challengeId: input.challengeId },
     });
+    return null;
   }
-
-  // Increment current_assignments
-  await supabase
-    .from("platform_provider_pool")
-    .update({ current_assignments: (winner.current_assignments ?? 0) + 1 } as Record<string, unknown>)
-    .eq("id", winner.id);
-
-  // Audit trail
-  await supabase.from("audit_trail").insert({
-    user_id: input.assignedBy,
-    challenge_id: input.challengeId,
-    action: "ROLE_AUTO_ASSIGNED",
-    method: "SYSTEM",
-    details: {
-      role_code: input.roleCode,
-      engagement_model: input.engagementModel,
-      assigned_to_pool_member: winner.id,
-      assigned_to_user: winner.user_id,
-      match_score: winner.matchScore,
-      industry_segment_id: input.industrySegmentId,
-    },
-  });
 
   return { poolMemberId: winner.id, userId: winner.user_id! };
 }
