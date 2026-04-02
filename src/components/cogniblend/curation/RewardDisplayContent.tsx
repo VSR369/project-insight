@@ -16,7 +16,8 @@ import IncentiveSelector from "./rewards/IncentiveSelector";
 import EffectiveSolverValue from "./rewards/EffectiveSolverValue";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { RewardType } from "@/services/rewardStructureResolver";
-import type { TierState, NMItemState } from "@/hooks/useRewardStructureState";
+import type { TierState } from "@/hooks/useRewardStructureState";
+import type { NonMonetaryItemData } from "@/types/sections";
 
 export interface RewardDisplayContentProps {
   // State
