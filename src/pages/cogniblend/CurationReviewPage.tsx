@@ -448,79 +448,8 @@ export default function CurationReviewPage() {
     staleKeySet,
     manualOverrides,
   });
-    if (!aiQuality?.gaps) return {};
-    const map: Record<string, string[]> = {};
-    aiQuality.gaps.forEach((gap) => {
-      const sectionKey = GAP_FIELD_TO_SECTION[gap.field] ?? gap.field;
-      if (!map[sectionKey]) map[sectionKey] = [];
-      map[sectionKey].push(gap.message);
-    });
-    return map;
-  }, [aiQuality]);
 
   const activeGroupDef = GROUPS.find((g) => g.id === activeGroup) ?? GROUPS[0];
-
-  // Challenge context for AI refinement
-  const challengeCtx = useMemo(() => {
-    const domainTags = (() => {
-      if (!challenge?.domain_tags) return [];
-      const parsed = parseJson<string[]>(challenge.domain_tags);
-      return Array.isArray(parsed) ? parsed : [];
-    })();
-    const deliverableNames: string[] = (() => {
-      if (!challenge?.deliverables) return [];
-      try {
-        const raw = typeof challenge.deliverables === 'string' ? JSON.parse(challenge.deliverables) : challenge.deliverables;
-        if (Array.isArray(raw)) return raw.map((d: any) => typeof d === 'string' ? d : d?.name ?? d?.title ?? '').filter(Boolean);
-        if (raw?.items) return raw.items.map((d: any) => d?.name ?? d?.title ?? '').filter(Boolean);
-      } catch {}
-      return [];
-    })();
-    const evalCriteriaNames: string[] = (() => {
-      if (!challenge?.evaluation_criteria) return [];
-      try {
-        const raw = typeof challenge.evaluation_criteria === 'string' ? JSON.parse(challenge.evaluation_criteria) : challenge.evaluation_criteria;
-        if (Array.isArray(raw)) return raw.map((c: any) => typeof c === 'string' ? c : c?.name ?? '').filter(Boolean);
-      } catch {}
-      return [];
-    })();
-    const rewardPool = (() => {
-      if (!challenge?.reward_structure) return undefined;
-      try {
-        const raw = typeof challenge.reward_structure === 'string' ? JSON.parse(challenge.reward_structure) : challenge.reward_structure;
-        if (raw?.total_pool) return Number(raw.total_pool);
-        const tiers = raw?.tiers;
-        if (Array.isArray(tiers)) {
-          const sum = tiers.reduce((s: number, t: any) => s + (Number(t.amount) || 0) * (Number(t.count) || 1), 0);
-          if (sum > 0) return sum;
-        }
-      } catch {}
-      return undefined;
-    })();
-
-    return {
-      title: challenge?.title,
-      maturity_level: challenge?.maturity_level,
-      domain_tags: domainTags,
-      complexity: challenge?.complexity_level ?? undefined,
-      complexity_level: challenge?.complexity_level ?? undefined,
-      solution_type: challenge?.solution_type ?? undefined,
-      operating_model: challenge?.operating_model ?? undefined,
-      scope: challenge?.scope ? (typeof challenge.scope === 'string' ? challenge.scope.slice(0, 500) : undefined) : undefined,
-      deliverables: deliverableNames.length > 0 ? deliverableNames : undefined,
-      evaluation_criteria: evalCriteriaNames.length > 0 ? evalCriteriaNames : undefined,
-      industry: domainTags.length > 0 ? domainTags[0] : undefined,
-      reward_pool: rewardPool,
-      currency: challenge?.currency_code ?? 'USD',
-      problem_statement: challenge?.problem_statement ? challenge.problem_statement.slice(0, 500) : undefined,
-    };
-  }, [
-    challenge?.title, challenge?.maturity_level, challenge?.domain_tags,
-    challenge?.complexity_level, challenge?.scope, challenge?.deliverables,
-    challenge?.evaluation_criteria, challenge?.currency_code,
-    challenge?.problem_statement, challenge?.reward_structure,
-    challenge?.solution_type, challenge?.operating_model,
-  ]);
 
   // ══════════════════════════════════════
   // SECTION 6: Conditional returns
