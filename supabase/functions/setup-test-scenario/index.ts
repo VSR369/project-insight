@@ -405,14 +405,8 @@ serve(async (req) => {
       for (const roleCode of u.roles) {
         const targetChallengeIds: string[] = [];
 
-        if (MP_ONLY_ROLES.has(roleCode)) {
-          targetChallengeIds.push(mpChallengeId);
-        } else if (AGG_ONLY_ROLES.has(roleCode)) {
-          targetChallengeIds.push(aggChallengeId);
-        } else {
-          // Shared roles go on both challenges
-          targetChallengeIds.push(mpChallengeId, aggChallengeId);
-        }
+        // All modern roles are assigned to both challenges
+        targetChallengeIds.push(mpChallengeId, aggChallengeId);
 
         for (const cId of targetChallengeIds) {
           const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({
