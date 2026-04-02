@@ -29,6 +29,27 @@ import type { RewardStructureDisplayHandle } from '@/components/cogniblend/curat
 import type { ComplexityModuleHandle } from '@/components/cogniblend/curation/ComplexityAssessmentModule';
 import type { UseMutationResult } from '@tanstack/react-query';
 
+interface MasterDataOptions {
+  ipModelOptions: Array<{ value: string; label: string }>;
+  maturityOptions: Array<{ value: string; label: string }>;
+  complexityOptions: Array<{ value: string; label: string }>;
+  eligibilityOptions: Array<{ value: string; label: string }>;
+  visibilityOptions: Array<{ value: string; label: string }>;
+}
+
+interface UseCurationAcceptRefinementOptions {
+  challenge: Record<string, any> | null;
+  saveSectionMutation: UseMutationResult<void, Error, { field: string; value: any }>;
+  syncSectionToStore: (key: SectionKey, data: any) => void;
+  setSavingSection: (v: boolean) => void;
+  masterData: MasterDataOptions;
+  solutionTypesData: any[];
+  solutionTypeMap: Array<{ solution_type_code: string; proficiency_area_name: string }>;
+  rewardStructureRef: React.RefObject<RewardStructureDisplayHandle | null>;
+  complexityModuleRef: React.RefObject<ComplexityModuleHandle | null>;
+  handleSaveSolutionTypes: (codes: string[]) => Promise<void>;
+}
+
 export function useCurationAcceptRefinement({
   challenge,
   saveSectionMutation,
