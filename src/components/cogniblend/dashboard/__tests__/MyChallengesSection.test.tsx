@@ -84,7 +84,7 @@ describe('TW1-06 — MyChallengesSection filter tabs', () => {
   });
 
   it('filters to Curator items when As Curator tab is clicked', () => {
-    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} />);
+    render(<MyChallengesSection items={ITEMS} roleCounts={ROLE_COUNTS} isLoading={false} availableRoles={AVAILABLE_ROLES} />);
     fireEvent.click(screen.getByText('As Curator'));
     expect(screen.getByText('Quantum Computing')).toBeInTheDocument();
     expect(screen.queryByText('AI Safety Research')).not.toBeInTheDocument();
