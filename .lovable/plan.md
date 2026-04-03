@@ -1,43 +1,64 @@
 
 
-# Fix: Add Role Verification to Compliance RPCs
+# Fix Plan: Legal Document System Remaining Defects
 
-## Gap Found
-The document (page 5-6) specifies that `complete_legal_review` must verify the caller has the **LC role** and `complete_financial_review` must verify the **FC role** on the challenge before proceeding. The current migration skips this check entirely.
+## Critical Bug (Newly Found)
 
-**Risk:** Any authenticated user could call `complete_legal_review` on a challenge they have no role on, setting `lc_compliance_complete = TRUE` without authorization.
+**Property name mismatch between RPC and frontend — CU auto-assignment broken**
 
-## Fix
+The `complete_legal_review` RPC returns `{ "phase_advanced": true, ... }` but both `LcLegalWorkspacePage.tsx` and `LegalDocumentAttachmentPage.tsx` read `result.advanced`. This means CU auto-assignment after legal review **never fires** — the condition is always falsy.
 
-### Single migration — Add role guards to both RPCs
+---
 
-**File:** New migration SQL
+## Defects to Fix (Scoped to actionable items)
 
-Replace both functions with versions that add the role verification block before setting the compliance flag:
+| # | Defect | Severity | Effort |
+|---|--------|----------|--------|
+| NEW | `phase_advanced` vs `advanced` mismatch | Showstopper | 2 files |
+| D5 | CHALLENGE_JOIN gate not wired to solver join flow | Medium | 1 file |
+| D10 | Archive old NULL document_code templates | Info | 1 migration |
 
-For `complete_legal_review`:
-- After fetching the challenge, check `SELECT EXISTS(SELECT 1 FROM user_challenge_roles WHERE user_id = p_user_id AND challenge_id = p_challenge_id AND role_code = 'LC' AND is_active = true)`
-- If not found, return `{ success: false, error: 'User does not have LC role on this challenge' }`
+D6 (WINNER_SELECTED) already has a placeholder page with the gate wired. D7 (as any casts) requires Supabase type regeneration which is outside scope. D8 (IP capture) and D9 (PDF upload) are future enhancements.
 
-For `complete_financial_review`:
-- Same pattern but checking `role_code = 'FC'`
+---
 
-No frontend changes needed — the RPCs already return error objects that the frontend handles.
+## Step 1: Fix property name mismatch (Showstopper)
 
-## Technical Detail
+**Files:** `LcLegalWorkspacePage.tsx`, `LegalDocumentAttachmentPage.tsx`
 
-```text
-complete_legal_review flow:
-1. Fetch challenge (existing)
-2. NEW: Verify user has LC role → fail if not
-3. Verify phase = 2 (existing)
-4. Set lc_compliance_complete = TRUE (existing)
-5. Audit + conditional advance (existing)
-```
+Both files cast the RPC result to `{ advanced: boolean }` but the RPC returns `{ phase_advanced: boolean }`. Fix the type cast and all references:
+
+- Change `result.advanced` → `result.phase_advanced` in both files
+- Update the type cast from `{ advanced: boolean }` to `{ phase_advanced: boolean }`
+- Affects: the CU auto-assign condition, the toast message, and the navigate-on-advance check
+
+**LcLegalWorkspacePage.tsx** — 3 occurrences (lines 567, 571, 590, 594)
+**LegalDocumentAttachmentPage.tsx** — 3 occurrences (lines 676, 680, 697, 701)
+
+---
+
+## Step 2: Wire CHALLENGE_JOIN legal gate to solver join flow
+
+**File:** Identify the solver join/enroll component and wrap with `LegalGateModal` using `triggerEvent="CHALLENGE_JOIN"`, `userRole="SOLVER"`.
+
+Need to locate the join button component first — likely in a challenge detail or enrollment page.
+
+---
+
+## Step 3: Archive old templates (cleanup)
+
+**Migration:** `UPDATE legal_document_templates SET is_active = false WHERE document_code IS NULL AND is_active = true;`
+
+Removes clutter from template lists without losing data.
+
+---
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| New migration SQL | Add LC/FC role verification to both RPCs |
+| `src/pages/cogniblend/LcLegalWorkspacePage.tsx` | Fix `advanced` → `phase_advanced` |
+| `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx` | Fix `advanced` → `phase_advanced` |
+| Solver join component (TBD) | Add CHALLENGE_JOIN legal gate |
+| New migration SQL | Archive old NULL document_code templates |
 
