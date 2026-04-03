@@ -1587,6 +1587,7 @@ export type Database = {
           evaluation_criteria: Json | null
           expected_outcomes: Json | null
           extended_brief: Json | null
+          fc_compliance_complete: boolean
           functional_area: string | null
           governance_mode_override: string | null
           governance_profile: string | null
@@ -1597,6 +1598,7 @@ export type Database = {
           is_active: boolean
           is_deleted: boolean
           is_qa_closed: boolean
+          lc_compliance_complete: boolean
           lc_review_required: boolean
           management_fee: number | null
           master_status: string | null
@@ -1667,6 +1669,7 @@ export type Database = {
           evaluation_criteria?: Json | null
           expected_outcomes?: Json | null
           extended_brief?: Json | null
+          fc_compliance_complete?: boolean
           functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
@@ -1677,6 +1680,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           is_qa_closed?: boolean
+          lc_compliance_complete?: boolean
           lc_review_required?: boolean
           management_fee?: number | null
           master_status?: string | null
@@ -1747,6 +1751,7 @@ export type Database = {
           evaluation_criteria?: Json | null
           expected_outcomes?: Json | null
           extended_brief?: Json | null
+          fc_compliance_complete?: boolean
           functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
@@ -1757,6 +1762,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           is_qa_closed?: boolean
+          lc_compliance_complete?: boolean
           lc_review_required?: boolean
           management_fee?: number | null
           master_status?: string | null
@@ -4588,6 +4594,84 @@ export type Database = {
         }
         Relationships: []
       }
+      md_governance_mode_config: {
+        Row: {
+          ai_curation_review_required: boolean
+          ai_legal_review_enabled: boolean
+          blind_evaluation: boolean
+          created_at: string
+          created_by: string | null
+          curation_checklist_items: number
+          description: string | null
+          display_name: string
+          display_order: number
+          dual_curation_enabled: boolean
+          dual_evaluation_required: boolean
+          dual_signoff_required: boolean
+          escrow_mode: string
+          governance_mode: string
+          id: string
+          is_active: boolean
+          legal_doc_creation_allowed: boolean
+          legal_doc_editable: boolean
+          legal_doc_mode: string
+          max_modification_cycles: number
+          target_audience: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ai_curation_review_required?: boolean
+          ai_legal_review_enabled?: boolean
+          blind_evaluation?: boolean
+          created_at?: string
+          created_by?: string | null
+          curation_checklist_items?: number
+          description?: string | null
+          display_name: string
+          display_order?: number
+          dual_curation_enabled?: boolean
+          dual_evaluation_required?: boolean
+          dual_signoff_required?: boolean
+          escrow_mode?: string
+          governance_mode: string
+          id?: string
+          is_active?: boolean
+          legal_doc_creation_allowed?: boolean
+          legal_doc_editable?: boolean
+          legal_doc_mode?: string
+          max_modification_cycles?: number
+          target_audience?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ai_curation_review_required?: boolean
+          ai_legal_review_enabled?: boolean
+          blind_evaluation?: boolean
+          created_at?: string
+          created_by?: string | null
+          curation_checklist_items?: number
+          description?: string | null
+          display_name?: string
+          display_order?: number
+          dual_curation_enabled?: boolean
+          dual_evaluation_required?: boolean
+          dual_signoff_required?: boolean
+          escrow_mode?: string
+          governance_mode?: string
+          id?: string
+          is_active?: boolean
+          legal_doc_creation_allowed?: boolean
+          legal_doc_editable?: boolean
+          legal_doc_mode?: string
+          max_modification_cycles?: number
+          target_audience?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_industries: {
         Row: {
           code: string
@@ -5783,6 +5867,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      md_tier_governance_access: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          governance_mode: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          tier_code: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          governance_mode: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          tier_code: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          governance_mode?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          tier_code?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       modification_points: {
         Row: {
@@ -13796,7 +13916,7 @@ export type Database = {
       validate_role_assignment: {
         Args: {
           p_challenge_id: string
-          p_governance_profile?: string
+          p_governance_profile: string
           p_new_role: string
           p_user_id: string
         }
