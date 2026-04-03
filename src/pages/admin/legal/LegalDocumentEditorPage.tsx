@@ -27,6 +27,16 @@ export default function LegalDocumentEditorPage() {
   const [activeSection, setActiveSection] = React.useState<IpaaSectionKey>('abstract');
   const isIPAA = editor.currentCode === 'IPAA';
 
+  /** Resolve which content + change handler to pass to editor panel */
+  const editorContent = isIPAA
+    ? editor.getSectionContent(activeSection)
+    : editor.editorState.content;
+
+  const handleEditorContentChange = isIPAA
+    ? (html: string, json: Record<string, unknown> | null) =>
+        editor.handleSectionContentChange(activeSection, html, json)
+    : editor.handleContentChange;
+
   const handleUploadContent = (html: string, fileName: string, storageUrl: string | null) => {
     editor.setUploadedContent(html);
     editor.setConfig((prev) => ({
@@ -88,9 +98,9 @@ export default function LegalDocumentEditorPage() {
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-h-0 overflow-y-auto p-4">
           <LegalDocEditorPanel
-            content={editor.editorState.content}
+            content={editorContent}
             contentVersion={editor.contentVersion}
-            onContentChange={editor.handleContentChange}
+            onContentChange={handleEditorContentChange}
           />
         </div>
         <div className="w-80 border-l shrink-0 overflow-y-auto hidden lg:block">
