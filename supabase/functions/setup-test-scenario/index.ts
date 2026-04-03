@@ -391,7 +391,7 @@ serve(async (req) => {
     });
     if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
     challengeIds.push(aggChallengeId);
-    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
+    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — COMPLIANCE)`);
 
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
     const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
