@@ -134,7 +134,7 @@ function ScoringPanel({
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">
-          Commentary {isEnterprise && <span className="text-destructive">*</span>}
+          Commentary {isStructuredOrAbove && <span className="text-destructive">*</span>}
         </Label>
         <Textarea
           value={commentary}
