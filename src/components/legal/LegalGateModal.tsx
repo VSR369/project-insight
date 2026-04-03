@@ -6,10 +6,12 @@
 import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLegalGate } from '@/hooks/legal/useLegalGate';
 import { useLegalAcceptanceLog } from '@/hooks/legal/useLegalAcceptance';
+import { usePriorAcceptanceCheck } from '@/hooks/legal/usePriorAcceptanceCheck';
 import { LegalDocumentViewer } from './LegalDocumentViewer';
 import { LegalGateActions } from './LegalGateActions';
 import { useLegalDocTemplateById } from '@/hooks/queries/useLegalDocumentTemplates';
