@@ -4923,6 +4923,69 @@ export type Database = {
         }
         Relationships: []
       }
+      md_lifecycle_phase_config: {
+        Row: {
+          auto_complete: boolean
+          created_at: string
+          created_by: string | null
+          display_order: number
+          gate_flags: string[] | null
+          governance_mode: string
+          icon_name: string | null
+          id: string
+          is_active: boolean
+          phase_description: string | null
+          phase_name: string
+          phase_number: number
+          phase_type: string
+          required_role: string | null
+          secondary_role: string | null
+          sla_days: number | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          auto_complete?: boolean
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          gate_flags?: string[] | null
+          governance_mode: string
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          phase_description?: string | null
+          phase_name: string
+          phase_number: number
+          phase_type?: string
+          required_role?: string | null
+          secondary_role?: string | null
+          sla_days?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          auto_complete?: boolean
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          gate_flags?: string[] | null
+          governance_mode?: string
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          phase_description?: string | null
+          phase_name?: string
+          phase_number?: number
+          phase_type?: string
+          required_role?: string | null
+          secondary_role?: string | null
+          sla_days?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_membership_tiers: {
         Row: {
           annual_fee_usd: number | null
@@ -13697,7 +13760,16 @@ export type Database = {
       }
       get_my_admin_profile_id: { Args: never; Returns: string }
       get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
-      get_phase_required_role: { Args: { p_phase: number }; Returns: string }
+      get_phase_config: {
+        Args: { p_challenge_id: string; p_phase: number }
+        Returns: Json
+      }
+      get_phase_required_role:
+        | { Args: { p_phase: number }; Returns: string }
+        | {
+            Args: { p_governance_mode?: string; p_phase: number }
+            Returns: string
+          }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
