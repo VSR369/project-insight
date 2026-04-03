@@ -152,15 +152,17 @@ export function useSubmitSolutionRequest() {
       const creatorSnapshot = stripHiddenFields(rawSnapshot, governanceRules, FORM_FIELD_TO_GOVERNANCE_KEY);
       await supabase.from('challenges').update({ creator_snapshot: creatorSnapshot } as any).eq('id', challengeId);
 
-      const { error: phaseError } = await supabase.rpc('complete_phase', {
+      const { data: phaseResult, error: phaseError } = await supabase.rpc('complete_phase', {
         p_challenge_id: challengeId, p_user_id: payload.creatorId,
       });
       if (phaseError) throw new Error(phaseError.message);
 
-      // Auto-assign CU from pool for STRUCTURED/CONTROLLED modes
-      const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
-      const normalizedGov = effectiveGovernance.toUpperCase();
-      if (normalizedGov !== 'QUICK') {
+      // Parse phase result to check current phase
+      const phaseData = phaseResult as unknown as { current_phase?: number } | null;
+      const currentPhase = phaseData?.current_phase ?? 0;
+
+      // Auto-assign CU only if we reached Phase 3+ (QUICK auto-advances; STRUCTURED stops at Phase 2)
+      if (currentPhase >= 3) {
         try {
           await autoAssignChallengeRole({
             challengeId,

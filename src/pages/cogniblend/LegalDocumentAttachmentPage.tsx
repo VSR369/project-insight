@@ -642,9 +642,12 @@ export default function LegalDocumentAttachmentPage() {
     }
   };
 
+  const [isComplianceSubmitting, setIsComplianceSubmitting] = useState(false);
+
   const handleConfirmSubmit = async () => {
     if (!user?.id || !challengeId) return;
     setShowConfirmModal(false);
+    setIsComplianceSubmitting(true);
 
     try {
       // If coming from LEGAL_VERIFICATION_PENDING, transition to COMPLETED first and log audit
@@ -661,18 +664,45 @@ export default function LegalDocumentAttachmentPage() {
         });
       }
 
-      // Now advance to Phase 3 via complete_phase
-      completePhase.mutate(
-        { challengeId, userId: user.id },
-        {
-          onSuccess: () => {
-            toast.success("Challenge submitted for curation.");
-            navigate("/cogni/dashboard");
-          },
+      // Use complete_legal_review RPC instead of complete_phase directly
+      const { data: reviewResult, error } = await supabase.rpc('complete_legal_review', {
+        p_challenge_id: challengeId,
+        p_user_id: user.id,
+      });
+
+      if (error) throw new Error(error.message);
+
+      const result = reviewResult as unknown as { success: boolean; advanced: boolean; current_phase: number; message: string; error?: string };
+      if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
+
+      // If advanced to Phase 3, auto-assign CU from pool
+      if (result.advanced && result.current_phase >= 3) {
+        try {
+          const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
+          await autoAssignChallengeRole({
+            challengeId,
+            roleCode: 'CU',
+            assignedBy: user.id,
+          });
+        } catch {
+          // CU assignment failure is non-blocking
         }
-      );
-    } catch (err: any) {
-      toast.error(`Submission error: ${err.message}`);
+        queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+
+      const msg = result.advanced
+        ? 'Challenge submitted for curation.'
+        : 'Legal review complete — waiting for financial compliance.';
+      toast.success(msg);
+      if (result.advanced) navigate("/cogni/dashboard");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Submission error';
+      toast.error(`Submission error: ${message}`);
+    } finally {
+      setIsComplianceSubmitting(false);
     }
   };
 
