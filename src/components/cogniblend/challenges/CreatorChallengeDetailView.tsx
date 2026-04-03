@@ -42,6 +42,11 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
   const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
+  const extendedBrief = (data as unknown as Record<string, unknown>).extended_brief as Record<string, unknown> | null | undefined;
+  const crApprovalRequired = extendedBrief?.creator_approval_required !== false;
+  const showCuratorContent = isPendingApproval
+    || (data.current_phase ?? 1) >= 4
+    || ((data.current_phase ?? 1) >= 3 && !crApprovalRequired);
 
   const myVersionSections: SectionDef[] = useMemo(() => {
     if (!snapshot) return [];
@@ -124,7 +129,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </TabsContent>
 
         <TabsContent value="curator-version" className="space-y-4">
-          {(isPendingApproval || (data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
+          {showCuratorContent ? (
             <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
             <Card className="border-dashed border-primary/30 bg-primary/5">

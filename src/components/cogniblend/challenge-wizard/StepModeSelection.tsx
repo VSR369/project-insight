@@ -229,7 +229,7 @@ export function StepModeSelection({
       </div>
 
       {/* ═══ Section 3: Creator Approval Toggle ═══ */}
-      {selectedModel === 'MP' && (
+      {(selectedModel === 'MP' || selectedModel === 'AGG') && (
         <div className="space-y-3">
           <div>
             <h3 className="text-base font-bold text-foreground mb-1">Creator Approval</h3>
