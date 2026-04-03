@@ -26,8 +26,8 @@ export function useLegalAcceptanceLog() {
     mutationFn: async (payload: AcceptancePayload) => {
       const ipAddress = await getClientIP();
 
-      const { error } = await supabase
-        .from('legal_acceptance_log' as 'legal_acceptance_log')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('legal_acceptance_log') as any)
         .insert({
           user_id: payload.userId,
           template_id: payload.templateId,
@@ -39,7 +39,7 @@ export function useLegalAcceptanceLog() {
           action: payload.action,
           ip_address: ipAddress || null,
           user_agent: navigator.userAgent,
-        } as Record<string, unknown>);
+        });
 
       if (error) throw new Error(error.message);
     },
