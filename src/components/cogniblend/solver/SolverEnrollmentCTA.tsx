@@ -403,7 +403,7 @@ export function SolverEnrollmentCTA({
   }
 
   /* ── Enrollment actions ── */
-  const handleEnroll = () => {
+  const executeEnroll = () => {
     // Models requiring legal acceptance show dialog first
     if (model === 'DR' || model === 'CE') {
       setLegalDialogOpen(true);
@@ -434,6 +434,11 @@ export function SolverEnrollmentCTA({
         legalAccepted: false,
       });
     }
+  };
+
+  // Gate enrollment behind SOLVER_ENROLLMENT legal check
+  const handleEnroll = () => {
+    solverGate.gateAction(executeEnroll);
   };
 
   const handleLegalAccept = (scrollConfirmed: boolean, adAccepted: boolean) => {
