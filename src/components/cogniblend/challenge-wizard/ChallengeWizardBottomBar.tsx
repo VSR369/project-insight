@@ -49,9 +49,9 @@ export function ChallengeWizardBottomBar({
   isSubmitting,
 }: ChallengeWizardBottomBarProps) {
   const isLastStep = currentStep === totalSteps;
-  const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
+  const isStructured = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
 
-  const submitLabel = isEnterprise ? 'Submit for Legal Review' : 'Submit for Curation';
+  const submitLabel = isStructured ? 'Submit for Legal Review' : 'Submit for Curation';
   const nextLabel = isLastStep ? submitLabel : (STEP_NEXT_LABELS[currentStep] ?? 'Next');
   const backLabel = STEP_BACK_LABELS[currentStep] ?? 'Back';
 

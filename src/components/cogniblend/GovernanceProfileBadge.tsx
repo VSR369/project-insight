@@ -1,7 +1,7 @@
 /**
  * GovernanceProfileBadge — Reusable governance profile pill with tooltip.
  * Supports 3-mode governance: QUICK (green) | STRUCTURED (blue) | CONTROLLED (purple)
- * Backward-compatible with legacy LIGHTWEIGHT/ENTERPRISE values.
+ * Resolves legacy LIGHTWEIGHT/ENTERPRISE values via resolveGovernanceMode().
  */
 
 import {

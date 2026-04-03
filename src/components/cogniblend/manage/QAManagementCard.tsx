@@ -1,6 +1,6 @@
 /**
  * QAManagementCard — Card for managing challenge Q&A on the manage page.
- * Governance-aware: ENTERPRISE (MP/AGG) has publish flow; LIGHTWEIGHT is immediate.
+ * Governance-aware: STRUCTURED/CONTROLLED has publish flow; QUICK is immediate.
  */
 
 import { useState } from 'react';
@@ -67,7 +67,7 @@ function QuestionRow({
       userId,
     });
 
-    // In LIGHTWEIGHT mode, auto-publish immediately
+    // In QUICK mode, auto-publish immediately
     if (isQuick) {
       await publishMutation.mutateAsync({ qaId: qa.qa_id, challengeId, userId });
     }

@@ -15,9 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 
-/* ─── Enterprise-only doc types (BRD BR-LGL-001-A Tier 2 matrix) ─── */
+/* ─── Non-QUICK doc types (require STRUCTURED/CONTROLLED governance) ─── */
 
-const ENTERPRISE_ONLY_DOC_TYPES = [
+const NON_QUICK_DOC_TYPES = [
   'ESCROW_TERMS',
   'IP_ASSIGNMENT_DEED',
   'PERFORMANCE_BOND',
@@ -73,11 +73,11 @@ export function useSolverLegalGate(
         return { cleared: true, pendingDocs: [] };
       }
 
-      // R-04: Filter out Enterprise-only docs for QUICK governance mode
+      // R-04: Filter out non-QUICK docs for QUICK governance mode
       const mode = resolveGovernanceMode(governanceProfile);
       const filteredTemplates = isQuickMode(mode)
         ? (templates as any[]).filter(
-            (t) => !ENTERPRISE_ONLY_DOC_TYPES.includes(t.document_type as any)
+            (t) => !NON_QUICK_DOC_TYPES.includes(t.document_type as any)
           )
         : (templates as any[]);
 

@@ -85,11 +85,11 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
 
       if (sErr) throw new Error(sErr.message);
 
-      const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
+      const isBlindMode = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
 
       const submissions: ManagedSubmission[] = (subs ?? []).map((s, idx) => ({
         id: s.id,
-        solverLabel: isEnterprise ? anonymiseIndex(idx) : s.submitter_name,
+        solverLabel: isBlindMode ? anonymiseIndex(idx) : s.submitter_name,
         submitterName: s.submitter_name,
         submittedAt: s.created_at,
         status: s.status ?? 'draft',

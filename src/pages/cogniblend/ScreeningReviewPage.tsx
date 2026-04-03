@@ -72,7 +72,7 @@ interface ScoringPanelProps {
   onScoreChange: (criterion: string, score: number) => void;
   commentary: string;
   onCommentaryChange: (value: string) => void;
-  isEnterprise: boolean;
+  isStructuredOrAbove: boolean;
   weightedTotal: number | null;
   readOnly: boolean;
 }
@@ -83,7 +83,7 @@ function ScoringPanel({
   onScoreChange,
   commentary,
   onCommentaryChange,
-  isEnterprise,
+  isStructuredOrAbove,
   weightedTotal,
   readOnly,
 }: ScoringPanelProps) {
@@ -134,16 +134,16 @@ function ScoringPanel({
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">
-          Commentary {isEnterprise && <span className="text-destructive">*</span>}
+          Commentary {isStructuredOrAbove && <span className="text-destructive">*</span>}
         </Label>
         <Textarea
           value={commentary}
           onChange={(e) => onCommentaryChange(e.target.value)}
-          placeholder={isEnterprise ? 'Required for Enterprise (min 100 chars)...' : 'Optional commentary...'}
+          placeholder={isStructuredOrAbove ? 'Required for Structured/Controlled modes (min 100 chars)...' : 'Optional commentary...'}
           rows={4}
           disabled={readOnly}
         />
-        {isEnterprise && (
+        {isStructuredOrAbove && (
           <p className="text-xs text-muted-foreground">{commentary.length}/100 characters minimum</p>
         )}
       </div>
@@ -170,12 +170,12 @@ function AIEvaluationPlaceholder() {
 interface AbstractDetailProps {
   abstract: ScreeningAbstract;
   criteria: EvaluationCriterion[];
-  isEnterprise: boolean;
+  isStructuredMode: boolean;
   reviewerId: string;
   shortlistApproved: boolean;
 }
 
-function AbstractDetail({ abstract, criteria, isEnterprise, reviewerId, shortlistApproved }: AbstractDetailProps) {
+function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerId, shortlistApproved }: AbstractDetailProps) {
   const [scores, setScores] = useState<Record<string, number>>(abstract.existingScores ?? {});
   const [commentary, setCommentary] = useState(abstract.existingCommentary ?? '');
   const [confirmAction, setConfirmAction] = useState<'shortlist' | 'reject' | null>(null);
@@ -202,7 +202,7 @@ function AbstractDetail({ abstract, criteria, isEnterprise, reviewerId, shortlis
   }, [scores, criteria]);
 
   const handleSaveScores = () => {
-    const commentaryValid = !isEnterprise || commentary.trim().length >= 100;
+    const commentaryValid = !isStructuredMode || commentary.trim().length >= 100;
     if (!commentaryValid) {
       toast.error('Commentary must be at least 100 characters for Enterprise challenges.');
       return;
@@ -233,7 +233,7 @@ function AbstractDetail({ abstract, criteria, isEnterprise, reviewerId, shortlis
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-bold text-foreground">
-            {isEnterprise ? abstract.anonymousLabel : abstract.providerName ?? abstract.anonymousLabel}
+            {isStructuredMode ? abstract.anonymousLabel : abstract.providerName ?? abstract.anonymousLabel}
           </h2>
           <p className="text-xs text-muted-foreground">
             Submitted {abstract.submittedAt ? new Date(abstract.submittedAt).toLocaleDateString() : 'N/A'}
@@ -305,7 +305,7 @@ function AbstractDetail({ abstract, criteria, isEnterprise, reviewerId, shortlis
         onScoreChange={(criterion, score) => setScores(prev => ({ ...prev, [criterion]: score }))}
         commentary={commentary}
         onCommentaryChange={setCommentary}
-        isEnterprise={isEnterprise}
+        isStructuredOrAbove={isStructuredMode}
         weightedTotal={weightedTotal}
         readOnly={readOnly}
       />
@@ -406,10 +406,10 @@ export default function ScreeningReviewPage() {
   // ═══ SECTION 4: Derived ═══
   const hasERRole = roles?.includes('ER') ?? false;
   const hasCURole = roles?.includes('CU') ?? false;
-  const isEnterprise = data?.isBlindMode ?? false;
+  const isStructuredMode = data?.isBlindMode ?? false;
 
-  // Access: ER role for Enterprise, or challenge owner (any role) for Lightweight
-  const hasAccess = isEnterprise ? hasERRole : true; // Lightweight: owner-level checked by route guard
+  // Access: ER role for Structured+, or challenge owner (any role) for Quick
+  const hasAccess = isStructuredMode ? hasERRole : true;
 
   const selectedAbstract = data?.abstracts.find(a => a.id === selectedAbstractId) ?? null;
 
@@ -417,7 +417,7 @@ export default function ScreeningReviewPage() {
   const rejectedCount = data?.abstracts.filter(a => a.selectionStatus === 'REJECTED').length ?? 0;
   const pendingCount = data?.abstracts.filter(a => a.selectionStatus === 'PENDING').length ?? 0;
 
-  const canApproveShortlist = (isEnterprise ? hasCURole : true) && pendingCount === 0 && shortlistedCount > 0 && !data?.shortlistApproved;
+  const canApproveShortlist = (isStructuredMode ? hasCURole : true) && pendingCount === 0 && shortlistedCount > 0 && !data?.shortlistApproved;
 
   // ═══ SECTION 5: Conditional returns ═══
   if (isLoading) {
@@ -456,7 +456,7 @@ export default function ScreeningReviewPage() {
             <Shield className="h-10 w-10 text-destructive mx-auto" />
             <p className="text-sm font-medium text-foreground">Access Denied</p>
             <p className="text-xs text-muted-foreground">
-              {isEnterprise
+              {isStructuredMode
                 ? 'You need the ER (Evaluation Reviewer) role to access screening.'
                 : 'You do not have permission to screen this challenge.'}
             </p>
@@ -559,7 +559,7 @@ export default function ScreeningReviewPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium text-foreground truncate">
-                        {isEnterprise ? a.anonymousLabel : a.providerName ?? a.anonymousLabel}
+                        {isStructuredMode ? a.anonymousLabel : a.providerName ?? a.anonymousLabel}
                       </span>
                       <StatusBadge status={a.selectionStatus} />
                     </div>
@@ -583,7 +583,7 @@ export default function ScreeningReviewPage() {
                   key={selectedAbstract.id}
                   abstract={selectedAbstract}
                   criteria={data.evaluationCriteria}
-                  isEnterprise={isEnterprise}
+                  isStructuredMode={isStructuredMode}
                   reviewerId={userId!}
                   shortlistApproved={data.shortlistApproved}
                 />

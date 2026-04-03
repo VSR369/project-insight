@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
+import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
 import type { Json } from '@/integrations/supabase/types';
 
 // ---------------------------------------------------------------------------
@@ -50,7 +51,7 @@ export function useReturnForModification() {
 
       // 3. Identify target role (Curator for Enterprise, Creator for Lightweight)
       const targetRole =
-        params.governanceProfile?.toUpperCase() === 'ENTERPRISE' ? 'R5' : 'R4';
+        isStructuredOrAbove(resolveGovernanceMode(params.governanceProfile)) ? 'R5' : 'R4';
 
       const { data: assignments } = await supabase
         .from('challenge_role_assignments')

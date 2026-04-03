@@ -92,7 +92,7 @@ export function useMandatoryFields(governanceProfile: string | null) {
   return useQuery({
     queryKey: ['mandatory-fields', governanceProfile],
     queryFn: async (): Promise<string[]> => {
-      const profile = governanceProfile || 'ENTERPRISE';
+      const profile = governanceProfile || 'STRUCTURED';
       const { data, error } = await supabase.rpc('get_mandatory_fields', {
         p_governance_profile: profile,
       });

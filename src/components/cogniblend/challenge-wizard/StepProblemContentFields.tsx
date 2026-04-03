@@ -14,9 +14,9 @@ import { cn } from '@/lib/utils';
 import { AiFieldAssist } from './AiFieldAssist';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
-const PROBLEM_MIN_ENTERPRISE = 500;
+const PROBLEM_MIN_STRUCTURED = 500;
 const PROBLEM_MIN_QUICK = 200;
-const SCOPE_MIN_ENTERPRISE = 200;
+const SCOPE_MIN_STRUCTURED = 200;
 const SCOPE_MIN_QUICK = 100;
 
 interface StepProblemContentFieldsProps {
@@ -31,8 +31,8 @@ export function StepProblemContentFields({ form, mandatoryFields, isQuick }: Ste
 
   const { register, formState: { errors }, watch, control, setValue } = form;
 
-  const problemMin = isQuick ? PROBLEM_MIN_QUICK : PROBLEM_MIN_ENTERPRISE;
-  const scopeMin = isQuick ? SCOPE_MIN_QUICK : SCOPE_MIN_ENTERPRISE;
+  const problemMin = isQuick ? PROBLEM_MIN_QUICK : PROBLEM_MIN_STRUCTURED;
+  const scopeMin = isQuick ? SCOPE_MIN_QUICK : SCOPE_MIN_STRUCTURED;
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
   const aiContext = {

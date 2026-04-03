@@ -54,7 +54,7 @@ export function ChallengeSubmitSummaryModal({
   isSubmitting,
   onConfirm,
 }: ChallengeSubmitSummaryModalProps) {
-  const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
+  const isStructured = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
   const sym = CURRENCY_SYMBOLS[values.currency_code] ?? '$';
   const totalWeight = values.weighted_criteria.reduce((s, c) => s + (c.weight || 0), 0);
   const deliverables = values.deliverables_list.filter(Boolean);
@@ -82,7 +82,7 @@ export function ChallengeSubmitSummaryModal({
           <DialogTitle className="text-lg font-bold">Review & Confirm Submission</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Please review all details before submitting.
-            {isEnterprise
+            {isStructured
               ? ' This will route your challenge for Legal Review.'
               : ' Your challenge will be submitted for curation.'}
           </p>
@@ -178,7 +178,7 @@ export function ChallengeSubmitSummaryModal({
             {values.silver_award !== undefined && values.silver_award > 0 && (
               <SummaryRow label="Silver Award" value={`${sym}${values.silver_award.toLocaleString()}`} />
             )}
-            {!isEnterprise ? null : (
+            {!isStructured ? null : (
               <SummaryRow label="Rejection Fee" value={`${values.rejection_fee_pct}%`} />
             )}
           </SummarySection>
@@ -240,7 +240,7 @@ export function ChallengeSubmitSummaryModal({
             ) : (
               <>
                 <Send className="h-4 w-4 mr-1.5" />
-                {isEnterprise ? 'Confirm & Submit for Legal Review' : 'Confirm & Submit'}
+                {isStructured ? 'Confirm & Submit for Legal Review' : 'Confirm & Submit'}
               </>
             )}
           </Button>

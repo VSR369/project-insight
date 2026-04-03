@@ -331,7 +331,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   }
 
   // ═══════ Derived ═══════
-  const isEnterprise = isStructuredOrAbove(governanceMode);
+  const isStructured = isStructuredOrAbove(governanceMode);
   const modeConfig = GOVERNANCE_MODE_CONFIG[governanceMode];
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Creating New Challenge';
   const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;
@@ -554,7 +554,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
     if (isEditMode && challengeId) {
       try {
         await saveStepMutation.mutateAsync({ challengeId, fields });
-        if (isEnterprise) {
+        if (isStructured) {
           await supabase.from('challenges').update({ phase_status: 'LEGAL_VERIFICATION_PENDING' }).eq('id', challengeId);
           toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${challengeId}/legal`);
@@ -592,7 +592,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         }
 
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
-        if (isEnterprise) {
+        if (isStructured) {
           await supabase.from('challenges').update({ phase_status: 'LEGAL_VERIFICATION_PENDING' }).eq('id', newId);
           toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${newId}/legal`);
