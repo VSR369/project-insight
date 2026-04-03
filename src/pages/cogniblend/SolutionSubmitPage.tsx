@@ -17,6 +17,8 @@ import {
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
 import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/useWithdrawSolution';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { CACHE_STANDARD } from '@/config/queryCache';
@@ -82,6 +84,13 @@ export default function SolutionSubmitPage() {
   const { data: withdrawalCtx } = useWithdrawalContext(challengeId, existingSolution?.id);
   const withdrawMutation = useWithdrawSolution();
   const { data: reacceptStatus } = useLegalReacceptanceStatus(challengeId, userId);
+
+  // Legal gate for ABSTRACT_SUBMIT trigger (PSA + IPAA)
+  const abstractGate = useLegalGateAction({
+    triggerEvent: 'ABSTRACT_SUBMIT',
+    challengeId,
+    userRole: 'SOLVER',
+  });
 
   // ═══ SECTION 5: useEffect ═══
   useEffect(() => {
@@ -169,13 +178,18 @@ export default function SolutionSubmitPage() {
     saveDraftMutation.mutate({ existingId: existingSolution?.id, challengeId: challengeId!, providerId: userId!, ...values });
   };
 
-  const handleSubmit = async (values: AbstractFormValues) => {
+  const executeSubmit = (values: AbstractFormValues) => {
     if (fileSizeExceeded) { toast.error('Total file size exceeds 50MB limit.'); return; }
     submitMutation.mutate({
       existingId: existingSolution?.id, challengeId: challengeId!, providerId: userId!,
       abstractText: values.abstractText, methodology: values.methodology,
       timeline: values.timeline, experience: values.experience, aiUsageDeclaration: values.aiUsageDeclaration,
     }, { onSuccess: () => clearSolutionPersistence() });
+  };
+
+  // Gate submission behind ABSTRACT_SUBMIT legal check
+  const handleSubmit = (values: AbstractFormValues) => {
+    abstractGate.gateAction(() => executeSubmit(values));
   };
 
   // ═══ SECTION 8: Render ═══
@@ -210,6 +224,20 @@ export default function SolutionSubmitPage() {
         onAcceptedChange={(type, v) => setLegalAccepted(prev => ({ ...prev, [type]: v }))}
         onAccept={handleLegalDocAccept} isPending={legalMutation.isPending}
       />
+
+      {/* ABSTRACT_SUBMIT legal gate (PSA + IPAA) */}
+      {abstractGate.showGate && (
+        <LegalGateModal
+          triggerEvent={abstractGate.triggerEvent}
+          challengeId={challengeId}
+          userRole="SOLVER"
+          onAllAccepted={abstractGate.handleAllAccepted}
+          onDeclined={() => {
+            abstractGate.handleDeclined();
+            toast.error('You must accept the legal terms to submit.');
+          }}
+        />
+      )}
     </div>
   );
 }

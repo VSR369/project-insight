@@ -34,6 +34,9 @@ import {
 } from '@/hooks/cogniblend/useSolverEnrollment';
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
 import { ScrollToAcceptLegal } from './ScrollToAcceptLegal';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
+import { toast } from 'sonner';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -269,6 +272,13 @@ export function SolverEnrollmentCTA({
 
   const [legalDialogOpen, setLegalDialogOpen] = useState(false);
 
+  // Legal gate for SOLVER_ENROLLMENT trigger (PSA acceptance)
+  const solverGate = useLegalGateAction({
+    triggerEvent: 'SOLVER_ENROLLMENT',
+    challengeId,
+    userRole: 'SOLVER',
+  });
+
   const model = enrollmentModel || 'OPEN';
   const modelInfo = MODEL_LABELS[model] ?? MODEL_LABELS.OPEN;
 
@@ -393,7 +403,7 @@ export function SolverEnrollmentCTA({
   }
 
   /* ── Enrollment actions ── */
-  const handleEnroll = () => {
+  const executeEnroll = () => {
     // Models requiring legal acceptance show dialog first
     if (model === 'DR' || model === 'CE') {
       setLegalDialogOpen(true);
@@ -424,6 +434,11 @@ export function SolverEnrollmentCTA({
         legalAccepted: false,
       });
     }
+  };
+
+  // Gate enrollment behind SOLVER_ENROLLMENT legal check
+  const handleEnroll = () => {
+    solverGate.gateAction(executeEnroll);
   };
 
   const handleLegalAccept = (scrollConfirmed: boolean, adAccepted: boolean) => {
@@ -499,6 +514,20 @@ export function SolverEnrollmentCTA({
         isSubmitting={isProcessing}
         showAdAgreement={isAggModel}
       />
+
+      {/* SOLVER_ENROLLMENT legal gate (PSA) */}
+      {solverGate.showGate && (
+        <LegalGateModal
+          triggerEvent={solverGate.triggerEvent}
+          challengeId={challengeId}
+          userRole="SOLVER"
+          onAllAccepted={solverGate.handleAllAccepted}
+          onDeclined={() => {
+            solverGate.handleDeclined();
+            toast.error('You must accept the legal terms to enroll.');
+          }}
+        />
+      )}
     </div>
   );
 }
