@@ -1109,11 +1109,11 @@ export default function LegalDocumentAttachmentPage() {
             </Button>
             <Button
               onClick={handleConfirmSubmit}
-              disabled={completePhase.isPending}
+              disabled={isComplianceSubmitting}
               className="gap-2"
             >
               <ArrowRight className="h-4 w-4" />
-              {completePhase.isPending ? "Submitting…" : "Submit"}
+              {isComplianceSubmitting ? "Submitting…" : "Submit"}
             </Button>
           </DialogFooter>
         </DialogContent>
