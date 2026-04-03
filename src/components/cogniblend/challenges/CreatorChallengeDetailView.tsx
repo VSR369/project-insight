@@ -131,7 +131,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </TabsContent>
 
         <TabsContent value="curator-version" className="space-y-4">
-          {(isPendingApproval || (data.current_phase ?? 1) > 3 || ((data.current_phase ?? 1) === 3 && data.phase_status === 'COMPLETED')) ? (
+          {showCuratorContent ? (
             <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
             <Card className="border-dashed border-primary/30 bg-primary/5">

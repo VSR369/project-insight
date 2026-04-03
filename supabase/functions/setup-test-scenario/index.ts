@@ -397,6 +397,17 @@ serve(async (req) => {
       extended_brief: {
         beneficiaries_mapping: "Primary: Revenue Cycle Management team (28 staff), Secondary: Clinical Administration (15 coordinators), Tertiary: Patients (reduced wait times and billing errors)",
         am_approval_required: false,
+        creator_approval_required: false,
+      },
+      creator_snapshot: {
+        title: "Healthcare Cost Reduction Through Process Automation",
+        problem_statement: "Administrative overhead in our patient intake and claims processing workflows consumes 35% of staff time. Manual data entry errors result in a 12% claims rejection rate, and average processing time is 14 business days. We believe automation and AI-assisted document processing could significantly reduce costs and improve accuracy, but we need expert guidance on the best approach.",
+        scope: null,
+        budget_min: 0,
+        budget_max: 0,
+        currency: "USD",
+        reward_structure: {},
+        expected_timeline: "6-12",
       },
       created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
     });
