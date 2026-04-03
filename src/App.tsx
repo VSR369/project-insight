@@ -748,6 +748,7 @@ const App = () => (
               <Route path="seeker-config/data-residency" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><DataResidencyPage /></PermissionGuard>} />
               <Route path="seeker-config/blocked-domains" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><BlockedDomainsPage /></PermissionGuard>} />
               <Route path="seeker-config/platform-terms" element={<PermissionGuard permissionKey="seeker_config.view"><PlatformTermsPage /></PermissionGuard>} />
+              <Route path="seeker-config/legal-templates" element={<PermissionGuard permissionKey="seeker_config.view"><LegalDocumentTemplatesPage /></PermissionGuard>} />
               <Route path="seeker-config/membership-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><MembershipTiersPage /></PermissionGuard>} />
               <Route path="seeker-config/base-fees" element={<PermissionGuard permissionKey="seeker_config.view"><BaseFeesPage /></PermissionGuard>} />
               <Route path="seeker-config/shadow-pricing" element={<PermissionGuard permissionKey="seeker_config.view_shadow_pricing"><ShadowPricingPage /></PermissionGuard>} />
