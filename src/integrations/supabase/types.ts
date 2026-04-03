@@ -13199,6 +13199,18 @@ export type Database = {
       }
     }
     Functions: {
+      assign_challenge_role: {
+        Args: {
+          p_assigned_by: string
+          p_assignment_phase?: string
+          p_challenge_id: string
+          p_governance_role_code: string
+          p_pool_member_id: string
+          p_slm_role_code: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       assign_role_to_challenge: {
         Args: {
           p_assigned_by: string
