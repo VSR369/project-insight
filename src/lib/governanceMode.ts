@@ -11,7 +11,7 @@ const VALID_MODES: Set<string> = new Set(['QUICK', 'STRUCTURED', 'CONTROLLED']);
 
 /**
  * Strictly validates a governance mode value.
- * Returns STRUCTURED for null/undefined. Throws for invalid non-null values.
+ * Returns STRUCTURED for null/undefined. Falls back to STRUCTURED for unknown.
  */
 export function resolveGovernanceMode(
   governanceProfile: string | null | undefined,
@@ -19,7 +19,6 @@ export function resolveGovernanceMode(
   if (!governanceProfile) return 'STRUCTURED';
   const raw = governanceProfile.toUpperCase().trim();
   if (VALID_MODES.has(raw)) return raw as GovernanceMode;
-  // Fallback for unexpected values — default to STRUCTURED
   return 'STRUCTURED';
 }
 
@@ -68,39 +67,61 @@ export const GOVERNANCE_MODE_CONFIG: Record<GovernanceMode, GovernanceModeConfig
   },
 };
 
-/* ── Tier → available governance modes (data-driven) ────────────────── */
+/* ── Tier → available governance modes ────────────────── */
+
+/** Static fallback map used when DB data is not yet loaded */
+const TIER_GOVERNANCE_FALLBACK: Record<string, GovernanceMode[]> = {
+  basic:      ['QUICK'],
+  standard:   ['QUICK', 'STRUCTURED'],
+  premium:    ['QUICK', 'STRUCTURED', 'CONTROLLED'],
+  enterprise: ['QUICK', 'STRUCTURED', 'CONTROLLED'],
+};
+
+export interface TierGovernanceRow {
+  governance_mode: string;
+  is_default: boolean;
+}
 
 /**
  * Returns the governance modes available for a given tier.
- * Accepts pre-fetched data from useTierGovernanceAccess hook.
- * Falls back to ['QUICK'] if no data provided.
+ * Accepts either pre-fetched DB data or a tier code string (fallback).
  */
 export function getAvailableGovernanceModes(
-  tierAccessData?: { governance_mode: string; is_default: boolean }[],
+  tierDataOrCode?: TierGovernanceRow[] | string | null,
 ): GovernanceMode[] {
-  if (!tierAccessData || tierAccessData.length === 0) return ['QUICK'];
-  return tierAccessData
-    .map((row) => row.governance_mode as GovernanceMode)
-    .filter((m) => VALID_MODES.has(m));
+  if (!tierDataOrCode) return ['QUICK'];
+
+  // DB-driven: array of rows from md_tier_governance_access
+  if (Array.isArray(tierDataOrCode)) {
+    if (tierDataOrCode.length === 0) return ['QUICK'];
+    return tierDataOrCode
+      .map((row) => row.governance_mode as GovernanceMode)
+      .filter((m) => VALID_MODES.has(m));
+  }
+
+  // Fallback: tier code string
+  return TIER_GOVERNANCE_FALLBACK[tierDataOrCode.toLowerCase()] ?? ['QUICK'];
 }
 
 /**
  * Returns the default governance mode for a given tier.
- * Accepts pre-fetched data from useTierGovernanceAccess hook.
+ * Accepts either pre-fetched DB data or a tier code string (fallback).
  */
 export function getDefaultGovernanceMode(
-  tierAccessData?: { governance_mode: string; is_default: boolean }[],
+  tierDataOrCode?: TierGovernanceRow[] | string | null,
   governanceProfile?: string | null,
 ): GovernanceMode {
-  const available = getAvailableGovernanceModes(tierAccessData);
+  const available = getAvailableGovernanceModes(tierDataOrCode);
   if (governanceProfile) {
     const preferred = resolveGovernanceMode(governanceProfile);
     if (available.includes(preferred)) return preferred;
   }
-  // Pick the explicit default, or fallback to last available
-  const defaultRow = tierAccessData?.find((r) => r.is_default);
-  if (defaultRow && VALID_MODES.has(defaultRow.governance_mode)) {
-    return defaultRow.governance_mode as GovernanceMode;
+  // Pick the explicit default from DB data, or fallback to last available
+  if (Array.isArray(tierDataOrCode)) {
+    const defaultRow = tierDataOrCode.find((r) => r.is_default);
+    if (defaultRow && VALID_MODES.has(defaultRow.governance_mode)) {
+      return defaultRow.governance_mode as GovernanceMode;
+    }
   }
   return available[available.length - 1] ?? 'QUICK';
 }
@@ -116,11 +137,11 @@ export function getDefaultGovernanceMode(
 export function resolveChallengeGovernance(
   challengeOverride: string | null | undefined,
   orgGovernanceProfile: string | null | undefined,
-  tierAccessData?: { governance_mode: string; is_default: boolean }[],
+  tierDataOrCode?: TierGovernanceRow[] | string | null,
 ): GovernanceMode {
   const raw = challengeOverride ?? orgGovernanceProfile;
   const effective = resolveGovernanceMode(raw);
-  const available = getAvailableGovernanceModes(tierAccessData);
+  const available = getAvailableGovernanceModes(tierDataOrCode);
   if (available.includes(effective)) return effective;
   return available[available.length - 1] ?? 'QUICK';
 }
