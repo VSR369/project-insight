@@ -104,7 +104,7 @@ export default function LegalDocumentEditorPage() {
           />
         </div>
         <div className="w-80 border-l shrink-0 overflow-y-auto hidden lg:block">
-          <LegalDocConfigSidebar config={editor.config} onChange={editor.setConfig} templateId={templateId} />
+          <LegalDocConfigSidebar config={editor.config} onChange={editor.setConfig} templateId={templateId} isNew={isNew} />
         </div>
       </div>
 

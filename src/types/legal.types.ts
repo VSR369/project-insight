@@ -104,3 +104,19 @@ export const TRIGGER_EVENT_LABELS: Record<TriggerEvent, string> = {
   ESCROW_DEPOSIT: 'Escrow Deposit',
   PAYMENT_RELEASE: 'Payment Release',
 };
+
+export const TRIGGER_EVENT_DESCRIPTIONS: Record<TriggerEvent, string> = {
+  USER_REGISTRATION: 'When any user first registers on the platform',
+  SEEKER_ENROLLMENT: 'When a seeker organization enrolls to post challenges',
+  SOLVER_ENROLLMENT: 'When a solver registers to participate in challenges',
+  CHALLENGE_SUBMIT: 'When a challenge is submitted for review',
+  CHALLENGE_PUBLISH: 'When a challenge is published to solvers',
+  CHALLENGE_JOIN: 'When a solver joins a published challenge',
+  ABSTRACT_SUBMIT: 'When a solver submits an abstract proposal',
+  SOLVER_SHORTLISTED: 'When a solver is shortlisted for a challenge',
+  SOLUTION_SUBMIT: 'When a solver submits their final solution',
+  WINNER_SELECTED: 'When a winner is selected for a challenge',
+  WINNER_CONFIRMED: 'When a winner confirms acceptance of the award',
+  ESCROW_DEPOSIT: 'When escrow funds are deposited for a challenge',
+  PAYMENT_RELEASE: 'When prize payment is released to a winner',
+};
