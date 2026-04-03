@@ -163,6 +163,7 @@ const GovernanceRulesPage = lazy(() => import("@/pages/admin/seeker-config/Gover
 const GovernanceModeConfigPage = lazy(() => import("@/pages/admin/seeker-config/GovernanceModeConfigPage"));
 const RoleConvergencePage = lazy(() => import("@/pages/admin/seeker-config/RoleConvergencePage"));
 const TierGovernanceAccessPage = lazy(() => import("@/pages/admin/seeker-config/TierGovernanceAccessPage"));
+const LifecyclePhaseConfigPage = lazy(() => import("@/pages/admin/seeker-config/LifecyclePhaseConfigPage"));
 const AIReviewConfigPage = lazy(() => import("@/pages/admin/seeker-config/AIReviewConfigPage"));
 const RateCardsPage = lazy(() => import("@/pages/admin/rate-cards").then(m => ({ default: m.RateCardsPage })));
 const IncentivesPage = lazy(() => import("@/pages/admin/incentives").then(m => ({ default: m.IncentivesPage })));
