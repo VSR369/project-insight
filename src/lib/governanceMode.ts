@@ -1,47 +1,37 @@
 /**
  * Centralized Governance Mode Engine.
  *
- * Maps the DB column `governance_profile` (which stores LIGHTWEIGHT, ENTERPRISE,
- * QUICK, STRUCTURED, CONTROLLED) into the 3-mode system.
- *
- * Backward-compatible:
- *   LIGHTWEIGHT / QUICK → QUICK
- *   ENTERPRISE (default) → STRUCTURED
- *   CONTROLLED → CONTROLLED
- *
- * The `compliance_level` field on the org/challenge can further differentiate
- * ENTERPRISE into STRUCTURED vs CONTROLLED, but that is supervisor-configured
- * in master data and stored directly as the governance_profile value.
+ * Three governance modes: QUICK, STRUCTURED, CONTROLLED.
+ * No legacy values (ENTERPRISE, LIGHTWEIGHT) — those are normalized at the DB level.
  */
 
 export type GovernanceMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
 
+const VALID_MODES: Set<string> = new Set(['QUICK', 'STRUCTURED', 'CONTROLLED']);
+
 /**
- * Resolve a raw governance_profile DB value into the canonical 3-mode value.
+ * Strictly validates a governance mode value.
+ * Returns STRUCTURED for null/undefined. Throws for invalid non-null values.
  */
 export function resolveGovernanceMode(
   governanceProfile: string | null | undefined,
 ): GovernanceMode {
-  const raw = (governanceProfile ?? '').toUpperCase().trim();
-
-  if (raw === 'LIGHTWEIGHT' || raw === 'QUICK') return 'QUICK';
-  if (raw === 'CONTROLLED') return 'CONTROLLED';
-  // ENTERPRISE or STRUCTURED or anything else → STRUCTURED
+  if (!governanceProfile) return 'STRUCTURED';
+  const raw = governanceProfile.toUpperCase().trim();
+  if (VALID_MODES.has(raw)) return raw as GovernanceMode;
+  // Fallback for unexpected values — default to STRUCTURED
   return 'STRUCTURED';
 }
 
-/** True when the mode behaves like the old LIGHTWEIGHT (auto-complete, merged roles) */
+/** True when the mode allows merged roles and simplified workflow */
 export function isQuickMode(mode: GovernanceMode): boolean {
   return mode === 'QUICK';
 }
 
-/** True when structured or controlled governance applies (review rigor, anonymity) */
+/** True when structured or controlled governance applies */
 export function isStructuredOrAbove(mode: GovernanceMode): boolean {
   return mode === 'STRUCTURED' || mode === 'CONTROLLED';
 }
-
-/** @deprecated Use isStructuredOrAbove instead */
-export const isEnterpriseGrade = isStructuredOrAbove;
 
 /** True only for the strictest governance tier */
 export function isControlledMode(mode: GovernanceMode): boolean {
@@ -78,58 +68,59 @@ export const GOVERNANCE_MODE_CONFIG: Record<GovernanceMode, GovernanceModeConfig
   },
 };
 
-/* ── Tier → available governance modes ────────────────── */
-
-export const TIER_GOVERNANCE_MODES: Record<string, GovernanceMode[]> = {
-  basic:      ['QUICK'],
-  standard:   ['QUICK', 'STRUCTURED'],
-  premium:    ['QUICK', 'STRUCTURED', 'CONTROLLED'],
-  enterprise: ['QUICK', 'STRUCTURED', 'CONTROLLED'],
-};
+/* ── Tier → available governance modes (data-driven) ────────────────── */
 
 /**
- * Returns the governance modes available for a given subscription tier.
+ * Returns the governance modes available for a given tier.
+ * Accepts pre-fetched data from useTierGovernanceAccess hook.
+ * Falls back to ['QUICK'] if no data provided.
  */
-export function getAvailableGovernanceModes(tierCode: string | null | undefined): GovernanceMode[] {
-  return TIER_GOVERNANCE_MODES[(tierCode ?? 'basic').toLowerCase()] ?? ['QUICK'];
+export function getAvailableGovernanceModes(
+  tierAccessData?: { governance_mode: string; is_default: boolean }[],
+): GovernanceMode[] {
+  if (!tierAccessData || tierAccessData.length === 0) return ['QUICK'];
+  return tierAccessData
+    .map((row) => row.governance_mode as GovernanceMode)
+    .filter((m) => VALID_MODES.has(m));
 }
 
 /**
- * Returns the best default governance mode for a given tier.
- * BASIC → always QUICK; Standard → STRUCTURED; Premium/Enterprise → STRUCTURED.
- * Optionally accepts an org's governance profile to resolve the preferred mode,
- * clamping it to available modes for the tier.
+ * Returns the default governance mode for a given tier.
+ * Accepts pre-fetched data from useTierGovernanceAccess hook.
  */
 export function getDefaultGovernanceMode(
-  tierCode: string | null | undefined,
+  tierAccessData?: { governance_mode: string; is_default: boolean }[],
   governanceProfile?: string | null,
 ): GovernanceMode {
-  const available = getAvailableGovernanceModes(tierCode);
+  const available = getAvailableGovernanceModes(tierAccessData);
   if (governanceProfile) {
     const preferred = resolveGovernanceMode(governanceProfile);
     if (available.includes(preferred)) return preferred;
   }
-  // Fallback: pick the highest available mode (last in the array)
+  // Pick the explicit default, or fallback to last available
+  const defaultRow = tierAccessData?.find((r) => r.is_default);
+  if (defaultRow && VALID_MODES.has(defaultRow.governance_mode)) {
+    return defaultRow.governance_mode as GovernanceMode;
+  }
   return available[available.length - 1] ?? 'QUICK';
 }
 
 /**
- * Client-side 3-layer governance resolution (mirrors SQL `resolve_challenge_governance`).
+ * Client-side 3-layer governance resolution.
  *
  * Resolution order:
- *   1. Challenge override (`governance_mode_override`) — if set, use it
- *   2. Org default (`governance_profile`) — fallback
+ *   1. Challenge override → if set, use it
+ *   2. Org default → fallback
  *   3. Clamp against tier ceiling
  */
 export function resolveChallengeGovernance(
   challengeOverride: string | null | undefined,
   orgGovernanceProfile: string | null | undefined,
-  tierCode: string | null | undefined,
+  tierAccessData?: { governance_mode: string; is_default: boolean }[],
 ): GovernanceMode {
   const raw = challengeOverride ?? orgGovernanceProfile;
   const effective = resolveGovernanceMode(raw);
-  const available = getAvailableGovernanceModes(tierCode);
+  const available = getAvailableGovernanceModes(tierAccessData);
   if (available.includes(effective)) return effective;
-  // Clamp to highest allowed
   return available[available.length - 1] ?? 'QUICK';
 }
