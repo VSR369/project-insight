@@ -304,16 +304,16 @@ export default function CurationQueuePage() {
   const filtered = useMemo(() => {
     if (resolvedTab === "all") return challenges;
     if (resolvedTab === "incoming") {
-      return challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2);
+      return challenges; // All Phase 2 challenges
     }
     if (resolvedTab === "revision") {
       return challenges.filter(
-        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
+        (c) => c.current_phase === 2 && c.sla?.status === "BREACHED"
       );
     }
-    // "awaiting" — phase 3, non-breached
+    // "awaiting" — phase 2, non-breached
     return challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+      (c) => c.current_phase === 2 && c.sla?.status !== "BREACHED"
     );
   }, [challenges, resolvedTab]);
 
