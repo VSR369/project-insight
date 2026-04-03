@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { LegalVersionHistory } from "@/components/cogniblend/LegalVersionHistory";
+import { logWarning } from '@/lib/errorHandler';
 
 // ---------------------------------------------------------------------------
 // Types

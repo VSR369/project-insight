@@ -88,6 +88,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { logWarning } from '@/lib/errorHandler';
 import {
   ArrowLeft,
   Sparkles,
