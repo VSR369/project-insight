@@ -60,8 +60,8 @@ export function useUpdateLifecyclePhase() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: UpdatePayload) => {
       const payload = await withUpdatedBy({ ...updates, updated_at: new Date().toISOString() });
-      const { error } = await supabase
-        .from('md_lifecycle_phase_config' as string)
+      const { error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
+        .from('md_lifecycle_phase_config')
         .update(payload)
         .eq('id', id);
       if (error) throw new Error(error.message);
