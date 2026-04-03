@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withCreatedBy, withUpdatedBy } from '@/lib/auditFields';
 import { CACHE_STANDARD } from '@/config/queryCache';
-import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
+import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -98,7 +98,7 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
       if (cErr) throw new Error(cErr.message);
       if (!challenge) throw new Error('Challenge not found');
 
-      const isEnterprise = isEnterpriseGrade(resolveGovernanceMode(challenge.governance_profile));
+      const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
       const rawCriteria = (challenge.evaluation_criteria as unknown as EvaluationCriterion[]) ?? [];
 
       // 2. Submitted abstracts (phase_status ACTIVE or SHORTLISTED/REJECTED via selection_status)

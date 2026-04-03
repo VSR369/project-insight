@@ -79,7 +79,7 @@ export function useCurrentOrg() {
         isInternalDepartment: !!saasData,
         verificationStatus: org?.verification_status ?? null,
         tcVersionAccepted: org?.tc_version_accepted ?? null,
-        governanceProfile: org?.governance_profile ?? 'LIGHTWEIGHT',
+        governanceProfile: org?.governance_profile ?? 'QUICK',
         lcReviewRequired: !!(org?.lc_review_required),
       };
     },

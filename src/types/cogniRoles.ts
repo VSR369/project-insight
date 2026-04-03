@@ -2,8 +2,8 @@
  * cogniRoles.ts — Centralized role constants, display maps, and type definitions
  * for the CogniBlend Workspace Mode system.
  *
- * ROLE ARCHITECTURE v2: 2 core roles (CR, CU) + 3 support roles (ER, LC, FC)
- * Removed: AM, RQ, CA, ID
+ * ROLE ARCHITECTURE v3: 5 active roles (CR, CU, ER, LC, FC)
+ * Dead roles (AM, RQ, CA, ID) fully removed — DB cleaned via migration.
  */
 
 /** Role priority order — highest priority first */
@@ -16,14 +16,6 @@ export const ROLE_DISPLAY: Record<string, string> = {
   ER: 'Evaluation Reviewer',
   LC: 'Legal Compliance',
   FC: 'Finance Controller',
-};
-
-/** Legacy role codes that map to CR for backward compatibility */
-export const LEGACY_ROLE_ALIASES: Record<string, string> = {
-  AM: 'CR',
-  RQ: 'CR',
-  CA: 'CR',
-  ID: 'CU',
 };
 
 /** Role code → badge colour config */
@@ -61,24 +53,11 @@ export const SOLVER_PATHS = [
 ];
 
 /**
- * Resolves a role code, mapping legacy codes to their current equivalents.
- */
-export function resolveRoleCode(code: string): string {
-  return LEGACY_ROLE_ALIASES[code] ?? code;
-}
-
-/**
  * Returns the highest-priority role from a set of role codes.
- * Legacy codes are resolved to their current equivalents first.
  */
 export function getPrimaryRole(codes: Set<string>): string {
-  // Resolve legacy codes
-  const resolvedCodes = new Set<string>();
-  for (const code of codes) {
-    resolvedCodes.add(resolveRoleCode(code));
-  }
   for (const code of ROLE_PRIORITY) {
-    if (resolvedCodes.has(code)) return code;
+    if (codes.has(code)) return code;
   }
   return 'CR';
 }

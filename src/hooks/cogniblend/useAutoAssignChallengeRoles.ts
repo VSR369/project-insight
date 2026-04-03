@@ -172,22 +172,7 @@ async function findValidCandidate(
 
     if (conflict.conflictType === "HARD_BLOCK") continue;
 
-    if (conflict.conflictType === "SOFT_WARN") {
-      await supabase.from("audit_trail").insert({
-        user_id: input.assignedBy,
-        challenge_id: input.challengeId,
-        action: "ROLE_CONFLICT_OVERRIDE",
-        method: "SYSTEM",
-        details: {
-          role_code: input.roleCode,
-          candidate_user: candidate.user_id,
-          candidate_pool_member: candidate.id,
-          conflict_message: conflict.message,
-          auto_assigned: true,
-        },
-      });
-    }
-
+    // ALLOWED — use this candidate
     return candidate;
   }
   return null;

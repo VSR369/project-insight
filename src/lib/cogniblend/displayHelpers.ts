@@ -15,7 +15,6 @@ export function formatCurrency(amount: number, currency: string): string {
 
 export function governanceLabel(profile: string | null): string {
   switch (profile) {
-    case 'LIGHTWEIGHT':
     case 'QUICK':
       return 'Quick';
     case 'STRUCTURED':

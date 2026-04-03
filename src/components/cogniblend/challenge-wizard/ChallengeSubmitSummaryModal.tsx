@@ -4,7 +4,7 @@
  */
 
 import { Check, AlertTriangle, Send } from 'lucide-react';
-import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
+import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +54,7 @@ export function ChallengeSubmitSummaryModal({
   isSubmitting,
   onConfirm,
 }: ChallengeSubmitSummaryModalProps) {
-  const isEnterprise = isEnterpriseGrade(resolveGovernanceMode(governanceProfile));
+  const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
   const sym = CURRENCY_SYMBOLS[values.currency_code] ?? '$';
   const totalWeight = values.weighted_criteria.reduce((s, c) => s + (c.weight || 0), 0);
   const deliverables = values.deliverables_list.filter(Boolean);

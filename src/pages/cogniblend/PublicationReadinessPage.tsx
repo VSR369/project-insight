@@ -36,7 +36,7 @@ export default function PublicationReadinessPage() {
 
   const { data, isLoading, error } = usePublicationReadiness(id);
   const escrowQuery = useEscrowDeposit(
-    data?.governanceProfile !== 'LIGHTWEIGHT' ? id : undefined,
+    data?.governanceProfile !== 'QUICK' ? id : undefined,
     user?.id,
   );
   const publishMutation = usePublishChallenge();

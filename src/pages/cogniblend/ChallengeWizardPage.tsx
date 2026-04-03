@@ -36,7 +36,7 @@ import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScre
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { resolveGovernanceMode, resolveChallengeGovernance, isQuickMode, isEnterpriseGrade, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
+import { resolveGovernanceMode, resolveChallengeGovernance, isQuickMode, isStructuredOrAbove, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
 import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
@@ -331,7 +331,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   }
 
   // ═══════ Derived ═══════
-  const isEnterprise = isEnterpriseGrade(governanceMode);
+  const isEnterprise = isStructuredOrAbove(governanceMode);
   const modeConfig = GOVERNANCE_MODE_CONFIG[governanceMode];
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Creating New Challenge';
   const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;

@@ -212,7 +212,7 @@ export default function ChallengeManagePage() {
                     return (
                       <tr key={s.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2 pr-4 font-medium text-foreground">
-                          {data.governanceProfile !== 'LIGHTWEIGHT' ? (
+                          {data.governanceProfile !== 'QUICK' ? (
                             <span className="flex items-center gap-1.5">
                               <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
                               {s.solverLabel}
@@ -239,7 +239,7 @@ export default function ChallengeManagePage() {
             </div>
           )}
 
-          {data.governanceProfile !== 'LIGHTWEIGHT' && data.submissions.length > 0 && (
+          {data.governanceProfile !== 'QUICK' && data.submissions.length > 0 && (
             <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
               <ShieldCheck className="h-3 w-3" />
               Solver identities anonymised until evaluation phase.

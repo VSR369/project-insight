@@ -12,7 +12,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_FREQUENT } from '@/config/queryCache';
-import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
+import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -85,7 +85,7 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
 
       if (sErr) throw new Error(sErr.message);
 
-      const isEnterprise = isEnterpriseGrade(resolveGovernanceMode(challenge.governance_profile));
+      const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
 
       const submissions: ManagedSubmission[] = (subs ?? []).map((s, idx) => ({
         id: s.id,
