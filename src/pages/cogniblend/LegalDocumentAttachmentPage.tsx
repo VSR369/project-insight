@@ -19,7 +19,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
+// useCompletePhase removed — using complete_legal_review RPC instead
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
 import { useLcReviewStatus } from "@/hooks/cogniblend/useLcReviewStatus";
 import { useLegalReviewRequest } from "@/hooks/cogniblend/useLegalReviewRequest";
@@ -168,7 +168,7 @@ export default function LegalDocumentAttachmentPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const completePhase = useCompletePhase();
+  // completePhase hook removed — using complete_legal_review RPC
   const pageTopRef = useRef<HTMLDivElement>(null);
   const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
   const { data: lcStatus } = useLcReviewStatus(challengeId);
@@ -179,6 +179,7 @@ export default function LegalDocumentAttachmentPage() {
   const [gateFailures, setGateFailures] = useState<string[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const [isComplianceSubmitting, setIsComplianceSubmitting] = useState(false);
 
   // Preview state
   const [previewDoc, setPreviewDoc] = useState<{
@@ -642,9 +643,12 @@ export default function LegalDocumentAttachmentPage() {
     }
   };
 
+
+
   const handleConfirmSubmit = async () => {
     if (!user?.id || !challengeId) return;
     setShowConfirmModal(false);
+    setIsComplianceSubmitting(true);
 
     try {
       // If coming from LEGAL_VERIFICATION_PENDING, transition to COMPLETED first and log audit
@@ -661,18 +665,45 @@ export default function LegalDocumentAttachmentPage() {
         });
       }
 
-      // Now advance to Phase 3 via complete_phase
-      completePhase.mutate(
-        { challengeId, userId: user.id },
-        {
-          onSuccess: () => {
-            toast.success("Challenge submitted for curation.");
-            navigate("/cogni/dashboard");
-          },
+      // Use complete_legal_review RPC instead of complete_phase directly
+      const { data: reviewResult, error } = await supabase.rpc('complete_legal_review', {
+        p_challenge_id: challengeId,
+        p_user_id: user.id,
+      });
+
+      if (error) throw new Error(error.message);
+
+      const result = reviewResult as unknown as { success: boolean; advanced: boolean; current_phase: number; message: string; error?: string };
+      if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
+
+      // If advanced to Phase 3, auto-assign CU from pool
+      if (result.advanced && result.current_phase >= 3) {
+        try {
+          const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
+          await autoAssignChallengeRole({
+            challengeId,
+            roleCode: 'CU',
+            assignedBy: user.id,
+          });
+        } catch {
+          // CU assignment failure is non-blocking
         }
-      );
-    } catch (err: any) {
-      toast.error(`Submission error: ${err.message}`);
+        queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+
+      const msg = result.advanced
+        ? 'Challenge submitted for curation.'
+        : 'Legal review complete — waiting for financial compliance.';
+      toast.success(msg);
+      if (result.advanced) navigate("/cogni/dashboard");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Submission error';
+      toast.error(`Submission error: ${message}`);
+    } finally {
+      setIsComplianceSubmitting(false);
     }
   };
 
@@ -999,7 +1030,7 @@ export default function LegalDocumentAttachmentPage() {
           onClick={handleSubmitForCuration}
           disabled={
             isValidating ||
-            completePhase.isPending ||
+            isComplianceSubmitting ||
             (lcStatus?.hasPending ?? false) ||
             (lcStatus?.hasRejected ?? false)
           }
@@ -1007,7 +1038,7 @@ export default function LegalDocumentAttachmentPage() {
           <Send className="h-4 w-4" />
           {isValidating
             ? "Validating…"
-            : completePhase.isPending
+            : isComplianceSubmitting
             ? "Submitting…"
             : lcStatus?.hasPending
             ? "Awaiting LC Review…"
@@ -1078,11 +1109,11 @@ export default function LegalDocumentAttachmentPage() {
             </Button>
             <Button
               onClick={handleConfirmSubmit}
-              disabled={completePhase.isPending}
+              disabled={isComplianceSubmitting}
               className="gap-2"
             >
               <ArrowRight className="h-4 w-4" />
-              {completePhase.isPending ? "Submitting…" : "Submit"}
+              {isComplianceSubmitting ? "Submitting…" : "Submit"}
             </Button>
           </DialogFooter>
         </DialogContent>

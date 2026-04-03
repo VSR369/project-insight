@@ -9,7 +9,7 @@
  *   CONTROLLED: 8 essential + 5 context fields required
  */
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors'
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import { supabase } from '@/integrations/supabase/client';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
@@ -147,6 +148,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
   const updateDraftMutation = useUpdateDraft();
 
   const [showTierModal, setShowTierModal] = useState(false);
+  const [showLegalGate, setShowLegalGate] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = useState<CreatorFormValues | null>(null);
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
@@ -339,12 +342,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
     [currentOrg, user, engagementModel, governanceMode],
   );
 
-  const handleSubmit = form.handleSubmit(async (data) => {
-    if (tierLimit && !tierLimit.allowed) {
-      setShowTierModal(true);
-      return;
-    }
-
+  const executeSubmit = useCallback(async (data: CreatorFormValues) => {
     try {
       const payload = buildPayload(data);
       const result = await submitMutation.mutateAsync({
@@ -381,7 +379,32 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
     } catch {
       // Error handled by mutation onError
     }
+  }, [buildPayload, submitMutation, referenceUrls, draftChallengeId, attachedFiles, currentOrg, user, navigate]);
+
+  const handleSubmit = form.handleSubmit(async (data) => {
+    if (tierLimit && !tierLimit.allowed) {
+      setShowTierModal(true);
+      return;
+    }
+
+    // Show legal gate for CHALLENGE_SUBMIT before proceeding
+    setPendingSubmitData(data);
+    setShowLegalGate(true);
   });
+
+  const handleLegalAccepted = useCallback(() => {
+    setShowLegalGate(false);
+    if (pendingSubmitData) {
+      executeSubmit(pendingSubmitData);
+      setPendingSubmitData(null);
+    }
+  }, [pendingSubmitData, executeSubmit]);
+
+  const handleLegalDeclined = useCallback(() => {
+    setShowLegalGate(false);
+    setPendingSubmitData(null);
+    toast.error('Challenge submission cancelled — legal agreement declined');
+  }, []);
 
   const handleSaveDraft = async () => {
     const data = form.getValues();
@@ -535,6 +558,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
           tierName={tierLimit.tier_name}
           maxAllowed={tierLimit.max_allowed}
           currentActive={tierLimit.current_active}
+        />
+      )}
+
+      {showLegalGate && (
+        <LegalGateModal
+          triggerEvent="CHALLENGE_SUBMIT"
+          onAllAccepted={handleLegalAccepted}
+          onDeclined={handleLegalDeclined}
         />
       )}
     </FormProvider>

@@ -556,23 +556,42 @@ export default function LcLegalWorkspacePage() {
         return;
       }
 
-      // Direct phase update — bypasses complete_phase RPC permission issues
-      const { error } = await supabase.from('challenges').update({
-        current_phase: 3,
-        phase_status: 'ACTIVE',
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      }).eq('id', challengeId);
+      // Use complete_legal_review RPC — sets lc_compliance_complete and auto-advances if fc is also done
+      const { data: reviewResult, error } = await supabase.rpc('complete_legal_review', {
+        p_challenge_id: challengeId,
+        p_user_id: user.id,
+      });
 
       if (error) throw new Error(error.message);
+
+      const result = reviewResult as unknown as { success: boolean; advanced: boolean; current_phase: number; message: string; error?: string };
+      if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
+
+      // If advanced to Phase 3, auto-assign CU from pool
+      if (result.advanced && result.current_phase >= 3) {
+        try {
+          const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
+          await autoAssignChallengeRole({
+            challengeId,
+            roleCode: 'CU',
+            assignedBy: user.id,
+          });
+        } catch {
+          // CU assignment failure is non-blocking
+        }
+      }
 
       // Invalidate dashboard queries so curator sees the challenge
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
 
-      toast.success('Legal review complete — challenge advanced to Curation');
-      navigate('/cogni/dashboard');
+      const msg = result.advanced
+        ? 'Legal review complete — challenge advanced to Curation'
+        : 'Legal review complete — waiting for financial compliance';
+      toast.success(msg);
+      if (result.advanced) navigate('/cogni/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to submit';
       toast.error(msg);
