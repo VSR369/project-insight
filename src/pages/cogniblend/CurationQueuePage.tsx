@@ -423,11 +423,9 @@ export default function CurationQueuePage() {
             </TableHeader>
             <TableBody>
               {filtered.map((ch) => {
-                const isIncoming = ch.current_phase === 1 || ch.current_phase === 2;
-                const tooltipText = ch.current_phase === 1
-                  ? "Challenge specification is still being developed."
-                  : ch.current_phase === 2
-                  ? "This challenge is awaiting Legal & Finance review."
+                const isIncoming = false; // All challenges are Phase 2 (Curation)
+                const tooltipText = ch.current_phase === 2
+                  ? "This challenge is awaiting curation review."
                   : undefined;
                 return (
                   <TableRow

@@ -161,8 +161,9 @@ export function useSubmitSolutionRequest() {
       const phaseData = phaseResult as unknown as { current_phase?: number } | null;
       const currentPhase = phaseData?.current_phase ?? 0;
 
-      // Auto-assign CU only if we reached Phase 3+ (QUICK auto-advances; STRUCTURED stops at Phase 2)
-      if (currentPhase >= 3) {
+      // Auto-assign CU when Phase 2 (Curation) is reached — skip for QUICK (solo user has all roles)
+      const normalizedGov = (payload.governanceModeOverride ?? 'STRUCTURED').toUpperCase();
+      if (currentPhase >= 2 && normalizedGov !== 'QUICK') {
         try {
           await autoAssignChallengeRole({
             challengeId,

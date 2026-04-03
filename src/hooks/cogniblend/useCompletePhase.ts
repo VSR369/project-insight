@@ -77,7 +77,7 @@ function showSequentialToasts(
 
   // Final status toast
   setTimeout(() => {
-    if (result.stopped_reason === 'solver_phase' || result.new_phase === 7) {
+    if (result.stopped_reason === 'solver_phase' || result.new_phase === 4 || result.new_phase === 5) {
       toast(
         createElement(
           'div',
