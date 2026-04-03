@@ -28,6 +28,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { BillingAddressFields } from './BillingAddressFields';
 import { BillingPaymentSection } from './BillingPaymentSection';
 import { BillingOrderSummary } from './BillingOrderSummary';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 
 export function BillingForm() {
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
