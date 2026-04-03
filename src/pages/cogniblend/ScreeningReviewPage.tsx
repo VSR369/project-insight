@@ -143,7 +143,7 @@ function ScoringPanel({
           rows={4}
           disabled={readOnly}
         />
-        {isEnterprise && (
+        {isStructuredOrAbove && (
           <p className="text-xs text-muted-foreground">{commentary.length}/100 characters minimum</p>
         )}
       </div>
