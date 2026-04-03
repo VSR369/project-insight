@@ -9,7 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { resolveRoleCode } from '@/types/cogniRoles';
+
 
 export interface UserChallengeRoleRow {
   challenge_id: string;

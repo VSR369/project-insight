@@ -5,7 +5,7 @@
 
 import { Save, ArrowLeft, ArrowRight, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
+import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
 
 const STEP_NEXT_LABELS: Record<number, string> = {
   0: 'Continue to Challenge Brief',

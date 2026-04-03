@@ -3,7 +3,7 @@
  * Thin orchestrator delegating to gate screens and form sections.
  */
 
-import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade } from '@/lib/governanceMode';
+import { resolveGovernanceMode, isQuickMode, isStructuredOrAbove } from '@/lib/governanceMode';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
