@@ -268,24 +268,7 @@ export function useAssignMember() {
         if (!conflict.allowed) {
           throw new Error(conflict.message ?? "Role assignment blocked by governance conflict rules.");
         }
-        if (conflict.conflictType === "SOFT_WARN") {
-          // Log the override
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser) {
-            await supabase.from("audit_trail").insert({
-              user_id: currentUser.id,
-              challenge_id: challengeId,
-              action: "ROLE_CONFLICT_OVERRIDE",
-              method: "MANUAL",
-              details: {
-                role_code: roleCode,
-                pool_member_id: poolMemberId,
-                assigned_user_id: userId,
-                conflict_message: conflict.message,
-              },
-            });
-          }
-        }
+        // ALLOWED — proceed with assignment
       }
 
       const newAssignment = await withCreatedBy({
