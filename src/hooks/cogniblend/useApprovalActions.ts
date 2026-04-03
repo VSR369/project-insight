@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
+import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
 import type { Json } from '@/integrations/supabase/types';
 
 // ---------------------------------------------------------------------------
