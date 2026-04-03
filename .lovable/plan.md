@@ -1,5 +1,4 @@
 
-
 # Gap Analysis: CORRECTED-PIPELINE-FIX-PLAN-2.md vs Current Code
 
 ## All 5 Bugs: FIXED
@@ -12,6 +11,16 @@
 | B4: CU auto-assign at wrong time | FIXED | `useSubmitSolutionRequest.ts` line 165: `if (currentPhase >= 3)` guard |
 | B5: No CA gate on Creator submit | FIXED | `ChallengeCreatorForm.tsx` line 564 + `ChallengeWizardPage.tsx` line 819 both show `LegalGateModal` with `CHALLENGE_SUBMIT` |
 
+## Root Cause Analysis: Silent Auto-Assign Failures — FIXED
+
+| Root Cause | Status | Fix |
+|------------|--------|-----|
+| RC1: Pool seed uses displayName (fragile) | FIXED | `setup-test-scenario/index.ts` now matches by email + auth fallback |
+| RC2: Silent catch blocks hide CU assign failures | FIXED | `LcLegalWorkspacePage.tsx` + `LegalDocumentAttachmentPage.tsx` now log + toast.warning |
+| RC3: validateRoleAssignment defaults to STRUCTURED | FIXED | `useAutoAssignChallengeRoles.ts` resolves actual governance mode from DB |
+| Pool-only assignment (no org fallback) | FIXED | `useAutoAssignChallengeRoles.ts` tries `org_users` when pool returns empty |
+| `pool_member_id` NOT NULL blocks org assigns | FIXED | Migration makes column nullable + RPC guards workload increment |
+
 ## Additional Items from Doc
 
 | Item | Status | Detail |
@@ -21,22 +30,4 @@
 | D7: `as any` casts | OPEN | Requires Supabase type regeneration (out of scope) |
 | D8: Client-side IP capture | OPEN | Low priority, fails gracefully |
 | D9: PDF upload support | OPEN | Future enhancement |
-| D10: Archive old templates | **GAP — 17 templates still active** | `document_code IS NULL AND is_active = true` returns 17 rows |
-
-## RPC Return Shape: Minor Deviation (Not a Bug)
-
-The doc specifies `{completed, lc_complete, fc_complete, waiting_for}` but the deployed RPC returns `{success, phase_advanced, current_phase, waiting_for}`. The frontend correctly reads the actual RPC shape (`result.phase_advanced`, `result.success`). No mismatch exists between RPC and frontend — only between doc and implementation naming.
-
-## Single Remaining Fix: D10
-
-Archive 17 legacy templates that have `NULL` document_code. These are harmless (the `check_legal_gate` RPC ignores them) but clutter the admin template list.
-
-**Migration SQL:**
-```sql
-UPDATE legal_document_templates
-SET is_active = false, updated_at = now()
-WHERE document_code IS NULL AND is_active = true;
-```
-
-One migration, no frontend changes needed.
-
+| D10: Archive old templates | FIXED | Migration `20260403073113` archived 17 legacy templates |
