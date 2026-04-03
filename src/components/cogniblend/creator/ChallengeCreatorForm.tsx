@@ -26,6 +26,7 @@ import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors'
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import { supabase } from '@/integrations/supabase/client';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
