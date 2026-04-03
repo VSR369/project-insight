@@ -34,6 +34,9 @@ import {
 } from '@/hooks/cogniblend/useSolverEnrollment';
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
 import { ScrollToAcceptLegal } from './ScrollToAcceptLegal';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
+import { toast } from 'sonner';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
