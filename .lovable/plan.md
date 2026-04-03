@@ -1,104 +1,93 @@
 
 
-# Implementation Plan — Steps 4-10 (Remaining)
+# Gap Analysis — Governance & Lifecycle Overhaul
 
-Steps 1-3 are verified complete. Seven steps remain. One minor Step 3 item (DemoWorkflowSteps update) was missed and will be folded into Step 4.
-
----
-
-## Step 4: New Governance Hooks + DemoWorkflowSteps Fix
-
-**New files:**
-
-- `src/hooks/queries/useGovernanceModeConfig.ts` — React Query hook fetching from `md_governance_mode_config` by governance mode. Returns legal/escrow/curation/evaluation/award config. `staleTime: 5min` (reference data).
-
-- `src/hooks/queries/useTierGovernanceAccess.ts` — React Query hook fetching from `md_tier_governance_access` by tier code. Returns available modes + default. `staleTime: 5min`.
-
-**Edit:**
-
-- `src/components/cogniblend/demo/DemoWorkflowSteps.tsx` — Update `buildSteps()` to reflect 10-phase lifecycle: Create → Compliance (LC+FC) → Curation → Publication → Abstract Submit → Abstract Review → Solution Submit → Solution Review → Award → Payment. Show first 5 seeker-side phases in the visual stepper.
+## Status: Steps 1–8 DONE (DB + hooks + admin pages). Steps 9–10 DONE (complete_phase + assign_challenge_role). Residual gaps below.
 
 ---
 
-## Step 5: Admin Sidebar + Routes
+## GAP 1: Stale ENTERPRISE/LIGHTWEIGHT references in frontend code (6 files)
 
-**Edit `src/components/admin/AdminSidebar.tsx`:**
-- Add 3 entries after "Governance Rules": Governance Modes (Settings2), Role Convergence (GitMerge), Tier Access (Lock)
+The DB was cleaned, but several frontend files still fallback to `'ENTERPRISE'` string literals:
 
-**Edit `src/App.tsx`:**
-- Add 3 lazy imports and Route entries under `seeker-config/` with `PermissionGuard permissionKey="seeker_config.edit"`
+| File | Line | Issue |
+|------|------|-------|
+| `src/hooks/cogniblend/useScreeningReview.ts` | 114 | Comment says "for LIGHTWEIGHT display" |
+| `src/hooks/cogniblend/useScreeningReview.ts` | 175 | Fallback `?? 'ENTERPRISE'` |
+| `src/hooks/cogniblend/usePublicationReadiness.ts` | 186 | Fallback `?? 'ENTERPRISE'` |
+| `src/hooks/cogniblend/useManageChallenge.ts` | 146 | Fallback `?? 'ENTERPRISE'` |
+| `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx` | 225 | Passes `"Enterprise"` to RPC |
+| Test files (2) | various | `governance_profile: 'ENTERPRISE'` in fixtures |
 
----
-
-## Step 6: Governance Mode Config Page
-
-**New files:**
-
-- `src/pages/admin/seeker-config/GovernanceModeConfigPage.tsx` — Page shell fetching 3 rows, renders 3 `GovernanceModeCard` components. Under 150 lines.
-
-- `src/components/admin/governance/GovernanceModeCard.tsx` — Card with colored header (green/blue/purple). Sections: Legal Docs (Phase 2), Escrow (Phase 2), Curation (Phase 3), Evaluation (Phase 6/8), Award (Phase 9). React Hook Form + Zod. QUICK card has most toggles read-only. Save per card with `withUpdatedBy()`.
+**Fix:** Replace all `'ENTERPRISE'` fallbacks with `'STRUCTURED'` (the resolved default). Update comment on line 114. Update test fixtures.
 
 ---
 
-## Step 7: Role Convergence Matrix Page
+## GAP 2: `assign_challenge_role` RPC does NOT upsert `user_challenge_roles`
 
-**New files:**
+The plan specified Step 8/10 should upsert into `user_challenge_roles` (the governance-level role table). The implemented RPC only writes to `challenge_role_assignments` (the SLM-level assignment table). This means:
 
-- `src/pages/admin/seeker-config/RoleConvergencePage.tsx` — Page shell with 3 tabs. Under 150 lines.
+- `validate_role_assignment` checks `user_challenge_roles` for conflicts
+- But `assign_challenge_role` never writes to `user_challenge_roles`
+- Result: conflict validation always passes because the table is never populated by this RPC
 
-- `src/components/admin/governance/RoleConvergenceMatrix.tsx` — 5x5 matrix grid. Diagonal = gray dash. Upper triangle = toggle (green/red). Lower mirrors upper. QUICK tab read-only with banner.
-
-- `src/lib/convergenceUtils.ts` — Block count calculator and minimum team size derivation.
-
-Save: delete+re-insert rules for the governance_profile.
+**Fix:** Add a `user_challenge_roles` upsert inside `assign_challenge_role` using `p_governance_role_code`.
 
 ---
 
-## Step 8: Tier Governance Access Page
+## GAP 3: `useAutoAssignChallengeRoles` still uses OLD RPC signature
 
-**New file:**
-
-- `src/pages/admin/seeker-config/TierGovernanceAccessPage.tsx` — Table: rows = tiers (basic, standard, premium, enterprise), columns = QUICK/STRUCTURED/CONTROLLED. Checkbox for access, radio for default. Validation: at least one mode per tier, one default per tier.
+The hook calls `assign_challenge_role` with the **old** `auto_assign_challenge_role` parameter names (`p_pool_member_id`, `p_slm_role_code`, etc.). The new RPC created in Step 10 has the same signature, so this is actually fine — the Step 10 migration kept the same params. No gap here on closer inspection.
 
 ---
 
-## Step 9: complete_phase Rewrite (Migration)
+## GAP 4: `useSubmitSolutionRequest` still has inline legal doc logic
 
-New migration replacing the `complete_phase` function:
-
-- **Phase progression:** 1→2→3→4→5→6→7→8→9→10→NULL (replacing the old 13-phase map that currently goes 5→7, 10→11→12→13)
-- **Phase 2→3 gate:** Check `lc_compliance_complete AND fc_compliance_complete`. Replace old `validate_gate_03` call.
-- **On advance TO Phase 2:** Read `md_governance_mode_config` for challenge's governance mode. If `legal_doc_mode = 'auto_apply'`, set `lc_compliance_complete = TRUE`. If `escrow_mode = 'not_applicable'`, set `fc_compliance_complete = TRUE`.
-- **Remove old gate calls:** Remove `validate_gate_03` and `validate_gate_04` checks (replaced by new Phase 2 compliance gate).
-- **Same-actor recursive auto-complete:** Retain existing logic using updated 5 role codes.
+Line 180-193 of `useSubmitSolutionRequest.ts` manually auto-attaches legal docs for QUICK mode. This duplicates logic now handled by `complete_phase` (Step 7 auto-sets `lc_compliance_complete` when `legal_doc_mode = 'auto_apply'`). The inline code should be removed to avoid double-writes.
 
 ---
 
-## Step 10: Assignment Pipeline Fix (Migration + Code)
+## GAP 5: `isEnterprise` naming in useScreeningReview
 
-**Migration:** Create `assign_challenge_role` SECURITY DEFINER RPC:
-1. Resolve challenge governance mode from `COALESCE(governance_mode_override, governance_profile, 'STRUCTURED')`
-2. Call `validate_role_assignment` (binary check)
-3. Upsert into `user_challenge_roles`
-4. Log to `audit_trail`
-
-**Code changes:**
-
-- `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts` — Replace `persistViaRpc` (which calls `auto_assign_challenge_role`) with calls to new `assign_challenge_role` RPC. Pool member lookup stays the same; only the final persistence changes.
-
-- `src/hooks/cogniblend/useSubmitSolutionRequest.ts` — After `complete_phase` succeeds, call `assign_challenge_role` to assign CU.
+The variable `isEnterprise` (line 101) and interface field `isEnterprise` (line 48) are misleading — they actually mean "is structured or above" (controls blind evaluation). Should be renamed to `isBlindMode` or `isStructuredOrAbove` for clarity.
 
 ---
 
-## Execution Order
+## GAP 6: Test fixtures use dead values
 
-| # | What | Type |
-|---|------|------|
-| 1 | Step 4: Hooks + DemoWorkflowSteps fix | Code |
-| 2 | Step 5: Sidebar + routes | Code |
-| 3 | Step 6: Governance Mode Config page | Feature |
-| 4 | Step 7: Role Convergence page | Feature |
-| 5 | Step 8: Tier Governance Access page | Feature |
-| 6 | Step 9: complete_phase rewrite | SQL migration |
-| 7 | Step 10: Assignment pipeline fix | Code + SQL |
+Two test files reference `governance_profile: 'ENTERPRISE'`:
+- `src/components/cogniblend/dashboard/__tests__/MyChallengesSection.test.tsx`
+- `src/pages/cogniblend/__tests__/Gate02LegalTransition.test.ts`
+
+**Fix:** Update to `'STRUCTURED'`.
+
+---
+
+## Implementation Plan (4 changes)
+
+### 1. Migration: Fix `assign_challenge_role` to upsert `user_challenge_roles`
+Add after the `challenge_role_assignments` upsert:
+```sql
+INSERT INTO user_challenge_roles (user_id, challenge_id, role_code, is_active, auto_assigned, assigned_by)
+VALUES (p_user_id, p_challenge_id, p_governance_role_code, true, true, p_assigned_by)
+ON CONFLICT (user_id, challenge_id, role_code) DO UPDATE
+SET is_active = true, updated_at = NOW();
+```
+
+### 2. Clean ENTERPRISE fallbacks (5 files)
+Replace `?? 'ENTERPRISE'` with `?? 'STRUCTURED'` in:
+- `useScreeningReview.ts` (line 175)
+- `usePublicationReadiness.ts` (line 186)
+- `useManageChallenge.ts` (line 146)
+- `LegalDocumentAttachmentPage.tsx` (line 225): change `"Enterprise"` to `"STRUCTURED"`
+- `useScreeningReview.ts` (line 114): update comment
+
+### 3. Rename `isEnterprise` to `isBlindMode` in useScreeningReview
+Rename the variable and interface field. Update all 4 references within the file.
+
+### 4. Remove duplicate legal doc auto-attach in useSubmitSolutionRequest
+Remove lines 180-193 (the inline QUICK-mode legal doc logic). This is now handled by `complete_phase` + `md_governance_mode_config`.
+
+### 5. Update test fixtures
+Change `'ENTERPRISE'` to `'STRUCTURED'` in 2 test files.
 
