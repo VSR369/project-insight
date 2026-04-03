@@ -54,7 +54,7 @@ export function ChallengeSubmitSummaryModal({
   isSubmitting,
   onConfirm,
 }: ChallengeSubmitSummaryModalProps) {
-  const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
+  const isStructured = isStructuredOrAbove(resolveGovernanceMode(governanceProfile));
   const sym = CURRENCY_SYMBOLS[values.currency_code] ?? '$';
   const totalWeight = values.weighted_criteria.reduce((s, c) => s + (c.weight || 0), 0);
   const deliverables = values.deliverables_list.filter(Boolean);
