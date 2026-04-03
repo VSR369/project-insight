@@ -97,12 +97,10 @@ export default function LegalDocumentTemplatesPage() {
         <h1 className="text-2xl font-bold tracking-tight">Legal Document Templates</h1>
         <p className="text-muted-foreground mt-1">Manage master legal document templates for governance modes</p>
       </div>
-      <DataTable data={items} columns={columns} actions={actions} searchKey="document_name" searchPlaceholder="Search templates..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Template" emptyMessage="No legal document templates found." />
+      <DataTable data={items.map(i => ({ ...i, id: i.template_id }))} columns={columns as DataTableColumn<LegalDocumentTemplate & { id: string }>[]} actions={actions as DataTableAction<LegalDocumentTemplate & { id: string }>[]} searchKey="document_name" searchPlaceholder="Search templates..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Template" emptyMessage="No legal document templates found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Legal Template" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
-      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Legal Template Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} extraActions={[
-        { label: "Edit Content", onClick: () => { setIsViewOpen(false); setIsContentEditorOpen(true); } },
-        { label: "Manage File", onClick: () => { setIsViewOpen(false); setIsFileUploadOpen(true); } },
-      ]} />
+      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Legal Template Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
+      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Template" : "Delete Template"} itemName={selected?.document_name} onConfirm={() => deleteM.mutateAsync(selected!.template_id)} isLoading={deleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Template" : "Delete Template"} itemName={selected?.document_name} onConfirm={() => deleteM.mutateAsync(selected!.template_id)} isLoading={deleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
       {selected && <LegalTemplateContentEditor open={isContentEditorOpen} onOpenChange={setIsContentEditorOpen} template={selected} />}
       {selected && <LegalTemplateFileUpload open={isFileUploadOpen} onOpenChange={setIsFileUploadOpen} template={selected} />}
