@@ -14,9 +14,9 @@ import { cn } from '@/lib/utils';
 import { AiFieldAssist } from './AiFieldAssist';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
-const PROBLEM_MIN_ENTERPRISE = 500;
+const PROBLEM_MIN_STRUCTURED = 500;
 const PROBLEM_MIN_QUICK = 200;
-const SCOPE_MIN_ENTERPRISE = 200;
+const SCOPE_MIN_STRUCTURED = 200;
 const SCOPE_MIN_QUICK = 100;
 
 interface StepProblemContentFieldsProps {
