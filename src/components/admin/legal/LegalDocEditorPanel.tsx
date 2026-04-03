@@ -19,6 +19,7 @@ import { LegalDocQuickInserts } from './LegalDocQuickInserts';
 
 interface LegalDocEditorPanelProps {
   content: string;
+  contentVersion: number;
   onContentChange: (html: string, json: Record<string, unknown> | null) => void;
 }
 
