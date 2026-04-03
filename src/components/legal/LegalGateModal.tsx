@@ -126,6 +126,15 @@ export function LegalGateModal({
           {currentDoc.summary && (
             <p className="text-sm text-muted-foreground mt-1">{currentDoc.summary}</p>
           )}
+          {priorAcceptance?.hasPriorVersion && (
+            <Alert variant="default" className="mt-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
+                This document has been updated since you last accepted it
+                (v{priorAcceptance.previousVersion} → v{currentDoc.document_version}).
+              </AlertDescription>
+            </Alert>
+          )}
         </DialogHeader>
 
         <div className="flex-1 min-h-0 px-6">
