@@ -1,49 +1,25 @@
+## Migration (PROMPT 1)
+- Create `md_lifecycle_phase_config` table with 30 seed rows (10 phases × 3 modes)
+- Config-driven RPCs: `get_phase_required_role`, `get_phase_config`, rewrite `complete_phase`
+- `auto_assign_roles_on_creation` RPC update
+- `complete_legal_review` and `complete_financial_review` RPCs (now Phase 3)
+- Pool email unique constraint fix
 
+## Frontend Phase Refs (PROMPT 2)
+- `useSubmitSolutionRequest.ts`: CU auto-assign at phase >= 2 (not 3)
+- `CurationQueuePage.tsx`: Filter `.in("current_phase", [2])`, update badges
+- `LcLegalWorkspacePage.tsx`: Phase 3 references
+- `LegalDocumentAttachmentPage.tsx`: Phase 3 references
+- `CurationActions.tsx`: After curation approval, auto-assign LC+FC for CONTROLLED
+- `useCompletePhase.ts`: Update phase 7 reference for publication
 
-# Fix Plan: Pool Constraint + Seed Robustness
+## Seed Fix (PROMPT 3)
+- Phase label: "SPEC_REVIEW" → "CURATION"
+- Pool entries already use SELECT+INSERT/UPDATE pattern (done previously)
 
-## Problem
-
-The demo seed fails to create/update pool entries because `onConflict: 'email'` requires a full UNIQUE constraint, but only a partial index (`WHERE is_active = TRUE`) exists. This means Casey, Evelyn, and Frank never get pool entries — breaking auto-assignment entirely.
-
-## Changes
-
-### 1. Migration: Add proper UNIQUE constraint on `platform_provider_pool.email`
-
-```sql
-DROP INDEX IF EXISTS idx_pool_email_unique;
-ALTER TABLE public.platform_provider_pool
-  ADD CONSTRAINT platform_provider_pool_email_key UNIQUE (email);
-```
-
-This replaces the partial index with a real constraint that PostgREST can resolve for upsert operations.
-
-### 2. Edge function: Replace upsert with defensive SELECT + INSERT/UPDATE
-
-**File:** `supabase/functions/setup-test-scenario/index.ts` (~lines 436-462)
-
-Replace the `.upsert(...)` call with:
-- `SELECT id FROM platform_provider_pool WHERE email = ?` via `.maybeSingle()`
-- If exists: `.update({...}).eq('id', existing.id)`
-- If not: `.insert({...})`
-
-This works regardless of constraint configuration and is fully idempotent.
-
-### 3. Fix phase labels in seed log messages
-
-**File:** `supabase/functions/setup-test-scenario/index.ts` (lines 355, 394)
-
-Replace `"Phase 2 — SPEC_REVIEW"` with `"Phase 2 — COMPLIANCE"` (2 occurrences).
-
----
-
-## Technical Notes
-
-- Steps 2-5 from the original pipeline fix plan are already implemented and verified (catch blocks have logging, governance mode resolution works, `pool_member_id` is nullable, org_users fallback exists).
-- The UNIQUE constraint change means deactivated pool members with the same email cannot be re-added. This is acceptable — email should be globally unique in the pool regardless of active status.
-- Edge function will be redeployed after code changes.
-
-## Verification
-
-After applying: re-seed and confirm all three pool entries show `✅ Pool: ... user_id=linked` with zero `⚠️` warnings.
-
+## Admin Page (PROMPT 4)
+- `LifecyclePhaseConfigPage.tsx` — tabs shell (<80 lines)
+- `LifecyclePhaseTable.tsx` — table per mode (<150 lines)
+- `LifecyclePhaseRow.tsx` — editable row (<100 lines)
+- `useLifecyclePhaseConfig.ts` — query + mutation hooks
+- Add sidebar entry + route in App.tsx
