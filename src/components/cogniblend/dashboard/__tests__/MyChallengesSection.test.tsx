@@ -23,7 +23,7 @@ const ITEMS: MyChallengeItem[] = [
     master_status: 'ACTIVE',
     phase_status: 'ACTIVE',
     current_phase: 2,
-    governance_profile: 'LIGHTWEIGHT',
+    governance_profile: 'QUICK',
     governance_mode_override: null,
     role_codes: ['CR'],
     operating_model: 'MP',
