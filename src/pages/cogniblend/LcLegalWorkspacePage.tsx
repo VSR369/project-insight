@@ -564,11 +564,11 @@ export default function LcLegalWorkspacePage() {
 
       if (error) throw new Error(error.message);
 
-      const result = reviewResult as unknown as { success: boolean; advanced: boolean; current_phase: number; message: string; error?: string };
+      const result = reviewResult as unknown as { success: boolean; phase_advanced: boolean; current_phase: number; message: string; error?: string };
       if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
 
       // If advanced to Phase 3, auto-assign CU from pool
-      if (result.advanced && result.current_phase >= 3) {
+      if (result.phase_advanced && result.current_phase >= 3) {
         try {
           const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
           await autoAssignChallengeRole({
@@ -587,11 +587,11 @@ export default function LcLegalWorkspacePage() {
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
 
-      const msg = result.advanced
+      const msg = result.phase_advanced
         ? 'Legal review complete — challenge advanced to Curation'
         : 'Legal review complete — waiting for financial compliance';
       toast.success(msg);
-      if (result.advanced) navigate('/cogni/dashboard');
+      if (result.phase_advanced) navigate('/cogni/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to submit';
       toast.error(msg);

@@ -279,6 +279,13 @@ export function SolverEnrollmentCTA({
     userRole: 'SOLVER',
   });
 
+  // Legal gate for CHALLENGE_JOIN trigger (challenge-specific PSA)
+  const joinGate = useLegalGateAction({
+    triggerEvent: 'CHALLENGE_JOIN',
+    challengeId,
+    userRole: 'SOLVER',
+  });
+
   const model = enrollmentModel || 'OPEN';
   const modelInfo = MODEL_LABELS[model] ?? MODEL_LABELS.OPEN;
 
@@ -436,9 +443,11 @@ export function SolverEnrollmentCTA({
     }
   };
 
-  // Gate enrollment behind SOLVER_ENROLLMENT legal check
+  // Gate enrollment behind SOLVER_ENROLLMENT then CHALLENGE_JOIN legal checks
   const handleEnroll = () => {
-    solverGate.gateAction(executeEnroll);
+    solverGate.gateAction(() => {
+      joinGate.gateAction(executeEnroll);
+    });
   };
 
   const handleLegalAccept = (scrollConfirmed: boolean, adAccepted: boolean) => {
@@ -525,6 +534,20 @@ export function SolverEnrollmentCTA({
           onDeclined={() => {
             solverGate.handleDeclined();
             toast.error('You must accept the legal terms to enroll.');
+          }}
+        />
+      )}
+
+      {/* CHALLENGE_JOIN legal gate (challenge-specific PSA) */}
+      {joinGate.showGate && (
+        <LegalGateModal
+          triggerEvent={joinGate.triggerEvent}
+          challengeId={challengeId}
+          userRole="SOLVER"
+          onAllAccepted={joinGate.handleAllAccepted}
+          onDeclined={() => {
+            joinGate.handleDeclined();
+            toast.error('You must accept the challenge-specific legal terms to enroll.');
           }}
         />
       )}

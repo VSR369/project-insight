@@ -673,11 +673,11 @@ export default function LegalDocumentAttachmentPage() {
 
       if (error) throw new Error(error.message);
 
-      const result = reviewResult as unknown as { success: boolean; advanced: boolean; current_phase: number; message: string; error?: string };
+      const result = reviewResult as unknown as { success: boolean; phase_advanced: boolean; current_phase: number; message: string; error?: string };
       if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
 
       // If advanced to Phase 3, auto-assign CU from pool
-      if (result.advanced && result.current_phase >= 3) {
+      if (result.phase_advanced && result.current_phase >= 3) {
         try {
           const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
           await autoAssignChallengeRole({
@@ -694,11 +694,11 @@ export default function LegalDocumentAttachmentPage() {
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
 
-      const msg = result.advanced
+      const msg = result.phase_advanced
         ? 'Challenge submitted for curation.'
         : 'Legal review complete — waiting for financial compliance.';
       toast.success(msg);
-      if (result.advanced) navigate("/cogni/dashboard");
+      if (result.phase_advanced) navigate("/cogni/dashboard");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Submission error';
       toast.error(`Submission error: ${message}`);
