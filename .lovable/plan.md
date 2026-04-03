@@ -1,85 +1,105 @@
 
 
-# Plan: Fix Document Creation Flow + Trigger Config Review
+# Gap Analysis: Legal Document Management System
 
-## Problems Identified
+## Spec Compliance Status
 
-### Problem 1: "Add Document" has no document code selector
-When clicking "Add Document" (without a code), the editor defaults to `PMA`. There is no UI to choose the document code. The config sidebar is also missing a `document_code` field for new documents.
-
-### Problem 2: Document codes are hardcoded — no way to add new ones
-The 5 codes (PMA, CA, PSA, IPAA, EPIA) are locked by:
-- A DB CHECK constraint: `document_code IN ('PMA','CA','PSA','IPAA','EPIA')`
-- A TypeScript type: `type DocumentCode = 'PMA' | 'CA' | ...`
-- Hardcoded arrays in `LegalDocumentListPage`, `LegalDocTriggerForm`, etc.
-
-To support new codes, the CHECK constraint must be dropped (or widened), and the code should read available codes dynamically or allow extending the list.
-
-### Problem 3: Trigger form missing key fields
-The `LegalDocTriggerForm` has these gaps vs spec:
-- **`required_roles`**: Hardcoded to `['{ALL}']` — no multi-select UI
-- **`is_active`**: No toggle (the table shows it, but the form doesn't set it)
-- **Trigger event descriptions**: Spec says show descriptions in the dropdown (e.g., "When any user first registers"), but currently only labels are shown
-
-### Problem 4: Trigger data is correct
-All 15 seed rows match the spec exactly. No data changes needed.
+Comparing the current implementation against both spec documents, here is the complete gap analysis.
 
 ---
 
-## Implementation
+## FULLY IMPLEMENTED (No Gaps)
 
-### Step 1: Add Document Code selector to Config Sidebar
-Add a `document_code` select field in `LegalDocConfigSidebar.tsx` that appears when creating a new document (not when editing an existing one). For existing documents, show it as read-only badge.
-
-**File:** `src/components/admin/legal/LegalDocConfigSidebar.tsx`
-
-### Step 2: Wire document_code from sidebar into the create flow
-Pass `document_code` from config state into the `handleSave` create path in `useLegalDocEditor.ts`. Currently it uses `defaultCode` — it should use `config.document_code ?? defaultCode`.
-
-**File:** `src/hooks/admin/useLegalDocEditor.ts`
-
-### Step 3: Add description field to editor page
-The sidebar should also include a `description` textarea for the document's purpose text (e.g., "Platform-wide terms of use, liability limitations..."). Currently `description` exists in the DB but is not editable in the sidebar.
-
-**File:** `src/components/admin/legal/LegalDocConfigSidebar.tsx`
-
-### Step 4: Fix "Add Document" button navigation
-The main list page "Add Document" button navigates to `/admin/legal-documents/new` without a code. This is fine — the user will select the code in the sidebar. No change needed here.
-
-### Step 5: Fix LegalDocTriggerForm — add missing fields
-- Add `required_roles` multi-select (CR, CU, ER, LC, FC, SOLVER, ALL)
-- Add `is_active` toggle
-- Add descriptions to trigger event dropdown items
-
-**File:** `src/components/admin/legal/LegalDocTriggerForm.tsx`
-
-### Step 6: Add trigger event descriptions to types
-Add a `TRIGGER_EVENT_DESCRIPTIONS` record to `legal.types.ts` with the spec descriptions.
-
-**File:** `src/types/legal.types.ts`
-
----
-
-## Regarding Adding New Document Codes
-
-The DB CHECK constraint restricts `document_code` to the 5 values. Two options:
-
-**Option A (Recommended):** Keep the constraint for data integrity. When a new code is needed, a DB migration adds it to the CHECK constraint + update the TypeScript type. This is a deliberate, controlled process.
-
-**Option B:** Drop the CHECK constraint and make it free-text. More flexible but loses data validation.
-
-I will implement **Option A** — keep the constraint, but make the UI code-list driven from a single constant so adding a new code only requires updating one TypeScript constant + one migration.
-
----
-
-## Files Modified
-
-| File | Change |
+| Spec Item | Status |
 |---|---|
-| `src/types/legal.types.ts` | Add `TRIGGER_EVENT_DESCRIPTIONS` |
-| `src/components/admin/legal/LegalDocConfigSidebar.tsx` | Add document_code select + description textarea |
-| `src/hooks/admin/useLegalDocEditor.ts` | Use config.document_code in create path |
-| `src/components/admin/legal/LegalDocTriggerForm.tsx` | Add required_roles multi-select, is_active toggle, event descriptions |
+| Database schema (templates, trigger_config, acceptance_log) | Done |
+| RLS policies (fixed in recent migration) | Done |
+| `check_legal_gate` RPC function | Done |
+| Supabase Storage bucket `legal-documents` | Done |
+| All 30 files from component tree exist | Done |
+| `legal-document.css` shared stylesheet | Done — matches spec exactly |
+| Editor Panel with TipTap + legal-doc class | Done |
+| Legal toolbar (H1-H4, bold, italic, underline, lists, table, align, link, clear, undo/redo) | Done |
+| Quick Inserts (Recital, Definition, Clause, Signature) | Done |
+| Config Sidebar (code selector, name, description, model, mode, roles multi-select, mandatory, date, summary, version history) | Done |
+| IPAA section tabs wired to editor content | Done |
+| Upload handler (.docx via mammoth, override confirm) | Done |
+| Save Draft + Publish Version + auto-save 30s | Done |
+| LegalGateModal (sequential docs, scroll tracking, checkbox gate, accept/decline) | Done |
+| LegalDocumentViewer with `legal-doc-page` + `legal-doc` classes | Done |
+| LegalGateActions (90% scroll threshold, checkbox, accept/decline) | Done |
+| LegalGateScrollTracker (extracted component) | Done |
+| `useLegalGate` (RPC call) | Done |
+| `useLegalAcceptance` (forensic logging: IP, user agent) | Done |
+| `useLegalGateAction` (reusable gate hook) | Done |
+| Trigger Config page (table + add/edit form) | Done |
+| Trigger Form (document code, section, event with descriptions, roles multi-select, mode, mandatory, active, display order) | Done |
+| Integration 5a: USER_REGISTRATION (AuthGuard → PMA) | Done |
+| Integration 5b: SEEKER_ENROLLMENT (BillingForm → CA) | Done |
+| Integration 5c: SOLVER_ENROLLMENT (SolverEnrollmentCTA → PSA) | Done |
+| Integration 5d: CHALLENGE_SUBMIT (ChallengeWizardPage → CA) | Done |
+| Integration 5e: ABSTRACT_SUBMIT (SolutionSubmitPage → PSA+IPAA) | Done |
+| Admin sidebar entries (Legal Documents, Legal Triggers) | Done |
+| Routes (list, new, edit, triggers) with PermissionGuard | Done |
+| Editor is full-screen standalone layout (no admin sidebar) | Done |
+| Acceptance UX: modal 90vw x 90vh, cannot close by clicking outside | Done |
+| ESC key prevented on modal | Done |
+| Fail-open: RPC errors auto-pass | Done |
+| Seed data: 15 trigger config rows | Done |
+| Seed data: 5 starter templates | Done |
 
-4 files, no migrations needed (trigger data already correct, DB schema already supports all fields).
+---
+
+## REMAINING GAPS
+
+### GAP 1: Integration 5f — WINNER_SELECTED / WINNER_CONFIRMED Not Wired
+
+**Spec says:** "In the award decision flow, add gate for IPAA final award — for BOTH CR and winning solver."
+
+**Current:** `WINNER_SELECTED` is defined in types but no component uses `useLegalGateAction` with this trigger. No `LegalGateModal` with `triggerEvent="WINNER_SELECTED"` exists in any award/winner flow.
+
+**Fix:** Find the winner confirmation/award decision component and wire the gate.
+
+### GAP 2: Version Change Detection Banner Missing
+
+**Spec (Page 16) says:** "If user previously accepted an older version, show banner: 'This document has been updated since you last accepted it.' Show 'What changed' link that opens a diff view (optional — V2 feature)."
+
+**Current:** No version change detection banner exists in `LegalGateModal`. The gate RPC handles re-acceptance correctly (won't show if already accepted current version), but there's no visual indicator that a new version is being shown.
+
+**Fix:** Add a banner in `LegalGateModal` when the document is being re-shown due to a version update. This can be detected by checking if the user has accepted any previous version of the same document_code.
+
+### GAP 3: AdminSidebar Legal Triggers Icon Wrong
+
+**Spec (Page 19) says:** `{ title: 'Legal Triggers', icon: Workflow, path: '/admin/legal-documents/triggers' }`
+
+**Current:** Uses `Shield` icon instead of `Workflow` icon.
+
+**Fix:** Change icon from `Shield` to `Workflow` in AdminSidebar.
+
+---
+
+## SUMMARY
+
+**30 out of 30 files:** All present.
+**22 of 22 verification checklist items:** 20 confirmed done, 1 gap (winner confirmation gate), 1 gap (version change banner).
+**1 minor UI issue:** Wrong sidebar icon for Legal Triggers.
+
+The system is 95%+ complete. Only 3 small gaps remain — none are architectural. All can be resolved in a single implementation pass touching ~3 files.
+
+---
+
+## Implementation Plan
+
+### Step 1: Wire WINNER_SELECTED gate
+- Find the award decision / winner confirmation component
+- Add `useLegalGateAction({ triggerEvent: 'WINNER_SELECTED' })` + `LegalGateModal`
+
+### Step 2: Add version change detection banner
+- In `LegalGateModal`, query if user has accepted any previous version of the same `document_code`
+- If yes, show a subtle banner: "This document has been updated since you last accepted it."
+
+### Step 3: Fix sidebar icon
+- Change `Shield` → `Workflow` for Legal Triggers in `AdminSidebar.tsx`
+
+**Files to modify:** ~3-4 files, minimal changes.
 
