@@ -49,11 +49,10 @@ export function LegalDocEditorPanel({ content, contentVersion, onContentChange }
   });
 
   React.useEffect(() => {
-    if (editor && content && !isInitialized) {
+    if (editor && content) {
       editor.commands.setContent(content);
-      setIsInitialized(true);
     }
-  }, [editor, content, isInitialized]);
+  }, [editor, contentVersion]);
 
   if (!editor) return null;
 
