@@ -1,35 +1,30 @@
 
 
-# Final Gap Analysis — Legal Document Management System
+# Fix: Legal Trigger Table UI Gaps
 
-## All Spec Items Verified
+## Current State
+- **Data: 15/15 triggers correct** — no changes needed
+- **Form: Complete** — all fields present (code, section, event with descriptions, roles multi-select, mode, mandatory, active, display order)
+- **Table: 3 minor gaps** in display
 
-Every item from the 22-page spec and the 35-page styling addendum has been checked against the current codebase. Here is the result:
+## Changes
 
-### Files: 30/30 present
-### Integrations: 6/6 wired
-### Database: schema, RLS, RPC, storage — all done
-### Seed data: 15 triggers + 5 templates — all done
+### 1. Add `is_active` column to trigger table
+Show an active/inactive badge so admins can see status at a glance without opening the edit form.
 
----
+**File:** `src/components/admin/legal/LegalDocTriggerTable.tsx`
 
-## ONE REMAINING GAP
+### 2. Show full document name in table
+Use `DOCUMENT_CODE_LABELS[t.document_code]` to display "Platform Master Agreement" with the code badge, instead of just the raw code.
 
-### ESC Key Should Trigger Decline (Not Block)
+**File:** `src/components/admin/legal/LegalDocTriggerTable.tsx`
 
-**Spec (Page 9, Acceptance UX rule 6):** "ESC key = Decline behavior"
+### 3. Add delete confirmation dialog
+Wrap the delete action in an `AlertDialog` requiring confirmation before deleting a trigger rule.
 
-**Current:** `onEscapeKeyDown={(e) => e.preventDefault()}` — ESC is fully blocked.
-
-**Expected:** Pressing ESC should call `handleAction('DECLINED')`, same as clicking the Decline button.
-
-**Fix:** In `LegalGateModal.tsx`, change the `onEscapeKeyDown` handler from `preventDefault` to calling the decline handler.
-
-**File:** `src/components/legal/LegalGateModal.tsx` (1 line change)
+**File:** `src/components/admin/legal/LegalDocTriggerTable.tsx`
 
 ---
 
-## EVERYTHING ELSE IS COMPLETE
-
-No other gaps found. The system is fully spec-compliant after this single fix.
+All changes are in one file. No data or schema changes needed.
 
