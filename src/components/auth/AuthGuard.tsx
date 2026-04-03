@@ -1,7 +1,14 @@
-import { ReactNode } from 'react';
+/**
+ * AuthGuard — Protects routes requiring authentication.
+ * Also triggers PMA (Platform Master Agreement) acceptance check on first login.
+ */
+import { ReactNode, useState, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -10,6 +17,18 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const [legalGatePassed, setLegalGatePassed] = useState(false);
+  const [showLegalGate, setShowLegalGate] = useState(true);
+
+  const handleAllAccepted = useCallback(() => {
+    setLegalGatePassed(true);
+    setShowLegalGate(false);
+  }, []);
+
+  const handleDeclined = useCallback(async () => {
+    toast.error('You must accept the Platform Agreement to continue.');
+    await supabase.auth.signOut();
+  }, []);
 
   if (loading) {
     return (
@@ -21,6 +40,17 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Show legal gate for USER_REGISTRATION trigger (PMA acceptance)
+  if (showLegalGate && !legalGatePassed) {
+    return (
+      <LegalGateModal
+        triggerEvent="USER_REGISTRATION"
+        onAllAccepted={handleAllAccepted}
+        onDeclined={handleDeclined}
+      />
+    );
   }
 
   return <>{children}</>;
