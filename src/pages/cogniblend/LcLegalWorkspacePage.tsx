@@ -564,11 +564,11 @@ export default function LcLegalWorkspacePage() {
 
       if (error) throw new Error(error.message);
 
-      const result = reviewResult as unknown as { success: boolean; advanced: boolean; current_phase: number; message: string; error?: string };
+      const result = reviewResult as unknown as { success: boolean; phase_advanced: boolean; current_phase: number; message: string; error?: string };
       if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
 
       // If advanced to Phase 3, auto-assign CU from pool
-      if (result.advanced && result.current_phase >= 3) {
+      if (result.phase_advanced && result.current_phase >= 3) {
         try {
           const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
           await autoAssignChallengeRole({
