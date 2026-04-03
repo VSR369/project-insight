@@ -28,7 +28,7 @@ export default function LegalDocumentEditorPage() {
   const isIPAA = editor.currentCode === 'IPAA';
 
   const handleUploadContent = (html: string, fileName: string, storageUrl: string | null) => {
-    editor.handleContentChange(html, null);
+    editor.setUploadedContent(html);
     editor.setConfig((prev) => ({
       ...prev,
       ...(storageUrl ? { original_file_url: storageUrl, original_file_name: fileName } : {}),
@@ -89,6 +89,7 @@ export default function LegalDocumentEditorPage() {
         <div className="flex-1 min-h-0 overflow-y-auto p-4">
           <LegalDocEditorPanel
             content={editor.editorState.content}
+            contentVersion={editor.contentVersion}
             onContentChange={editor.handleContentChange}
           />
         </div>

@@ -19,11 +19,11 @@ import { LegalDocQuickInserts } from './LegalDocQuickInserts';
 
 interface LegalDocEditorPanelProps {
   content: string;
+  contentVersion: number;
   onContentChange: (html: string, json: Record<string, unknown> | null) => void;
 }
 
-export function LegalDocEditorPanel({ content, onContentChange }: LegalDocEditorPanelProps) {
-  const [isInitialized, setIsInitialized] = React.useState(false);
+export function LegalDocEditorPanel({ content, contentVersion, onContentChange }: LegalDocEditorPanelProps) {
 
   const editor = useEditor({
     extensions: [
@@ -49,11 +49,10 @@ export function LegalDocEditorPanel({ content, onContentChange }: LegalDocEditor
   });
 
   React.useEffect(() => {
-    if (editor && content && !isInitialized) {
+    if (editor && content) {
       editor.commands.setContent(content);
-      setIsInitialized(true);
     }
-  }, [editor, content, isInitialized]);
+  }, [editor, contentVersion]);
 
   if (!editor) return null;
 

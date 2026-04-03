@@ -39,6 +39,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   const [config, setConfig] = React.useState<Partial<LegalDocTemplate>>({});
   const [isDirty, setIsDirty] = React.useState(false);
   const [showPublish, setShowPublish] = React.useState(false);
+  const [contentVersion, setContentVersion] = React.useState(0);
 
   // Sync template data into local state
   React.useEffect(() => {
@@ -63,6 +64,12 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   const handleContentChange = (html: string, json: Record<string, unknown> | null) => {
     setEditorState({ content: html, contentJson: json });
     setIsDirty(true);
+  };
+
+  const setUploadedContent = (html: string) => {
+    setEditorState({ content: html, contentJson: null });
+    setIsDirty(true);
+    setContentVersion((v) => v + 1);
   };
 
   const handleSave = React.useCallback(async () => {
@@ -122,7 +129,9 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     currentCode,
     showPublish,
     setShowPublish,
+    contentVersion,
     handleContentChange,
+    setUploadedContent,
     handleSave,
     handlePublish,
     isPublishing: publishDoc.isPending,
