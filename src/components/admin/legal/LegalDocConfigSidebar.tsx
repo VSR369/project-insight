@@ -8,8 +8,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { LegalDocVersionHistory } from './LegalDocVersionHistory';
 import type { LegalDocTemplate, AppliesModel, AppliesMode } from '@/types/legal.types';
+
+const ROLE_OPTIONS = [
+  { value: 'ALL', label: 'All Roles' },
+  { value: 'CR', label: 'Challenge Requester (CR)' },
+  { value: 'CU', label: 'Curator (CU)' },
+  { value: 'ER', label: 'Evaluator/Reviewer (ER)' },
+  { value: 'LC', label: 'Legal Coordinator (LC)' },
+  { value: 'FC', label: 'Finance Coordinator (FC)' },
+  { value: 'SOLVER', label: 'Solver' },
+] as const;
 
 interface LegalDocConfigSidebarProps {
   config: Partial<LegalDocTemplate>;
@@ -18,6 +29,18 @@ interface LegalDocConfigSidebarProps {
 }
 
 export function LegalDocConfigSidebar({ config, onChange, templateId }: LegalDocConfigSidebarProps) {
+  const selectedRoles = config.applies_to_roles ?? ['ALL'];
+
+  const handleRoleToggle = (role: string, checked: boolean) => {
+    if (role === 'ALL') {
+      onChange({ applies_to_roles: checked ? ['ALL'] : [] });
+      return;
+    }
+    const current = selectedRoles.filter((r) => r !== 'ALL');
+    const updated = checked ? [...current, role] : current.filter((r) => r !== role);
+    onChange({ applies_to_roles: updated.length === 0 ? ['ALL'] : updated });
+  };
+
   return (
     <div className="p-4 space-y-6">
       {/* Name */}
@@ -66,6 +89,24 @@ export function LegalDocConfigSidebar({ config, onChange, templateId }: LegalDoc
               <SelectItem value="ALL">All</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Applies to Roles</Label>
+          <div className="space-y-2 rounded-md border p-3">
+            {ROLE_OPTIONS.map((role) => (
+              <div key={role.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`role-${role.value}`}
+                  checked={selectedRoles.includes(role.value)}
+                  onCheckedChange={(checked) => handleRoleToggle(role.value, checked === true)}
+                />
+                <label htmlFor={`role-${role.value}`} className="text-sm cursor-pointer">
+                  {role.label}
+                </label>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
