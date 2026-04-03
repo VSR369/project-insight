@@ -6,10 +6,12 @@
 import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLegalGate } from '@/hooks/legal/useLegalGate';
 import { useLegalAcceptanceLog } from '@/hooks/legal/useLegalAcceptance';
+import { usePriorAcceptanceCheck } from '@/hooks/legal/usePriorAcceptanceCheck';
 import { LegalDocumentViewer } from './LegalDocumentViewer';
 import { LegalGateActions } from './LegalGateActions';
 import { useLegalDocTemplateById } from '@/hooks/queries/useLegalDocumentTemplates';
@@ -42,6 +44,12 @@ export function LegalGateModal({
   const currentDoc: PendingLegalDocument | undefined = pending[currentIndex];
 
   const { data: fullTemplate, isError: templateError } = useLegalDocTemplateById(currentDoc?.template_id);
+
+  const { data: priorAcceptance } = usePriorAcceptanceCheck(
+    currentDoc?.document_code,
+    currentDoc?.document_version,
+    !!currentDoc,
+  );
 
   // Fail-open: if RPC errors, don't trap user
   React.useEffect(() => {
@@ -117,6 +125,15 @@ export function LegalGateModal({
           </div>
           {currentDoc.summary && (
             <p className="text-sm text-muted-foreground mt-1">{currentDoc.summary}</p>
+          )}
+          {priorAcceptance?.hasPriorVersion && (
+            <Alert variant="default" className="mt-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
+                This document has been updated since you last accepted it
+                (v{priorAcceptance.previousVersion} → v{currentDoc.document_version}).
+              </AlertDescription>
+            </Alert>
           )}
         </DialogHeader>
 
