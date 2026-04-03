@@ -98,7 +98,7 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
       if (cErr) throw new Error(cErr.message);
       if (!challenge) throw new Error('Challenge not found');
 
-      const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
+      const isBlindMode = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
       const rawCriteria = (challenge.evaluation_criteria as unknown as EvaluationCriterion[]) ?? [];
 
       // 2. Submitted abstracts (phase_status ACTIVE or SHORTLISTED/REJECTED via selection_status)
