@@ -104,6 +104,9 @@ export function BillingForm() {
   const totalDiscount = Math.min(100, cycleDiscount + subsidizedPct);
   const dueToday = isInternalDept ? 0 : effectiveMonthly + membershipFee;
 
+  // Legal gate for SEEKER_ENROLLMENT trigger (CA acceptance)
+  const seekerGate = useLegalGateAction({ triggerEvent: 'SEEKER_ENROLLMENT' });
+
   // Submit handler
   const handleSubmit = async (data: BillingFormValues) => {
     if (!state.organizationId || !state.tenantId || !state.step4) {
