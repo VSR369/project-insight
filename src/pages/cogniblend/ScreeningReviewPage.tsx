@@ -406,10 +406,10 @@ export default function ScreeningReviewPage() {
   // ═══ SECTION 4: Derived ═══
   const hasERRole = roles?.includes('ER') ?? false;
   const hasCURole = roles?.includes('CU') ?? false;
-  const isEnterprise = data?.isBlindMode ?? false;
+  const isStructuredMode = data?.isBlindMode ?? false;
 
-  // Access: ER role for Enterprise, or challenge owner (any role) for Lightweight
-  const hasAccess = isEnterprise ? hasERRole : true; // Lightweight: owner-level checked by route guard
+  // Access: ER role for Structured+, or challenge owner (any role) for Quick
+  const hasAccess = isStructuredMode ? hasERRole : true;
 
   const selectedAbstract = data?.abstracts.find(a => a.id === selectedAbstractId) ?? null;
 
