@@ -352,7 +352,7 @@ serve(async (req) => {
     });
     if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
     challengeIds.push(mpChallengeId);
-    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — SPEC_REVIEW)`);
+    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — COMPLIANCE)`);
 
     // Challenge B — AGG model (RQ-submitted)
     const aggChallengeId = crypto.randomUUID();
