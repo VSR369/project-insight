@@ -1,81 +1,72 @@
 
 
-# Legal Document Templates Admin Page
+# Governance + Pipeline Fix — Implementation Plan
 
 ## Summary
-Build a Supervisor admin page at `/admin/seeker-config/legal-templates` for managing the master `legal_document_templates` table. Supervisors can view, create, edit, and deactivate legal document templates with rich text content and optional file uploads.
+Fix convergence matrices (STRUCTURED: 3 blocks, CONTROLLED: 9 blocks), update `initialize_challenge` to remove ENTERPRISE fallback, give STRUCTURED creators CR+LC auto-assign, add compliance pre-check to `complete_phase` recursion, and seed pool entries for demo users.
 
-## Current State
-- `legal_document_templates` table exists with columns: `template_id`, `document_type`, `document_name`, `tier`, `required_for_maturity` (JSONB), `description`, `default_template_url`, `is_active`, `trigger_phase`, `created_at`, `updated_at`
-- 17 seed records (8 Tier 1, 9 Tier 2), all with short descriptions and no uploaded files
-- Only a SELECT RLS policy exists — no INSERT/UPDATE/DELETE policies for admins
-- The `description` column is a plain TEXT field — too small for full legal clauses
+## What's Wrong Today
 
-## What We Need
+| Issue | Current | Correct |
+|-------|---------|---------|
+| **role_conflict_rules** | 8 rows (2 STR + 6 CTRL) | 12 rows (3 STR + 9 CTRL) |
+| STRUCTURED missing | `ER+FC` block | Must block ER+FC (kickback prevention) |
+| CONTROLLED missing | `CU+LC`, `CU+FC`, `ER+LC` blocks | All 9 pairs blocked |
+| **initialize_challenge** | Falls back to `'ENTERPRISE'` | Must fall back to `'STRUCTURED'` |
+| **auto_assign** STRUCTURED | CR only | CR+LC (creator handles template legal) |
+| **complete_phase** | Escrow: only `not_applicable` auto-sets FC | Must also auto-set for `optional` |
+| **complete_phase** recursion | No compliance pre-check before Phase 2 recursion | Must check lc+fc flags before recursing into Phase 2 |
+| **Demo pool** | No CU/ER/FC pool entries | Casey, Evelyn, Frank must be in pool |
 
-### Database Changes (1 migration)
-1. **Add `template_content` TEXT column** — stores the full legal clause text (rich text / markdown), separate from the short `description`
-2. **Add admin RLS policies** — INSERT/UPDATE/DELETE restricted to authenticated users with `supervisor` or `senior_admin` tier (using `has_role` or tier check pattern from other admin tables)
+## Changes
 
-### New Files (4 files, each under 200 lines)
+### 1. Database Migration (single new migration)
 
-**1. `src/hooks/queries/useLegalDocumentTemplates.ts`** (~90 lines)
-- React Query hook following the `useBlockedDomains` pattern
-- `useLegalDocumentTemplates(includeInactive)` — fetches all templates
-- `useCreateLegalDocumentTemplate` — insert with `withCreatedBy`
-- `useUpdateLegalDocumentTemplate` — update with `withUpdatedBy`
-- `useDeleteLegalDocumentTemplate` — soft delete (set `is_active: false`)
-- `useRestoreLegalDocumentTemplate` — restore
-- Query key: `["legal_document_templates", {includeInactive}]`
-- staleTime: 5 minutes (reference data)
+**FIX A: role_conflict_rules — add 4 missing rows**
+- DELETE all existing, re-INSERT 12 correct rows:
+  - STRUCTURED (3): CR+CU, CR+ER, ER+FC
+  - CONTROLLED (9): CR+CU, CR+ER, CR+FC, CU+ER, CU+LC, CU+FC, ER+LC, ER+FC, LC+FC
 
-**2. `src/pages/admin/seeker-config/LegalDocumentTemplatesPage.tsx`** (~150 lines)
-- Page component following `BlockedDomainsPage` pattern
-- DataTable with columns: Document Name, Type, Tier, Trigger Phase, Status
-- Actions: View, Edit, Activate/Deactivate
-- MasterDataForm dialog with fields:
-  - `document_name` (text, required)
-  - `document_type` (text, required, snake_case identifier)
-  - `tier` (select: TIER_1, TIER_2)
-  - `description` (textarea, short summary)
-  - `trigger_phase` (number, optional, for Tier 2 docs)
-  - `is_active` (switch)
-- View dialog shows all fields including `template_content` preview
+**FIX B: initialize_challenge — ENTERPRISE → STRUCTURED**
+- `CREATE OR REPLACE` with `COALESCE(v_governance, 'STRUCTURED')` replacing `'ENTERPRISE'`
+- Must `DROP FUNCTION IF EXISTS` the 4-param overload first (already dropped in prior migration, but safe to re-drop)
 
-**3. `src/components/admin/legal/LegalTemplateContentEditor.tsx`** (~180 lines)
-- Standalone dialog for editing the full legal clause content
-- Opens from a "Edit Content" button in the View dialog or table action
-- Uses a large textarea (min 20 rows) with character count display
-- Minimum 500 characters required for legal clauses
-- Markdown-aware (renders preview using `AiContentRenderer`)
-- Integrates `RichTextToolbar` for formatting assistance
-- Save button calls `useUpdateLegalDocumentTemplate` to persist `template_content`
+**FIX C: auto_assign_roles_on_creation — CR+LC for STRUCTURED**
+- STRUCTURED: `ARRAY['CR','LC']` instead of `ARRAY['CR']`
+- CONTROLLED: stays `ARRAY['CR']` (strict separation)
 
-**4. `src/components/admin/legal/LegalTemplateFileUpload.tsx`** (~120 lines)
-- Section within the content editor or view dialog
-- Uses existing `FileUploadZone` component
-- Accepts PDF, DOCX uploads (max 10MB)
-- Uploads to Supabase Storage: `legal-templates/{document_type}/{uuid}.{ext}`
-- Updates `default_template_url` on the template record
-- Shows current uploaded file with download link if `default_template_url` is set
+**FIX D: complete_phase — escrow optional + compliance pre-check**
+- Step 7: Add `'optional'` to escrow auto-set condition: `IF v_escrow_mode IN ('not_applicable', 'optional')`
+- Step 11 (new): Before recursing into Phase 2, re-read compliance flags. If either is FALSE, return gracefully with `waiting_for: 'Compliance review'` instead of crashing on the gate.
+- Must `DROP FUNCTION IF EXISTS` before `CREATE OR REPLACE` due to param order (p_challenge_id, p_user_id)
 
-### Wiring Changes (2 existing files)
+### 2. Edge Function Update — setup-test-scenario
 
-**5. `src/components/admin/AdminSidebar.tsx`** — Add sidebar entry after "Governance Modes":
-```
-{ title: 'Legal Templates', icon: FileText, path: '/admin/seeker-config/legal-templates' }
-```
+After the user creation loop (Step 5), add **Step 5b**: Insert pool entries for:
+- Casey Underwood (CU) → role_codes: `['R5_MP', 'R5_AGG']`
+- Evelyn Rhodes (ER) → role_codes: `['R7_MP', 'R7_AGG']`  
+- Frank Coleman (FC) → role_codes: `['R8']`
 
-**6. `src/App.tsx`** — Add lazy route:
-```
-const LegalDocumentTemplatesPage = lazy(() => import("..."));
-<Route path="seeker-config/legal-templates" element={<PermissionGuard permissionKey="seeker_config.view">...} />
-```
+Uses `upsert` on `email` conflict. Links `user_id` from the `userIds` array created in Step 2. Empty `domain_scope` arrays = match all challenges.
+
+### 3. Frontend Convergence Update
+
+Update `src/lib/convergenceUtils.ts` and any hardcoded conflict expectations if needed — but since the convergence matrix is DB-driven, the frontend Role Convergence admin page will reflect the new 12-row matrix automatically after migration.
+
+### 4. Supabase Types Regeneration
+
+The `user_id` column already exists on `platform_provider_pool` from a prior migration. Types may already include it. Verify after migration and regenerate if needed.
 
 ## Technical Details
 
-- **MasterDataForm limitation**: The existing `MasterDataForm` supports `textarea` but not rich text with character counting. The full legal content editing will use a separate dedicated dialog (`LegalTemplateContentEditor`) with `RichTextToolbar` + large textarea + live char count + markdown preview toggle. This keeps the main create/edit form simple.
-- **Storage bucket**: Reuses existing `challenge-assets` bucket with path `legal-templates/{type}/{uuid}.{ext}`
-- **RLS**: Migration adds policies gated on `has_role(auth.uid(), 'admin')` or checks `user_roles` for supervisor-level access, consistent with other admin tables.
-- The `template_content` column is nullable — existing records will have NULL until edited.
+- The `pool_email_unique` UNIQUE constraint already exists from prior migrations — the new migration will use `ADD CONSTRAINT IF NOT EXISTS` pattern or skip if already present.
+- `complete_phase` parameter order is `(p_challenge_id, p_user_id)` — matching the latest migration. The proposed SQL in the user's prompt uses this order correctly.
+- The `validate_role_assignment` function is already binary (HARD_BLOCK/ALLOWED) and filters by `governance_profile` — it will automatically use the new 12-row matrix.
+- No frontend hook changes needed — `useAutoAssignChallengeRoles.ts` already queries `user_id` from `platform_provider_pool`.
+
+## Files Changed
+
+1. **New migration SQL** — All 4 DB fixes (conflict rules, initialize_challenge, auto_assign, complete_phase)
+2. **`supabase/functions/setup-test-scenario/index.ts`** — Add pool entries after user creation
+3. **`src/integrations/supabase/types.ts`** — Auto-regenerated (if needed)
 
