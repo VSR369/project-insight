@@ -82,7 +82,7 @@ export function ChallengeSubmitSummaryModal({
           <DialogTitle className="text-lg font-bold">Review & Confirm Submission</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Please review all details before submitting.
-            {isEnterprise
+            {isStructured
               ? ' This will route your challenge for Legal Review.'
               : ' Your challenge will be submitted for curation.'}
           </p>

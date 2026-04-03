@@ -72,7 +72,7 @@ interface ScoringPanelProps {
   onScoreChange: (criterion: string, score: number) => void;
   commentary: string;
   onCommentaryChange: (value: string) => void;
-  isEnterprise: boolean;
+  isStructuredOrAbove: boolean;
   weightedTotal: number | null;
   readOnly: boolean;
 }
@@ -83,7 +83,7 @@ function ScoringPanel({
   onScoreChange,
   commentary,
   onCommentaryChange,
-  isEnterprise,
+  isStructuredOrAbove,
   weightedTotal,
   readOnly,
 }: ScoringPanelProps) {
