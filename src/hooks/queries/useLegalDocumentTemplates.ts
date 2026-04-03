@@ -32,20 +32,22 @@ export interface LegalDocumentTemplateInsert {
 }
 
 const QUERY_KEY = "legal_document_templates";
+const TABLE = "legal_document_templates" as "legal_document_templates";
 const COLUMNS = "template_id, document_type, document_name, tier, description, template_content, default_template_url, is_active, trigger_phase, required_for_maturity, created_at, updated_at";
 
 export function useLegalDocumentTemplates(includeInactive = false) {
   return useQuery({
     queryKey: [QUERY_KEY, { includeInactive }],
     queryFn: async () => {
-      let query = (supabase.from("legal_document_templates") as ReturnType<typeof supabase.from>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase.from(TABLE) as any)
         .select(COLUMNS)
         .order("tier", { ascending: true })
         .order("document_name", { ascending: true });
       if (!includeInactive) query = query.eq("is_active", true);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return data as unknown as LegalDocumentTemplate[];
+      return data as LegalDocumentTemplate[];
     },
     staleTime: 300_000,
     gcTime: 30 * 60 * 1000,
@@ -57,10 +59,11 @@ export function useCreateLegalDocumentTemplate() {
   return useMutation({
     mutationFn: async (item: LegalDocumentTemplateInsert) => {
       const d = await withCreatedBy(item);
-      const { data, error } = await (supabase.from("legal_document_templates") as ReturnType<typeof supabase.from>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from(TABLE) as any)
         .insert(d).select(COLUMNS).single();
       if (error) throw new Error(error.message);
-      return data as unknown as LegalDocumentTemplate;
+      return data as LegalDocumentTemplate;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: [QUERY_KEY] }); toast.success("Legal template created"); },
     onError: (e: Error) => handleMutationError(e, { operation: "create_legal_template" }),
@@ -70,12 +73,13 @@ export function useCreateLegalDocumentTemplate() {
 export function useUpdateLegalDocumentTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ template_id, ...updates }: Partial<LegalDocumentTemplateInsert> & { template_id: string }) => {
+    mutationFn: async ({ template_id, ...updates }: Partial<LegalDocumentTemplateInsert> & { template_id: string; default_template_url?: string }) => {
       const d = await withUpdatedBy(updates);
-      const { data, error } = await (supabase.from("legal_document_templates") as ReturnType<typeof supabase.from>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from(TABLE) as any)
         .update(d).eq("template_id", template_id).select(COLUMNS).single();
       if (error) throw new Error(error.message);
-      return data as unknown as LegalDocumentTemplate;
+      return data as LegalDocumentTemplate;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: [QUERY_KEY] }); toast.success("Legal template updated"); },
     onError: (e: Error) => handleMutationError(e, { operation: "update_legal_template" }),
@@ -86,7 +90,8 @@ export function useDeleteLegalDocumentTemplate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from("legal_document_templates") as ReturnType<typeof supabase.from>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from(TABLE) as any)
         .update({ is_active: false }).eq("template_id", id);
       if (error) throw new Error(error.message);
     },
@@ -99,7 +104,8 @@ export function useRestoreLegalDocumentTemplate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from("legal_document_templates") as ReturnType<typeof supabase.from>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from(TABLE) as any)
         .update({ is_active: true }).eq("template_id", id);
       if (error) throw new Error(error.message);
     },
