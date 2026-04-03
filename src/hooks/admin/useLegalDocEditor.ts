@@ -125,11 +125,12 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   };
 
   const handleSave = React.useCallback(async () => {
+    const effectiveCode = (config.document_code as DocumentCode) ?? defaultCode;
     if (isNew) {
       const result = await createDoc.mutateAsync({
-        document_code: defaultCode,
-        document_type: defaultCode.toLowerCase(),
-        document_name: config.document_name ?? `New ${defaultCode} Document`,
+        document_code: effectiveCode,
+        document_type: effectiveCode.toLowerCase(),
+        document_name: config.document_name ?? `New ${effectiveCode} Document`,
         tier: 'TIER_1',
         version: '1.0',
         version_status: 'DRAFT',

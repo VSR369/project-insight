@@ -1,5 +1,5 @@
 /**
- * LegalDocConfigSidebar — Right panel with targeting, settings, and version history.
+ * LegalDocConfigSidebar — Right panel with document code, targeting, settings, and version history.
  */
 import * as React from 'react';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { LegalDocVersionHistory } from './LegalDocVersionHistory';
-import type { LegalDocTemplate, AppliesModel, AppliesMode } from '@/types/legal.types';
+import { DOCUMENT_CODE_LABELS } from '@/types/legal.types';
+import type { LegalDocTemplate, AppliesModel, AppliesMode, DocumentCode } from '@/types/legal.types';
 
 const ROLE_OPTIONS = [
   { value: 'ALL', label: 'All Roles' },
@@ -22,13 +24,16 @@ const ROLE_OPTIONS = [
   { value: 'SOLVER', label: 'Solver' },
 ] as const;
 
+const DOC_CODES = Object.keys(DOCUMENT_CODE_LABELS) as DocumentCode[];
+
 interface LegalDocConfigSidebarProps {
   config: Partial<LegalDocTemplate>;
   onChange: (updates: Partial<LegalDocTemplate>) => void;
   templateId?: string;
+  isNew?: boolean;
 }
 
-export function LegalDocConfigSidebar({ config, onChange, templateId }: LegalDocConfigSidebarProps) {
+export function LegalDocConfigSidebar({ config, onChange, templateId, isNew }: LegalDocConfigSidebarProps) {
   const selectedRoles = config.applies_to_roles ?? ['ALL'];
 
   const handleRoleToggle = (role: string, checked: boolean) => {
@@ -43,6 +48,30 @@ export function LegalDocConfigSidebar({ config, onChange, templateId }: LegalDoc
 
   return (
     <div className="p-4 space-y-6">
+      {/* Document Code */}
+      <div className="space-y-2">
+        <Label>Document Code</Label>
+        {isNew ? (
+          <Select
+            value={config.document_code ?? 'PMA'}
+            onValueChange={(v) => onChange({ document_code: v as DocumentCode })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {DOC_CODES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c} — {DOCUMENT_CODE_LABELS[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge variant="secondary" className="text-sm">
+            {config.document_code ?? '—'} — {config.document_code ? DOCUMENT_CODE_LABELS[config.document_code as DocumentCode] : ''}
+          </Badge>
+        )}
+      </div>
+
       {/* Name */}
       <div className="space-y-2">
         <Label htmlFor="doc-name">Document Name</Label>
@@ -51,6 +80,18 @@ export function LegalDocConfigSidebar({ config, onChange, templateId }: LegalDoc
           value={config.document_name ?? ''}
           onChange={(e) => onChange({ document_name: e.target.value })}
           placeholder="Document name"
+        />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="doc-description">Description</Label>
+        <Textarea
+          id="doc-description"
+          value={config.description ?? ''}
+          onChange={(e) => onChange({ description: e.target.value })}
+          placeholder="Purpose and scope of this document"
+          rows={3}
         />
       </div>
 
