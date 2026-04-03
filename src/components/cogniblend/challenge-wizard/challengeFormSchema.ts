@@ -21,11 +21,6 @@ export const SCOPE_MIN_STRUCTURED = 150;
 export const SCOPE_MIN_QUICK = 100;
 export const TITLE_MAX = 200;
 
-/** @deprecated Legacy aliases — use PROBLEM_MIN_STRUCTURED / SCOPE_MIN_QUICK etc. */
-export const PROBLEM_MIN_ENTERPRISE = PROBLEM_MIN_CONTROLLED;
-export const PROBLEM_MIN_LIGHTWEIGHT = PROBLEM_MIN_QUICK;
-export const SCOPE_MIN_ENTERPRISE = SCOPE_MIN_CONTROLLED;
-export const SCOPE_MIN_LIGHTWEIGHT = SCOPE_MIN_QUICK;
 
 /* ── Helpers to resolve min/max from rules or fallback ── */
 
