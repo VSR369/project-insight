@@ -176,6 +176,12 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const saveStepMutation = useSaveChallengeStep();
   const submitMutation = useSubmitChallengeForReview();
 
+  // ═══════ Legal gate — CHALLENGE_SUBMIT ═══════
+  const challengeSubmitGate = useLegalGateAction({
+    triggerEvent: 'CHALLENGE_SUBMIT',
+    challengeId: challengeId ?? undefined,
+  });
+
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
     if (challengeData && isEditMode) {
