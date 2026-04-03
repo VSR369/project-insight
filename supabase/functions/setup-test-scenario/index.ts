@@ -352,7 +352,7 @@ serve(async (req) => {
     });
     if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
     challengeIds.push(mpChallengeId);
-    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — SPEC_REVIEW)`);
+    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — COMPLIANCE)`);
 
     // Challenge B — AGG model (RQ-submitted)
     const aggChallengeId = crypto.randomUUID();
@@ -391,7 +391,7 @@ serve(async (req) => {
     });
     if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
     challengeIds.push(aggChallengeId);
-    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
+    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — COMPLIANCE)`);
 
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
     const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
@@ -433,27 +433,43 @@ serve(async (req) => {
         linkedUserId = found?.id ?? null;
       }
 
-      const { error: poolErr } = await supabaseAdmin
+      const poolData = {
+        full_name: entry.name,
+        email: entry.email,
+        role_codes: entry.codes,
+        user_id: linkedUserId,
+        domain_scope: {
+          industry_segment_ids: [],
+          proficiency_area_ids: [],
+          sub_domain_ids: [],
+          speciality_ids: [],
+        },
+        max_concurrent: 10,
+        current_assignments: 0,
+        availability_status: "available",
+        is_active: true,
+      };
+
+      // Defensive SELECT + INSERT/UPDATE (works regardless of constraint config)
+      const { data: existing } = await supabaseAdmin
         .from("platform_provider_pool")
-        .upsert(
-          {
-            full_name: entry.name,
-            email: entry.email,
-            role_codes: entry.codes,
-            user_id: linkedUserId,
-            domain_scope: {
-              industry_segment_ids: [],
-              proficiency_area_ids: [],
-              sub_domain_ids: [],
-              speciality_ids: [],
-            },
-            max_concurrent: 10,
-            current_assignments: 0,
-            availability_status: "available",
-            is_active: true,
-          },
-          { onConflict: "email", ignoreDuplicates: false }
-        );
+        .select("id")
+        .eq("email", entry.email)
+        .maybeSingle();
+
+      let poolErr: { message: string } | null = null;
+      if (existing) {
+        const { error } = await supabaseAdmin
+          .from("platform_provider_pool")
+          .update({ ...poolData, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        poolErr = error;
+      } else {
+        const { error } = await supabaseAdmin
+          .from("platform_provider_pool")
+          .insert(poolData);
+        poolErr = error;
+      }
 
       if (poolErr) {
         results.push(`⚠️ Pool: ${entry.name}: ${poolErr.message}`);
