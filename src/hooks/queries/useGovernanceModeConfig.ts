@@ -1,7 +1,6 @@
 /**
  * useGovernanceModeConfig — React Query hook for md_governance_mode_config.
- * Fetches governance behavior config (legal, escrow, curation, evaluation, award)
- * for a given governance mode.
+ * Fetches governance behavior config for a given governance mode.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -9,19 +8,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { handleQueryError } from '@/lib/errorHandler';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
-const STALE_TIME = 5 * 60 * 1000; // 5 minutes — reference data
+const STALE_TIME = 5 * 60 * 1000;
 
 export interface GovernanceModeConfigRow {
   governance_mode: string;
   legal_doc_mode: string;
+  legal_doc_editable: boolean;
+  legal_doc_creation_allowed: boolean;
+  ai_legal_review_enabled: boolean;
   escrow_mode: string;
-  curation_mode: string;
-  evaluation_mode: string;
-  award_mode: string;
-  role_separation: string;
+  curation_checklist_items: number;
+  ai_curation_review_required: boolean;
+  dual_curation_enabled: boolean;
+  max_modification_cycles: number;
+  dual_evaluation_required: boolean;
+  blind_evaluation: boolean;
+  dual_signoff_required: boolean;
+  display_name: string | null;
   description: string | null;
   is_active: boolean;
 }
+
+const SELECT_COLS = 'governance_mode, legal_doc_mode, legal_doc_editable, legal_doc_creation_allowed, ai_legal_review_enabled, escrow_mode, curation_checklist_items, ai_curation_review_required, dual_curation_enabled, max_modification_cycles, dual_evaluation_required, blind_evaluation, dual_signoff_required, display_name, description, is_active';
 
 const QUERY_KEY_PREFIX = 'governance-mode-config';
 
@@ -33,7 +41,7 @@ export function useGovernanceModeConfig(mode?: GovernanceMode | null) {
 
       const { data, error } = await supabase
         .from('md_governance_mode_config')
-        .select('governance_mode, legal_doc_mode, escrow_mode, curation_mode, evaluation_mode, award_mode, role_separation, description, is_active')
+        .select(SELECT_COLS)
         .eq('governance_mode', mode)
         .eq('is_active', true)
         .maybeSingle();
@@ -56,7 +64,7 @@ export function useAllGovernanceModeConfigs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('md_governance_mode_config')
-        .select('governance_mode, legal_doc_mode, escrow_mode, curation_mode, evaluation_mode, award_mode, role_separation, description, is_active')
+        .select(SELECT_COLS)
         .eq('is_active', true)
         .order('governance_mode');
 
