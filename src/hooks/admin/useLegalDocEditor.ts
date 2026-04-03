@@ -66,6 +66,12 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     setIsDirty(true);
   };
 
+  const setUploadedContent = (html: string) => {
+    setEditorState({ content: html, contentJson: null });
+    setIsDirty(true);
+    setContentVersion((v) => v + 1);
+  };
+
   const handleSave = React.useCallback(async () => {
     if (isNew) {
       const result = await createDoc.mutateAsync({
