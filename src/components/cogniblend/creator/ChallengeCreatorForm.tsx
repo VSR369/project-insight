@@ -148,6 +148,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
   const updateDraftMutation = useUpdateDraft();
 
   const [showTierModal, setShowTierModal] = useState(false);
+  const [showLegalGate, setShowLegalGate] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = useState<CreatorFormValues | null>(null);
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
