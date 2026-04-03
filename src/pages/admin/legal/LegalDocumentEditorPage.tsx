@@ -7,11 +7,14 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useLegalDocTemplateById, useSaveLegalDocDraft, usePublishLegalDoc, useCreateLegalDocTemplate } from '@/hooks/queries/useLegalDocumentTemplates';
+import { useLegalDocEditor } from '@/hooks/admin/useLegalDocEditor';
 import { LegalDocEditorPanel } from '@/components/admin/legal/LegalDocEditorPanel';
 import { LegalDocConfigSidebar } from '@/components/admin/legal/LegalDocConfigSidebar';
 import { LegalDocPublishDialog } from '@/components/admin/legal/LegalDocPublishDialog';
-import type { DocumentCode, LegalDocTemplate } from '@/types/legal.types';
+import { LegalDocUploadHandler } from '@/components/admin/legal/LegalDocUploadHandler';
+import { LegalDocSectionTabs } from '@/components/admin/legal/LegalDocSectionTabs';
+import type { DocumentCode } from '@/types/legal.types';
+import type { IpaaSectionKey } from '@/components/admin/legal/LegalDocSectionTabs';
 
 export default function LegalDocumentEditorPage() {
   const { templateId } = useParams();
@@ -20,74 +23,19 @@ export default function LegalDocumentEditorPage() {
   const isNew = !templateId || templateId === 'new';
   const defaultCode = (searchParams.get('code') as DocumentCode) ?? 'PMA';
 
-  const { data: template, isLoading } = useLegalDocTemplateById(isNew ? undefined : templateId);
-  const saveDraft = useSaveLegalDocDraft();
-  const publishDoc = usePublishLegalDoc();
-  const createDoc = useCreateLegalDocTemplate();
-  const [showPublish, setShowPublish] = React.useState(false);
+  const editor = useLegalDocEditor({ templateId, isNew, defaultCode });
+  const [activeSection, setActiveSection] = React.useState<IpaaSectionKey>('abstract');
+  const isIPAA = editor.currentCode === 'IPAA';
 
-  const [editorState, setEditorState] = React.useState<{
-    content: string;
-    contentJson: Record<string, unknown> | null;
-  }>({ content: '', contentJson: null });
-
-  const [config, setConfig] = React.useState<Partial<LegalDocTemplate>>({});
-
-  React.useEffect(() => {
-    if (template) {
-      setEditorState({
-        content: template.content ?? template.template_content ?? '',
-        contentJson: template.content_json ?? null,
-      });
-      setConfig({
-        document_name: template.document_name,
-        summary: template.summary,
-        applies_to_roles: template.applies_to_roles,
-        applies_to_model: template.applies_to_model,
-        applies_to_mode: template.applies_to_mode,
-        is_mandatory: template.is_mandatory,
-        effective_date: template.effective_date,
-      });
-    }
-  }, [template]);
-
-  const handleSave = async () => {
-    if (isNew) {
-      const result = await createDoc.mutateAsync({
-        document_code: defaultCode,
-        document_type: defaultCode.toLowerCase(),
-        document_name: config.document_name ?? `New ${defaultCode} Document`,
-        tier: 'TIER_1',
-        version: '1.0',
-        version_status: 'DRAFT',
-        content: editorState.content,
-        content_json: editorState.contentJson,
-        ...config,
-      } as Partial<LegalDocTemplate>);
-      navigate(`/admin/legal-documents/${result.template_id}/edit`, { replace: true });
-    } else {
-      await saveDraft.mutateAsync({
-        template_id: templateId!,
-        content: editorState.content,
-        content_json: editorState.contentJson,
-        ...config,
-      });
-    }
+  const handleUploadContent = (html: string, fileName: string, storageUrl: string | null) => {
+    editor.handleContentChange(html, null);
+    editor.setConfig((prev) => ({
+      ...prev,
+      ...(storageUrl ? { original_file_url: storageUrl, original_file_name: fileName } : {}),
+    }));
   };
 
-  const handlePublish = async () => {
-    if (!templateId || !template?.document_code) return;
-    await publishDoc.mutateAsync({
-      template_id: templateId,
-      document_code: template.document_code,
-    });
-    setShowPublish(false);
-  };
-
-  const currentCode = template?.document_code ?? defaultCode;
-  const isSaving = saveDraft.isPending || createDoc.isPending;
-
-  if (isLoading && !isNew) {
+  if (editor.isLoading && !isNew) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -102,45 +50,58 @@ export default function LegalDocumentEditorPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/legal-documents')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <Badge variant="outline" className="font-mono">{currentCode}</Badge>
+        <Badge variant="outline" className="font-mono">{editor.currentCode}</Badge>
         <span className="font-medium truncate">
-          {config.document_name ?? template?.document_name ?? 'New Document'}
+          {editor.config.document_name ?? editor.template?.document_name ?? 'New Document'}
         </span>
-        {template && <Badge variant="secondary">v{template.version}</Badge>}
-        {template && (
-          <Badge className="text-xs" variant={template.version_status === 'ACTIVE' ? 'default' : 'outline'}>
-            {template.version_status}
+        {editor.template && <Badge variant="secondary">v{editor.template.version}</Badge>}
+        {editor.template && (
+          <Badge className="text-xs" variant={editor.template.version_status === 'ACTIVE' ? 'default' : 'outline'}>
+            {editor.template.version_status}
           </Badge>
         )}
+        {editor.isDirty && (
+          <span className="text-xs text-muted-foreground italic">unsaved</span>
+        )}
         <div className="ml-auto flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          <LegalDocUploadHandler
+            templateId={templateId}
+            hasContent={editor.editorState.content.length > 0}
+            onContentUploaded={handleUploadContent}
+          />
+          <Button variant="outline" size="sm" onClick={editor.handleSave} disabled={editor.isSaving}>
+            {editor.isSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             Save Draft
           </Button>
-          <Button size="sm" onClick={() => setShowPublish(true)} disabled={isNew || publishDoc.isPending}>
+          <Button size="sm" onClick={() => editor.setShowPublish(true)} disabled={isNew || editor.isPublishing}>
             Publish
           </Button>
         </div>
       </div>
 
+      {/* IPAA section tabs */}
+      {isIPAA && (
+        <LegalDocSectionTabs activeSection={activeSection} onSectionChange={setActiveSection} />
+      )}
+
       {/* Editor + Sidebar */}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-h-0 overflow-y-auto p-4">
           <LegalDocEditorPanel
-            content={editorState.content}
-            onContentChange={(html, json) => setEditorState({ content: html, contentJson: json })}
+            content={editor.editorState.content}
+            onContentChange={editor.handleContentChange}
           />
         </div>
         <div className="w-80 border-l shrink-0 overflow-y-auto hidden lg:block">
-          <LegalDocConfigSidebar config={config} onChange={setConfig} templateId={templateId} />
+          <LegalDocConfigSidebar config={editor.config} onChange={editor.setConfig} templateId={templateId} />
         </div>
       </div>
 
       <LegalDocPublishDialog
-        open={showPublish}
-        onOpenChange={setShowPublish}
-        onConfirm={handlePublish}
-        isLoading={publishDoc.isPending}
+        open={editor.showPublish}
+        onOpenChange={editor.setShowPublish}
+        onConfirm={editor.handlePublish}
+        isLoading={editor.isPublishing}
       />
     </div>
   );
