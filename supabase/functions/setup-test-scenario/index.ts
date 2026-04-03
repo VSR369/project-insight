@@ -423,7 +423,15 @@ serve(async (req) => {
     ];
 
     for (const entry of poolEntries) {
-      const linkedUser = userIds.find((u) => u.displayName === entry.name);
+      // Match by email first (works across scenarios), then fallback to auth lookup
+      let linkedUserId = userIds.find((u) => u.email === entry.email)?.userId ?? null;
+
+      if (!linkedUserId) {
+        // Fallback: look up by email in auth.users (user may exist from a previous seed run)
+        const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
+        const found = authList?.users?.find((u: { email?: string }) => u.email === entry.email);
+        linkedUserId = found?.id ?? null;
+      }
 
       const { error: poolErr } = await supabaseAdmin
         .from("platform_provider_pool")
@@ -432,7 +440,7 @@ serve(async (req) => {
             full_name: entry.name,
             email: entry.email,
             role_codes: entry.codes,
-            user_id: linkedUser?.userId ?? null,
+            user_id: linkedUserId,
             domain_scope: {
               industry_segment_ids: [],
               proficiency_area_ids: [],
@@ -450,7 +458,7 @@ serve(async (req) => {
       if (poolErr) {
         results.push(`⚠️ Pool: ${entry.name}: ${poolErr.message}`);
       } else {
-        results.push(`✅ Pool: ${entry.name} (${entry.codes.join(",")})`);
+        results.push(`✅ Pool: ${entry.name} (${entry.codes.join(",")}) user_id=${linkedUserId ? 'linked' : 'UNLINKED'}`);
       }
     }
 

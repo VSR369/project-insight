@@ -680,13 +680,22 @@ export default function LegalDocumentAttachmentPage() {
       if (result.phase_advanced && result.current_phase >= 3) {
         try {
           const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
-          await autoAssignChallengeRole({
+          const assignResult = await autoAssignChallengeRole({
             challengeId,
             roleCode: 'CU',
             assignedBy: user.id,
           });
-        } catch {
-          // CU assignment failure is non-blocking
+          if (!assignResult) {
+            toast.warning('No eligible Curator found in the pool. Please assign one manually.');
+          } else {
+            toast.success('Curator assigned — challenge is now in the curation queue.');
+          }
+        } catch (assignErr: unknown) {
+          logWarning('CU auto-assign failed after legal review', {
+            operation: 'auto_assign_challenge_role',
+            additionalData: { challengeId, error: String(assignErr) },
+          });
+          toast.warning('Challenge advanced but Curator could not be assigned automatically.');
         }
         queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
       }
