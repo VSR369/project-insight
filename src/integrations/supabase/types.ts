@@ -3707,56 +3707,220 @@ export type Database = {
           },
         ]
       }
+      legal_acceptance_log: {
+        Row: {
+          accepted_at: string
+          action: string
+          challenge_id: string | null
+          created_at: string
+          document_code: string
+          document_section: string | null
+          document_version: string
+          id: string
+          ip_address: string | null
+          template_id: string
+          trigger_event: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          action: string
+          challenge_id?: string | null
+          created_at?: string
+          document_code: string
+          document_section?: string | null
+          document_version: string
+          id?: string
+          ip_address?: string | null
+          template_id: string
+          trigger_event: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          action?: string
+          challenge_id?: string | null
+          created_at?: string
+          document_code?: string
+          document_section?: string | null
+          document_version?: string
+          id?: string
+          ip_address?: string | null
+          template_id?: string
+          trigger_event?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_acceptance_log_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_acceptance_log_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "legal_document_templates"
+            referencedColumns: ["template_id"]
+          },
+        ]
+      }
+      legal_doc_trigger_config: {
+        Row: {
+          applies_to_mode: string
+          created_at: string
+          created_by: string | null
+          display_order: number
+          document_code: string
+          document_section: string | null
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          required_roles: string[]
+          trigger_event: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          applies_to_mode?: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          document_code: string
+          document_section?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          required_roles?: string[]
+          trigger_event: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          applies_to_mode?: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          document_code?: string
+          document_section?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          required_roles?: string[]
+          trigger_event?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       legal_document_templates: {
         Row: {
+          applies_to_mode: string
+          applies_to_model: string
+          applies_to_roles: string[]
+          content: string | null
+          content_json: Json | null
           created_at: string
           created_by: string | null
           default_template_url: string | null
           description: string | null
+          document_code: string | null
           document_name: string
           document_type: string
+          effective_date: string | null
           is_active: boolean
+          is_mandatory: boolean
+          original_file_name: string | null
+          original_file_url: string | null
+          parent_template_id: string | null
           required_for_maturity: Json
+          sections: Json | null
+          summary: string | null
           template_content: string | null
           template_id: string
           tier: string
           trigger_phase: number | null
           updated_at: string | null
           updated_by: string | null
+          version: string
+          version_status: string
         }
         Insert: {
+          applies_to_mode?: string
+          applies_to_model?: string
+          applies_to_roles?: string[]
+          content?: string | null
+          content_json?: Json | null
           created_at?: string
           created_by?: string | null
           default_template_url?: string | null
           description?: string | null
+          document_code?: string | null
           document_name: string
           document_type: string
+          effective_date?: string | null
           is_active?: boolean
+          is_mandatory?: boolean
+          original_file_name?: string | null
+          original_file_url?: string | null
+          parent_template_id?: string | null
           required_for_maturity?: Json
+          sections?: Json | null
+          summary?: string | null
           template_content?: string | null
           template_id?: string
           tier: string
           trigger_phase?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          version?: string
+          version_status?: string
         }
         Update: {
+          applies_to_mode?: string
+          applies_to_model?: string
+          applies_to_roles?: string[]
+          content?: string | null
+          content_json?: Json | null
           created_at?: string
           created_by?: string | null
           default_template_url?: string | null
           description?: string | null
+          document_code?: string | null
           document_name?: string
           document_type?: string
+          effective_date?: string | null
           is_active?: boolean
+          is_mandatory?: boolean
+          original_file_name?: string | null
+          original_file_url?: string | null
+          parent_template_id?: string | null
           required_for_maturity?: Json
+          sections?: Json | null
+          summary?: string | null
           template_content?: string | null
           template_id?: string
           tier?: string
           trigger_phase?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          version?: string
+          version_status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "legal_document_templates_parent_template_id_fkey"
+            columns: ["parent_template_id"]
+            isOneToOne: false
+            referencedRelation: "legal_document_templates"
+            referencedColumns: ["template_id"]
+          },
+        ]
       }
       legal_reacceptance_records: {
         Row: {
@@ -13343,6 +13507,16 @@ export type Database = {
           p_start_at: string
         }
         Returns: boolean
+      }
+      check_legal_gate: {
+        Args: {
+          p_challenge_id?: string
+          p_governance_mode?: string
+          p_trigger_event: string
+          p_user_id: string
+          p_user_role?: string
+        }
+        Returns: Json
       }
       check_model_authority: {
         Args: { p_engagement_model: string; p_user_id: string }
