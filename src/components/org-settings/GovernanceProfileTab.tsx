@@ -49,7 +49,7 @@ const MODE_DESCRIPTIONS: Record<GovernanceMode, { title: string; features: strin
 export function GovernanceProfileTab({ organizationId }: GovernanceProfileTabProps) {
   const { data: currentOrg } = useCurrentOrg();
 
-  const rawProfile = (currentOrg as any)?.governanceProfile ?? 'LIGHTWEIGHT';
+  const rawProfile = (currentOrg as any)?.governanceProfile ?? 'STRUCTURED';
   const mode = resolveGovernanceMode(rawProfile);
   const modeConfig = GOVERNANCE_MODE_CONFIG[mode];
   const modeDesc = MODE_DESCRIPTIONS[mode];
