@@ -106,48 +106,69 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         <TieredApprovalView challengeId={challengeId} challengeData={data as unknown as Record<string, unknown>} creatorSnapshot={snapshot as Record<string, unknown> | null} governanceMode={effectiveGovernance} sectionLabels={SECTION_LABELS} />
       )}
 
-      <Tabs defaultValue={isPendingApproval ? 'curator-version' : hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-          <TabsList className="w-auto">
-            <TabsTrigger value="my-version" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> My Version</TabsTrigger>
-            <TabsTrigger value="curator-version" className="gap-1.5 text-xs"><BookOpen className="h-3.5 w-3.5" /> Curator Version</TabsTrigger>
-          </TabsList>
-          <div className="relative flex-1 max-w-sm">
+      {isQuickMode ? (
+        /* ── QUICK MODE: Single view — Creator is the Curator ── */
+        <div className="space-y-4">
+          <div className="relative max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search sections..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-9 text-sm" />
           </div>
-        </div>
-
-        <TabsContent value="my-version" className="space-y-4">
           {hasSnapshot ? (
             <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
           ) : (
-            <Card className="border-dashed border-amber-300 bg-amber-50/50">
-              <CardContent className="py-8 text-center">
-                <Info className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-                <p className="text-sm font-medium text-amber-800">Original submission data is not available</p>
-                <p className="text-xs text-amber-600 mt-1">This challenge was created before snapshot tracking was enabled. Please view the Curator Version instead.</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="curator-version" className="space-y-4">
-          {showCuratorContent ? (
             <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
-          ) : (
-            <Card className="border-dashed border-primary/30 bg-primary/5">
-              <CardContent className="py-12 text-center">
-                <BookOpen className="h-10 w-10 text-primary/50 mx-auto mb-3" />
-                <p className="text-base font-semibold text-foreground">Under Review by Curator</p>
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
-                  This challenge is currently being reviewed and refined by the Curator. The curated version will be available once the review is complete and submitted for approval.
-                </p>
-              </CardContent>
-            </Card>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      ) : (
+        /* ── STRUCTURED / CONTROLLED: Dual tabs ── */
+        <Tabs defaultValue={isPendingApproval ? 'curator-version' : hasSnapshot ? 'my-version' : 'curator-version'} className="space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+            <TabsList className="w-auto">
+              <TabsTrigger value="my-version" className="gap-1.5 text-xs">
+                <FileText className="h-3.5 w-3.5" /> My Version
+              </TabsTrigger>
+              <TabsTrigger value="curator-version" className="gap-1.5 text-xs">
+                <BookOpen className="h-3.5 w-3.5" /> Curator Version
+              </TabsTrigger>
+            </TabsList>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search sections..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-9 text-sm" />
+            </div>
+          </div>
+
+          <TabsContent value="my-version" className="space-y-4">
+            {hasSnapshot ? (
+              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+            ) : (
+              <Card className="border-dashed border-amber-300 bg-amber-50/50">
+                <CardContent className="py-8 text-center">
+                  <Info className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-amber-800">Original submission data is not available</p>
+                  <p className="text-xs text-amber-600 mt-1">This challenge was created before snapshot tracking was enabled. Please view the Curator Version instead.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="curator-version" className="space-y-4">
+            {showCuratorContent ? (
+              <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+            ) : (
+              <Card className="border-dashed border-primary/30 bg-primary/5">
+                <CardContent className="py-12 text-center">
+                  <BookOpen className="h-10 w-10 text-primary/50 mx-auto mb-3" />
+                  <p className="text-base font-semibold text-foreground">Under Review by Curator</p>
+                  <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
+                    This challenge is currently being reviewed and refined by the Curator.
+                    The curated version will be available once the review is complete.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
 
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />
