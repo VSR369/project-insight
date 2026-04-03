@@ -111,10 +111,10 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
 
       if (sErr) throw new Error(sErr.message);
 
-      // 3. Get provider names (for LIGHTWEIGHT display)
+      // 3. Get provider names (hidden in blind mode for STRUCTURED/CONTROLLED)
       const providerIds = (solutions ?? []).map(s => s.provider_id);
       let providerNameMap = new Map<string, string>();
-      if (providerIds.length > 0 && !isEnterprise) {
+      if (providerIds.length > 0 && !isBlindMode) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, first_name, last_name')
