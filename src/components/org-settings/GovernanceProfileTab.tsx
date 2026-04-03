@@ -37,7 +37,7 @@ const MODE_DESCRIPTIONS: Record<GovernanceMode, { title: string; features: strin
   CONTROLLED: {
     title: 'Controlled — Full Compliance',
     features: [
-      'All 13 lifecycle phases active with mandatory gate enforcement',
+      'All 10 lifecycle phases active with mandatory gate enforcement',
       'Mandatory escrow funding before publication',
       'Material amendment governance with withdrawal windows',
       '3-tier access model: Organization → Challenge → Phase-level',
