@@ -119,6 +119,7 @@ const seekerConfigItems = [
   { title: 'Legal Triggers', icon: Workflow, path: '/admin/legal-documents/triggers' },
   { title: 'Role Convergence', icon: Network, path: '/admin/seeker-config/role-convergence' },
   { title: 'Tier Access', icon: KeyRound, path: '/admin/seeker-config/tier-access' },
+  { title: 'Lifecycle Phases', icon: Workflow, path: '/admin/seeker-config/lifecycle-phases' },
   { title: 'AI Review Config', icon: Settings, path: '/admin/seeker-config/ai-review-config' },
   { title: 'Rate Cards', icon: CreditCard, path: '/admin/seeker-config/rate-cards' },
   { title: 'Non-Monetary Incentives', icon: Award, path: '/admin/seeker-config/incentives' },
