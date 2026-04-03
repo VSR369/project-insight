@@ -113,6 +113,7 @@ const seekerConfigItems = [
   { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
   { title: 'Governance Rules', icon: Shield, path: '/admin/seeker-config/governance-rules' },
   { title: 'Governance Modes', icon: Settings, path: '/admin/seeker-config/governance-modes' },
+  { title: 'Legal Templates', icon: FileText, path: '/admin/seeker-config/legal-templates' },
   { title: 'Role Convergence', icon: Network, path: '/admin/seeker-config/role-convergence' },
   { title: 'Tier Access', icon: KeyRound, path: '/admin/seeker-config/tier-access' },
   { title: 'AI Review Config', icon: Settings, path: '/admin/seeker-config/ai-review-config' },
