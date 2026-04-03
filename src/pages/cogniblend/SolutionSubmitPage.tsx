@@ -17,6 +17,8 @@ import {
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
 import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/useWithdrawSolution';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { CACHE_STANDARD } from '@/config/queryCache';
