@@ -1,33 +1,49 @@
 
-# Gap Analysis: CORRECTED-PIPELINE-FIX-PLAN-2.md vs Current Code
 
-## All 5 Bugs: FIXED
+# Fix Plan: Pool Constraint + Seed Robustness
 
-| Bug | Status | Verification |
-|-----|--------|-------------|
-| B1: `lc_compliance_complete` never set | FIXED | `complete_legal_review` RPC exists in migration `20260403071548`, sets flag + role guard |
-| B2: LcLegalWorkspacePage direct UPDATE bypass | FIXED | Line 560 now calls `supabase.rpc('complete_legal_review')` |
-| B3: LegalDocumentAttachmentPage compliance crash | FIXED | Line 669 now calls `supabase.rpc('complete_legal_review')` |
-| B4: CU auto-assign at wrong time | FIXED | `useSubmitSolutionRequest.ts` line 165: `if (currentPhase >= 3)` guard |
-| B5: No CA gate on Creator submit | FIXED | `ChallengeCreatorForm.tsx` line 564 + `ChallengeWizardPage.tsx` line 819 both show `LegalGateModal` with `CHALLENGE_SUBMIT` |
+## Problem
 
-## Root Cause Analysis: Silent Auto-Assign Failures — FIXED
+The demo seed fails to create/update pool entries because `onConflict: 'email'` requires a full UNIQUE constraint, but only a partial index (`WHERE is_active = TRUE`) exists. This means Casey, Evelyn, and Frank never get pool entries — breaking auto-assignment entirely.
 
-| Root Cause | Status | Fix |
-|------------|--------|-----|
-| RC1: Pool seed uses displayName (fragile) | FIXED | `setup-test-scenario/index.ts` now matches by email + auth fallback |
-| RC2: Silent catch blocks hide CU assign failures | FIXED | `LcLegalWorkspacePage.tsx` + `LegalDocumentAttachmentPage.tsx` now log + toast.warning |
-| RC3: validateRoleAssignment defaults to STRUCTURED | FIXED | `useAutoAssignChallengeRoles.ts` resolves actual governance mode from DB |
-| Pool-only assignment (no org fallback) | FIXED | `useAutoAssignChallengeRoles.ts` tries `org_users` when pool returns empty |
-| `pool_member_id` NOT NULL blocks org assigns | FIXED | Migration makes column nullable + RPC guards workload increment |
+## Changes
 
-## Additional Items from Doc
+### 1. Migration: Add proper UNIQUE constraint on `platform_provider_pool.email`
 
-| Item | Status | Detail |
-|------|--------|--------|
-| D5: CHALLENGE_JOIN gate | FIXED | `SolverEnrollmentCTA.tsx` chains `SOLVER_ENROLLMENT` then `CHALLENGE_JOIN` gates |
-| D6: WINNER_SELECTED gate | NOT WIRED | Trigger config seeded but no UI integration yet (future work) |
-| D7: `as any` casts | OPEN | Requires Supabase type regeneration (out of scope) |
-| D8: Client-side IP capture | OPEN | Low priority, fails gracefully |
-| D9: PDF upload support | OPEN | Future enhancement |
-| D10: Archive old templates | FIXED | Migration `20260403073113` archived 17 legacy templates |
+```sql
+DROP INDEX IF EXISTS idx_pool_email_unique;
+ALTER TABLE public.platform_provider_pool
+  ADD CONSTRAINT platform_provider_pool_email_key UNIQUE (email);
+```
+
+This replaces the partial index with a real constraint that PostgREST can resolve for upsert operations.
+
+### 2. Edge function: Replace upsert with defensive SELECT + INSERT/UPDATE
+
+**File:** `supabase/functions/setup-test-scenario/index.ts` (~lines 436-462)
+
+Replace the `.upsert(...)` call with:
+- `SELECT id FROM platform_provider_pool WHERE email = ?` via `.maybeSingle()`
+- If exists: `.update({...}).eq('id', existing.id)`
+- If not: `.insert({...})`
+
+This works regardless of constraint configuration and is fully idempotent.
+
+### 3. Fix phase labels in seed log messages
+
+**File:** `supabase/functions/setup-test-scenario/index.ts` (lines 355, 394)
+
+Replace `"Phase 2 — SPEC_REVIEW"` with `"Phase 2 — COMPLIANCE"` (2 occurrences).
+
+---
+
+## Technical Notes
+
+- Steps 2-5 from the original pipeline fix plan are already implemented and verified (catch blocks have logging, governance mode resolution works, `pool_member_id` is nullable, org_users fallback exists).
+- The UNIQUE constraint change means deactivated pool members with the same email cannot be re-added. This is acceptable — email should be globally unique in the pool regardless of active status.
+- Edge function will be redeployed after code changes.
+
+## Verification
+
+After applying: re-seed and confirm all three pool entries show `✅ Pool: ... user_id=linked` with zero `⚠️` warnings.
+
