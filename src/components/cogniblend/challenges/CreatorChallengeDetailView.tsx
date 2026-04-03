@@ -42,10 +42,8 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
   const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
-  const crApprovalRequired = (data as Record<string, unknown>).extended_brief != null
-    && typeof (data as Record<string, unknown>).extended_brief === 'object'
-    ? ((data as Record<string, unknown>).extended_brief as Record<string, unknown>)?.creator_approval_required !== false
-    : true;
+  const extendedBrief = (data as unknown as Record<string, unknown>).extended_brief as Record<string, unknown> | null | undefined;
+  const crApprovalRequired = extendedBrief?.creator_approval_required !== false;
   const showCuratorContent = isPendingApproval
     || (data.current_phase ?? 1) >= 4
     || ((data.current_phase ?? 1) >= 3 && !crApprovalRequired);
