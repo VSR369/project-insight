@@ -240,7 +240,7 @@ export function ChallengeSubmitSummaryModal({
             ) : (
               <>
                 <Send className="h-4 w-4 mr-1.5" />
-                {isEnterprise ? 'Confirm & Submit for Legal Review' : 'Confirm & Submit'}
+                {isStructured ? 'Confirm & Submit for Legal Review' : 'Confirm & Submit'}
               </>
             )}
           </Button>

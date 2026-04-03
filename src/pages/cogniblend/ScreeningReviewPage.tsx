@@ -139,7 +139,7 @@ function ScoringPanel({
         <Textarea
           value={commentary}
           onChange={(e) => onCommentaryChange(e.target.value)}
-          placeholder={isEnterprise ? 'Required for Enterprise (min 100 chars)...' : 'Optional commentary...'}
+          placeholder={isStructuredOrAbove ? 'Required for Structured/Controlled modes (min 100 chars)...' : 'Optional commentary...'}
           rows={4}
           disabled={readOnly}
         />
