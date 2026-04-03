@@ -89,7 +89,7 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
     const details = auditCall[1].p_details;
     expect(details.previous_phase_status).toBe('LEGAL_VERIFICATION_PENDING');
     expect(details.new_phase_status).toBe('COMPLETED');
-    expect(details.governance_profile).toBe('ENTERPRISE');
+    expect(details.governance_profile).toBe('STRUCTURED');
   });
 
   it('does NOT transition or log audit when phase_status is already ACTIVE', async () => {
