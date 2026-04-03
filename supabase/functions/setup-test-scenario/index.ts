@@ -394,14 +394,11 @@ serve(async (req) => {
     results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — SPEC_REVIEW)`);
 
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
-    // All modern roles (CR, CU, ER, LC, FC) are assigned to both challenges
     const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
 
     for (const u of userIds) {
       for (const roleCode of u.roles) {
         const targetChallengeIds: string[] = [];
-
-        // All modern roles are assigned to both challenges
         targetChallengeIds.push(mpChallengeId, aggChallengeId);
 
         for (const cId of targetChallengeIds) {
@@ -416,6 +413,45 @@ serve(async (req) => {
         }
       }
       results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")} (model-aware)`);
+    }
+
+    // ─── Step 5b: Pool entries for demo CU/ER/FC users ───
+    const poolEntries = [
+      { name: "Casey Underwood", email: "nh-cu@testsetup.dev", codes: ["R5_MP", "R5_AGG"], role: "CU" },
+      { name: "Evelyn Rhodes", email: "nh-er1@testsetup.dev", codes: ["R7_MP", "R7_AGG"], role: "ER" },
+      { name: "Frank Coleman", email: "nh-fc@testsetup.dev", codes: ["R8"], role: "FC" },
+    ];
+
+    for (const entry of poolEntries) {
+      const linkedUser = userIds.find((u) => u.displayName === entry.name);
+
+      const { error: poolErr } = await supabaseAdmin
+        .from("platform_provider_pool")
+        .upsert(
+          {
+            full_name: entry.name,
+            email: entry.email,
+            role_codes: entry.codes,
+            user_id: linkedUser?.userId ?? null,
+            domain_scope: {
+              industry_segment_ids: [],
+              proficiency_area_ids: [],
+              sub_domain_ids: [],
+              speciality_ids: [],
+            },
+            max_concurrent: 10,
+            current_assignments: 0,
+            availability_status: "available",
+            is_active: true,
+          },
+          { onConflict: "email", ignoreDuplicates: false }
+        );
+
+      if (poolErr) {
+        results.push(`⚠️ Pool: ${entry.name}: ${poolErr.message}`);
+      } else {
+        results.push(`✅ Pool: ${entry.name} (${entry.codes.join(",")})`);
+      }
     }
 
     results.push("");
