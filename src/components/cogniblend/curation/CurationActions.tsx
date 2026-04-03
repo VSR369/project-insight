@@ -74,15 +74,37 @@ export default function CurationActions({
 
     supabase.rpc('log_audit', {
       p_user_id: user.id, p_challenge_id: challengeId, p_solution_id: '',
-      p_action: 'CURATION_SUBMITTED', p_method: 'UI', p_phase_from: 3, p_phase_to: 4,
+      p_action: 'CURATION_SUBMITTED', p_method: 'UI', p_phase_from: 2, p_phase_to: 3,
       p_details: { checklist: checklistSummary, completed_count: completedCount, total_count: totalCount, amendment_cycle: amendmentCount } as unknown as Json,
     }).then(() => {
       completePhase.mutate(
         { challengeId, userId: user.id },
         {
-          onSuccess: () => {
-            toast.success('Challenge approved and submitted for publication.');
+          onSuccess: async () => {
+            toast.success('Challenge approved and submitted for compliance review.');
             try { computeQualityScore([]); } catch { /* non-critical */ }
+
+            // For CONTROLLED: auto-assign LC and FC from pool after curation approval
+            try {
+              const { data: challenge } = await supabase
+                .from('challenges')
+                .select('governance_mode_override, governance_profile')
+                .eq('id', challengeId)
+                .single();
+              const govMode = (challenge?.governance_mode_override ?? challenge?.governance_profile ?? 'STRUCTURED').toUpperCase();
+              if (govMode === 'CONTROLLED') {
+                const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
+                await autoAssignChallengeRole({ challengeId, roleCode: 'LC', assignedBy: user.id });
+                await autoAssignChallengeRole({ challengeId, roleCode: 'FC', assignedBy: user.id });
+              }
+            } catch (assignErr) {
+              const { logWarning } = await import('@/lib/errorHandler');
+              logWarning('LC/FC auto-assign after curation failed', {
+                operation: 'auto_assign_lc_fc_controlled',
+                additionalData: { challengeId, error: String(assignErr) },
+              });
+            }
+
             setTimeout(() => { navigate('/cogni/curation'); }, 1500);
           },
         },

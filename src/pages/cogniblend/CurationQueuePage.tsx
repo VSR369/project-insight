@@ -103,26 +103,18 @@ function slaIndicator(sla: SlaStatus | null) {
 }
 
 function phaseBadge(phase: number | null) {
-  if (phase === 1) {
-    return (
-      <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-semibold gap-1">
-        <Clock className="h-3 w-3" />
-        Spec in Progress
-      </Badge>
-    );
-  }
   if (phase === 2) {
     return (
-      <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold gap-1">
-        <Clock className="h-3 w-3" />
-        Awaiting Legal
+      <Badge className="bg-green-100 text-green-800 border-green-200 text-[10px] font-semibold gap-1">
+        <FileCheck className="h-3 w-3" />
+        Awaiting Curation
       </Badge>
     );
   }
   return (
-    <Badge className="bg-green-100 text-green-800 border-green-200 text-[10px] font-semibold gap-1">
-      <FileCheck className="h-3 w-3" />
-      Ready for Review
+    <Badge className="bg-muted text-muted-foreground border-border text-[10px] font-semibold gap-1">
+      <Clock className="h-3 w-3" />
+      Phase {phase ?? '?'}
     </Badge>
   );
 }
@@ -215,7 +207,7 @@ export default function CurationQueuePage() {
           "id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id"
         )
         .eq("organization_id", organizationId)
-        .in("current_phase", [1, 2, 3])
+        .in("current_phase", [2])
         .eq("is_deleted", false)
         .eq("is_active", true)
         .order("created_at", { ascending: true });
@@ -245,12 +237,12 @@ export default function CurationQueuePage() {
       // Step 3: Enrich with SLA status + assignment label
       const enriched = await Promise.all(
         (rows as CurationChallenge[]).map(async (ch) => {
-          // SLA only for Phase 3
+          // SLA for Phase 2 (Curation)
           let sla: SlaStatus | null = null;
-          if (ch.current_phase === 3) {
+          if (ch.current_phase === 2) {
             const slaRes = await supabase.rpc("check_sla_status", {
               p_challenge_id: ch.id,
-              p_phase: 3,
+              p_phase: 2,
             });
             sla = slaRes.error
               ? null
@@ -293,12 +285,12 @@ export default function CurationQueuePage() {
   // SECTION 4: Filtered data + tab counts
   // ══════════════════════════════════════
   const tabCounts = useMemo(() => {
-    const incoming = challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2).length;
-    const revision = challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
-    ).length;
     const awaiting = challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+      (c) => c.current_phase === 2 && c.sla?.status !== "BREACHED"
+    ).length;
+    const incoming = 0; // Phase 2 only — no "incoming" vs "awaiting" distinction needed
+    const revision = challenges.filter(
+      (c) => c.current_phase === 2 && c.sla?.status === "BREACHED"
     ).length;
     return { awaiting, incoming, revision, all: challenges.length };
   }, [challenges]);
@@ -312,16 +304,16 @@ export default function CurationQueuePage() {
   const filtered = useMemo(() => {
     if (resolvedTab === "all") return challenges;
     if (resolvedTab === "incoming") {
-      return challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2);
+      return challenges; // All Phase 2 challenges
     }
     if (resolvedTab === "revision") {
       return challenges.filter(
-        (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
+        (c) => c.current_phase === 2 && c.sla?.status === "BREACHED"
       );
     }
-    // "awaiting" — phase 3, non-breached
+    // "awaiting" — phase 2, non-breached
     return challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+      (c) => c.current_phase === 2 && c.sla?.status !== "BREACHED"
     );
   }, [challenges, resolvedTab]);
 
@@ -431,11 +423,9 @@ export default function CurationQueuePage() {
             </TableHeader>
             <TableBody>
               {filtered.map((ch) => {
-                const isIncoming = ch.current_phase === 1 || ch.current_phase === 2;
-                const tooltipText = ch.current_phase === 1
-                  ? "Challenge specification is still being developed."
-                  : ch.current_phase === 2
-                  ? "This challenge is awaiting Legal & Finance review."
+                const isIncoming = false; // All challenges are Phase 2 (Curation)
+                const tooltipText = ch.current_phase === 2
+                  ? "This challenge is awaiting curation review."
                   : undefined;
                 return (
                   <TableRow

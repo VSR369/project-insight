@@ -352,7 +352,7 @@ serve(async (req) => {
     });
     if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
     challengeIds.push(mpChallengeId);
-    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — COMPLIANCE)`);
+    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — CURATION)`);
 
     // Challenge B — AGG model (RQ-submitted)
     const aggChallengeId = crypto.randomUUID();
@@ -391,7 +391,7 @@ serve(async (req) => {
     });
     if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
     challengeIds.push(aggChallengeId);
-    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — COMPLIANCE)`);
+    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — CURATION)`);
 
     // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
     const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);

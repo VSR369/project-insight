@@ -163,6 +163,7 @@ const GovernanceRulesPage = lazy(() => import("@/pages/admin/seeker-config/Gover
 const GovernanceModeConfigPage = lazy(() => import("@/pages/admin/seeker-config/GovernanceModeConfigPage"));
 const RoleConvergencePage = lazy(() => import("@/pages/admin/seeker-config/RoleConvergencePage"));
 const TierGovernanceAccessPage = lazy(() => import("@/pages/admin/seeker-config/TierGovernanceAccessPage"));
+const LifecyclePhaseConfigPage = lazy(() => import("@/pages/admin/seeker-config/LifecyclePhaseConfigPage"));
 const AIReviewConfigPage = lazy(() => import("@/pages/admin/seeker-config/AIReviewConfigPage"));
 const RateCardsPage = lazy(() => import("@/pages/admin/rate-cards").then(m => ({ default: m.RateCardsPage })));
 const IncentivesPage = lazy(() => import("@/pages/admin/incentives").then(m => ({ default: m.IncentivesPage })));
@@ -770,6 +771,7 @@ const App = () => (
               <Route path="seeker-config/governance-modes" element={<PermissionGuard permissionKey="seeker_config.edit"><GovernanceModeConfigPage /></PermissionGuard>} />
               <Route path="seeker-config/role-convergence" element={<PermissionGuard permissionKey="seeker_config.edit"><RoleConvergencePage /></PermissionGuard>} />
               <Route path="seeker-config/tier-access" element={<PermissionGuard permissionKey="seeker_config.edit"><TierGovernanceAccessPage /></PermissionGuard>} />
+              <Route path="seeker-config/lifecycle-phases" element={<PermissionGuard permissionKey="seeker_config.edit"><LifecyclePhaseConfigPage /></PermissionGuard>} />
               <Route path="seeker-config/ai-review-config" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIReviewConfigPage /></PermissionGuard>} />
               <Route path="seeker-config/rate-cards" element={<PermissionGuard permissionKey="seeker_config.view"><RateCardsPage /></PermissionGuard>} />
               <Route path="seeker-config/incentives" element={<PermissionGuard permissionKey="seeker_config.view"><IncentivesPage /></PermissionGuard>} />

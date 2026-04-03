@@ -568,28 +568,8 @@ export default function LcLegalWorkspacePage() {
       const result = reviewResult as unknown as { success: boolean; phase_advanced: boolean; current_phase: number; message: string; error?: string };
       if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
 
-      // If advanced to Phase 3, auto-assign CU from pool
-      if (result.phase_advanced && result.current_phase >= 3) {
-        try {
-          const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
-          const assignResult = await autoAssignChallengeRole({
-            challengeId,
-            roleCode: 'CU',
-            assignedBy: user.id,
-          });
-          if (!assignResult) {
-            toast.warning('No eligible Curator found in the pool. Please assign one manually.');
-          } else {
-            toast.success('Curator assigned — challenge is now in the curation queue.');
-          }
-        } catch (assignErr: unknown) {
-          logWarning('CU auto-assign failed after legal review', {
-            operation: 'auto_assign_challenge_role',
-            additionalData: { challengeId, error: String(assignErr) },
-          });
-          toast.warning('Challenge advanced but Curator could not be assigned automatically.');
-        }
-      }
+      // Curation happens BEFORE compliance — no CU auto-assign needed after legal review
+      // Phase 3 (Compliance) → Phase 4 (Publication) is handled by complete_phase RPC
 
       // Invalidate dashboard queries so curator sees the challenge
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
