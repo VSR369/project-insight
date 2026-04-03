@@ -224,6 +224,20 @@ export default function SolutionSubmitPage() {
         onAcceptedChange={(type, v) => setLegalAccepted(prev => ({ ...prev, [type]: v }))}
         onAccept={handleLegalDocAccept} isPending={legalMutation.isPending}
       />
+
+      {/* ABSTRACT_SUBMIT legal gate (PSA + IPAA) */}
+      {abstractGate.showGate && (
+        <LegalGateModal
+          triggerEvent={abstractGate.triggerEvent}
+          challengeId={challengeId}
+          userRole="SOLVER"
+          onAllAccepted={abstractGate.handleAllAccepted}
+          onDeclined={() => {
+            abstractGate.handleDeclined();
+            toast.error('You must accept the legal terms to submit.');
+          }}
+        />
+      )}
     </div>
   );
 }

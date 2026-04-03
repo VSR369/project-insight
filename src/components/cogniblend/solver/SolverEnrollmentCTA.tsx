@@ -514,6 +514,20 @@ export function SolverEnrollmentCTA({
         isSubmitting={isProcessing}
         showAdAgreement={isAggModel}
       />
+
+      {/* SOLVER_ENROLLMENT legal gate (PSA) */}
+      {solverGate.showGate && (
+        <LegalGateModal
+          triggerEvent={solverGate.triggerEvent}
+          challengeId={challengeId}
+          userRole="SOLVER"
+          onAllAccepted={solverGate.handleAllAccepted}
+          onDeclined={() => {
+            solverGate.handleDeclined();
+            toast.error('You must accept the legal terms to enroll.');
+          }}
+        />
+      )}
     </div>
   );
 }
