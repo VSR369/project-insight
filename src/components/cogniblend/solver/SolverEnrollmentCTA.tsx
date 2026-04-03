@@ -443,9 +443,11 @@ export function SolverEnrollmentCTA({
     }
   };
 
-  // Gate enrollment behind SOLVER_ENROLLMENT legal check
+  // Gate enrollment behind SOLVER_ENROLLMENT then CHALLENGE_JOIN legal checks
   const handleEnroll = () => {
-    solverGate.gateAction(executeEnroll);
+    solverGate.gateAction(() => {
+      joinGate.gateAction(executeEnroll);
+    });
   };
 
   const handleLegalAccept = (scrollConfirmed: boolean, adAccepted: boolean) => {
