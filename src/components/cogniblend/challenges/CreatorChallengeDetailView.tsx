@@ -39,14 +39,18 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   );
   const { data: fieldRules } = useGovernanceFieldRules(effectiveGovernance);
 
-  const snapshot = (data as any).creator_snapshot as Record<string, unknown> | null;
+  const snapshot = (data as unknown as Record<string, unknown>).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
   const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
-  const extendedBrief = (data as unknown as Record<string, unknown>).extended_brief as Record<string, unknown> | null | undefined;
-  const crApprovalRequired = extendedBrief?.creator_approval_required !== false;
+
+  // Governance-aware content visibility
+  const isQuickMode = effectiveGovernance === 'QUICK';
+
+  // Curator Version shows only AFTER curation (Phase 2) is completed:
+  //   Phase 3+ means Curator finished their review
+  //   isPendingApproval means Curator submitted for Creator sign-off
   const showCuratorContent = isPendingApproval
-    || (data.current_phase ?? 1) >= 4
-    || ((data.current_phase ?? 1) >= 3 && !crApprovalRequired);
+    || (data.current_phase ?? 1) >= 3;
 
   const myVersionSections: SectionDef[] = useMemo(() => {
     if (!snapshot) return [];
