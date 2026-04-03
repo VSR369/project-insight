@@ -13543,6 +13543,14 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_otps: { Args: never; Returns: number }
+      complete_financial_review: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
+      complete_legal_review: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       complete_phase: {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
