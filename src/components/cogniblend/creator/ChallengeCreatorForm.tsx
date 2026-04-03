@@ -560,6 +560,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
           currentActive={tierLimit.current_active}
         />
       )}
+
+      {showLegalGate && (
+        <LegalGateModal
+          triggerEvent="CHALLENGE_SUBMIT"
+          onAllAccepted={handleLegalAccepted}
+          onDeclined={handleLegalDeclined}
+        />
+      )}
     </FormProvider>
   );
 }
