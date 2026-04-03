@@ -178,13 +178,18 @@ export default function SolutionSubmitPage() {
     saveDraftMutation.mutate({ existingId: existingSolution?.id, challengeId: challengeId!, providerId: userId!, ...values });
   };
 
-  const handleSubmit = async (values: AbstractFormValues) => {
+  const executeSubmit = (values: AbstractFormValues) => {
     if (fileSizeExceeded) { toast.error('Total file size exceeds 50MB limit.'); return; }
     submitMutation.mutate({
       existingId: existingSolution?.id, challengeId: challengeId!, providerId: userId!,
       abstractText: values.abstractText, methodology: values.methodology,
       timeline: values.timeline, experience: values.experience, aiUsageDeclaration: values.aiUsageDeclaration,
     }, { onSuccess: () => clearSolutionPersistence() });
+  };
+
+  // Gate submission behind ABSTRACT_SUBMIT legal check
+  const handleSubmit = (values: AbstractFormValues) => {
+    abstractGate.gateAction(() => executeSubmit(values));
   };
 
   // ═══ SECTION 8: Render ═══
