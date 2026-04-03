@@ -272,6 +272,13 @@ export function SolverEnrollmentCTA({
 
   const [legalDialogOpen, setLegalDialogOpen] = useState(false);
 
+  // Legal gate for SOLVER_ENROLLMENT trigger (PSA acceptance)
+  const solverGate = useLegalGateAction({
+    triggerEvent: 'SOLVER_ENROLLMENT',
+    challengeId,
+    userRole: 'SOLVER',
+  });
+
   const model = enrollmentModel || 'OPEN';
   const modelInfo = MODEL_LABELS[model] ?? MODEL_LABELS.OPEN;
 
