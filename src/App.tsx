@@ -145,6 +145,9 @@ const ExportControlPage = lazy(() => import("@/pages/admin/export-control").then
 const DataResidencyPage = lazy(() => import("@/pages/admin/data-residency").then(m => ({ default: m.DataResidencyPage })));
 const BlockedDomainsPage = lazy(() => import("@/pages/admin/blocked-domains").then(m => ({ default: m.BlockedDomainsPage })));
 const LegalDocumentTemplatesPage = lazy(() => import("@/pages/admin/seeker-config/LegalDocumentTemplatesPage"));
+const LegalDocumentListPage = lazy(() => import("@/pages/admin/legal/LegalDocumentListPage"));
+const LegalDocumentEditorPage = lazy(() => import("@/pages/admin/legal/LegalDocumentEditorPage"));
+const LegalDocTriggerConfigPage = lazy(() => import("@/pages/admin/legal/LegalDocTriggerConfigPage"));
 const PlatformTermsPage = lazy(() => import("@/pages/admin/platform-terms").then(m => ({ default: m.PlatformTermsPage })));
 const MembershipTiersPage = lazy(() => import("@/pages/admin/membership-tiers").then(m => ({ default: m.MembershipTiersPage })));
 const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ default: m.BaseFeesPage })));
