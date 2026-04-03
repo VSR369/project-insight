@@ -7,8 +7,6 @@ import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataFo
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
-import { LegalTemplateContentEditor } from "@/components/admin/legal/LegalTemplateContentEditor";
-import { LegalTemplateFileUpload } from "@/components/admin/legal/LegalTemplateFileUpload";
 import {
   useLegalDocumentTemplates, useCreateLegalDocumentTemplate, useUpdateLegalDocumentTemplate,
   useDeleteLegalDocumentTemplate, useRestoreLegalDocumentTemplate,
