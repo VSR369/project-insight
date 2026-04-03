@@ -85,6 +85,13 @@ export default function SolutionSubmitPage() {
   const withdrawMutation = useWithdrawSolution();
   const { data: reacceptStatus } = useLegalReacceptanceStatus(challengeId, userId);
 
+  // Legal gate for ABSTRACT_SUBMIT trigger (PSA + IPAA)
+  const abstractGate = useLegalGateAction({
+    triggerEvent: 'ABSTRACT_SUBMIT',
+    challengeId,
+    userRole: 'SOLVER',
+  });
+
   // ═══ SECTION 5: useEffect ═══
   useEffect(() => {
     if (existingSolution) {
