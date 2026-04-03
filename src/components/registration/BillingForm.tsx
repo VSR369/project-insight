@@ -28,6 +28,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { BillingAddressFields } from './BillingAddressFields';
 import { BillingPaymentSection } from './BillingPaymentSection';
 import { BillingOrderSummary } from './BillingOrderSummary';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 
 export function BillingForm() {
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
@@ -101,6 +103,9 @@ export function BillingForm() {
   const membershipFee = selectedMembership?.annual_fee_usd ?? 0;
   const totalDiscount = Math.min(100, cycleDiscount + subsidizedPct);
   const dueToday = isInternalDept ? 0 : effectiveMonthly + membershipFee;
+
+  // Legal gate for SEEKER_ENROLLMENT trigger (CA acceptance)
+  const seekerGate = useLegalGateAction({ triggerEvent: 'SEEKER_ENROLLMENT' });
 
   // Submit handler
   const handleSubmit = async (data: BillingFormValues) => {
@@ -214,7 +219,7 @@ export function BillingForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <form onSubmit={form.handleSubmit((data) => seekerGate.gateAction(() => handleSubmit(data)))}>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-6">
             <BillingAddressFields form={form} billingStates={billingStates} statesLoading={statesLoading} watchedBillingCountryId={watchedBillingCountryId} />
@@ -234,6 +239,15 @@ export function BillingForm() {
           </div>
         </div>
       </form>
+
+      {/* SEEKER_ENROLLMENT legal gate */}
+      {seekerGate.showGate && (
+        <LegalGateModal
+          triggerEvent={seekerGate.triggerEvent}
+          onAllAccepted={seekerGate.handleAllAccepted}
+          onDeclined={seekerGate.handleDeclined}
+        />
+      )}
     </Form>
   );
 }

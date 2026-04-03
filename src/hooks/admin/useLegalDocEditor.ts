@@ -1,6 +1,6 @@
 /**
  * useLegalDocEditor — Manages save/publish/auto-save logic for legal doc editor.
- * Extracted from LegalDocumentEditorPage for layer separation.
+ * Supports IPAA section-based editing via the sections JSONB column.
  */
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,18 +11,41 @@ import {
   useCreateLegalDocTemplate,
 } from '@/hooks/queries/useLegalDocumentTemplates';
 import type { DocumentCode, LegalDocTemplate } from '@/types/legal.types';
+import type { IpaaSectionKey } from '@/components/admin/legal/LegalDocSectionTabs';
 
 const AUTO_SAVE_INTERVAL_MS = 30_000;
+
+interface SectionContent {
+  html: string;
+  json: Record<string, unknown> | null;
+}
 
 interface EditorState {
   content: string;
   contentJson: Record<string, unknown> | null;
+  sections: Record<string, SectionContent>;
 }
 
 interface UseEditorParams {
   templateId?: string;
   isNew: boolean;
   defaultCode: DocumentCode;
+}
+
+function parseSections(
+  raw: Record<string, unknown> | null | undefined
+): Record<string, SectionContent> {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: Record<string, SectionContent> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val && typeof val === 'object' && 'html' in (val as Record<string, unknown>)) {
+      const v = val as Record<string, unknown>;
+      result[key] = { html: (v.html as string) ?? '', json: (v.json as Record<string, unknown>) ?? null };
+    } else if (typeof val === 'string') {
+      result[key] = { html: val, json: null };
+    }
+  }
+  return result;
 }
 
 export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorParams) {
@@ -35,6 +58,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   const [editorState, setEditorState] = React.useState<EditorState>({
     content: '',
     contentJson: null,
+    sections: {},
   });
   const [config, setConfig] = React.useState<Partial<LegalDocTemplate>>({});
   const [isDirty, setIsDirty] = React.useState(false);
@@ -47,6 +71,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
       setEditorState({
         content: template.content ?? template.template_content ?? '',
         contentJson: template.content_json ?? null,
+        sections: parseSections(template.sections),
       });
       setConfig({
         document_name: template.document_name,
@@ -62,14 +87,41 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   }, [template]);
 
   const handleContentChange = (html: string, json: Record<string, unknown> | null) => {
-    setEditorState({ content: html, contentJson: json });
+    setEditorState((prev) => ({ ...prev, content: html, contentJson: json }));
     setIsDirty(true);
   };
 
+  /** Update content for a specific IPAA section */
+  const handleSectionContentChange = (
+    section: IpaaSectionKey,
+    html: string,
+    json: Record<string, unknown> | null
+  ) => {
+    setEditorState((prev) => ({
+      ...prev,
+      sections: { ...prev.sections, [section]: { html, json } },
+    }));
+    setIsDirty(true);
+  };
+
+  /** Get content for a specific IPAA section */
+  const getSectionContent = (section: IpaaSectionKey): string => {
+    return editorState.sections[section]?.html ?? '';
+  };
+
   const setUploadedContent = (html: string) => {
-    setEditorState({ content: html, contentJson: null });
+    setEditorState((prev) => ({ ...prev, content: html, contentJson: null }));
     setIsDirty(true);
     setContentVersion((v) => v + 1);
+  };
+
+  /** Build sections JSONB for save */
+  const buildSectionsPayload = (): Record<string, unknown> => {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(editorState.sections)) {
+      result[key] = { html: val.html, json: val.json };
+    }
+    return result;
   };
 
   const handleSave = React.useCallback(async () => {
@@ -83,6 +135,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
         version_status: 'DRAFT',
         content: editorState.content,
         content_json: editorState.contentJson,
+        sections: buildSectionsPayload(),
         ...config,
       } as Partial<LegalDocTemplate>);
       navigate(`/admin/legal-documents/${result.template_id}/edit`, { replace: true });
@@ -91,6 +144,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
         template_id: templateId!,
         content: editorState.content,
         content_json: editorState.contentJson,
+        sections: buildSectionsPayload(),
         ...config,
       });
     }
@@ -131,6 +185,8 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     setShowPublish,
     contentVersion,
     handleContentChange,
+    handleSectionContentChange,
+    getSectionContent,
     setUploadedContent,
     handleSave,
     handlePublish,

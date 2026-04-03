@@ -51,6 +51,8 @@ import { StepModeSelection } from '@/components/cogniblend/challenge-wizard/Step
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
 import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import {
   createChallengeFormSchema,
   DEFAULT_FORM_VALUES,
@@ -173,6 +175,12 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const createChallengeMutation = useSubmitSolutionRequest();
   const saveStepMutation = useSaveChallengeStep();
   const submitMutation = useSubmitChallengeForReview();
+
+  // ═══════ Legal gate — CHALLENGE_SUBMIT ═══════
+  const challengeSubmitGate = useLegalGateAction({
+    triggerEvent: 'CHALLENGE_SUBMIT',
+    challengeId: challengeId ?? undefined,
+  });
 
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
@@ -804,8 +812,18 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         values={form.getValues()}
         governanceProfile={governanceProfile}
         isSubmitting={saveStepMutation.isPending || submitMutation.isPending || createChallengeMutation.isPending}
-        onConfirm={handleConfirmSubmit}
+        onConfirm={() => challengeSubmitGate.gateAction(handleConfirmSubmit)}
       />
+
+      {/* CHALLENGE_SUBMIT legal gate */}
+      {challengeSubmitGate.showGate && (
+        <LegalGateModal
+          triggerEvent={challengeSubmitGate.triggerEvent}
+          challengeId={challengeId}
+          onAllAccepted={challengeSubmitGate.handleAllAccepted}
+          onDeclined={challengeSubmitGate.handleDeclined}
+        />
+      )}
     </div>
   );
 }
