@@ -144,6 +144,7 @@ const ChallengeStatusesPage = lazy(() => import("@/pages/admin/challenge-statuse
 const ExportControlPage = lazy(() => import("@/pages/admin/export-control").then(m => ({ default: m.ExportControlPage })));
 const DataResidencyPage = lazy(() => import("@/pages/admin/data-residency").then(m => ({ default: m.DataResidencyPage })));
 const BlockedDomainsPage = lazy(() => import("@/pages/admin/blocked-domains").then(m => ({ default: m.BlockedDomainsPage })));
+const LegalDocumentTemplatesPage = lazy(() => import("@/pages/admin/seeker-config/LegalDocumentTemplatesPage"));
 const PlatformTermsPage = lazy(() => import("@/pages/admin/platform-terms").then(m => ({ default: m.PlatformTermsPage })));
 const MembershipTiersPage = lazy(() => import("@/pages/admin/membership-tiers").then(m => ({ default: m.MembershipTiersPage })));
 const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ default: m.BaseFeesPage })));
@@ -747,6 +748,7 @@ const App = () => (
               <Route path="seeker-config/data-residency" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><DataResidencyPage /></PermissionGuard>} />
               <Route path="seeker-config/blocked-domains" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><BlockedDomainsPage /></PermissionGuard>} />
               <Route path="seeker-config/platform-terms" element={<PermissionGuard permissionKey="seeker_config.view"><PlatformTermsPage /></PermissionGuard>} />
+              <Route path="seeker-config/legal-templates" element={<PermissionGuard permissionKey="seeker_config.view"><LegalDocumentTemplatesPage /></PermissionGuard>} />
               <Route path="seeker-config/membership-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><MembershipTiersPage /></PermissionGuard>} />
               <Route path="seeker-config/base-fees" element={<PermissionGuard permissionKey="seeker_config.view"><BaseFeesPage /></PermissionGuard>} />
               <Route path="seeker-config/shadow-pricing" element={<PermissionGuard permissionKey="seeker_config.view_shadow_pricing"><ShadowPricingPage /></PermissionGuard>} />
