@@ -285,12 +285,12 @@ export default function CurationQueuePage() {
   // SECTION 4: Filtered data + tab counts
   // ══════════════════════════════════════
   const tabCounts = useMemo(() => {
-    const incoming = challenges.filter((c) => c.current_phase === 1 || c.current_phase === 2).length;
-    const revision = challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status === "BREACHED"
-    ).length;
     const awaiting = challenges.filter(
-      (c) => c.current_phase === 3 && c.sla?.status !== "BREACHED"
+      (c) => c.current_phase === 2 && c.sla?.status !== "BREACHED"
+    ).length;
+    const incoming = 0; // Phase 2 only — no "incoming" vs "awaiting" distinction needed
+    const revision = challenges.filter(
+      (c) => c.current_phase === 2 && c.sla?.status === "BREACHED"
     ).length;
     return { awaiting, incoming, revision, all: challenges.length };
   }, [challenges]);
