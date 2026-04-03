@@ -31,8 +31,8 @@ export function useLifecyclePhaseConfig(mode: string) {
   return useQuery<LifecyclePhaseConfig[]>({
     queryKey: ['lifecycle-phase-config', mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('md_lifecycle_phase_config' as string)
+      const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
+        .from('md_lifecycle_phase_config')
         .select(PHASE_COLUMNS)
         .eq('governance_mode', mode)
         .order('phase_number', { ascending: true });
