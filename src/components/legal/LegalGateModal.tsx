@@ -87,7 +87,7 @@ export function LegalGateModal({
   return (
     <Dialog open onOpenChange={() => {}}>
       <DialogContent
-        className="max-w-[90vw] w-full max-h-[90vh] h-[90vh] flex flex-col overflow-hidden p-0"
+        className="max-w-[90vw] w-full max-h-[90vh] h-[90vh] flex flex-col overflow-hidden p-0 [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
