@@ -39,6 +39,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   const [config, setConfig] = React.useState<Partial<LegalDocTemplate>>({});
   const [isDirty, setIsDirty] = React.useState(false);
   const [showPublish, setShowPublish] = React.useState(false);
+  const [contentVersion, setContentVersion] = React.useState(0);
 
   // Sync template data into local state
   React.useEffect(() => {
