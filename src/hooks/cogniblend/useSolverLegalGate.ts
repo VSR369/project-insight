@@ -15,9 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 
-/* ─── Enterprise-only doc types (BRD BR-LGL-001-A Tier 2 matrix) ─── */
+/* ─── Non-QUICK doc types (require STRUCTURED/CONTROLLED governance) ─── */
 
-const ENTERPRISE_ONLY_DOC_TYPES = [
+const NON_QUICK_DOC_TYPES = [
   'ESCROW_TERMS',
   'IP_ASSIGNMENT_DEED',
   'PERFORMANCE_BOND',
