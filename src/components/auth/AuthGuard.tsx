@@ -1,6 +1,7 @@
 /**
  * AuthGuard — Protects routes requiring authentication.
  * Also triggers PMA (Platform Master Agreement) acceptance check on first login.
+ * Fail-open: If the legal gate RPC errors, the user is not trapped.
  */
 import { ReactNode, useState, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -43,6 +44,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Show legal gate for USER_REGISTRATION trigger (PMA acceptance)
+  // LegalGateModal handles fail-open internally (calls onAllAccepted on error)
   if (showLegalGate && !legalGatePassed) {
     return (
       <LegalGateModal

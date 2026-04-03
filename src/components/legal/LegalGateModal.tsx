@@ -1,6 +1,7 @@
 /**
  * LegalGateModal — Shows pending legal documents for a trigger event.
  * Sequentially presents each document with scroll tracking + checkbox gate.
+ * Fail-open: If the RPC errors or content is empty, user is not trapped.
  */
 import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -32,7 +33,7 @@ export function LegalGateModal({
   const [scrollProgress, setScrollProgress] = React.useState(0);
   const [isChecked, setIsChecked] = React.useState(false);
 
-  const { data: gateResult, isLoading } = useLegalGate({
+  const { data: gateResult, isLoading, isError } = useLegalGate({
     triggerEvent, challengeId, userRole, governanceMode,
   });
   const acceptMutation = useLegalAcceptanceLog();
@@ -40,7 +41,12 @@ export function LegalGateModal({
   const pending = gateResult?.pending_documents ?? [];
   const currentDoc: PendingLegalDocument | undefined = pending[currentIndex];
 
-  const { data: fullTemplate } = useLegalDocTemplateById(currentDoc?.template_id);
+  const { data: fullTemplate, isError: templateError } = useLegalDocTemplateById(currentDoc?.template_id);
+
+  // Fail-open: if RPC errors, don't trap user
+  React.useEffect(() => {
+    if (isError) onAllAccepted();
+  }, [isError, onAllAccepted]);
 
   // Auto-pass if gate is open
   React.useEffect(() => {
@@ -53,10 +59,19 @@ export function LegalGateModal({
     setIsChecked(false);
   }, [currentIndex]);
 
+  const htmlContent = fullTemplate?.content ?? fullTemplate?.template_content ?? '';
+
+  // If content is empty or template fetch failed, auto-set scroll to 100%
+  React.useEffect(() => {
+    if (currentDoc && (htmlContent === '' || templateError)) {
+      setScrollProgress(100);
+    }
+  }, [currentDoc, htmlContent, templateError]);
+
   if (isLoading) {
     return (
       <Dialog open>
-        <DialogContent className="flex items-center justify-center min-h-[200px]">
+        <DialogContent className="flex items-center justify-center min-h-[200px] [&>button]:hidden">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </DialogContent>
       </Dialog>
@@ -64,8 +79,6 @@ export function LegalGateModal({
   }
 
   if (!currentDoc || gateResult?.gate_open) return null;
-
-  const htmlContent = fullTemplate?.content ?? fullTemplate?.template_content ?? '';
 
   const handleAction = async (action: 'ACCEPTED' | 'DECLINED') => {
     if (!user?.id || !currentDoc) return;
