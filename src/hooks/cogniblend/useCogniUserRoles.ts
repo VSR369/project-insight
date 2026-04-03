@@ -35,10 +35,7 @@ export function useCogniUserRoles() {
 
       // Resolve legacy role codes in each row
       const rows = (data ?? []) as UserChallengeRoleRow[];
-      return rows.map((row) => ({
-        ...row,
-        role_codes: (row.role_codes ?? []).map(resolveRoleCode),
-      }));
+      return rows;
     },
     enabled: !!user?.id,
     staleTime: 30_000,

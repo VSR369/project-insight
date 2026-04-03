@@ -107,7 +107,7 @@ export default function SolutionSubmitPage() {
   const isWithdrawn = existingSolution?.phase_status === 'TERMINAL' || existingSolution?.selection_status === 'WITHDRAWN';
   const _govMode = resolveGovernanceMode(challenge?.governance_profile);
   const isQuick = isQuickMode(_govMode);
-  const isEnterprise = isEnterpriseGrade(_govMode);
+  const isEnterprise = isStructuredOrAbove(_govMode);
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
   const needsReacceptance = reacceptStatus?.hasPending ?? false;
   const missingDocs = useMemo(
