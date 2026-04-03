@@ -178,7 +178,7 @@ export function ChallengeSubmitSummaryModal({
             {values.silver_award !== undefined && values.silver_award > 0 && (
               <SummaryRow label="Silver Award" value={`${sym}${values.silver_award.toLocaleString()}`} />
             )}
-            {!isEnterprise ? null : (
+            {!isStructured ? null : (
               <SummaryRow label="Rejection Fee" value={`${values.rejection_fee_pct}%`} />
             )}
           </SummarySection>
