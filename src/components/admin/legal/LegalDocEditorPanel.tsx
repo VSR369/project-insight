@@ -23,8 +23,7 @@ interface LegalDocEditorPanelProps {
   onContentChange: (html: string, json: Record<string, unknown> | null) => void;
 }
 
-export function LegalDocEditorPanel({ content, onContentChange }: LegalDocEditorPanelProps) {
-  const [isInitialized, setIsInitialized] = React.useState(false);
+export function LegalDocEditorPanel({ content, contentVersion, onContentChange }: LegalDocEditorPanelProps) {
 
   const editor = useEditor({
     extensions: [
