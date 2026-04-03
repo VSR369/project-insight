@@ -812,8 +812,18 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         values={form.getValues()}
         governanceProfile={governanceProfile}
         isSubmitting={saveStepMutation.isPending || submitMutation.isPending || createChallengeMutation.isPending}
-        onConfirm={handleConfirmSubmit}
+        onConfirm={() => challengeSubmitGate.gateAction(handleConfirmSubmit)}
       />
+
+      {/* CHALLENGE_SUBMIT legal gate */}
+      {challengeSubmitGate.showGate && (
+        <LegalGateModal
+          triggerEvent={challengeSubmitGate.triggerEvent}
+          challengeId={challengeId}
+          onAllAccepted={challengeSubmitGate.handleAllAccepted}
+          onDeclined={challengeSubmitGate.handleDeclined}
+        />
+      )}
     </div>
   );
 }
