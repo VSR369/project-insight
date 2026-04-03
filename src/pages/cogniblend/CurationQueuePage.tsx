@@ -237,12 +237,12 @@ export default function CurationQueuePage() {
       // Step 3: Enrich with SLA status + assignment label
       const enriched = await Promise.all(
         (rows as CurationChallenge[]).map(async (ch) => {
-          // SLA only for Phase 3
+          // SLA for Phase 2 (Curation)
           let sla: SlaStatus | null = null;
-          if (ch.current_phase === 3) {
+          if (ch.current_phase === 2) {
             const slaRes = await supabase.rpc("check_sla_status", {
               p_challenge_id: ch.id,
-              p_phase: 3,
+              p_phase: 2,
             });
             sla = slaRes.error
               ? null
