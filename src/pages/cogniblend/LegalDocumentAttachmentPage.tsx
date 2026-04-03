@@ -179,6 +179,7 @@ export default function LegalDocumentAttachmentPage() {
   const [gateFailures, setGateFailures] = useState<string[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const [isComplianceSubmitting, setIsComplianceSubmitting] = useState(false);
 
   // Preview state
   const [previewDoc, setPreviewDoc] = useState<{
