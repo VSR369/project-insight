@@ -2,7 +2,7 @@
  * useValidateRoleAssignment — Calls the `validate_role_assignment` RPC
  * to check for role fusion conflicts before assignment.
  *
- * Returns conflict details: HARD_BLOCK, SOFT_WARN, or ALLOWED.
+ * Returns conflict details: HARD_BLOCK or ALLOWED (binary only).
  */
 
 import { useState, useCallback } from 'react';
@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface RoleConflictResult {
   allowed: boolean;
-  conflictType: 'HARD_BLOCK' | 'SOFT_WARN' | 'ALLOWED';
+  conflictType: 'HARD_BLOCK' | 'ALLOWED';
   message: string | null;
 }
 
@@ -22,7 +22,6 @@ const ALLOWED_RESULT: RoleConflictResult = {
 
 /**
  * Stateless utility: validate a single role assignment against the DB.
- * Uses `resolve_challenge_governance()` inside the RPC when challengeId is provided.
  */
 export async function validateRoleAssignment(params: {
   userId: string;
@@ -38,7 +37,6 @@ export async function validateRoleAssignment(params: {
   });
 
   if (error) {
-    console.error('validate_role_assignment RPC error:', error.message);
     // Fail-open: allow but warn
     return ALLOWED_RESULT;
   }
@@ -55,7 +53,6 @@ export async function validateRoleAssignment(params: {
 
 /**
  * React hook wrapper for interactive conflict checking.
- * Tracks loading state and the latest validation result.
  */
 export function useValidateRoleAssignment() {
   const [result, setResult] = useState<RoleConflictResult | null>(null);
