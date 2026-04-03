@@ -20,7 +20,7 @@ interface RoleConvergenceMatrixProps {
 }
 
 interface ConflictRule {
-  rule_id: string;
+  rule_id: number;
   role_a: string;
   role_b: string;
   conflict_type: string;
