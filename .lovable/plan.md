@@ -1,152 +1,103 @@
 
 
-# Legal Document Management System — Implementation Plan
+# Gap Analysis & Fix Plan — Legal Document Management System
 
-## Current State Assessment
+## Issues Found
 
-**What exists today:**
-- `legal_document_templates` table with basic columns (template_id, document_type, document_name, tier, description, template_content, trigger_phase, is_active)
-- Simple admin page at `/admin/seeker-config/legal-templates` using generic DataTable + textarea content editor
-- `TcReAcceptanceModal` for org-level T&C (separate system, `tc_versions` table)
-- `SolverLegalGateModal` for Tier 2 phase-triggered docs (uses `legal_acceptance_ledger`)
-- TipTap + mammoth already installed in project
+### CRITICAL: PMA Modal Cannot Be Closed (User-Reported Bug)
 
-**What's missing:**
-- No `document_code` system (PMA, CA, PSA, IPAA, EPIA)
-- No version management (version, version_status, parent_template_id)
-- No rich content (content_json for TipTap state)
-- No workflow trigger configuration (`legal_doc_trigger_config` table)
-- No forensic acceptance log (`legal_acceptance_log` table)
-- No `check_legal_gate` RPC function
-- No professional legal stylesheet
-- No full-screen TipTap editor with legal formatting
-- No runtime `LegalGateModal` for platform-wide legal gates
-- No first-login PMA acceptance flow
+**Root cause:** The `LegalGateModal` uses Shadcn `DialogContent` which renders an X close button by default. The modal blocks closing via `onOpenChange={() => {}}`, `onPointerDownOutside`, and `onEscapeKeyDown` — but the X button is still clickable and appears to do nothing, confusing the user. Additionally, if the RPC returns an error or the PMA template has no content, the user is stuck.
 
-## Implementation Phases
+**Fix:** Hide the X close button with CSS (`[&>button]:hidden` on DialogContent). The user must Accept or Decline — that is per spec.
 
-Due to the scale (~30 new files, 1 migration, multiple integration points), this will be implemented in **4 batches**. Each batch is self-contained and testable.
+### MISSING: Document Upload Feature (6 files)
 
----
+The spec requires an "Upload Document" button in the editor top bar that accepts .docx/.pdf/.txt, converts to HTML via mammoth.js, and replaces TipTap content. **None of these files exist:**
 
-### BATCH 1: Database Migration + Legal Stylesheet + Types
+| Missing File | Purpose |
+|---|---|
+| `LegalDocUploadHandler.tsx` | Upload button + file picker + conversion logic |
+| `LegalDocUploadConfirmDialog.tsx` | "Replace current content?" warning dialog |
+| `useLegalDocUpload.ts` | Upload to Supabase Storage + mammoth conversion hook |
+| `LegalDocSectionTabs.tsx` | IPAA section tabs (abstract/milestone/detailed/final_award) |
+| `useLegalDocEditor.ts` | Separate editor save/publish hook (currently inlined in page) |
+| `LegalGateScrollTracker.tsx` | Standalone scroll progress component (currently inlined in viewer) |
 
-**Migration creates/alters:**
+The editor page also has no "Upload Document" button in the top bar — the spec explicitly requires one.
 
-1. **Enhance `legal_document_templates`** — Add columns: `document_code` (CHECK PMA/CA/PSA/IPAA/EPIA), `version`, `content` (TipTap HTML), `content_json` (TipTap JSON), `summary`, `sections` (JSONB for IPAA), `applies_to_roles`, `applies_to_model`, `applies_to_mode`, `is_mandatory`, `effective_date`, `parent_template_id`, `version_status` (DRAFT/ACTIVE/ARCHIVED), `original_file_url`, `original_file_name`
-2. **Create `legal_doc_trigger_config`** — Maps document_code + trigger_event + role + governance mode. Seed 13 default trigger rules
-3. **Create `legal_acceptance_log`** — Forensic-grade acceptance tracking (user_id, template_id, document_code, section, version, challenge_id, trigger_event, action, ip_address, user_agent)
-4. **Create `check_legal_gate` RPC** — Returns pending documents for a user/trigger/role combination
-5. **RLS policies** on new tables
-6. **Seed 5 starter templates** (PMA, CA, PSA, IPAA, EPIA) with professional HTML content
-7. **Storage bucket** `legal-documents`
+### MISSING: Auto-save Every 30 Seconds
 
-**Stylesheet:**
-- Create `src/styles/legal-document.css` — Professional contract-grade formatting (Georgia serif, justified text, legal numbering, article headings, signature blocks, print-friendly)
+The spec requires auto-save of the editor content every 30 seconds. Not implemented.
 
-**Files:**
-- `supabase/migrations/YYYYMMDD_legal_doc_management.sql`
-- `src/styles/legal-document.css` (~150 lines)
+### Other Gaps
+
+1. **CSS uses HSL tokens** — already adapted correctly (the spec shows `var(--color-text-primary)` but the implementation uses `hsl(var(--foreground))` which matches the project's Shadcn theme). This is fine.
+2. **Database, trigger config, acceptance log, RPC, storage bucket** — all correctly implemented and match the spec.
+3. **13 trigger rules** — all 15 rows (13 logical rules, 2 having STRUCTURED+CONTROLLED splits) correctly seeded.
+4. **Starter templates** — all 5 seeded with professional HTML content.
+5. **AuthGuard integration** — PMA gate on first login is wired correctly.
 
 ---
 
-### BATCH 2: Admin — Legal Document List + Full-Screen Editor
+## Implementation Plan
 
-**Replace** the existing generic `LegalDocumentTemplatesPage` with a professional card-grid list page and full-screen TipTap editor.
+### Step 1: Fix LegalGateModal close button
 
-**New routes:**
-- `/admin/legal-documents` — Card grid showing 5 document codes
-- `/admin/legal-documents/:templateId/edit` — Full-screen editor (no sidebar layout)
-- `/admin/legal-documents/new?code=PMA` — Create new template
+Hide the default X button on `DialogContent` so users cannot attempt to close without Accept/Decline.
 
-**Files (all under 200 lines):**
-- `src/pages/admin/legal/LegalDocumentListPage.tsx` (~80 lines) — card grid
-- `src/pages/admin/legal/LegalDocumentEditorPage.tsx` (~150 lines) — full-screen layout with 3 zones
-- `src/components/admin/legal/LegalDocumentCard.tsx` (~80 lines)
-- `src/components/admin/legal/LegalDocEditorPanel.tsx` (~180 lines) — TipTap with `.legal-doc` class
-- `src/components/admin/legal/LegalDocEditorToolbar.tsx` (~150 lines) — legal-specific formatting
-- `src/components/admin/legal/LegalDocQuickInserts.tsx` (~80 lines) — recital, signature, definition, clause templates
-- `src/components/admin/legal/LegalDocConfigSidebar.tsx` (~150 lines) — targeting, settings, version history
-- `src/components/admin/legal/LegalDocUploadHandler.tsx` (~120 lines) — .docx/.pdf upload with mammoth conversion
-- `src/components/admin/legal/LegalDocVersionHistory.tsx` (~80 lines)
-- `src/components/admin/legal/LegalDocSectionTabs.tsx` (~60 lines) — IPAA section tabs
-- `src/components/admin/legal/LegalDocPublishDialog.tsx` (~60 lines)
-- `src/components/admin/legal/LegalDocUploadConfirmDialog.tsx` (~60 lines)
-- `src/hooks/admin/useLegalDocEditor.ts` (~80 lines) — save/publish mutations
-- `src/hooks/admin/useLegalDocUpload.ts` (~100 lines) — upload + conversion hook
+**File:** `src/components/legal/LegalGateModal.tsx`
+- Add `[&>button]:hidden` class to DialogContent
 
-**Updates:**
-- `src/hooks/queries/useLegalDocumentTemplates.ts` — Update interface + query for new columns
-- `src/components/admin/AdminSidebar.tsx` — Replace "Legal Templates" entry with "Legal Documents" and add "Legal Triggers"
-- `src/App.tsx` — Add new routes under admin
+### Step 2: Create Document Upload Feature (4 new files + 2 edits)
 
-**Removed:**
-- Old `LegalDocumentTemplatesPage.tsx` (replaced)
-- Old `LegalTemplateContentEditor.tsx` (replaced by full-screen editor)
-- Old `LegalTemplateFileUpload.tsx` (replaced by integrated upload handler)
+**New files:**
+- `src/components/admin/legal/LegalDocUploadHandler.tsx` (~100 lines) — File input button, accepts .docx/.pdf/.txt, calls upload hook
+- `src/components/admin/legal/LegalDocUploadConfirmDialog.tsx` (~50 lines) — AlertDialog warning when content exists
+- `src/hooks/admin/useLegalDocUpload.ts` (~90 lines) — Uploads file to `legal-documents` bucket, converts .docx via mammoth.js to HTML, wraps .txt/.pdf text in `<p>` tags
+- `src/components/admin/legal/LegalDocSectionTabs.tsx` (~50 lines) — Tab bar for IPAA sections (abstract, milestone, detailed, final_award)
+
+**Edits:**
+- `src/pages/admin/legal/LegalDocumentEditorPage.tsx` — Add "Upload Document" button to top bar, wire upload handler, add auto-save interval (30s)
+
+### Step 3: Add auto-save to editor
+
+In `LegalDocumentEditorPage.tsx`, add a `useEffect` with `setInterval` that calls `handleSave` every 30 seconds when content has changed (dirty flag).
+
+### Step 4: Extract useLegalDocEditor hook
+
+Move save/publish logic from `LegalDocumentEditorPage` into `src/hooks/admin/useLegalDocEditor.ts` to follow layer separation rules.
 
 ---
 
-### BATCH 3: Admin — Workflow Trigger Config + Runtime Legal Gate Modal
+## Summary
 
-**Trigger Config page:**
-- `/admin/legal-documents/triggers` — Table showing all trigger rules with add/edit/delete
+| Category | Status |
+|---|---|
+| Database migration | Done |
+| Trigger config (13 rules) | Done |
+| Acceptance log + forensics | Done |
+| check_legal_gate RPC | Done |
+| Storage bucket | Done |
+| Starter templates (5 docs) | Done |
+| Legal stylesheet | Done |
+| Editor page + TipTap | Done |
+| Editor toolbar + quick inserts | Done |
+| Config sidebar | Done |
+| Version history | Done |
+| Publish dialog | Done |
+| List page + cards | Done |
+| Trigger config page | Done |
+| Legal Gate Modal | Done (close button fix needed) |
+| Document Viewer | Done |
+| Gate Actions (checkbox + scroll) | Done |
+| AuthGuard PMA integration | Done |
+| **Upload handler** | **MISSING** |
+| **Upload confirm dialog** | **MISSING** |
+| **Upload hook (mammoth)** | **MISSING** |
+| **Section tabs (IPAA)** | **MISSING** |
+| **Auto-save (30s)** | **MISSING** |
+| **useLegalDocEditor hook** | **MISSING** |
+| **Modal X button hidden** | **BUG** |
 
-**Files:**
-- `src/pages/admin/legal/LegalDocTriggerConfigPage.tsx` (~150 lines)
-- `src/components/admin/legal/LegalDocTriggerTable.tsx` (~150 lines)
-- `src/components/admin/legal/LegalDocTriggerForm.tsx` (~150 lines) — slide-over form
-- `src/hooks/admin/useLegalDocTriggerConfig.ts` (~80 lines)
-
-**Runtime Legal Gate Modal** (reusable across entire platform):
-- `src/components/legal/LegalGateModal.tsx` (~150 lines) — modal shell + document sequencing
-- `src/components/legal/LegalDocumentViewer.tsx` (~100 lines) — renders HTML with legal-doc CSS + scroll tracking
-- `src/components/legal/LegalGateActions.tsx` (~80 lines) — checkbox + scroll gate + accept/decline buttons
-- `src/components/legal/LegalGateScrollTracker.tsx` (~60 lines) — scroll progress + 90% detection
-- `src/hooks/legal/useLegalGate.ts` (~100 lines) — calls `check_legal_gate` RPC
-- `src/hooks/legal/useLegalAcceptance.ts` (~60 lines) — insert into `legal_acceptance_log`
-
-**Acceptance UX rules:**
-- Accept button disabled until BOTH: scroll to 90% AND checkbox checked
-- Modal is 90vw x 90vh desktop, fullscreen mobile
-- Cannot close by clicking outside — must Accept or Decline
-- Multi-document sequencing (progress bar when >1 doc)
-- Forensics captured: IP address, user agent
-
----
-
-### BATCH 4: Integration Points
-
-Wire `LegalGateModal` into existing workflows:
-
-1. **First Login / Registration** — After auth, before app access, check PMA acceptance. Add `LegalGateModal` with `triggerEvent="USER_REGISTRATION"` in the auth guard chain. If declined, sign out.
-
-2. **Seeker Enrollment** — Gate CA acceptance during seeker enrollment flow
-
-3. **Solver Enrollment** — Gate PSA acceptance in `SolverEnrollmentCTA`
-
-4. **Challenge Submit** — Gate CA before `initialize_challenge`
-
-5. **Solver Abstract Submit** — Gate PSA + IPAA abstract section
-
-6. **Winner Confirmation** — Gate IPAA final award for both CR and solver
-
-**Approach:** Each integration wraps the existing action with a legal gate check. If `gate_open = true`, proceed silently. If `false`, show modal.
-
----
-
-## Technical Details
-
-- **TipTap editor styling:** The `.legal-doc` class is applied to `editorProps.attributes.class` so the editor renders with the same legal styling as the viewer — WYSIWYG for legal documents
-- **Document versioning:** Publishing creates a new ACTIVE version and archives the previous one. `parent_template_id` chains versions together
-- **Sectioned documents (IPAA):** Uses `sections` JSONB field with keys like `abstract`, `milestone`, `detailed`, `final_award`. Section tabs in editor switch between these
-- **Upload conversion:** mammoth.js converts .docx to HTML, which replaces TipTap content. The uploaded file is stored as reference, but TipTap HTML is canonical
-- **Legal gate RPC:** `check_legal_gate(user_id, trigger_event, challenge_id, user_role, governance_mode)` returns `{gate_open, pending_documents[]}`
-- **Existing T&C system:** The `TcReAcceptanceModal` + `tc_versions` system remains for org-level T&C. The new legal gate system handles document-level acceptance (PMA, CA, PSA, IPAA, EPIA)
-
-## Cleanup
-
-- Remove duplicate `DeleteConfirmDialog` on line 104 of current `LegalDocumentTemplatesPage.tsx`
-- Remove old `LegalTemplateContentEditor.tsx` and `LegalTemplateFileUpload.tsx`
-- Remove old `LegalDocumentTemplatesPage.tsx` under `seeker-config/`
+Total: 4 new files, 2 file edits, 1 bug fix.
 
