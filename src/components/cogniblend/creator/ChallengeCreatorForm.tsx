@@ -342,12 +342,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
     [currentOrg, user, engagementModel, governanceMode],
   );
 
-  const handleSubmit = form.handleSubmit(async (data) => {
-    if (tierLimit && !tierLimit.allowed) {
-      setShowTierModal(true);
-      return;
-    }
-
+  const executeSubmit = useCallback(async (data: CreatorFormValues) => {
     try {
       const payload = buildPayload(data);
       const result = await submitMutation.mutateAsync({
@@ -384,7 +379,32 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, onDraftM
     } catch {
       // Error handled by mutation onError
     }
+  }, [buildPayload, submitMutation, referenceUrls, draftChallengeId, attachedFiles, currentOrg, user, navigate]);
+
+  const handleSubmit = form.handleSubmit(async (data) => {
+    if (tierLimit && !tierLimit.allowed) {
+      setShowTierModal(true);
+      return;
+    }
+
+    // Show legal gate for CHALLENGE_SUBMIT before proceeding
+    setPendingSubmitData(data);
+    setShowLegalGate(true);
   });
+
+  const handleLegalAccepted = useCallback(() => {
+    setShowLegalGate(false);
+    if (pendingSubmitData) {
+      executeSubmit(pendingSubmitData);
+      setPendingSubmitData(null);
+    }
+  }, [pendingSubmitData, executeSubmit]);
+
+  const handleLegalDeclined = useCallback(() => {
+    setShowLegalGate(false);
+    setPendingSubmitData(null);
+    toast.error('Challenge submission cancelled — legal agreement declined');
+  }, []);
 
   const handleSaveDraft = async () => {
     const data = form.getValues();
