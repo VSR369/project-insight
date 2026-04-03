@@ -583,7 +583,7 @@ export default function ScreeningReviewPage() {
                   key={selectedAbstract.id}
                   abstract={selectedAbstract}
                   criteria={data.evaluationCriteria}
-                  isEnterprise={isStructuredMode}
+                  isStructuredMode={isStructuredMode}
                   reviewerId={userId!}
                   shortlistApproved={data.shortlistApproved}
                 />
