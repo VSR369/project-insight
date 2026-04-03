@@ -178,7 +178,7 @@ export function useSubmitSolutionRequest() {
       }
 
       // Auto-attach legal docs for Quick/Lightweight mode
-      if (normalizedGov === 'QUICK' || normalizedGov === 'LIGHTWEIGHT') {
+      if (normalizedGov === 'QUICK') {
         try {
           const { data: defaultTemplates } = await supabase
             .from('legal_document_templates' as any).select('document_type, document_name, description').eq('tier', 'TIER_1').eq('is_active', true);

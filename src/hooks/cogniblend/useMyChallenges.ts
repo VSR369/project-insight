@@ -72,7 +72,7 @@ export function useMyChallenges(userId: string | undefined) {
             master_status: (ch.master_status as string) ?? 'IN_PREPARATION',
             phase_status: (ch.phase_status as string) ?? 'ACTIVE',
             role_codes: [roleCode],
-            governance_profile: (ch.governance_profile as string) ?? 'LIGHTWEIGHT',
+            governance_profile: (ch.governance_profile as string) ?? 'QUICK',
             governance_mode_override: (ch.governance_mode_override as string | null) ?? null,
             operating_model: (ch.operating_model as string | null) ?? null,
             created_at: (ch.created_at as string) ?? '',

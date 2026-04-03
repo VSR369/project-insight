@@ -251,7 +251,7 @@ export function QAManagementCard({
 
   const operatingModel = (challengeMeta as any)?.operating_model ?? 'MP';
   const isQaClosed = (challengeMeta as any)?.is_qa_closed ?? false;
-  const isQuick = governanceProfile === 'LIGHTWEIGHT';
+  const isQuick = governanceProfile === 'QUICK';
 
   const unansweredCount = questions.filter((q) => !q.answer_text).length;
 
