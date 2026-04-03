@@ -54,7 +54,7 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
   it('logs LEGAL_VERIFICATION_COMPLETE audit entry', async () => {
     const challenge = {
       phase_status: 'LEGAL_VERIFICATION_PENDING',
-      governance_profile: 'ENTERPRISE',
+      governance_profile: 'STRUCTURED',
     };
     const challengeId = 'challenge-gate02';
     const userId = 'user-123';
