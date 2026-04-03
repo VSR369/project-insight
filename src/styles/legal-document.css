@@ -1,0 +1,204 @@
+/*
+ * Legal Document Stylesheet
+ * Used in: LegalDocEditorPanel (editor) + LegalDocumentViewer (read-only)
+ * Typography: Georgia/serif for body, system sans for headings
+ */
+
+.legal-doc {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: hsl(var(--foreground));
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 56px;
+}
+
+.legal-doc-page {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  box-shadow: 0 1px 4px hsl(var(--foreground) / 0.06);
+  margin: 16px auto;
+  max-width: 860px;
+}
+
+.legal-doc h1 {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
+  color: hsl(var(--foreground));
+}
+
+.legal-doc h1 + p,
+.legal-doc .doc-subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 32px;
+}
+
+.legal-doc h2 {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 36px;
+  margin-bottom: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.legal-doc h3 {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: hsl(var(--foreground));
+}
+
+.legal-doc h4 {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-style: italic;
+  color: hsl(var(--foreground));
+}
+
+.legal-doc p {
+  margin-bottom: 12px;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.legal-doc p em:first-child,
+.legal-doc .recital {
+  font-style: italic;
+}
+
+.legal-doc strong {
+  font-weight: 600;
+}
+
+.legal-doc ol {
+  list-style: none;
+  counter-reset: legal-item;
+  padding-left: 0;
+  margin-bottom: 12px;
+}
+
+.legal-doc ol > li {
+  counter-increment: legal-item;
+  padding-left: 36px;
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.legal-doc ol > li::before {
+  content: "(" counter(legal-item, lower-alpha) ")";
+  position: absolute;
+  left: 8px;
+  font-weight: 500;
+}
+
+.legal-doc ol ol {
+  counter-reset: legal-sub;
+  margin-top: 8px;
+}
+
+.legal-doc ol ol > li {
+  counter-increment: legal-sub;
+}
+
+.legal-doc ol ol > li::before {
+  content: "(" counter(legal-sub, lower-roman) ")";
+}
+
+.legal-doc ul {
+  padding-left: 28px;
+  margin-bottom: 12px;
+}
+
+.legal-doc ul > li {
+  margin-bottom: 6px;
+  list-style-type: disc;
+}
+
+.legal-doc blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 20px;
+  margin: 16px 0 16px 16px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13.5px;
+}
+
+.legal-doc hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 32px 0;
+}
+
+.legal-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+.legal-doc table th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.legal-doc table td {
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  vertical-align: top;
+}
+
+.legal-doc .signature-block {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+}
+
+.legal-doc .signature-line {
+  border-top: 1px solid hsl(var(--foreground));
+  padding-top: 4px;
+  margin-top: 48px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.legal-doc a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+@media print {
+  .legal-doc {
+    font-size: 12pt;
+    padding: 0;
+    max-width: none;
+  }
+  .legal-doc h2 {
+    page-break-after: avoid;
+  }
+}
