@@ -65,12 +65,29 @@ const PHASE_MAP: Record<string, string | null> = {
 };
 
 /**
+ * Resolve the challenge's effective governance mode from the DB.
+ */
+async function resolveGovernanceMode(challengeId: string): Promise<string> {
+  const { data } = await supabase
+    .from("challenges")
+    .select("governance_mode_override, governance_profile")
+    .eq("id", challengeId)
+    .single();
+
+  if (!data) return "STRUCTURED";
+  return (data.governance_mode_override ?? data.governance_profile ?? "STRUCTURED") as string;
+}
+
+/**
  * Find the best-fit pool member for a given role and taxonomy context,
  * then persist via the auto_assign_challenge_role RPC.
  */
 export async function autoAssignChallengeRole(
   input: AssignmentInput,
 ): Promise<AssignmentResult | null> {
+  // 0. Resolve actual governance mode
+  const governanceMode = await resolveGovernanceMode(input.challengeId);
+
   // 1. Resolve governance code → SLM pool codes
   let poolCodes = getPoolCodesForGovernanceRole(input.roleCode, input.engagementModel);
 
@@ -81,7 +98,9 @@ export async function autoAssignChallengeRole(
     .eq("is_active", true)
     .in("availability_status", ["available", "partially_available"]);
 
-  if (fetchError || !members?.length) return null;
+  if (fetchError || !members?.length) {
+    return tryOrgFallback(input, governanceMode);
+  }
 
   // 3. Filter and score candidates
   let candidates = filterAndScore(members as unknown as PoolRow[], poolCodes, input);
@@ -95,11 +114,15 @@ export async function autoAssignChallengeRole(
     }
   }
 
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) {
+    return tryOrgFallback(input, governanceMode);
+  }
 
-  // 4. Validate against role fusion rules
-  const winner = await findValidCandidate(candidates, input);
-  if (!winner) return null;
+  // 4. Validate against role fusion rules (with actual governance mode)
+  const winner = await findValidCandidate(candidates, input, governanceMode);
+  if (!winner) {
+    return tryOrgFallback(input, governanceMode);
+  }
 
   // 5. Persist via SECURITY DEFINER RPC
   return persistViaRpc(winner, input);
@@ -162,12 +185,14 @@ function filterAndScore(
 async function findValidCandidate(
   candidates: ScoredCandidate[],
   input: AssignmentInput,
+  governanceMode: string,
 ): Promise<ScoredCandidate | null> {
   for (const candidate of candidates) {
     const conflict = await validateRoleAssignment({
       userId: candidate.user_id!,
       challengeId: input.challengeId,
       newRole: input.roleCode,
+      governanceProfile: governanceMode,
     });
 
     if (conflict.conflictType === "HARD_BLOCK") continue;
@@ -175,6 +200,77 @@ async function findValidCandidate(
     // ALLOWED — use this candidate
     return candidate;
   }
+  return null;
+}
+
+/**
+ * Fallback: find CU-capable users in the challenge's org_users when pool is empty.
+ */
+async function tryOrgFallback(
+  input: AssignmentInput,
+  governanceMode: string,
+): Promise<AssignmentResult | null> {
+  // Only attempt org fallback for CU role
+  if (input.roleCode !== "CU") return null;
+
+  const { data: challenge } = await supabase
+    .from("challenges")
+    .select("organization_id")
+    .eq("id", input.challengeId)
+    .single();
+
+  if (!challenge?.organization_id) return null;
+
+  // Find active org users (excluding the assigner to avoid self-assignment)
+  const { data: orgUsers } = await supabase
+    .from("org_users")
+    .select("user_id, role")
+    .eq("organization_id", challenge.organization_id)
+    .eq("is_active", true);
+
+  const eligibleUsers = (orgUsers ?? []).filter(
+    (u) => u.user_id && u.user_id !== input.assignedBy,
+  );
+
+  if (eligibleUsers.length === 0) return null;
+
+  // Try each eligible user against role conflict rules
+  for (const orgUser of eligibleUsers) {
+    const conflict = await validateRoleAssignment({
+      userId: orgUser.user_id,
+      challengeId: input.challengeId,
+      newRole: input.roleCode,
+      governanceProfile: governanceMode,
+    });
+
+    if (conflict.conflictType === "HARD_BLOCK") continue;
+
+    // Assign via RPC with null pool_member_id
+    const assignmentPhase = PHASE_MAP[input.roleCode] ?? null;
+    const { data, error } = await supabase.rpc("assign_challenge_role", {
+      p_challenge_id: input.challengeId,
+      p_pool_member_id: null,
+      p_user_id: orgUser.user_id,
+      p_slm_role_code: "R5_MP", // Default SLM code for CU
+      p_governance_role_code: input.roleCode,
+      p_assigned_by: input.assignedBy,
+      p_assignment_phase: assignmentPhase,
+    });
+
+    if (error) {
+      logWarning("Auto-assign org fallback: RPC failed", {
+        operation: "assign_challenge_role",
+        additionalData: { error: error.message, challengeId: input.challengeId },
+      });
+      continue;
+    }
+
+    const result = data as { success: boolean; assignment_id?: string; error?: string } | null;
+    if (result?.success) {
+      return { poolMemberId: "org_direct", userId: orgUser.user_id };
+    }
+  }
+
   return null;
 }
 

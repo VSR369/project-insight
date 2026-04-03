@@ -1353,7 +1353,7 @@ export type Database = {
           created_by: string | null
           id: string
           idempotency_key: string | null
-          pool_member_id: string
+          pool_member_id: string | null
           reassigned_at: string | null
           reassignment_reason: string | null
           replaced_by: string | null
@@ -1371,7 +1371,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           idempotency_key?: string | null
-          pool_member_id: string
+          pool_member_id?: string | null
           reassigned_at?: string | null
           reassignment_reason?: string | null
           replaced_by?: string | null
@@ -1389,7 +1389,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           idempotency_key?: string | null
-          pool_member_id?: string
+          pool_member_id?: string | null
           reassigned_at?: string | null
           reassignment_reason?: string | null
           replaced_by?: string | null
