@@ -179,6 +179,13 @@ export function useAcceptSuggestion(challengeId: string) {
     onSuccess: () => {
       invalidateAll(qc, challengeId);
       toast.success('Source accepted');
+      // Auto-generate digest if none exists yet
+      const existingDigest = qc.getQueryData(KEYS.digest(challengeId));
+      if (!existingDigest) {
+        supabase.functions.invoke('generate-context-digest', {
+          body: { challenge_id: challengeId },
+        }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
+      }
     },
     onError: (err: Error) => toast.error(`Accept failed: ${err.message}`),
   });
