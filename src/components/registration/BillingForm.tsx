@@ -219,7 +219,7 @@ export function BillingForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <form onSubmit={form.handleSubmit((data) => seekerGate.gateAction(() => handleSubmit(data)))}>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-6">
             <BillingAddressFields form={form} billingStates={billingStates} statesLoading={statesLoading} watchedBillingCountryId={watchedBillingCountryId} />
@@ -239,6 +239,15 @@ export function BillingForm() {
           </div>
         </div>
       </form>
+
+      {/* SEEKER_ENROLLMENT legal gate */}
+      {seekerGate.showGate && (
+        <LegalGateModal
+          triggerEvent={seekerGate.triggerEvent}
+          onAllAccepted={seekerGate.handleAllAccepted}
+          onDeclined={seekerGate.handleDeclined}
+        />
+      )}
     </Form>
   );
 }
