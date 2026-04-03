@@ -45,7 +45,7 @@ export interface ScreeningData {
   challengeId: string;
   title: string;
   governanceProfile: string;
-  isEnterprise: boolean;
+  isBlindMode: boolean;
   evaluationCriteria: EvaluationCriterion[];
   abstracts: ScreeningAbstract[];
   shortlistApproved: boolean;
@@ -98,7 +98,7 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
       if (cErr) throw new Error(cErr.message);
       if (!challenge) throw new Error('Challenge not found');
 
-      const isEnterprise = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
+      const isBlindMode = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
       const rawCriteria = (challenge.evaluation_criteria as unknown as EvaluationCriterion[]) ?? [];
 
       // 2. Submitted abstracts (phase_status ACTIVE or SHORTLISTED/REJECTED via selection_status)
@@ -111,10 +111,10 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
 
       if (sErr) throw new Error(sErr.message);
 
-      // 3. Get provider names (for LIGHTWEIGHT display)
+      // 3. Get provider names (hidden in blind mode for STRUCTURED/CONTROLLED)
       const providerIds = (solutions ?? []).map(s => s.provider_id);
       let providerNameMap = new Map<string, string>();
-      if (providerIds.length > 0 && !isEnterprise) {
+      if (providerIds.length > 0 && !isBlindMode) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, first_name, last_name')
@@ -152,7 +152,7 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
         return {
           id: s.id,
           providerId: s.provider_id,
-          providerName: isEnterprise ? null : (providerNameMap.get(s.provider_id) ?? 'Unknown'),
+          providerName: isBlindMode ? null : (providerNameMap.get(s.provider_id) ?? 'Unknown'),
           anonymousLabel: anonymiseIndex(idx),
           abstractText: s.abstract_text,
           methodology: s.methodology,
@@ -172,8 +172,8 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
       return {
         challengeId: challenge.id,
         title: challenge.title,
-        governanceProfile: challenge.governance_profile ?? 'ENTERPRISE',
-        isEnterprise,
+        governanceProfile: challenge.governance_profile ?? 'STRUCTURED',
+        isBlindMode,
         evaluationCriteria: rawCriteria,
         abstracts,
         shortlistApproved,

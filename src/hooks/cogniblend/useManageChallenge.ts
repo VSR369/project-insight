@@ -143,7 +143,7 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
         challengeId: challenge.id,
         title: challenge.title,
         masterStatus: challenge.master_status ?? 'ACTIVE',
-        governanceProfile: challenge.governance_profile ?? 'ENTERPRISE',
+        governanceProfile: challenge.governance_profile ?? 'STRUCTURED',
         submissionDeadline: challenge.submission_deadline,
         submissionCount: submissions.length,
         submissions,

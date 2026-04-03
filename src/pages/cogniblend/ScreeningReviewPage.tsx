@@ -406,7 +406,7 @@ export default function ScreeningReviewPage() {
   // ═══ SECTION 4: Derived ═══
   const hasERRole = roles?.includes('ER') ?? false;
   const hasCURole = roles?.includes('CU') ?? false;
-  const isEnterprise = data?.isEnterprise ?? false;
+  const isEnterprise = data?.isBlindMode ?? false;
 
   // Access: ER role for Enterprise, or challenge owner (any role) for Lightweight
   const hasAccess = isEnterprise ? hasERRole : true; // Lightweight: owner-level checked by route guard

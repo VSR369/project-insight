@@ -222,7 +222,7 @@ export default function LegalDocumentAttachmentPage() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_required_legal_docs", {
         p_maturity_level: challenge!.maturity_level!,
-        p_governance_profile: challenge!.governance_profile ?? "Enterprise",
+        p_governance_profile: challenge!.governance_profile ?? "STRUCTURED",
       });
       if (error) throw new Error(error.message);
       return data as unknown as {

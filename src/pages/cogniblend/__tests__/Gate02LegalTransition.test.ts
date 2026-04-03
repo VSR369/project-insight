@@ -32,7 +32,7 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
   it('transitions phase_status from LEGAL_VERIFICATION_PENDING to COMPLETED', async () => {
     const challenge = {
       phase_status: 'LEGAL_VERIFICATION_PENDING',
-      governance_profile: 'ENTERPRISE',
+      governance_profile: 'STRUCTURED',
     };
     const challengeId = 'challenge-gate02';
     const userId = 'user-123';
@@ -54,7 +54,7 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
   it('logs LEGAL_VERIFICATION_COMPLETE audit entry', async () => {
     const challenge = {
       phase_status: 'LEGAL_VERIFICATION_PENDING',
-      governance_profile: 'ENTERPRISE',
+      governance_profile: 'STRUCTURED',
     };
     const challengeId = 'challenge-gate02';
     const userId = 'user-123';
@@ -89,11 +89,11 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
     const details = auditCall[1].p_details;
     expect(details.previous_phase_status).toBe('LEGAL_VERIFICATION_PENDING');
     expect(details.new_phase_status).toBe('COMPLETED');
-    expect(details.governance_profile).toBe('ENTERPRISE');
+    expect(details.governance_profile).toBe('STRUCTURED');
   });
 
   it('does NOT transition or log audit when phase_status is already ACTIVE', async () => {
-    const challenge = { phase_status: 'ACTIVE', governance_profile: 'ENTERPRISE' };
+    const challenge = { phase_status: 'ACTIVE', governance_profile: 'STRUCTURED' };
     const { supabase } = await import('@/integrations/supabase/client');
 
     if (challenge.phase_status === 'LEGAL_VERIFICATION_PENDING') {

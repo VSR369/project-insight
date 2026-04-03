@@ -183,7 +183,7 @@ export function usePublicationReadiness(challengeId: string | undefined) {
 
       return {
         challengeTitle: String(c.title ?? 'Untitled Challenge'),
-        governanceProfile: String(c.governance_profile ?? 'ENTERPRISE'),
+        governanceProfile: String(c.governance_profile ?? 'STRUCTURED'),
         allPassed: failCount === 0,
         failCount,
         checks,
