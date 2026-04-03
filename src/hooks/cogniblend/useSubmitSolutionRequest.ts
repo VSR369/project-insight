@@ -160,7 +160,7 @@ export function useSubmitSolutionRequest() {
       // Auto-assign CU from pool for STRUCTURED/CONTROLLED modes
       const effectiveGovernance = payload.governanceModeOverride ?? 'STRUCTURED';
       const normalizedGov = effectiveGovernance.toUpperCase();
-      if (normalizedGov !== 'QUICK' && normalizedGov !== 'LIGHTWEIGHT') {
+      if (normalizedGov !== 'QUICK') {
         try {
           await autoAssignChallengeRole({
             challengeId,
