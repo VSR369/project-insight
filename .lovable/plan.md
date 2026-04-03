@@ -1,93 +1,88 @@
 
 
-# Gap Analysis — Governance & Lifecycle Overhaul
+# Residual Gaps — Round 2
 
-## Status: Steps 1–8 DONE (DB + hooks + admin pages). Steps 9–10 DONE (complete_phase + assign_challenge_role). Residual gaps below.
+## Findings
 
----
-
-## GAP 1: Stale ENTERPRISE/LIGHTWEIGHT references in frontend code (6 files)
-
-The DB was cleaned, but several frontend files still fallback to `'ENTERPRISE'` string literals:
-
-| File | Line | Issue |
-|------|------|-------|
-| `src/hooks/cogniblend/useScreeningReview.ts` | 114 | Comment says "for LIGHTWEIGHT display" |
-| `src/hooks/cogniblend/useScreeningReview.ts` | 175 | Fallback `?? 'ENTERPRISE'` |
-| `src/hooks/cogniblend/usePublicationReadiness.ts` | 186 | Fallback `?? 'ENTERPRISE'` |
-| `src/hooks/cogniblend/useManageChallenge.ts` | 146 | Fallback `?? 'ENTERPRISE'` |
-| `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx` | 225 | Passes `"Enterprise"` to RPC |
-| Test files (2) | various | `governance_profile: 'ENTERPRISE'` in fixtures |
-
-**Fix:** Replace all `'ENTERPRISE'` fallbacks with `'STRUCTURED'` (the resolved default). Update comment on line 114. Update test fixtures.
+After the previous round fixed the core gaps (RPC upsert, `isBlindMode` in useScreeningReview hook, ENTERPRISE fallbacks in 5 files, test fixtures), there are still **9 locations** with stale naming or logic.
 
 ---
 
-## GAP 2: `assign_challenge_role` RPC does NOT upsert `user_challenge_roles`
+### GAP A: `isEnterprise` variable name persists in 4 files
 
-The plan specified Step 8/10 should upsert into `user_challenge_roles` (the governance-level role table). The implemented RPC only writes to `challenge_role_assignments` (the SLM-level assignment table). This means:
+The hook was renamed to `isBlindMode`, but consuming code still uses the old name:
 
-- `validate_role_assignment` checks `user_challenge_roles` for conflicts
-- But `assign_challenge_role` never writes to `user_challenge_roles`
-- Result: conflict validation always passes because the table is never populated by this RPC
+| File | Lines | Issue |
+|------|-------|-------|
+| `ScreeningReviewPage.tsx` | 75, 86, 137 | `ScoringPanelProps.isEnterprise` — was NOT updated in previous round |
+| `ChallengeSubmitSummaryModal.tsx` | 57, 85, 181, 243 | `isEnterprise` variable (controls legal review messaging) |
+| `ChallengeWizardBottomBar.tsx` | 52, 54 | `isEnterprise` variable (controls submit label) |
+| `useManageChallenge.ts` | 88, 92 | `isEnterprise` variable (controls solver anonymisation) |
+| `ChallengeWizardPage.tsx` | 334, 557, 595 | `isEnterprise` variable (controls phase routing) |
 
-**Fix:** Add a `user_challenge_roles` upsert inside `assign_challenge_role` using `p_governance_role_code`.
+**Fix:** Rename all to `isStructuredOrAbove` (matches the function they call). This is purely a readability rename — no logic change.
 
----
+### GAP B: `ENTERPRISE` string literal in useApprovalActions.ts
 
-## GAP 3: `useAutoAssignChallengeRoles` still uses OLD RPC signature
+Line 53: `params.governanceProfile?.toUpperCase() === 'ENTERPRISE' ? 'R5' : 'R4'`
 
-The hook calls `assign_challenge_role` with the **old** `auto_assign_challenge_role` parameter names (`p_pool_member_id`, `p_slm_role_code`, etc.). The new RPC created in Step 10 has the same signature, so this is actually fine — the Step 10 migration kept the same params. No gap here on closer inspection.
+This compares against the dead `ENTERPRISE` value. Should use `isStructuredOrAbove(resolveGovernanceMode(...))`.
 
----
+### GAP C: `ENTERPRISE` fallback in useChallengeForm.ts
 
-## GAP 4: `useSubmitSolutionRequest` still has inline legal doc logic
+Line 95: `const profile = governanceProfile || 'ENTERPRISE'`
 
-Line 180-193 of `useSubmitSolutionRequest.ts` manually auto-attaches legal docs for QUICK mode. This duplicates logic now handled by `complete_phase` (Step 7 auto-sets `lc_compliance_complete` when `legal_doc_mode = 'auto_apply'`). The inline code should be removed to avoid double-writes.
+Should be `|| 'STRUCTURED'`.
 
----
+### GAP D: `ENTERPRISE` naming in useSolverLegalGate.ts
 
-## GAP 5: `isEnterprise` naming in useScreeningReview
+Lines 20-24: `ENTERPRISE_ONLY_DOC_TYPES` constant and `ENTERPRISE_EVALUATION_TERMS` doc type. The constant name is misleading — these are docs required for STRUCTURED/CONTROLLED modes (non-QUICK). Rename to `NON_QUICK_DOC_TYPES`. The `ENTERPRISE_EVALUATION_TERMS` string is a DB document_type value — check if it needs a DB update too.
 
-The variable `isEnterprise` (line 101) and interface field `isEnterprise` (line 48) are misleading — they actually mean "is structured or above" (controls blind evaluation). Should be renamed to `isBlindMode` or `isStructuredOrAbove` for clarity.
+### GAP E: Stale comments (cosmetic, 3 files)
 
----
+- `GovernanceProfileBadge.tsx` line 4: "Backward-compatible with legacy LIGHTWEIGHT/ENTERPRISE"
+- `QAManagementCard.tsx` line 3: "ENTERPRISE (MP/AGG) has publish flow; LIGHTWEIGHT is immediate"
+- `QAManagementCard.tsx` line 70: "In LIGHTWEIGHT mode"
 
-## GAP 6: Test fixtures use dead values
+### GAP F: `PROBLEM_MIN_ENTERPRISE` / `SCOPE_MIN_ENTERPRISE` naming
 
-Two test files reference `governance_profile: 'ENTERPRISE'`:
-- `src/components/cogniblend/dashboard/__tests__/MyChallengesSection.test.tsx`
-- `src/pages/cogniblend/__tests__/Gate02LegalTransition.test.ts`
+- `challengeFormSchema.ts` lines 25-28: Exports `PROBLEM_MIN_ENTERPRISE`, `PROBLEM_MIN_LIGHTWEIGHT`, `SCOPE_MIN_ENTERPRISE`, `SCOPE_MIN_LIGHTWEIGHT` as aliases
+- `StepProblemContentFields.tsx` lines 17, 19, 34-35: Uses `PROBLEM_MIN_ENTERPRISE` and `SCOPE_MIN_ENTERPRISE`
 
-**Fix:** Update to `'STRUCTURED'`.
+Rename to `_STRUCTURED`/`_QUICK` or remove aliases and use the canonical names directly.
+
+### GAP G: Test file still has `LIGHTWEIGHT` (missed in previous round)
+
+- `MyChallengesSection.test.tsx` lines 26, 50: `governance_profile: 'LIGHTWEIGHT'` — these were NOT updated
+- `Gate02LegalTransition.test.ts` line 130: `governance_profile: 'LIGHTWEIGHT'`
+- `GovernanceProfileBadge.test.tsx` lines 13-19: Tests legacy mapping — these are intentional backward-compat tests, keep them
+
+### GAP H: `ScreeningReviewPage.tsx` prop mismatch
+
+The hook now returns `isBlindMode` but `ScreeningReviewPage.tsx` line 75 still declares `isEnterprise` in `ScoringPanelProps` and passes it on line 86. This will cause a runtime bug if the hook property was renamed but the page wasn't fully updated.
 
 ---
 
 ## Implementation Plan (4 changes)
 
-### 1. Migration: Fix `assign_challenge_role` to upsert `user_challenge_roles`
-Add after the `challenge_role_assignments` upsert:
-```sql
-INSERT INTO user_challenge_roles (user_id, challenge_id, role_code, is_active, auto_assigned, assigned_by)
-VALUES (p_user_id, p_challenge_id, p_governance_role_code, true, true, p_assigned_by)
-ON CONFLICT (user_id, challenge_id, role_code) DO UPDATE
-SET is_active = true, updated_at = NOW();
-```
+### 1. Rename `isEnterprise` → `isStructuredOrAbove` in 5 files
+- `ScreeningReviewPage.tsx`: Rename prop + usage (lines 75, 86, 137)
+- `ChallengeSubmitSummaryModal.tsx`: Rename variable (lines 57, 85, 181, 243)
+- `ChallengeWizardBottomBar.tsx`: Rename variable (lines 52, 54)
+- `useManageChallenge.ts`: Rename variable (lines 88, 92)
+- `ChallengeWizardPage.tsx`: Rename variable (lines 334, 557, 595)
 
-### 2. Clean ENTERPRISE fallbacks (5 files)
-Replace `?? 'ENTERPRISE'` with `?? 'STRUCTURED'` in:
-- `useScreeningReview.ts` (line 175)
-- `usePublicationReadiness.ts` (line 186)
-- `useManageChallenge.ts` (line 146)
-- `LegalDocumentAttachmentPage.tsx` (line 225): change `"Enterprise"` to `"STRUCTURED"`
-- `useScreeningReview.ts` (line 114): update comment
+### 2. Fix ENTERPRISE logic/fallbacks in 3 hooks
+- `useApprovalActions.ts` line 53: Replace string comparison with `isStructuredOrAbove(resolveGovernanceMode(...))`
+- `useChallengeForm.ts` line 95: Change `'ENTERPRISE'` to `'STRUCTURED'`
+- `useSolverLegalGate.ts`: Rename `ENTERPRISE_ONLY_DOC_TYPES` → `NON_QUICK_DOC_TYPES`
 
-### 3. Rename `isEnterprise` to `isBlindMode` in useScreeningReview
-Rename the variable and interface field. Update all 4 references within the file.
+### 3. Clean up naming aliases and comments
+- `challengeFormSchema.ts`: Remove or rename `PROBLEM_MIN_ENTERPRISE`/`SCOPE_MIN_ENTERPRISE`/`PROBLEM_MIN_LIGHTWEIGHT`/`SCOPE_MIN_LIGHTWEIGHT` aliases
+- `StepProblemContentFields.tsx`: Use canonical constant names
+- Update stale comments in `GovernanceProfileBadge.tsx`, `QAManagementCard.tsx`
 
-### 4. Remove duplicate legal doc auto-attach in useSubmitSolutionRequest
-Remove lines 180-193 (the inline QUICK-mode legal doc logic). This is now handled by `complete_phase` + `md_governance_mode_config`.
-
-### 5. Update test fixtures
-Change `'ENTERPRISE'` to `'STRUCTURED'` in 2 test files.
+### 4. Fix remaining test fixtures
+- `MyChallengesSection.test.tsx` lines 26, 50: `'LIGHTWEIGHT'` → `'QUICK'`
+- `Gate02LegalTransition.test.ts` line 130: `'LIGHTWEIGHT'` → `'QUICK'`
 
