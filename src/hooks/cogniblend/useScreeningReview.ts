@@ -45,7 +45,7 @@ export interface ScreeningData {
   challengeId: string;
   title: string;
   governanceProfile: string;
-  isEnterprise: boolean;
+  isBlindMode: boolean;
   evaluationCriteria: EvaluationCriterion[];
   abstracts: ScreeningAbstract[];
   shortlistApproved: boolean;
