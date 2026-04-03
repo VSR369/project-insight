@@ -1,113 +1,85 @@
 
 
-# Gap Analysis: Legal Document Management System vs Spec
+# Plan: Fix Document Creation Flow + Trigger Config Review
 
-## Status Summary
+## Problems Identified
 
-All 30 files from the component tree exist. The core admin editor, trigger config, and runtime gate modal are implemented. Below are the **remaining gaps** organized by priority.
+### Problem 1: "Add Document" has no document code selector
+When clicking "Add Document" (without a code), the editor defaults to `PMA`. There is no UI to choose the document code. The config sidebar is also missing a `document_code` field for new documents.
 
----
+### Problem 2: Document codes are hardcoded — no way to add new ones
+The 5 codes (PMA, CA, PSA, IPAA, EPIA) are locked by:
+- A DB CHECK constraint: `document_code IN ('PMA','CA','PSA','IPAA','EPIA')`
+- A TypeScript type: `type DocumentCode = 'PMA' | 'CA' | ...`
+- Hardcoded arrays in `LegalDocumentListPage`, `LegalDocTriggerForm`, etc.
 
-## GAP 1: IPAA Section Tabs Not Wired to Content (Spec Prompt 2)
+To support new codes, the CHECK constraint must be dropped (or widened), and the code should read available codes dynamically or allow extending the list.
 
-**Spec says:** "If document has `sections` (like IPAA), show section tabs above editor. Each tab edits `sections.{section_name}` in the JSONB."
+### Problem 3: Trigger form missing key fields
+The `LegalDocTriggerForm` has these gaps vs spec:
+- **`required_roles`**: Hardcoded to `['{ALL}']` — no multi-select UI
+- **`is_active`**: No toggle (the table shows it, but the form doesn't set it)
+- **Trigger event descriptions**: Spec says show descriptions in the dropdown (e.g., "When any user first registers"), but currently only labels are shown
 
-**Current state:** `LegalDocSectionTabs` renders and `activeSection` state exists in `LegalDocumentEditorPage`, but:
-- The `activeSection` value is never passed to `LegalDocEditorPanel`
-- The editor always shows `editorState.content` regardless of which tab is selected
-- No logic reads/writes to the `sections` JSONB column per-section
-
-**Fix:** When IPAA, read/write content from `template.sections[activeSection]` instead of `template.content`. The hook needs `getContentForSection(section)` and `setContentForSection(section, html)` methods.
-
-**Files:** `useLegalDocEditor.ts`, `LegalDocumentEditorPage.tsx`, `LegalDocEditorPanel.tsx`
-
----
-
-## GAP 2: Missing Integration Points (Spec Prompt 5)
-
-Only 3 of 6+ integration points are wired:
-
-| Integration | Trigger | Status |
-|---|---|---|
-| 5a. User Registration (PMA) | USER_REGISTRATION | Done (AuthGuard) |
-| 5b. Seeker Enrollment (CA) | SEEKER_ENROLLMENT | **NOT WIRED** |
-| 5c. Solver Enrollment (PSA) | SOLVER_ENROLLMENT | Done (SolverEnrollmentCTA) |
-| 5d. Challenge Submit (CA) | CHALLENGE_SUBMIT | **NOT WIRED** |
-| 5e. Abstract Submit (PSA+IPAA) | ABSTRACT_SUBMIT | Done (SolutionSubmitPage) |
-| 5f. Winner Confirmation (IPAA) | WINNER_SELECTED | **NOT WIRED** |
-
-**Fix:** Find the Seeker Enrollment flow, Challenge Submit flow, and Winner Confirmation flow components and wire `useLegalGateAction` + `LegalGateModal` into each.
-
-**Files:** Need to identify: seeker enrollment component, challenge submission component, winner confirmation component.
+### Problem 4: Trigger data is correct
+All 15 seed rows match the spec exactly. No data changes needed.
 
 ---
 
-## GAP 3: Missing `LegalGateScrollTracker.tsx` (Styling Addendum)
+## Implementation
 
-**Spec says:** Create `LegalGateScrollTracker.tsx` (~60 lines) — a scroll progress bar + 90% detection component.
+### Step 1: Add Document Code selector to Config Sidebar
+Add a `document_code` select field in `LegalDocConfigSidebar.tsx` that appears when creating a new document (not when editing an existing one). For existing documents, show it as read-only badge.
 
-**Current state:** Scroll progress tracking is built inline in `LegalDocumentViewer.tsx` and the progress bar is inline in `LegalGateActions.tsx`. The functionality EXISTS but is not in a separate file as specified. This is a **cosmetic/organizational gap** — no functional impact.
+**File:** `src/components/admin/legal/LegalDocConfigSidebar.tsx`
 
-**Recommendation:** Low priority. Functionality is complete; just not decomposed into a separate component.
+### Step 2: Wire document_code from sidebar into the create flow
+Pass `document_code` from config state into the `handleSave` create path in `useLegalDocEditor.ts`. Currently it uses `defaultCode` — it should use `config.document_code ?? defaultCode`.
 
----
+**File:** `src/hooks/admin/useLegalDocEditor.ts`
 
-## GAP 4: Save Draft Content Not Persisting Properly
+### Step 3: Add description field to editor page
+The sidebar should also include a `description` textarea for the document's purpose text (e.g., "Platform-wide terms of use, liability limitations..."). Currently `description` exists in the DB but is not editable in the sidebar.
 
-The user reported save draft is not working. The RLS migration was just applied. Need to verify:
-1. The `useSaveLegalDocDraft` mutation sends `content` and `content_json` correctly
-2. The publish flow (`usePublishLegalDoc`) archives old versions and activates new
-3. RLS policies now allow the correct admin tiers to INSERT/UPDATE
+**File:** `src/components/admin/legal/LegalDocConfigSidebar.tsx`
 
-**Status:** RLS fix migration was applied. Code logic looks correct. This needs **end-to-end testing**.
+### Step 4: Fix "Add Document" button navigation
+The main list page "Add Document" button navigates to `/admin/legal-documents/new` without a code. This is fine — the user will select the code in the sidebar. No change needed here.
 
----
+### Step 5: Fix LegalDocTriggerForm — add missing fields
+- Add `required_roles` multi-select (CR, CU, ER, LC, FC, SOLVER, ALL)
+- Add `is_active` toggle
+- Add descriptions to trigger event dropdown items
 
-## GAP 5: Starter Template Content Not Seeded (Styling Addendum)
+**File:** `src/components/admin/legal/LegalDocTriggerForm.tsx`
 
-**Spec says:** Seed 5 default document templates (PMA, CA, PSA, IPAA, EPIA) with professional legal HTML content.
+### Step 6: Add trigger event descriptions to types
+Add a `TRIGGER_EVENT_DESCRIPTIONS` record to `legal.types.ts` with the spec descriptions.
 
-**Current state:** The migration script in the spec includes full HTML content for all 5 documents. Need to verify if these were seeded in the database.
-
-**Fix:** Check if templates exist in DB. If not, create a migration to seed them.
-
----
-
-## GAP 6: ConfigSidebar Missing "Applies to Roles" Multi-Select
-
-**Spec says:** Config sidebar should have "Applies to roles (multi-select: CR, CU, ER, LC, FC, SOLVER, ALL)"
-
-**Current state:** `LegalDocConfigSidebar.tsx` has Model and Mode selects but **no roles multi-select**. The `applies_to_roles` field (TEXT[]) is not editable in the sidebar.
-
-**Fix:** Add a multi-select for roles in the config sidebar.
-
-**Files:** `LegalDocConfigSidebar.tsx`
+**File:** `src/types/legal.types.ts`
 
 ---
 
-## Implementation Plan
+## Regarding Adding New Document Codes
 
-### Step 1: Fix IPAA Section Editing
-- Update `useLegalDocEditor` to manage section-specific content from `sections` JSONB
-- Pass `activeSection` through to the editor panel
-- When saving, write section content back to `sections.{key}`
+The DB CHECK constraint restricts `document_code` to the 5 values. Two options:
 
-### Step 2: Wire Missing Integration Points (5b, 5d, 5f)
-- Find and wire Seeker Enrollment flow with `SEEKER_ENROLLMENT` gate
-- Find and wire Challenge Submit flow with `CHALLENGE_SUBMIT` gate
-- Find and wire Winner Confirmation flow with `WINNER_SELECTED` gate
+**Option A (Recommended):** Keep the constraint for data integrity. When a new code is needed, a DB migration adds it to the CHECK constraint + update the TypeScript type. This is a deliberate, controlled process.
 
-### Step 3: Add Roles Multi-Select to Config Sidebar
-- Add checkbox group or multi-select for `applies_to_roles` in `LegalDocConfigSidebar.tsx`
+**Option B:** Drop the CHECK constraint and make it free-text. More flexible but loses data validation.
 
-### Step 4: Verify Starter Templates Seeded
-- Query DB for existing templates
-- If missing, create seed migration
+I will implement **Option A** — keep the constraint, but make the UI code-list driven from a single constant so adding a new code only requires updating one TypeScript constant + one migration.
 
-### Step 5: End-to-end Verification
-- Test save draft after RLS fix
-- Test publish flow
-- Test upload override
+---
 
-**Total: ~8 files modified, 1 potential migration**
+## Files Modified
+
+| File | Change |
+|---|---|
+| `src/types/legal.types.ts` | Add `TRIGGER_EVENT_DESCRIPTIONS` |
+| `src/components/admin/legal/LegalDocConfigSidebar.tsx` | Add document_code select + description textarea |
+| `src/hooks/admin/useLegalDocEditor.ts` | Use config.document_code in create path |
+| `src/components/admin/legal/LegalDocTriggerForm.tsx` | Add required_roles multi-select, is_active toggle, event descriptions |
+
+4 files, no migrations needed (trigger data already correct, DB schema already supports all fields).
 
