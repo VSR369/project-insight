@@ -305,7 +305,7 @@ function AbstractDetail({ abstract, criteria, isEnterprise, reviewerId, shortlis
         onScoreChange={(criterion, score) => setScores(prev => ({ ...prev, [criterion]: score }))}
         commentary={commentary}
         onCommentaryChange={setCommentary}
-        isEnterprise={isEnterprise}
+        isStructuredOrAbove={isBlindMode}
         weightedTotal={weightedTotal}
         readOnly={readOnly}
       />

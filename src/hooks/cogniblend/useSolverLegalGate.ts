@@ -73,11 +73,11 @@ export function useSolverLegalGate(
         return { cleared: true, pendingDocs: [] };
       }
 
-      // R-04: Filter out Enterprise-only docs for QUICK governance mode
+      // R-04: Filter out non-QUICK docs for QUICK governance mode
       const mode = resolveGovernanceMode(governanceProfile);
       const filteredTemplates = isQuickMode(mode)
         ? (templates as any[]).filter(
-            (t) => !ENTERPRISE_ONLY_DOC_TYPES.includes(t.document_type as any)
+            (t) => !NON_QUICK_DOC_TYPES.includes(t.document_type as any)
           )
         : (templates as any[]);
 

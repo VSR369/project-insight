@@ -127,7 +127,7 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
   });
 
   it('skips legal verification for Lightweight governance (no pending state)', async () => {
-    const challenge = { phase_status: 'ACTIVE', governance_profile: 'LIGHTWEIGHT' };
+    const challenge = { phase_status: 'ACTIVE', governance_profile: 'QUICK' };
     const completePhase = vi.fn();
     const { supabase } = await import('@/integrations/supabase/client');
 

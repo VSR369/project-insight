@@ -67,7 +67,7 @@ function QuestionRow({
       userId,
     });
 
-    // In LIGHTWEIGHT mode, auto-publish immediately
+    // In QUICK mode, auto-publish immediately
     if (isQuick) {
       await publishMutation.mutateAsync({ qaId: qa.qa_id, challengeId, userId });
     }
