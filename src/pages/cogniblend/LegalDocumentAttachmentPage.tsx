@@ -168,7 +168,7 @@ export default function LegalDocumentAttachmentPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const completePhase = useCompletePhase();
+  // completePhase hook removed — using complete_legal_review RPC
   const pageTopRef = useRef<HTMLDivElement>(null);
   const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
   const { data: lcStatus } = useLcReviewStatus(challengeId);
