@@ -1030,7 +1030,7 @@ export default function LegalDocumentAttachmentPage() {
           onClick={handleSubmitForCuration}
           disabled={
             isValidating ||
-            completePhase.isPending ||
+            isComplianceSubmitting ||
             (lcStatus?.hasPending ?? false) ||
             (lcStatus?.hasRejected ?? false)
           }
@@ -1038,7 +1038,7 @@ export default function LegalDocumentAttachmentPage() {
           <Send className="h-4 w-4" />
           {isValidating
             ? "Validating…"
-            : completePhase.isPending
+            : isComplianceSubmitting
             ? "Submitting…"
             : lcStatus?.hasPending
             ? "Awaiting LC Review…"
