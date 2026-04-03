@@ -45,6 +45,12 @@ export function LegalGateModal({
 
   const { data: fullTemplate, isError: templateError } = useLegalDocTemplateById(currentDoc?.template_id);
 
+  const { data: priorAcceptance } = usePriorAcceptanceCheck(
+    currentDoc?.document_code,
+    currentDoc?.document_version,
+    !!currentDoc,
+  );
+
   // Fail-open: if RPC errors, don't trap user
   React.useEffect(() => {
     if (isError) onAllAccepted();
