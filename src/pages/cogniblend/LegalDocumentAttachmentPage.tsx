@@ -643,7 +643,7 @@ export default function LegalDocumentAttachmentPage() {
     }
   };
 
-  const [isComplianceSubmitting, setIsComplianceSubmitting] = useState(false);
+
 
   const handleConfirmSubmit = async () => {
     if (!user?.id || !challengeId) return;
