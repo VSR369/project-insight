@@ -239,7 +239,7 @@ export default function ChallengeManagePage() {
             </div>
           )}
 
-          {data.governanceProfile !== 'LIGHTWEIGHT' && data.submissions.length > 0 && (
+          {data.governanceProfile !== 'QUICK' && data.submissions.length > 0 && (
             <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
               <ShieldCheck className="h-3 w-3" />
               Solver identities anonymised until evaluation phase.
