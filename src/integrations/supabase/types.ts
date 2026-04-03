@@ -3710,42 +3710,51 @@ export type Database = {
       legal_document_templates: {
         Row: {
           created_at: string
+          created_by: string | null
           default_template_url: string | null
           description: string | null
           document_name: string
           document_type: string
           is_active: boolean
           required_for_maturity: Json
+          template_content: string | null
           template_id: string
           tier: string
           trigger_phase: number | null
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           default_template_url?: string | null
           description?: string | null
           document_name: string
           document_type: string
           is_active?: boolean
           required_for_maturity?: Json
+          template_content?: string | null
           template_id?: string
           tier: string
           trigger_phase?: number | null
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           default_template_url?: string | null
           description?: string | null
           document_name?: string
           document_type?: string
           is_active?: boolean
           required_for_maturity?: Json
+          template_content?: string | null
           template_id?: string
           tier?: string
           trigger_phase?: number | null
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
