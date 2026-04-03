@@ -74,7 +74,9 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
         sections: parseSections(template.sections),
       });
       setConfig({
+        document_code: template.document_code,
         document_name: template.document_name,
+        description: template.description,
         summary: template.summary,
         applies_to_roles: template.applies_to_roles,
         applies_to_model: template.applies_to_model,
