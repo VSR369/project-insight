@@ -51,6 +51,8 @@ import { StepModeSelection } from '@/components/cogniblend/challenge-wizard/Step
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
 import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
+import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
+import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import {
   createChallengeFormSchema,
   DEFAULT_FORM_VALUES,
