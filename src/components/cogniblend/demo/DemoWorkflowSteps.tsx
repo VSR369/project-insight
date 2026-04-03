@@ -1,6 +1,6 @@
 /**
  * DemoWorkflowSteps — Visual workflow indicator for AI vs Manual paths.
- * Dynamically adapts Step 1 role and notes based on engagement model and governance mode.
+ * Reflects the 10-phase lifecycle. Shows first 5 seeker-side phases.
  */
 
 import { cn } from '@/lib/utils';
@@ -18,27 +18,44 @@ function buildSteps(engagementModel?: string, governanceMode?: GovernanceMode): 
   const isMP = engagementModel === 'MP';
   const mode = governanceMode ?? 'STRUCTURED';
 
-  // Step 1 adapts to engagement model
-  const step1Role = 'CR';
+  // Step 1: Create (Phase 1)
   const step1AiNote = isMP ? 'Creator submits problem brief' : 'Creator shares idea';
   const step1ManualNote = isMP ? '6-field problem brief' : '3-field idea form';
 
-  // Step 4 (Curation) adapts to governance mode
-  const step4AiNote =
+  // Step 2: Compliance (Phase 2 — LC + FC)
+  const step2AiNote =
+    mode === 'QUICK' ? 'Auto-applied defaults' :
+    mode === 'CONTROLLED' ? 'LC review + escrow funding' :
+    'LC review, optional escrow';
+  const step2ManualNote =
+    mode === 'QUICK' ? 'Auto-complete' :
+    mode === 'CONTROLLED' ? 'Full legal + escrow gate' :
+    'Legal docs + optional escrow';
+
+  // Step 3: Curation (Phase 3)
+  const step3AiNote =
     mode === 'QUICK' ? 'Auto-complete quality check' :
     mode === 'CONTROLLED' ? 'Formal gate quality review' :
     'AI quality check';
-  const step4ManualNote =
+  const step3ManualNote =
     mode === 'QUICK' ? 'Simplified checklist' :
     mode === 'CONTROLLED' ? 'Full compliance checklist' :
     '14-point checklist';
 
+  // Step 4: Publication (Phase 4)
+  const step4AiNote = 'Challenge goes live';
+  const step4ManualNote = 'Publish to marketplace';
+
+  // Step 5: Abstract Submit (Phase 5)
+  const step5AiNote = 'Solvers submit abstracts';
+  const step5ManualNote = 'Solver abstract intake';
+
   return [
-    { label: 'Create', role: step1Role, aiNote: step1AiNote, manualNote: step1ManualNote },
-    { label: 'Spec Review', role: 'CR', aiNote: 'Review AI output', manualNote: 'Review wizard data' },
-    { label: 'Legal Docs', role: 'LC', aiNote: 'AI suggests docs, LC reviews', manualNote: 'Upload documents' },
-    { label: 'Curation', role: 'CU', aiNote: step4AiNote, manualNote: step4ManualNote },
-    { label: 'Publication', role: 'System', aiNote: 'Go live', manualNote: 'Go live' },
+    { label: 'Create', role: 'CR', aiNote: step1AiNote, manualNote: step1ManualNote },
+    { label: 'Compliance', role: 'LC/FC', aiNote: step2AiNote, manualNote: step2ManualNote },
+    { label: 'Curation', role: 'CU', aiNote: step3AiNote, manualNote: step3ManualNote },
+    { label: 'Publication', role: 'System', aiNote: step4AiNote, manualNote: step4ManualNote },
+    { label: 'Abstract Submit', role: 'Solver', aiNote: step5AiNote, manualNote: step5ManualNote },
   ];
 }
 
