@@ -177,21 +177,7 @@ export function useSubmitSolutionRequest() {
         }
       }
 
-      // Auto-attach legal docs for Quick/Lightweight mode
-      if (normalizedGov === 'QUICK') {
-        try {
-          const { data: defaultTemplates } = await supabase
-            .from('legal_document_templates' as any).select('document_type, document_name, description').eq('tier', 'TIER_1').eq('is_active', true);
-          if (defaultTemplates && defaultTemplates.length > 0) {
-            const legalInserts = (defaultTemplates as any[]).map((t) => ({
-              challenge_id: challengeId, document_type: t.document_type, document_name: t.document_name,
-              content_summary: t.description || null, tier: 'TIER_1', status: 'auto_accepted',
-              lc_status: 'approved', attached_by: payload.creatorId, created_by: payload.creatorId,
-            }));
-            await supabase.from('challenge_legal_docs').insert(legalInserts as any);
-          }
-        } catch { /* Non-blocking */ }
-      }
+      // Legal doc auto-attach for QUICK mode is now handled by complete_phase + md_governance_mode_config
 
       return { challengeId };
     },

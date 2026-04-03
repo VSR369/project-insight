@@ -93,7 +93,7 @@ describe('TW2-03 — GATE-02 pass transitions to Phase 3', () => {
   });
 
   it('does NOT transition or log audit when phase_status is already ACTIVE', async () => {
-    const challenge = { phase_status: 'ACTIVE', governance_profile: 'ENTERPRISE' };
+    const challenge = { phase_status: 'ACTIVE', governance_profile: 'STRUCTURED' };
     const { supabase } = await import('@/integrations/supabase/client');
 
     if (challenge.phase_status === 'LEGAL_VERIFICATION_PENDING') {

@@ -35,7 +35,7 @@ const ITEMS: MyChallengeItem[] = [
     master_status: 'IN_PREPARATION',
     phase_status: 'LEGAL_VERIFICATION_PENDING',
     current_phase: 1,
-    governance_profile: 'ENTERPRISE',
+    governance_profile: 'STRUCTURED',
     governance_mode_override: null,
     role_codes: ['CU'],
     operating_model: 'MP',

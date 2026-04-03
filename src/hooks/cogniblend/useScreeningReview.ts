@@ -172,8 +172,8 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
       return {
         challengeId: challenge.id,
         title: challenge.title,
-        governanceProfile: challenge.governance_profile ?? 'ENTERPRISE',
-        isEnterprise,
+        governanceProfile: challenge.governance_profile ?? 'STRUCTURED',
+        isBlindMode,
         evaluationCriteria: rawCriteria,
         abstracts,
         shortlistApproved,
