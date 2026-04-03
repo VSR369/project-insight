@@ -19,7 +19,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
+// useCompletePhase removed — using complete_legal_review RPC instead
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
 import { useLcReviewStatus } from "@/hooks/cogniblend/useLcReviewStatus";
 import { useLegalReviewRequest } from "@/hooks/cogniblend/useLegalReviewRequest";
