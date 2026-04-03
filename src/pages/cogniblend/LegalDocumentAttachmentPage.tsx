@@ -694,11 +694,11 @@ export default function LegalDocumentAttachmentPage() {
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
 
-      const msg = result.advanced
+      const msg = result.phase_advanced
         ? 'Challenge submitted for curation.'
         : 'Legal review complete — waiting for financial compliance.';
       toast.success(msg);
-      if (result.advanced) navigate("/cogni/dashboard");
+      if (result.phase_advanced) navigate("/cogni/dashboard");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Submission error';
       toast.error(`Submission error: ${message}`);

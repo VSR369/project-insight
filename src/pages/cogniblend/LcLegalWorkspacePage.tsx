@@ -587,11 +587,11 @@ export default function LcLegalWorkspacePage() {
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
 
-      const msg = result.advanced
+      const msg = result.phase_advanced
         ? 'Legal review complete — challenge advanced to Curation'
         : 'Legal review complete — waiting for financial compliance';
       toast.success(msg);
-      if (result.advanced) navigate('/cogni/dashboard');
+      if (result.phase_advanced) navigate('/cogni/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to submit';
       toast.error(msg);

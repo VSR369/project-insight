@@ -537,6 +537,20 @@ export function SolverEnrollmentCTA({
           }}
         />
       )}
+
+      {/* CHALLENGE_JOIN legal gate (challenge-specific PSA) */}
+      {joinGate.showGate && (
+        <LegalGateModal
+          triggerEvent={joinGate.triggerEvent}
+          challengeId={challengeId}
+          userRole="SOLVER"
+          onAllAccepted={joinGate.handleAllAccepted}
+          onDeclined={() => {
+            joinGate.handleDeclined();
+            toast.error('You must accept the challenge-specific legal terms to enroll.');
+          }}
+        />
+      )}
     </div>
   );
 }
