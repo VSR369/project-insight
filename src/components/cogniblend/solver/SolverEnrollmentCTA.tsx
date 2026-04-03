@@ -279,6 +279,13 @@ export function SolverEnrollmentCTA({
     userRole: 'SOLVER',
   });
 
+  // Legal gate for CHALLENGE_JOIN trigger (challenge-specific PSA)
+  const joinGate = useLegalGateAction({
+    triggerEvent: 'CHALLENGE_JOIN',
+    challengeId,
+    userRole: 'SOLVER',
+  });
+
   const model = enrollmentModel || 'OPEN';
   const modelInfo = MODEL_LABELS[model] ?? MODEL_LABELS.OPEN;
 
