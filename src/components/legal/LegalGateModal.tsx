@@ -110,7 +110,7 @@ export function LegalGateModal({
       <DialogContent
         className="max-w-[90vw] w-full max-h-[90vh] h-[90vh] flex flex-col overflow-hidden p-0 [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => { e.preventDefault(); handleAction('DECLINED'); }}
       >
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b">
           <div className="flex items-center gap-3 flex-wrap">
