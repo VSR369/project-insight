@@ -152,7 +152,7 @@ export function useScreeningData(challengeId: string | undefined, reviewerId: st
         return {
           id: s.id,
           providerId: s.provider_id,
-          providerName: isEnterprise ? null : (providerNameMap.get(s.provider_id) ?? 'Unknown'),
+          providerName: isBlindMode ? null : (providerNameMap.get(s.provider_id) ?? 'Unknown'),
           anonymousLabel: anonymiseIndex(idx),
           abstractText: s.abstract_text,
           methodology: s.methodology,
