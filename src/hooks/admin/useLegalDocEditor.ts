@@ -17,6 +17,7 @@ const AUTO_SAVE_INTERVAL_MS = 30_000;
 interface EditorState {
   content: string;
   contentJson: Record<string, unknown> | null;
+  sections: Record<string, { html: string; json: Record<string, unknown> | null }>;
 }
 
 interface UseEditorParams {
