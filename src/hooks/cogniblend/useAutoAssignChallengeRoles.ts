@@ -184,7 +184,7 @@ async function persistViaRpc(
 ): Promise<AssignmentResult | null> {
   const assignmentPhase = PHASE_MAP[input.roleCode] ?? null;
 
-  const { data, error } = await supabase.rpc("auto_assign_challenge_role", {
+  const { data, error } = await supabase.rpc("assign_challenge_role", {
     p_challenge_id: input.challengeId,
     p_pool_member_id: winner.id,
     p_user_id: winner.user_id!,
@@ -196,7 +196,7 @@ async function persistViaRpc(
 
   if (error) {
     logWarning("Auto-assign: RPC call failed", {
-      operation: "auto_assign_challenge_role",
+      operation: "assign_challenge_role",
       additionalData: { error: error.message, challengeId: input.challengeId },
     });
     return null;
@@ -206,7 +206,7 @@ async function persistViaRpc(
 
   if (!result?.success) {
     logWarning("Auto-assign: RPC returned failure", {
-      operation: "auto_assign_challenge_role",
+      operation: "assign_challenge_role",
       additionalData: { rpcError: result?.error, challengeId: input.challengeId },
     });
     return null;
