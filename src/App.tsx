@@ -375,7 +375,7 @@ const App = () => (
               <Route path="/cogni/legal-review/:challengeId" element={<LazyRoute><LcReviewPanel /></LazyRoute>} />
               <Route path="/cogni/review" element={<LazyRoute><CogniPlaceholderPage title="Review Queue" description="Review submitted solutions awaiting expert evaluation." /></LazyRoute>} />
               <Route path="/cogni/evaluation" element={<LazyRoute><CogniPlaceholderPage title="Evaluation Panel" description="Score and rank solutions using evaluation rubrics." /></LazyRoute>} />
-              <Route path="/cogni/selection" element={<LazyRoute><CogniPlaceholderPage title="Selection & IP" description="Select winning solutions and manage IP transfer processes." /></LazyRoute>} />
+              <Route path="/cogni/selection" element={<LazyRoute><WinnerSelectionPage /></LazyRoute>} />
               <Route path="/cogni/escrow" element={<LazyRoute><EscrowManagementPage /></LazyRoute>} />
               <Route path="/cogni/payments" element={<LazyRoute><CogniPlaceholderPage title="Payment Processing" description="Process prize payments and manage financial transactions." /></LazyRoute>} />
               <Route path="/cogni/browse" element={<LazyRoute><BrowseChallengesPage /></LazyRoute>} />
