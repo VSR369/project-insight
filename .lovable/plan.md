@@ -1,25 +1,25 @@
-## Migration (PROMPT 1)
-- Create `md_lifecycle_phase_config` table with 30 seed rows (10 phases × 3 modes)
+## Migration (PROMPT 1) ✅
+- Created `md_lifecycle_phase_config` table with 30 seed rows (10 phases × 3 modes)
 - Config-driven RPCs: `get_phase_required_role`, `get_phase_config`, rewrite `complete_phase`
-- `auto_assign_roles_on_creation` RPC update
+- `auto_assign_roles_on_creation` RPC update (QUICK=all, STRUCTURED=CR+LC, CONTROLLED=CR)
 - `complete_legal_review` and `complete_financial_review` RPCs (now Phase 3)
 - Pool email unique constraint fix
 
-## Frontend Phase Refs (PROMPT 2)
-- `useSubmitSolutionRequest.ts`: CU auto-assign at phase >= 2 (not 3)
-- `CurationQueuePage.tsx`: Filter `.in("current_phase", [2])`, update badges
-- `LcLegalWorkspacePage.tsx`: Phase 3 references
-- `LegalDocumentAttachmentPage.tsx`: Phase 3 references
+## Frontend Phase Refs (PROMPT 2) ✅
+- `useSubmitSolutionRequest.ts`: CU auto-assign at phase >= 2, skip QUICK
+- `CurationQueuePage.tsx`: Filter `.in("current_phase", [2])`, updated badges/tooltips
+- `LcLegalWorkspacePage.tsx`: Removed CU auto-assign (curation before compliance now)
+- `LegalDocumentAttachmentPage.tsx`: Same removal
 - `CurationActions.tsx`: After curation approval, auto-assign LC+FC for CONTROLLED
-- `useCompletePhase.ts`: Update phase 7 reference for publication
+- `useCompletePhase.ts`: Publication detection at phase 4/5
 
-## Seed Fix (PROMPT 3)
-- Phase label: "SPEC_REVIEW" → "CURATION"
-- Pool entries already use SELECT+INSERT/UPDATE pattern (done previously)
+## Seed Fix (PROMPT 3) ✅
+- Phase label: "COMPLIANCE" → "CURATION" in setup-test-scenario
+- Edge function redeployed
 
-## Admin Page (PROMPT 4)
-- `LifecyclePhaseConfigPage.tsx` — tabs shell (<80 lines)
-- `LifecyclePhaseTable.tsx` — table per mode (<150 lines)
-- `LifecyclePhaseRow.tsx` — editable row (<100 lines)
-- `useLifecyclePhaseConfig.ts` — query + mutation hooks
-- Add sidebar entry + route in App.tsx
+## Admin Page (PROMPT 4) ✅
+- `LifecyclePhaseConfigPage.tsx` — tabs shell
+- `LifecyclePhaseTable.tsx` — table per mode
+- `LifecyclePhaseRow.tsx` — editable row
+- `useLifecyclePhaseConfig.ts` — query + mutation hooks (raw PostgREST)
+- Added sidebar entry + route in App.tsx
