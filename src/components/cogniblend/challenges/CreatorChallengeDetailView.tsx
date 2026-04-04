@@ -107,6 +107,13 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </div>
       </div>
 
+      {statusMessage && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-center gap-2">
+          <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-sm text-muted-foreground">{statusMessage}</p>
+        </div>
+      )}
+
       {data.current_phase != null && data.current_phase >= 2 && data.current_phase <= 3
         && data.phase_status !== 'CR_APPROVAL_PENDING' && (
         <CurationProgressTracker challengeId={challengeId} />
