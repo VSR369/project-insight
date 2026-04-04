@@ -557,6 +557,23 @@ export default function Login() {
           </Form>
         </Card>
 
+        {/* CogniBlend Demo Login Card */}
+        <Card
+          className="mt-4 border-sky-500/40 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/cogni-demo-login')}
+        >
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500/20">
+              <Lightbulb className="h-5 w-5 text-sky-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">CogniBlend Demo</p>
+              <p className="text-xs text-muted-foreground">Try the governance-aware challenge flow with seeded test data</p>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground -rotate-90 shrink-0" />
+          </CardContent>
+        </Card>
+
         {/* Quick Login Section - Test Accounts */}
         <Card className="border-dashed border-amber-500/50 bg-amber-500/5 mt-4">
           <CardHeader className="pb-2">
