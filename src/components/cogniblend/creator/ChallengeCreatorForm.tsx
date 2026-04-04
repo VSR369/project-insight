@@ -89,10 +89,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     },
   });
 
-  // Wire form into draft save (workaround for hook ordering)
-  const draftSaveWithForm = useMemo(() => ({ ...draftSave }), [draftSave]);
-  useEffect(() => { draftSaveWithForm.form = form; }, [form]);
-
+  useEffect(() => { setDraftForm(form); }, [form]);
   useEffect(() => { draftSave.initFromUrl(searchParams.get('draft')); }, []);
 
   useCreatorDraftLoader(draftSave.draftChallengeId, form, governanceMode, engagementModel, onDraftModeSync);
