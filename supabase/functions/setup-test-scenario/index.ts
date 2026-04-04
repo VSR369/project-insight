@@ -325,7 +325,7 @@ serve(async (req) => {
       maturity_level: "PROTOTYPE",
       evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
-      ip_model: "exclusive_license", phase_schedule: { expected_timeline: "6-12" },
+      ip_model: "IP-EL", phase_schedule: { expected_timeline: "6-12" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["manufacturing","IoT","machine-learning"] }),
       extended_brief: { creator_approval_required: true, context_background: "Facility operates 24/7, 12 production lines.", root_causes: ["Reactive maintenance culture","No sensor-to-failure correlation","Siloed data"], affected_stakeholders: [{ role: "Plant Operations", count: 45 },{ role: "Production Planning", count: 12 }], current_deficiencies: ["12% unplanned downtime","No prediction capability","200+ manual inspection hours/month"] },
       creator_snapshot: { title: "AI-Powered Predictive Maintenance for Smart Manufacturing", hook: "Reduce $2.3M annual downtime", problem_statement: "Equipment failures costing $2.3M annually...", scope: "Integrate with SCADA/PLC across 12 lines...", context_background: "Facility operates 24/7...", budget_min: 50000, budget_max: 150000, currency: "USD", expected_timeline: "6-12", ip_model: "exclusive_license" },
