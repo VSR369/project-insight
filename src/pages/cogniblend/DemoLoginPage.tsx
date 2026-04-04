@@ -41,16 +41,37 @@ export interface DemoUser {
 }
 
 /** Static demo users list for dev quick-switch (uses default engagement model) */
-export const DEMO_USERS: DemoUser[] = buildDemoUsers('MP');
+export const DEMO_USERS: DemoUser[] = buildDemoUsers('MP', 'STRUCTURED');
 
-/** Build the demo user list dynamically based on engagement model */
-function buildDemoUsers(engagementModel: string): DemoUser[] {
+const CR_DESC: Record<GovernanceMode, string> = {
+  QUICK: 'Creates challenge with 5 required fields, auto-published on submit',
+  STRUCTURED: 'Configures industry & governance, fills 8 fields, AI Review recommended, submits to Curator',
+  CONTROLLED: 'Configures full challenge settings, fills 12 fields, AI Review required before submit to Curator',
+};
+const LC_DESC: Record<GovernanceMode, string> = {
+  QUICK: 'Auto-applied legal defaults — no manual review needed',
+  STRUCTURED: 'Reviews legal docs, optional escrow setup',
+  CONTROLLED: 'Full legal review with mandatory escrow gate',
+};
+const CU_DESC: Record<GovernanceMode, string> = {
+  QUICK: 'Auto-completed quality check with simplified checklist',
+  STRUCTURED: 'AI-assisted quality review with 14-point checklist',
+  CONTROLLED: 'Formal compliance gate with full dual-curation checklist',
+};
+const ER_DESC: Record<GovernanceMode, string> = {
+  QUICK: 'Evaluates submitted solutions against criteria',
+  STRUCTURED: 'Evaluates solutions with structured scoring rubric',
+  CONTROLLED: 'Blind evaluation with dual-reviewer consensus required',
+};
+
+/** Build the demo user list dynamically based on engagement model and governance */
+function buildDemoUsers(engagementModel: string, mode: GovernanceMode = 'STRUCTURED'): DemoUser[] {
   return [
     {
       email: 'nh-cr@testsetup.dev',
       displayName: 'Chris Rivera',
       roles: ['CR'],
-      description: 'Creates challenge via the unified creation form, then submits to Curator',
+      description: CR_DESC[mode],
       destination: '/cogni/challenges/create',
       stepLabel: 'Step 1',
     },
@@ -58,7 +79,7 @@ function buildDemoUsers(engagementModel: string): DemoUser[] {
       email: 'nh-lc@testsetup.dev',
       displayName: 'Leslie Chen',
       roles: ['LC'],
-      description: 'Reviews challenge and attaches legal documents (NDA, IP, etc.)',
+      description: LC_DESC[mode],
       destination: '/cogni/lc-queue',
       stepLabel: 'Step 2',
     },
@@ -66,7 +87,7 @@ function buildDemoUsers(engagementModel: string): DemoUser[] {
       email: 'nh-cu@testsetup.dev',
       displayName: 'Casey Underwood',
       roles: ['CU'],
-      description: 'Reviews challenge quality via curation checklist and AI analysis',
+      description: CU_DESC[mode],
       destination: '/cogni/curation',
       stepLabel: 'Step 3',
     },
@@ -74,7 +95,7 @@ function buildDemoUsers(engagementModel: string): DemoUser[] {
       email: 'nh-er1@testsetup.dev',
       displayName: 'Evelyn Rhodes',
       roles: ['ER'],
-      description: 'Evaluates submitted solutions against criteria',
+      description: ER_DESC[mode],
       destination: '/cogni/review',
       stepLabel: 'Step 4',
     },
@@ -82,7 +103,7 @@ function buildDemoUsers(engagementModel: string): DemoUser[] {
       email: 'nh-er2@testsetup.dev',
       displayName: 'Ethan Russell',
       roles: ['ER'],
-      description: 'Second reviewer for dual-review governance',
+      description: mode === 'CONTROLLED' ? 'Second reviewer for mandatory dual-review gate' : 'Second reviewer for dual-review governance',
       destination: '/cogni/review',
       stepLabel: 'Step 5',
     },
@@ -90,7 +111,7 @@ function buildDemoUsers(engagementModel: string): DemoUser[] {
       email: 'nh-fc@testsetup.dev',
       displayName: 'Frank Coleman',
       roles: ['FC'],
-      description: 'Manages escrow funding and prize disbursement',
+      description: mode === 'CONTROLLED' ? 'Manages mandatory escrow funding and prize disbursement' : 'Manages escrow funding and prize disbursement',
       destination: '/cogni/escrow',
       stepLabel: 'Finance',
     },
@@ -98,7 +119,7 @@ function buildDemoUsers(engagementModel: string): DemoUser[] {
       email: 'nh-solo@testsetup.dev',
       displayName: 'Sam Solo',
       roles: ['CR', 'CU', 'ER', 'LC', 'FC'],
-      description: 'Solo operator — holds all roles for full walkthrough',
+      description: `Solo operator — all roles, ${mode} governance walkthrough`,
       destination: '/cogni/challenges/create',
       stepLabel: 'All Steps',
     },
