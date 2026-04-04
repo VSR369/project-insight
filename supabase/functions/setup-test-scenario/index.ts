@@ -306,135 +306,131 @@ serve(async (req) => {
       results.push(`⚠️ No industry segments found — eligibility will be empty`);
     }
 
-    // ─── Step 4: Create two demo challenges (MP + AGG) ───
+    // ─── Step 4: Create 3 demo challenges — one per governance mode (all AGG) ───
     const challengeIds: string[] = [];
+    const crUser = userIds.find(u => u.roles.includes("CR"));
+    const crUserId = crUser?.userId ?? userIds[0]?.userId ?? null;
 
-    // Helper to find a user by role code
-    const findUserByRole = (role: string) => userIds.find(u => u.roles.includes(role));
-    const crUser = findUserByRole("CR");
-    const cuUser = findUserByRole("CU");
-
-    // Challenge A — MP model (AM-submitted)
-    const mpChallengeId = crypto.randomUUID();
-    const { error: mpErr } = await supabaseAdmin.from("challenges").insert({
-      id: mpChallengeId,
-      tenant_id: orgId,
-      organization_id: orgId,
-      title: "Predictive Maintenance for Smart Manufacturing",
-      status: "draft",
-      master_status: "IN_PREPARATION",
-      current_phase: 2,
-      phase_status: "ACTIVE",
-      operating_model: "MP",
-      governance_profile: config.governanceProfile,
-      challenge_model_is_agg: false,
-      lc_review_required: config.governanceProfile === "ENTERPRISE",
-      is_active: true,
-      is_deleted: false,
-      is_qa_closed: false,
-      solutions_awarded: 0,
-      description: "Demo MP challenge — Creator spec review.",
-      problem_statement: "Our manufacturing floor experiences unplanned equipment failures that cost $2.3M annually in downtime. Current preventive maintenance schedules are time-based rather than condition-based, leading to both unexpected breakdowns and unnecessary maintenance on healthy equipment. We need a predictive maintenance solution that uses IoT sensor data and machine learning to forecast equipment failures 48-72 hours in advance.",
-      scope: "The solution should: (1) integrate with existing SCADA and PLC systems across 12 production lines, (2) provide a real-time dashboard for maintenance teams, (3) generate automated work orders when failure probability exceeds threshold, (4) reduce unplanned downtime by at least 40% within 6 months of deployment, and (5) include a mobile app for field technicians.",
-      reward_structure: { currency: "USD", budget_min: 25000, budget_max: 75000 },
-      phase_schedule: { expected_timeline: "3-6" },
-      eligibility: JSON.stringify({
-        industry_segment_id: techSegmentId,
-        domain_tags: ["manufacturing", "IoT", "machine-learning"],
-        urgency: "standard",
-        constraints: "Must comply with ISO 55000 asset management standards. Solution must run on-premise due to data sovereignty requirements.",
-      }),
-      extended_brief: {
-        am_approval_required: true,
-        creator_approval_required: true,
-        beneficiaries_mapping: "Primary: Plant Operations Team (45 technicians), Secondary: Production Planning (12 managers), Tertiary: Executive Leadership (quarterly reporting)",
-      },
-      creator_snapshot: {
-        title: "Predictive Maintenance for Smart Manufacturing",
-        problem_statement: "Our manufacturing floor experiences unplanned equipment failures that cost $2.3M annually in downtime. Current preventive maintenance schedules are time-based rather than condition-based, leading to both unexpected breakdowns and unnecessary maintenance on healthy equipment. We need a predictive maintenance solution that uses IoT sensor data and machine learning to forecast equipment failures 48-72 hours in advance.",
-        scope: "The solution should: (1) integrate with existing SCADA and PLC systems across 12 production lines, (2) provide a real-time dashboard for maintenance teams, (3) generate automated work orders when failure probability exceeds threshold, (4) reduce unplanned downtime by at least 40% within 6 months of deployment, and (5) include a mobile app for field technicians.",
-        budget_min: 25000,
-        budget_max: 75000,
-        currency: "USD",
-        reward_structure: { currency: "USD", budget_min: 25000, budget_max: 75000 },
-        expected_timeline: "3-6",
-      },
-      created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
+    // Challenge 1: CONTROLLED + AGG (12 Creator fields filled)
+    const controlledId = crypto.randomUUID();
+    const { error: c1Err } = await supabaseAdmin.from("challenges").insert({
+      id: controlledId, tenant_id: orgId, organization_id: orgId,
+      title: "AI-Powered Predictive Maintenance for Smart Manufacturing",
+      hook: "Reduce $2.3M annual downtime through IoT-driven failure prediction",
+      status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
+      operating_model: "AGG", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
+      challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
+      problem_statement: "Our manufacturing floor experiences unplanned equipment failures costing $2.3M annually. Current preventive maintenance is time-based, causing both unexpected breakdowns and unnecessary maintenance. We need condition-based predictive maintenance using IoT and ML to forecast failures 48-72 hours in advance.",
+      scope: "Integrate with existing SCADA/PLC systems across 12 production lines. Provide real-time dashboard, automated work orders, mobile app. Must reduce unplanned downtime by 40% within 6 months.",
+      maturity_level: "growth", context_background: "Our facility operates 24/7 with 12 production lines. Equipment 5-15 years old. Current MTBF 240 hours, target 500+.",
+      evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }]},
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
+      ip_model: "exclusive_license", phase_schedule: { expected_timeline: "6-12" },
+      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["manufacturing","IoT","machine-learning"] }),
+      extended_brief: { creator_approval_required: true, context_background: "Facility operates 24/7, 12 production lines.", root_causes: ["Reactive maintenance culture","No sensor-to-failure correlation","Siloed data"], affected_stakeholders: [{ role: "Plant Operations", count: 45 },{ role: "Production Planning", count: 12 }], current_deficiencies: ["12% unplanned downtime","No prediction capability","200+ manual inspection hours/month"] },
+      creator_snapshot: { title: "AI-Powered Predictive Maintenance for Smart Manufacturing", hook: "Reduce $2.3M annual downtime", problem_statement: "Equipment failures costing $2.3M annually...", scope: "Integrate with SCADA/PLC across 12 lines...", context_background: "Facility operates 24/7...", budget_min: 50000, budget_max: 150000, currency: "USD", expected_timeline: "6-12", ip_model: "exclusive_license" },
+      created_by: crUserId,
     });
-    if (mpErr) throw new Error(`MP challenge creation failed: ${mpErr.message}`);
-    challengeIds.push(mpChallengeId);
-    results.push(`✅ Created MP challenge: "Predictive Maintenance for Smart Manufacturing" (Phase 2 — CURATION)`);
+    if (c1Err) throw new Error(`CONTROLLED challenge: ${c1Err.message}`);
+    challengeIds.push(controlledId);
+    results.push(`✅ Challenge 1: CONTROLLED+AGG "AI Predictive Maintenance" (Phase 2 — CURATION)`);
 
-    // Challenge B — AGG model (RQ-submitted)
-    const aggChallengeId = crypto.randomUUID();
-    const { error: aggErr } = await supabaseAdmin.from("challenges").insert({
-      id: aggChallengeId,
-      tenant_id: orgId,
-      organization_id: orgId,
-      title: "Healthcare Cost Reduction Through Process Automation",
-      status: "draft",
-      master_status: "IN_PREPARATION",
-      current_phase: 2,
-      phase_status: "ACTIVE",
-      operating_model: "AGG",
-      governance_profile: config.governanceProfile,
-      challenge_model_is_agg: true,
-      lc_review_required: config.governanceProfile === "ENTERPRISE",
-      is_active: true,
-      is_deleted: false,
-      is_qa_closed: false,
-      solutions_awarded: 0,
-      description: "Demo AGG challenge — Creator spec review.",
-      problem_statement: "Administrative overhead in our patient intake and claims processing workflows consumes 35% of staff time. Manual data entry errors result in a 12% claims rejection rate, and average processing time is 14 business days. We believe automation and AI-assisted document processing could significantly reduce costs and improve accuracy, but we need expert guidance on the best approach.",
-      scope: null,
-      reward_structure: {},
-      phase_schedule: { expected_timeline: "6-12" },
-      eligibility: JSON.stringify({
-        industry_segment_id: healthSegmentId,
-        domain_tags: ["healthcare", "process-automation", "AI"],
-        urgency: "standard",
-      }),
-      extended_brief: {
-        beneficiaries_mapping: "Primary: Revenue Cycle Management team (28 staff), Secondary: Clinical Administration (15 coordinators), Tertiary: Patients (reduced wait times and billing errors)",
-        am_approval_required: false,
-        creator_approval_required: false,
-      },
-      creator_snapshot: {
-        title: "Healthcare Cost Reduction Through Process Automation",
-        problem_statement: "Administrative overhead in our patient intake and claims processing workflows consumes 35% of staff time. Manual data entry errors result in a 12% claims rejection rate, and average processing time is 14 business days. We believe automation and AI-assisted document processing could significantly reduce costs and improve accuracy, but we need expert guidance on the best approach.",
-        scope: null,
-        budget_min: 0,
-        budget_max: 0,
-        currency: "USD",
-        reward_structure: {},
-        expected_timeline: "6-12",
-      },
-      created_by: crUser?.userId ?? userIds[0]?.userId ?? null,
+    // Challenge 2: STRUCTURED + AGG (8 Creator fields filled)
+    const structuredId = crypto.randomUUID();
+    const { error: c2Err } = await supabaseAdmin.from("challenges").insert({
+      id: structuredId, tenant_id: orgId, organization_id: orgId,
+      title: "Healthcare Claims Processing Automation",
+      status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
+      operating_model: "AGG", governance_profile: "STRUCTURED", governance_mode_override: "STRUCTURED",
+      challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
+      problem_statement: "Administrative overhead in patient intake and claims processing consumes 35% of staff time. Manual errors cause 12% rejection rate. Need automation for 50% faster processing.",
+      scope: "Automate intake forms, claims extraction, coding validation. Integrate with Epic EHR. Target: 50% time reduction, 5% rejection rate.",
+      maturity_level: "emerging",
+      evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }]},
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
+      ip_model: "non_exclusive_license", phase_schedule: { expected_timeline: "3-6" },
+      eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: ["healthcare","automation","NLP"] }),
+      extended_brief: { creator_approval_required: true },
+      creator_snapshot: { title: "Healthcare Claims Processing Automation", problem_statement: "Admin overhead consumes 35% of staff time...", scope: "Automate intake, extraction, validation...", budget_min: 20000, budget_max: 60000, currency: "USD", expected_timeline: "3-6", ip_model: "non_exclusive_license" },
+      created_by: crUserId,
     });
-    if (aggErr) throw new Error(`AGG challenge creation failed: ${aggErr.message}`);
-    challengeIds.push(aggChallengeId);
-    results.push(`✅ Created AGG challenge: "Healthcare Cost Reduction Through Process Automation" (Phase 2 — CURATION)`);
+    if (c2Err) throw new Error(`STRUCTURED challenge: ${c2Err.message}`);
+    challengeIds.push(structuredId);
+    results.push(`✅ Challenge 2: STRUCTURED+AGG "Healthcare Claims" (Phase 2 — CURATION)`);
 
-    // ─── Step 5: Assign user_challenge_roles per-challenge (model-aware) ───
-    const SHARED_ROLES = new Set(["CR", "CU", "ER", "LC", "FC"]);
+    // Challenge 3: QUICK + AGG (5 Creator fields filled — minimal)
+    const quickId = crypto.randomUUID();
+    const { error: c3Err } = await supabaseAdmin.from("challenges").insert({
+      id: quickId, tenant_id: orgId, organization_id: orgId,
+      title: "Supply Chain Visibility Dashboard Prototype",
+      status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
+      operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
+      challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
+      problem_statement: "We lack real-time visibility into our multi-tier supply chain. Need a dashboard prototype aggregating data from 3 ERP systems with shipment tracking and risk alerts.",
+      maturity_level: "concept",
+      evaluation_criteria: { weighted_criteria: [{ name: "UX Quality", weight: 40 },{ name: "Feasibility", weight: 30 },{ name: "Speed", weight: 30 }]},
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
+      phase_schedule: { expected_timeline: "1-3" },
+      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["supply-chain","dashboard"] }),
+      extended_brief: { creator_approval_required: false },
+      creator_snapshot: { title: "Supply Chain Visibility Dashboard Prototype", problem_statement: "Lack real-time supply chain visibility...", budget_min: 5000, budget_max: 20000, currency: "USD", expected_timeline: "1-3" },
+      created_by: crUserId,
+    });
+    if (c3Err) throw new Error(`QUICK challenge: ${c3Err.message}`);
+    challengeIds.push(quickId);
+    results.push(`✅ Challenge 3: QUICK+AGG "Supply Chain Dashboard" (Phase 2 — CURATION)`);
 
-    for (const u of userIds) {
-      for (const roleCode of u.roles) {
-        const targetChallengeIds: string[] = [];
-        targetChallengeIds.push(mpChallengeId, aggChallengeId);
+    // ─── Step 5: Assign roles per GOVERNANCE CONVERGENCE RULES ───
+    const soloUser = userIds.find(u => u.displayName === "Sam Solo");
+    const cuUser = userIds.find(u => u.roles.includes("CU") && !u.roles.includes("CR"));
+    const erUser = userIds.find(u => u.roles.includes("ER") && u.displayName !== "Ethan Russell");
+    const er2User = userIds.find(u => u.displayName === "Ethan Russell");
+    const lcUser = userIds.find(u => u.roles.includes("LC") && !u.roles.includes("CR"));
+    const fcUser = userIds.find(u => u.roles.includes("FC") && !u.roles.includes("CR"));
 
-        for (const cId of targetChallengeIds) {
-          const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({
-            user_id: u.userId,
-            challenge_id: cId,
-            role_code: roleCode,
-            is_active: true,
-            auto_assigned: false,
+    const assignRole = async (userId: string, challengeId: string, roleCode: string) => {
+      const { error } = await supabaseAdmin.from("user_challenge_roles").insert({
+        user_id: userId, challenge_id: challengeId, role_code: roleCode, is_active: true, auto_assigned: true,
+      });
+      if (error && !error.message.includes("duplicate")) throw error;
+    };
+
+    // CONTROLLED: strict separation
+    if (crUser) await assignRole(crUser.userId, controlledId, "CR");
+    if (cuUser) await assignRole(cuUser.userId, controlledId, "CU");
+    if (erUser) await assignRole(erUser.userId, controlledId, "ER");
+    if (er2User) await assignRole(er2User.userId, controlledId, "ER");
+    if (lcUser) await assignRole(lcUser.userId, controlledId, "LC");
+    if (fcUser) await assignRole(fcUser.userId, controlledId, "FC");
+    results.push(`✅ CONTROLLED: Chris=CR, Casey=CU, Evelyn+Ethan=ER, Leslie=LC, Frank=FC`);
+
+    // STRUCTURED: CR+LC converged, CU+ER converged
+    if (crUser) { await assignRole(crUser.userId, structuredId, "CR"); await assignRole(crUser.userId, structuredId, "LC"); }
+    if (cuUser) { await assignRole(cuUser.userId, structuredId, "CU"); await assignRole(cuUser.userId, structuredId, "ER"); }
+    results.push(`✅ STRUCTURED: Chris=CR+LC, Casey=CU+ER`);
+
+    // QUICK: Sam Solo = all roles
+    if (soloUser) { for (const r of ["CR","CU","ER","LC","FC"]) await assignRole(soloUser.userId, quickId, r); }
+    results.push(`✅ QUICK: Sam Solo=CR+CU+ER+LC+FC`);
+
+    // ─── Step 5c: Attach legal docs to STRUCTURED + CONTROLLED ───
+    const { data: legalTemplates } = await supabaseAdmin
+      .from("legal_document_templates").select("template_id, document_code, document_name, tier")
+      .eq("is_active", true).eq("version_status", "ACTIVE");
+
+    if (legalTemplates && legalTemplates.length > 0) {
+      for (const cId of [controlledId, structuredId]) {
+        for (const tmpl of legalTemplates) {
+          await supabaseAdmin.from("challenge_legal_docs").insert({
+            challenge_id: cId, document_type: tmpl.document_code ?? tmpl.document_name,
+            document_name: tmpl.document_name, tier: tmpl.tier ?? "TIER_1",
+            status: "pending_review", lc_status: "pending", created_by: crUserId,
           });
-          if (ucrErr) throw new Error(`user_challenge_roles insert failed for ${u.displayName}/${roleCode}: ${ucrErr.message}`);
         }
       }
-      results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")} (model-aware)`);
+      results.push(`✅ Legal docs: ${legalTemplates.length} templates → CONTROLLED + STRUCTURED`);
+    } else {
+      results.push(`⚠️ No active legal templates — skipping legal attachment`);
     }
 
     // ─── Step 5b: Pool entries for demo CU/ER/FC users ───
@@ -445,11 +441,9 @@ serve(async (req) => {
     ];
 
     for (const entry of poolEntries) {
-      // Match by email first (works across scenarios), then fallback to auth lookup
-      let linkedUserId = userIds.find((u) => u.email === entry.email)?.userId ?? null;
+      let linkedUserId = userIds.find((u) => u.displayName === entry.name)?.userId ?? null;
 
       if (!linkedUserId) {
-        // Fallback: look up by email in auth.users (user may exist from a previous seed run)
         const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
         const found = authList?.users?.find((u: { email?: string }) => u.email === entry.email);
         linkedUserId = found?.id ?? null;
@@ -472,7 +466,6 @@ serve(async (req) => {
         is_active: true,
       };
 
-      // Defensive SELECT + INSERT/UPDATE (works regardless of constraint config)
       const { data: existing } = await supabaseAdmin
         .from("platform_provider_pool")
         .select("id")
@@ -505,8 +498,9 @@ serve(async (req) => {
     results.push(`🎉 Scenario "${scenario}" setup complete!`);
     results.push(`   Org: ${config.orgName}`);
     results.push(`   Model: ${config.operatingModel} | Governance: ${config.governanceProfile}`);
-    results.push(`   MP Challenge: ${mpChallengeId}`);
-    results.push(`   AGG Challenge: ${aggChallengeId}`);
+    results.push(`   CONTROLLED Challenge: ${controlledId}`);
+    results.push(`   STRUCTURED Challenge: ${structuredId}`);
+    results.push(`   QUICK Challenge: ${quickId}`);
     if (config.phase1Bypass) results.push("   ⚡ Phase 1 bypass enabled");
     results.push("═══════════════════════════════════════");
 
