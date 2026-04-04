@@ -217,7 +217,7 @@ export default function DemoLoginPage() {
     );
   };
 
-  const demoUsers = buildDemoUsers(engagementModel);
+  const demoUsers = buildDemoUsers(engagementModel, governanceMode);
 
   return (
     <div className="min-h-screen bg-muted p-4 lg:p-8">
