@@ -1,47 +1,42 @@
 
 
-# 5-Why Analysis: Seed Demo Scenario Failure
+# Update Demo Login Page — Governance-Aware Role Descriptions
 
-## Error
-```
-"CONTROLLED challenge: Invalid maturity_level: growth"
-```
+## Problem
 
-## 5-Why Chain
+The `buildDemoUsers()` function in `DemoLoginPage.tsx` has **static descriptions** that don't reflect:
+1. **Governance mode differences** — Creator behavior varies significantly across QUICK/STRUCTURED/CONTROLLED
+2. **AI Review integration** — The Creator form now has an AI Review drawer (required for CONTROLLED, recommended for STRUCTURED)
+3. **Configuration panel** — The creation flow now includes Industry + Governance + Engagement configuration
 
-**Why 1:** The `setup-test-scenario` edge function returns a 500 error when inserting the CONTROLLED challenge.
-→ Because the database trigger `trg_challenges_validate` rejects the insert.
-
-**Why 2:** The trigger rejects the insert.
-→ Because `maturity_level: "growth"` fails the CHECK: `maturity_level NOT IN ('BLUEPRINT','POC','PROTOTYPE','PILOT')`.
-
-**Why 3:** The seed function uses `"growth"`, `"emerging"`, `"concept"` as maturity levels.
-→ Because when the seed data was written, it used arbitrary descriptive labels instead of the platform's enum values.
-
-**Why 4:** The trigger enforces `('BLUEPRINT','POC','PROTOTYPE','PILOT')` as the only valid values.
-→ Because migration `20260318025218` added a validation trigger with these exact values (line 28-29).
-
-**Why 5:** The seed function was never tested against the actual database constraints.
-→ Because it was written/updated without cross-referencing the validation trigger migration.
-
-## Root Cause
-
-The seed function uses **3 invalid maturity_level values** that don't match the database trigger constraint:
-
-| Challenge | Current (WRONG) | Correct |
-|-----------|-----------------|---------|
-| CONTROLLED (AI Predictive Maintenance) | `"growth"` | `"PROTOTYPE"` |
-| STRUCTURED (Healthcare Claims) | `"emerging"` | `"POC"` |
-| QUICK (Supply Chain Dashboard) | `"concept"` | `"BLUEPRINT"` |
+The descriptions are hardcoded regardless of the selected governance mode, giving users an outdated impression of the workflow.
 
 ## Fix
 
-**File:** `supabase/functions/setup-test-scenario/index.ts`
+**File:** `src/pages/cogniblend/DemoLoginPage.tsx`
 
-Three single-value changes:
-- Line 325: `"growth"` → `"PROTOTYPE"`
-- Line 348: `"emerging"` → `"POC"`
-- Line 370: `"concept"` → `"BLUEPRINT"`
+Modify `buildDemoUsers()` to accept `governanceMode` and produce governance-aware descriptions for each role card:
 
-Redeploy the edge function after.
+### Creator (CR) descriptions by mode:
+- **QUICK:** "Creates challenge with 5 required fields, auto-published on submit"
+- **STRUCTURED:** "Configures industry & governance, fills 8 fields, AI Review recommended, submits to Curator"
+- **CONTROLLED:** "Configures full challenge settings, fills 12 fields, AI Review required before submit to Curator"
+
+### Legal Compliance (LC) descriptions by mode:
+- **QUICK:** "Auto-applied legal defaults — no manual review needed"
+- **STRUCTURED:** "Reviews legal docs, optional escrow setup"
+- **CONTROLLED:** "Full legal review with mandatory escrow gate"
+
+### Curator (CU) descriptions by mode:
+- **QUICK:** "Auto-completed quality check with simplified checklist"
+- **STRUCTURED:** "AI-assisted quality review with 14-point checklist"
+- **CONTROLLED:** "Formal compliance gate with full dual-curation checklist"
+
+### Other roles (ER, FC, Solo) — minor description updates to mention governance context.
+
+### Additional change:
+- Pass `governanceMode` into `buildDemoUsers(engagementModel, governanceMode)` at line 199
+- Update the static export `DEMO_USERS` to also accept a default mode (or keep as-is for backward compat)
+
+**No new files. Single file modified. ~30 lines changed inside `buildDemoUsers()`.**
 
