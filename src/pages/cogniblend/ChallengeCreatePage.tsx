@@ -36,12 +36,13 @@ export default function ChallengeCreatePage() {
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
 
-  // Pre-fill industry from org context
+  // Pre-fill industry from org context (if available)
   useEffect(() => {
-    if (orgContext?.primaryIndustryId && !industrySegmentId) {
-      setIndustrySegmentId(orgContext.primaryIndustryId);
+    const orgIndustry = (orgContext as Record<string, unknown> | undefined)?.primaryIndustryId as string | undefined;
+    if (orgIndustry && !industrySegmentId) {
+      setIndustrySegmentId(orgIndustry);
     }
-  }, [orgContext?.primaryIndustryId]);
+  }, [orgContext]);
 
   useEffect(() => {
     const demoGov = sessionStorage.getItem('cogni_demo_governance') as GovernanceMode | null;
