@@ -560,7 +560,7 @@ export default function Login() {
         {/* CogniBlend Demo Login Card */}
         <Card
           className="mt-4 border-sky-500/40 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate('/cogni-demo-login')}
+          onClick={() => navigate('/cogni/demo-login')}
         >
           <CardContent className="flex items-center gap-4 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500/20">
