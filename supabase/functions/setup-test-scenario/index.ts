@@ -345,7 +345,7 @@ serve(async (req) => {
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: "Administrative overhead in patient intake and claims processing consumes 35% of staff time. Manual errors cause 12% rejection rate. Need automation for 50% faster processing.",
       scope: "Automate intake forms, claims extraction, coding validation. Integrate with Epic EHR. Target: 50% time reduction, 5% rejection rate.",
-      maturity_level: "emerging",
+      maturity_level: "POC",
       evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
       ip_model: "non_exclusive_license", phase_schedule: { expected_timeline: "3-6" },
