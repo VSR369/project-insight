@@ -367,7 +367,7 @@ serve(async (req) => {
       operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: "We lack real-time visibility into our multi-tier supply chain. Need a dashboard prototype aggregating data from 3 ERP systems with shipment tracking and risk alerts.",
-      maturity_level: "concept",
+      maturity_level: "BLUEPRINT",
       evaluation_criteria: { weighted_criteria: [{ name: "UX Quality", weight: 40 },{ name: "Feasibility", weight: 30 },{ name: "Speed", weight: 30 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
       phase_schedule: { expected_timeline: "1-3" },
