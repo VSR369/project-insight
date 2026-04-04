@@ -1,52 +1,42 @@
 
 
-# Fix: QUICK Mode Submission Blocked by Compliance Gate
+# Plan: Field Rules Correction + Governance-Aware Seed
 
-## Root Cause
+Two changes to complete the Creator→Curator→LC/FC→Publish flow for all 3 governance modes.
 
-In `complete_phase` RPC (line 164), the compliance flag auto-set logic only triggers when the **next phase** has `phase_type = 'parallel_compliance'`. But QUICK mode's Phase 3 (Compliance) uses `phase_type = 'seeker_auto'` — so the `lc_compliance_complete` and `fc_compliance_complete` flags are **never set**. When the recursive auto-complete then tries to complete Phase 3, the gate check (line 139) finds `lc_compliance_complete = false` and raises an exception.
+## Change 1: Database Migration — Field Rules Visibility
 
-```text
-Phase 1 → complete → advance to Phase 2
-  Phase 2 (auto_complete=true) → recurse
-    Phase 2 → complete → advance to Phase 3
-      Step 8: phase_type='seeker_auto' ≠ 'parallel_compliance' → FLAGS NOT SET
-      Phase 3 (auto_complete=true) → recurse  
-        Step 4: gate_flags check → lc_compliance_complete = false → EXCEPTION ❌
-```
+New migration to UPDATE `md_governance_field_rules` visibility values. No schema changes, just data corrections:
 
-## Fix
+- **Platform defaults** (13 fields): Set to `auto` across all modes (reward_type, silver_award, payment_mode, etc.)
+- **Curator-owned fields** (20 fields): `hidden` in QUICK, `optional` in STRUCTURED/CONTROLLED
+- **AI-drafted fields** (10 fields): `hidden` in QUICK, `ai_drafted` in STRUCTURED/CONTROLLED
+- **Creator fields**: Mode-specific rigor (e.g., scope `hidden` in QUICK, ip_model `required` in STRUCTURED, context_background `required` in CONTROLLED)
 
-**Single migration** — change the condition in `complete_phase` step 8 from checking `phase_type = 'parallel_compliance'` to checking whether the next phase **has compliance gate_flags**. This is more correct semantically: auto-set compliance flags whenever a phase gates on them, regardless of phase_type.
+Result: QUICK=5 required fields, STRUCTURED=8, CONTROLLED=12.
 
-### Migration SQL
+## Change 2: Edge Function — Governance-Aware Seed
 
-Replace line 164's condition:
-```sql
--- OLD: IF v_next_config.phase_type = 'parallel_compliance' THEN
--- NEW: check if next phase has compliance gate_flags
-IF v_next_config.gate_flags IS NOT NULL AND array_length(v_next_config.gate_flags, 1) > 0 THEN
-```
+Replace Step 4 (challenge creation) and Step 5 (role assignment) in `supabase/functions/setup-test-scenario/index.ts`:
 
-This makes the auto-set logic fire for **any** phase that has compliance gate_flags (both QUICK's `seeker_auto` Phase 3 and STRUCTURED/CONTROLLED's `parallel_compliance` Phase 3).
+**Step 4**: Replace the 2 challenges (MP + AGG) with 3 governance-aware challenges (all AGG):
+1. CONTROLLED+AGG: "AI-Powered Predictive Maintenance" — 12 Creator fields, `creator_approval_required: true`
+2. STRUCTURED+AGG: "Healthcare Claims Processing" — 8 Creator fields, `creator_approval_required: true`
+3. QUICK+AGG: "Supply Chain Dashboard Prototype" — 5 Creator fields, `creator_approval_required: false`
+
+**Step 5**: Replace "all users → all challenges" loop with governance-correct assignments:
+- CONTROLLED: Chris=CR, Casey=CU, Evelyn+Ethan=ER, Leslie=LC, Frank=FC (strict separation)
+- STRUCTURED: Chris=CR+LC, Casey=CU+ER (converged roles)
+- QUICK: Sam Solo=CR+CU+ER+LC+FC (one person)
+
+**Step 5c** (new): Attach legal doc templates to CONTROLLED + STRUCTURED challenges.
+
+Update summary log to reference the 3 new challenge IDs.
 
 ## Files Changed
 
 | # | File | Change |
 |---|------|--------|
-| 1 | New migration | `CREATE OR REPLACE FUNCTION complete_phase` — change step 8 condition from `phase_type = 'parallel_compliance'` to `gate_flags IS NOT NULL` |
-
-No frontend changes needed — the RPC fix resolves the submission error for all governance modes.
-
-## Verification
-
-After fix, QUICK mode flow:
-```text
-Phase 1 → complete → Phase 2 (auto) → Phase 3
-  Step 8: gate_flags has compliance flags → read governance config
-    QUICK: legal_doc_mode='auto_apply' → lc=TRUE
-    QUICK: escrow_mode='not_applicable' → fc=TRUE
-  Phase 3 (auto) → Step 4: both flags TRUE → passes gate ✅
-  Phase 4 (Publication, auto) → Published ✅
-```
+| 1 | New migration | UPDATE `md_governance_field_rules` visibility values per governance mode |
+| 2 | `supabase/functions/setup-test-scenario/index.ts` | Replace Steps 4+5 with 3 governance-aware challenges and convergence-correct role assignments |
 
