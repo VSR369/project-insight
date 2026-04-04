@@ -38,10 +38,10 @@ export default function ChallengeCreatePage() {
 
   // Pre-fill industry from org context (if available)
   useEffect(() => {
-    const orgIndustry = (orgContext as Record<string, unknown> | undefined)?.primaryIndustryId as string | undefined;
-    if (orgIndustry && !industrySegmentId) {
-      setIndustrySegmentId(orgIndustry);
-    }
+    if (!orgContext || industrySegmentId) return;
+    const ctx = orgContext as unknown as Record<string, unknown>;
+    const orgIndustry = ctx?.primaryIndustryId as string | undefined;
+    if (orgIndustry) setIndustrySegmentId(orgIndustry);
   }, [orgContext]);
 
   useEffect(() => {
