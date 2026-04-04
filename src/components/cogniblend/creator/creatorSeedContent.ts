@@ -15,10 +15,7 @@
 
 import type { CreatorFormValues } from './creatorFormSchema';
 
-type SeedContent = Omit<CreatorFormValues, 'domain_tags'> & { domain_tags?: string[] };
-
-// Add hook to seeds below — Partial allows omitting optional fields
-type SeedInput = Partial<SeedContent> & Pick<SeedContent, 'title' | 'problem_statement'>;
+type SeedContent = Omit<CreatorFormValues, 'domain_tags' | 'hook'> & { domain_tags?: string[]; hook?: string };
 
 /**
  * MP scenario: Supply Chain Digital Workforce Transformation
