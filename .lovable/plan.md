@@ -1,18 +1,47 @@
 
 
-# Fix: Seed Demo Scenario — `context_background` column error
+# 5-Why Analysis: Seed Demo Scenario Failure
+
+## Error
+```
+"CONTROLLED challenge: Invalid maturity_level: growth"
+```
+
+## 5-Why Chain
+
+**Why 1:** The `setup-test-scenario` edge function returns a 500 error when inserting the CONTROLLED challenge.
+→ Because the database trigger `trg_challenges_validate` rejects the insert.
+
+**Why 2:** The trigger rejects the insert.
+→ Because `maturity_level: "growth"` fails the CHECK: `maturity_level NOT IN ('BLUEPRINT','POC','PROTOTYPE','PILOT')`.
+
+**Why 3:** The seed function uses `"growth"`, `"emerging"`, `"concept"` as maturity levels.
+→ Because when the seed data was written, it used arbitrary descriptive labels instead of the platform's enum values.
+
+**Why 4:** The trigger enforces `('BLUEPRINT','POC','PROTOTYPE','PILOT')` as the only valid values.
+→ Because migration `20260318025218` added a validation trigger with these exact values (line 28-29).
+
+**Why 5:** The seed function was never tested against the actual database constraints.
+→ Because it was written/updated without cross-referencing the validation trigger migration.
 
 ## Root Cause
 
-Line 325 of `setup-test-scenario/index.ts` inserts `context_background` as a **top-level column** on the `challenges` table. This column does not exist — `context_background` is a field inside the `extended_brief` JSONB column.
+The seed function uses **3 invalid maturity_level values** that don't match the database trigger constraint:
 
-The error: `"Could not find the 'context_background' column of 'challenges' in the schema cache"`
+| Challenge | Current (WRONG) | Correct |
+|-----------|-----------------|---------|
+| CONTROLLED (AI Predictive Maintenance) | `"growth"` | `"PROTOTYPE"` |
+| STRUCTURED (Healthcare Claims) | `"emerging"` | `"POC"` |
+| QUICK (Supply Chain Dashboard) | `"concept"` | `"BLUEPRINT"` |
 
 ## Fix
 
 **File:** `supabase/functions/setup-test-scenario/index.ts`
 
-**Change:** On line 325, remove `context_background: "Our facility operates 24/7..."` from the top-level insert object. The value is already included inside `extended_brief` on line 330 (`context_background: "Facility operates 24/7, 12 production lines."`).
+Three single-value changes:
+- Line 325: `"growth"` → `"PROTOTYPE"`
+- Line 348: `"emerging"` → `"POC"`
+- Line 370: `"concept"` → `"BLUEPRINT"`
 
-Single line removal — no other files affected. Redeploy the edge function after.
+Redeploy the edge function after.
 
