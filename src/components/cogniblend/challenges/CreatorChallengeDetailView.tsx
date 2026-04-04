@@ -46,6 +46,16 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   // Governance-aware content visibility
   const isQuickMode = effectiveGovernance === 'QUICK';
 
+  const statusMessage = useMemo(() => {
+    const phase = data.current_phase ?? 1;
+    if (isQuickMode && phase >= 4) return 'Published — waiting for solver submissions';
+    if (phase === 1) return 'Draft — complete your challenge and submit';
+    if (phase === 2) return 'In Curation — Curator is reviewing and enriching your challenge';
+    if (phase === 3) return 'Compliance Review — Legal and financial review in progress';
+    if (phase >= 4) return 'Published — your challenge is live!';
+    return '';
+  }, [data.current_phase, isQuickMode]);
+
   // Curator Version shows only AFTER curation (Phase 2) is completed:
   //   Phase 3+ means Curator finished their review
   //   isPendingApproval means Curator submitted for Creator sign-off
@@ -96,6 +106,13 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
           {data.current_phase != null && <Badge variant="outline" className="text-xs font-semibold">Phase {data.current_phase}</Badge>}
         </div>
       </div>
+
+      {statusMessage && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-center gap-2">
+          <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-sm text-muted-foreground">{statusMessage}</p>
+        </div>
+      )}
 
       {data.current_phase != null && data.current_phase >= 2 && data.current_phase <= 3
         && data.phase_status !== 'CR_APPROVAL_PENDING' && (

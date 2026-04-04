@@ -13,9 +13,9 @@
  *   - maturity_level → normalized code (matched at runtime to md_solution_maturity)
  */
 
-import type { CreatorFormValues } from './ChallengeCreatorForm';
+import type { CreatorFormValues } from './creatorFormSchema';
 
-type SeedContent = Omit<CreatorFormValues, 'domain_tags'> & { domain_tags?: string[] };
+type SeedContent = Omit<CreatorFormValues, 'domain_tags' | 'hook'> & { domain_tags?: string[]; hook?: string };
 
 /**
  * MP scenario: Supply Chain Digital Workforce Transformation
