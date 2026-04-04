@@ -322,7 +322,7 @@ serve(async (req) => {
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: "Our manufacturing floor experiences unplanned equipment failures costing $2.3M annually. Current preventive maintenance is time-based, causing both unexpected breakdowns and unnecessary maintenance. We need condition-based predictive maintenance using IoT and ML to forecast failures 48-72 hours in advance.",
       scope: "Integrate with existing SCADA/PLC systems across 12 production lines. Provide real-time dashboard, automated work orders, mobile app. Must reduce unplanned downtime by 40% within 6 months.",
-      maturity_level: "growth",
+      maturity_level: "PROTOTYPE",
       evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
       ip_model: "exclusive_license", phase_schedule: { expected_timeline: "6-12" },
