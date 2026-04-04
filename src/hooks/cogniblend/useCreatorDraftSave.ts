@@ -23,7 +23,7 @@ function cleanArray(items: string[] | undefined): string[] {
   return (items || []).filter((i) => i.trim().length > 0);
 }
 
-export function useCreatorDraftSave(config: DraftSaveConfig) {
+export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { form: DraftSaveConfig['form'] | null }) {
   const { form, orgId, userId, engagementModel, governanceMode, industrySegmentId, onDraftIdChange } = config;
   const draftMutation = useSaveDraft();
   const updateDraftMutation = useUpdateDraft();
