@@ -39,6 +39,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
   }, [onDraftIdChange]);
 
   const handleSaveDraft = useCallback(async () => {
+    if (!form) return;
     const data = form.getValues();
     if (!orgId || !userId) return;
     try {

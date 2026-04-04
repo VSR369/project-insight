@@ -57,8 +57,9 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const { data: fieldRules } = useGovernanceFieldRules(governanceMode);
   const { uploadFiles } = useCreatorFileUpload();
 
+  const [draftForm, setDraftForm] = useState<ReturnType<typeof useForm<CreatorFormValues>> | null>(null);
   const draftSave = useCreatorDraftSave({
-    form: undefined as never, // set after useForm below
+    form: draftForm,
     orgId: currentOrg?.organizationId, userId: user?.id,
     engagementModel, governanceMode, industrySegmentId, onDraftIdChange,
   });
