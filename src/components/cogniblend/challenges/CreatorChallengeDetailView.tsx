@@ -64,12 +64,12 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
   const myVersionSections: SectionDef[] = useMemo(() => {
     if (!snapshot) return [];
-    return buildMyVersionSections(snapshot);
-  }, [snapshot]);
+    return buildMyVersionSections(snapshot, effectiveGovernance);
+  }, [snapshot, effectiveGovernance]);
 
   const curatorSections: SectionDef[] = useMemo(() => {
-    return buildCuratorSections(data);
-  }, [data]);
+    return buildCuratorSections(data, effectiveGovernance);
+  }, [data, effectiveGovernance]);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
