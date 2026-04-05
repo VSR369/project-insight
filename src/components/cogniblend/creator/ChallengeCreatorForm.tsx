@@ -33,6 +33,7 @@ import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
+import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
