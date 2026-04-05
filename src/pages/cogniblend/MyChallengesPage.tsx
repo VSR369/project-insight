@@ -35,8 +35,7 @@ interface StatusConfig {
   badgeClass: string;
 }
 
-function getStatusConfig(masterStatus: string, phase: number, phaseStatus?: string | null): StatusConfig {
-  // CR_APPROVAL_PENDING — challenge awaiting creator sign-off
+function getStatusConfig(masterStatus: string, phase: number, phaseStatus?: string | null, governanceMode?: string): StatusConfig {
   if (phaseStatus === 'CR_APPROVAL_PENDING') {
     return { label: 'Awaiting Your Approval', icon: AlertCircle, badgeClass: 'bg-violet-50 text-violet-700 border-violet-300' };
   }
@@ -44,6 +43,9 @@ function getStatusConfig(masterStatus: string, phase: number, phaseStatus?: stri
     return { label: 'Draft', icon: Pencil, badgeClass: 'bg-muted text-muted-foreground border-border' };
   }
   if (masterStatus === 'IN_PREPARATION') {
+    if (governanceMode === 'QUICK') {
+      return { label: 'Processing', icon: Clock, badgeClass: 'bg-blue-50 text-blue-700 border-blue-300' };
+    }
     return { label: 'In Curation', icon: Clock, badgeClass: 'bg-amber-50 text-amber-700 border-amber-300' };
   }
   if (masterStatus === 'ACTIVE') {
