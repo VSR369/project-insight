@@ -172,7 +172,7 @@ export function useCurationPageOrchestrator() {
   // CONTROLLED: Curator does content only — LC/FC handle legal+escrow independently in Phase 3
   // STRUCTURED: Curator handles legal+escrow (auto-approved in complete_phase)
   const isControlled = governanceMode ? isControlledMode(governanceMode) : false;
-  const needsLegalAcceptance = isControlled ? false : (!!(challenge as Record<string, unknown>)?.lc_review_required || legalDetails.length > 0);
+  const needsLegalAcceptance = isControlled ? false : (!!(challenge as unknown as Record<string, unknown>)?.lc_review_required || legalDetails.length > 0);
   const needsEscrowAcceptance = false; // Escrow is never a Curator blocker — handled by FC in Phase 3
   const legalEscrowBlocked = (needsLegalAcceptance && !isLegalAccepted);
   const blockingReasons: string[] = [];
