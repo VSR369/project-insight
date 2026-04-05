@@ -2,8 +2,8 @@
  * ChallengeCreatePage — Challenge creation page.
  * Route: /cogni/challenges/create
  *
- * Phase A: ChallengeConfigurationPanel (Industry + Governance + Engagement)
- * Phase B: ChallengeCreatorForm (governance-aware 2-tab form)
+ * Step 1: ChallengeConfigurationPanel (Industry + Governance + Engagement)
+ * Step 2: ChallengeCreatorForm (governance-aware 2-tab form)
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -24,6 +24,9 @@ import {
   type GovernanceMode,
 } from '@/lib/governanceMode';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+
+const FIELD_COUNTS: Record<GovernanceMode, number> = { QUICK: 5, STRUCTURED: 8, CONTROLLED: 12 };
 
 export default function ChallengeCreatePage() {
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
@@ -36,7 +39,6 @@ export default function ChallengeCreatePage() {
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
 
-  // Pre-fill industry from org context (if available)
   useEffect(() => {
     if (!orgContext || industrySegmentId) return;
     const ctx = orgContext as unknown as Record<string, unknown>;
@@ -123,16 +125,24 @@ export default function ChallengeCreatePage() {
         </p>
       </div>
 
-      <ChallengeConfigurationPanel
-        industrySegmentId={industrySegmentId}
-        onIndustrySegmentChange={setIndustrySegmentId}
-        industrySegments={industrySegments}
-        governanceMode={governanceMode}
-        onGovernanceModeChange={setGovernanceMode}
-        engagementModel={engagementModel}
-        onEngagementModelChange={setEngagementModel}
-        tierCode={currentOrg.tierCode}
-      />
+      {/* ═══ STEP 1 — CONFIGURE ═══ */}
+      <div className="rounded-xl border-2 border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs font-bold">Step 1</Badge>
+          <span className="text-sm font-semibold text-foreground">Configure</span>
+          <GovernanceProfileBadge profile={governanceMode} compact />
+        </div>
+        <ChallengeConfigurationPanel
+          industrySegmentId={industrySegmentId}
+          onIndustrySegmentChange={setIndustrySegmentId}
+          industrySegments={industrySegments}
+          governanceMode={governanceMode}
+          onGovernanceModeChange={setGovernanceMode}
+          engagementModel={engagementModel}
+          onEngagementModelChange={setEngagementModel}
+          tierCode={currentOrg.tierCode}
+        />
+      </div>
 
       <CreatorOrgContextCard
         organizationId={currentOrg.organizationId}
@@ -141,15 +151,23 @@ export default function ChallengeCreatePage() {
         challengeId={draftChallengeId ?? undefined}
       />
 
-      <ChallengeCreatorForm
-        key={`${governanceMode}-${engagementModel}`}
-        engagementModel={engagementModel}
-        governanceMode={governanceMode}
-        industrySegmentId={industrySegmentId}
-        onDraftModeSync={handleDraftModeSync}
-        onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
-        onDraftIdChange={setDraftChallengeId}
-      />
+      {/* ═══ STEP 2 — CREATE ═══ */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs font-bold">Step 2</Badge>
+          <span className="text-sm font-semibold text-foreground">Create</span>
+          <Badge variant="secondary" className="text-[10px]">{FIELD_COUNTS[governanceMode]} required fields</Badge>
+        </div>
+        <ChallengeCreatorForm
+          key={`${governanceMode}-${engagementModel}`}
+          engagementModel={engagementModel}
+          governanceMode={governanceMode}
+          industrySegmentId={industrySegmentId}
+          onDraftModeSync={handleDraftModeSync}
+          onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
+          onDraftIdChange={setDraftChallengeId}
+        />
+      </div>
     </div>
   );
 }

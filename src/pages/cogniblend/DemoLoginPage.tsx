@@ -181,7 +181,7 @@ export default function DemoLoginPage() {
             });
           }
         } catch (syncErr) {
-          console.warn('Operating model sync failed entirely, continuing login:', syncErr);
+          logWarning('Operating model sync failed entirely, continuing login', { operation: 'demo_login', component: 'DemoLoginPage', additionalData: { syncErr: String(syncErr) } });
           toast.warning('Could not sync engagement model. The org may use its default model.');
         }
       }
