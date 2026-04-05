@@ -1,7 +1,7 @@
 /**
  * CreatorSectionBuilders — Pure functions that build section definitions
  * for the "My Version" and "Curator Version" tabs.
- * Extracted from CreatorChallengeDetailView.tsx (Batch B).
+ * Governance-aware: filters sections by governance mode field keys.
  */
 
 import React from 'react';
@@ -26,7 +26,33 @@ import { getMaturityLabel } from '@/lib/maturityLabels';
 import { formatCurrency, governanceLabel, complexityColor } from '@/lib/cogniblend/displayHelpers';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
 
-export function buildMyVersionSections(snapshot: Record<string, unknown>): SectionDef[] {
+/* ── Creator field keys per governance mode (matches md_governance_field_rules) ── */
+
+const CREATOR_SECTION_KEYS: Record<string, string[]> = {
+  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
+  STRUCTURED: [
+    'title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level',
+    'currency_code', 'platinum_award', 'weighted_criteria',
+  ],
+  CONTROLLED: [
+    'title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level',
+    'currency_code', 'platinum_award', 'weighted_criteria',
+    'hook', 'context_background', 'ip_model', 'expected_timeline',
+  ],
+};
+
+/* ── My Version (Creator snapshot) ── */
+
+export function buildMyVersionSections(
+  snapshot: Record<string, unknown>,
+  governanceMode: string,
+): SectionDef[] {
+  const allowedKeys = CREATOR_SECTION_KEYS[governanceMode] ?? CREATOR_SECTION_KEYS.STRUCTURED;
+  const allSections = buildAllSnapshotSections(snapshot);
+  return allSections.filter((s) => !!s.fieldKey && allowedKeys.includes(s.fieldKey));
+}
+
+function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef[] {
   const eb = (snapshot.extended_brief ?? {}) as Record<string, unknown>;
   const rs = (snapshot.reward_structure ?? {}) as Record<string, unknown>;
   const currency = (snapshot.currency as string) || (rs.currency as string) || 'USD';
@@ -37,6 +63,10 @@ export function buildMyVersionSections(snapshot: Record<string, unknown>): Secti
     {
       title: 'Problem Statement', icon: Target, fieldKey: 'problem_statement',
       content: snapshot.problem_statement ? <RichTextSection title="Problem Statement" html={snapshot.problem_statement as string} icon={Target} /> : null,
+    },
+    {
+      title: 'Value Proposition (Hook)', icon: Info, fieldKey: 'hook',
+      content: snapshot.hook ? <RichTextSection title="Value Proposition (Hook)" html={snapshot.hook as string} icon={Info} /> : null,
     },
     {
       title: 'Scope / Constraints', icon: Layers, fieldKey: 'scope',
@@ -121,17 +151,43 @@ export function buildMyVersionSections(snapshot: Record<string, unknown>): Secti
         return <TagsSection title="Domain Tags" tags={displayTags} />;
       })(),
     },
+    {
+      title: 'Evaluation Criteria', icon: BarChart3, fieldKey: 'weighted_criteria',
+      content: (() => {
+        const ec = snapshot.evaluation_criteria as Record<string, unknown> | null;
+        const wc = (ec?.weighted_criteria ?? ec?.criteria ?? []) as Array<{ name: string; weight: number }>;
+        return wc.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={wc} /> : null;
+      })(),
+    },
   ];
 }
 
-export function buildCuratorSections(data: PublicChallengeData): SectionDef[] {
+/* ── Curator Version (live challenge data) ── */
+
+export function buildCuratorSections(
+  data: PublicChallengeData,
+  governanceMode: string,
+): SectionDef[] {
+  const allSections = buildAllCuratorSections(data);
+  const creatorKeys = CREATOR_SECTION_KEYS[governanceMode] ?? CREATOR_SECTION_KEYS.STRUCTURED;
+
+  return allSections.filter((s) => {
+    if (!s.fieldKey) return false;
+    // Always show Creator's own fields
+    if (creatorKeys.includes(s.fieldKey)) return true;
+    // Show Curator fields only if they have content
+    return s.content !== null;
+  });
+}
+
+function buildAllCuratorSections(data: PublicChallengeData): SectionDef[] {
   const eb = data.extended_brief ?? {};
   const rs = data.reward_structure ?? {};
   const currency = data.currency_code || 'USD';
   const evalCriteria = data.evaluation_criteria as Record<string, unknown> | null;
   const weightedCriteria = (evalCriteria?.weighted_criteria ?? evalCriteria?.criteria ?? []) as Array<{ name: string; weight: number }>;
   const deliverables = data.deliverables as Record<string, unknown> | null;
-  const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as any[];
+  const deliverablesList = (deliverables?.deliverables_list ?? deliverables?.items ?? []) as Record<string, unknown>[];
   const outcomeItems = parseItems(data.expected_outcomes);
   const metricsItems = parseItems(data.success_metrics_kpis);
   const dataResources = data.data_resources_provided as Record<string, unknown> | null;
@@ -144,17 +200,17 @@ export function buildCuratorSections(data: PublicChallengeData): SectionDef[] {
 
   return [
     { title: 'Problem Statement', icon: Target, fieldKey: 'problem_statement', content: data.problem_statement ? <RichTextSection title="Problem Statement" html={data.problem_statement} icon={Target} /> : null },
+    { title: 'Value Proposition (Hook)', icon: Info, fieldKey: 'hook', content: data.hook ? <RichTextSection title="Value Proposition (Hook)" html={data.hook} icon={Info} /> : null },
     { title: 'Scope', icon: Layers, fieldKey: 'scope', content: data.scope ? <RichTextSection title="Scope" html={data.scope} icon={Layers} /> : null },
     { title: 'Expected Outcomes', icon: ListChecks, fieldKey: 'expected_outcomes', content: outcomeItems?.length ? <ListSection title="Expected Outcomes" icon={ListChecks} items={outcomeItems} /> : null },
-    { title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background', content: (eb as any).context_background ? <RichTextSection title="Context & Background" html={(eb as any).context_background} icon={BookOpen} /> : null },
-    { title: 'Root Causes', icon: Info, fieldKey: 'root_causes', content: (() => { const items = parseItems((eb as any).root_causes); return items?.length ? <ListSection title="Root Causes" icon={Info} items={items} /> : null; })() },
-    { title: 'Affected Stakeholders', icon: Info, fieldKey: 'affected_stakeholders', content: (() => { const items = parseStakeholders((eb as any).affected_stakeholders); return items?.length ? <ListSection title="Affected Stakeholders" icon={Info} items={items} /> : null; })() },
-    { title: 'Current Deficiencies', icon: Info, fieldKey: 'current_deficiencies', content: (() => { const items = parseItems((eb as any).current_deficiencies); return items?.length ? <ListSection title="Current Deficiencies" icon={Info} items={items} /> : null; })() },
-    { title: 'Preferred Approach', icon: Info, fieldKey: 'preferred_approach', content: (() => { const items = parseItems((eb as any).preferred_approach); return items?.length ? <ListSection title="Preferred Approach" icon={Info} items={items} /> : null; })() },
-    { title: 'Approaches Not of Interest', icon: Info, fieldKey: 'approaches_not_of_interest', content: (() => { const items = parseItems((eb as any).approaches_not_of_interest); return items?.length ? <ListSection title="Approaches Not of Interest" icon={Info} items={items} /> : null; })() },
-    { title: 'Value Proposition (Hook)', icon: Info, fieldKey: 'hook', content: data.hook ? <RichTextSection title="Value Proposition (Hook)" html={data.hook} icon={Info} /> : null },
+    { title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background', content: (eb as Record<string, unknown>).context_background ? <RichTextSection title="Context & Background" html={(eb as Record<string, unknown>).context_background as string} icon={BookOpen} /> : null },
+    { title: 'Root Causes', icon: Info, fieldKey: 'root_causes', content: (() => { const items = parseItems((eb as Record<string, unknown>).root_causes); return items?.length ? <ListSection title="Root Causes" icon={Info} items={items} /> : null; })() },
+    { title: 'Affected Stakeholders', icon: Info, fieldKey: 'affected_stakeholders', content: (() => { const items = parseStakeholders((eb as Record<string, unknown>).affected_stakeholders); return items?.length ? <ListSection title="Affected Stakeholders" icon={Info} items={items} /> : null; })() },
+    { title: 'Current Deficiencies', icon: Info, fieldKey: 'current_deficiencies', content: (() => { const items = parseItems((eb as Record<string, unknown>).current_deficiencies); return items?.length ? <ListSection title="Current Deficiencies" icon={Info} items={items} /> : null; })() },
+    { title: 'Preferred Approach', icon: Info, fieldKey: 'preferred_approach', content: (() => { const items = parseItems((eb as Record<string, unknown>).preferred_approach); return items?.length ? <ListSection title="Preferred Approach" icon={Info} items={items} /> : null; })() },
+    { title: 'Approaches Not of Interest', icon: Info, fieldKey: 'approaches_not_of_interest', content: (() => { const items = parseItems((eb as Record<string, unknown>).approaches_not_of_interest); return items?.length ? <ListSection title="Approaches Not of Interest" icon={Info} items={items} /> : null; })() },
     { title: 'Solution Type', icon: Briefcase, fieldKey: 'solution_type', content: data.solution_type ? <BadgeSection title="Solution Type" icon={Briefcase} value={data.solution_type} /> : null },
-    { title: 'Deliverables', icon: FileText, fieldKey: 'deliverables_list', content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d: any) => ({ name: typeof d === 'string' ? d : d?.name ?? d?.title ?? JSON.stringify(d) }))} /> : null },
+    { title: 'Deliverables', icon: FileText, fieldKey: 'deliverables_list', content: deliverablesList.length ? <ListSection title="Deliverables" icon={FileText} items={deliverablesList.map((d) => ({ name: typeof d === 'string' ? d : (d?.name as string) ?? (d?.title as string) ?? JSON.stringify(d) }))} /> : null },
     { title: 'Maturity Level', icon: Layers, fieldKey: 'maturity_level', content: data.maturity_level ? <BadgeSection title="Maturity Level" icon={Layers} value={getMaturityLabel(data.maturity_level)} /> : null },
     { title: 'Data Resources Provided', icon: FileText, fieldKey: 'data_resources_provided', content: dataResourceItems?.length ? <ListSection title="Data Resources Provided" icon={FileText} items={dataResourceItems} /> : null },
     { title: 'Success Metrics & KPIs', icon: BarChart3, fieldKey: 'success_metrics_kpis', content: metricsItems?.length ? <ListSection title="Success Metrics & KPIs" icon={BarChart3} items={metricsItems} /> : null },
@@ -194,29 +250,7 @@ export function buildCuratorSections(data: PublicChallengeData): SectionDef[] {
       </Card>
     ) : null },
     { title: 'IP Model', icon: Briefcase, fieldKey: 'ip_model', content: data.ip_model ? <BadgeSection title="IP Model" icon={Briefcase} value={data.ip_model.replace(/_/g, ' ')} /> : null },
-    { title: 'Phase Schedule', icon: Clock, fieldKey: 'phase_schedule', content: phaseSchedule && Object.keys(phaseSchedule).length ? (
-      <Card className="border-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-primary" /> Phase Schedule
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {Object.entries(phaseSchedule).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between rounded-lg bg-muted/30 border border-border px-4 py-2.5">
-                <p className="text-[13px] font-semibold text-foreground capitalize">{key.replace(/_/g, ' ')}</p>
-                <Badge variant="outline" className="text-xs font-bold">{String(value)}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    ) : null },
-    { title: 'Governance', icon: Scale, content: data.governance_profile ? <BadgeSection title="Governance Profile" icon={Scale} value={governanceLabel(data.governance_profile)} /> : null },
-    { title: 'Visibility', icon: Globe, content: data.challenge_visibility ? <BadgeSection title="Visibility" icon={Globe} value={data.challenge_visibility} /> : null },
-    { title: 'Functional Area', icon: Briefcase, fieldKey: 'functional_area', content: data.functional_area ? <BadgeSection title="Functional Area" icon={Briefcase} value={data.functional_area} /> : null },
-    { title: 'Target Geography', icon: MapPin, fieldKey: 'target_geography', content: data.target_geography ? <BadgeSection title="Target Geography" icon={MapPin} value={data.target_geography} /> : null },
+    { title: 'Expected Timeline', icon: Clock, fieldKey: 'expected_timeline', content: data.submission_deadline ? <BadgeSection title="Expected Timeline" icon={Clock} value={data.submission_deadline} /> : null },
     { title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags', content: (data.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={data.domain_tags as string[]} /> : null },
   ];
 }
