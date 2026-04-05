@@ -186,7 +186,7 @@ export default function CurationChecklistPanel({
     supabase.rpc("log_audit", {
       p_user_id: user.id, p_challenge_id: challengeId, p_solution_id: "", p_action: "CURATION_SUBMITTED",
       p_method: "UI", p_phase_from: 3, p_phase_to: 4,
-      p_details: { checklist: summary, completed_count: completedCount, total_count: 15, amendment_cycle: amendmentCount } as unknown as Json,
+      p_details: { checklist: summary, completed_count: completedCount, total_count: TOTAL_ITEMS, amendment_cycle: amendmentCount } as unknown as Json,
     }).then(() => {
       completePhase.mutate({ challengeId, userId: user.id }, {
         onSuccess: () => { toast.success("Challenge approved and submitted for publication."); setTimeout(() => { queryClient.invalidateQueries({ queryKey: ["curation-queue"] }); navigate("/cogni/curation"); }, 1500); },
