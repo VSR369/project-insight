@@ -87,17 +87,17 @@ async function createUsers(
   sa: SA, config: ScenarioConfig, orgId: string, results: string[],
   credentials: { email: string; password: string; roles: string[] }[]
 ): Promise<ResolvedUser[]> {
-  const resolved: ResolvedUser[] = [];
-  // Fetch all auth users ONCE to avoid N+1 API calls
+  // Fetch all auth users ONCE
   const { data: allAuthData } = await sa.auth.admin.listUsers({ perPage: 1000 });
   const allAuthUsers = allAuthData?.users ?? [];
-  for (const u of config.users) {
+
+  // Create/reset all auth users in parallel
+  const userPromises = config.users.map(async (u): Promise<ResolvedUser> => {
     const existing = allAuthUsers.find((x: { email?: string }) => x.email === u.email);
     let userId: string;
     if (existing) {
       userId = existing.id;
       await sa.auth.admin.updateUserById(userId, { password: TEST_PASSWORD });
-      results.push(`🔄 Reset: ${u.email}`);
     } else {
       const { data: nu, error } = await sa.auth.admin.createUser({
         email: u.email, password: TEST_PASSWORD, email_confirm: true,
@@ -105,21 +105,27 @@ async function createUsers(
       });
       if (error) throw new Error(`User create failed ${u.email}: ${error.message}`);
       userId = nu.user.id;
-      results.push(`✅ Created: ${u.email}`);
     }
-    resolved.push({ userId, roles: u.roles, displayName: u.displayName, email: u.email });
+    return { userId, roles: u.roles, displayName: u.displayName, email: u.email };
+  });
+  const resolved = await Promise.all(userPromises);
+  results.push(`✅ Created/reset ${resolved.length} users`);
 
-    await sa.from("org_users").delete().eq("user_id", userId);
+  // Link all users to org in parallel
+  await Promise.all(resolved.map(async (r, i) => {
+    const u = config.users[i];
+    await sa.from("org_users").delete().eq("user_id", r.userId);
     await sa.from("org_users").insert({
-      tenant_id: orgId, user_id: userId, organization_id: orgId,
+      tenant_id: orgId, user_id: r.userId, organization_id: orgId,
       role: "member", is_active: true, invitation_status: "active",
     });
-    await sa.from("user_roles").delete().eq("user_id", userId).eq("role", "seeker");
-    await sa.from("user_roles").insert({ user_id: userId, role: "seeker", tenant_id: orgId });
+    await sa.from("user_roles").delete().eq("user_id", r.userId).eq("role", "seeker");
+    await sa.from("user_roles").insert({ user_id: r.userId, role: "seeker", tenant_id: orgId });
     const [first, ...rest] = u.displayName.split(" ");
-    await sa.from("profiles").update({ first_name: first, last_name: rest.join(" ") || "" }).eq("user_id", userId);
+    await sa.from("profiles").update({ first_name: first, last_name: rest.join(" ") || "" }).eq("user_id", r.userId);
     credentials.push({ email: u.email, password: TEST_PASSWORD, roles: u.roles });
-  }
+  }));
+  results.push(`✅ Linked all users to org + roles + profiles`);
   return resolved;
 }
 
