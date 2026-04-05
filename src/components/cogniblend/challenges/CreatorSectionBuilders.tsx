@@ -29,14 +29,14 @@ import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge'
 /* ── Creator field keys per governance mode (matches md_governance_field_rules) ── */
 
 const CREATOR_SECTION_KEYS: Record<string, string[]> = {
-  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
+  QUICK: ['problem_statement', 'domain_tags', 'platinum_award'],
   STRUCTURED: [
-    'title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level',
-    'currency_code', 'platinum_award', 'weighted_criteria',
+    'problem_statement', 'scope', 'domain_tags', 'maturity_level',
+    'platinum_award', 'weighted_criteria',
   ],
   CONTROLLED: [
-    'title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level',
-    'currency_code', 'platinum_award', 'weighted_criteria',
+    'problem_statement', 'scope', 'domain_tags', 'maturity_level',
+    'platinum_award', 'weighted_criteria',
     'hook', 'context_background', 'ip_model', 'expected_timeline',
   ],
 };
