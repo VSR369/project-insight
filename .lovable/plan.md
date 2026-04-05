@@ -1,175 +1,102 @@
 
+# Implement Role Summary Document — All 4 Phases
 
-# Fix 7 Gaps — All 10 Admin Items Fully Wired
+## Context
 
-## Status After Review
+The uploaded ROLE-SUMMARY-COMPLETE-2.md defines precise behavior per governance mode (STRUCTURED/CONTROLLED) × engagement model (MP/AGG) for Creator, Curator, LC, and FC roles. After auditing the codebase, several gaps exist between the document spec and current implementation.
 
-- **GAP 4 (Sidebar)**: Already fixed — `Legal Thresholds` is in AdminSidebar line 120 and route exists in App.tsx line 780. No action needed.
-- **GAP 5 & 6 (complete_phase backend)**: Require SQL migration to update the `complete_phase` function.
-- **GAP 1, 2, 3, 7**: Frontend wiring changes.
+## Current State vs Document Spec — Key Gaps
+
+### DB Config Issues
+1. **Role conflict matrix**: CONTROLLED mode has ER+LC as HARD_BLOCK, but doc says ER+LC is the ONLY allowed pair. Also CR+LC is not blocked but doc says it should be in CONTROLLED.
+2. **STRUCTURED Phase 3 config**: `required_role = 'LC'` but doc says Phase 3 for STRUCTURED below-threshold should auto-complete (Curator already handled legal). The `complete_phase` logic handles this via threshold check, but the required_role blocks auto-advance for same-actor.
+
+### Frontend Gaps
+3. **Curator scope not governance-aware**: In CONTROLLED, Curator should do content ONLY (no legal, no escrow). In STRUCTURED, Curator handles legal+escrow below threshold. The `legalEscrowBlocked` logic in `useCurationPageOrchestrator.ts` currently blocks on legal for ALL modes including CONTROLLED where CU shouldn't touch legal at all.
+4. **CurationActions totalCount hardcoded to 15**: Line 112 of `CurationRightRail.tsx` passes `totalCount={15}` but CHECKLIST_LABELS has 13 items.
+5. **Checklist not governance-aware for CONTROLLED**: In CONTROLLED mode, the Curator checklist should NOT include legal/escrow items at all (CU doesn't touch those). Currently it shows "Escrow funding confirmed" for CONTROLLED.
+6. **Creator detail view**: Missing governance-aware escrow status and LC status badges per the doc (lines 237-245).
+7. **EscrowManagementPage**: FC doesn't set `fc_compliance_complete` flag after confirming escrow. It only writes to `escrow_records` but doesn't call `complete_financial_review` RPC.
 
 ---
 
 ## Changes
 
-### 1. Wire EscrowCalculationDisplay into Creator Form (GAP 1)
+### 1. Fix Role Conflict Matrix (DB Migration)
 
-**File:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
+Update `role_conflict_rules` to match the document:
+- **CONTROLLED**: Remove ER+LC HARD_BLOCK (ER+LC is allowed). Add CR+LC HARD_BLOCK (doc says every pair except ER+LC is blocked).
+- **STRUCTURED**: Current rules are correct (3 blocks: CR+CU, CR+ER, ER+FC). CR+LC is allowed (Curator can self-review legal below threshold).
 
-After the `</Tabs>` closing tag (line 180) and before the button bar (line 181), add the EscrowCalculationDisplay for MP model when governance is not QUICK:
+### 2. Fix CurationRightRail totalCount (Frontend)
 
-```tsx
-import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
+**File:** `src/components/cogniblend/curation/CurationRightRail.tsx` line 112
 
-// After </Tabs>, before button bar:
-{engagementModel === 'MP' && governanceMode !== 'QUICK' && (
-  <EscrowCalculationDisplay
-    prizePlatinum={form.watch('platinum_award')}
-    currencyCode={form.watch('currency_code')}
-    governanceMode={governanceMode}
-  />
-)}
+Change `totalCount={15}` to pass the actual count from the checklist summary length or remove the hardcoded value.
+
+### 3. Make Curator Scope Governance-Aware (Frontend)
+
+**File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts` lines 168-178
+
+Current logic:
+```
+needsLegalAcceptance = lc_review_required || legalDetails.length > 0
+needsEscrowAcceptance = isControlledMode(governanceMode)
 ```
 
-### 2. Wire LegalDocUploadSection into AdditionalContextTab (GAP 2)
+Per doc:
+- **CONTROLLED**: Curator does NOT touch legal or escrow → `legalEscrowBlocked = false` always for CONTROLLED (LC and FC handle independently)
+- **STRUCTURED**: Curator handles legal+escrow (below threshold auto-approved, above threshold LC takes over) → keep current logic
 
-**File:** `src/components/cogniblend/creator/AdditionalContextTab.tsx`
+Fix: For CONTROLLED mode, set `legalEscrowBlocked = false` because CU has no legal/escrow responsibility.
 
-Add new props `engagementModel` and `draftChallengeId` to the interface. At the bottom of the component (before the closing `</div>`), render LegalDocUploadSection for MP model when a draft exists:
-
-```tsx
-import { LegalDocUploadSection } from '@/components/cogniblend/LegalDocUploadSection';
-
-// New props added to interface:
-engagementModel?: string;
-draftChallengeId?: string;
-
-// At bottom of render, before closing </div>:
-{engagementModel === 'MP' && draftChallengeId && (
-  <LegalDocUploadSection
-    challengeId={draftChallengeId}
-    governanceMode={governanceMode}
-  />
-)}
-```
-
-**File:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
-
-Pass the new props to AdditionalContextTab:
-
-```tsx
-<AdditionalContextTab
-  governanceMode={governanceMode}
-  fieldRules={fieldRules}
-  attachedFiles={attachedFiles}
-  onFilesChange={setAttachedFiles}
-  referenceUrls={referenceUrls}
-  onUrlsChange={setReferenceUrls}
-  engagementModel={engagementModel}
-  draftChallengeId={draftSave.draftChallengeId ?? undefined}
-/>
-```
-
-### 3. Wire GovernanceOverridesSection into GovernanceProfileTab (GAP 3)
-
-**File:** `src/components/org-settings/GovernanceProfileTab.tsx`
-
-Import and render at the bottom of CardContent, before the supervisor notice:
-
-```tsx
-import { GovernanceOverridesSection } from './GovernanceOverridesSection';
-
-// Before the supervisor notice div:
-<GovernanceOverridesSection organizationId={organizationId} />
-```
-
-### 4. Fix Curator Checklist Labels (GAP 7)
+### 4. Fix Curator Checklist for CONTROLLED (Frontend)
 
 **File:** `src/pages/cogniblend/CurationChecklistPanel.tsx`
 
-Change line 157: `"Maturity level + legal match"` to `"Maturity level confirmed"`
+Current item 13: `isControlledMode ? "Escrow funding confirmed" : "Fee calculation verified"`
 
-Change line 157: The escrow item — use governance-aware label:
-- STRUCTURED: `"Fee calculation verified"`
-- CONTROLLED: `"Escrow funding confirmed"`
+Per doc: In CONTROLLED, Curator does NO legal and NO escrow. The checklist should not have escrow/fee items for CONTROLLED. Replace with: In CONTROLLED, item 13 = "Creator approval requested" (since CONTROLLED requires creator sign-off). In STRUCTURED, item 13 = "Fee calculation verified" (Curator verifies fees and enters escrow).
 
-```tsx
-const CHECKLIST_LABELS: string[] = [
-  "Problem Statement present", "Scope defined", "Deliverables listed",
-  "Evaluation criteria weights = 100%", "Reward structure valid", "Phase schedule defined",
-  "Submission guidelines provided", "Eligibility configured", "IP model confirmed",
-  "Complexity parameters entered", "Maturity level confirmed", "Artifact types configured",
-  isControlledMode(governanceMode) ? "Escrow funding confirmed" : "Fee calculation verified",
-];
-```
+### 5. FC Escrow → Compliance Flag Integration (Frontend)
 
-### 5. Update complete_phase — AGG Org Templates + Legal Threshold Logic (GAP 5 & 6)
+**File:** `src/pages/cogniblend/EscrowManagementPage.tsx`
 
-**Migration:** New SQL migration to update `complete_phase` function.
+After successful escrow confirmation (line 118 onSuccess), call `complete_financial_review` RPC to set `fc_compliance_complete = TRUE` and potentially auto-advance the phase.
 
-Add logic after the compliance gate_flags block (around line 56-65) to:
+### 6. Creator Detail View — Escrow/Legal Status Badges (Frontend)
 
-1. **AGG org templates**: When entering a compliance phase with `manual_review` legal mode, check `operating_model`. If AGG, insert from `org_legal_document_templates`; if MP, insert from platform `legal_document_templates`.
+**File:** `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
 
-2. **Legal threshold check**: For STRUCTURED mode with `manual_review`, compare prize pool against the effective threshold (org override first, then `md_legal_review_thresholds`, then $50K fallback). If below threshold, auto-set `lc_compliance_complete = TRUE`.
+Per doc lines 237-245:
+- STRUCTURED: Show "Pending Review" or "Curator Reviewed" badges on legal docs card
+- CONTROLLED: Show "Pending LC Review" badge on legal docs, "Pending FC Deposit" on escrow status
+- Show Creator Approval section when Curator submits for sign-off (already done via `TieredApprovalView`)
 
-```sql
--- After gate_flags compliance block, before advancing to next phase:
-IF v_next_config.gate_flags IS NOT NULL AND 'lc_compliance_complete' = ANY(v_next_config.gate_flags) THEN
-  IF v_legal_doc_mode = 'manual_review' THEN
-    -- Get operating model and org_id
-    SELECT operating_model, organization_id, 
-      COALESCE((reward_structure->>'platinum_award')::numeric, 0)
-    INTO v_operating_model, v_org_id, v_prize_pool
-    FROM challenges WHERE id = p_challenge_id;
+Add an escrow status card below legal docs for CONTROLLED mode showing escrow deposit status.
 
-    -- Insert legal docs from appropriate source
-    IF v_operating_model = 'AGG' THEN
-      INSERT INTO challenge_legal_docs (challenge_id, document_type, document_name, tier, status, lc_status, created_by)
-      SELECT p_challenge_id, document_code, document_name, 'TIER_1', 'pending_review', 'pending', p_user_id
-      FROM org_legal_document_templates
-      WHERE organization_id = v_org_id AND is_active = true AND version_status = 'ACTIVE'
-      ON CONFLICT DO NOTHING;
-    ELSE
-      INSERT INTO challenge_legal_docs (challenge_id, document_type, document_name, tier, status, lc_status, created_by)
-      SELECT p_challenge_id, document_code, document_name, tier, 'pending_review', 'pending', p_user_id
-      FROM legal_document_templates WHERE is_active = true AND version_status = 'ACTIVE'
-      ON CONFLICT DO NOTHING;
-    END IF;
+### 7. Creator Detail Banner — Governance-Aware Pipeline Description (Frontend)
 
-    -- Threshold check for STRUCTURED
-    IF v_gov_mode = 'STRUCTURED' THEN
-      SELECT COALESCE(ogo.legal_review_threshold_override, mlrt.threshold_amount, 50000)
-      INTO v_threshold
-      FROM challenges c
-      LEFT JOIN org_governance_overrides ogo ON ogo.organization_id = c.organization_id
-        AND ogo.governance_mode = v_gov_mode AND ogo.is_active = true
-      LEFT JOIN seeker_organizations so ON so.id = c.organization_id
-      LEFT JOIN md_legal_review_thresholds mlrt ON mlrt.country_id = so.hq_country_id::text
-        AND mlrt.governance_mode = v_gov_mode AND mlrt.is_active = true
-      WHERE c.id = p_challenge_id;
+**File:** `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
 
-      IF v_prize_pool <= COALESCE(v_threshold, 50000) THEN
-        UPDATE challenges SET lc_compliance_complete = TRUE WHERE id = p_challenge_id;
-      END IF;
-    END IF;
-  END IF;
-END IF;
-```
+Per doc:
+- STRUCTURED: "Professional Review" pipeline banner
+- CONTROLLED: "Enterprise Review Pipeline" banner
 
-New variables declared: `v_operating_model TEXT; v_org_id UUID; v_prize_pool NUMERIC; v_threshold NUMERIC;`
+Currently shows generic status message. Add a governance-aware pipeline banner.
 
 ---
 
 ## File Summary
 
-| Action | File | Gap |
-|--------|------|-----|
-| Edit | `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | 1, 2 |
-| Edit | `src/components/cogniblend/creator/AdditionalContextTab.tsx` | 2 |
-| Edit | `src/components/org-settings/GovernanceProfileTab.tsx` | 3 |
-| Edit | `src/pages/cogniblend/CurationChecklistPanel.tsx` | 7 |
-| Migration | `complete_phase` function update | 5, 6 |
+| Action | File | Change |
+|--------|------|--------|
+| Migration | SQL | Fix role_conflict_rules: swap ER+LC to ALLOWED, add CR+LC HARD_BLOCK for CONTROLLED |
+| Edit | `src/components/cogniblend/curation/CurationRightRail.tsx` | Fix hardcoded `totalCount={15}` |
+| Edit | `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | CONTROLLED: disable legal/escrow blocking for CU |
+| Edit | `src/pages/cogniblend/CurationChecklistPanel.tsx` | CONTROLLED: remove escrow/fee item, add "Creator approval requested" |
+| Edit | `src/pages/cogniblend/EscrowManagementPage.tsx` | Call `complete_financial_review` RPC after escrow funded |
+| New | `src/components/cogniblend/challenges/ChallengeEscrowStatusCard.tsx` | Escrow status display for Creator detail view |
+| Edit | `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Add pipeline banner + escrow status card |
 
-All components remain under 200 lines. GAP 4 already resolved.
-
+All files stay under 200 lines.
