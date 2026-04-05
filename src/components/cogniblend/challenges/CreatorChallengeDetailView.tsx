@@ -48,8 +48,11 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
   const statusMessage = useMemo(() => {
     const phase = data.current_phase ?? 1;
-    if (isQuickMode && phase >= 4) return 'Published — waiting for solver submissions';
     if (phase === 1) return 'Draft — complete your challenge and submit';
+    if (isQuickMode) {
+      if (phase >= 4) return 'Published — waiting for solver submissions';
+      return 'Processing — your challenge is being prepared for publication';
+    }
     if (phase === 2) return 'In Curation — Curator is reviewing and enriching your challenge';
     if (phase === 3) return 'Compliance Review — Legal and financial review in progress';
     if (phase >= 4) return 'Published — your challenge is live!';
@@ -92,7 +95,11 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         <div className="flex flex-wrap items-center gap-2">
           {data.master_status === 'IN_PREPARATION' && (
             <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 bg-amber-50">
-              {data.current_phase === 1 ? 'Draft' : (data.phase_status === 'CR_APPROVAL_PENDING' ? 'Awaiting Your Approval' : 'In Curation')}
+              {data.current_phase === 1
+                ? 'Draft'
+                : data.phase_status === 'CR_APPROVAL_PENDING'
+                  ? 'Awaiting Your Approval'
+                  : isQuickMode ? 'Processing' : 'In Curation'}
             </Badge>
           )}
           {data.master_status === 'ACTIVE' && <Badge variant="outline" className="text-xs font-semibold border-emerald-300 text-emerald-700 bg-emerald-50">Published</Badge>}
@@ -114,8 +121,8 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </div>
       )}
 
-      {data.current_phase != null && data.current_phase >= 2 && data.current_phase <= 3
-        && data.phase_status !== 'CR_APPROVAL_PENDING' && (
+      {!isQuickMode && data.current_phase != null && data.current_phase >= 2
+        && data.current_phase <= 3 && data.phase_status !== 'CR_APPROVAL_PENDING' && (
         <CurationProgressTracker challengeId={challengeId} />
       )}
 
