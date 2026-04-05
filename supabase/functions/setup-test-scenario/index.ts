@@ -88,9 +88,11 @@ async function createUsers(
   credentials: { email: string; password: string; roles: string[] }[]
 ): Promise<ResolvedUser[]> {
   const resolved: ResolvedUser[] = [];
+  // Fetch all auth users ONCE to avoid N+1 API calls
+  const { data: allAuthData } = await sa.auth.admin.listUsers({ perPage: 1000 });
+  const allAuthUsers = allAuthData?.users ?? [];
   for (const u of config.users) {
-    const { data: existingUsers } = await sa.auth.admin.listUsers({ perPage: 1000 });
-    const existing = existingUsers?.users?.find((x: { email?: string }) => x.email === u.email);
+    const existing = allAuthUsers.find((x: { email?: string }) => x.email === u.email);
     let userId: string;
     if (existing) {
       userId = existing.id;
