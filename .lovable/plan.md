@@ -1,102 +1,75 @@
 
-# Implement Role Summary Document — All 4 Phases
 
-## Context
+# Fix 12 Gaps — Role Summary Alignment
 
-The uploaded ROLE-SUMMARY-COMPLETE-2.md defines precise behavior per governance mode (STRUCTURED/CONTROLLED) × engagement model (MP/AGG) for Creator, Curator, LC, and FC roles. After auditing the codebase, several gaps exist between the document spec and current implementation.
+## Current State (from DB + code audit)
 
-## Current State vs Document Spec — Key Gaps
+- **STRUCTURED Phase 3**: `required_role = 'LC'` — but doc says Curator handles legal+escrow, so should be `'CU'`
+- **complete_phase**: Has threshold routing for STRUCTURED that conditionally sets `lc_compliance_complete`. Per doc, STRUCTURED should ALWAYS auto-approve lc+fc (Curator handled everything in Phase 2)
+- **CONTROLLED Phase 3**: Correct — `required_role = 'LC'`, `gate_flags = [lc_compliance_complete, fc_compliance_complete]`
+- **Escrow modes**: QUICK=not_applicable, STRUCTURED=optional, CONTROLLED=mandatory — correct
+- **Legal modes**: QUICK=auto_apply, STRUCTURED=manual_review, CONTROLLED=ai_review — correct
 
-### DB Config Issues
-1. **Role conflict matrix**: CONTROLLED mode has ER+LC as HARD_BLOCK, but doc says ER+LC is the ONLY allowed pair. Also CR+LC is not blocked but doc says it should be in CONTROLLED.
-2. **STRUCTURED Phase 3 config**: `required_role = 'LC'` but doc says Phase 3 for STRUCTURED below-threshold should auto-complete (Curator already handled legal). The `complete_phase` logic handles this via threshold check, but the required_role blocks auto-advance for same-actor.
+## Changes (4 prompts)
 
-### Frontend Gaps
-3. **Curator scope not governance-aware**: In CONTROLLED, Curator should do content ONLY (no legal, no escrow). In STRUCTURED, Curator handles legal+escrow below threshold. The `legalEscrowBlocked` logic in `useCurationPageOrchestrator.ts` currently blocks on legal for ALL modes including CONTROLLED where CU shouldn't touch legal at all.
-4. **CurationActions totalCount hardcoded to 15**: Line 112 of `CurationRightRail.tsx` passes `totalCount={15}` but CHECKLIST_LABELS has 13 items.
-5. **Checklist not governance-aware for CONTROLLED**: In CONTROLLED mode, the Curator checklist should NOT include legal/escrow items at all (CU doesn't touch those). Currently it shows "Escrow funding confirmed" for CONTROLLED.
-6. **Creator detail view**: Missing governance-aware escrow status and LC status badges per the doc (lines 237-245).
-7. **EscrowManagementPage**: FC doesn't set `fc_compliance_complete` flag after confirming escrow. It only writes to `escrow_records` but doesn't call `complete_financial_review` RPC.
+### Prompt 1: SQL Migration (Fixes #3, #4)
 
----
+**Update `md_lifecycle_phase_config`:**
+- STRUCTURED Phase 3: `required_role = 'CU'`, `secondary_role = NULL`
 
-## Changes
+**Rewrite `complete_phase` Step 7 for STRUCTURED:**
+- Remove threshold routing entirely. STRUCTURED always sets `lc_compliance_complete = TRUE` and `fc_compliance_complete = TRUE` (Curator self-reviewed legal, escrow is optional)
+- Legal docs inserted as `'curator_reviewed'` / `'approved'` for STRUCTURED
+- CONTROLLED: `lc_compliance_complete` and `fc_compliance_complete` stay FALSE (LC and FC must independently complete)
+- Keep AGG/MP template routing (already correct)
 
-### 1. Fix Role Conflict Matrix (DB Migration)
+### Prompt 2: TypeScript Fixes — 6 Files (Fixes #1, #2, #5, #7, #8, #11)
 
-Update `role_conflict_rules` to match the document:
-- **CONTROLLED**: Remove ER+LC HARD_BLOCK (ER+LC is allowed). Add CR+LC HARD_BLOCK (doc says every pair except ER+LC is blocked).
-- **STRUCTURED**: Current rules are correct (3 blocks: CR+CU, CR+ER, ER+FC). CR+LC is allowed (Curator can self-review legal below threshold).
+| # | File | Line | Current | Fix |
+|---|------|------|---------|-----|
+| 1 | `ChallengeConfigurationPanel.tsx` | 29 | `$10K–$150K` | `$25K–$100K` |
+| 2 | `ChallengeCreatorForm.tsx` | 194 | `disabled={isBusy \|\| (isControlled && !aiReviewCompleted)}` | `disabled={isBusy}` |
+| 5 | `CurationChecklistPanel.tsx` | 157 | CONTROLLED: `"Escrow funding confirmed"` | `"Creator approval requested"` |
+| 7 | `CurationRightRail.tsx` | 112 | `totalCount={15}` | `totalCount={checklistSummary.length}` |
+| 8 | `useCurationPageOrchestrator.ts` | 173-174 | Blocks CU on legal+escrow for CONTROLLED | CONTROLLED: `legalEscrowBlocked = false` |
+| 11 | `ChallengeConfigSummary.tsx` | 104 | Implies mandatory AI review pipeline | Add "advisory AI review" for CONTROLLED description |
 
-### 2. Fix CurationRightRail totalCount (Frontend)
+### Prompt 3: FC Integration (Fixes #6, #9)
 
-**File:** `src/components/cogniblend/curation/CurationRightRail.tsx` line 112
+**EscrowManagementPage.tsx** (line 118 onSuccess):
+- After escrow save, call `supabase.rpc('complete_financial_review', { p_challenge_id, p_user_id })` 
+- Toast success with phase advancement info
 
-Change `totalCount={15}` to pass the actual count from the checklist summary length or remove the hardcoded value.
+**New file: `FcChallengeQueuePage.tsx`** (~120 lines):
+- Query: challenges where user has FC role, `fc_compliance_complete = FALSE`, `current_phase = 3`
+- Each row shows challenge title, reward total, escrow status, link to escrow management
+- Route: `/cogni/fc-queue` added to App.tsx + sidebar nav
 
-### 3. Make Curator Scope Governance-Aware (Frontend)
+### Prompt 4: Seed + Cleanup (Fixes #10, #12)
 
-**File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts` lines 168-178
+**creatorSeedContent.ts:**
+- MP_SEED: `platinum_award: 45000000` (INR) — fine as-is (INR equivalent ~$55K)
+- AGG_SEED: `platinum_award: 0` — no change needed
+- If a USD STRUCTURED seed exists with $120K, change to $75K
 
-Current logic:
-```
-needsLegalAcceptance = lc_review_required || legalDetails.length > 0
-needsEscrowAcceptance = isControlledMode(governanceMode)
-```
-
-Per doc:
-- **CONTROLLED**: Curator does NOT touch legal or escrow → `legalEscrowBlocked = false` always for CONTROLLED (LC and FC handle independently)
-- **STRUCTURED**: Curator handles legal+escrow (below threshold auto-approved, above threshold LC takes over) → keep current logic
-
-Fix: For CONTROLLED mode, set `legalEscrowBlocked = false` because CU has no legal/escrow responsibility.
-
-### 4. Fix Curator Checklist for CONTROLLED (Frontend)
-
-**File:** `src/pages/cogniblend/CurationChecklistPanel.tsx`
-
-Current item 13: `isControlledMode ? "Escrow funding confirmed" : "Fee calculation verified"`
-
-Per doc: In CONTROLLED, Curator does NO legal and NO escrow. The checklist should not have escrow/fee items for CONTROLLED. Replace with: In CONTROLLED, item 13 = "Creator approval requested" (since CONTROLLED requires creator sign-off). In STRUCTURED, item 13 = "Fee calculation verified" (Curator verifies fees and enters escrow).
-
-### 5. FC Escrow → Compliance Flag Integration (Frontend)
-
-**File:** `src/pages/cogniblend/EscrowManagementPage.tsx`
-
-After successful escrow confirmation (line 118 onSuccess), call `complete_financial_review` RPC to set `fc_compliance_complete = TRUE` and potentially auto-advance the phase.
-
-### 6. Creator Detail View — Escrow/Legal Status Badges (Frontend)
-
-**File:** `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
-
-Per doc lines 237-245:
-- STRUCTURED: Show "Pending Review" or "Curator Reviewed" badges on legal docs card
-- CONTROLLED: Show "Pending LC Review" badge on legal docs, "Pending FC Deposit" on escrow status
-- Show Creator Approval section when Curator submits for sign-off (already done via `TieredApprovalView`)
-
-Add an escrow status card below legal docs for CONTROLLED mode showing escrow deposit status.
-
-### 7. Creator Detail Banner — Governance-Aware Pipeline Description (Frontend)
-
-**File:** `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
-
-Per doc:
-- STRUCTURED: "Professional Review" pipeline banner
-- CONTROLLED: "Enterprise Review Pipeline" banner
-
-Currently shows generic status message. Add a governance-aware pipeline banner.
-
----
+**useAutoAssignChallengeRoles.ts** (Fix #10):
+- `validateRoleAssignment` calls `role_conflict_rules` — this is correct behavior. The role conflict matrix IS the governance enforcement mechanism. No change needed here — the admin RoleConvergencePage manages the matrix, and the auto-assign correctly checks it. Gap #10 is a non-issue.
 
 ## File Summary
 
-| Action | File | Change |
-|--------|------|--------|
-| Migration | SQL | Fix role_conflict_rules: swap ER+LC to ALLOWED, add CR+LC HARD_BLOCK for CONTROLLED |
-| Edit | `src/components/cogniblend/curation/CurationRightRail.tsx` | Fix hardcoded `totalCount={15}` |
-| Edit | `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | CONTROLLED: disable legal/escrow blocking for CU |
-| Edit | `src/pages/cogniblend/CurationChecklistPanel.tsx` | CONTROLLED: remove escrow/fee item, add "Creator approval requested" |
-| Edit | `src/pages/cogniblend/EscrowManagementPage.tsx` | Call `complete_financial_review` RPC after escrow funded |
-| New | `src/components/cogniblend/challenges/ChallengeEscrowStatusCard.tsx` | Escrow status display for Creator detail view |
-| Edit | `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Add pipeline banner + escrow status card |
+| Action | File | Gaps |
+|--------|------|------|
+| Migration | SQL | #3, #4 |
+| Edit | `ChallengeConfigurationPanel.tsx` | #1 |
+| Edit | `ChallengeCreatorForm.tsx` | #2 |
+| Edit | `CurationChecklistPanel.tsx` | #5 |
+| Edit | `CurationRightRail.tsx` | #7 |
+| Edit | `useCurationPageOrchestrator.ts` | #8 |
+| Edit | `ChallengeConfigSummary.tsx` | #11 |
+| Edit | `EscrowManagementPage.tsx` | #6 |
+| New | `FcChallengeQueuePage.tsx` | #9 |
+| Edit | `App.tsx` + sidebar | #9 |
+| Edit | `creatorSeedContent.ts` | #12 (if needed) |
 
-All files stay under 200 lines.
+All components stay under 200 lines.
+
