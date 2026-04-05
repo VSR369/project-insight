@@ -182,7 +182,7 @@ export function EmptyPlaceholder({ message }: { message: string }) {
 import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 import { isFieldVisible } from '@/hooks/queries/useGovernanceFieldRules';
 
-export function FilteredSections({ sections, searchTerm, fieldRules }: { sections: SectionDef[]; searchTerm: string; fieldRules?: FieldRulesMap }) {
+export function FilteredSections({ sections, searchTerm, fieldRules, creatorFieldKeys }: { sections: SectionDef[]; searchTerm: string; fieldRules?: FieldRulesMap; creatorFieldKeys?: string[] }) {
   const filtered = useMemo(() => {
     return sections.filter((s) => {
       if (s.content === null) return false;
@@ -198,5 +198,14 @@ export function FilteredSections({ sections, searchTerm, fieldRules }: { section
     return <EmptyPlaceholder message={searchTerm ? `No sections matching "${searchTerm}"` : 'No content available.'} />;
   }
 
-  return <>{filtered.map((s) => <div key={s.title}>{s.content}</div>)}</>;
+  return <>{filtered.map((s) => (
+    <div key={s.title} className="relative">
+      {s.content}
+      {creatorFieldKeys?.includes(s.fieldKey ?? '') && (
+        <Badge variant="outline" className="text-[9px] text-muted-foreground absolute top-3 right-3 z-10">
+          Your input
+        </Badge>
+      )}
+    </div>
+  ))}</>;
 }

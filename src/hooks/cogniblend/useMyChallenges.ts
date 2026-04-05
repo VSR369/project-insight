@@ -18,6 +18,10 @@ export interface MyChallengeItem {
   governance_mode_override: string | null;
   operating_model: string | null;
   created_at: string;
+  problem_statement: string | null;
+  reward_structure: Record<string, unknown> | null;
+  currency_code: string | null;
+  domain_tags: string[] | null;
 }
 
 export interface MyChallengesData {
@@ -37,7 +41,10 @@ export function useMyChallenges(userId: string | undefined) {
           role_code,
           challenge_id,
           challenges!user_challenge_roles_challenge_id_fkey (
-            id, title, current_phase, master_status, phase_status, governance_profile, governance_mode_override, operating_model, is_deleted, created_at
+            id, title, current_phase, master_status, phase_status,
+            governance_profile, governance_mode_override, operating_model,
+            is_deleted, created_at,
+            problem_statement, reward_structure, currency_code, domain_tags
           )
         `)
         .eq('user_id', userId)
@@ -76,6 +83,10 @@ export function useMyChallenges(userId: string | undefined) {
             governance_mode_override: (ch.governance_mode_override as string | null) ?? null,
             operating_model: (ch.operating_model as string | null) ?? null,
             created_at: (ch.created_at as string) ?? '',
+            problem_statement: (ch.problem_statement as string) ?? null,
+            reward_structure: (ch.reward_structure as Record<string, unknown>) ?? null,
+            currency_code: (ch.currency_code as string) ?? null,
+            domain_tags: (ch.domain_tags as string[]) ?? null,
           });
         }
       }
