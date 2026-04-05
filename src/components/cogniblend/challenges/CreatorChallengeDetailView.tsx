@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Globe, Search, BookOpen, Info, FileText,
 } from 'lucide-react';
+import { ChallengeConfigSummary } from './ChallengeConfigSummary';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
