@@ -435,7 +435,7 @@ serve(async (req) => {
       title: "Predictive Quality Analytics for Automotive Component Manufacturing",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "STRUCTURED", governance_mode_override: "STRUCTURED",
-      challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
+      challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c2ProblemStatement,
       scope: c2Scope,
       maturity_level: "POC",
