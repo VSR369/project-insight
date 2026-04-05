@@ -455,7 +455,7 @@ serve(async (req) => {
     // Challenge 3: QUICK + AGG (5 Creator fields filled — minimal)
     const quickId = crypto.randomUUID();
     const c3ProblemStatement = "Tech Mahindra has committed to net-zero carbon emissions by 2035 as part of our ESG goals. We need a prototype employee-facing dashboard that tracks individual and team carbon footprint from work-related activities including office energy consumption (assigned by floor/zone), business travel (air, rail, road), data center usage (allocated by project), and commute patterns. The prototype should pull sample data from our existing SAP SuccessFactors HR system and Concur travel platform APIs, calculate estimated CO2 equivalents using GHG Protocol Scope 1/2/3 emission factors, and display actionable insights with monthly trends and reduction targets. This is an internal innovation challenge open to all Tech Mahindra associates globally.";
-    const c3DomainTags = ["sustainability", "dashboard", "ESG", "carbon-tracking"];
+    const c3DomainTags = ["sustainability", "dashboard", "ESG"];
     const c3Snapshot = {
       title: "Internal Carbon Footprint Tracker — Employee Dashboard Prototype",
       problem_statement: c3ProblemStatement,
@@ -472,15 +472,11 @@ serve(async (req) => {
       operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
       challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c3ProblemStatement,
-      maturity_level: "BLUEPRINT",
-      evaluation_criteria: { weighted_criteria: [
-        { name: "UX Design & Employee Engagement", weight: 40 },
-        { name: "Data Integration Feasibility", weight: 30 },
-        { name: "Carbon Calculation Accuracy", weight: 30 },
-      ]},
+      // QUICK: NO maturity_level, NO evaluation_criteria — these are hidden/auto
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 10000, budget_min: 5000, budget_max: 15000 },
       currency_code: "USD", domain_tags: c3DomainTags,
-      phase_schedule: { expected_timeline: "1-3" },
+      ip_model: "IP-NEL", // auto default for QUICK
+      phase_schedule: { expected_timeline: "8w" }, // platform default
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c3DomainTags }),
       extended_brief: { creator_approval_required: false },
       creator_snapshot: c3Snapshot,
