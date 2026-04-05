@@ -41,8 +41,6 @@ export interface DemoUser {
   stepLabel?: string;
 }
 
-/** Static demo users list for dev quick-switch (uses default engagement model) */
-export const DEMO_USERS: DemoUser[] = buildDemoUsers('MP', 'STRUCTURED');
 
 const CR_DESC: Record<GovernanceMode, string> = {
   QUICK: 'Creates challenge with 5 required fields, auto-published on submit',
@@ -126,6 +124,9 @@ function buildDemoUsers(engagementModel: string, mode: GovernanceMode = 'STRUCTU
     },
   ];
 }
+
+/** Static demo users list for dev quick-switch (uses default engagement model) */
+export const DEMO_USERS: DemoUser[] = buildDemoUsers('MP', 'STRUCTURED');
 
 const GOVERNANCE_CARDS: Array<{
   mode: GovernanceMode;
