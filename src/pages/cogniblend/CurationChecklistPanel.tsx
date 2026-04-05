@@ -49,7 +49,7 @@ interface CurationChecklistPanelProps {
   onEditModeToggle?: (editing: boolean) => void;
 }
 
-const LOCKED_ITEM_IDS = new Set([10, 11, 15]);
+const LOCKED_ITEM_IDS = new Set([13]);
 
 export default function CurationChecklistPanel({
   challengeId, challenge, legalDocs, escrowRecord, onEditModeToggle,
