@@ -115,8 +115,22 @@ export default function EscrowManagementPage() {
         details: { amount: values.deposit_amount, currency: values.currency, bank_name: values.bank_name, deposit_reference: values.deposit_reference },
       } as any);
     },
-    onSuccess: () => {
+    onSuccess: async (_data, variables) => {
       toast.success('Escrow deposit confirmed successfully');
+      // Call complete_financial_review RPC to set fc_compliance_complete and potentially advance phase
+      try {
+        const { error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
+          p_challenge_id: variables.challengeId,
+          p_user_id: user?.id,
+        });
+        if (rpcError) {
+          toast.warning('Escrow saved but financial review completion failed — please contact support.');
+        } else {
+          toast.success('Financial compliance confirmed — phase may auto-advance.');
+        }
+      } catch {
+        toast.warning('Escrow saved but could not trigger phase advancement.');
+      }
       setSelectedChallengeId(null); form.reset(); clearEscrowPersistence();
       queryClient.invalidateQueries({ queryKey: ['fc-escrow-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['escrow-deposit'] });

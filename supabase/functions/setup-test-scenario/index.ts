@@ -434,8 +434,8 @@ serve(async (req) => {
       maturity_level: "POC",
       evaluation_criteria: c2EvalCriteria,
       currency_code: "USD",
-      platinum_award: 120000,
-      reward_structure: { currency: "USD", platinum_award: 120000, budget_min: 60000, budget_max: 180000 },
+      platinum_award: 75000,
+      reward_structure: { currency: "USD", platinum_award: 75000, budget_min: 40000, budget_max: 100000 },
     };
 
     const { error: c2Err } = await supabaseAdmin.from("challenges").insert({
@@ -448,7 +448,7 @@ serve(async (req) => {
       scope: c2Scope,
       maturity_level: "POC",
       evaluation_criteria: c2EvalCriteria,
-      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 120000, gold_award: 40000, budget_min: 60000, budget_max: 180000 },
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, gold_award: 25000, budget_min: 40000, budget_max: 100000 },
       currency_code: "USD", domain_tags: c2DomainTags,
       ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c2DomainTags }),

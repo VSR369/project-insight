@@ -154,7 +154,7 @@ export default function CurationChecklistPanel({
     "Evaluation criteria weights = 100%", "Reward structure valid", "Phase schedule defined",
     "Submission guidelines provided", "Eligibility configured", "IP model confirmed",
     "Complexity parameters entered", "Maturity level confirmed", "Artifact types configured",
-    isControlledMode(governanceMode) ? "Escrow funding confirmed" : "Fee calculation verified",
+    isControlledMode(governanceMode) ? "Creator approval requested" : "Fee calculation verified",
   ];
 
   const TOTAL_ITEMS = CHECKLIST_LABELS.length;

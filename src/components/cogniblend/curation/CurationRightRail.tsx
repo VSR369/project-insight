@@ -109,7 +109,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
         getSectionDisplayName={getSectionDisplayName} setShowOnlyStale={setShowOnlyStale} setActiveGroup={setActiveGroup} />
 
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
-        checklistSummary={checklistSummary} completedCount={completedCount} totalCount={15}
+        checklistSummary={checklistSummary} completedCount={completedCount} totalCount={checklistSummary.length}
         operatingModel={operatingModel} readOnly={isReadOnly} legalEscrowBlocked={legalEscrowBlocked} blockingReason={blockingReason}
         staleSections={staleSections.map(s => ({ key: s.key, name: getSectionDisplayName(s.key), causes: s.staleBecauseOf.map(c => getSectionDisplayName(c)), staleAt: s.staleAt ?? new Date().toISOString() }))}
         unreviewedSections={aiReviews.filter(r => r.status === 'needs_revision').map(r => ({ key: r.section_key, name: sectionMap.get(r.section_key)?.label ?? r.section_key }))}

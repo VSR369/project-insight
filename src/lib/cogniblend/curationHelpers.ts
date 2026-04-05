@@ -64,7 +64,7 @@ export const CHECKLIST_LABELS: string[] = [
   "Complexity parameters entered",
   "Maturity level + legal match",
   "Artifact types configured",
-  "Escrow funding confirmed",
+  "Fee calculation verified",
 ];
 
 export function computeAutoChecks(

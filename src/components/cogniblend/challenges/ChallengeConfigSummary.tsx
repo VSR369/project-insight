@@ -102,8 +102,8 @@ export function ChallengeConfigSummary({
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {effectiveGovernance === 'CONTROLLED'
-                ? 'Your challenge goes through: Curator review → Legal review → Financial review (escrow) → Publication to solvers.'
-                : 'Your challenge goes through: Curator review → Legal review → Publication to solvers.'}
+                ? 'Your challenge goes through: Curator review (advisory AI review) → Legal Coordinator review → Financial Coordinator escrow deposit → Publication to solvers.'
+                : 'Your challenge goes through: Curator review (includes legal & fee verification) → Publication to solvers.'}
             </p>
           </div>
         </div>

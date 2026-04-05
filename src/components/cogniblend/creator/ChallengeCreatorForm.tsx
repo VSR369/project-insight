@@ -190,8 +190,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
           <div className="flex items-center gap-3 ml-auto">
             <Button type="button" variant="outline" onClick={draftSave.handleSaveDraft} disabled={isBusy}>{draftSave.isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}Save Draft</Button>
-            <Button type="button" variant={isControlled ? 'default' : 'outline'} onClick={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }} disabled={isBusy || !draftSave.draftChallengeId} className="gap-1.5"><Sparkles className="h-4 w-4" />AI Review{isControlled && <Badge variant="secondary" className="ml-1 text-[10px]">Required</Badge>}{!isControlled && !isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Recommended</Badge>}</Button>
-            <Button type="submit" disabled={isBusy || (isControlled && !aiReviewCompleted)}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}{isQuick ? 'Submit & Publish' : 'Submit to Curator'}</Button>
+            <Button type="button" variant={isControlled ? 'default' : 'outline'} onClick={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }} disabled={isBusy || !draftSave.draftChallengeId} className="gap-1.5"><Sparkles className="h-4 w-4" />AI Review{isControlled && <Badge variant="secondary" className="ml-1 text-[10px]">Advisory</Badge>}{!isControlled && !isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Recommended</Badge>}</Button>
+            <Button type="submit" disabled={isBusy}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}{isQuick ? 'Submit & Publish' : 'Submit to Curator'}</Button>
           </div>
         </div>
       </form>

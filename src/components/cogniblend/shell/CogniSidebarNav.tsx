@@ -7,7 +7,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FilePlus, Folder, CheckSquare, ShieldCheck,
-  FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
+  FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard, Banknote,
   Search, Lightbulb, User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -56,6 +56,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Review Queue', path: '/cogni/review', icon: Eye, isVisible: (p) => p.canSeeEvaluation },
       { label: 'Evaluation Panel', path: '/cogni/evaluation', icon: BarChart2, isVisible: (p) => p.canSeeEvaluation },
       { label: 'Selection & IP', path: '/cogni/selection', icon: Award, isVisible: (p) => p.canSeeEvaluation },
+      { label: 'FC Queue', path: '/cogni/fc-queue', icon: Banknote, isVisible: (p) => p.canSeeEscrow },
       { label: 'Escrow Management', path: '/cogni/escrow', icon: Lock, isVisible: (p) => p.canSeeEscrow },
       { label: 'Payment Processing', path: '/cogni/payments', icon: CreditCard, isVisible: (p) => p.canSeeEscrow },
     ],
