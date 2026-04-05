@@ -172,7 +172,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full max-w-md">
             <TabsTrigger value="essential" className="flex-1 gap-1.5">✏️ Essential Details</TabsTrigger>
-            <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>
+            {!isQuick && <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>}
           </TabsList>
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} industrySegments={industrySegments} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} /></TabsContent>
