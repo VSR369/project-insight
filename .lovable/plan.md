@@ -1,44 +1,32 @@
 
 
-# Fix: Cleanup SQL — Correct `audit_trail` Column
+# Fix: Context Library Drawer Header Buttons Not Visible
 
 ## Problem
-The cleanup SQL references `audit_trail.entity_type` which doesn't exist. The table uses `challenge_id` to link to challenges.
+The Context Library drawer opens but the header section (containing "Discover Sources", "Add URL" buttons, and search) is not visible. Only the body content ("No sources yet..." and "Select a source") appears.
 
-## Corrected Cleanup SQL
+## Root Cause
+The `SheetContent` base variant class (`sheetVariants`) includes `p-6` padding. The drawer overrides with `p-0`, but Tailwind CSS class merging via `cn()` may not reliably resolve this conflict — `p-6` can win over `p-0` depending on CSS generation order. This can push the header off-screen or cause layout issues.
 
-Replace the failing line:
-```sql
--- OLD (broken):
-DELETE FROM audit_trail WHERE entity_type = 'challenge';
+Additionally, the `sm:max-w-sm` in the sheet variant (line 41 of sheet.tsx) conflicts with the drawer's `sm:max-w-[900px]`. This is a second potential conflict point.
 
--- NEW (correct):
-DELETE FROM audit_trail;
+## Plan
+
+### Step 1: Fix SheetContent class conflict in ContextLibraryDrawer
+In `ContextLibraryDrawer.tsx`, replace the className approach with explicit `!p-0` (important modifier) or restructure to avoid the conflict:
+
+```tsx
+// Change line 63 from:
+className="w-[900px] sm:max-w-[900px] p-0 flex flex-col overflow-hidden"
+// To:
+className="!w-[900px] !max-w-[900px] !p-0 flex flex-col overflow-hidden"
 ```
 
-Since `audit_trail` only tracks challenge actions (every row has a `challenge_id` FK), deleting all rows is equivalent and correct for a fresh start.
+Using `!` (Tailwind important modifier) ensures these utilities override the base variant values.
 
-## Full Corrected Cleanup Script (single migration or insert tool execution)
+### Step 2: Verify header visibility
+After the fix, the `SheetHeader` with "Context Library" title, "Discover Sources" button, "Add URL" button, and search input should be fully visible at the top of the drawer.
 
-```sql
--- Child tables first (FK order)
-DELETE FROM challenge_prize_tiers;
-DELETE FROM user_challenge_roles;
-DELETE FROM challenge_section_approvals;
-DELETE FROM challenge_legal_docs;
-DELETE FROM escrow_records;
-DELETE FROM challenge_qa;
-DELETE FROM challenge_attachments;
-DELETE FROM challenge_incentive_selections;
-DELETE FROM challenge_context_digest;
-DELETE FROM challenge_package_versions;
-DELETE FROM challenge_role_assignments;
-DELETE FROM pending_challenge_refs;
--- Audit (no entity_type column — all rows are challenge-scoped)
-DELETE FROM audit_trail;
--- Parent table last
-DELETE FROM challenges;
-```
-
-No schema changes needed — this is a data-only operation using the insert tool.
+### Files Changed
+- `src/components/cogniblend/curation/ContextLibraryDrawer.tsx` — line 63, fix class specificity
 
