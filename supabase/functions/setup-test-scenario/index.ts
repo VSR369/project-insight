@@ -44,7 +44,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     ],
   },
   agg_enterprise_8: {
-    orgName: "AGG Enterprise Test Org",
+    orgName: "Tech Mahindra Limited",
     operatingModel: "AGG",
     governanceProfile: "CONTROLLED",
     subscriptionTier: "enterprise",
