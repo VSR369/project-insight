@@ -33,6 +33,7 @@ import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
+import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -176,8 +177,15 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             {!isQuick && <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>}
           </TabsList>
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} industrySegments={industrySegments} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
-          <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} /></TabsContent>
+          <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
         </Tabs>
+        {engagementModel === 'MP' && governanceMode !== 'QUICK' && (
+          <EscrowCalculationDisplay
+            prizePlatinum={form.watch('platinum_award')}
+            currencyCode={form.watch('currency_code')}
+            governanceMode={governanceMode}
+          />
+        )}
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
           <div className="flex items-center gap-3 ml-auto">

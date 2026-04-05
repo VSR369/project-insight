@@ -8,6 +8,7 @@
 import { ShieldCheck, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+import { GovernanceOverridesSection } from './GovernanceOverridesSection';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG, type GovernanceMode } from '@/lib/governanceMode';
 
@@ -123,6 +124,9 @@ export function GovernanceProfileTab({ organizationId }: GovernanceProfileTabPro
             );
           })}
         </div>
+
+        {/* Org-level overrides */}
+        <GovernanceOverridesSection organizationId={organizationId} />
 
         {/* Supervisor notice */}
         <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 p-3">

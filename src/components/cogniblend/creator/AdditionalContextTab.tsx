@@ -15,6 +15,7 @@ import { AlertTriangle, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import { StakeholderEditor } from './StakeholderEditor';
+import { LegalDocUploadSection } from '@/components/cogniblend/LegalDocUploadSection';
 import { toast } from 'sonner';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
@@ -49,9 +50,11 @@ interface AdditionalContextTabProps {
   onFilesChange?: (files: File[]) => void;
   referenceUrls?: string[];
   onUrlsChange?: (urls: string[]) => void;
+  engagementModel?: string;
+  draftChallengeId?: string;
 }
 
-export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles = [], onFilesChange, referenceUrls = [], onUrlsChange }: AdditionalContextTabProps) {
+export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles = [], onFilesChange, referenceUrls = [], onUrlsChange, engagementModel, draftChallengeId }: AdditionalContextTabProps) {
   const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
   const isControlled = governanceMode === 'CONTROLLED';
   const rules = fieldRules ?? {};
@@ -136,6 +139,13 @@ export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles
           </div>
         )}
       </div>
+
+      {engagementModel === 'MP' && draftChallengeId && (
+        <LegalDocUploadSection
+          challengeId={draftChallengeId}
+          governanceMode={governanceMode}
+        />
+      )}
     </div>
   );
 }
