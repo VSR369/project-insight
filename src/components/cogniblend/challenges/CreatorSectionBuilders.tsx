@@ -154,9 +154,11 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
     {
       title: 'Evaluation Criteria', icon: BarChart3, fieldKey: 'weighted_criteria',
       content: (() => {
+        const topWc = snapshot.weighted_criteria as Array<{ name: string; weight: number }> | null;
         const ec = snapshot.evaluation_criteria as Record<string, unknown> | null;
-        const wc = (ec?.weighted_criteria ?? ec?.criteria ?? []) as Array<{ name: string; weight: number }>;
-        return wc.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={wc} /> : null;
+        const nestedWc = (ec?.weighted_criteria ?? ec?.criteria ?? []) as Array<{ name: string; weight: number }>;
+        const criteria = topWc?.length ? topWc : nestedWc;
+        return criteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={criteria} /> : null;
       })(),
     },
   ];

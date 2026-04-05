@@ -174,7 +174,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
           <TabsContent value="curator-version" className="space-y-4">
             {showCuratorContent ? (
-              <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+              <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
             ) : (
               <Card className="border-dashed border-primary/30 bg-primary/5">
                 <CardContent className="py-12 text-center">
