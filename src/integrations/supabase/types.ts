@@ -4781,6 +4781,7 @@ export type Database = {
           dual_curation_enabled: boolean
           dual_evaluation_required: boolean
           dual_signoff_required: boolean
+          escrow_deposit_pct: number | null
           escrow_mode: string
           governance_mode: string
           id: string
@@ -4806,6 +4807,7 @@ export type Database = {
           dual_curation_enabled?: boolean
           dual_evaluation_required?: boolean
           dual_signoff_required?: boolean
+          escrow_deposit_pct?: number | null
           escrow_mode?: string
           governance_mode: string
           id?: string
@@ -4831,6 +4833,7 @@ export type Database = {
           dual_curation_enabled?: boolean
           dual_evaluation_required?: boolean
           dual_signoff_required?: boolean
+          escrow_deposit_pct?: number | null
           escrow_mode?: string
           governance_mode?: string
           id?: string
@@ -4922,6 +4925,53 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      md_legal_review_thresholds: {
+        Row: {
+          country_id: string
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          governance_mode: string
+          id: string
+          is_active: boolean
+          threshold_amount: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          country_id: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          governance_mode?: string
+          id?: string
+          is_active?: boolean
+          threshold_amount?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          country_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          governance_mode?: string
+          id?: string
+          is_active?: boolean
+          threshold_amount?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_legal_review_thresholds_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       md_lifecycle_phase_config: {
         Row: {
@@ -6541,6 +6591,325 @@ export type Database = {
           {
             foreignKeyName: "org_admin_change_requests_tenant_id_fkey"
             columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_compliance_config: {
+        Row: {
+          compliance_officer_email: string | null
+          controlled_technology_default: boolean | null
+          created_at: string
+          created_by: string | null
+          data_residency_country: string | null
+          export_control_enabled: boolean | null
+          gdpr_dpa_auto_attach: boolean | null
+          id: string
+          is_active: boolean
+          organization_id: string
+          sanctions_screening_level: string | null
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          compliance_officer_email?: string | null
+          controlled_technology_default?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          data_residency_country?: string | null
+          export_control_enabled?: boolean | null
+          gdpr_dpa_auto_attach?: boolean | null
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          sanctions_screening_level?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          compliance_officer_email?: string | null
+          controlled_technology_default?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          data_residency_country?: string | null
+          export_control_enabled?: boolean | null
+          gdpr_dpa_auto_attach?: boolean | null
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          sanctions_screening_level?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_compliance_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_custom_fields: {
+        Row: {
+          applies_to_mode: string | null
+          created_at: string
+          created_by: string | null
+          display_order: number | null
+          field_label: string
+          field_name: string
+          field_type: string
+          id: string
+          is_active: boolean
+          is_required: boolean | null
+          organization_id: string
+          select_options: Json | null
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          applies_to_mode?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number | null
+          field_label: string
+          field_name: string
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean | null
+          organization_id: string
+          select_options?: Json | null
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          applies_to_mode?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number | null
+          field_label?: string
+          field_name?: string
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean | null
+          organization_id?: string
+          select_options?: Json | null
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_custom_fields_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_finance_config: {
+        Row: {
+          auto_deposit_enabled: boolean | null
+          budget_approval_url: string | null
+          created_at: string
+          created_by: string | null
+          default_bank_address: string | null
+          default_bank_branch: string | null
+          default_bank_name: string | null
+          id: string
+          is_active: boolean
+          organization_id: string
+          preferred_escrow_currency: string | null
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          auto_deposit_enabled?: boolean | null
+          budget_approval_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_bank_address?: string | null
+          default_bank_branch?: string | null
+          default_bank_name?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          preferred_escrow_currency?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          auto_deposit_enabled?: boolean | null
+          budget_approval_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_bank_address?: string | null
+          default_bank_branch?: string | null
+          default_bank_name?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          preferred_escrow_currency?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_finance_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_governance_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          curation_checklist_override: number | null
+          escrow_deposit_pct_override: number | null
+          governance_mode: string
+          id: string
+          is_active: boolean
+          legal_review_threshold_override: number | null
+          organization_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          curation_checklist_override?: number | null
+          escrow_deposit_pct_override?: number | null
+          governance_mode: string
+          id?: string
+          is_active?: boolean
+          legal_review_threshold_override?: number | null
+          organization_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          curation_checklist_override?: number | null
+          escrow_deposit_pct_override?: number | null
+          governance_mode?: string
+          id?: string
+          is_active?: boolean
+          legal_review_threshold_override?: number | null
+          organization_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_governance_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_legal_document_templates: {
+        Row: {
+          applies_to_mode: string
+          content: string | null
+          content_json: Json | null
+          created_at: string
+          created_by: string | null
+          default_template_url: string | null
+          description: string | null
+          document_code: string | null
+          document_name: string
+          document_type: string
+          effective_date: string | null
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          organization_id: string
+          original_file_name: string | null
+          original_file_url: string | null
+          template_content: string | null
+          tenant_id: string
+          tier: string
+          updated_at: string | null
+          updated_by: string | null
+          version: string
+          version_status: string
+        }
+        Insert: {
+          applies_to_mode?: string
+          content?: string | null
+          content_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          default_template_url?: string | null
+          description?: string | null
+          document_code?: string | null
+          document_name: string
+          document_type?: string
+          effective_date?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          organization_id: string
+          original_file_name?: string | null
+          original_file_url?: string | null
+          template_content?: string | null
+          tenant_id: string
+          tier?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          version?: string
+          version_status?: string
+        }
+        Update: {
+          applies_to_mode?: string
+          content?: string | null
+          content_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          default_template_url?: string | null
+          description?: string | null
+          document_code?: string | null
+          document_name?: string
+          document_type?: string
+          effective_date?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          organization_id?: string
+          original_file_name?: string | null
+          original_file_url?: string | null
+          template_content?: string | null
+          tenant_id?: string
+          tier?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          version?: string
+          version_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_legal_document_templates_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
             referencedColumns: ["id"]
