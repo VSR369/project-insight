@@ -222,11 +222,11 @@ serve(async (req) => {
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "MP", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
       challenge_model_is_agg: false, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
-      problem_statement: c2Prob, scope: c2Scope, maturity_level: "SOLUTION_READY", evaluation_criteria: c2Crit,
+      problem_statement: c2Prob, scope: c2Scope, maturity_level: "PROTOTYPE", evaluation_criteria: c2Crit,
       currency_code: "USD", domain_tags: c2Tags, ip_model: "IP-EL", phase_schedule: { expected_timeline: "9-12" },
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 250000 },
       extended_brief: { creator_approval_required: true, context_background: c2Ctx },
-      creator_snapshot: { title: "Global AML Transaction Monitoring System", hook: c2Hook, problem_statement: c2Prob, scope: c2Scope, domain_tags: c2Tags, maturity_level: "SOLUTION_READY", context_background: c2Ctx, evaluation_criteria: c2Crit, currency_code: "USD", platinum_award: 250000, ip_model: "IP-EL", expected_timeline: "9-12" },
+      creator_snapshot: { title: "Global AML Transaction Monitoring System", hook: c2Hook, problem_statement: c2Prob, scope: c2Scope, domain_tags: c2Tags, maturity_level: "PROTOTYPE", context_background: c2Ctx, evaluation_criteria: c2Crit, currency_code: "USD", platinum_award: 250000, ip_model: "IP-EL", expected_timeline: "9-12" },
       industry_segment_id: financeId, created_by: mpCr?.userId ?? null,
     }, "C2");
     challengeIds.push(c2Id);
