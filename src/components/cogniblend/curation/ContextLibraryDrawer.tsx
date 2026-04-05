@@ -60,8 +60,8 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <SheetContent side="right" className="!w-[900px] !max-w-[900px] !p-0 flex flex-col overflow-hidden">
-        <SheetHeader className="shrink-0 p-4 pb-3 border-b">
+      <SheetContent side="right" className="flex flex-col overflow-hidden gap-0 sm:max-w-none" style={{ padding: 0, width: 900, maxWidth: 900 }}>
+        <SheetHeader className="shrink-0 p-4 pb-3 border-b min-h-[4rem]">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2 text-lg">
               <BookOpen className="h-5 w-5" />Context Library
