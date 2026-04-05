@@ -454,27 +454,31 @@ serve(async (req) => {
 
     // Challenge 3: QUICK + AGG (5 Creator fields filled — minimal)
     const quickId = crypto.randomUUID();
-    const c3ProblemStatement = "Mahindra Electric's last-mile delivery fleet—comprising 2,400+ Treo auto-rickshaws and e-Alfa Mini cargo vehicles deployed across 18 Indian cities—currently lacks a unified telematics platform. Fleet operators manage battery state-of-health monitoring through the OEM app, route optimisation through a third-party logistics tool, and charging schedule coordination through manual spreadsheets. This fragmentation causes an average 22% under-utilisation of vehicle range, 35-minute daily delays per vehicle due to uncoordinated charging queues, and zero visibility into predictive battery degradation. We need a single-pane-of-glass dashboard prototype that aggregates CAN bus telemetry, charging station APIs, and route planning data to give fleet managers real-time operational intelligence and predictive alerts.";
-    const c3DomainTags = ["electric-vehicles", "fleet-telematics", "dashboard", "IoT"];
+    const c3ProblemStatement = "Tech Mahindra has committed to net-zero carbon emissions by 2035 as part of our ESG goals. We need a prototype employee-facing dashboard that tracks individual and team carbon footprint from work-related activities including office energy consumption (assigned by floor/zone), business travel (air, rail, road), data center usage (allocated by project), and commute patterns. The prototype should pull sample data from our existing SAP SuccessFactors HR system and Concur travel platform APIs, calculate estimated CO2 equivalents using GHG Protocol Scope 1/2/3 emission factors, and display actionable insights with monthly trends and reduction targets. This is an internal innovation challenge open to all Tech Mahindra associates globally.";
+    const c3DomainTags = ["sustainability", "dashboard", "ESG", "carbon-tracking"];
     const c3Snapshot = {
-      title: "EV Fleet Telematics Dashboard for Last-Mile Delivery",
+      title: "Internal Carbon Footprint Tracker — Employee Dashboard Prototype",
       problem_statement: c3ProblemStatement,
       domain_tags: c3DomainTags,
       currency_code: "USD",
-      platinum_award: 15000,
-      reward_structure: { currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
+      platinum_award: 10000,
+      reward_structure: { currency: "USD", platinum_award: 10000, budget_min: 5000, budget_max: 15000 },
     };
 
     const { error: c3Err } = await supabaseAdmin.from("challenges").insert({
       id: quickId, tenant_id: orgId, organization_id: orgId,
-      title: "EV Fleet Telematics Dashboard for Last-Mile Delivery",
+      title: "Internal Carbon Footprint Tracker — Employee Dashboard Prototype",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c3ProblemStatement,
       maturity_level: "BLUEPRINT",
-      evaluation_criteria: { weighted_criteria: [{ name: "UX Quality", weight: 40 },{ name: "Feasibility", weight: 30 },{ name: "Speed", weight: 30 }]},
-      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
+      evaluation_criteria: { weighted_criteria: [
+        { name: "UX Design & Employee Engagement", weight: 40 },
+        { name: "Data Integration Feasibility", weight: 30 },
+        { name: "Carbon Calculation Accuracy", weight: 30 },
+      ]},
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 10000, budget_min: 5000, budget_max: 15000 },
       currency_code: "USD", domain_tags: c3DomainTags,
       phase_schedule: { expected_timeline: "1-3" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c3DomainTags }),
@@ -484,7 +488,7 @@ serve(async (req) => {
     });
     if (c3Err) throw new Error(`QUICK challenge: ${c3Err.message}`);
     challengeIds.push(quickId);
-    results.push(`✅ Challenge 3: QUICK+AGG "EV Fleet Telematics — Mahindra Electric" (Phase 2 — CURATION)`);
+    results.push(`✅ Challenge 3: QUICK+AGG "Carbon Footprint Tracker" — $10K (Phase 2)`);
 
     // ─── Step 5: Assign roles per GOVERNANCE CONVERGENCE RULES ───
     const soloUser = userIds.find(u => u.displayName === "Sam Solo");
