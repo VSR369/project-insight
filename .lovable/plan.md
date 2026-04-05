@@ -1,31 +1,32 @@
 
 
-# Fix My Challenges View — Governance-Aware UI
+# Fix My Challenges View — 5-Why Root Cause Analysis + Fix (IMPLEMENTED)
 
-## Problems
+## Root Cause (5-Why)
 
-1. **CurationProgressTracker shows for QUICK mode** — Detail view renders the curation tracker for any phase 2-3 challenge without checking governance mode. QUICK has no Curator role.
-2. **Status messages wrong for QUICK** — "In Curation" appears for QUICK challenges at phase >1 in both the detail view and the list page.
-3. **Dashboard routes to wrong URL** — `MyChallengesSection.tsx` navigates to `/cogni/challenges/${id}` (old screen) instead of `/cogni/challenges/${id}/view`.
-4. **ProgressDetailCard fabricates curator status** — When no `curation_progress` row exists, it still renders "Submitted — waiting for Curator to begin".
+1. Only 2 sections show → sections have null content
+2. Null content → snapshot keys don't match builder reads
+3. Keys missing → seed uses old names (`currency`, `budget_max`) and omits `domain_tags`, `maturity_level`, etc.
+4. Old keys → seed written before schema fix, never updated
+5. No shared field spec → `CREATOR_SECTION_KEYS` included phantom keys (`title`, `currency_code`) with no sections; `resolveChallengeGovernance(null)` clamped everything to QUICK
 
-## Changes (4 files, no new files)
+## Changes Applied
 
-### 1. `CreatorChallengeDetailView.tsx`
-- Gate `CurationProgressTracker` behind `!isQuickMode`
-- Make status banner governance-aware: QUICK shows "Processing" instead of "In Curation"
+### 1. `CreatorChallengeDetailView.tsx` — Governance resolution fix
+- Replaced `resolveChallengeGovernance` (tier-clamped) with `resolveGovernanceMode` (direct)
+- Removed `useGovernanceFieldRules` hook and `fieldRules` prop from My Version tabs
+- Curator Version tab still uses content-based filtering
 
-### 2. `MyChallengesPage.tsx`
-- Add `governanceMode` parameter to `getStatusConfig`
-- QUICK + IN_PREPARATION + phase > 1 shows "Processing" instead of "In Curation"
-- Pass governance mode from `ChallengeCard`
+### 2. `CreatorSectionBuilders.tsx` — Keys + snapshot reads
+- Removed phantom keys (`title`, `currency_code`) from `CREATOR_SECTION_KEYS`
+- QUICK: 3 keys | STRUCTURED: 6 keys | CONTROLLED: 10 keys
+- Budget reads `platinum_award` OR `budget_max`, currency reads `currency_code` OR `currency`
+- Context reads from root OR `extended_brief`
+- Eval criteria checks top-level `weighted_criteria` OR nested in `evaluation_criteria`
+- Domain tags checks `domain_tags` OR `domain_tag_ids`
 
-### 3. `MyChallengesSection.tsx`
-- Fix routing: `/cogni/challenges/${id}` → `/cogni/challenges/${id}/view`
-- Show "Processing" for QUICK mode instead of "In Preparation" when phase > 1
-
-### 4. `CurationProgressTracker.tsx`
-- Return `null` when no progress data exists (don't fabricate "waiting for Curator")
-
-## All files stay under 200 lines. No DB changes needed.
-
+### 3. `setup-test-scenario/index.ts` — Seed snapshots
+- CONTROLLED: all 12 Creator fields with correct keys
+- STRUCTURED: all 8 Creator fields
+- QUICK: all 5 Creator fields
+- Added `currency_code` and `domain_tags` columns to challenge INSERTs
