@@ -1,35 +1,33 @@
 
 
-# Fix Field Rules for QUICK + STRUCTURED Governance
+# Fix QUICK Challenge Seed Data in setup-test-scenario
 
-## What's needed
-One SQL data update (not a schema change) to fix two issues:
+## Problem
+Challenge 3 (QUICK) in the seed function includes fields that should NOT exist for QUICK mode:
+- `maturity_level: "BLUEPRINT"` — hidden for QUICK
+- `evaluation_criteria` with 3 weighted criteria — hidden for QUICK
+- `domain_tags` has 4 tags (max 3 per schema)
+- `phase_schedule: { expected_timeline: "1-3" }` — should be platform default `"8w"`
 
-1. **QUICK mode**: `deliverables_list` is still `required` in DB — should be `hidden` (no form renderer exists but the rule count is wrong)
-2. **STRUCTURED mode**: `ip_model` and `expected_timeline` are `required` — should be `optional` (only 8 fields should be required, not 10)
+Challenges 1 (CONTROLLED) and 2 (STRUCTURED) are already correct.
 
-Note: `weighted_criteria` for QUICK was already fixed in the previous migration.
+## Changes
 
-## Change: SQL data update (3 lines)
+**File: `supabase/functions/setup-test-scenario/index.ts`**
 
-Use the Supabase insert/update tool (not migration, since this is a data update):
+Lines 468-491 — Replace the QUICK challenge INSERT:
 
-```sql
-UPDATE public.md_governance_field_rules SET visibility = 'hidden'
-WHERE governance_mode = 'QUICK'
-  AND field_key = 'deliverables_list'
-  AND is_active = true;
+1. Remove `maturity_level: "BLUEPRINT"` from the challenge record
+2. Remove the entire `evaluation_criteria` block (lines 476-480)
+3. Change `domain_tags` from 4 tags to 3: `["sustainability", "dashboard", "ESG"]`
+4. Change `phase_schedule` from `{ expected_timeline: "1-3" }` to `{ expected_timeline: "8w" }`
+5. Add `ip_model: "IP-NEL"` as auto-default (platform-set, not Creator-filled)
+6. Update `c3DomainTags` declaration (line 458) to 3 tags
 
-UPDATE public.md_governance_field_rules SET visibility = 'optional'
-WHERE governance_mode = 'STRUCTURED'
-  AND field_key IN ('ip_model', 'expected_timeline')
-  AND is_active = true;
-```
+Also update the snapshot `c3DomainTags` reference (line 458) to match.
 
 ## Result
-- QUICK: 5 required fields (title, problem_statement, domain_tags, currency_code, platinum_award)
-- STRUCTURED: 8 required fields (title, problem_statement, scope, domain_tags, maturity_level, weighted_criteria, currency_code, platinum_award)
-- CONTROLLED: unchanged at 12
-
-No TypeScript changes needed — the form reads visibility from the DB via `isFieldVisible()`.
+- QUICK challenge record: no `maturity_level`, no `evaluation_criteria`, auto `ip_model`
+- QUICK snapshot: exactly 5 fields + legacy `reward_structure`
+- Matches governance rules: Creator fills only title, problem, domain_tags, currency, prize
 
