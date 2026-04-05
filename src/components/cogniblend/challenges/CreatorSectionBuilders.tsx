@@ -144,7 +144,7 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
     {
       title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags',
       content: (() => {
-        const tags = snapshot.domain_tags as string[] | undefined;
+        const tags = (snapshot.domain_tags ?? snapshot.domain_tag_ids) as string[] | undefined;
         if (!tags?.length) return null;
         const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
         const displayTags = tags.map((t) => isUuid(t) ? `Tag ${t.substring(0, 6)}…` : t);
