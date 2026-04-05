@@ -315,75 +315,162 @@ serve(async (req) => {
 
     // Challenge 1: CONTROLLED + AGG (12 Creator fields filled)
     const controlledId = crypto.randomUUID();
+    const c1ProblemStatement = "Mahindra's automotive manufacturing plants in Nashik, Chakan, and Haridwar collectively operate 34 production lines running 24/7, producing over 42,000 vehicles per month. Unplanned equipment failures—primarily in hydraulic press systems, robotic welding cells, and CNC machining centres—are causing an estimated ₹19.2 crore ($2.3M) in annual downtime losses. The current time-based preventive maintenance programme results in two failure modes: unexpected breakdowns that halt entire assembly sequences, and unnecessary scheduled servicing of healthy equipment that wastes 2,400+ technician-hours per quarter. The plant engineering team has identified that 68% of catastrophic failures show detectable vibration or thermal anomalies 48-72 hours before failure, but lacks the sensor infrastructure and analytics capability to exploit this window.";
+    const c1Scope = "Design and deploy a condition-based predictive maintenance platform integrating with Siemens SIMATIC S7 SCADA controllers and Allen-Bradley CompactLogix PLCs across 847 sensor nodes (vibration, thermal, current, acoustic) installed on critical path equipment. The solution must ingest real-time telemetry at 10-second intervals, apply ML anomaly detection models, and generate automated work orders in SAP PM (Plant Maintenance) module. Phase 1 covers the Chakan SUV assembly plant (12 lines), Phase 2 extends to Nashik (14 lines), and Phase 3 to Haridwar (8 lines). Deliverables include a real-time operations dashboard, mobile alerting app for maintenance supervisors, and monthly reliability analytics reports. The platform must achieve a minimum 40% reduction in unplanned downtime within 6 months of Phase 1 deployment, with a false-positive rate below 5%.";
+    const c1Hook = "Eliminate ₹19.2 crore in annual unplanned downtime across Mahindra's 34 production lines through IoT-driven failure prediction with 48-hour advance warning";
+    const c1Context = "Mahindra operates one of India's largest automotive manufacturing footprints, with equipment ranging from 5 to 15 years old. The current Mean Time Between Failures (MTBF) averages 240 hours; the target is 500+ hours. The IT/OT convergence initiative launched in 2024 has established a unified network backbone, but analytics capabilities remain nascent. The Chakan plant recently completed a Siemens MindSphere pilot on 2 lines with promising results but limited scope. Union agreements require 30-day advance notice for any changes to maintenance shift patterns. The Chief Manufacturing Officer has executive sponsorship and a dedicated ₹8 crore budget allocation for Industry 4.0 initiatives in FY2026-27.";
+    const c1EvalCriteria = { weighted_criteria: [
+      { name: "Technical Architecture & ML Approach", weight: 30 },
+      { name: "Prediction Accuracy & False-Positive Rate", weight: 25 },
+      { name: "SCADA/PLC/SAP Integration Feasibility", weight: 20 },
+      { name: "ROI & Payback Period", weight: 15 },
+      { name: "Team Domain Experience in Manufacturing", weight: 10 },
+    ]};
+    const c1DomainTags = ["automotive-manufacturing", "predictive-maintenance", "industrial-IoT", "machine-learning"];
+    const c1ExtendedBrief = {
+      creator_approval_required: true,
+      context_background: c1Context,
+      root_causes: [
+        "Reactive maintenance culture with no condition-based monitoring",
+        "No sensor-to-failure correlation database across equipment types",
+        "Siloed data: SCADA, SAP PM, and maintenance logs in disconnected systems",
+        "Insufficient vibration analysis expertise on maintenance teams",
+        "Legacy PLC firmware limits real-time data extraction rates",
+      ],
+      affected_stakeholders: [
+        { role: "Plant Maintenance Engineers", count: 45 },
+        { role: "Production Planning Managers", count: 12 },
+        { role: "Quality Assurance Inspectors", count: 28 },
+        { role: "Shop Floor Supervisors", count: 34 },
+        { role: "IT/OT Integration Team", count: 8 },
+        { role: "Spare Parts & Procurement", count: 15 },
+      ],
+      current_deficiencies: [
+        "12% unplanned downtime rate vs. industry benchmark of 5%",
+        "Zero predictive capability—100% reactive or time-based maintenance",
+        "200+ manual inspection hours per month with subjective assessments",
+        "Spare parts overstocking costs ₹3.2 crore annually due to conservative ordering",
+        "No centralised equipment health dashboard for plant management",
+      ],
+    };
+    const c1Snapshot = {
+      title: "AI-Powered Predictive Maintenance for Mahindra Auto Plants",
+      hook: c1Hook,
+      problem_statement: c1ProblemStatement,
+      scope: c1Scope,
+      domain_tags: c1DomainTags,
+      maturity_level: "PROTOTYPE",
+      context_background: c1Context,
+      evaluation_criteria: c1EvalCriteria,
+      currency_code: "USD",
+      platinum_award: 75000,
+      ip_model: "IP-EL",
+      expected_timeline: "6-12",
+      extended_brief: { context_background: c1Context },
+      reward_structure: { currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
+    };
+
     const { error: c1Err } = await supabaseAdmin.from("challenges").insert({
       id: controlledId, tenant_id: orgId, organization_id: orgId,
-      title: "AI-Powered Predictive Maintenance for Smart Manufacturing",
-      hook: "Reduce $2.3M annual downtime through IoT-driven failure prediction",
+      title: "AI-Powered Predictive Maintenance for Mahindra Auto Plants",
+      hook: c1Hook,
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
-      problem_statement: "Our manufacturing floor experiences unplanned equipment failures costing $2.3M annually. Current preventive maintenance is time-based, causing both unexpected breakdowns and unnecessary maintenance. We need condition-based predictive maintenance using IoT and ML to forecast failures 48-72 hours in advance.",
-      scope: "Integrate with existing SCADA/PLC systems across 12 production lines. Provide real-time dashboard, automated work orders, mobile app. Must reduce unplanned downtime by 40% within 6 months.",
+      problem_statement: c1ProblemStatement,
+      scope: c1Scope,
       maturity_level: "PROTOTYPE",
-      evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }]},
+      evaluation_criteria: c1EvalCriteria,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
-      currency_code: "USD", domain_tags: ["manufacturing", "IoT", "machine-learning"],
+      currency_code: "USD", domain_tags: c1DomainTags,
       ip_model: "IP-EL", phase_schedule: { expected_timeline: "6-12" },
-      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["manufacturing","IoT","machine-learning"] }),
-      extended_brief: { creator_approval_required: true, context_background: "Facility operates 24/7, 12 production lines.", root_causes: ["Reactive maintenance culture","No sensor-to-failure correlation","Siloed data"], affected_stakeholders: [{ role: "Plant Operations", count: 45 },{ role: "Production Planning", count: 12 }], current_deficiencies: ["12% unplanned downtime","No prediction capability","200+ manual inspection hours/month"] },
-      creator_snapshot: { title: "AI-Powered Predictive Maintenance for Smart Manufacturing", hook: "Reduce $2.3M annual downtime through IoT-driven failure prediction", problem_statement: "Our manufacturing floor experiences unplanned equipment failures costing $2.3M annually. Current preventive maintenance is time-based, causing both unexpected breakdowns and unnecessary maintenance.", scope: "Integrate with existing SCADA/PLC systems across 12 production lines. Provide real-time dashboard, automated work orders, mobile app. Must reduce unplanned downtime by 40% within 6 months.", domain_tags: ["manufacturing", "IoT", "machine-learning"], maturity_level: "PROTOTYPE", context_background: "Facility operates 24/7 with 12 production lines. Equipment 5-15 years old. Current MTBF 240 hours, target 500+.", evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }] }, currency_code: "USD", platinum_award: 75000, ip_model: "IP-EL", expected_timeline: "6-12", extended_brief: { context_background: "Facility operates 24/7 with 12 production lines." }, reward_structure: { currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 } },
+      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c1DomainTags }),
+      extended_brief: c1ExtendedBrief,
+      creator_snapshot: c1Snapshot,
       created_by: crUserId,
     });
     if (c1Err) throw new Error(`CONTROLLED challenge: ${c1Err.message}`);
     challengeIds.push(controlledId);
-    results.push(`✅ Challenge 1: CONTROLLED+AGG "AI Predictive Maintenance" (Phase 2 — CURATION)`);
+    results.push(`✅ Challenge 1: CONTROLLED+AGG "AI Predictive Maintenance — Mahindra Auto" (Phase 2 — CURATION)`);
 
     // Challenge 2: STRUCTURED + AGG (8 Creator fields filled)
     const structuredId = crypto.randomUUID();
+    const c2ProblemStatement = "Mahindra Insurance Brokers Ltd, a subsidiary of Mahindra Finance, processes over 12,000 motor and health insurance claims monthly across its pan-India network of 1,200+ branch offices. The current manual adjudication workflow averages 8.5 business days per claim, with an 18% first-pass rejection rate primarily caused by ICD-10/CPT coding errors, incomplete documentation, and inconsistent assessor interpretations. This delays policyholder settlements and drives a Net Promoter Score of just 34 in claims experience. The annual cost of rework, re-submissions, and customer escalations is estimated at ₹14 crore. The claims operations team of 340 adjusters spends approximately 60% of their time on data entry and document verification rather than actual adjudication decisions.";
+    const c2Scope = "Build an intelligent claims adjudication engine comprising: (1) NLP-based document extraction from scanned claim forms, hospital discharge summaries, and repair estimates using OCR + transformer models; (2) automated ICD-10 and CPT code validation against policy coverage terms; (3) integration with the TCS BaNCS core insurance platform via REST APIs for real-time claim status updates; (4) fraud pattern detection using historical claims data (3 years, 400K+ records) to flag suspicious patterns. The solution must handle both motor (60% volume) and health (40% volume) claim types, support Hindi and English documents, and achieve a minimum 85% straight-through processing rate for standard claims within 12 months of deployment.";
+    const c2DomainTags = ["insurance-claims", "document-AI", "NLP", "fraud-detection"];
+    const c2EvalCriteria = { weighted_criteria: [
+      { name: "Document Extraction Accuracy", weight: 35 },
+      { name: "TCS BaNCS Integration Depth", weight: 25 },
+      { name: "Scalability to 50K Claims/Month", weight: 20 },
+      { name: "Total Cost of Ownership (3-Year)", weight: 20 },
+    ]};
+    const c2Snapshot = {
+      title: "Intelligent Claims Adjudication for Mahindra Insurance",
+      problem_statement: c2ProblemStatement,
+      scope: c2Scope,
+      domain_tags: c2DomainTags,
+      maturity_level: "POC",
+      evaluation_criteria: c2EvalCriteria,
+      currency_code: "USD",
+      platinum_award: 40000,
+      reward_structure: { currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
+    };
+
     const { error: c2Err } = await supabaseAdmin.from("challenges").insert({
       id: structuredId, tenant_id: orgId, organization_id: orgId,
-      title: "Healthcare Claims Processing Automation",
+      title: "Intelligent Claims Adjudication for Mahindra Insurance",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "STRUCTURED", governance_mode_override: "STRUCTURED",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
-      problem_statement: "Administrative overhead in patient intake and claims processing consumes 35% of staff time. Manual errors cause 12% rejection rate. Need automation for 50% faster processing.",
-      scope: "Automate intake forms, claims extraction, coding validation. Integrate with Epic EHR. Target: 50% time reduction, 5% rejection rate.",
+      problem_statement: c2ProblemStatement,
+      scope: c2Scope,
       maturity_level: "POC",
-      evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }]},
+      evaluation_criteria: c2EvalCriteria,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
-      currency_code: "USD", domain_tags: ["healthcare", "automation", "NLP"],
+      currency_code: "USD", domain_tags: c2DomainTags,
       ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
-      eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: ["healthcare","automation","NLP"] }),
+      eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: c2DomainTags }),
       extended_brief: { creator_approval_required: true },
-      creator_snapshot: { title: "Healthcare Claims Processing Automation", problem_statement: "Administrative overhead in patient intake and claims processing consumes 35% of staff time. Manual errors cause 12% rejection rate. Need automation for 50% faster processing.", scope: "Automate intake forms, claims extraction, coding validation. Integrate with Epic EHR. Target: 50% time reduction, 5% rejection rate.", domain_tags: ["healthcare", "automation", "NLP"], maturity_level: "POC", evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }] }, currency_code: "USD", platinum_award: 40000, reward_structure: { currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 } },
+      creator_snapshot: c2Snapshot,
       created_by: crUserId,
     });
     if (c2Err) throw new Error(`STRUCTURED challenge: ${c2Err.message}`);
     challengeIds.push(structuredId);
-    results.push(`✅ Challenge 2: STRUCTURED+AGG "Healthcare Claims" (Phase 2 — CURATION)`);
+    results.push(`✅ Challenge 2: STRUCTURED+AGG "Claims Adjudication — Mahindra Insurance" (Phase 2 — CURATION)`);
 
     // Challenge 3: QUICK + AGG (5 Creator fields filled — minimal)
     const quickId = crypto.randomUUID();
+    const c3ProblemStatement = "Mahindra Electric's last-mile delivery fleet—comprising 2,400+ Treo auto-rickshaws and e-Alfa Mini cargo vehicles deployed across 18 Indian cities—currently lacks a unified telematics platform. Fleet operators manage battery state-of-health monitoring through the OEM app, route optimisation through a third-party logistics tool, and charging schedule coordination through manual spreadsheets. This fragmentation causes an average 22% under-utilisation of vehicle range, 35-minute daily delays per vehicle due to uncoordinated charging queues, and zero visibility into predictive battery degradation. We need a single-pane-of-glass dashboard prototype that aggregates CAN bus telemetry, charging station APIs, and route planning data to give fleet managers real-time operational intelligence and predictive alerts.";
+    const c3DomainTags = ["electric-vehicles", "fleet-telematics", "dashboard", "IoT"];
+    const c3Snapshot = {
+      title: "EV Fleet Telematics Dashboard for Last-Mile Delivery",
+      problem_statement: c3ProblemStatement,
+      domain_tags: c3DomainTags,
+      currency_code: "USD",
+      platinum_award: 15000,
+      reward_structure: { currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
+    };
+
     const { error: c3Err } = await supabaseAdmin.from("challenges").insert({
       id: quickId, tenant_id: orgId, organization_id: orgId,
-      title: "Supply Chain Visibility Dashboard Prototype",
+      title: "EV Fleet Telematics Dashboard for Last-Mile Delivery",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
-      problem_statement: "We lack real-time visibility into our multi-tier supply chain. Need a dashboard prototype aggregating data from 3 ERP systems with shipment tracking and risk alerts.",
+      problem_statement: c3ProblemStatement,
       maturity_level: "BLUEPRINT",
       evaluation_criteria: { weighted_criteria: [{ name: "UX Quality", weight: 40 },{ name: "Feasibility", weight: 30 },{ name: "Speed", weight: 30 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
-      currency_code: "USD", domain_tags: ["supply-chain", "dashboard"],
+      currency_code: "USD", domain_tags: c3DomainTags,
       phase_schedule: { expected_timeline: "1-3" },
-      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["supply-chain","dashboard"] }),
+      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c3DomainTags }),
       extended_brief: { creator_approval_required: false },
-      creator_snapshot: { title: "Supply Chain Visibility Dashboard Prototype", problem_statement: "We lack real-time visibility into our multi-tier supply chain. Need a dashboard prototype aggregating data from 3 ERP systems with shipment tracking and risk alerts.", domain_tags: ["supply-chain", "dashboard"], currency_code: "USD", platinum_award: 15000, reward_structure: { currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 } },
+      creator_snapshot: c3Snapshot,
       created_by: crUserId,
     });
     if (c3Err) throw new Error(`QUICK challenge: ${c3Err.message}`);
     challengeIds.push(quickId);
-    results.push(`✅ Challenge 3: QUICK+AGG "Supply Chain Dashboard" (Phase 2 — CURATION)`);
+    results.push(`✅ Challenge 3: QUICK+AGG "EV Fleet Telematics — Mahindra Electric" (Phase 2 — CURATION)`);
 
     // ─── Step 5: Assign roles per GOVERNANCE CONVERGENCE RULES ───
     const soloUser = userIds.find(u => u.displayName === "Sam Solo");
