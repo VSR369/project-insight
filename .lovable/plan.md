@@ -1,147 +1,60 @@
 
 
-# Fix Creator Module — Seed Data + List View + Detail Badges
+# Add Configuration Summary Card + QUICK Solver Explanation
 
 ## Summary
-Three coordinated changes to make the Creator module work end-to-end with realistic Tech Mahindra seed data, enriched list cards, and governance field badges.
+Add a Configuration Summary card, engagement model badge, and governance-mode-specific explanation banners to the Creator Challenge Detail View. Extract the new card into a separate component to keep files under 250 lines.
 
 ---
 
-## Change 1: Seed Data Rewrite
-**File: `supabase/functions/setup-test-scenario/index.ts`**
+## Change 1: New Component — `ChallengeConfigSummary.tsx`
+**File: `src/components/cogniblend/challenges/ChallengeConfigSummary.tsx`** (new, ~90 lines)
 
-**Org (lines 73-74, 203-218):** Change `orgName` from `"Mahindra & Mahindra Ltd"` to `"Tech Mahindra Limited"`. Replace org INSERT with enriched profile:
-- `trade_brand_name`: "Tech Mahindra"
-- `legal_entity_name`: "Tech Mahindra Limited"
-- `tagline`: "Connected World. Connected Experiences."
-- `organization_description`: "Tech Mahindra is a leading provider of digital transformation, consulting, and business re-engineering services and solutions. Part of the Mahindra Group, the company is a USD 6.5 billion organization with 150,000+ professionals across 90+ countries, helping 1,350+ global customers including Fortune 500 companies..."
-- `website_url`: "https://www.techmahindra.com"
-- `linkedin_url`: "https://www.linkedin.com/company/tech-mahindra"
+A self-contained component that renders:
 
-**Challenge 1 CONTROLLED (lines 316-394):** Replace entirely with "AI-Driven Clinical Trial Patient Matching & Recruitment Platform":
-- `problem_statement`: $41K per patient, manual chart review, 3-5% screen ratio, 18-24 month enrollment, EHR parsing across Epic/Cerner/Meditech, >85% sensitivity/>90% specificity (~250 words)
-- `scope`: HL7 FHIR R4, 47 hospital networks, 12M records, 200+ protocols, HIPAA cloud, 30sec/1000 records (~120 words)
-- `hook`: "Reduce clinical trial recruitment time by 60% using AI/NLP on 12M+ electronic health records across 47 hospital networks"
-- `context_background`: Tech Mahindra HLS division serves 15 of top 20 pharma, IRB approval at Mount Sinai/Cleveland Clinic/Mayo (~100 words)
-- `evaluation_criteria`: 6 weighted criteria (30/20/15/15/10/10)
-- `platinum_award`: 500000, `currency_code`: "USD", `ip_model`: "IP-EL", `maturity_level`: "SOLUTION_GROWTH", `expected_timeline`: "6-12"
-- `extended_brief`: root_causes (5 items), affected_stakeholders (4 roles with counts/impacts), current_deficiencies (5 items)
-- `creator_snapshot`: mirrors all 12 fields above exactly
+1. **Configuration Summary Card** — 4-column grid showing Governance, Engagement Model, Top Prize, and Industry/Domain Tags
+2. **QUICK mode banner** — Green "Express Mode — Direct to Solvers" with explanation text (AGG vs MP variant)
+3. **STRUCTURED/CONTROLLED banner** — "Professional Review" or "Enterprise Review Pipeline" with pipeline steps
 
-**Challenge 2 STRUCTURED (lines 396-439):** Replace with "Predictive Quality Analytics for Automotive Component Manufacturing":
-- `problem_statement`: 8 OEM clients, 23 plants, 4.2% defect rate, $18M scrap costs, Siemens MindSphere + SAP QM integration (~120 words)
-- `scope`: 1200+ machines, 50TB/month, CNC+injection+assembly, Azure, pilot 3 plants Pune (~80 words)
-- `domain_tags`: ["manufacturing", "predictive-analytics", "IoT", "quality-assurance"]
-- `evaluation_criteria`: 5 weighted criteria (30/25/20/15/10)
-- `platinum_award`: 120000, `maturity_level`: "POC"
-- `creator_snapshot`: mirrors all 8 fields
-
-**Challenge 3 QUICK (lines 441-473):** Replace with "Internal Carbon Footprint Tracker — Employee Dashboard Prototype":
-- `problem_statement`: Net-zero by 2035, employee dashboard for office energy/travel/data center/commute, SAP SuccessFactors + Concur APIs, GHG Protocol (~100 words)
-- `domain_tags`: ["sustainability", "dashboard", "ESG", "carbon-tracking"]
-- `platinum_award`: 10000
-- `creator_snapshot`: mirrors all 5 fields
-
-All exact content provided in user's prompt above — use verbatim.
-
----
-
-## Change 2: My Challenges List View Enhancements
-**File: `src/hooks/cogniblend/useMyChallenges.ts`**
-
-**Interface (line 10-21):** Add 4 new fields to `MyChallengeItem`:
+Props:
 ```typescript
-problem_statement: string | null;
-reward_structure: Record<string, unknown> | null;
-currency_code: string | null;
-domain_tags: string[] | null;
+interface ChallengeConfigSummaryProps {
+  effectiveGovernance: GovernanceMode;
+  operatingModel: string | null;
+  rewardStructure: Record<string, unknown> | null;
+  currencyCode: string | null;
+  industryName: string | null;
+  domainTags: unknown[] | null;
+}
 ```
 
-**Query (line 36-42):** Add to SELECT: `problem_statement, reward_structure, currency_code, domain_tags`
+Uses `Zap` icon for QUICK banner, `Info` icon for STRUCTURED/CONTROLLED banner. Prize extracted from `reward_structure.platinum_award ?? reward_structure.budget_max`. Governance label from existing `governanceLabel()` helper.
 
-**Map builder (line 68-79):** Add to challengeMap.set:
-```typescript
-problem_statement: (ch.problem_statement as string) ?? null,
-reward_structure: (ch.reward_structure as Record<string, unknown>) ?? null,
-currency_code: (ch.currency_code as string) ?? null,
-domain_tags: (ch.domain_tags as string[]) ?? null,
-```
-
-**File: `src/pages/cogniblend/MyChallengesPage.tsx`**
-
-In `ChallengeCard` (after line 268, before the `formattedDate` block), add problem excerpt + prize/tags row:
-
-```tsx
-{/* Problem excerpt */}
-{ch.problem_statement && (
-  <p className="text-xs text-muted-foreground ml-6 line-clamp-1">
-    {ch.problem_statement.replace(/<[^>]*>/g, '').substring(0, 140)}
-  </p>
-)}
-{/* Prize + domain tags */}
-<div className="flex flex-wrap items-center gap-2 ml-6 mt-1">
-  {(() => {
-    const rs = ch.reward_structure;
-    const prize = Number(rs?.platinum_award ?? rs?.budget_max ?? 0);
-    const curr = ch.currency_code || (rs?.currency as string) || 'USD';
-    return prize > 0 ? (
-      <Badge variant="secondary" className="text-[10px] font-bold">
-        {curr} {prize.toLocaleString()}
-      </Badge>
-    ) : null;
-  })()}
-  {ch.domain_tags?.slice(0, 3).map((tag, i) => (
-    <Badge key={i} variant="outline" className="text-[10px]">{String(tag)}</Badge>
-  ))}
-</div>
-```
-
----
-
-## Change 3: Detail View — "Your input" Badge
-**File: `src/components/cogniblend/challenges/CreatorSectionRenderers.tsx`**
-
-Update `FilteredSections` (line 185) to accept optional `creatorFieldKeys?: string[]` prop. Change the render at line 201 to wrap each section in a relative container and show a "Your input" badge when the section's fieldKey is in creatorFieldKeys:
-
-```tsx
-return <>{filtered.map((s) => (
-  <div key={s.title} className="relative">
-    {s.content}
-    {creatorFieldKeys?.includes(s.fieldKey ?? '') && (
-      <Badge variant="outline" className="text-[9px] text-muted-foreground absolute top-3 right-3 z-10">
-        Your input
-      </Badge>
-    )}
-  </div>
-))}</>;
-```
-
+## Change 2: Update `CreatorChallengeDetailView.tsx`
 **File: `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`**
 
-Import `CREATOR_SECTION_KEYS` is not directly exported. Instead, derive from effectiveGovernance in the component:
+Two additions:
 
-```typescript
-const creatorKeys = useMemo(() => {
-  const keys: Record<string, string[]> = {
-    QUICK: ['problem_statement', 'domain_tags', 'platinum_award'],
-    STRUCTURED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria'],
-    CONTROLLED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
-  };
-  return keys[effectiveGovernance] ?? keys.STRUCTURED;
-}, [effectiveGovernance]);
+1. **Import and render `ChallengeConfigSummary`** — placed between the status badges row (line 121) and the status message (line 123). Passes `effectiveGovernance`, `data.operating_model`, `data.reward_structure`, `data.currency_code`, `data.industry_name`, `data.domain_tags`.
+
+2. **Engagement model badge** — add to the existing badge row (after line 119):
+```tsx
+{data.operating_model && (
+  <Badge variant="outline" className="text-xs font-semibold">
+    {data.operating_model === 'MP' ? 'Marketplace' : 'Aggregator'}
+  </Badge>
+)}
 ```
 
-Pass `creatorFieldKeys={creatorKeys}` to all `FilteredSections` calls (lines 138, 140, 163, 177).
+3. **Remove the generic `statusMessage` info banner** (lines 123-128) since the new config summary banners replace it with richer, governance-specific messaging.
+
+No other files changed. The existing `FilteredSections` "Your input" badges and section builders remain untouched.
 
 ---
 
-## Deploy
-Deploy `setup-test-scenario` edge function after code changes.
-
 ## Verification
-1. Click "Seed Demo Scenario" to re-seed
-2. Chris (CONTROLLED): 10 section cards with "Your input" badges, $500K prize
-3. Chris (STRUCTURED): 6 section cards, $120K prize
-4. Sam Solo (QUICK): 3 section cards, $10K prize
-5. List view shows problem excerpts, prize badges, domain tags on each card
+- QUICK detail: Config card (QUICK | Aggregator | USD 10,000 | Technology) + green "Express Mode" banner + 3 section cards
+- STRUCTURED detail: Config card (STRUCTURED | Aggregator | USD 120,000 | Manufacturing) + "Professional Review" banner + 6 section cards
+- CONTROLLED detail: Config card (CONTROLLED | Aggregator | USD 500,000 | Healthcare) + "Enterprise Review Pipeline" banner + 10 section cards
+- Engagement model badge visible in header badge row for all modes
 
