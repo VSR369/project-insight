@@ -71,7 +71,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     ],
   },
   new_horizon_demo: {
-    orgName: "Mahindra & Mahindra Ltd",
+    orgName: "Tech Mahindra Limited",
     operatingModel: "AGG",
     governanceProfile: "CONTROLLED",
     subscriptionTier: "premium",
