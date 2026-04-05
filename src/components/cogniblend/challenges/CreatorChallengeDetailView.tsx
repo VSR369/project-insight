@@ -135,9 +135,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
             <Input placeholder="Search sections..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-9 text-sm" />
           </div>
           {hasSnapshot ? (
-            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
           ) : (
-            <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+            <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
           )}
         </div>
       ) : (
