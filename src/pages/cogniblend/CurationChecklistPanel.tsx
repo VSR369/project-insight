@@ -205,10 +205,10 @@ export default function CurationChecklistPanel({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-primary" />
-                  <span className="text-base font-bold">15-Point Checklist</span>
+                  <span className="text-base font-bold">{TOTAL_ITEMS}-Point Checklist</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={cn("text-sm font-semibold", allComplete ? "text-green-600" : "text-muted-foreground")}>{completedCount}/15</span>
+                  <span className={cn("text-sm font-semibold", allComplete ? "text-green-600" : "text-muted-foreground")}>{completedCount}/{TOTAL_ITEMS}</span>
                   <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
                 </div>
               </div>
