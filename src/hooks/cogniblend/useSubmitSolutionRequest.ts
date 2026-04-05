@@ -152,7 +152,11 @@ export function useSubmitSolutionRequest() {
         industry_segment_id: filteredPayload.industrySegmentId || null,
         budgetMin: filteredPayload.budgetMin ?? 0, budgetMax: filteredPayload.budgetMax ?? 0,
         currency: filteredPayload.currency ?? payload.currency,
+        currency_code: filteredPayload.currency ?? payload.currency,
         expected_timeline: filteredPayload.expectedTimeline,
+        evaluation_criteria: filteredPayload.weightedCriteria?.length
+          ? { weighted_criteria: filteredPayload.weightedCriteria }
+          : null,
       };
       const creatorSnapshot = stripHiddenFields(rawSnapshot, governanceRules, FORM_FIELD_TO_GOVERNANCE_KEY);
       await supabase.from('challenges').update({ creator_snapshot: creatorSnapshot } as any).eq('id', challengeId);

@@ -128,6 +128,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       currentDeficiencies: cleanArray(data.current_deficiencies),
       maturityLevel: data.maturity_level || undefined, solutionMaturityId: data.solution_maturity_id || undefined,
       ipModel: data.ip_model || undefined, hook: data.hook || undefined,
+      weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
     };
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
