@@ -43,6 +43,15 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   // Governance-aware content visibility
   const isQuickMode = effectiveGovernance === 'QUICK';
 
+  const creatorKeys = useMemo(() => {
+    const keys: Record<string, string[]> = {
+      QUICK: ['problem_statement', 'domain_tags', 'platinum_award'],
+      STRUCTURED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria'],
+      CONTROLLED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
+    };
+    return keys[effectiveGovernance] ?? keys.STRUCTURED;
+  }, [effectiveGovernance]);
+
   const statusMessage = useMemo(() => {
     const phase = data.current_phase ?? 1;
     if (phase === 1) return 'Draft — complete your challenge and submit';
