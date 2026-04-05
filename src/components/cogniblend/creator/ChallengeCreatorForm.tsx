@@ -82,8 +82,9 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     defaultValues: {
       title: '', hook: '', problem_statement: '', scope: '', maturity_level: '',
       solution_maturity_id: '', industry_segment_id: industrySegmentId, domain_tags: [],
-      currency: 'USD', budget_min: 0, budget_max: 0,
+      currency_code: 'USD', platinum_award: 0,
       ip_model: isQuick ? 'IP-NEL' : '', expected_outcomes: [''],
+      weighted_criteria: [], deliverables_list: [],
       context_background: '', preferred_approach: [''], approaches_not_of_interest: [''],
       affected_stakeholders: [], current_deficiencies: [''], root_causes: [''], expected_timeline: '',
     },
