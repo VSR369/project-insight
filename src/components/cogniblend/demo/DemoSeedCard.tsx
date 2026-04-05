@@ -41,8 +41,8 @@ export function DemoSeedCard() {
           Step 1: Seed Demo Data
         </CardTitle>
         <CardDescription>
-          Creates the "New Horizon Company" org, 9 test users, and assigns challenge roles.
-          Run this once — it's safe to re-run.
+          Creates "Tech Mahindra Limited" org, 11 test users, 6 challenges (3 governance × 2 engagement),
+          legal docs, escrow records, and role assignments. Safe to re-run.
         </CardDescription>
       </CardHeader>
       <CardContent>
