@@ -294,7 +294,7 @@ export function MyChallengesSection({
                         variant="outline"
                         size="sm"
                         className="shrink-0 text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10 w-full lg:w-auto"
-                        onClick={() => navigate(`/cogni/challenges/${item.challenge_id}`)}
+                        onClick={() => navigate(`/cogni/challenges/${item.challenge_id}/view`)}
                       >
                         View
                       </Button>
