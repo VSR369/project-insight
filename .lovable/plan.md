@@ -1,130 +1,60 @@
 
 
-# Fix Creator Role — Schema, Field Rendering, Visual Separation, AI Review
+# Gap Analysis: Plan vs Implementation
 
-## 5-Why Summary
+## What's Done
 
-1. **Form submit silently fails** — Zod schema validates hidden fields as required (e.g., `expected_outcomes.min(1)` in QUICK where it's hidden)
-2. **Field name mismatch** — Schema uses `currency`/`budget_min`/`budget_max`, but `md_governance_field_rules` uses `currency_code`/`platinum_award`
-3. **Wrong fields rendered per mode** — `EssentialDetailsTab` renders ~8 fields for ALL modes; should be 5/8/12
-4. **Context tab shows for QUICK** — Should be hidden entirely
-5. **No visual separation** — Config Panel and Form stack with no boundary
-6. **`weighted_criteria` missing** — Not in schema, not in form, not in seed data
-7. **`console.warn` violations** — DemoLoginPage lines 178, 184
+| Prompt | Status | Notes |
+|--------|--------|-------|
+| CR-1 (Schema fix) | DONE | `creatorFormSchema.ts` aligned, seed data updated, defaultValues correct |
+| CR-3 (Field rendering) | DONE | Visibility guards, WeightedCriteriaEditor, Context tab hidden for QUICK |
+| CR-4 (Visual separation) | DONE | Step 1/Step 2 layout with badges and field counts |
 
-## Changes (4 prompts from the uploaded plan)
+## What's NOT Done: CR-2 (Submit Hook Mapping)
 
-### CR-1: Fix `creatorFormSchema.ts` (RC-1 + RC-2)
+This is the critical missing piece. The form collects the right data, but it is stored incorrectly in the database. The Curator will see NULL or wrong values.
 
-**File:** `src/components/cogniblend/creator/creatorFormSchema.ts`
+### 3 bugs in `useSubmitSolutionRequest.ts`:
 
-- Rename `currency` to `currency_code`, `budget_min`/`budget_max` to `platinum_award` (single number)
-- Add `weighted_criteria` field (array of `{name, weight}`, required for STRUCTURED+CONTROLLED, weights must total 100%)
-- Add `deliverables_list` field (optional array)
-- Make hidden fields truly optional with `.optional().default(...)` — `expected_outcomes`, `scope`, `maturity_level`, `ip_model` are optional+defaulted in QUICK
-- QUICK: 5 required (title, problem_statement, domain_tags, currency_code, platinum_award)
-- STRUCTURED: +3 required (scope, maturity_level, weighted_criteria) = 8
-- CONTROLLED: +4 required (hook, context_background, ip_model, expected_timeline) = 12
-- Update `CreatorFormValues` type to match new field names
+1. **`currency_code` direct column never set** -- Line 87-112 `.update()` call does not include `currency_code`. The value is only stored inside `reward_structure` JSONB. Curator reads `ch.currency_code` and gets NULL.
 
-**File:** `src/components/cogniblend/creator/creatorSeedContent.ts`
-- Update seed data to use new field names (`currency_code`, `platinum_award`, add `weighted_criteria`)
+2. **`platinum_award` stored as `budget_max`** -- `reward_structure` uses `budget_max` key (line 62). Plan requires it to also be stored as `platinum_award` so Curator reads the correct key.
 
-**File:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
-- Update `defaultValues` to match new schema field names
-- Update `buildPayload` to map `currency_code` → `currency`, `platinum_award` → budget fields
+3. **`weighted_criteria` never stored** -- `evaluation_criteria` JSONB column is never written. The form collects criteria via `WeightedCriteriaEditor` but `buildPayload` in `ChallengeCreatorForm.tsx` (line 114-132) does not pass `weightedCriteria` to the submit payload. The `SubmitPayload` interface in `solutionRequestPayloads.ts` doesn't have a `weightedCriteria` field.
 
-### CR-2: Fix field rendering (RC-3 + RC-4)
+### Files to fix:
 
-**File:** `src/components/cogniblend/creator/EssentialDetailsTab.tsx`
-- Wrap ALL fields in `isFieldVisible()` consistently (maturity_level, expected_outcomes)
-- Remove `expected_outcomes` from this tab (it's AI-drafted, not Creator-owned)
-- Add `platinum_award` single number field (replacing budget_min/budget_max pair)
+**1. `src/lib/cogniblend/solutionRequestPayloads.ts`**
+- Add `weightedCriteria?: Array<{ name: string; weight: number }>` to `SubmitPayload` and `DraftPayload` interfaces
+- In `buildChallengeUpdatePayload`: add `currency_code: fp.currency` and `evaluation_criteria` from `weightedCriteria`
+- Add `platinum_award` to `reward_structure` alongside `budget_max` (backward compat)
 
-**File:** `src/components/cogniblend/creator/EssentialFieldRenderers.tsx`
-- Replace budget_min/budget_max with single `platinum_award` number input
-- Rename currency field to `currency_code`
-- Add `weighted_criteria` section (delegates to new component)
-- Wrap `maturity_level` in `isFieldVisible()` guard
+**2. `src/hooks/cogniblend/useSubmitSolutionRequest.ts`**
+- In the `.update()` call (line 87): add `currency_code: filteredPayload.currency ?? payload.currency`
+- Add `evaluation_criteria: filteredPayload.weightedCriteria?.length ? { weighted_criteria: filteredPayload.weightedCriteria } : null`
+- In `rewardStructure` (line 59): add `platinum_award: filteredPayload.budgetMax ?? 0`
+- In creator snapshot (line 137): add `evaluation_criteria` and `currency_code`
 
-**New file:** `src/components/cogniblend/creator/WeightedCriteriaEditor.tsx` (~80 lines)
-- Simple list: criterion name + weight % inputs
-- "Add criterion" button, remove button per row
-- Shows total %, highlights red if not 100%
-- Props: `control`, `isRequired`
+**3. `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
+- In `buildPayload` (line 114): add `weightedCriteria: data.weighted_criteria`
 
-**File:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
-- Hide Context tab for QUICK mode:
+### Also missing: Governance config migration
+
+The plan specifies:
+```sql
+UPDATE md_governance_mode_config
+SET dual_curation_enabled = false
+WHERE governance_mode = 'CONTROLLED';
 ```
-{governanceMode !== 'QUICK' && (
-  <TabsTrigger value="context">...</TabsTrigger>
-)}
-```
-
-### CR-3: Visual separation — Config Panel vs Form (RC-5 + RC-6)
-
-**File:** `src/pages/cogniblend/ChallengeCreatePage.tsx`
-- Wrap Configuration Panel in bordered card with "Step 1 -- Configure" label + GovernanceProfileBadge
-- Add "Step 2 -- Create" label above the form with field count indicator
-- Layout matches the wireframe from the uploaded document:
-
-```text
-+----------------------------------------------------------+
-|  New Challenge                                            |
-|                                                          |
-|  +--- STEP 1 - CONFIGURE ---- [STRUCTURED] ------------+|
-|  |  Industry Segment    [Healthcare v]                   ||
-|  |  Governance Mode     [STRUCTURED v]                   ||
-|  |  Engagement Model    [Aggregator v]                   ||
-|  +-------------------------------------------------------+|
-|                                                          |
-|  STEP 2 - CREATE (8 required fields)                     |
-|                                                          |
-|  +- Essential Details -+- Additional Context -----------+|
-|  |  Title *             |  (hidden for QUICK)            ||
-|  |  Problem Statement * |                                ||
-|  |  ...                 |                                ||
-|  +------------------------------------------------------+|
-|  | Fill Test | Save Draft | AI Review | Submit           ||
-|  +------------------------------------------------------+|
-+----------------------------------------------------------+
-```
-
-### CR-4: Align review fields + cleanup
-
-**File:** `src/constants/creatorReviewFields.ts`
-- Update field keys to match new schema: `currency` → `currency_code`, `budget_max` → `platinum_award`
-- Add `weighted_criteria` to STRUCTURED and CONTROLLED lists
-- Remove `ip_model` from STRUCTURED (it's optional there), keep in CONTROLLED
-
-**File:** `src/pages/cogniblend/DemoLoginPage.tsx`
-- Replace `console.warn` (lines 178, 184) with `logWarning()` from `@/lib/errorHandler`
-
-## File Size Compliance
-
-All files will stay under 200 lines:
-- `creatorFormSchema.ts`: ~100 lines (schema + type)
-- `EssentialDetailsTab.tsx`: ~95 lines
-- `EssentialFieldRenderers.tsx`: ~120 lines
-- `WeightedCriteriaEditor.tsx`: ~80 lines (NEW)
-- `ChallengeCreatorForm.tsx`: ~190 lines (current 193, minor net change)
-- `ChallengeCreatePage.tsx`: ~140 lines (current ~130, adding step labels)
-- `DemoLoginPage.tsx`: ~360 lines (existing, only 2 lines changed)
+This migration has not been created.
 
 ## Execution Order
 
-| # | What | Fixes | Why this order |
-|---|------|-------|----------------|
-| CR-1 | Schema fix | RC-1, RC-2 | Submit fails without this |
-| CR-2 | Field rendering | RC-3, RC-4 | Depends on new schema fields |
-| CR-3 | Visual separation | RC-5, RC-6 | Layout change, independent |
-| CR-4 | Review fields + cleanup | Alignment | Final polish |
+1. Add `weightedCriteria` to payload interfaces (`solutionRequestPayloads.ts`)
+2. Fix `buildPayload` in `ChallengeCreatorForm.tsx` to pass `weightedCriteria`
+3. Fix `.update()` in `useSubmitSolutionRequest.ts` to store `currency_code`, `evaluation_criteria`, and `platinum_award`
+4. Fix `buildChallengeUpdatePayload` in `solutionRequestPayloads.ts` for draft saves
+5. Create migration for `dual_curation_enabled = false`
 
-## Verification Checklist
-
-- QUICK: Only 5 fields visible, no Context tab, submit works without filling scope/maturity/criteria
-- STRUCTURED: 8 fields visible, Context tab optional, weighted_criteria editor works
-- CONTROLLED: 12 fields visible, AI Review button says "Required", submit disabled until AI Review done
-- No `console.warn` anywhere in modified files
-- All files under 200 lines
+All files remain under 250 lines. No new files needed.
 
