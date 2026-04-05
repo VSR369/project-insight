@@ -31,8 +31,8 @@ export default function FcChallengeQueuePage() {
     queryKey: ['fc-challenge-queue', user?.id],
     queryFn: async (): Promise<FcQueueItem[]> => {
       if (!user?.id) return [];
-      const { data: roleData } = await supabase
-        .from('user_challenge_roles' as string).select('challenge_id')
+      const { data: roleData } = await (supabase
+        .from('user_challenge_roles' as unknown as 'challenges') as unknown as ReturnType<typeof supabase.from>).select('challenge_id')
         .eq('user_id', user.id).eq('role_code', 'FC').eq('is_active', true);
       const ids = ((roleData ?? []) as unknown as Array<{ challenge_id: string }>).map(r => r.challenge_id);
       if (ids.length === 0) return [];

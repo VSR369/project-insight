@@ -119,10 +119,10 @@ export default function EscrowManagementPage() {
       toast.success('Escrow deposit confirmed successfully');
       // Call complete_financial_review RPC to set fc_compliance_complete and potentially advance phase
       try {
-        const { error: rpcError } = await supabase.rpc('complete_financial_review' as string, {
+        const { error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
           p_challenge_id: variables.challengeId,
           p_user_id: user?.id,
-        } as Record<string, unknown>);
+        });
         if (rpcError) {
           toast.warning('Escrow saved but financial review completion failed — please contact support.');
         } else {
