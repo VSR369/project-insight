@@ -1,77 +1,117 @@
 
+## 3 Changes to Complete Creator Module
 
-# Fix Seed Data — Realistic Content + Verify Section Display
+### Change 1: Seed Data — Tech Mahindra + Realistic Content
+**File: `supabase/functions/setup-test-scenario/index.ts`**
 
-## Current State
+Replace the `new_horizon_demo` scenario org name from "Mahindra & Mahindra Ltd" to "Tech Mahindra Limited". Update org INSERT fields:
+- `trade_brand_name`: "Tech Mahindra"
+- `legal_entity_name`: "Tech Mahindra Limited"  
+- `tagline`: "Connected World. Connected Experiences."
+- `organization_description`: Full paragraph about Tech Mahindra's $6.5B business, 150K+ professionals, 90+ countries, Fortune 500 clients, 5G/blockchain/AI/cybersecurity focus
+- `website_url`: "https://www.techmahindra.com"
+- `linkedin_url`: "https://www.linkedin.com/company/tech-mahindra"
 
-The code (governance resolution, section builders, snapshot key reads) was fixed in the previous iteration. The sections correctly read both old and new key formats. However:
+**Challenge 1 (CONTROLLED) — "AI-Driven Clinical Trial Patient Matching & Recruitment Platform"**
+Replace entirely with the user's pharma/healthcare challenge content:
+- `problem_statement`: $41K per patient, manual chart review, 3-5% screen ratio, 18-24 months enrollment, need AI platform for EHR parsing across Epic/Cerner/Meditech, >85% sensitivity/>90% specificity
+- `scope`: HL7 FHIR R4, 47 hospital networks, 12M records, 200+ protocols, HIPAA cloud, 30sec/1000 records
+- `hook`: "Reduce clinical trial recruitment time by 60%..."
+- `context_background`: Tech Mahindra HLS division, 15 of top 20 pharma, IRB approval at Mount Sinai/Cleveland Clinic/Mayo
+- `evaluation_criteria`: 6 weighted criteria (30/20/15/15/10/10)
+- `platinum_award`: 500000, `currency_code`: "USD", `ip_model`: "IP-EL"
+- `maturity_level`: "SOLUTION_GROWTH", `expected_timeline`: "6-12"
+- `extended_brief`: root_causes (5), affected_stakeholders (4 with counts), current_deficiencies (5)
+- `creator_snapshot`: mirrors all 12 fields above
 
-1. **Old seed data still in DB** — User must re-seed to get new snapshots with correct keys
-2. **Seed content is superficial** — Short, generic descriptions lacking industry realism
-3. **Org is fictional** — "New Horizon Company" should be a recognizable test company like Mahindra
-
-## Changes — 1 file
-
-### `supabase/functions/setup-test-scenario/index.ts`
-
-**Org: Replace "New Horizon Company" with "Mahindra & Mahindra Ltd"** (line 74-88)
-
-Enrich org INSERT (line 203-216) with realistic fields:
-- `organization_description`: Real description of Mahindra's automotive/tech business
-- `website_url`: `https://www.mahindra.com`
-- `trade_brand_name`: "Mahindra"
-- `founding_year`: 1945
-- `employee_count_range`: "50000+"
-- `annual_revenue_range`: "$10B+"
-- `hq_city`: "Mumbai"
-- `tagline`: "Rise."
-- `linkedin_url`: `https://www.linkedin.com/company/mahindra`
-
-**Challenge 1 (CONTROLLED) — "AI-Powered Predictive Maintenance for Mahindra Auto Plants"**
-
-Elaborate all 12 Creator fields with 3-5 sentence realistic content:
-- `problem_statement`: Detailed description of unplanned downtime across Nashik, Chakan, Haridwar plants with specific production line counts, cost figures, failure modes (hydraulic presses, robotic welders, CNC machines)
-- `scope`: Integration with Siemens SCADA, Allen-Bradley PLCs, 847 sensor nodes, SAP PM module; deployment across 3 plants in phases
-- `hook`: Compelling one-liner with specific ROI target
-- `context_background`: Mahindra's manufacturing footprint, current maintenance maturity, union considerations, IT/OT convergence status
-- `evaluation_criteria`: 5 weighted criteria with realistic manufacturing focus
-- `domain_tags`: ["automotive-manufacturing", "predictive-maintenance", "industrial-IoT", "machine-learning"]
-- `maturity_level`: "PROTOTYPE"
-- `platinum_award`: 75000, `currency_code`: "USD"
-- `ip_model`: "IP-EL"
-- `expected_timeline`: "6-12 months"
-- `extended_brief`: Detailed root causes (5 items), affected stakeholders (6 roles with headcounts), current deficiencies (5 items)
-
-**Challenge 2 (STRUCTURED) — "Intelligent Claims Adjudication for Mahindra Insurance"**
-
-Elaborate all 8 Creator fields:
-- `problem_statement`: Mahindra Insurance Brokers processes 12,000+ motor/health claims monthly; manual adjudication takes 8.5 days avg; 18% first-pass rejection rate from coding errors
-- `scope`: NLP-based document extraction from scanned claim forms, ICD-10/CPT code validation, integration with TCS BaNCS core platform, fraud pattern detection
-- `domain_tags`: ["insurance-claims", "document-AI", "NLP", "fraud-detection"]
+**Challenge 2 (STRUCTURED) — "Predictive Quality Analytics for Automotive Component Manufacturing"**
+- `problem_statement`: 8 OEM clients, 23 plants, 4.2% defect rate, $18M scrap costs, predictive quality from sensor data
+- `scope`: 1200+ machines, 50TB/month, CNC+injection+assembly, Siemens MindSphere + SAP QM, Azure
+- `evaluation_criteria`: 5 weighted criteria (30/25/20/15/10)
+- `platinum_award`: 120000, `domain_tags`: ["manufacturing", "predictive-analytics", "IoT", "quality-assurance"]
 - `maturity_level`: "POC"
-- `evaluation_criteria`: 4 weighted criteria (Accuracy 35%, Integration 25%, Scalability 20%, Cost 20%)
-- `platinum_award`: 40000
+- `creator_snapshot`: mirrors all 8 fields
 
-**Challenge 3 (QUICK) — "EV Fleet Telematics Dashboard for Last-Mile Delivery"**
+**Challenge 3 (QUICK) — "Internal Carbon Footprint Tracker — Employee Dashboard Prototype"**
+- `problem_statement`: Net-zero by 2035, employee dashboard for office energy/travel/data center/commute, SAP SuccessFactors + Concur APIs, GHG Protocol
+- `platinum_award`: 10000, `domain_tags`: ["sustainability", "dashboard", "ESG", "carbon-tracking"]
+- `creator_snapshot`: mirrors all 5 fields
 
-Elaborate all 5 Creator fields:
-- `problem_statement`: Mahindra Electric's Treo and e-Alfa fleet of 2,400+ last-mile EVs lack unified telematics. Fleet operators manage battery health, route optimization, and charging schedules across 3 disconnected systems. Need a single-pane dashboard prototype.
-- `domain_tags`: ["electric-vehicles", "fleet-telematics", "dashboard", "IoT"]
-- `platinum_award`: 15000
+### Change 2: My Challenges List — Add Prize + Problem + Tags
+**File: `src/hooks/cogniblend/useMyChallenges.ts`**
 
-**Update all `creator_snapshot` objects** to mirror the enriched content exactly (same text in snapshot as in challenge columns).
+Add to SELECT query: `problem_statement, reward_structure, currency_code, domain_tags`
 
-## Expected Result After Re-Seed
+Add to `MyChallengeItem` interface:
+```typescript
+problem_statement: string | null;
+reward_structure: Record<string, unknown> | null;
+currency_code: string | null;
+domain_tags: string[] | null;
+```
 
-| Mode | Section Cards | Content Quality |
-|------|--------------|-----------------|
-| QUICK | 3 (Problem, Tags, Prize) | 3-5 sentence problem, 4 domain tags |
-| STRUCTURED | 6 (Problem, Scope, Tags, Maturity, Prize, Criteria) | Elaborate per-section content |
-| CONTROLLED | 10 (+ Hook, Context, IP, Timeline) | Full enterprise-grade descriptions |
+Add to challengeMap builder in the loop:
+```typescript
+problem_statement: (ch.problem_statement as string) ?? null,
+reward_structure: (ch.reward_structure as Record<string, unknown>) ?? null,
+currency_code: (ch.currency_code as string) ?? null,
+domain_tags: (ch.domain_tags as string[]) ?? null,
+```
 
-## Verification
-1. Click "Seed Demo Scenario" button
-2. Login as Chris (nh-cr@testsetup.dev) — see CONTROLLED with 10 cards, STRUCTURED with 6 cards
-3. Login as Sam Solo (nh-solo@testsetup.dev) — see QUICK with 3 cards
-4. Org badge shows "Mahindra" with realistic context
+**File: `src/pages/cogniblend/MyChallengesPage.tsx`**
 
+In `ChallengeCard`, after the title `<h3>` and badges row, add:
+
+1. Problem excerpt (1-line truncated):
+```tsx
+{ch.problem_statement && (
+  <p className="text-xs text-muted-foreground ml-6 line-clamp-1">
+    {ch.problem_statement.replace(/<[^>]*>/g, '').substring(0, 140)}…
+  </p>
+)}
+```
+
+2. Prize + domain tags row:
+```tsx
+<div className="flex flex-wrap items-center gap-2 ml-6 mt-1">
+  {(() => {
+    const rs = ch.reward_structure as Record<string, unknown> | null;
+    const prize = Number(rs?.platinum_award ?? rs?.budget_max ?? 0);
+    const curr = ch.currency_code || (rs?.currency as string) || 'USD';
+    return prize > 0 ? (
+      <Badge variant="secondary" className="text-[10px] font-bold">
+        {curr} {prize.toLocaleString()}
+      </Badge>
+    ) : null;
+  })()}
+  {ch.domain_tags?.slice(0, 3).map((tag, i) => (
+    <Badge key={i} variant="outline" className="text-[10px]">{String(tag)}</Badge>
+  ))}
+</div>
+```
+
+### Change 3: Detail View — "Your input" Badge on Creator Sections
+**File: `src/components/cogniblend/challenges/CreatorSectionRenderers.tsx`**
+
+In `FilteredSections`, accept optional `creatorFieldKeys?: string[]` prop. When provided, render a subtle "Your input" badge on each section card whose `fieldKey` is in the list. For the Curator Version tab, show "Will be enriched by Curator" placeholder for empty non-creator sections.
+
+Update the rendering in FilteredSections:
+```tsx
+{filtered.map((s) => (
+  <div key={s.title} className="relative">
+    {s.content}
+    {creatorFieldKeys?.includes(s.fieldKey ?? '') && (
+      <Badge variant="outline" className="text-[9px] text-muted-foreground absolute top-3 right-3">
+        Your input
+      </Badge>
+    )}
+  </div>
+))}
+```
+
+**File: `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`**
+
+Pass `creatorFieldKeys` from `CREATOR_SECTION_KEYS[effectiveGovernance]` to `FilteredSections` for My Version tab.
+
+### Deploy
+Deploy the `setup-test-scenario` edge function after file changes.
