@@ -71,6 +71,7 @@ export function GovernanceModeCard({ config }: GovernanceModeCardProps) {
         dual_evaluation_required: localConfig.dual_evaluation_required,
         blind_evaluation: localConfig.blind_evaluation,
         dual_signoff_required: localConfig.dual_signoff_required,
+        escrow_deposit_pct: localConfig.escrow_deposit_pct,
       });
 
       const { error } = await supabase
