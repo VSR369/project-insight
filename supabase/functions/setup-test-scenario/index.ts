@@ -349,6 +349,7 @@ serve(async (req) => {
       maturity_level: "POC",
       evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
+      currency_code: "USD", domain_tags: ["healthcare", "automation", "NLP"],
       ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
       eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: ["healthcare","automation","NLP"] }),
       extended_brief: { creator_approval_required: true },
