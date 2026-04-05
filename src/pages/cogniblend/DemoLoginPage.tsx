@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Users, Zap, ArrowLeft, Settings2, ShieldCheck, Info } from 'lucide-react';
+import { logWarning } from '@/lib/errorHandler';
 import { toast } from 'sonner';
 import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
 import { DemoWorkflowSteps } from '@/components/cogniblend/demo/DemoWorkflowSteps';
