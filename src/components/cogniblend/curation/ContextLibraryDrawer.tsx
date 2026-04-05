@@ -60,7 +60,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <SheetContent side="right" className="w-[900px] sm:max-w-[900px] p-0 flex flex-col overflow-hidden">
+      <SheetContent side="right" className="!w-[900px] !max-w-[900px] !p-0 flex flex-col overflow-hidden">
         <SheetHeader className="shrink-0 p-4 pb-3 border-b">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2 text-lg">
