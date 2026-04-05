@@ -204,7 +204,7 @@ serve(async (req) => {
       id: orgId,
       tenant_id: orgId,
       organization_name: config.orgName,
-      legal_entity_name: config.orgName,
+      legal_entity_name: "Mahindra & Mahindra Limited",
       operating_model: config.operatingModel,
       governance_profile: config.governanceProfile,
       subscription_tier: config.subscriptionTier,
@@ -213,6 +213,8 @@ serve(async (req) => {
       is_active: true,
       verification_status: "verified",
       registration_step: 5,
+      organization_description: "Mahindra & Mahindra Ltd is an Indian multinational conglomerate headquartered in Mumbai. Part of the Mahindra Group, the company operates across automotive, farm equipment, IT services, financial services, and real estate. With over 260,000 employees across 100+ countries, Mahindra is one of the largest vehicle manufacturers by production in India and the world's largest tractor company by volume. The Group's automotive division produces SUVs, pickups, commercial vehicles, and electric vehicles under the Mahindra, XUV, Thar, and Scorpio brands.",
+      website_url: "https://www.mahindra.com",
     });
     if (orgErr) throw new Error(`Org creation failed: ${orgErr.message}`);
     results.push(`✅ Created org: "${config.orgName}" (${orgId}) — tier: ${config.subscriptionTier}`);
