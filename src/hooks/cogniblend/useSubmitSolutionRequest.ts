@@ -189,12 +189,43 @@ export function useSubmitSolutionRequest() {
         }
       }
 
-      // Legal doc auto-attach for QUICK mode is now handled by complete_phase + md_governance_mode_config
+      // QUICK: auto-notify registered solvers (non-blocking)
+      if (normalizedGov === 'QUICK' && currentPhase >= 5) {
+        try {
+          const { data: solvers } = await supabase
+            .from('solver_profiles' as never)
+            .select('user_id') as { data: Array<{ user_id: string }> | null; error: unknown };
 
-      return { challengeId };
+          if (solvers && solvers.length > 0) {
+            const rs = rewardStructure;
+            const notifRows = solvers.map((s) => ({
+              user_id: s.user_id,
+              notification_type: 'CHALLENGE_PUBLISHED',
+              title: `New Challenge: ${payload.title ?? 'Untitled'}`,
+              message: `A new ${rs.currency ?? 'USD'} ${Number(rs.platinum_award ?? 0).toLocaleString()} challenge is open for submissions.`,
+              challenge_id: challengeId,
+              is_read: false,
+            }));
+            const BATCH = 50;
+            for (let i = 0; i < notifRows.length; i += BATCH) {
+              await supabase.from('cogni_notifications').insert(notifRows.slice(i, i + BATCH));
+            }
+          }
+        } catch (err) {
+          logWarning('Solver notification failed (non-blocking)', {
+            operation: 'notify_solvers_quick',
+            additionalData: { challengeId, error: String(err) },
+          });
+        }
+      }
+
+      return { challengeId, governanceMode: normalizedGov };
     },
-    onSuccess: () => {
-      toast.success('Challenge submitted — sent to Curator for review');
+    onSuccess: (result) => {
+      const isQuick = result.governanceMode === 'QUICK';
+      toast.success(isQuick
+        ? 'Challenge published! Solvers can now discover and apply.'
+        : 'Challenge submitted — sent to Curator for review');
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });

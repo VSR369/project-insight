@@ -9,6 +9,7 @@ import {
   ArrowLeft, Building2, Globe, Search, BookOpen, Info, FileText,
 } from 'lucide-react';
 import { ChallengeConfigSummary } from './ChallengeConfigSummary';
+import { ChallengeLegalDocsCard } from './ChallengeLegalDocsCard';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -209,6 +210,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </Tabs>
       )}
 
+      <ChallengeLegalDocsCard challengeId={challengeId} isQuickMode={isQuickMode} />
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />
     </div>
