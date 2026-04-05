@@ -123,9 +123,7 @@ export default function CurationChecklistPanel({
     onError: (error: Error) => toast.error(`Failed to return challenge: ${error.message}`),
   });
 
-  // Computed checklist
-  const tier1Docs = legalDocs.find((d) => d.tier.includes("Tier 1"));
-  const tier2Docs = legalDocs.find((d) => d.tier.includes("Tier 2"));
+  const governanceMode = resolveGovernanceMode(challenge.governance_profile);
   const evalCriteria = unwrapEvalCriteria(challenge.evaluation_criteria);
   const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight ?? 0), 0) ?? 0;
 
@@ -136,31 +134,30 @@ export default function CurationChecklistPanel({
     evalWeightSum === 100,
     (() => {
       if (!isJsonFilled(challenge.reward_structure)) return false;
-      const rs = parseJson<Record<string, unknown>>(challenge.reward_structure as any);
+      const rs = parseJson<Record<string, unknown>>(challenge.reward_structure as unknown as string);
       const ms = rs?.payment_milestones;
-      if (Array.isArray(ms) && ms.length > 0 && ms.reduce((s: number, m: any) => s + (m.pct ?? 0), 0) !== 100) return false;
+      if (Array.isArray(ms) && ms.length > 0 && ms.reduce((s: number, m: Record<string, unknown>) => s + ((m.pct as number) ?? 0), 0) !== 100) return false;
       return true;
     })(),
     isJsonFilled(challenge.phase_schedule),
     !!challenge.description?.trim(),
     !!challenge.eligibility?.trim(),
     !!challenge.ip_model?.trim(),
-    !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
-    !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
     challenge.complexity_score != null || !!challenge.complexity_parameters,
     !!challenge.maturity_level,
-    (() => { const del = parseJson<Record<string, unknown>>(challenge.deliverables); const a = del?.permitted_artifact_types; return Array.isArray(a) && a.length > 0; })(),
-    isControlledMode(resolveGovernanceMode(challenge.governance_profile)) ? escrowRecord?.escrow_status === "FUNDED" : true,
-  ], [challenge, legalDocs, evalWeightSum, tier1Docs, tier2Docs, escrowRecord]);
+    (() => { const del = parseJson<Record<string, unknown>>(challenge.deliverables as unknown as string); const a = del?.permitted_artifact_types; return Array.isArray(a) && a.length > 0; })(),
+    isControlledMode(governanceMode) ? escrowRecord?.escrow_status === "FUNDED" : true,
+  ], [challenge, evalWeightSum, escrowRecord, governanceMode]);
 
   const CHECKLIST_LABELS: string[] = [
     "Problem Statement present", "Scope defined", "Deliverables listed",
     "Evaluation criteria weights = 100%", "Reward structure valid", "Phase schedule defined",
     "Submission guidelines provided", "Eligibility configured", "IP model confirmed",
-    "Tier 1 legal docs attached", "Tier 2 legal templates attached", "Complexity parameters entered",
-    "Maturity level + legal match", "Artifact types configured",
-    isControlledMode(resolveGovernanceMode(challenge.governance_profile)) ? "Escrow funding confirmed" : "Escrow funding (not required)",
+    "Complexity parameters entered", "Maturity level + legal match", "Artifact types configured",
+    isControlledMode(governanceMode) ? "Escrow funding confirmed" : "Escrow funding (not required)",
   ];
+
+  const TOTAL_ITEMS = CHECKLIST_LABELS.length;
 
   const checklistItems: ChecklistItem[] = useMemo(() =>
     CHECKLIST_LABELS.map((label, i) => ({
