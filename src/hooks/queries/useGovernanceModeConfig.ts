@@ -24,12 +24,13 @@ export interface GovernanceModeConfigRow {
   dual_evaluation_required: boolean;
   blind_evaluation: boolean;
   dual_signoff_required: boolean;
+  escrow_deposit_pct: number;
   display_name: string | null;
   description: string | null;
   is_active: boolean;
 }
 
-const SELECT_COLS = 'governance_mode, legal_doc_mode, legal_doc_editable, legal_doc_creation_allowed, ai_legal_review_enabled, escrow_mode, curation_checklist_items, ai_curation_review_required, dual_curation_enabled, max_modification_cycles, dual_evaluation_required, blind_evaluation, dual_signoff_required, display_name, description, is_active';
+const SELECT_COLS = 'governance_mode, legal_doc_mode, legal_doc_editable, legal_doc_creation_allowed, ai_legal_review_enabled, escrow_mode, curation_checklist_items, ai_curation_review_required, dual_curation_enabled, max_modification_cycles, dual_evaluation_required, blind_evaluation, dual_signoff_required, escrow_deposit_pct, display_name, description, is_active';
 
 const QUERY_KEY_PREFIX = 'governance-mode-config';
 

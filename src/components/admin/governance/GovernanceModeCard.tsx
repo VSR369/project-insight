@@ -118,6 +118,20 @@ export function GovernanceModeCard({ config }: GovernanceModeCardProps) {
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 mt-4">Award (Phase 9)</h4>
         <ToggleRow label="Dual Signoff" description="Require two approvals for award" checked={localConfig.dual_signoff_required} disabled={isQuick} onChange={(v) => update('dual_signoff_required', v)} />
 
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 mt-4">Escrow</h4>
+        <div className="flex items-center justify-between py-2">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">Escrow Deposit %</Label>
+            <p className="text-xs text-muted-foreground">Percentage of total fee required as escrow</p>
+          </div>
+          <Input
+            type="number" min={0} max={100} step={1}
+            className="w-20 text-right text-sm"
+            value={localConfig.escrow_deposit_pct ?? 100}
+            onChange={(e) => setLocalConfig((prev) => ({ ...prev, escrow_deposit_pct: Number(e.target.value) }))}
+          />
+        </div>
+
         <div className="pt-4">
           <Button onClick={handleSave} disabled={isSaving} className="w-full" size="sm">
             {isSaving ? 'Saving…' : 'Save Changes'}
