@@ -43,6 +43,15 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   // Governance-aware content visibility
   const isQuickMode = effectiveGovernance === 'QUICK';
 
+  const creatorKeys = useMemo(() => {
+    const keys: Record<string, string[]> = {
+      QUICK: ['problem_statement', 'domain_tags', 'platinum_award'],
+      STRUCTURED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria'],
+      CONTROLLED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
+    };
+    return keys[effectiveGovernance] ?? keys.STRUCTURED;
+  }, [effectiveGovernance]);
+
   const statusMessage = useMemo(() => {
     const phase = data.current_phase ?? 1;
     if (phase === 1) return 'Draft — complete your challenge and submit';
@@ -135,9 +144,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
             <Input placeholder="Search sections..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-9 text-sm" />
           </div>
           {hasSnapshot ? (
-            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
+            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} creatorFieldKeys={creatorKeys} />
           ) : (
-            <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+            <FilteredSections sections={curatorSections} searchTerm={searchTerm} creatorFieldKeys={creatorKeys} />
           )}
         </div>
       ) : (
@@ -160,7 +169,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
           <TabsContent value="my-version" className="space-y-4">
             {hasSnapshot ? (
-              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
+              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} creatorFieldKeys={creatorKeys} />
             ) : (
               <Card className="border-dashed border-amber-300 bg-amber-50/50">
                 <CardContent className="py-8 text-center">
@@ -174,7 +183,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
           <TabsContent value="curator-version" className="space-y-4">
             {showCuratorContent ? (
-              <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
+              <FilteredSections sections={curatorSections} searchTerm={searchTerm} creatorFieldKeys={creatorKeys} />
             ) : (
               <Card className="border-dashed border-primary/30 bg-primary/5">
                 <CardContent className="py-12 text-center">

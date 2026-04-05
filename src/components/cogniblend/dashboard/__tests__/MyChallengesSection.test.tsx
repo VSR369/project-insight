@@ -28,6 +28,10 @@ const ITEMS: MyChallengeItem[] = [
     role_codes: ['CR'],
     operating_model: 'MP',
     created_at: '2025-06-01T10:00:00Z',
+    problem_statement: null,
+    reward_structure: null,
+    currency_code: null,
+    domain_tags: null,
   },
   {
     challenge_id: 'c2',
@@ -40,6 +44,10 @@ const ITEMS: MyChallengeItem[] = [
     role_codes: ['CU'],
     operating_model: 'MP',
     created_at: '2025-06-02T10:00:00Z',
+    problem_statement: null,
+    reward_structure: null,
+    currency_code: null,
+    domain_tags: null,
   },
   {
     challenge_id: 'c3',
@@ -52,6 +60,10 @@ const ITEMS: MyChallengeItem[] = [
     role_codes: ['CR'],
     operating_model: 'AGG',
     created_at: '2025-06-03T10:00:00Z',
+    problem_statement: null,
+    reward_structure: null,
+    currency_code: null,
+    domain_tags: null,
   },
 ];
 

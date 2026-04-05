@@ -244,6 +244,12 @@ function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete 
                 {ch.title}
               </h3>
             </div>
+            {/* Problem excerpt */}
+            {ch.problem_statement && (
+              <p className="text-xs text-muted-foreground ml-6 line-clamp-1">
+                {ch.problem_statement.replace(/<[^>]*>/g, '').substring(0, 140)}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-1.5 ml-6">
               <Badge className={`text-[10px] font-semibold border ${statusConfig.badgeClass}`} variant="outline">
                 {statusConfig.label}
@@ -265,6 +271,22 @@ function ChallengeCard({ challenge: ch, isDuplicate, onView, onResume, onDelete 
                   Possible duplicate
                 </Badge>
               )}
+            </div>
+            {/* Prize + domain tags */}
+            <div className="flex flex-wrap items-center gap-2 ml-6 mt-1">
+              {(() => {
+                const rs = ch.reward_structure;
+                const prize = Number(rs?.platinum_award ?? rs?.budget_max ?? 0);
+                const curr = ch.currency_code || (rs?.currency as string) || 'USD';
+                return prize > 0 ? (
+                  <Badge variant="secondary" className="text-[10px] font-bold">
+                    {curr} {prize.toLocaleString()}
+                  </Badge>
+                ) : null;
+              })()}
+              {ch.domain_tags?.slice(0, 3).map((tag, i) => (
+                <Badge key={i} variant="outline" className="text-[10px]">{String(tag)}</Badge>
+              ))}
             </div>
             {formattedDate && (
               <p className="text-[11px] text-muted-foreground ml-6">
