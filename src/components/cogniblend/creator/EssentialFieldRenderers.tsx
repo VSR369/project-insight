@@ -1,6 +1,7 @@
 /**
- * EssentialFieldRenderers — Maturity radio, domain tag chips, budget range, IP model.
+ * EssentialFieldRenderers — Maturity radio, domain tag chips, budget, IP model, weighted criteria.
  * Extracted from EssentialDetailsTab for ≤200 line compliance.
+ * All fields gated by isFieldVisible().
  */
 
 import { Controller, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors } from 'react-hook-form';
@@ -9,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Info, Loader2 } from 'lucide-react';
-import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
+import { isFieldVisible, isFieldRequired, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
+import { WeightedCriteriaEditor } from './WeightedCriteriaEditor';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
 const CURRENCY_OPTIONS = [
@@ -44,30 +46,34 @@ export function EssentialFieldRenderers({
   control, register, setValue, errors, maturityOptions, maturityLoading,
   industrySegments, fieldRules, isMPBudgetRequired,
 }: EssentialFieldRenderersProps) {
+  const showMaturity = isFieldVisible(fieldRules, 'maturity_level');
   const showIpModel = isFieldVisible(fieldRules, 'ip_model');
   const showBudget = isFieldVisible(fieldRules, 'platinum_award');
+  const showCriteria = isFieldVisible(fieldRules, 'weighted_criteria');
 
   return (
     <>
       {/* Solution Maturity */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">What kind of solution do you need? <span className="text-destructive">*</span></Label>
-        {maturityLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4"><Loader2 className="h-4 w-4 animate-spin" />Loading solution types…</div>
-        ) : (
-          <Controller name="maturity_level" control={control} render={({ field }) => (
-            <RadioGroup value={field.value as string} onValueChange={(v) => { field.onChange(v); const m = maturityOptions.find((o) => o.code === v); setValue('solution_maturity_id', m?.id ?? '', { shouldDirty: true }); }} className="space-y-2">
-              {maturityOptions.map((o) => (
-                <label key={o.id} className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
-                  <RadioGroupItem value={o.code} className="mt-0.5" />
-                  <div><p className="text-sm font-medium text-foreground">{o.label}</p>{o.description && <p className="text-xs text-muted-foreground">{o.description}</p>}</div>
-                </label>
-              ))}
-            </RadioGroup>
-          )} />
-        )}
-        {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
-      </div>
+      {showMaturity && (
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">What kind of solution do you need? <span className="text-destructive">*</span></Label>
+          {maturityLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4"><Loader2 className="h-4 w-4 animate-spin" />Loading solution types…</div>
+          ) : (
+            <Controller name="maturity_level" control={control} render={({ field }) => (
+              <RadioGroup value={field.value as string} onValueChange={(v) => { field.onChange(v); const m = maturityOptions.find((o) => o.code === v); setValue('solution_maturity_id', m?.id ?? '', { shouldDirty: true }); }} className="space-y-2">
+                {maturityOptions.map((o) => (
+                  <label key={o.id} className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value={o.code} className="mt-0.5" />
+                    <div><p className="text-sm font-medium text-foreground">{o.label}</p>{o.description && <p className="text-xs text-muted-foreground">{o.description}</p>}</div>
+                  </label>
+                ))}
+              </RadioGroup>
+            )} />
+          )}
+          {errors.maturity_level?.message && <p className="text-xs text-destructive">{String(errors.maturity_level.message)}</p>}
+        </div>
+      )}
 
       {/* Domain Tags */}
       <div className="space-y-2">
@@ -91,21 +97,19 @@ export function EssentialFieldRenderers({
         {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
       </div>
 
-      {/* Budget Range */}
+      {/* Platinum Award + Currency */}
       {showBudget && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Budget Range {isMPBudgetRequired && <span className="text-destructive">*</span>}</Label>
+          <Label className="text-sm font-medium">Top Prize {isMPBudgetRequired && <span className="text-destructive">*</span>}</Label>
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2"><span className="text-sm text-muted-foreground">Min</span><Input type="number" placeholder="0" className="w-32 text-base" {...register('budget_min', { valueAsNumber: true })} /></div>
-            <div className="flex items-center gap-2"><span className="text-sm text-muted-foreground">Max</span><Input type="number" placeholder="0" className="w-32 text-base" {...register('budget_max', { valueAsNumber: true })} /></div>
-            <Controller name="currency" control={control} render={({ field }) => (
+            <Input type="number" placeholder="0" className="w-40 text-base" {...register('platinum_award', { valueAsNumber: true })} />
+            <Controller name="currency_code" control={control} render={({ field }) => (
               <Select value={field.value as string} onValueChange={field.onChange}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger><SelectContent>{CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select>
             )} />
           </div>
-          {errors.budget_min?.message && <p className="text-xs text-destructive">{String(errors.budget_min.message)}</p>}
-          {errors.budget_max?.message && <p className="text-xs text-destructive">{String(errors.budget_max.message)}</p>}
+          {errors.platinum_award?.message && <p className="text-xs text-destructive">{String(errors.platinum_award.message)}</p>}
           {isMPBudgetRequired && (
-            <div className="flex items-start gap-2 text-xs text-muted-foreground mt-1"><Info className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span>Marketplace: budget range is required for reward sizing.</span></div>
+            <div className="flex items-start gap-2 text-xs text-muted-foreground mt-1"><Info className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span>Marketplace: top prize is required for reward sizing.</span></div>
           )}
         </div>
       )}
@@ -113,7 +117,9 @@ export function EssentialFieldRenderers({
       {/* IP Model */}
       {showIpModel && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">IP Preference <span className="text-destructive">*</span></Label>
+          <Label className="text-sm font-medium">
+            IP Preference {isFieldRequired(fieldRules, 'ip_model') && <span className="text-destructive">*</span>}
+          </Label>
           <Controller name="ip_model" control={control} render={({ field }) => (
             <Select value={(field.value as string) ?? ''} onValueChange={field.onChange}>
               <SelectTrigger className="text-base"><SelectValue placeholder="Select IP ownership model" /></SelectTrigger>
@@ -122,6 +128,15 @@ export function EssentialFieldRenderers({
           )} />
           {errors.ip_model?.message && <p className="text-xs text-destructive">{String(errors.ip_model.message)}</p>}
         </div>
+      )}
+
+      {/* Weighted Criteria */}
+      {showCriteria && (
+        <WeightedCriteriaEditor
+          control={control}
+          isRequired={isFieldRequired(fieldRules, 'weighted_criteria')}
+          error={errors.weighted_criteria?.message ? String(errors.weighted_criteria.message) : undefined}
+        />
       )}
     </>
   );
