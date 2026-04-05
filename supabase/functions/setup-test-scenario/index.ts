@@ -434,8 +434,8 @@ serve(async (req) => {
       maturity_level: "POC",
       evaluation_criteria: c2EvalCriteria,
       currency_code: "USD",
-      platinum_award: 120000,
-      reward_structure: { currency: "USD", platinum_award: 120000, budget_min: 60000, budget_max: 180000 },
+      platinum_award: 75000,
+      reward_structure: { currency: "USD", platinum_award: 75000, budget_min: 40000, budget_max: 100000 },
     };
 
     const { error: c2Err } = await supabaseAdmin.from("challenges").insert({
