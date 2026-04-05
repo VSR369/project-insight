@@ -238,7 +238,7 @@ serve(async (req) => {
       evaluation_criteria: c1Criteria, currency_code: "USD", platinum_award: 500000,
       ip_model: "IP-EL", expected_timeline: "6-12",
     };
-    const { error: chErr } = await sa.from("challenges").insert({
+    const { error: cInsErr } = await sa.from("challenges").insert({
       id: c1Id, tenant_id: orgId, organization_id: orgId,
       title: "AI-Driven Clinical Trial Patient Matching", hook: c1Hook,
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
@@ -253,7 +253,7 @@ serve(async (req) => {
       creator_snapshot: c1Snapshot, industry_segment_id: healthId,
       created_by: aggCr?.userId ?? null,
     });
-    if (chErr) throw new Error(`Challenge insert: ${chErr.message}`);
+    if (cInsErr) throw new Error(`Challenge insert: ${cInsErr.message}`);
     challengeIds.push(c1Id);
     // C1 roles: CR, CU, LC, FC, ER×2
     if (aggCr) await assignRole(aggCr.userId, c1Id, "CR");
@@ -291,7 +291,7 @@ serve(async (req) => {
       evaluation_criteria: c2Criteria, currency_code: "USD", platinum_award: 250000,
       ip_model: "IP-EL", expected_timeline: "9-12",
     };
-    const { error: chErr } = await sa.from("challenges").insert({
+    const { error: cInsErr } = await sa.from("challenges").insert({
       id: c2Id, tenant_id: orgId, organization_id: orgId,
       title: "Global AML Transaction Monitoring System", hook: c2Hook,
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
@@ -306,7 +306,7 @@ serve(async (req) => {
       creator_snapshot: c2Snapshot, industry_segment_id: financeId,
       created_by: mpCr?.userId ?? null,
     });
-    if (chErr) throw new Error(`Challenge insert: ${chErr.message}`);
+    if (cInsErr) throw new Error(`Challenge insert: ${cInsErr.message}`);
     challengeIds.push(c2Id);
     // C2 roles: MP Creator, PP Curator, PP Legal, PP Finance
     if (mpCr) await assignRole(mpCr.userId, c2Id, "CR");
@@ -337,7 +337,7 @@ serve(async (req) => {
       scope: c3Scope, domain_tags: c3Tags, maturity_level: "POC",
       evaluation_criteria: c3Criteria, currency_code: "USD", platinum_award: 75000,
     };
-    const { error: chErr } = await sa.from("challenges").insert({
+    const { error: cInsErr } = await sa.from("challenges").insert({
       id: c3Id, tenant_id: orgId, organization_id: orgId,
       title: "Predictive Quality Analytics for Automotive",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
@@ -352,7 +352,7 @@ serve(async (req) => {
       creator_snapshot: c3Snapshot, industry_segment_id: techId,
       created_by: aggCr?.userId ?? null,
     });
-    if (chErr) throw new Error(`Challenge insert: ${chErr.message}`);
+    if (cInsErr) throw new Error(`Challenge insert: ${cInsErr.message}`);
     challengeIds.push(c3Id);
     // C3 roles: AGG Creator + AGG Curator (Curator does ALL)
     if (aggCr) await assignRole(aggCr.userId, c3Id, "CR");
@@ -378,7 +378,7 @@ serve(async (req) => {
       scope: c4Scope, domain_tags: c4Tags, maturity_level: "POC",
       evaluation_criteria: c4Criteria, currency_code: "USD", platinum_award: 50000,
     };
-    const { error: chErr } = await sa.from("challenges").insert({
+    const { error: cInsErr } = await sa.from("challenges").insert({
       id: c4Id, tenant_id: orgId, organization_id: orgId,
       title: "Smart Grid Energy Optimization Platform",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
@@ -393,7 +393,7 @@ serve(async (req) => {
       creator_snapshot: c4Snapshot, industry_segment_id: energyId,
       created_by: mpCr?.userId ?? null,
     });
-    if (chErr) throw new Error(`Challenge insert: ${chErr.message}`);
+    if (cInsErr) throw new Error(`Challenge insert: ${cInsErr.message}`);
     challengeIds.push(c4Id);
     // C4 roles: MP Creator + PP Curator (Curator does ALL)
     if (mpCr) await assignRole(mpCr.userId, c4Id, "CR");
@@ -410,7 +410,7 @@ serve(async (req) => {
       title: "Internal Carbon Footprint Tracker", problem_statement: c5Problem,
       domain_tags: c5Tags, currency_code: "USD", platinum_award: 10000,
     };
-    const { error: chErr } = await sa.from("challenges").insert({
+    const { error: cInsErr } = await sa.from("challenges").insert({
       id: c5Id, tenant_id: orgId, organization_id: orgId,
       title: "Internal Carbon Footprint Tracker",
       status: "active", master_status: "ACTIVE", current_phase: 5, phase_status: "ACTIVE",
@@ -426,7 +426,7 @@ serve(async (req) => {
       lc_compliance_complete: true, fc_compliance_complete: true,
       created_by: findUser(users, "Sam Solo")?.userId ?? null,
     });
-    if (chErr) throw new Error(`Challenge insert: ${chErr.message}`);
+    if (cInsErr) throw new Error(`Challenge insert: ${cInsErr.message}`);
     challengeIds.push(c5Id);
     // C5: Sam Solo = all roles
     const solo = findUser(users, "Sam Solo");
@@ -443,7 +443,7 @@ serve(async (req) => {
       title: "Customer Onboarding UX Ideas", problem_statement: c6Problem,
       domain_tags: c6Tags, currency_code: "USD", platinum_award: 5000,
     };
-    const { error: chErr } = await sa.from("challenges").insert({
+    const { error: cInsErr } = await sa.from("challenges").insert({
       id: c6Id, tenant_id: orgId, organization_id: orgId,
       title: "Customer Onboarding UX Ideas",
       status: "active", master_status: "ACTIVE", current_phase: 5, phase_status: "ACTIVE",
@@ -459,7 +459,7 @@ serve(async (req) => {
       lc_compliance_complete: true, fc_compliance_complete: true,
       created_by: solo?.userId ?? null,
     });
-    if (chErr) throw new Error(`Challenge insert: ${chErr.message}`);
+    if (cInsErr) throw new Error(`Challenge insert: ${cInsErr.message}`);
     challengeIds.push(c6Id);
     // C6: Sam Solo = all roles
     if (solo) { for (const r of ["CR","CU","ER","LC","FC"]) await assignRole(solo.userId, c6Id, r); }
