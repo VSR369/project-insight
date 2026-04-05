@@ -7,7 +7,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FilePlus, Folder, CheckSquare, ShieldCheck,
-  FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
+  FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard, Banknote,
   Search, Lightbulb, User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
