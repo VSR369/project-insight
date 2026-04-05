@@ -408,30 +408,31 @@ serve(async (req) => {
 
     // Challenge 2: STRUCTURED + AGG (8 Creator fields filled)
     const structuredId = crypto.randomUUID();
-    const c2ProblemStatement = "Mahindra Insurance Brokers Ltd, a subsidiary of Mahindra Finance, processes over 12,000 motor and health insurance claims monthly across its pan-India network of 1,200+ branch offices. The current manual adjudication workflow averages 8.5 business days per claim, with an 18% first-pass rejection rate primarily caused by ICD-10/CPT coding errors, incomplete documentation, and inconsistent assessor interpretations. This delays policyholder settlements and drives a Net Promoter Score of just 34 in claims experience. The annual cost of rework, re-submissions, and customer escalations is estimated at ₹14 crore. The claims operations team of 340 adjusters spends approximately 60% of their time on data entry and document verification rather than actual adjudication decisions.";
-    const c2Scope = "Build an intelligent claims adjudication engine comprising: (1) NLP-based document extraction from scanned claim forms, hospital discharge summaries, and repair estimates using OCR + transformer models; (2) automated ICD-10 and CPT code validation against policy coverage terms; (3) integration with the TCS BaNCS core insurance platform via REST APIs for real-time claim status updates; (4) fraud pattern detection using historical claims data (3 years, 400K+ records) to flag suspicious patterns. The solution must handle both motor (60% volume) and health (40% volume) claim types, support Hindi and English documents, and achieve a minimum 85% straight-through processing rate for standard claims within 12 months of deployment.";
-    const c2DomainTags = ["insurance-claims", "document-AI", "NLP", "fraud-detection"];
+    const c2ProblemStatement = "Tech Mahindra manages quality assurance for 8 automotive OEM clients across 23 manufacturing plants in India, Germany, and Mexico. Current statistical process control (SPC) methods detect defects only after production batches are completed, resulting in an average 4.2% defect rate and $18M annual scrap/rework costs across all plants. We need a predictive quality analytics solution that ingests real-time sensor data from CNC machines, injection molding equipment, and assembly line vision systems to predict defect probability BEFORE parts are completed. The solution must integrate with existing Siemens MindSphere IoT infrastructure and SAP Quality Management (QM) module, providing real-time alerts when predicted defect probability exceeds configurable thresholds per product line.";
+    const c2Scope = "Scope covers 23 manufacturing plants with 1,200+ connected machines generating 50TB sensor data monthly. Must support 3 manufacturing processes: CNC machining (dimensional tolerance), injection molding (surface defects), and assembly (torque/alignment). Integration with Siemens MindSphere and SAP QM is mandatory. Cloud deployment on Azure (existing enterprise agreement). Pilot phase covers 3 plants in Pune; rollout to remaining 20 plants over 12 months.";
+    const c2DomainTags = ["manufacturing", "predictive-analytics", "IoT", "quality-assurance"];
     const c2EvalCriteria = { weighted_criteria: [
-      { name: "Document Extraction Accuracy", weight: 35 },
-      { name: "TCS BaNCS Integration Depth", weight: 25 },
-      { name: "Scalability to 50K Claims/Month", weight: 20 },
-      { name: "Total Cost of Ownership (3-Year)", weight: 20 },
+      { name: "Defect Prediction Accuracy (AUC-ROC on validation set)", weight: 30 },
+      { name: "Real-time Processing Latency (<5 sec per machine)", weight: 25 },
+      { name: "MindSphere & SAP QM Integration Quality", weight: 20 },
+      { name: "Scalability Architecture (23 plants, 1200 machines)", weight: 15 },
+      { name: "Implementation Cost & Timeline", weight: 10 },
     ]};
     const c2Snapshot = {
-      title: "Intelligent Claims Adjudication for Mahindra Insurance",
+      title: "Predictive Quality Analytics for Automotive Component Manufacturing",
       problem_statement: c2ProblemStatement,
       scope: c2Scope,
       domain_tags: c2DomainTags,
       maturity_level: "POC",
       evaluation_criteria: c2EvalCriteria,
       currency_code: "USD",
-      platinum_award: 40000,
-      reward_structure: { currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
+      platinum_award: 120000,
+      reward_structure: { currency: "USD", platinum_award: 120000, budget_min: 60000, budget_max: 180000 },
     };
 
     const { error: c2Err } = await supabaseAdmin.from("challenges").insert({
       id: structuredId, tenant_id: orgId, organization_id: orgId,
-      title: "Intelligent Claims Adjudication for Mahindra Insurance",
+      title: "Predictive Quality Analytics for Automotive Component Manufacturing",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "STRUCTURED", governance_mode_override: "STRUCTURED",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
@@ -439,17 +440,17 @@ serve(async (req) => {
       scope: c2Scope,
       maturity_level: "POC",
       evaluation_criteria: c2EvalCriteria,
-      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 120000, gold_award: 40000, budget_min: 60000, budget_max: 180000 },
       currency_code: "USD", domain_tags: c2DomainTags,
       ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
-      eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: c2DomainTags }),
+      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c2DomainTags }),
       extended_brief: { creator_approval_required: true },
       creator_snapshot: c2Snapshot,
       created_by: crUserId,
     });
     if (c2Err) throw new Error(`STRUCTURED challenge: ${c2Err.message}`);
     challengeIds.push(structuredId);
-    results.push(`✅ Challenge 2: STRUCTURED+AGG "Claims Adjudication — Mahindra Insurance" (Phase 2 — CURATION)`);
+    results.push(`✅ Challenge 2: STRUCTURED+AGG "Predictive Quality Analytics" — $120K (Phase 2)`);
 
     // Challenge 3: QUICK + AGG (5 Creator fields filled — minimal)
     const quickId = crypto.randomUUID();
