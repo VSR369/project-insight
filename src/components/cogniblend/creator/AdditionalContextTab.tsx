@@ -15,6 +15,7 @@ import { AlertTriangle, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import { StakeholderEditor } from './StakeholderEditor';
+import { LegalDocUploadSection } from '@/components/cogniblend/LegalDocUploadSection';
 import { toast } from 'sonner';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
