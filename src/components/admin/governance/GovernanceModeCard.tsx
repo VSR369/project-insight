@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,7 @@ export function GovernanceModeCard({ config }: GovernanceModeCardProps) {
         dual_evaluation_required: localConfig.dual_evaluation_required,
         blind_evaluation: localConfig.blind_evaluation,
         dual_signoff_required: localConfig.dual_signoff_required,
+        escrow_deposit_pct: localConfig.escrow_deposit_pct,
       });
 
       const { error } = await supabase
@@ -117,6 +119,20 @@ export function GovernanceModeCard({ config }: GovernanceModeCardProps) {
 
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 mt-4">Award (Phase 9)</h4>
         <ToggleRow label="Dual Signoff" description="Require two approvals for award" checked={localConfig.dual_signoff_required} disabled={isQuick} onChange={(v) => update('dual_signoff_required', v)} />
+
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 mt-4">Escrow</h4>
+        <div className="flex items-center justify-between py-2">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">Escrow Deposit %</Label>
+            <p className="text-xs text-muted-foreground">Percentage of total fee required as escrow</p>
+          </div>
+          <Input
+            type="number" min={0} max={100} step={1}
+            className="w-20 text-right text-sm"
+            value={localConfig.escrow_deposit_pct ?? 100}
+            onChange={(e) => setLocalConfig((prev) => ({ ...prev, escrow_deposit_pct: Number(e.target.value) }))}
+          />
+        </div>
 
         <div className="pt-4">
           <Button onClick={handleSave} disabled={isSaving} className="w-full" size="sm">
