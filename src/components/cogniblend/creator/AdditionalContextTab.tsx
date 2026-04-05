@@ -54,7 +54,7 @@ interface AdditionalContextTabProps {
   draftChallengeId?: string;
 }
 
-export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles = [], onFilesChange, referenceUrls = [], onUrlsChange }: AdditionalContextTabProps) {
+export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles = [], onFilesChange, referenceUrls = [], onUrlsChange, engagementModel, draftChallengeId }: AdditionalContextTabProps) {
   const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
   const isControlled = governanceMode === 'CONTROLLED';
   const rules = fieldRules ?? {};
