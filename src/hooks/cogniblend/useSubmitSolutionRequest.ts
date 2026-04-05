@@ -93,6 +93,10 @@ export function useSubmitSolutionRequest() {
           expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
           submission_guidelines: filteredPayload.submissionGuidelines ? serializeLineItems(filteredPayload.submissionGuidelines) : null,
           reward_structure: rewardStructure,
+          currency_code: filteredPayload.currency ?? payload.currency,
+          evaluation_criteria: filteredPayload.weightedCriteria?.length
+            ? { weighted_criteria: filteredPayload.weightedCriteria }
+            : null,
           phase_schedule: { expected_timeline: filteredPayload.expectedTimeline },
           governance_mode_override: payload.governanceModeOverride ?? null,
           eligibility: JSON.stringify({
