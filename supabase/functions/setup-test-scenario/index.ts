@@ -379,7 +379,7 @@ serve(async (req) => {
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
       domain_tags: c1DomainTags,
-      maturity_level: "SOLUTION_GROWTH",
+      maturity_level: "PROTOTYPE",
       context_background: c1Context,
       evaluation_criteria: c1EvalCriteria,
       currency_code: "USD",
