@@ -498,12 +498,12 @@ serve(async (req) => {
 
     // ─── Step 5d: Escrow records (CONTROLLED only) ───
     for (const [cId, prize, label] of [[c1Id, 500000, "C1"], [c2Id, 250000, "C2"]] as [string, number, string][]) {
-      await sa.from("escrow_records").insert({
-        challenge_id: cId, tenant_id: orgId, amount: prize, currency_code: "USD",
-        status: "PENDING", escrow_type: "challenge_prize",
-        created_by: cId === c1Id ? aggCr?.userId : mpCr?.userId,
+      const { error: escErr } = await sa.from("escrow_records").insert({
+        challenge_id: cId, deposit_amount: prize, currency: "USD",
+        escrow_status: "PENDING", created_by: cId === c1Id ? aggCr?.userId : mpCr?.userId,
       });
-      results.push(`✅ Escrow: ${label} PENDING $${(prize / 1000).toFixed(0)}K`);
+      if (escErr) results.push(`⚠️ Escrow ${label}: ${escErr.message}`);
+      else results.push(`✅ Escrow: ${label} PENDING $${(prize / 1000).toFixed(0)}K`);
     }
 
     // ─── Step 5e: Pool entries for platform provider users ───
