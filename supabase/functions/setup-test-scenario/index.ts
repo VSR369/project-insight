@@ -388,7 +388,7 @@ serve(async (req) => {
       hook: c1Hook,
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
-      challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
+      challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
       maturity_level: "SOLUTION_GROWTH",
