@@ -199,6 +199,14 @@ serve(async (req) => {
     }
 
     // ─── Step 1: Create org (self-referencing tenant_id) ───
+    // Look up India's UUID from countries table
+    const { data: indiaRow } = await supabaseAdmin
+      .from("countries")
+      .select("id")
+      .eq("code", "IN")
+      .maybeSingle();
+    const indiaCountryId = indiaRow?.id ?? null;
+
     const orgId = crypto.randomUUID();
     const { error: orgErr } = await supabaseAdmin.from("seeker_organizations").insert({
       id: orgId,
@@ -215,7 +223,7 @@ serve(async (req) => {
       employee_count_range: "100000+",
       annual_revenue_range: "$5B-$10B",
       hq_city: "Pune",
-      hq_country_id: "IN",
+      hq_country_id: indiaCountryId,
       hq_address_line1: "Gateway Building, Apollo Bunder",
       hq_postal_code: "411013",
       preferred_currency: "USD",
