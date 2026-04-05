@@ -210,6 +210,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </Tabs>
       )}
 
+      <ChallengeLegalDocsCard challengeId={challengeId} isQuickMode={isQuickMode} />
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />
     </div>
