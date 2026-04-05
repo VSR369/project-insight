@@ -166,6 +166,7 @@ const RoleConvergencePage = lazy(() => import("@/pages/admin/seeker-config/RoleC
 const TierGovernanceAccessPage = lazy(() => import("@/pages/admin/seeker-config/TierGovernanceAccessPage"));
 const LifecyclePhaseConfigPage = lazy(() => import("@/pages/admin/seeker-config/LifecyclePhaseConfigPage"));
 const AIReviewConfigPage = lazy(() => import("@/pages/admin/seeker-config/AIReviewConfigPage"));
+const LegalReviewThresholdsPage = lazy(() => import("@/pages/admin/seeker-config/LegalReviewThresholdsPage"));
 const RateCardsPage = lazy(() => import("@/pages/admin/rate-cards").then(m => ({ default: m.RateCardsPage })));
 const IncentivesPage = lazy(() => import("@/pages/admin/incentives").then(m => ({ default: m.IncentivesPage })));
 
