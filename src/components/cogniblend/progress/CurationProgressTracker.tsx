@@ -28,6 +28,9 @@ export function CurationProgressTracker({ challengeId }: CurationProgressTracker
     );
   }
 
+  // No curation_progress row exists — don't fabricate curator status
+  if (!progress) return null;
+
   return (
     <Card className="border-primary/20 bg-primary/5">
       <CardHeader className="pb-3">

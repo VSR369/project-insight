@@ -262,7 +262,11 @@ export function MyChallengesSection({
                             {PHASE_LABELS[item.current_phase] ?? `Phase ${item.current_phase}`}
                           </span>
                           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', statusStyle)}>
-                            {STATUS_LABEL[item.master_status] ?? item.master_status}
+                            {(() => {
+                              const isQuick = (item.governance_mode_override ?? item.governance_profile ?? '').toUpperCase() === 'QUICK';
+                              if (isQuick && item.master_status === 'IN_PREPARATION' && item.current_phase > 1) return 'Processing';
+                              return STATUS_LABEL[item.master_status] ?? item.master_status;
+                            })()}
                           </span>
                           {item.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
                             <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]">

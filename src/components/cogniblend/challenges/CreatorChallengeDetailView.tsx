@@ -121,8 +121,8 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </div>
       )}
 
-      {data.current_phase != null && data.current_phase >= 2 && data.current_phase <= 3
-        && data.phase_status !== 'CR_APPROVAL_PENDING' && (
+      {!isQuickMode && data.current_phase != null && data.current_phase >= 2
+        && data.current_phase <= 3 && data.phase_status !== 'CR_APPROVAL_PENDING' && (
         <CurationProgressTracker challengeId={challengeId} />
       )}
 
