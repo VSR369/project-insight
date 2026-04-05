@@ -351,7 +351,7 @@ serve(async (req) => {
       ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
       eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: ["healthcare","automation","NLP"] }),
       extended_brief: { creator_approval_required: true },
-      creator_snapshot: { title: "Healthcare Claims Processing Automation", problem_statement: "Admin overhead consumes 35% of staff time...", scope: "Automate intake, extraction, validation...", budget_min: 20000, budget_max: 60000, currency: "USD", expected_timeline: "3-6", ip_model: "non_exclusive_license" },
+      creator_snapshot: { title: "Healthcare Claims Processing Automation", problem_statement: "Administrative overhead in patient intake and claims processing consumes 35% of staff time. Manual errors cause 12% rejection rate. Need automation for 50% faster processing.", scope: "Automate intake forms, claims extraction, coding validation. Integrate with Epic EHR. Target: 50% time reduction, 5% rejection rate.", domain_tags: ["healthcare", "automation", "NLP"], maturity_level: "POC", evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }] }, currency_code: "USD", platinum_award: 40000, reward_structure: { currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 } },
       created_by: crUserId,
     });
     if (c2Err) throw new Error(`STRUCTURED challenge: ${c2Err.message}`);
