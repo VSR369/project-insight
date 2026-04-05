@@ -117,16 +117,24 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
               {data.complexity_level}{data.complexity_score != null && ` — ${Number(data.complexity_score).toFixed(1)}`}
             </Badge>
           )}
+          {data.operating_model && (
+            <Badge variant="outline" className="text-xs font-semibold">
+              {data.operating_model === 'MP' ? 'Marketplace' : 'Aggregator'}
+            </Badge>
+          )}
           {data.current_phase != null && <Badge variant="outline" className="text-xs font-semibold">Phase {data.current_phase}</Badge>}
         </div>
       </div>
 
-      {statusMessage && (
-        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-center gap-2">
-          <Info className="h-4 w-4 text-muted-foreground shrink-0" />
-          <p className="text-sm text-muted-foreground">{statusMessage}</p>
-        </div>
-      )}
+      <ChallengeConfigSummary
+        effectiveGovernance={effectiveGovernance}
+        operatingModel={data.operating_model as string | null}
+        rewardStructure={data.reward_structure as Record<string, unknown> | null}
+        currencyCode={data.currency_code as string | null}
+        industryName={data.industry_name as string | null}
+        domainTags={data.domain_tags as unknown[] | null}
+        currentPhase={data.current_phase ?? null}
+      />
 
       {!isQuickMode && data.current_phase != null && data.current_phase >= 2
         && data.current_phase <= 3 && data.phase_status !== 'CR_APPROVAL_PENDING' && (
