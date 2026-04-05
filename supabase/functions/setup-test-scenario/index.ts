@@ -400,7 +400,7 @@ serve(async (req) => {
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
       maturity_level: "SOLUTION_GROWTH",
-      context_background: c1Context,
+      // context_background lives inside extended_brief, not as a top-level column
       evaluation_criteria: c1EvalCriteria,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 500000, gold_award: 150000, silver_award: 75000, budget_min: 300000, budget_max: 750000 },
       currency_code: "USD", domain_tags: c1DomainTags,
