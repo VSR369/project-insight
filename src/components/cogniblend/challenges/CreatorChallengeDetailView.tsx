@@ -17,8 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FilteredSections, type SectionDef } from './CreatorSectionRenderers';
 import { buildMyVersionSections, buildCuratorSections } from './CreatorSectionBuilders';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
-import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { resolveChallengeGovernance } from '@/lib/governanceMode';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
 import { governanceLabel, complexityColor } from '@/lib/cogniblend/displayHelpers';
 import { SECTION_LABELS } from '@/components/cogniblend/curation/context-library/types';
 import { CurationProgressTracker } from '@/components/cogniblend/progress/CurationProgressTracker';
@@ -34,11 +33,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const effectiveGovernance = resolveChallengeGovernance(
-    data.governance_mode_override, data.governance_profile, null,
+  const effectiveGovernance = resolveGovernanceMode(
+    data.governance_mode_override ?? data.governance_profile,
   );
-  const { data: fieldRules } = useGovernanceFieldRules(effectiveGovernance);
-
   const snapshot = (data as unknown as Record<string, unknown>).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
   const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
@@ -138,9 +135,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
             <Input placeholder="Search sections..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-9 text-sm" />
           </div>
           {hasSnapshot ? (
-            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+            <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
           ) : (
-            <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+            <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
           )}
         </div>
       ) : (
@@ -163,7 +160,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
           <TabsContent value="my-version" className="space-y-4">
             {hasSnapshot ? (
-              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
             ) : (
               <Card className="border-dashed border-amber-300 bg-amber-50/50">
                 <CardContent className="py-8 text-center">
@@ -177,7 +174,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
           <TabsContent value="curator-version" className="space-y-4">
             {showCuratorContent ? (
-              <FilteredSections sections={curatorSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+              <FilteredSections sections={curatorSections} searchTerm={searchTerm} />
             ) : (
               <Card className="border-dashed border-primary/30 bg-primary/5">
                 <CardContent className="py-12 text-center">

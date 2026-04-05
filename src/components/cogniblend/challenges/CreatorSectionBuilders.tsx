@@ -29,14 +29,14 @@ import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge'
 /* ── Creator field keys per governance mode (matches md_governance_field_rules) ── */
 
 const CREATOR_SECTION_KEYS: Record<string, string[]> = {
-  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
+  QUICK: ['problem_statement', 'domain_tags', 'platinum_award'],
   STRUCTURED: [
-    'title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level',
-    'currency_code', 'platinum_award', 'weighted_criteria',
+    'problem_statement', 'scope', 'domain_tags', 'maturity_level',
+    'platinum_award', 'weighted_criteria',
   ],
   CONTROLLED: [
-    'title', 'problem_statement', 'scope', 'domain_tags', 'maturity_level',
-    'currency_code', 'platinum_award', 'weighted_criteria',
+    'problem_statement', 'scope', 'domain_tags', 'maturity_level',
+    'platinum_award', 'weighted_criteria',
     'hook', 'context_background', 'ip_model', 'expected_timeline',
   ],
 };
@@ -55,9 +55,8 @@ export function buildMyVersionSections(
 function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef[] {
   const eb = (snapshot.extended_brief ?? {}) as Record<string, unknown>;
   const rs = (snapshot.reward_structure ?? {}) as Record<string, unknown>;
-  const currency = (snapshot.currency as string) || (rs.currency as string) || 'USD';
-  const budgetMin = Number(snapshot.budget_min ?? rs.budget_min ?? 0);
-  const budgetMax = Number(snapshot.budget_max ?? rs.budget_max ?? 0);
+  const currencyCode = (snapshot.currency_code as string) || (snapshot.currency as string) || (rs.currency as string) || 'USD';
+  const platinumAward = Number(snapshot.platinum_award ?? snapshot.budget_max ?? rs.platinum_award ?? rs.budget_max ?? 0);
 
   return [
     {
@@ -78,7 +77,9 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
     },
     {
       title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background',
-      content: eb.context_background ? <RichTextSection title="Context & Background" html={eb.context_background as string} icon={BookOpen} /> : null,
+      content: ((snapshot.context_background as string) || (eb.context_background as string))
+        ? <RichTextSection title="Context & Background" html={((snapshot.context_background as string) || (eb.context_background as string))} icon={BookOpen} />
+        : null,
     },
     {
       title: 'Root Causes', icon: Info, fieldKey: 'root_causes',
@@ -101,19 +102,18 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
       content: parseItems(eb.approaches_not_of_interest) ? <ListSection title="Approaches Not of Interest" icon={Info} items={parseItems(eb.approaches_not_of_interest)!} /> : null,
     },
     {
-      title: 'Budget Range', icon: Trophy, fieldKey: 'platinum_award',
-      content: (budgetMin > 0 || budgetMax > 0) ? (
+      title: 'Top Prize', icon: Trophy, fieldKey: 'platinum_award',
+      content: platinumAward > 0 ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              <Trophy className="h-3.5 w-3.5 text-primary" /> Budget Range
+              <Trophy className="h-3.5 w-3.5 text-primary" /> Top Prize
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-lg font-bold text-foreground">
-              {budgetMin > 0 && `${formatCurrency(budgetMin, currency)} — `}
-              {formatCurrency(budgetMax, currency)}
-              <span className="text-sm font-normal text-muted-foreground ml-1.5">{currency}</span>
+              {formatCurrency(platinumAward, currencyCode)}
+              <span className="text-sm font-normal text-muted-foreground ml-1.5">{currencyCode}</span>
             </p>
           </CardContent>
         </Card>
@@ -144,7 +144,7 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
     {
       title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags',
       content: (() => {
-        const tags = snapshot.domain_tags as string[] | undefined;
+        const tags = (snapshot.domain_tags ?? snapshot.domain_tag_ids) as string[] | undefined;
         if (!tags?.length) return null;
         const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
         const displayTags = tags.map((t) => isUuid(t) ? `Tag ${t.substring(0, 6)}…` : t);
@@ -154,9 +154,11 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
     {
       title: 'Evaluation Criteria', icon: BarChart3, fieldKey: 'weighted_criteria',
       content: (() => {
+        const topWc = snapshot.weighted_criteria as Array<{ name: string; weight: number }> | null;
         const ec = snapshot.evaluation_criteria as Record<string, unknown> | null;
-        const wc = (ec?.weighted_criteria ?? ec?.criteria ?? []) as Array<{ name: string; weight: number }>;
-        return wc.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={wc} /> : null;
+        const nestedWc = (ec?.weighted_criteria ?? ec?.criteria ?? []) as Array<{ name: string; weight: number }>;
+        const criteria = topWc?.length ? topWc : nestedWc;
+        return criteria.length ? <WeightedCriteriaSection title="Evaluation Criteria" criteria={criteria} /> : null;
       })(),
     },
   ];

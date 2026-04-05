@@ -325,10 +325,11 @@ serve(async (req) => {
       maturity_level: "PROTOTYPE",
       evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
+      currency_code: "USD", domain_tags: ["manufacturing", "IoT", "machine-learning"],
       ip_model: "IP-EL", phase_schedule: { expected_timeline: "6-12" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["manufacturing","IoT","machine-learning"] }),
       extended_brief: { creator_approval_required: true, context_background: "Facility operates 24/7, 12 production lines.", root_causes: ["Reactive maintenance culture","No sensor-to-failure correlation","Siloed data"], affected_stakeholders: [{ role: "Plant Operations", count: 45 },{ role: "Production Planning", count: 12 }], current_deficiencies: ["12% unplanned downtime","No prediction capability","200+ manual inspection hours/month"] },
-      creator_snapshot: { title: "AI-Powered Predictive Maintenance for Smart Manufacturing", hook: "Reduce $2.3M annual downtime", problem_statement: "Equipment failures costing $2.3M annually...", scope: "Integrate with SCADA/PLC across 12 lines...", context_background: "Facility operates 24/7...", budget_min: 50000, budget_max: 150000, currency: "USD", expected_timeline: "6-12", ip_model: "exclusive_license" },
+      creator_snapshot: { title: "AI-Powered Predictive Maintenance for Smart Manufacturing", hook: "Reduce $2.3M annual downtime through IoT-driven failure prediction", problem_statement: "Our manufacturing floor experiences unplanned equipment failures costing $2.3M annually. Current preventive maintenance is time-based, causing both unexpected breakdowns and unnecessary maintenance.", scope: "Integrate with existing SCADA/PLC systems across 12 production lines. Provide real-time dashboard, automated work orders, mobile app. Must reduce unplanned downtime by 40% within 6 months.", domain_tags: ["manufacturing", "IoT", "machine-learning"], maturity_level: "PROTOTYPE", context_background: "Facility operates 24/7 with 12 production lines. Equipment 5-15 years old. Current MTBF 240 hours, target 500+.", evaluation_criteria: { weighted_criteria: [{ name: "Technical Approach", weight: 30 },{ name: "Prediction Accuracy", weight: 25 },{ name: "Integration Feasibility", weight: 20 },{ name: "ROI", weight: 15 },{ name: "Team Experience", weight: 10 }] }, currency_code: "USD", platinum_award: 75000, ip_model: "IP-EL", expected_timeline: "6-12", extended_brief: { context_background: "Facility operates 24/7 with 12 production lines." }, reward_structure: { currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 } },
       created_by: crUserId,
     });
     if (c1Err) throw new Error(`CONTROLLED challenge: ${c1Err.message}`);
@@ -348,10 +349,11 @@ serve(async (req) => {
       maturity_level: "POC",
       evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 },
+      currency_code: "USD", domain_tags: ["healthcare", "automation", "NLP"],
       ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
       eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: ["healthcare","automation","NLP"] }),
       extended_brief: { creator_approval_required: true },
-      creator_snapshot: { title: "Healthcare Claims Processing Automation", problem_statement: "Admin overhead consumes 35% of staff time...", scope: "Automate intake, extraction, validation...", budget_min: 20000, budget_max: 60000, currency: "USD", expected_timeline: "3-6", ip_model: "non_exclusive_license" },
+      creator_snapshot: { title: "Healthcare Claims Processing Automation", problem_statement: "Administrative overhead in patient intake and claims processing consumes 35% of staff time. Manual errors cause 12% rejection rate. Need automation for 50% faster processing.", scope: "Automate intake forms, claims extraction, coding validation. Integrate with Epic EHR. Target: 50% time reduction, 5% rejection rate.", domain_tags: ["healthcare", "automation", "NLP"], maturity_level: "POC", evaluation_criteria: { weighted_criteria: [{ name: "Accuracy", weight: 35 },{ name: "Integration", weight: 25 },{ name: "Scalability", weight: 20 },{ name: "Cost", weight: 20 }] }, currency_code: "USD", platinum_award: 40000, reward_structure: { currency: "USD", platinum_award: 40000, budget_min: 20000, budget_max: 60000 } },
       created_by: crUserId,
     });
     if (c2Err) throw new Error(`STRUCTURED challenge: ${c2Err.message}`);
@@ -370,10 +372,11 @@ serve(async (req) => {
       maturity_level: "BLUEPRINT",
       evaluation_criteria: { weighted_criteria: [{ name: "UX Quality", weight: 40 },{ name: "Feasibility", weight: 30 },{ name: "Speed", weight: 30 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
+      currency_code: "USD", domain_tags: ["supply-chain", "dashboard"],
       phase_schedule: { expected_timeline: "1-3" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["supply-chain","dashboard"] }),
       extended_brief: { creator_approval_required: false },
-      creator_snapshot: { title: "Supply Chain Visibility Dashboard Prototype", problem_statement: "Lack real-time supply chain visibility...", budget_min: 5000, budget_max: 20000, currency: "USD", expected_timeline: "1-3" },
+      creator_snapshot: { title: "Supply Chain Visibility Dashboard Prototype", problem_statement: "We lack real-time visibility into our multi-tier supply chain. Need a dashboard prototype aggregating data from 3 ERP systems with shipment tracking and risk alerts.", domain_tags: ["supply-chain", "dashboard"], currency_code: "USD", platinum_award: 15000, reward_structure: { currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 } },
       created_by: crUserId,
     });
     if (c3Err) throw new Error(`QUICK challenge: ${c3Err.message}`);
