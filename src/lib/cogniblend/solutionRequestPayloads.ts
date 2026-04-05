@@ -51,6 +51,7 @@ export interface SubmitPayload {
   solutionMaturityId?: string;
   ipModel?: string;
   submissionGuidelines?: string[];
+  weightedCriteria?: Array<{ name: string; weight: number }>;
 }
 
 export interface DraftPayload {
