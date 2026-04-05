@@ -1,139 +1,175 @@
 
 
-# Implement All 10 Admin Requirements
+# Fix 7 Gaps — All 10 Admin Items Fully Wired
 
-## Overview
-10 items spanning database schema changes, new admin pages, org settings tabs, and checklist fixes. All components stay under 200 lines per project standards.
+## Status After Review
 
----
-
-## Database Migration (single migration file)
-
-### Item 1: Escrow Deposit Percentage
-- `ALTER TABLE md_governance_mode_config ADD COLUMN escrow_deposit_pct NUMERIC(5,2) DEFAULT 100.00`
-- UPDATE: QUICK=0, STRUCTURED=80, CONTROLLED=100
-
-### Item 2: Legal Review Thresholds
-- New table `md_legal_review_thresholds` with columns: `id`, `country_id` (UUID FK to `countries(id)`), `currency_code`, `threshold_amount`, `governance_mode` (CHECK STRUCTURED/CONTROLLED), `is_active`, audit fields
-- Note: Document uses `countries(code)` but `countries.id` is UUID — fix FK to `countries(id)`
-- Seed defaults: US=$50K, GB=40K GBP, IN=4M INR, DE=45K EUR (lookup country UUIDs dynamically)
-- RLS: SELECT for all authenticated, ALL for supervisors
-
-### Item 5: Org Legal Document Templates
-- New table `org_legal_document_templates` per spec (organization_id, tenant_id, document_name, document_code, content, version, version_status, applies_to_mode, is_mandatory, etc.)
-- RLS: org members SELECT, org admins ALL
-
-### Item 6: Org Finance Config
-- New table `org_finance_config` per spec (organization_id unique, bank details, preferred currency, auto_deposit flag)
-- RLS: org members SELECT, org admins ALL
-
-### Item 7: Org Governance Overrides
-- New table `org_governance_overrides` per spec (organization_id + governance_mode unique, threshold/pct/checklist overrides)
-- RLS: org members SELECT, org admins ALL
-
-### Item 9: Org Compliance Config
-- New table `org_compliance_config` per spec (export_control, data_residency, GDPR, sanctions screening)
-- RLS: org members SELECT, org admins ALL
-
-### Item 10: Org Custom Fields
-- New table `org_custom_fields` per spec (field_name, field_type CHECK, select_options JSONB, display_order, applies_to_mode)
-- RLS: org members SELECT, org admins ALL
+- **GAP 4 (Sidebar)**: Already fixed — `Legal Thresholds` is in AdminSidebar line 120 and route exists in App.tsx line 780. No action needed.
+- **GAP 5 & 6 (complete_phase backend)**: Require SQL migration to update the `complete_phase` function.
+- **GAP 1, 2, 3, 7**: Frontend wiring changes.
 
 ---
 
-## Frontend Changes
+## Changes
 
-### Item 1: Escrow % in GovernanceModeCard
-- Add `escrow_deposit_pct` to `GovernanceModeConfigRow` interface and SELECT_COLS in `useGovernanceModeConfig.ts`
-- Add editable numeric input row in `GovernanceModeCard.tsx` under a new "Escrow" section header
-- Include in save payload
+### 1. Wire EscrowCalculationDisplay into Creator Form (GAP 1)
 
-### Item 2: Legal Review Thresholds Admin Page
-- New file: `src/pages/admin/seeker-config/LegalReviewThresholdsPage.tsx` — standard CRUD table page
-- New hook: `src/hooks/queries/useLegalReviewThresholds.ts`
-- Add route in `App.tsx`: `/admin/seeker-config/legal-thresholds`
-- Add sidebar entry in `AdminSidebar.tsx` after "Legal Triggers"
+**File:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
 
-### Item 3: Escrow Calculation Display
-- New component: `src/components/cogniblend/EscrowCalculationDisplay.tsx` (~120 lines)
-- Read-only display: Prize Pool -> Platform Fee -> Total Fee -> Escrow Deposit
-- Fetches `md_platform_fees` and `md_governance_mode_config.escrow_deposit_pct`
-- Shows confirmation checkbox
-- Integrate into Creator form for MP model
+After the `</Tabs>` closing tag (line 180) and before the button bar (line 181), add the EscrowCalculationDisplay for MP model when governance is not QUICK:
 
-### Item 4: Creator Legal Doc Upload (MP)
-- New component: `src/components/cogniblend/LegalDocUploadSection.tsx` (~150 lines)
-- Shows platform default templates (read-only), upload button for org-specific docs
-- Files stored via Supabase storage, row inserted in `challenge_legal_docs`
-- Show only for MP engagement model in the Creator form
+```tsx
+import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 
-### Item 5: Org Legal Templates Tab
-- New component: `src/components/org-settings/OrgLegalTemplatesTab.tsx` (~180 lines)
-- CRUD list: add/edit/delete templates, set version_status, applies_to_mode
-- New hook: `src/hooks/queries/useOrgLegalTemplates.ts`
+// After </Tabs>, before button bar:
+{engagementModel === 'MP' && governanceMode !== 'QUICK' && (
+  <EscrowCalculationDisplay
+    prizePlatinum={form.watch('platinum_award')}
+    currencyCode={form.watch('currency_code')}
+    governanceMode={governanceMode}
+  />
+)}
+```
 
-### Item 6: Org Finance Tab
-- New component: `src/components/org-settings/OrgFinanceTab.tsx` (~150 lines)
-- Form fields: bank name, branch, address, preferred currency, auto-deposit toggle, budget URL
-- New hook: `src/hooks/queries/useOrgFinanceConfig.ts`
+### 2. Wire LegalDocUploadSection into AdditionalContextTab (GAP 2)
 
-### Item 7: Org Governance Overrides
-- Add overrides section to existing `GovernanceProfileTab.tsx` (~50 lines added)
-- Or extract to `src/components/org-settings/GovernanceOverridesSection.tsx` (~120 lines)
-- Per-mode override fields: legal threshold, escrow %, checklist count
-- New hook: `src/hooks/queries/useOrgGovernanceOverrides.ts`
+**File:** `src/components/cogniblend/creator/AdditionalContextTab.tsx`
 
-### Item 8: Fix Curator Checklist
-- In `CurationChecklistPanel.tsx`:
-  - Remove items 10 ("Tier 1 legal docs attached") and 11 ("Tier 2 legal templates attached")
-  - Add "Fee calculation verified" (manual check)
-  - For STRUCTURED: add "Escrow details entered"
-  - Update LOCKED_ITEM_IDS, progress denominator (15 -> adjusted count)
-  - Remove `tier1Docs`/`tier2Docs` auto-check logic
+Add new props `engagementModel` and `draftChallengeId` to the interface. At the bottom of the component (before the closing `</div>`), render LegalDocUploadSection for MP model when a draft exists:
 
-### Item 9: Org Compliance Tab
-- New component: `src/components/org-settings/OrgComplianceTab.tsx` (~150 lines)
-- Form: export control, controlled tech, data residency, GDPR, sanctions level, compliance email
-- New hook: `src/hooks/queries/useOrgComplianceConfig.ts`
+```tsx
+import { LegalDocUploadSection } from '@/components/cogniblend/LegalDocUploadSection';
 
-### Item 10: Org Custom Fields Tab
-- New component: `src/components/org-settings/OrgCustomFieldsTab.tsx` (~180 lines)
-- CRUD: add/edit/delete custom fields, set type/required/order/mode
-- New hook: `src/hooks/queries/useOrgCustomFields.ts`
+// New props added to interface:
+engagementModel?: string;
+draftChallengeId?: string;
 
-### OrgSettingsPage Update
-- Expand from 6 tabs to 10 tabs:
-  1. Profile, 2. Admin, 3. Subscription, 4. Engagement, 5. Governance (+ overrides), 6. Legal Templates, 7. Finance, 8. Compliance, 9. Custom Fields, 10. Audit Trail
-- Use `grid-cols-5` x 2 rows or a scrollable TabsList to accommodate 10 tabs
-- Add icons: FileText (Legal), Banknote (Finance), ShieldCheck (Compliance), Settings2 (Custom Fields)
+// At bottom of render, before closing </div>:
+{engagementModel === 'MP' && draftChallengeId && (
+  <LegalDocUploadSection
+    challengeId={draftChallengeId}
+    governanceMode={governanceMode}
+  />
+)}
+```
+
+**File:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
+
+Pass the new props to AdditionalContextTab:
+
+```tsx
+<AdditionalContextTab
+  governanceMode={governanceMode}
+  fieldRules={fieldRules}
+  attachedFiles={attachedFiles}
+  onFilesChange={setAttachedFiles}
+  referenceUrls={referenceUrls}
+  onUrlsChange={setReferenceUrls}
+  engagementModel={engagementModel}
+  draftChallengeId={draftSave.draftChallengeId ?? undefined}
+/>
+```
+
+### 3. Wire GovernanceOverridesSection into GovernanceProfileTab (GAP 3)
+
+**File:** `src/components/org-settings/GovernanceProfileTab.tsx`
+
+Import and render at the bottom of CardContent, before the supervisor notice:
+
+```tsx
+import { GovernanceOverridesSection } from './GovernanceOverridesSection';
+
+// Before the supervisor notice div:
+<GovernanceOverridesSection organizationId={organizationId} />
+```
+
+### 4. Fix Curator Checklist Labels (GAP 7)
+
+**File:** `src/pages/cogniblend/CurationChecklistPanel.tsx`
+
+Change line 157: `"Maturity level + legal match"` to `"Maturity level confirmed"`
+
+Change line 157: The escrow item — use governance-aware label:
+- STRUCTURED: `"Fee calculation verified"`
+- CONTROLLED: `"Escrow funding confirmed"`
+
+```tsx
+const CHECKLIST_LABELS: string[] = [
+  "Problem Statement present", "Scope defined", "Deliverables listed",
+  "Evaluation criteria weights = 100%", "Reward structure valid", "Phase schedule defined",
+  "Submission guidelines provided", "Eligibility configured", "IP model confirmed",
+  "Complexity parameters entered", "Maturity level confirmed", "Artifact types configured",
+  isControlledMode(governanceMode) ? "Escrow funding confirmed" : "Fee calculation verified",
+];
+```
+
+### 5. Update complete_phase — AGG Org Templates + Legal Threshold Logic (GAP 5 & 6)
+
+**Migration:** New SQL migration to update `complete_phase` function.
+
+Add logic after the compliance gate_flags block (around line 56-65) to:
+
+1. **AGG org templates**: When entering a compliance phase with `manual_review` legal mode, check `operating_model`. If AGG, insert from `org_legal_document_templates`; if MP, insert from platform `legal_document_templates`.
+
+2. **Legal threshold check**: For STRUCTURED mode with `manual_review`, compare prize pool against the effective threshold (org override first, then `md_legal_review_thresholds`, then $50K fallback). If below threshold, auto-set `lc_compliance_complete = TRUE`.
+
+```sql
+-- After gate_flags compliance block, before advancing to next phase:
+IF v_next_config.gate_flags IS NOT NULL AND 'lc_compliance_complete' = ANY(v_next_config.gate_flags) THEN
+  IF v_legal_doc_mode = 'manual_review' THEN
+    -- Get operating model and org_id
+    SELECT operating_model, organization_id, 
+      COALESCE((reward_structure->>'platinum_award')::numeric, 0)
+    INTO v_operating_model, v_org_id, v_prize_pool
+    FROM challenges WHERE id = p_challenge_id;
+
+    -- Insert legal docs from appropriate source
+    IF v_operating_model = 'AGG' THEN
+      INSERT INTO challenge_legal_docs (challenge_id, document_type, document_name, tier, status, lc_status, created_by)
+      SELECT p_challenge_id, document_code, document_name, 'TIER_1', 'pending_review', 'pending', p_user_id
+      FROM org_legal_document_templates
+      WHERE organization_id = v_org_id AND is_active = true AND version_status = 'ACTIVE'
+      ON CONFLICT DO NOTHING;
+    ELSE
+      INSERT INTO challenge_legal_docs (challenge_id, document_type, document_name, tier, status, lc_status, created_by)
+      SELECT p_challenge_id, document_code, document_name, tier, 'pending_review', 'pending', p_user_id
+      FROM legal_document_templates WHERE is_active = true AND version_status = 'ACTIVE'
+      ON CONFLICT DO NOTHING;
+    END IF;
+
+    -- Threshold check for STRUCTURED
+    IF v_gov_mode = 'STRUCTURED' THEN
+      SELECT COALESCE(ogo.legal_review_threshold_override, mlrt.threshold_amount, 50000)
+      INTO v_threshold
+      FROM challenges c
+      LEFT JOIN org_governance_overrides ogo ON ogo.organization_id = c.organization_id
+        AND ogo.governance_mode = v_gov_mode AND ogo.is_active = true
+      LEFT JOIN seeker_organizations so ON so.id = c.organization_id
+      LEFT JOIN md_legal_review_thresholds mlrt ON mlrt.country_id = so.hq_country_id::text
+        AND mlrt.governance_mode = v_gov_mode AND mlrt.is_active = true
+      WHERE c.id = p_challenge_id;
+
+      IF v_prize_pool <= COALESCE(v_threshold, 50000) THEN
+        UPDATE challenges SET lc_compliance_complete = TRUE WHERE id = p_challenge_id;
+      END IF;
+    END IF;
+  END IF;
+END IF;
+```
+
+New variables declared: `v_operating_model TEXT; v_org_id UUID; v_prize_pool NUMERIC; v_threshold NUMERIC;`
 
 ---
 
 ## File Summary
 
-| Action | File | Item |
-|--------|------|------|
-| Migration | `supabase/migrations/20260405_admin_10_items.sql` | 1,2,5,6,7,9,10 |
-| Edit | `src/hooks/queries/useGovernanceModeConfig.ts` | 1 |
-| Edit | `src/components/admin/governance/GovernanceModeCard.tsx` | 1 |
-| New | `src/pages/admin/seeker-config/LegalReviewThresholdsPage.tsx` | 2 |
-| New | `src/hooks/queries/useLegalReviewThresholds.ts` | 2 |
-| New | `src/components/cogniblend/EscrowCalculationDisplay.tsx` | 3 |
-| New | `src/components/cogniblend/LegalDocUploadSection.tsx` | 4 |
-| New | `src/components/org-settings/OrgLegalTemplatesTab.tsx` | 5 |
-| New | `src/hooks/queries/useOrgLegalTemplates.ts` | 5 |
-| New | `src/components/org-settings/OrgFinanceTab.tsx` | 6 |
-| New | `src/hooks/queries/useOrgFinanceConfig.ts` | 6 |
-| New | `src/components/org-settings/GovernanceOverridesSection.tsx` | 7 |
-| New | `src/hooks/queries/useOrgGovernanceOverrides.ts` | 7 |
-| Edit | `src/pages/cogniblend/CurationChecklistPanel.tsx` | 8 |
-| New | `src/components/org-settings/OrgComplianceTab.tsx` | 9 |
-| New | `src/hooks/queries/useOrgComplianceConfig.ts` | 9 |
-| New | `src/components/org-settings/OrgCustomFieldsTab.tsx` | 10 |
-| New | `src/hooks/queries/useOrgCustomFields.ts` | 10 |
-| Edit | `src/pages/org/OrgSettingsPage.tsx` | 5,6,7,9,10 |
-| Edit | `src/App.tsx` | 2 (route) |
-| Edit | `src/components/admin/AdminSidebar.tsx` | 2 (nav) |
+| Action | File | Gap |
+|--------|------|-----|
+| Edit | `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | 1, 2 |
+| Edit | `src/components/cogniblend/creator/AdditionalContextTab.tsx` | 2 |
+| Edit | `src/components/org-settings/GovernanceProfileTab.tsx` | 3 |
+| Edit | `src/pages/cogniblend/CurationChecklistPanel.tsx` | 7 |
+| Migration | `complete_phase` function update | 5, 6 |
 
-**Estimated: ~20 files, all components under 200 lines.**
+All components remain under 200 lines. GAP 4 already resolved.
 
