@@ -26,6 +26,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/cogni/evaluation': 'Evaluation Panel',
   '/cogni/selection': 'Selection & IP',
   '/cogni/escrow': 'Escrow Management',
+  '/cogni/fc-queue': 'FC Challenge Queue',
   '/cogni/payments': 'Payment Processing',
   '/cogni/browse': 'Browse Challenges',
   '/cogni/my-solutions': 'My Solutions',
