@@ -470,7 +470,7 @@ serve(async (req) => {
       title: "Internal Carbon Footprint Tracker — Employee Dashboard Prototype",
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
-      challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
+      challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c3ProblemStatement,
       maturity_level: "BLUEPRINT",
       evaluation_criteria: { weighted_criteria: [

@@ -96,6 +96,7 @@ export interface DraftPayload {
 
 export interface SubmitResult {
   challengeId: string;
+  governanceMode?: string;
 }
 
 /* ── Helpers ── */

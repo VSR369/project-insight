@@ -9,6 +9,7 @@ import {
   ArrowLeft, Building2, Globe, Search, BookOpen, Info, FileText,
 } from 'lucide-react';
 import { ChallengeConfigSummary } from './ChallengeConfigSummary';
+import { ChallengeLegalDocsCard } from './ChallengeLegalDocsCard';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
