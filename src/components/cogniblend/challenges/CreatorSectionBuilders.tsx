@@ -102,19 +102,18 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
       content: parseItems(eb.approaches_not_of_interest) ? <ListSection title="Approaches Not of Interest" icon={Info} items={parseItems(eb.approaches_not_of_interest)!} /> : null,
     },
     {
-      title: 'Budget Range', icon: Trophy, fieldKey: 'platinum_award',
-      content: (budgetMin > 0 || budgetMax > 0) ? (
+      title: 'Top Prize', icon: Trophy, fieldKey: 'platinum_award',
+      content: platinumAward > 0 ? (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              <Trophy className="h-3.5 w-3.5 text-primary" /> Budget Range
+              <Trophy className="h-3.5 w-3.5 text-primary" /> Top Prize
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-lg font-bold text-foreground">
-              {budgetMin > 0 && `${formatCurrency(budgetMin, currency)} — `}
-              {formatCurrency(budgetMax, currency)}
-              <span className="text-sm font-normal text-muted-foreground ml-1.5">{currency}</span>
+              {formatCurrency(platinumAward, currencyCode)}
+              <span className="text-sm font-normal text-muted-foreground ml-1.5">{currencyCode}</span>
             </p>
           </CardContent>
         </Card>
