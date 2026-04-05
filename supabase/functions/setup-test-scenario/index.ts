@@ -399,7 +399,7 @@ serve(async (req) => {
       challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
-      maturity_level: "SOLUTION_GROWTH",
+      maturity_level: "PROTOTYPE",
       // context_background lives inside extended_brief, not as a top-level column
       evaluation_criteria: c1EvalCriteria,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 500000, gold_award: 150000, silver_award: 75000, budget_min: 300000, budget_max: 750000 },
