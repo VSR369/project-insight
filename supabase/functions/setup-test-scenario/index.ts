@@ -372,6 +372,7 @@ serve(async (req) => {
       maturity_level: "BLUEPRINT",
       evaluation_criteria: { weighted_criteria: [{ name: "UX Quality", weight: 40 },{ name: "Feasibility", weight: 30 },{ name: "Speed", weight: 30 }]},
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 },
+      currency_code: "USD", domain_tags: ["supply-chain", "dashboard"],
       phase_schedule: { expected_timeline: "1-3" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["supply-chain","dashboard"] }),
       extended_brief: { creator_approval_required: false },
