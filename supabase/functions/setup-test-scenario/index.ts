@@ -199,6 +199,14 @@ serve(async (req) => {
     }
 
     // ─── Step 1: Create org (self-referencing tenant_id) ───
+    // Look up India's UUID from countries table
+    const { data: indiaRow } = await supabaseAdmin
+      .from("countries")
+      .select("id")
+      .eq("code", "IN")
+      .maybeSingle();
+    const indiaCountryId = indiaRow?.id ?? null;
+
     const orgId = crypto.randomUUID();
     const { error: orgErr } = await supabaseAdmin.from("seeker_organizations").insert({
       id: orgId,
@@ -215,7 +223,7 @@ serve(async (req) => {
       employee_count_range: "100000+",
       annual_revenue_range: "$5B-$10B",
       hq_city: "Pune",
-      hq_country_id: "IN",
+      hq_country_id: indiaCountryId,
       hq_address_line1: "Gateway Building, Apollo Bunder",
       hq_postal_code: "411013",
       preferred_currency: "USD",
@@ -371,7 +379,7 @@ serve(async (req) => {
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
       domain_tags: c1DomainTags,
-      maturity_level: "SOLUTION_GROWTH",
+      maturity_level: "PROTOTYPE",
       context_background: c1Context,
       evaluation_criteria: c1EvalCriteria,
       currency_code: "USD",
@@ -391,8 +399,8 @@ serve(async (req) => {
       challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
-      maturity_level: "SOLUTION_GROWTH",
-      context_background: c1Context,
+      maturity_level: "PROTOTYPE",
+      // context_background lives inside extended_brief, not as a top-level column
       evaluation_criteria: c1EvalCriteria,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 500000, gold_award: 150000, silver_award: 75000, budget_min: 300000, budget_max: 750000 },
       currency_code: "USD", domain_tags: c1DomainTags,
