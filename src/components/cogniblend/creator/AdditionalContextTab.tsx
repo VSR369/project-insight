@@ -50,6 +50,8 @@ interface AdditionalContextTabProps {
   onFilesChange?: (files: File[]) => void;
   referenceUrls?: string[];
   onUrlsChange?: (urls: string[]) => void;
+  engagementModel?: string;
+  draftChallengeId?: string;
 }
 
 export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles = [], onFilesChange, referenceUrls = [], onUrlsChange }: AdditionalContextTabProps) {
