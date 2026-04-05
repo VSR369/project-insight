@@ -160,7 +160,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
           <TabsContent value="my-version" className="space-y-4">
             {hasSnapshot ? (
-              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} fieldRules={fieldRules} />
+              <FilteredSections sections={myVersionSections} searchTerm={searchTerm} />
             ) : (
               <Card className="border-dashed border-amber-300 bg-amber-50/50">
                 <CardContent className="py-8 text-center">
