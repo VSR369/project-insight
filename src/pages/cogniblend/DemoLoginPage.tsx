@@ -175,7 +175,7 @@ export default function DemoLoginPage() {
             .update({ operating_model: engagementModel === 'MP' ? 'MP' : 'AGG' })
             .eq('id', orgRow.organization_id);
           if (updateErr) {
-            console.warn('Operating model sync failed (RLS), will use edge function fallback:', updateErr.message);
+            logWarning('Operating model sync failed (RLS), will use edge function fallback', { operation: 'demo_login', component: 'DemoLoginPage', additionalData: { message: updateErr.message } });
             await supabase.functions.invoke('setup-test-scenario', {
               body: { action: 'sync_operating_model', orgId: orgRow.organization_id, operatingModel: engagementModel },
             });
