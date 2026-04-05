@@ -77,7 +77,9 @@ function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef
     },
     {
       title: 'Context & Background', icon: BookOpen, fieldKey: 'context_background',
-      content: eb.context_background ? <RichTextSection title="Context & Background" html={eb.context_background as string} icon={BookOpen} /> : null,
+      content: ((snapshot.context_background as string) || (eb.context_background as string))
+        ? <RichTextSection title="Context & Background" html={((snapshot.context_background as string) || (eb.context_background as string))} icon={BookOpen} />
+        : null,
     },
     {
       title: 'Root Causes', icon: Info, fieldKey: 'root_causes',
