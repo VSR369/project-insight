@@ -373,7 +373,7 @@ serve(async (req) => {
       phase_schedule: { expected_timeline: "1-3" },
       eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: ["supply-chain","dashboard"] }),
       extended_brief: { creator_approval_required: false },
-      creator_snapshot: { title: "Supply Chain Visibility Dashboard Prototype", problem_statement: "Lack real-time supply chain visibility...", budget_min: 5000, budget_max: 20000, currency: "USD", expected_timeline: "1-3" },
+      creator_snapshot: { title: "Supply Chain Visibility Dashboard Prototype", problem_statement: "We lack real-time visibility into our multi-tier supply chain. Need a dashboard prototype aggregating data from 3 ERP systems with shipment tracking and risk alerts.", domain_tags: ["supply-chain", "dashboard"], currency_code: "USD", platinum_award: 15000, reward_structure: { currency: "USD", platinum_award: 15000, budget_min: 5000, budget_max: 20000 } },
       created_by: crUserId,
     });
     if (c3Err) throw new Error(`QUICK challenge: ${c3Err.message}`);
