@@ -8,6 +8,7 @@
 import { ShieldCheck, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+import { GovernanceOverridesSection } from './GovernanceOverridesSection';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG, type GovernanceMode } from '@/lib/governanceMode';
 
