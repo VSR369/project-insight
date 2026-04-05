@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Users, Zap, ArrowLeft, Settings2, ShieldCheck, Info } from 'lucide-react';
+import { logWarning } from '@/lib/errorHandler';
 import { toast } from 'sonner';
 import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
 import { DemoWorkflowSteps } from '@/components/cogniblend/demo/DemoWorkflowSteps';
@@ -175,13 +176,13 @@ export default function DemoLoginPage() {
             .update({ operating_model: engagementModel === 'MP' ? 'MP' : 'AGG' })
             .eq('id', orgRow.organization_id);
           if (updateErr) {
-            console.warn('Operating model sync failed (RLS), will use edge function fallback:', updateErr.message);
+            logWarning('Operating model sync failed (RLS), will use edge function fallback', { operation: 'demo_login', component: 'DemoLoginPage', additionalData: { message: updateErr.message } });
             await supabase.functions.invoke('setup-test-scenario', {
               body: { action: 'sync_operating_model', orgId: orgRow.organization_id, operatingModel: engagementModel },
             });
           }
         } catch (syncErr) {
-          console.warn('Operating model sync failed entirely, continuing login:', syncErr);
+          logWarning('Operating model sync failed entirely, continuing login', { operation: 'demo_login', component: 'DemoLoginPage', additionalData: { syncErr: String(syncErr) } });
           toast.warning('Could not sync engagement model. The org may use its default model.');
         }
       }

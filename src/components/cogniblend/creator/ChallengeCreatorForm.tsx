@@ -82,8 +82,9 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     defaultValues: {
       title: '', hook: '', problem_statement: '', scope: '', maturity_level: '',
       solution_maturity_id: '', industry_segment_id: industrySegmentId, domain_tags: [],
-      currency: 'USD', budget_min: 0, budget_max: 0,
+      currency_code: 'USD', platinum_award: 0,
       ip_model: isQuick ? 'IP-NEL' : '', expected_outcomes: [''],
+      weighted_criteria: [], deliverables_list: [],
       context_background: '', preferred_approach: [''], approaches_not_of_interest: [''],
       affected_stakeholders: [], current_deficiencies: [''], root_causes: [''], expected_timeline: '',
     },
@@ -116,7 +117,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       orgId: currentOrg.organizationId, creatorId: user.id, operatingModel: engagementModel,
       title: data.title, businessProblem: data.problem_statement,
       expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
-      currency: data.currency, budgetMin: data.budget_min, budgetMax: data.budget_max,
+      currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
       expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags, urgency: 'standard',
       industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
       governanceModeOverride: governanceMode,
@@ -171,7 +172,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full max-w-md">
             <TabsTrigger value="essential" className="flex-1 gap-1.5">✏️ Essential Details</TabsTrigger>
-            <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>
+            {!isQuick && <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>}
           </TabsList>
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} industrySegments={industrySegments} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} /></TabsContent>

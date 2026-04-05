@@ -47,7 +47,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         orgId, creatorId: userId, operatingModel: engagementModel,
         title: data.title || '', businessProblem: data.problem_statement || '',
         expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
-        currency: data.currency, budgetMin: data.budget_min, budgetMax: data.budget_max,
+        currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
         expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags || [], urgency: 'standard',
         industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
         governanceModeOverride: governanceMode,

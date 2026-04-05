@@ -8,13 +8,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { Info, Loader2 } from 'lucide-react';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
-import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { isFieldVisible, isFieldRequired, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 import { EssentialFieldRenderers } from './EssentialFieldRenderers';
@@ -76,7 +70,7 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         </div>
       )}
 
-      {/* Maturity, Domain Tags, Budget, IP Model */}
+      {/* Maturity, Domain Tags, Budget, IP Model, Weighted Criteria */}
       <EssentialFieldRenderers
         control={control}
         register={register}
@@ -89,17 +83,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         isMPBudgetRequired={isMPBudgetRequired}
         governanceMode={governanceMode}
       />
-
-      {/* Expected Outcomes */}
-      {isFieldVisible(fieldRules, 'expected_outcomes') && (
-        <Controller name="expected_outcomes" control={control} render={({ field }) => (
-          <LineItemsInput
-            value={field.value ?? ['']} onChange={field.onChange} label="What results do you expect?"
-            placeholder="Describe one expected outcome..." required minItems={1} maxItems={10} addLabel="Add Outcome"
-            error={errors.expected_outcomes?.message ? String(errors.expected_outcomes.message) : undefined}
-          />
-        )} />
-      )}
     </div>
   );
 }
