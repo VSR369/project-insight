@@ -125,6 +125,9 @@ export function GovernanceProfileTab({ organizationId }: GovernanceProfileTabPro
           })}
         </div>
 
+        {/* Org-level overrides */}
+        <GovernanceOverridesSection organizationId={organizationId} />
+
         {/* Supervisor notice */}
         <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 p-3">
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />

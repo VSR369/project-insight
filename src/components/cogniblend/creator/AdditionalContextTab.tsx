@@ -139,6 +139,13 @@ export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles
           </div>
         )}
       </div>
+
+      {engagementModel === 'MP' && draftChallengeId && (
+        <LegalDocUploadSection
+          challengeId={draftChallengeId}
+          governanceMode={governanceMode}
+        />
+      )}
     </div>
   );
 }
