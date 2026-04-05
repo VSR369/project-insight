@@ -222,7 +222,7 @@ export function useSubmitSolutionRequest() {
       return { challengeId, governanceMode: normalizedGov };
     },
     onSuccess: (result) => {
-      const isQuick = (result as { governanceMode?: string }).governanceMode === 'QUICK';
+      const isQuick = result.governanceMode === 'QUICK';
       toast.success(isQuick
         ? 'Challenge published! Solvers can now discover and apply.'
         : 'Challenge submitted — sent to Curator for review');
