@@ -60,6 +60,7 @@ export function useSubmitSolutionRequest() {
         currency: filteredPayload.currency ?? payload.currency,
         budget_min: filteredPayload.budgetMin ?? 0,
         budget_max: filteredPayload.budgetMax ?? 0,
+        platinum_award: filteredPayload.budgetMax ?? 0,
         source_role: 'CR',
         source_date: new Date().toISOString(),
         upstream_source: {
