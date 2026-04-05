@@ -55,9 +55,8 @@ export function buildMyVersionSections(
 function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef[] {
   const eb = (snapshot.extended_brief ?? {}) as Record<string, unknown>;
   const rs = (snapshot.reward_structure ?? {}) as Record<string, unknown>;
-  const currency = (snapshot.currency as string) || (rs.currency as string) || 'USD';
-  const budgetMin = Number(snapshot.budget_min ?? rs.budget_min ?? 0);
-  const budgetMax = Number(snapshot.budget_max ?? rs.budget_max ?? 0);
+  const currencyCode = (snapshot.currency_code as string) || (snapshot.currency as string) || (rs.currency as string) || 'USD';
+  const platinumAward = Number(snapshot.platinum_award ?? snapshot.budget_max ?? rs.platinum_award ?? rs.budget_max ?? 0);
 
   return [
     {

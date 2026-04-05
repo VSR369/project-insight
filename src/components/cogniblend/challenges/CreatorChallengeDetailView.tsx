@@ -33,11 +33,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const effectiveGovernance = resolveChallengeGovernance(
-    data.governance_mode_override, data.governance_profile, null,
+  const effectiveGovernance = resolveGovernanceMode(
+    data.governance_mode_override ?? data.governance_profile,
   );
-  const { data: fieldRules } = useGovernanceFieldRules(effectiveGovernance);
-
   const snapshot = (data as unknown as Record<string, unknown>).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
   const isPendingApproval = data.phase_status === 'CR_APPROVAL_PENDING';
