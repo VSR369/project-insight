@@ -169,12 +169,14 @@ export function useCurationPageOrchestrator() {
   const isLegalAccepted = sectionActions.some(a => a.section_key === 'legal_docs' && a.action_type === 'approval' && a.status === 'approved');
   const isEscrowAccepted = sectionActions.some(a => a.section_key === 'escrow_funding' && a.action_type === 'approval' && a.status === 'approved');
   const governanceMode = challenge ? resolveGovernanceMode(challenge.governance_profile) : null;
-  const needsLegalAcceptance = !!(challenge as any)?.lc_review_required || legalDetails.length > 0;
-  const needsEscrowAcceptance = governanceMode ? isControlledMode(governanceMode) : false;
-  const legalEscrowBlocked = (needsLegalAcceptance && !isLegalAccepted) || (needsEscrowAcceptance && !isEscrowAccepted);
+  // CONTROLLED: Curator does content only — LC/FC handle legal+escrow independently in Phase 3
+  // STRUCTURED: Curator handles legal+escrow (auto-approved in complete_phase)
+  const isControlled = governanceMode ? isControlledMode(governanceMode) : false;
+  const needsLegalAcceptance = isControlled ? false : (!!(challenge as Record<string, unknown>)?.lc_review_required || legalDetails.length > 0);
+  const needsEscrowAcceptance = false; // Escrow is never a Curator blocker — handled by FC in Phase 3
+  const legalEscrowBlocked = (needsLegalAcceptance && !isLegalAccepted);
   const blockingReasons: string[] = [];
   if (needsLegalAcceptance && !isLegalAccepted) blockingReasons.push('Legal Documents');
-  if (needsEscrowAcceptance && !isEscrowAccepted) blockingReasons.push('Escrow & Funding');
   const blockingReason = blockingReasons.length > 0 ? `${blockingReasons.join(' and ')} must be accepted before submitting` : undefined;
   const phaseDescription = challenge?.current_phase === 1 ? 'Spec Creation (Phase 1)' : challenge?.current_phase === 2 ? 'Legal & Finance Review (Phase 2)' : '';
 

@@ -26,7 +26,7 @@ const GOVERNANCE_DESCRIPTIONS: Record<GovernanceMode, { headline: string; body: 
   STRUCTURED: {
     headline: 'Professional — Curator enriches your challenge',
     body: 'You fill 8 fields. A human Curator reviews and enriches your brief with AI assistance.',
-    bestFor: 'R&D challenges, funded initiatives ($10K–$150K)',
+    bestFor: 'R&D challenges, funded initiatives ($25K–$100K)',
   },
   CONTROLLED: {
     headline: 'Enterprise compliance — full audit trail',
