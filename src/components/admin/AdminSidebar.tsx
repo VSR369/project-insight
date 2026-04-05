@@ -117,6 +117,7 @@ const seekerConfigItems = [
   { title: 'Governance Modes', icon: Settings, path: '/admin/seeker-config/governance-modes' },
   { title: 'Legal Documents', icon: FileText, path: '/admin/legal-documents' },
   { title: 'Legal Triggers', icon: Workflow, path: '/admin/legal-documents/triggers' },
+  { title: 'Legal Thresholds', icon: Shield, path: '/admin/seeker-config/legal-thresholds' },
   { title: 'Role Convergence', icon: Network, path: '/admin/seeker-config/role-convergence' },
   { title: 'Tier Access', icon: KeyRound, path: '/admin/seeker-config/tier-access' },
   { title: 'Lifecycle Phases', icon: Workflow, path: '/admin/seeker-config/lifecycle-phases' },
