@@ -328,83 +328,83 @@ serve(async (req) => {
 
     // Challenge 1: CONTROLLED + AGG (12 Creator fields filled)
     const controlledId = crypto.randomUUID();
-    const c1ProblemStatement = "Mahindra's automotive manufacturing plants in Nashik, Chakan, and Haridwar collectively operate 34 production lines running 24/7, producing over 42,000 vehicles per month. Unplanned equipment failures—primarily in hydraulic press systems, robotic welding cells, and CNC machining centres—are causing an estimated ₹19.2 crore ($2.3M) in annual downtime losses. The current time-based preventive maintenance programme results in two failure modes: unexpected breakdowns that halt entire assembly sequences, and unnecessary scheduled servicing of healthy equipment that wastes 2,400+ technician-hours per quarter. The plant engineering team has identified that 68% of catastrophic failures show detectable vibration or thermal anomalies 48-72 hours before failure, but lacks the sensor infrastructure and analytics capability to exploit this window.";
-    const c1Scope = "Design and deploy a condition-based predictive maintenance platform integrating with Siemens SIMATIC S7 SCADA controllers and Allen-Bradley CompactLogix PLCs across 847 sensor nodes (vibration, thermal, current, acoustic) installed on critical path equipment. The solution must ingest real-time telemetry at 10-second intervals, apply ML anomaly detection models, and generate automated work orders in SAP PM (Plant Maintenance) module. Phase 1 covers the Chakan SUV assembly plant (12 lines), Phase 2 extends to Nashik (14 lines), and Phase 3 to Haridwar (8 lines). Deliverables include a real-time operations dashboard, mobile alerting app for maintenance supervisors, and monthly reliability analytics reports. The platform must achieve a minimum 40% reduction in unplanned downtime within 6 months of Phase 1 deployment, with a false-positive rate below 5%.";
-    const c1Hook = "Eliminate ₹19.2 crore in annual unplanned downtime across Mahindra's 34 production lines through IoT-driven failure prediction with 48-hour advance warning";
-    const c1Context = "Mahindra operates one of India's largest automotive manufacturing footprints, with equipment ranging from 5 to 15 years old. The current Mean Time Between Failures (MTBF) averages 240 hours; the target is 500+ hours. The IT/OT convergence initiative launched in 2024 has established a unified network backbone, but analytics capabilities remain nascent. The Chakan plant recently completed a Siemens MindSphere pilot on 2 lines with promising results but limited scope. Union agreements require 30-day advance notice for any changes to maintenance shift patterns. The Chief Manufacturing Officer has executive sponsorship and a dedicated ₹8 crore budget allocation for Industry 4.0 initiatives in FY2026-27.";
+    const c1ProblemStatement = "Our pharmaceutical clients spend an average of $41,000 per patient recruited for Phase II/III clinical trials. Current recruitment processes rely on manual chart review by site coordinators, resulting in only 3-5% of screened patients meeting eligibility criteria. The average Phase III trial requires 18-24 months to reach full enrollment, with 80% of trials failing to meet enrollment timelines. We need an AI-powered platform that can: (1) automatically parse and extract structured data from unstructured EHR records across Epic, Cerner, and Meditech systems, (2) match patient profiles against complex multi-criteria trial eligibility protocols in real-time, (3) generate site-level feasibility scores predicting enrollment probability, and (4) provide a HIPAA-compliant physician-facing dashboard for protocol-matched patient outreach. The solution must demonstrate >85% sensitivity and >90% specificity in patient-protocol matching compared to manual gold-standard review, validated on a retrospective dataset of 50,000+ patient records across oncology, cardiology, and rare disease therapeutic areas.";
+    const c1Scope = "The solution must integrate with three primary EHR platforms (Epic, Cerner, Meditech) via HL7 FHIR R4 APIs. Geographic scope covers 47 hospital networks across North America, processing 12 million active patient records. The platform must handle 200+ concurrent trial protocols with complex Boolean eligibility logic including lab value ranges, medication histories, comorbidity exclusions, and temporal constraints. Out of scope: direct patient communication, consent management, and randomization. The solution must be deployable on-premise or in a HIPAA-compliant cloud environment (AWS GovCloud or Azure Government). Performance requirement: patient-protocol matching must complete within 30 seconds per patient batch of 1,000 records.";
+    const c1Hook = "Reduce clinical trial recruitment time by 60% using AI/NLP on 12M+ electronic health records across 47 hospital networks";
+    const c1Context = "Tech Mahindra's Healthcare & Life Sciences division serves 15 of the top 20 global pharmaceutical companies. Our current clinical trial support services are primarily manual, involving teams of 200+ clinical data managers across 5 delivery centers. We have existing FHIR integration frameworks and a proprietary NLP pipeline for medical document processing, but no unified patient-matching platform. Our clients have expressed willingness to commit to pilot programs if matching accuracy exceeds 85%. We have secured IRB approval for retrospective data analysis across 3 partner hospital networks (Mount Sinai, Cleveland Clinic, Mayo Clinic) for validation purposes.";
     const c1EvalCriteria = { weighted_criteria: [
-      { name: "Technical Architecture & ML Approach", weight: 30 },
-      { name: "Prediction Accuracy & False-Positive Rate", weight: 25 },
-      { name: "SCADA/PLC/SAP Integration Feasibility", weight: 20 },
-      { name: "ROI & Payback Period", weight: 15 },
-      { name: "Team Domain Experience in Manufacturing", weight: 10 },
+      { name: "Matching Accuracy (sensitivity/specificity on retrospective validation)", weight: 30 },
+      { name: "EHR Integration Architecture & FHIR Compliance", weight: 20 },
+      { name: "Scalability to 12M+ Records & 200+ Concurrent Protocols", weight: 15 },
+      { name: "HIPAA/GDPR Compliance & Security Architecture", weight: 15 },
+      { name: "Time-to-Deployment & Implementation Roadmap", weight: 10 },
+      { name: "Team Credentials & Domain Experience", weight: 10 },
     ]};
-    const c1DomainTags = ["automotive-manufacturing", "predictive-maintenance", "industrial-IoT", "machine-learning"];
+    const c1DomainTags = ["healthcare", "artificial-intelligence", "clinical-trials"];
     const c1ExtendedBrief = {
       creator_approval_required: true,
       context_background: c1Context,
       root_causes: [
-        "Reactive maintenance culture with no condition-based monitoring",
-        "No sensor-to-failure correlation database across equipment types",
-        "Siloed data: SCADA, SAP PM, and maintenance logs in disconnected systems",
-        "Insufficient vibration analysis expertise on maintenance teams",
-        "Legacy PLC firmware limits real-time data extraction rates",
+        "Manual chart review cannot scale beyond 50 patients/coordinator/day",
+        "Eligibility criteria complexity (avg 72 criteria per protocol) exceeds human cognitive capacity for consistent matching",
+        "Siloed EHR data across hospital networks prevents cross-site patient identification",
+        "No standardized data model for trial eligibility — each sponsor uses different protocol formats",
+        "Physician notification of eligible patients relies on ad-hoc email, resulting in 60%+ missed matches",
       ],
       affected_stakeholders: [
-        { role: "Plant Maintenance Engineers", count: 45 },
-        { role: "Production Planning Managers", count: 12 },
-        { role: "Quality Assurance Inspectors", count: 28 },
-        { role: "Shop Floor Supervisors", count: 34 },
-        { role: "IT/OT Integration Team", count: 8 },
-        { role: "Spare Parts & Procurement", count: 15 },
+        { role: "Clinical Operations Directors", count: 35, impact: "Primary — responsible for enrollment targets" },
+        { role: "Site Coordinators", count: 200, impact: "Primary — daily screening workflow" },
+        { role: "Principal Investigators", count: 120, impact: "Secondary — patient outreach" },
+        { role: "Pharmaceutical Sponsors", count: 15, impact: "Tertiary — trial timeline commitments" },
       ],
       current_deficiencies: [
-        "12% unplanned downtime rate vs. industry benchmark of 5%",
-        "Zero predictive capability—100% reactive or time-based maintenance",
-        "200+ manual inspection hours per month with subjective assessments",
-        "Spare parts overstocking costs ₹3.2 crore annually due to conservative ordering",
-        "No centralised equipment health dashboard for plant management",
+        "Avg 18-24 months to full trial enrollment (industry benchmark: 12 months)",
+        "$41,000 per-patient recruitment cost (3x higher than AI-assisted benchmarks)",
+        "3-5% screen-to-enroll ratio (top-quartile sites achieve 12-15% with AI tools)",
+        "80% of trials miss enrollment deadlines by 6+ months",
+        "No cross-site patient matching — each hospital operates in isolation",
       ],
     };
     const c1Snapshot = {
-      title: "AI-Powered Predictive Maintenance for Mahindra Auto Plants",
+      title: "AI-Driven Clinical Trial Patient Matching & Recruitment Platform",
       hook: c1Hook,
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
       domain_tags: c1DomainTags,
-      maturity_level: "PROTOTYPE",
+      maturity_level: "SOLUTION_GROWTH",
       context_background: c1Context,
       evaluation_criteria: c1EvalCriteria,
       currency_code: "USD",
-      platinum_award: 75000,
+      platinum_award: 500000,
       ip_model: "IP-EL",
       expected_timeline: "6-12",
       extended_brief: { context_background: c1Context },
-      reward_structure: { currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
+      reward_structure: { currency: "USD", platinum_award: 500000, budget_min: 300000, budget_max: 750000 },
     };
 
     const { error: c1Err } = await supabaseAdmin.from("challenges").insert({
       id: controlledId, tenant_id: orgId, organization_id: orgId,
-      title: "AI-Powered Predictive Maintenance for Mahindra Auto Plants",
+      title: "AI-Driven Clinical Trial Patient Matching & Recruitment Platform",
       hook: c1Hook,
       status: "draft", master_status: "IN_PREPARATION", current_phase: 2, phase_status: "ACTIVE",
       operating_model: "AGG", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
       challenge_model_is_agg: true, is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c1ProblemStatement,
       scope: c1Scope,
-      maturity_level: "PROTOTYPE",
+      maturity_level: "SOLUTION_GROWTH",
+      context_background: c1Context,
       evaluation_criteria: c1EvalCriteria,
-      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000, budget_min: 50000, budget_max: 150000 },
+      reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 500000, gold_award: 150000, silver_award: 75000, budget_min: 300000, budget_max: 750000 },
       currency_code: "USD", domain_tags: c1DomainTags,
-      ip_model: "IP-EL", phase_schedule: { expected_timeline: "6-12" },
-      eligibility: JSON.stringify({ industry_segment_id: techSegmentId, domain_tags: c1DomainTags }),
+      ip_model: "IP-EL", phase_schedule: { expected_timeline: "6-12", submission_deadline: "2026-09-30" },
+      eligibility: JSON.stringify({ industry_segment_id: healthSegmentId, domain_tags: c1DomainTags, constraints: "Must have prior experience with HIPAA-compliant healthcare AI solutions and HL7 FHIR integration" }),
       extended_brief: c1ExtendedBrief,
       creator_snapshot: c1Snapshot,
       created_by: crUserId,
     });
     if (c1Err) throw new Error(`CONTROLLED challenge: ${c1Err.message}`);
     challengeIds.push(controlledId);
-    results.push(`✅ Challenge 1: CONTROLLED+AGG "AI Predictive Maintenance — Mahindra Auto" (Phase 2 — CURATION)`);
+    results.push(`✅ Challenge 1: CONTROLLED+AGG "AI-Driven Clinical Trial Patient Matching" — $500K (Phase 2)`);
 
     // Challenge 2: STRUCTURED + AGG (8 Creator fields filled)
     const structuredId = crypto.randomUUID();
