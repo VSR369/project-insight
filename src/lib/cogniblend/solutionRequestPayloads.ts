@@ -51,6 +51,7 @@ export interface SubmitPayload {
   solutionMaturityId?: string;
   ipModel?: string;
   submissionGuidelines?: string[];
+  weightedCriteria?: Array<{ name: string; weight: number }>;
 }
 
 export interface DraftPayload {
@@ -90,6 +91,7 @@ export interface DraftPayload {
   solutionMaturityId?: string;
   ipModel?: string;
   submissionGuidelines?: string[];
+  weightedCriteria?: Array<{ name: string; weight: number }>;
 }
 
 export interface SubmitResult {
@@ -150,10 +152,12 @@ export function buildChallengeUpdatePayload(
     expected_outcomes: serializeLineItems(fp.expectedOutcomes),
     submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
     governance_mode_override: rawPayload.governanceModeOverride ?? null,
+    currency_code: fp.currency ?? rawPayload.currency,
     reward_structure: {
       currency: fp.currency ?? rawPayload.currency,
       budget_min: fp.budgetMin ?? 0,
       budget_max: fp.budgetMax ?? 0,
+      platinum_award: fp.budgetMax ?? 0,
       source_role: 'CR',
       source_date: new Date().toISOString(),
       upstream_source: {
@@ -164,6 +168,9 @@ export function buildChallengeUpdatePayload(
         currency: fp.currency ?? rawPayload.currency,
       },
     },
+    evaluation_criteria: fp.weightedCriteria?.length
+      ? { weighted_criteria: fp.weightedCriteria }
+      : null,
     phase_schedule: {
       expected_timeline: fp.expectedTimeline,
     },
