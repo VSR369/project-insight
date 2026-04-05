@@ -162,12 +162,12 @@ export default function CurationChecklistPanel({
   const checklistItems: ChecklistItem[] = useMemo(() =>
     CHECKLIST_LABELS.map((label, i) => ({
       id: i + 1, label, autoChecked: autoChecks[i], manualOverride: manualOverrides[i + 1] ?? false, locked: LOCKED_ITEM_IDS.has(i + 1),
-    })), [autoChecks, manualOverrides]);
+    })), [autoChecks, manualOverrides, CHECKLIST_LABELS]);
 
   const isChecked = useCallback((item: ChecklistItem) => item.autoChecked || item.manualOverride, []);
   const completedCount = checklistItems.filter(isChecked).length;
-  const progressPct = Math.round((completedCount / 15) * 100);
-  const allComplete = completedCount === 15;
+  const progressPct = Math.round((completedCount / TOTAL_ITEMS) * 100);
+  const allComplete = completedCount === TOTAL_ITEMS;
   const uncheckedItems = checklistItems.filter((item) => !isChecked(item));
   const isFinalCycle = amendmentCount >= 3;
   const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
