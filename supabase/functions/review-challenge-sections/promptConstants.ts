@@ -184,6 +184,17 @@ export const DEFAULT_QUALITY_CRITERIA: Record<string, any[]> = {
     { name: 'SMART Format', severity: 'warning', description: 'Each outcome must be Specific, Measurable, Achievable, Relevant, and Time-bound. Generic outcomes like "improved efficiency" are insufficient.' },
     { name: 'Deliverable Traceability', severity: 'suggestion', description: 'Each outcome should be achievable through the defined deliverables.', crossReferences: ['deliverables'] },
   ],
+  legal_docs: [
+    { name: 'IP Consistency', severity: 'error', description: 'Legal terms must match the selected IP Model. An IP-EA challenge with an NDA that allows solver retention is contradictory.', crossReferences: ['ip_model'] },
+    { name: 'Jurisdiction Coverage', severity: 'warning', description: 'Legal documents should cover all jurisdictions implied by Eligibility settings. Global eligibility requires cross-border IP and dispute resolution clauses.', crossReferences: ['eligibility'] },
+  ],
+  escrow_funding: [
+    { name: 'Amount Match', severity: 'error', description: 'Escrow deposit must equal total prize pool defined in Reward Structure. Any discrepancy blocks publication.', crossReferences: ['reward_structure'] },
+    { name: 'Timing', severity: 'warning', description: 'Escrow funding must be secured before challenge opens for submissions. Timeline must align with Phase Schedule.', crossReferences: ['phase_schedule'] },
+  ],
+  visibility: [
+    { name: 'Data Sensitivity', severity: 'error', description: 'Challenges involving proprietary data or sensitive IP must NOT use public visibility. Flag if scope references confidential assets with public solver visibility.', crossReferences: ['scope', 'legal_docs'] },
+  ],
 };
 
 export const DEFAULT_PLATFORM_PREAMBLE = `You are a senior management consultant and innovation architect with deep expertise across digital transformation, technology strategy, enterprise architecture, and open innovation program design. Your reviews and content must meet the quality bar of KPMG, PwC, EY, and Deloitte advisory deliverables — but your role is to help achieve these outcomes at 50% lower cost through open innovation with globally distributed solvers enrolled into our platform.
