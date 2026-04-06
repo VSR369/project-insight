@@ -118,6 +118,9 @@ export const EXTENDED_BRIEF_FORMAT_INSTRUCTIONS: Record<string, string> = {
   solution_type: 'Output: JSON array of solution type codes from the allowed values list ONLY. Select types that match the challenge\'s deliverables and required approach. A challenge may span multiple types (e.g., a data analytics challenge needing ML and visualization). Select 1-3 most relevant types. Cross-reference with problem_statement and scope to ensure alignment.',
   context_and_background: 'Output: Rich HTML providing comprehensive context for external solvers who have NO internal organizational knowledge. MUST include: (1) Organization/industry context — what the org does, market position, (2) Operational setting — systems, processes, scale of operations, (3) Prior attempts — what has been tried and why it failed or was insufficient, (4) Triggering event — why this challenge is being launched now. Length: 150-300 words.',
   ip_model: 'Output: { "selected_id": "IP-EA"|"IP-NEL"|"IP-EL"|"IP-JO"|"IP-SR", "rationale": "..." }. Selection guide: IP-EA (Full Transfer) = when seeker will commercialize exclusively (proprietary algorithms, patents). IP-NEL (Non-Exclusive License) = when solution has broad applicability, seeker only needs usage rights. IP-EL (Exclusive License) = seeker needs exclusive usage but solver retains ownership. IP-JO (Joint Ownership) = collaborative R&D with shared contributions. IP-SR (Solver Retains) = advisory/consulting with no tangible IP created. Analyze deliverables, maturity level, and reward to justify recommendation.',
+  legal_docs: 'Output: JSON array of document objects with keys: document_type, tier ("tier_1"|"tier_2"), status, document_name. Validate completeness against IP model requirements.',
+  escrow_funding: 'Output: JSON object with keys: escrow_status ("funded"|"pending"|"not_required"), deposit_amount (number), currency (ISO code), matches_prize_pool (boolean), funding_deadline (ISO date or null).',
+  visibility_eligibility: 'Output: JSON object with keys: solver_visibility ("anonymous"|"visible"|"semi_anonymous"), rationale (string explaining why this visibility setting is appropriate for this challenge type).',
 };
 
 export const SECTION_QUALITY_EXEMPLARS: Partial<Record<string, string>> = {
@@ -183,6 +186,17 @@ export const DEFAULT_QUALITY_CRITERIA: Record<string, any[]> = {
   expected_outcomes: [
     { name: 'SMART Format', severity: 'warning', description: 'Each outcome must be Specific, Measurable, Achievable, Relevant, and Time-bound. Generic outcomes like "improved efficiency" are insufficient.' },
     { name: 'Deliverable Traceability', severity: 'suggestion', description: 'Each outcome should be achievable through the defined deliverables.', crossReferences: ['deliverables'] },
+  ],
+  legal_docs: [
+    { name: 'IP Consistency', severity: 'error', description: 'Legal terms must match the selected IP Model. An IP-EA challenge with an NDA that allows solver retention is contradictory.', crossReferences: ['ip_model'] },
+    { name: 'Jurisdiction Coverage', severity: 'warning', description: 'Legal documents should cover all jurisdictions implied by Eligibility settings. Global eligibility requires cross-border IP and dispute resolution clauses.', crossReferences: ['eligibility'] },
+  ],
+  escrow_funding: [
+    { name: 'Amount Match', severity: 'error', description: 'Escrow deposit must equal total prize pool defined in Reward Structure. Any discrepancy blocks publication.', crossReferences: ['reward_structure'] },
+    { name: 'Timing', severity: 'warning', description: 'Escrow funding must be secured before challenge opens for submissions. Timeline must align with Phase Schedule.', crossReferences: ['phase_schedule'] },
+  ],
+  visibility: [
+    { name: 'Data Sensitivity', severity: 'error', description: 'Challenges involving proprietary data or sensitive IP must NOT use public visibility. Flag if scope references confidential assets with public solver visibility.', crossReferences: ['scope', 'legal_docs'] },
   ],
 };
 
