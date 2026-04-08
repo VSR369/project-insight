@@ -39,8 +39,8 @@ export function useLegalDocTemplates(governanceMode: GovernanceMode, engagementM
 
       return (data as Array<LegalDocTemplate & { applies_to_mode: string; applies_to_model: string }>)
         .filter((doc) => {
-          const modeMatch = doc.applies_to_mode === 'ALL' || doc.applies_to_mode.toUpperCase() === modeKey;
-          const modelMatch = doc.applies_to_model === 'ALL' || doc.applies_to_model.toUpperCase() === modelKey;
+          const modeMatch = ['ALL', 'BOTH'].includes(doc.applies_to_mode.toUpperCase()) || doc.applies_to_mode.toUpperCase() === modeKey;
+          const modelMatch = ['ALL', 'BOTH'].includes(doc.applies_to_model.toUpperCase()) || doc.applies_to_model.toUpperCase() === modelKey;
           return modeMatch && modelMatch;
         })
         .map(({ applies_to_mode: _m, applies_to_model: _e, ...rest }) => rest);
