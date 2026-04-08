@@ -107,6 +107,7 @@ serve(async (req) => {
         await sa.from("challenges").delete().in("id", ids);
       }
       await sa.from("org_users").delete().in("organization_id", oldOrgIds);
+      await sa.from("org_legal_document_templates").delete().in("organization_id", oldOrgIds);
       await sa.from("seeker_organizations").delete().in("id", oldOrgIds);
       results.push(`🧹 Cleaned ${oldOrgs.length} old org(s)`);
     }
@@ -128,6 +129,45 @@ serve(async (req) => {
     });
     if (orgErr) throw new Error(`Org: ${orgErr.message}`);
     results.push(`✅ Org: "${config.orgName}"`);
+
+    // ─── Seed org-level legal templates (required for AGG complete_phase branching) ───
+    const { data: platTemplates } = await sa
+      .from("legal_document_templates")
+      .select("template_id, document_code, document_name, document_type, tier, version, is_mandatory")
+      .eq("is_active", true)
+      .eq("version_status", "ACTIVE")
+      .limit(10);
+    if (platTemplates && platTemplates.length > 0) {
+      const modeMap: Record<string, string> = {
+        PMA: "ALL", CA: "ALL", PSA: "ALL",
+        IPAA: "STRUCTURED", EPIA: "CONTROLLED",
+      };
+      const orgTemplateRows = platTemplates.map((t: {
+        document_code?: string; document_name: string;
+        document_type: string; tier: string; version: string; is_mandatory: boolean;
+      }) => ({
+        organization_id: orgId,
+        tenant_id: orgId,
+        document_name: t.document_name,
+        document_code: t.document_code ?? null,
+        document_type: t.document_type ?? "standard",
+        description: "Org-level copy of platform template for AGG model",
+        tier: t.tier ?? "TIER_1",
+        version: t.version ?? "1.0",
+        version_status: "ACTIVE",
+        applies_to_mode: modeMap[t.document_code ?? ""] ?? "ALL",
+        is_mandatory: t.is_mandatory ?? true,
+        is_active: true,
+        effective_date: new Date().toISOString().slice(0, 10),
+      }));
+      const { error: oltErr } = await sa
+        .from("org_legal_document_templates")
+        .insert(orgTemplateRows);
+      if (oltErr) results.push(`⚠️ Org legal templates: ${oltErr.message}`);
+      else results.push(`✅ Org legal templates: ${orgTemplateRows.length} seeded`);
+    } else {
+      results.push(`⚠️ No platform legal templates found to copy`);
+    }
 
     // ─── Create users (parallel) ───
     const userPromises = config.users.map(async (u): Promise<ResolvedUser> => {
@@ -323,7 +363,7 @@ serve(async (req) => {
     results.push(`✅ C6: QUICK+MP $5K Phase5 — Solo=ALL`);
 
     // ─── Legal docs ───
-    const { data: orgLT } = await sa.from("org_legal_document_templates").select("id, document_code, document_name, tier").eq("is_active", true).limit(20);
+    const { data: orgLT } = await sa.from("org_legal_document_templates").select("id, document_code, document_name, tier").eq("organization_id", orgId).eq("is_active", true).limit(20);
     const { data: platLT } = await sa.from("legal_document_templates").select("template_id, document_code, document_name, tier").eq("is_active", true).eq("version_status", "ACTIVE").limit(20);
     const attachLegal = async (cid: string, tmpls: { document_code?: string; document_name?: string; tier?: string }[] | null, st: string, lcs: string, by: string | null) => {
       if (!tmpls?.length) return 0;
