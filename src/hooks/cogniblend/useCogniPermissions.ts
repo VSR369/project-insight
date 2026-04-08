@@ -18,7 +18,7 @@ const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
 
 export function useCogniPermissions() {
   const { activeRole, availableRoles } = useCogniRoleContext();
-  const { hasNonQuickChallenges } = useCogniUserRoles();
+  const { hasNonQuickChallenges, nonQuickRoleCodes } = useCogniUserRoles();
 
   // Visibility: always all roles (nav items stay visible, dimmed by ROLE_NAV_RELEVANCE)
   const visibilityRoles = availableRoles;
@@ -35,8 +35,9 @@ export function useCogniPermissions() {
   // For QUICK-only users, hide CU/LC/FC/ER nav items (they are system artifacts)
   const govAware = (codes: string[], base: boolean): boolean => {
     if (!base) return false;
-    if (hasNonQuickChallenges) return true;
-    // QUICK-only: only show CR items
+    // Show item only if user holds THIS specific role for a non-QUICK challenge
+    if (codes.some(c => nonQuickRoleCodes.has(c))) return true;
+    // QUICK-only: only CR items visible
     return codes.includes('CR');
   };
 
