@@ -11,6 +11,7 @@ import type { SectionKey } from '@/types/sections';
 export const DEFAULT_REVIEW_ROUTE = 'review-challenge-sections';
 
 export const SECTION_REVIEW_ROUTES: Partial<Record<SectionKey, string>> = {
+  complexity: 'assess-complexity',
   reward_structure: 'refine-challenge-section',
 };
 

@@ -9,9 +9,16 @@ export type GovernanceMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
 
 const VALID_MODES: Set<string> = new Set(['QUICK', 'STRUCTURED', 'CONTROLLED']);
 
+/** Maps legacy DB values to the canonical 3-mode set */
+const LEGACY_MODE_MAP: Record<string, GovernanceMode> = {
+  LIGHTWEIGHT: 'QUICK',
+  ENTERPRISE: 'CONTROLLED',
+};
+
 /**
  * Strictly validates a governance mode value.
  * Returns STRUCTURED for null/undefined. Falls back to STRUCTURED for unknown.
+ * Normalizes legacy values: LIGHTWEIGHT→QUICK, ENTERPRISE→CONTROLLED.
  */
 export function resolveGovernanceMode(
   governanceProfile: string | null | undefined,
@@ -19,6 +26,7 @@ export function resolveGovernanceMode(
   if (!governanceProfile) return 'STRUCTURED';
   const raw = governanceProfile.toUpperCase().trim();
   if (VALID_MODES.has(raw)) return raw as GovernanceMode;
+  if (LEGACY_MODE_MAP[raw]) return LEGACY_MODE_MAP[raw];
   return 'STRUCTURED';
 }
 
