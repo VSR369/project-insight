@@ -1,50 +1,104 @@
 
-You are right — based on the screen you shared, Quick mode is not displaying any read-only legal-doc card on the actual page.
 
-What I verified
-- `/cogni/challenges/create` is wired to `ChallengeCreatePage` and then `ChallengeCreatorForm`.
-- `ChallengeCreatorForm.tsx` is supposed to render `CreatorLegalDocsPreview` for all modes, plus `SolverAudiencePreview` in Quick mode.
-- The database already has ACTIVE templates that should appear in Quick mode: PMA, CA, PSA, and IPAA. EPIA is CONTROLLED-only.
-- `QuickLegalDocsSummary.tsx` exists, but it is not currently wired into the page.
-- Your screenshot shows only the Solver Audience card, which means the legal-doc card is not rendering in the runtime you are actually seeing.
-- The preview request snapshot did not show a `legal_document_templates` fetch, which supports that the legal preview path is not mounting in the live screen.
+# Fix Legal Documents + Remaining Governance Bugs
 
-What is actually stopping it
-- This is no longer just a data/filter issue.
-- The current source says the legal preview should render, but the runtime screen still behaves like an older/alternate path where that first card is missing.
-- So the real problem is Quick-mode rendering/wiring drift on the create screen.
+## Overview
 
-Implementation plan
-1. Trace the exact Quick-mode render path
-   - Verify the active `/cogni/challenges/create` screen is using the same `ChallengeCreatorForm.tsx` that contains `CreatorLegalDocsPreview`.
-   - Check for any legacy/parallel Quick-mode branch that bypasses the legal preview.
+Six interlinked fixes addressing legal document visibility, governance mode resolution, and test alignment.
 
-2. Make Quick mode impossible to hide
-   - Update the Quick-mode section so a legal-doc card always renders.
-   - Use `QuickLegalDocsSummary.tsx` as a guaranteed fallback, or fold that fallback directly into `CreatorLegalDocsPreview`.
-   - Ensure Quick mode never returns `null` or disappears silently.
+---
 
-3. Use one source of truth for previewed docs
-   - Align the Quick read-only preview with the same legal-resolution logic used by `LegalGateModal` / `useLegalGate`.
-   - This prevents drift between “what the user sees before submit” and “what actually applies on submit.”
+## Fix A — LegalDocumentAttachmentPage reads wrong governance field
 
-4. Keep the content read-only
-   - Preserve document viewing through `LegalDocumentViewer`.
-   - Show the list of agreements with read-only badges and a View action for full text.
+**File:** `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx`
 
-5. Verify Quick mode end-to-end
-   - Confirm the legal-doc card is visible before submit in Quick mode.
-   - Confirm MP and AGG show PMA, CA, PSA, and IPAA.
-   - Confirm EPIA does not appear in Quick mode.
-   - Confirm the same docs are used by the submission legal flow.
+**Problem:** Line 205 queries only `governance_profile` (org-level legacy value). Line 460 resolves governance from `challenge?.governance_profile` — never reads `governance_mode_override`.
 
-Files to update
-- `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
-- `src/components/cogniblend/creator/CreatorLegalDocsPreview.tsx`
-- `src/components/cogniblend/creator/QuickLegalDocsSummary.tsx`
-- optionally `src/hooks/queries/useLegalDocTemplates.ts` or shared legal-gate resolver if unified
+**Fix:**
+- Add `governance_mode_override` to the `.select()` on line 205
+- Change line 460 to resolve from `COALESCE(governance_mode_override, governance_profile)`:
+  ```typescript
+  const isQuick = isQuickMode(resolveGovernanceMode(
+    challenge?.governance_mode_override ?? challenge?.governance_profile
+  ));
+  ```
+- Similarly update the RPC call (line 227) to pass the resolved mode instead of raw `governance_profile`
 
-Technical details
-- The database is not the blocker.
-- The strongest evidence is your screenshot: only the second Quick-mode card (`SolverAudiencePreview`) is visible, so the first card slot is missing in the live UI.
-- That means the fix now needs to target render-path consistency, not just query filtering.
+---
+
+## Fix B — Legacy mode names not mapped in resolveGovernanceMode
+
+**File:** `src/lib/governanceMode.ts`
+
+**Problem:** `resolveGovernanceMode('ENTERPRISE')` falls to `'STRUCTURED'` (correct), but `resolveGovernanceMode('LIGHTWEIGHT')` also falls to `'STRUCTURED'` instead of `'QUICK'`.
+
+**Fix:** Add a legacy normalization map before the `VALID_MODES` check:
+```typescript
+const LEGACY_MODE_MAP: Record<string, GovernanceMode> = {
+  LIGHTWEIGHT: 'QUICK',
+  ENTERPRISE: 'CONTROLLED',
+};
+```
+Apply it: if `LEGACY_MODE_MAP[raw]` exists, return it; otherwise proceed to `VALID_MODES` check.
+
+---
+
+## Fix C — get_required_legal_docs RPC uses legacy 'enterprise' check
+
+**File:** New migration
+
+**Problem:** The RPC (line 84) checks `LOWER(p_governance_profile) = 'enterprise'` — never matches `'CONTROLLED'`. CONTROLLED mode gets the lightweight (non-enterprise) document set.
+
+**Fix:** Replace the enterprise check with new mode names:
+```sql
+IF UPPER(TRIM(p_governance_profile)) IN ('CONTROLLED', 'ENTERPRISE') THEN
+  -- Include enterprise-level Tier 2 docs
+ELSE
+  -- Standard/Quick: only plain maturity matches
+END IF;
+```
+
+---
+
+## Fix D — QUICK mode submit never creates challenge_legal_docs rows
+
+**File:** `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
+
+**Problem:** QUICK submit calls `complete_phase` which auto-advances through Phase 3. The `complete_phase` function does insert legal docs at Phase 3 entry (line 89-97), but only inserts `TIER_1` with no maturity filter — it grabs ALL active templates. The `ChallengeLegalDocsCard` on the detail page queries `challenge_legal_docs` and shows them, but since `complete_phase` uses `ON CONFLICT DO NOTHING`, any conflict silently drops rows.
+
+**Current state:** `complete_phase` already handles QUICK auto-attach (lines 86-98). The issue is it doesn't filter by maturity level. Fix in migration:
+
+```sql
+-- In the QUICK auto_apply block, add maturity filter:
+AND (required_for_maturity ? v_maturity_key OR required_for_maturity IS NULL)
+```
+
+Also add the same maturity filter to STRUCTURED and CONTROLLED blocks.
+
+---
+
+## Fix E — sectionRoutes.ts missing complexity entry
+
+**File:** `src/lib/sectionRoutes.ts`
+
+**Problem:** Test expects `complexity → 'assess-complexity'` but the route map only has `reward_structure`.
+
+**Fix:** Add the entry:
+```typescript
+export const SECTION_REVIEW_ROUTES: Partial<Record<SectionKey, string>> = {
+  complexity: 'assess-complexity',
+  reward_structure: 'refine-challenge-section',
+};
+```
+
+---
+
+## Summary of Files
+
+| File | Change |
+|------|--------|
+| `src/lib/governanceMode.ts` | Add `LEGACY_MODE_MAP` for LIGHTWEIGHT→QUICK, ENTERPRISE→CONTROLLED |
+| `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx` | Fetch `governance_mode_override`, resolve effective mode |
+| `src/lib/sectionRoutes.ts` | Add `complexity: 'assess-complexity'` |
+| New migration SQL | Rewrite `get_required_legal_docs` to use QUICK/STRUCTURED/CONTROLLED; add maturity filter to `complete_phase` legal doc inserts |
+
