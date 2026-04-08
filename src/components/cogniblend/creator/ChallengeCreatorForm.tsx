@@ -87,7 +87,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     resolver: zodResolver(schema as ReturnType<typeof buildCreatorSchema>),
     defaultValues: {
       title: '', hook: '', problem_statement: '', scope: '', maturity_level: '',
-      solution_maturity_id: '', industry_segment_id: industrySegmentId, domain_tags: [],
+      solution_maturity_id: '', industry_segment_id: industrySegmentId,
       currency_code: 'USD', platinum_award: 0,
       ip_model: isQuick ? 'IP-NEL' : '', expected_outcomes: [''],
       weighted_criteria: [], deliverables_list: [],
@@ -124,7 +124,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       title: data.title, businessProblem: data.problem_statement,
       expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
       currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
-      expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags, urgency: 'standard',
+      expectedTimeline: data.expected_timeline || '8w', domainTags: industrySegmentId ? [industrySegmentId] : [], urgency: 'standard',
       industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
       governanceModeOverride: governanceMode,
       contextBackground: data.context_background || undefined, rootCauses: cleanArray(data.root_causes),
@@ -195,7 +195,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             <TabsTrigger value="essential" className="flex-1 gap-1.5">✏️ Essential Details</TabsTrigger>
             {!isQuick && <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>}
           </TabsList>
-          <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} industrySegments={industrySegments} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
+          <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
         </Tabs>
         {engagementModel === 'MP' && governanceMode !== 'QUICK' && (
