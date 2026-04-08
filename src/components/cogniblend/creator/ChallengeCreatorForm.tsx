@@ -36,6 +36,7 @@ import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 import { CreatorLegalDocsPreview } from './CreatorLegalDocsPreview';
+import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 
@@ -205,7 +206,11 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           />
         )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <CreatorLegalDocsPreview engagementModel={engagementModel} governanceMode={governanceMode} />
+          {isQuick ? (
+            <QuickLegalDocsSummary engagementModel={engagementModel} />
+          ) : (
+            <CreatorLegalDocsPreview engagementModel={engagementModel} governanceMode={governanceMode} />
+          )}
           {isQuick && <SolverAudiencePreview engagementModel={engagementModel} />}
         </div>
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
