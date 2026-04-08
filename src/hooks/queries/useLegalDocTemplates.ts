@@ -1,6 +1,8 @@
 /**
  * useLegalDocTemplates — Fetches active legal document templates
  * filtered by governance mode and engagement model.
+ *
+ * Used by CreatorLegalDocsPreview for read-only display.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -19,14 +21,34 @@ interface LegalDocTemplate {
   version: string;
 }
 
-const COLUMNS = 'template_id, document_code, document_name, description, summary, content, is_mandatory, tier, version, applies_to_mode, applies_to_model';
+const COLUMNS =
+  'template_id, document_code, document_name, description, summary, content, is_mandatory, tier, version, applies_to_mode, applies_to_model';
 
-export function useLegalDocTemplates(governanceMode: GovernanceMode, engagementModel: string) {
+/** Wildcard values that match any mode/model */
+const WILDCARD = new Set(['ALL', 'BOTH']);
+
+/**
+ * Normalize short engagement-model codes used in the creator form
+ * to the canonical values stored in the database.
+ */
+function normalizeEngagementModel(raw: string): string {
+  const upper = raw.toUpperCase().trim();
+  const MAP: Record<string, string> = {
+    MP: 'MARKETPLACE',
+    AGG: 'AGGREGATOR',
+  };
+  return MAP[upper] ?? upper;
+}
+
+export function useLegalDocTemplates(
+  governanceMode: GovernanceMode,
+  engagementModel: string,
+) {
   return useQuery<LegalDocTemplate[]>({
     queryKey: ['legal-doc-templates', governanceMode, engagementModel],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('legal_document_templates')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('legal_document_templates') as any)
         .select(COLUMNS)
         .eq('is_active', true)
         .eq('version_status', 'ACTIVE');
@@ -35,12 +57,18 @@ export function useLegalDocTemplates(governanceMode: GovernanceMode, engagementM
       if (!data) return [];
 
       const modeKey = governanceMode.toUpperCase();
-      const modelKey = engagementModel.toUpperCase();
+      const modelKey = normalizeEngagementModel(engagementModel);
 
-      return (data as Array<LegalDocTemplate & { applies_to_mode: string; applies_to_model: string }>)
+      return (
+        data as Array<
+          LegalDocTemplate & { applies_to_mode: string; applies_to_model: string }
+        >
+      )
         .filter((doc) => {
-          const modeMatch = ['ALL', 'BOTH'].includes(doc.applies_to_mode.toUpperCase()) || doc.applies_to_mode.toUpperCase() === modeKey;
-          const modelMatch = ['ALL', 'BOTH'].includes(doc.applies_to_model.toUpperCase()) || doc.applies_to_model.toUpperCase() === modelKey;
+          const docMode = (doc.applies_to_mode ?? '').toUpperCase();
+          const docModel = (doc.applies_to_model ?? '').toUpperCase();
+          const modeMatch = WILDCARD.has(docMode) || docMode === modeKey;
+          const modelMatch = WILDCARD.has(docModel) || docModel === modelKey;
           return modeMatch && modelMatch;
         })
         .map(({ applies_to_mode: _m, applies_to_model: _e, ...rest }) => rest);

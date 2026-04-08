@@ -1,11 +1,10 @@
 /**
  * CreatorLegalDocsPreview — Read-only preview of legal document templates
  * that apply to the current governance mode and engagement model.
- * Replaces the hardcoded QuickLegalDocsSummary.
  */
 
 import { useState } from 'react';
-import { FileCheck, Shield, Eye, Loader2 } from 'lucide-react';
+import { FileCheck, Shield, Eye, Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,22 +17,55 @@ interface CreatorLegalDocsPreviewProps {
   governanceMode: GovernanceMode;
 }
 
-export function CreatorLegalDocsPreview({ engagementModel, governanceMode }: CreatorLegalDocsPreviewProps) {
-  const { data: docs = [], isLoading } = useLegalDocTemplates(governanceMode, engagementModel);
-  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
+export function CreatorLegalDocsPreview({
+  engagementModel,
+  governanceMode,
+}: CreatorLegalDocsPreviewProps) {
+  const {
+    data: docs = [],
+    isLoading,
+    isError,
+  } = useLegalDocTemplates(governanceMode, engagementModel);
+
+  const [viewingDoc, setViewingDoc] = useState<{
+    name: string;
+    content: string;
+  } | null>(null);
 
   const isQuick = governanceMode === 'QUICK';
 
+  /* ── Loading state ──────────────────────────── */
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-muted/30 p-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />Loading legal templates…
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading legal templates…
       </div>
     );
   }
 
-  if (docs.length === 0) return null;
+  /* ── Error state ────────────────────────────── */
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 flex items-center gap-2 text-sm text-destructive">
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        Unable to load legal templates. Please try again later.
+      </div>
+    );
+  }
 
+  /* ── Empty state ────────────────────────────── */
+  if (docs.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 p-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <Info className="h-4 w-4 shrink-0" />
+        No legal templates match the current governance mode (
+        {governanceMode}) and engagement model ({engagementModel}).
+      </div>
+    );
+  }
+
+  /* ── Success state ──────────────────────────── */
   return (
     <>
       <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
@@ -54,23 +86,35 @@ export function CreatorLegalDocsPreview({ engagementModel, governanceMode }: Cre
           {docs.map((doc) => (
             <li key={doc.template_id} className="flex items-center gap-2">
               <FileCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span className="text-xs text-foreground">{doc.document_name}</span>
+              <span className="text-xs text-foreground">
+                {doc.document_name}
+              </span>
               {doc.content && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
-                  onClick={() => setViewingDoc({ name: doc.document_name, content: doc.content ?? '' })}
+                  onClick={() =>
+                    setViewingDoc({
+                      name: doc.document_name,
+                      content: doc.content ?? '',
+                    })
+                  }
                 >
-                  <Eye className="h-3 w-3 mr-0.5" />View
+                  <Eye className="h-3 w-3 mr-0.5" />
+                  View
                 </Button>
               )}
               <Badge
                 variant="outline"
                 className="ml-auto text-[9px] px-1.5 py-0 text-emerald-700 border-emerald-300 bg-emerald-50"
               >
-                {isQuick ? 'Auto-accepted' : doc.is_mandatory ? 'Mandatory' : 'Optional'}
+                {isQuick
+                  ? 'Auto-accepted'
+                  : doc.is_mandatory
+                    ? 'Mandatory'
+                    : 'Optional'}
               </Badge>
             </li>
           ))}
