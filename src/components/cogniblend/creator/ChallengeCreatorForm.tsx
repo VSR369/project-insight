@@ -8,6 +8,8 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Send, Save, Loader2, FlaskConical, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +37,9 @@ import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
+import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
+import { SolverAudiencePreview } from './SolverAudiencePreview';
+import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
