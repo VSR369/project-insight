@@ -17,7 +17,7 @@ interface ScenarioConfig {
 
 const SCENARIOS: Record<string, ScenarioConfig> = {
   new_horizon_demo: {
-    orgName: "Tech Mahindra Limited",
+    orgName: "Mahindra & Mahindra Limited",
     operatingModel: "AGG",
     governanceProfile: "CONTROLLED",
     subscriptionTier: "premium",
@@ -284,7 +284,7 @@ serve(async (req) => {
 
     // ═══ C5: QUICK+AGG — $10K Phase 5 (Published) ═══
     const c5Id = crypto.randomUUID();
-    const c5Prob = "Tech Mahindra committed to net-zero by 2035. Need prototype employee dashboard tracking individual/team carbon footprint from office energy, travel, data center usage, and commute. Calculate CO2 equivalents using GHG Protocol Scope 1/2/3 factors with monthly trends and reduction targets.";
+    const c5Prob = "Mahindra Group committed to net-zero by 2035. Need prototype employee dashboard tracking individual/team carbon footprint from office energy, travel, data center usage, and commute. Calculate CO2 equivalents using GHG Protocol Scope 1/2/3 factors with monthly trends and reduction targets.";
     const c5Tags = ["sustainability", "dashboard", "ESG"];
     await insertChallenge(sa, {
       id: c5Id, tenant_id: orgId, organization_id: orgId, title: "Internal Carbon Footprint Tracker",
