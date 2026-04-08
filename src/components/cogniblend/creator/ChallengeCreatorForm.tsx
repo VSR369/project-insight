@@ -77,6 +77,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
+  const [publishedResult, setPublishedResult] = useState<{ challengeId: string; title: string } | null>(null);
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
   const isControlled = governanceMode === 'CONTROLLED';
@@ -147,8 +148,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId && user?.id) {
         await uploadFiles(attachedFiles, { challengeId: result.challengeId, orgId: currentOrg.organizationId, userId: user.id });
       }
-      toast.success(isQuick ? 'Challenge published! Solvers can now discover and apply.' : `Challenge "${data.title}" submitted to Curator for review.`);
-      navigate('/cogni/my-challenges');
+      if (isQuick) {
+        setPublishedResult({ challengeId: result.challengeId, title: data.title });
+      } else {
+        toast.success(`Challenge "${data.title}" submitted to Curator for review.`);
+        navigate('/cogni/my-challenges');
+      }
     } catch { /* handled by mutation onError */ }
   }, [buildPayload, submitMutation, referenceUrls, draftSave.draftChallengeId, attachedFiles, currentOrg, user, navigate, isQuick, uploadFiles]);
 
