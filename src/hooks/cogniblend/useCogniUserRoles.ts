@@ -89,5 +89,6 @@ export function useCogniUserRoles() {
     curationQueueCount,
     approvalQueueCount,
     hasNonQuickChallenges,
+    nonQuickRoleCodes,
   };
 }
