@@ -15,7 +15,7 @@
 
 import type { CreatorFormValues } from './creatorFormSchema';
 
-type SeedContent = Omit<CreatorFormValues, 'domain_tags' | 'hook'> & { domain_tags?: string[]; hook?: string };
+type SeedContent = Omit<CreatorFormValues, 'hook'> & { hook?: string };
 
 /**
  * MP scenario: Supply Chain Digital Workforce Transformation

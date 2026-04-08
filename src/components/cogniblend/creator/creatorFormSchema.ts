@@ -74,7 +74,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     maturity_level: maturityRule,
     solution_maturity_id: z.string().optional().default(''),
     industry_segment_id: z.string().optional().default(''),
-    domain_tags: z.array(z.string()).min(1, 'Select at least 1 domain').max(3, 'Max 3 domains'),
+    /* domain_tags removed — derived from industrySegmentId at submit/save time */
     currency_code: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
     platinum_award: z.coerce.number().min(0).default(0),
     ip_model: ipRule,
@@ -109,7 +109,7 @@ export type CreatorFormValues = {
   scope: string;
   maturity_level: string;
   solution_maturity_id: string;
-  domain_tags: string[];
+  
   currency_code: 'USD' | 'EUR' | 'GBP' | 'INR';
   platinum_award: number;
   ip_model: string;
