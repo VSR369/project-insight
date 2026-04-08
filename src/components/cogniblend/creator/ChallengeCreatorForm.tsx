@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
-import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
@@ -35,7 +35,7 @@ import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
-import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
+import { CreatorLegalDocsPreview } from './CreatorLegalDocsPreview';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 
@@ -55,7 +55,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
-  const { data: industrySegments = [] } = useIndustrySegmentOptions();
+  
   const { data: solutionMaturityOptions = [] } = useSolutionMaturityList();
   const { data: tierLimit } = useTierLimitCheck();
   const submitMutation = useSubmitSolutionRequest();
@@ -87,7 +87,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     resolver: zodResolver(schema as ReturnType<typeof buildCreatorSchema>),
     defaultValues: {
       title: '', hook: '', problem_statement: '', scope: '', maturity_level: '',
-      solution_maturity_id: '', industry_segment_id: industrySegmentId, domain_tags: [],
+      solution_maturity_id: '', industry_segment_id: industrySegmentId,
       currency_code: 'USD', platinum_award: 0,
       ip_model: isQuick ? 'IP-NEL' : '', expected_outcomes: [''],
       weighted_criteria: [], deliverables_list: [],
@@ -124,7 +124,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       title: data.title, businessProblem: data.problem_statement,
       expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
       currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
-      expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags, urgency: 'standard',
+      expectedTimeline: data.expected_timeline || '8w', domainTags: industrySegmentId ? [industrySegmentId] : [], urgency: 'standard',
       industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
       governanceModeOverride: governanceMode,
       contextBackground: data.context_background || undefined, rootCauses: cleanArray(data.root_causes),
@@ -169,13 +169,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
 
   const handleFillTestData = useCallback(() => {
     const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
-    const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
-    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, domain_tags: domainIds, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegments[0]?.id ?? '' }, fieldRules) : { ...seed, domain_tags: domainIds };
+    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegmentId || '' }, fieldRules) : seed;
     form.reset(filtered as CreatorFormValues);
     onFillTestData?.();
     setTimeout(async () => { await draftSave.handleSaveDraft(); toast.success('Test data filled & saved as draft'); }, 150);
-  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave]);
+  }, [engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);
 
   if (publishedResult && isQuick) {
     return (
@@ -195,7 +194,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             <TabsTrigger value="essential" className="flex-1 gap-1.5">✏️ Essential Details</TabsTrigger>
             {!isQuick && <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context{isControlled && <span className="text-destructive text-xs ml-1">*</span>}</TabsTrigger>}
           </TabsList>
-          <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} industrySegments={industrySegments} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
+          <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
         </Tabs>
         {engagementModel === 'MP' && governanceMode !== 'QUICK' && (
@@ -205,12 +204,10 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             governanceMode={governanceMode}
           />
         )}
-        {isQuick && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <QuickLegalDocsSummary engagementModel={engagementModel} />
-            <SolverAudiencePreview engagementModel={engagementModel} />
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <CreatorLegalDocsPreview engagementModel={engagementModel} governanceMode={governanceMode} />
+          {isQuick && <SolverAudiencePreview engagementModel={engagementModel} />}
+        </div>
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
           <div className="flex items-center gap-3 ml-auto">

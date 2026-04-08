@@ -15,12 +15,11 @@ import { EssentialFieldRenderers } from './EssentialFieldRenderers';
 
 interface EssentialDetailsTabProps {
   engagementModel: string;
-  industrySegments: Array<{ id: string; name: string }>;
   governanceMode: GovernanceMode;
   fieldRules?: FieldRulesMap;
 }
 
-export function EssentialDetailsTab({ engagementModel, industrySegments, governanceMode, fieldRules }: EssentialDetailsTabProps) {
+export function EssentialDetailsTab({ engagementModel, governanceMode, fieldRules }: EssentialDetailsTabProps) {
   const { control, register, setValue, formState: { errors } } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
   const rules = fieldRules ?? {};
@@ -78,7 +77,6 @@ export function EssentialDetailsTab({ engagementModel, industrySegments, governa
         errors={errors}
         maturityOptions={maturityOptions}
         maturityLoading={maturityLoading}
-        industrySegments={industrySegments}
         fieldRules={fieldRules}
         isMPBudgetRequired={isMPBudgetRequired}
         governanceMode={governanceMode}

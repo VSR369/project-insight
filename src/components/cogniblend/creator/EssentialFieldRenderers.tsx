@@ -36,7 +36,7 @@ interface EssentialFieldRenderersProps {
   errors: FieldErrors;
   maturityOptions: MaturityOption[];
   maturityLoading: boolean;
-  industrySegments: Array<{ id: string; name: string }>;
+  
   fieldRules?: FieldRulesMap;
   isMPBudgetRequired: boolean;
   governanceMode: GovernanceMode;
@@ -44,7 +44,7 @@ interface EssentialFieldRenderersProps {
 
 export function EssentialFieldRenderers({
   control, register, setValue, errors, maturityOptions, maturityLoading,
-  industrySegments, fieldRules, isMPBudgetRequired,
+  fieldRules, isMPBudgetRequired,
 }: EssentialFieldRenderersProps) {
   const showMaturity = isFieldVisible(fieldRules, 'maturity_level');
   const showIpModel = isFieldVisible(fieldRules, 'ip_model');
@@ -75,27 +75,6 @@ export function EssentialFieldRenderers({
         </div>
       )}
 
-      {/* Domain Tags */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Industry Domain <span className="text-destructive">*</span></Label>
-        <p className="text-xs text-muted-foreground">Select 1–3 industry segments.</p>
-        <Controller name="domain_tags" control={control} render={({ field }) => (
-          <div className="flex flex-wrap gap-2">
-            {industrySegments.map((seg) => {
-              const val = (field.value as string[]) ?? [];
-              const isSelected = val.includes(seg.id);
-              const atMax = val.length >= 3 && !isSelected;
-              return (
-                <button key={seg.id} type="button" disabled={atMax} onClick={() => field.onChange(isSelected ? val.filter((v: string) => v !== seg.id) : [...val, seg.id])}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:border-primary/40'} ${atMax ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  {seg.name}
-                </button>
-              );
-            })}
-          </div>
-        )} />
-        {errors.domain_tags?.message && <p className="text-xs text-destructive">{String(errors.domain_tags.message)}</p>}
-      </div>
 
       {/* Platinum Award + Currency */}
       {showBudget && (

@@ -92,7 +92,7 @@ export function useCreatorDraftLoader(
         maturity_level: toFormMaturityCode(challenge.maturity_level as string | null | undefined),
         solution_maturity_id: (challenge.solution_maturity_id as string) || '',
         industry_segment_id: (challenge.industry_segment_id as string) || '',
-        domain_tags: (challenge.domain_tags as string[]) || [],
+        
         currency_code: ((rs?.currency as string) || 'USD') as CreatorFormValues['currency_code'],
         platinum_award: Number(rs?.platinum_award ?? rs?.budget_max ?? 0),
         weighted_criteria: Array.isArray((challenge as Record<string, unknown>).evaluation_criteria) ? (challenge as Record<string, unknown>).evaluation_criteria as CreatorFormValues['weighted_criteria'] : [],
