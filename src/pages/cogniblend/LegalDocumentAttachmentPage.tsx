@@ -219,7 +219,7 @@ export default function LegalDocumentAttachmentPage() {
     queryKey: [
       "required-legal-docs",
       challenge?.maturity_level,
-      challenge?.governance_profile,
+      challenge?.governance_mode_override ?? challenge?.governance_profile,
     ],
     queryFn: async () => {
       const effectiveMode = challenge!.governance_mode_override ?? challenge!.governance_profile ?? 'STRUCTURED';
