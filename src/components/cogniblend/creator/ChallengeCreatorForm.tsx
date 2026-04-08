@@ -35,6 +35,9 @@ import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
+import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
+import { SolverAudiencePreview } from './SolverAudiencePreview';
+import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -74,6 +77,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
+  const [publishedResult, setPublishedResult] = useState<{ challengeId: string; title: string } | null>(null);
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
   const isControlled = governanceMode === 'CONTROLLED';
@@ -144,8 +148,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId && user?.id) {
         await uploadFiles(attachedFiles, { challengeId: result.challengeId, orgId: currentOrg.organizationId, userId: user.id });
       }
-      toast.success(isQuick ? 'Challenge published! Solvers can now discover and apply.' : `Challenge "${data.title}" submitted to Curator for review.`);
-      navigate('/cogni/my-challenges');
+      if (isQuick) {
+        setPublishedResult({ challengeId: result.challengeId, title: data.title });
+      } else {
+        toast.success(`Challenge "${data.title}" submitted to Curator for review.`);
+        navigate('/cogni/my-challenges');
+      }
     } catch { /* handled by mutation onError */ }
   }, [buildPayload, submitMutation, referenceUrls, draftSave.draftChallengeId, attachedFiles, currentOrg, user, navigate, isQuick, uploadFiles]);
 
@@ -169,6 +177,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     setTimeout(async () => { await draftSave.handleSaveDraft(); toast.success('Test data filled & saved as draft'); }, 150);
   }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave]);
 
+  if (publishedResult && isQuick) {
+    return (
+      <QuickPublishSuccessScreen
+        challengeId={publishedResult.challengeId}
+        challengeTitle={publishedResult.title}
+        engagementModel={engagementModel}
+      />
+    );
+  }
+
   return (
     <FormProvider {...form}>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -187,11 +205,17 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             governanceMode={governanceMode}
           />
         )}
+        {isQuick && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <QuickLegalDocsSummary engagementModel={engagementModel} />
+            <SolverAudiencePreview engagementModel={engagementModel} />
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
           <div className="flex items-center gap-3 ml-auto">
             <Button type="button" variant="outline" onClick={draftSave.handleSaveDraft} disabled={isBusy}>{draftSave.isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}Save Draft</Button>
-            <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span><Button type="button" variant={isControlled ? 'default' : 'outline'} onClick={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }} disabled={isBusy || !draftSave.draftChallengeId} className="gap-1.5"><Sparkles className="h-4 w-4" />AI Review{isControlled && <Badge variant="secondary" className="ml-1 text-[10px]">Advisory</Badge>}{isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Optional</Badge>}{!isControlled && !isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Recommended</Badge>}</Button></span></TooltipTrigger>{!draftSave.draftChallengeId && <TooltipContent>Save draft first to enable AI Review</TooltipContent>}</Tooltip></TooltipProvider>
+            <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span><Button type="button" variant={isControlled ? 'default' : 'outline'} onClick={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }} disabled={isBusy} className="gap-1.5"><Sparkles className="h-4 w-4" />AI Review{isControlled && <Badge variant="secondary" className="ml-1 text-[10px]">Advisory</Badge>}{isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Optional</Badge>}{!isControlled && !isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Recommended</Badge>}</Button></span></TooltipTrigger><TooltipContent>{draftSave.draftChallengeId ? 'Run AI review on your draft' : 'Will auto-save draft before review'}</TooltipContent></Tooltip></TooltipProvider>
             <Button type="submit" disabled={isBusy}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}{isQuick ? 'Submit & Publish' : 'Submit to Curator'}</Button>
           </div>
         </div>

@@ -19,6 +19,7 @@ export interface UserChallengeRoleRow {
   operating_model: string;
   phase_status: string;
   role_codes: string[];
+  governance_mode: string;
 }
 
 export function useCogniUserRoles() {
@@ -67,11 +68,17 @@ export function useCogniUserRoles() {
     (r) => r.current_phase === 4 && r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
+  // True when user has at least one challenge with non-QUICK governance
+  const hasNonQuickChallenges = query.data?.some(
+    (r) => r.governance_mode && r.governance_mode.toUpperCase() !== 'QUICK'
+  ) ?? false;
+
   return {
     ...query,
     allRoleCodes,
     activeChallengeCount,
     curationQueueCount,
     approvalQueueCount,
+    hasNonQuickChallenges,
   };
 }

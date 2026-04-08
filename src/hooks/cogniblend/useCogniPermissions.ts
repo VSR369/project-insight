@@ -11,12 +11,14 @@
  */
 
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
 
 /** Seeking-org role codes — users with ONLY these have no solver features */
 const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
 
 export function useCogniPermissions() {
   const { activeRole, availableRoles } = useCogniRoleContext();
+  const { hasNonQuickChallenges } = useCogniUserRoles();
 
   // Visibility: always all roles (nav items stay visible, dimmed by ROLE_NAV_RELEVANCE)
   const visibilityRoles = availableRoles;
@@ -30,15 +32,24 @@ export function useCogniPermissions() {
   const canSeeSolverFeatures = availableRoles.length > 0 &&
     !availableRoles.every(r => SEEKING_ORG_ROLES.has(r));
 
+  // For QUICK-only users, hide CU/LC/FC/ER nav items (they are system artifacts)
+  const govAware = (codes: string[], base: boolean): boolean => {
+    if (!base) return false;
+    if (hasNonQuickChallenges) return true;
+    // QUICK-only: only show CR items
+    return codes.includes('CR');
+  };
+
   return {
-    // ── Nav visibility flags (always based on ALL user roles) ──
-    canSeeChallengePage:  sees(['CR']),
+    // ── Nav visibility flags (governance-aware) ──
+    canSeeChallengePage:    sees(['CR']),
     canSeeCreatorDashboard: sees(['CR']),
-    canSeeCurationQueue:  sees(['CU']),
-    canSeeLegalWorkspace: sees(['LC']),
-    canSeeEvaluation:     sees(['ER']),
-    canSeeEscrow:         sees(['FC']),
+    canSeeCurationQueue:    govAware(['CU'], sees(['CU'])),
+    canSeeLegalWorkspace:   govAware(['LC'], sees(['LC'])),
+    canSeeEvaluation:       govAware(['ER'], sees(['ER'])),
+    canSeeEscrow:           govAware(['FC'], sees(['FC'])),
     canSeeSolverFeatures,
+    hasNonQuickChallenges,
 
     // ── Action permissions (respects focused role) ──
     canCreateChallenge:   can(['CR']),

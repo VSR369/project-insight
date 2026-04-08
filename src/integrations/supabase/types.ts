@@ -14198,6 +14198,7 @@ export type Database = {
           challenge_id: string
           challenge_title: string
           current_phase: number
+          governance_mode: string
           master_status: string
           operating_model: string
           phase_status: string
