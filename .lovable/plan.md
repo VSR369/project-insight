@@ -1,42 +1,39 @@
 
 
-# Fix: Update Seed Org from "Tech Mahindra" to "Mahindra & Mahindra"
+# Fix: Seed Org Legal Templates for AGG Model (3 Changes)
 
-## What's Already Done (No Action Needed)
-- **Governance Mode Config**: All 3 modes (QUICK, STRUCTURED, CONTROLLED) exist and active
-- **Tier Governance Access**: basic=QUICK, standard=QUICK+STRUCTURED, premium=all 3, enterprise=all 3 -- correctly configured
-- **Legal Document Templates**: All 5 docs (PMA, CA, PSA, IPAA, EPIA) active with content and version_status=ACTIVE
-- **Legal Doc Trigger Config**: 15 triggers properly mapped (PMA->USER_REGISTRATION, CA->CHALLENGE_SUBMIT, PSA->CHALLENGE_JOIN, IPAA->WINNER_SELECTED, EPIA->ESCROW_DEPOSIT, etc.)
+## Problem
+The `complete_phase` SQL function branches on operating model: AGG pulls legal docs from `org_legal_document_templates`, MP pulls from `legal_document_templates`. Currently `org_legal_document_templates` is empty, so AGG challenges C1 (CONTROLLED) and C3 (STRUCTURED) get zero legal docs attached. C5 (QUICK) is unaffected -- QUICK always uses platform templates.
 
-## What Needs Fixing
+## Changes — Single file: `supabase/functions/setup-test-scenario/index.ts`
 
-### Single file change: `supabase/functions/setup-test-scenario/index.ts`
-
-**1. Update scenario config (line 20):**
-```
-orgName: "Mahindra & Mahindra Limited"
+### Change 1: Add cleanup for org_legal_document_templates (line 109)
+Insert after the `org_users` delete, before the `seeker_organizations` delete:
+```typescript
+await sa.from("org_legal_document_templates").delete().in("organization_id", oldOrgIds);
 ```
 
-**2. Update org insert block (lines 118-124):**
+### Change 2: Seed org-level legal templates (after line 130, before user creation)
+After `results.push("Org: ...")`, insert a block that:
+1. Fetches all 5 active platform templates from `legal_document_templates`
+2. Maps each to an `org_legal_document_templates` row with the new `orgId`, correct `applies_to_mode` (PMA/CA/PSA=ALL, IPAA=STRUCTURED, EPIA=CONTROLLED), and `version_status=ACTIVE`
+3. Bulk inserts into `org_legal_document_templates`
+4. Logs success/failure count
+
+### Change 3: Add organization_id filter to orgLT query (line 326)
+```typescript
+// FROM:
+.select("id, document_code, document_name, tier").eq("is_active", true)
+// TO:
+.select("id, document_code, document_name, tier").eq("organization_id", orgId).eq("is_active", true)
 ```
-trade_brand_name: "Mahindra"
-legal_entity_name: "Mahindra & Mahindra Limited"
-tagline: "Rise."
-organization_description: "Mahindra & Mahindra Limited is a USD 21 billion multinational conglomerate headquartered in Mumbai, India. The Group operates across 20+ key industries including automotive, farm equipment, information technology, financial services, and real estate. With over 260,000 employees across 100+ countries, Mahindra is one of the largest vehicle manufacturers by production in India and the world's largest tractor company by volume."
-website_url: "https://www.mahindra.com"
-founding_year: 1945
-employee_count_range: "250000+"
-annual_revenue_range: "$15B-$25B"
-hq_city: "Mumbai"
-```
 
-**3. Update C5 problem statement (line 287):** Replace "Tech Mahindra" reference with "Mahindra Group" in the carbon footprint challenge text.
+### Deploy
+Redeploy `setup-test-scenario` edge function after changes.
 
-**4. Deploy edge function** after changes.
-
-### Files Changed
-- `supabase/functions/setup-test-scenario/index.ts` -- org data update only
-
-### Post-Fix
-User re-runs "Seed Demo Scenario" from `/cogni/demo-login` to get clean M&M-branded data across all 6 challenges.
+### Result
+- Re-runs clean org templates via cleanup
+- AGG challenges C1 and C3 get legal docs attached
+- `complete_phase` finds data when branching on AGG model
+- LC workspace shows documents for AGG challenges
 
