@@ -160,7 +160,8 @@ export const FIELD_MAP_BY_CURATOR: Record<string, FieldMapping> = Object.fromEnt
  * Serialize a line_items field value (string[]) into curator-compatible JSON.
  * Format: { items: [{ name: "..." }, ...] }
  */
-export function serializeLineItems(items: string[]): Record<string, unknown> | null {
+export function serializeLineItems(items: string[] | undefined): Record<string, unknown> | null {
+  if (!items) return null;
   const filtered = items.filter((s) => s.trim().length > 0);
   if (filtered.length === 0) return null;
   return { items: filtered.map((name) => ({ name })) };
