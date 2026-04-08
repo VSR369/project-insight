@@ -222,9 +222,10 @@ export default function LegalDocumentAttachmentPage() {
       challenge?.governance_profile,
     ],
     queryFn: async () => {
+      const effectiveMode = challenge!.governance_mode_override ?? challenge!.governance_profile ?? 'STRUCTURED';
       const { data, error } = await supabase.rpc("get_required_legal_docs", {
         p_maturity_level: challenge!.maturity_level!,
-        p_governance_profile: challenge!.governance_profile ?? "STRUCTURED",
+        p_governance_profile: effectiveMode,
       });
       if (error) throw new Error(error.message);
       return data as unknown as {
@@ -457,7 +458,7 @@ export default function LegalDocumentAttachmentPage() {
   // ══════════════════════════════════════
   // SECTION 6: Auto-attach defaults for Quick mode
   // ══════════════════════════════════════
-  const isQuick = isQuickMode(resolveGovernanceMode(challenge?.governance_profile));
+  const isQuick = isQuickMode(resolveGovernanceMode(challenge?.governance_mode_override ?? challenge?.governance_profile));
 
   useEffect(() => {
     if (!isQuick || !requiredDocs || attachedDocs.length > 0) return;
