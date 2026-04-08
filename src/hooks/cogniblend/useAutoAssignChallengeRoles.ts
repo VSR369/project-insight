@@ -203,15 +203,24 @@ async function findValidCandidate(
   return null;
 }
 
+/** SLM codes for org-fallback assignments (no pool member context) */
+const ORG_FALLBACK_SLM: Record<string, string> = {
+  CU: "R5_MP",
+  LC: "R7_MP",
+  FC: "R8_MP",
+};
+
+/** Roles eligible for org-user fallback when pool is empty */
+const FALLBACK_ROLES = ["CU", "LC", "FC"];
+
 /**
- * Fallback: find CU-capable users in the challenge's org_users when pool is empty.
+ * Fallback: find role-capable users in the challenge's org_users when pool is empty.
  */
 async function tryOrgFallback(
   input: AssignmentInput,
   governanceMode: string,
 ): Promise<AssignmentResult | null> {
-  // Only attempt org fallback for CU role
-  if (input.roleCode !== "CU") return null;
+  if (!FALLBACK_ROLES.includes(input.roleCode)) return null;
 
   const { data: challenge } = await supabase
     .from("challenges")
@@ -251,7 +260,7 @@ async function tryOrgFallback(
       p_challenge_id: input.challengeId,
       p_pool_member_id: null,
       p_user_id: orgUser.user_id,
-      p_slm_role_code: "R5_MP", // Default SLM code for CU
+      p_slm_role_code: ORG_FALLBACK_SLM[input.roleCode] ?? "R5_MP",
       p_governance_role_code: input.roleCode,
       p_assigned_by: input.assignedBy,
       p_assignment_phase: assignmentPhase,
