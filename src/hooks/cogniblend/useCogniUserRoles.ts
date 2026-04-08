@@ -68,10 +68,19 @@ export function useCogniUserRoles() {
     (r) => r.current_phase === 4 && r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
-  // True when user has at least one challenge with non-QUICK governance
-  const hasNonQuickChallenges = query.data?.some(
-    (r) => r.governance_mode && r.governance_mode.toUpperCase() !== 'QUICK'
-  ) ?? false;
+  // Collect role codes ONLY from non-QUICK challenges
+  const nonQuickRoleCodes = new Set<string>();
+  if (query.data) {
+    for (const row of query.data) {
+      if (row.governance_mode && row.governance_mode.toUpperCase() !== 'QUICK') {
+        for (const code of row.role_codes ?? []) {
+          nonQuickRoleCodes.add(code);
+        }
+      }
+    }
+  }
+
+  const hasNonQuickChallenges = nonQuickRoleCodes.size > 0;
 
   return {
     ...query,
@@ -80,5 +89,6 @@ export function useCogniUserRoles() {
     curationQueueCount,
     approvalQueueCount,
     hasNonQuickChallenges,
+    nonQuickRoleCodes,
   };
 }
