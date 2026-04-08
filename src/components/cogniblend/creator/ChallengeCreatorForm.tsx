@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
-import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
