@@ -260,7 +260,7 @@ async function tryOrgFallback(
       p_challenge_id: input.challengeId,
       p_pool_member_id: null,
       p_user_id: orgUser.user_id,
-      p_slm_role_code: "R5_MP", // Default SLM code for CU
+      p_slm_role_code: ORG_FALLBACK_SLM[input.roleCode] ?? "R5_MP",
       p_governance_role_code: input.roleCode,
       p_assigned_by: input.assignedBy,
       p_assignment_phase: assignmentPhase,
