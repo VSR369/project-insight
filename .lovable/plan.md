@@ -1,39 +1,71 @@
 
 
-# Fix: Seed Org Legal Templates for AGG Model (3 Changes)
+# Plan: Fix LC/FC Auto-Assignment for CONTROLLED Challenges
 
 ## Problem
-The `complete_phase` SQL function branches on operating model: AGG pulls legal docs from `org_legal_document_templates`, MP pulls from `legal_document_templates`. Currently `org_legal_document_templates` is empty, so AGG challenges C1 (CONTROLLED) and C3 (STRUCTURED) get zero legal docs attached. C5 (QUICK) is unaffected -- QUICK always uses platform templates.
 
-## Changes — Single file: `supabase/functions/setup-test-scenario/index.ts`
+When the Curator approves a CONTROLLED challenge (`CurationActions.tsx` line 95-98), it calls `autoAssignChallengeRole` for LC and FC roles. This function first checks the `platform_provider_pool` (empty in test environment), then falls back to `tryOrgFallback`. However, `tryOrgFallback` has a hard guard on line 214:
 
-### Change 1: Add cleanup for org_legal_document_templates (line 109)
-Insert after the `org_users` delete, before the `seeker_organizations` delete:
 ```typescript
-await sa.from("org_legal_document_templates").delete().in("organization_id", oldOrgIds);
+if (input.roleCode !== "CU") return null;
 ```
 
-### Change 2: Seed org-level legal templates (after line 130, before user creation)
-After `results.push("Org: ...")`, insert a block that:
-1. Fetches all 5 active platform templates from `legal_document_templates`
-2. Maps each to an `org_legal_document_templates` row with the new `orgId`, correct `applies_to_mode` (PMA/CA/PSA=ALL, IPAA=STRUCTURED, EPIA=CONTROLLED), and `version_status=ACTIVE`
-3. Bulk inserts into `org_legal_document_templates`
-4. Logs success/failure count
+This means LC and FC auto-assignment **always silently fails** when no pool members exist. The result: Leslie Chen (LC) and Frank Coleman (FC) never see CONTROLLED challenges in their queues.
 
-### Change 3: Add organization_id filter to orgLT query (line 326)
+**Not affected:**
+- STRUCTURED mode: `complete_phase` auto-sets `lc_compliance_complete = TRUE` and `fc_compliance_complete = TRUE` (line 124-127 of the migration). No LC/FC users needed.
+- QUICK mode: fully auto-completed, no compliance step.
+- Pre-seeded demo challenges (C1, C2): already have LC/FC role records from the seed function.
+
+**Only affected:** New CONTROLLED challenges created during testing via the creator form.
+
+## Fix
+
+### File: `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts`
+
+**Change 1 — Expand `tryOrgFallback` to support LC and FC roles (not just CU)**
+
+Update line 214 from:
 ```typescript
-// FROM:
-.select("id, document_code, document_name, tier").eq("is_active", true)
-// TO:
-.select("id, document_code, document_name, tier").eq("organization_id", orgId).eq("is_active", true)
+if (input.roleCode !== "CU") return null;
+```
+to:
+```typescript
+const FALLBACK_ROLES = ["CU", "LC", "FC"];
+if (!FALLBACK_ROLES.includes(input.roleCode)) return null;
 ```
 
-### Deploy
-Redeploy `setup-test-scenario` edge function after changes.
+**Change 2 — Fix the hardcoded SLM code for non-CU roles (line 254)**
+
+Currently the org fallback hardcodes `p_slm_role_code: "R5_MP"` which is CU-specific. Map it dynamically:
+
+```typescript
+const ORG_FALLBACK_SLM: Record<string, string> = {
+  CU: "R5_MP",
+  LC: "R7_MP",
+  FC: "R8_MP",
+};
+// ...
+p_slm_role_code: ORG_FALLBACK_SLM[input.roleCode] ?? "R5_MP",
+```
+
+### No other files change
+
+The `CurationActions.tsx` already calls `autoAssignChallengeRole` for LC and FC on CONTROLLED approval (lines 97-98). The `assign_challenge_role` RPC already accepts any role code. The `user_challenge_roles` table has no role restriction. The only gap is the org fallback refusing non-CU roles.
 
 ### Result
-- Re-runs clean org templates via cleanup
-- AGG challenges C1 and C3 get legal docs attached
-- `complete_phase` finds data when branching on AGG model
-- LC workspace shows documents for AGG challenges
+- When Curator approves a CONTROLLED challenge, LC and FC are auto-assigned from org_users
+- Leslie Chen and Frank Coleman will see new CONTROLLED challenges in their respective queues
+- Pre-seeded challenges continue to work as before
+- STRUCTURED and QUICK modes are unaffected
+
+## Other Audit Items — No Code Changes Needed
+
+| Finding | Status | Action |
+|---------|--------|--------|
+| Solver match count = 0 | Visual only | Does not block publish |
+| Complexity not pre-set | By design | Curator scores during curation |
+| Escrow form needs manual input | By design | Use test values in audit doc |
+| Org name "Tech Mahindra" | Already fixed | Previous deployment updated to M&M |
+| org_legal_document_templates | Already fixed | Previous deployment seeds org templates |
 
