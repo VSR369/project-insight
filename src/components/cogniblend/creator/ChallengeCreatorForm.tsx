@@ -169,13 +169,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
 
   const handleFillTestData = useCallback(() => {
     const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
-    const domainIds = industrySegments.slice(0, 2).map((s) => s.id);
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
-    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, domain_tags: domainIds, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegments[0]?.id ?? '' }, fieldRules) : { ...seed, domain_tags: domainIds };
+    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegmentId || '' }, fieldRules) : seed;
     form.reset(filtered as CreatorFormValues);
     onFillTestData?.();
     setTimeout(async () => { await draftSave.handleSaveDraft(); toast.success('Test data filled & saved as draft'); }, 150);
-  }, [engagementModel, industrySegments, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave]);
+  }, [engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);
 
   if (publishedResult && isQuick) {
     return (
