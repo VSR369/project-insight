@@ -29,7 +29,7 @@ export function useLegalDocTemplates(governanceMode: GovernanceMode, engagementM
         .from('legal_document_templates')
         .select(COLUMNS)
         .eq('is_active', true)
-        .eq('version_status', 'published');
+        .eq('version_status', 'ACTIVE');
 
       if (error) throw error;
       if (!data) return [];
