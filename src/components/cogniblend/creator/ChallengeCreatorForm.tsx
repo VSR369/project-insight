@@ -55,7 +55,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
-  const { data: industrySegments = [] } = useIndustrySegmentOptions();
+  
   const { data: solutionMaturityOptions = [] } = useSolutionMaturityList();
   const { data: tierLimit } = useTierLimitCheck();
   const submitMutation = useSubmitSolutionRequest();
