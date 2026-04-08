@@ -1,23 +1,28 @@
 
 
-# Fix: Legal Documents Not Showing in Creator Preview
+# Fix: Legal Documents Not Showing — `applies_to_model` Mismatch
 
 ## Root Cause
 
-The `useLegalDocTemplates` hook filters by `version_status = 'published'` (line 32), but the database stores the active status as `'ACTIVE'` (confirmed by DB query). Zero rows match, so the component renders nothing (`docs.length === 0` returns `null`).
+The `useLegalDocTemplates` hook filters client-side with:
+```typescript
+const modelMatch = doc.applies_to_model === 'ALL' || doc.applies_to_model.toUpperCase() === modelKey;
+```
+
+But the database stores `applies_to_model = 'BOTH'`, not `'ALL'`. Same issue exists for `applies_to_mode` — the code checks for `'ALL'` but the DB could also use `'BOTH'`.
+
+Result: zero documents pass the filter, so the component renders nothing.
 
 ## Fix — 1 File
 
 ### `src/hooks/queries/useLegalDocTemplates.ts`
 
-Change line 32 from:
+Update the filter to accept both `'ALL'` and `'BOTH'` as wildcard values:
+
 ```typescript
-.eq('version_status', 'published')
-```
-to:
-```typescript
-.eq('version_status', 'ACTIVE')
+const modeMatch = ['ALL', 'BOTH'].includes(doc.applies_to_mode.toUpperCase()) || doc.applies_to_mode.toUpperCase() === modeKey;
+const modelMatch = ['ALL', 'BOTH'].includes(doc.applies_to_model.toUpperCase()) || doc.applies_to_model.toUpperCase() === modelKey;
 ```
 
-That single change will make the query return the 5 active legal templates (PMA, CA, PSA, IPAA, EPIA), and the existing client-side filtering by `applies_to_mode` and `applies_to_model` will work correctly to show the right docs per governance mode.
+This single change will make all 5 active legal templates (PMA, CA, PSA, IPAA, EPIA) visible in the Creator form preview for all governance modes.
 
