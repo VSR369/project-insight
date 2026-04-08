@@ -116,12 +116,12 @@ serve(async (req) => {
     const orgId = crypto.randomUUID();
     const { error: orgErr } = await sa.from("seeker_organizations").insert({
       id: orgId, tenant_id: orgId, organization_name: config.orgName,
-      trade_brand_name: "Tech Mahindra", legal_entity_name: "Tech Mahindra Limited",
-      tagline: "Connected World. Connected Experiences.",
-      organization_description: "Leading provider of digital transformation services.",
-      website_url: "https://www.techmahindra.com",
-      founding_year: 1986, employee_count_range: "100000+", annual_revenue_range: "$5B-$10B",
-      hq_city: "Pune", hq_country_id: indiaRow?.id ?? null, preferred_currency: "USD", timezone: "Asia/Kolkata",
+      trade_brand_name: "Mahindra", legal_entity_name: "Mahindra & Mahindra Limited",
+      tagline: "Rise.",
+      organization_description: "Mahindra & Mahindra Limited is a USD 21 billion multinational conglomerate headquartered in Mumbai, India. The Group operates across 20+ key industries including automotive, farm equipment, information technology, financial services, and real estate. With over 260,000 employees across 100+ countries, Mahindra is one of the largest vehicle manufacturers by production in India and the world's largest tractor company by volume.",
+      website_url: "https://www.mahindra.com",
+      founding_year: 1945, employee_count_range: "250000+", annual_revenue_range: "$15B-$25B",
+      hq_city: "Mumbai", hq_country_id: indiaRow?.id ?? null, preferred_currency: "USD", timezone: "Asia/Kolkata",
       operating_model: config.operatingModel, governance_profile: config.governanceProfile,
       subscription_tier: config.subscriptionTier, phase1_bypass: config.phase1Bypass,
       is_enterprise: config.isEnterprise, is_active: true, verification_status: "verified", registration_step: 5,
