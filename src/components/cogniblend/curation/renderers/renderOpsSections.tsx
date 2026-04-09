@@ -140,6 +140,9 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
       );
     }
 
+    case "creator_references":
+      return <CreatorReferencesRenderer challengeId={args.challengeId} />;
+
     default:
       return null;
   }
