@@ -5,7 +5,7 @@
 import { useCallback, useState } from 'react';
 import { type UseFormReturn } from 'react-hook-form';
 import { toast } from 'sonner';
-import { useSaveDraft, useUpdateDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import { useSaveDraft, useUpdateDraft } from '@/hooks/cogniblend/useChallengeSubmit';
 import type { CreatorFormValues } from '@/components/cogniblend/creator/creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 

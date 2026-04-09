@@ -1,5 +1,5 @@
 /**
- * useSolutionRequestContext — Provides org operating model + phase1_bypass
+ * useOrgContext — Provides org operating model + phase1_bypass
  * and Challenge Architect (CR role) users for the Solution Request form.
  */
 

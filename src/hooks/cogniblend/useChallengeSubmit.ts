@@ -24,7 +24,7 @@ import {
   type SubmitResult,
   normalizeConstrainedChallengeFields,
   buildChallengeUpdatePayload,
-} from '@/lib/cogniblend/solutionRequestPayloads';
+} from '@/lib/cogniblend/challengePayloads';
 
 export type { SubmitPayload, DraftPayload, SubmitResult };
 
