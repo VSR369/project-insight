@@ -76,6 +76,8 @@ export default function CurationReviewPage() {
 
 
 
+  const isReadOnly = false;
+
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
       <FreezeStatusBanner
