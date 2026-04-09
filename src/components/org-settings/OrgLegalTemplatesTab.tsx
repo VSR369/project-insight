@@ -13,8 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useOrgLegalTemplates, useCreateOrgLegalTemplate, useUpdateOrgLegalTemplate } from '@/hooks/queries/useOrgLegalTemplates';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { CpaTemplateSection } from './CpaTemplateSection';
 
 interface OrgLegalTemplatesTabProps { organizationId: string; }
 
