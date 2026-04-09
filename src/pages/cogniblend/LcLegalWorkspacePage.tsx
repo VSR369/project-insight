@@ -621,6 +621,14 @@ export default function LcLegalWorkspacePage() {
     );
   }
 
+  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <PwaAcceptanceGate userId={user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
+      </div>
+    );
+  }
+
   if (!hasAccess) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
