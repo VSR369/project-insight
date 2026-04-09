@@ -235,6 +235,61 @@ export const AGG_SEED: SeedContent = {
 };
 
 /**
+ * getSeedForCombination — Returns governance-specific seed content
+ * that properly exercises all 6 governance+engagement combinations.
+ */
+export function getSeedForCombination(
+  governanceMode: 'QUICK' | 'STRUCTURED' | 'CONTROLLED',
+  engagementModel: 'MP' | 'AGG'
+): SeedContent {
+  const base = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
+
+  if (governanceMode === 'QUICK') {
+    return {
+      ...base,
+      title: engagementModel === 'MP'
+        ? 'AI-Powered Waste Sorting Solution — 48hr Hackathon'
+        : 'Customer Onboarding Time Reduction — Internal Sprint',
+      problem_statement: engagementModel === 'MP'
+        ? 'Urban waste management costs municipalities $200+ per ton. Manual sorting achieves only 35% recycling rate. We need an AI vision system that can identify and classify 50+ waste categories on a moving conveyor at 2+ items per second, achieving >90% accuracy, deployable on standard industrial cameras.'
+        : 'Our customer onboarding takes 14 business days across 6 departments with 23 manual handoffs. Drop-off rate is 34% between application and activation. We need a process redesign that reduces onboarding to under 3 days while maintaining KYC/AML compliance.',
+      scope: engagementModel === 'MP'
+        ? 'Working prototype on standard webcam. 50+ waste categories. Real-time classification.'
+        : 'End-to-end onboarding for retail banking. Must integrate with existing KYC system.',
+      platinum_award: engagementModel === 'MP' ? 500000 : 300000,
+      currency_code: engagementModel === 'MP' ? 'INR' : 'USD',
+      evaluation_method: 'SINGLE',
+      evaluator_count: 1,
+      hook: '',
+      context_background: '',
+      ip_model: 'IP-NEL',
+      expected_timeline: '4w',
+      expected_outcomes: ['Working prototype or proof of concept'],
+      preferred_approach: [''],
+      approaches_not_of_interest: [''],
+      current_deficiencies: [''],
+      root_causes: [''],
+      affected_stakeholders: [],
+    };
+  }
+
+  if (governanceMode === 'STRUCTURED') {
+    return {
+      ...base,
+      evaluation_method: 'SINGLE',
+      evaluator_count: 1,
+    };
+  }
+
+  // CONTROLLED: full content with Delphi evaluation
+  return {
+    ...base,
+    evaluation_method: 'DELPHI',
+    evaluator_count: 3,
+  };
+}
+
+/**
  * ORG_SEED — Mahindra & Mahindra sample org data for internal testing.
  * Used by "Fill Test Data" to populate the Organization Context card.
  */
