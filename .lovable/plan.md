@@ -1,62 +1,62 @@
 
 
-## Plan: Restore Domain Tags as Free-Form Editable Field on Creator Form
+## Fix: Enforce 5-8-12 Field Visibility Rule for Creator Form
 
-The `domain_tags` field was previously removed from the Creator form in favor of `industry_segment_id`. The user wants it back as a free-form, editable tag input — not a fixed dropdown — where tags are contextual to the challenge description. Both fields can coexist: `industry_segment_id` for broad classification, `domain_tags` for specific challenge-relevant tagging.
+### Problem
+The Creator form shows too many fields because `md_governance_field_rules` has `optional` and `ai_drafted` visibility for many fields that should be `hidden` from the Creator. Currently:
+- **QUICK**: 5 required, 2 optional, 34 hidden, 14 auto — mostly correct
+- **STRUCTURED**: 8 required, 23 optional, 10 ai_drafted, 1 hidden, 13 auto — **33 visible fields instead of 10**
+- **CONTROLLED**: 12 required, 19 optional, 10 ai_drafted, 1 hidden, 13 auto — **41 visible fields instead of 18**
 
----
+The `isFieldVisible()` helper shows anything not `hidden` or `auto`, so `optional` and `ai_drafted` fields all render on the Creator form.
 
-### What Changes
+### Part A — Database Migration
 
-**1. Creator Form Schema (`src/components/cogniblend/creator/creatorFormSchema.ts`)**
-- Add `domain_tags: z.array(z.string()).default([])` to the schema (required for all modes — min 1 tag)
-- Add `domain_tags: string[]` to the `CreatorFormValues` type
-- Remove the comment "domain_tags removed"
+A single migration that resets all three modes to `hidden`, then selectively sets visible fields.
 
-**2. Essential Details Tab — Add Domain Tags Input (`src/components/cogniblend/creator/EssentialDetailsTab.tsx`)**
-- Import and render a `DomainTagsInput` component (new, see below) between the problem statement and maturity fields
-- Wire it via `Controller` to `domain_tags`
+**QUICK (5 required):** title, problem_statement, domain_tags, currency_code, platinum_award
+- Auto-defaults for: reward_type, challenge_visibility, challenge_enrollment, challenge_submission, eligibility, maturity_level, num_rewarded_solutions, gold_award, rejection_fee_pct, ip_model
+- Everything else: hidden
 
-**3. New Component: `DomainTagsInput` (`src/components/cogniblend/creator/DomainTagsInput.tsx`)**
-- Free-form tag input: user types a tag and presses Enter or comma to add it
-- Shows tags as removable badges (colored chips)
-- No fixed list — any text is accepted
-- Provides a few contextual suggestions based on common innovation domains (shown as subtle chips the user can click to add, similar to the wizard's `DomainTagSelect` but with emphasis on custom entry)
-- Placeholder: "Type a domain tag and press Enter (e.g., AI/ML, Supply Chain, IoT)"
-- Required label with asterisk for all governance modes
+**STRUCTURED (8 required + 2 optional):**
+- Required: title, problem_statement, scope, domain_tags, currency_code, platinum_award, maturity_level, weighted_criteria
+- Optional: context_background, expected_timeline
+- Auto: reward_type, challenge_visibility, challenge_enrollment, challenge_submission, eligibility, num_rewarded_solutions, gold_award, rejection_fee_pct, ip_model, deliverables_list
+- Everything else: hidden
 
-**4. Creator Form Wiring (`src/components/cogniblend/creator/ChallengeCreatorForm.tsx`)**
-- Pass `domain_tags` from form values into the submit/draft payloads (`domainTags: data.domain_tags`)
-- Remove the current fallback that derives `domainTags` from `industrySegmentId`
-- Add `domain_tags: []` to default values
+**CONTROLLED (18 required):**
+- Required (Essential): title, problem_statement, scope, domain_tags, currency_code, platinum_award, maturity_level, weighted_criteria, hook, context_background, ip_model, expected_timeline
+- Required (Additional Context): preferred_approach, approaches_not_of_interest, current_deficiencies, root_causes, affected_stakeholders, expected_outcomes
+- Auto: reward_type, challenge_visibility, challenge_enrollment, challenge_submission, eligibility, num_rewarded_solutions, gold_award, rejection_fee_pct, deliverables_list
+- Everything else: hidden
 
-**5. Seed Content (`src/components/cogniblend/creator/creatorSeedContent.ts`)**
-- Add relevant `domain_tags` to both `MP_SEED` and `AGG_SEED` (e.g., `['AI/ML', 'SAP Integration', 'Supply Chain Optimization']`)
+### Part B — Frontend: Auto-defaults for hidden fields on submit
 
-**6. AI Review Fields (`src/constants/creatorReviewFields.ts`)**
-- Keep `domain_tags` as-is (it's already there and correct)
+**File: `src/lib/cogniblend/challengePayloads.ts`**
+- Add an `AUTO_DEFAULTS` constant with sensible defaults for auto-populated fields (reward_type, challenge_visibility, ip_model, maturity_level, etc.)
+- In `buildChallengeUpdatePayload`, apply these defaults when the field value is empty/null and the governance rules mark it as `auto`
 
-**7. AI Review Mapper (`src/lib/creatorReviewMapper.ts`)**
-- Keep `domain_tags` / `tags` aliases as-is (already correct)
+**File: `src/components/cogniblend/creator/creatorFormSchema.ts`**
+- For STRUCTURED mode: make `expected_outcomes`, `ip_model`, `hook`, `preferred_approach`, `approaches_not_of_interest`, `current_deficiencies`, `root_causes`, `affected_stakeholders` all optional with safe defaults (they are hidden from the Creator in STRUCTURED)
+- The schema already handles QUICK correctly; ensure STRUCTURED doesn't require hidden fields
 
-**8. Edge Function Prompt (`supabase/functions/check-challenge-quality/promptBuilder.ts`)**
-- Keep `domain_tags` in `CREATOR_FIELD_LISTS` (already correct)
-- No changes needed
+### Part C — Frontend: Hide Additional Context tab for STRUCTURED
 
-**9. Fill Test Data Guard (`src/components/cogniblend/creator/ChallengeCreatorForm.tsx`)**
-- Add confirmation dialog when `form.formState.isDirty` before `form.reset(seed)` to prevent accidental overwrite of user edits
+**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
+- Change line 207 from `{!isQuick && <TabsTrigger ...>}` to `{isControlled && <TabsTrigger ...>}`
+- For STRUCTURED, move context_background and expected_timeline to the bottom of EssentialDetailsTab in a collapsible "Additional context (optional)" section
 
----
+**File: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`**
+- Add a collapsible section at the bottom (using `Collapsible` from shadcn) containing context_background (RichTextEditor) and expected_timeline (Select) — only rendered when `governanceMode === 'STRUCTURED'`
+- These fields are already governance-gated by `isFieldVisible()` so they'll naturally appear only when the DB says they should
 
-### Summary of Files Changed
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `creatorFormSchema.ts` | Add `domain_tags` field to schema + type |
-| `EssentialDetailsTab.tsx` | Render `DomainTagsInput` |
-| `DomainTagsInput.tsx` (new) | Free-form tag input component |
-| `ChallengeCreatorForm.tsx` | Wire domain_tags to payloads, add fill-test-data guard |
-| `creatorSeedContent.ts` | Add domain_tags to seed data |
-
-No changes to `creatorReviewFields.ts`, `creatorReviewMapper.ts`, or `promptBuilder.ts` — they already reference `domain_tags` correctly.
+| New migration | Reset + set correct visibility for all 3 modes |
+| `challengePayloads.ts` | Add AUTO_DEFAULTS, apply on submit |
+| `creatorFormSchema.ts` | Make hidden fields optional in STRUCTURED |
+| `ChallengeCreatorForm.tsx` | Show Additional Context tab only for CONTROLLED |
+| `EssentialDetailsTab.tsx` | Add collapsible optional section for STRUCTURED |
 
