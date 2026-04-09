@@ -37,7 +37,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     await supabase.auth.signOut();
   }, []);
 
-  if (loading || spaLoading) {
+  if (loading || (spaLoading && hasSpa === undefined)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -61,7 +61,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Show SPA gate if not accepted (fail-open: hasSpa defaults true on error)
-  if (!hasSpa && !spaAccepted) {
+  if (hasSpa === false && !spaAccepted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <SpaAcceptanceGate userId={user.id} onAccepted={() => setSpaAccepted(true)} />
