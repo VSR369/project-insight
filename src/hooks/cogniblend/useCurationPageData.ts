@@ -283,7 +283,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
         response_html: string | null;
       }>;
     },
-    enabled: !!challengeId,
+    enabled: !!challengeId && !isLoading,
     ...CACHE_STANDARD,
   });
 
