@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
+import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { useForm } from 'react-hook-form';
@@ -35,6 +37,9 @@ interface EscrowChallenge {
 export default function EscrowManagementPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
+  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(user?.id);
+  const [pwaAccepted, setPwaAccepted] = useState(false);
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
 
   const form = useForm<EscrowFormValues>({
@@ -145,10 +150,18 @@ export default function EscrowManagementPage() {
     confirmEscrow.mutate({ ...values, challengeId: selectedChallengeId, escrowId: challenge.escrow_id });
   };
 
-  if (isLoading) {
+  if (isLoading || pwaLoading) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-64" /><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!hasPwa && !pwaAccepted) {
+    return (
+      <div className="p-4 lg:p-6 max-w-4xl mx-auto">
+        <PwaAcceptanceGate userId={user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
       </div>
     );
   }
