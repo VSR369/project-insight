@@ -286,9 +286,9 @@ export const SECTIONS: SectionDef[] = [
     label: "Creator Legal Instructions",
     attribution: "by CR",
     dbField: "creator_legal_instructions",
-    isFilled: (ch) => !!(ch as Record<string, unknown>).creator_legal_instructions && String((ch as Record<string, unknown>).creator_legal_instructions).trim().length > 0,
+    isFilled: (ch) => !!(ch as unknown as Record<string, unknown>).creator_legal_instructions && String((ch as unknown as Record<string, unknown>).creator_legal_instructions).trim().length > 0,
     render: (ch) => {
-      const instructions = (ch as Record<string, unknown>).creator_legal_instructions as string | undefined;
+      const instructions = (ch as unknown as Record<string, unknown>).creator_legal_instructions as string | undefined;
       if (!instructions?.trim()) return <p className="text-sm text-muted-foreground italic">No legal instructions provided by Creator.</p>;
       return (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800/30 p-3 space-y-1">
