@@ -53,6 +53,7 @@ export interface SubmitPayload {
   deliverablesList?: string[];
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
+  solverAudience?: string;
 }
 
 export interface DraftPayload {
@@ -95,6 +96,7 @@ export interface DraftPayload {
   deliverablesList?: string[];
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
+  solverAudience?: string;
 }
 
 export interface SubmitResult {
@@ -196,5 +198,6 @@ export function buildChallengeUpdatePayload(
       specialty_tags: fp.specialtyTags?.length ? fp.specialtyTags : undefined,
     }),
     extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
+    solver_audience: fp.solverAudience ?? 'ALL',
   };
 }

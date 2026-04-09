@@ -122,6 +122,7 @@ export const MP_SEED: SeedContent = {
   ],
   expected_timeline: '24w',
   industry_segment_id: '',
+  solver_audience: 'ALL',
 };
 
 /**
@@ -224,6 +225,7 @@ export const AGG_SEED: SeedContent = {
   ],
   expected_timeline: '20w',
   industry_segment_id: '',
+  solver_audience: 'ALL',
 };
 
 /**
