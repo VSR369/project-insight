@@ -1,4 +1,4 @@
-export type DocumentCode = 'PMA' | 'CA' | 'PSA' | 'IPAA' | 'EPIA';
+export type DocumentCode = 'PMA' | 'CA' | 'PSA' | 'IPAA' | 'EPIA' | 'SPA' | 'SKPA' | 'PWA' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED';
 export type VersionStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 export type AppliesModel = 'MARKETPLACE' | 'AGGREGATOR' | 'BOTH';
 export type AppliesMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED' | 'ALL';
@@ -87,6 +87,12 @@ export const DOCUMENT_CODE_LABELS: Record<DocumentCode, string> = {
   PSA: 'Participation & Submission Agreement',
   IPAA: 'IP & Award Agreement',
   EPIA: 'Escrow, Payment & Integrity Agreement',
+  SPA: 'Solver Platform Agreement',
+  SKPA: 'Seeker Platform Agreement',
+  PWA: 'Prize & Work Agreement',
+  CPA_QUICK: 'CPA Template (Quick)',
+  CPA_STRUCTURED: 'CPA Template (Structured)',
+  CPA_CONTROLLED: 'CPA Template (Controlled)',
 };
 
 export const TRIGGER_EVENT_LABELS: Record<TriggerEvent, string> = {
