@@ -13,6 +13,14 @@ const GOVERNANCE_DESCRIPTIONS: Record<string, string> = {
   CONTROLLED: "CONTROLLED mode: full compliance, 12 required fields. Mandatory escrow, formal gates, distinct roles. Apply maximum rigor — expect comprehensive detail, IP model, timeline, org context.",
 };
 
+/* ── Creator field lists by governance mode (for reviewScope filtering) ── */
+
+const CREATOR_FIELD_LISTS: Record<string, string[]> = {
+  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
+  STRUCTURED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria'],
+  CONTROLLED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
+};
+
 /* ── Prompt builders ── */
 
 interface PromptParams {
