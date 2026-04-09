@@ -3,7 +3,7 @@
  * QUICK: hidden. STRUCTURED: optional toggle. CONTROLLED: mandatory with lock icon.
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -38,16 +38,18 @@ export function EscrowCalculationDisplay({
   onEscrowToggle,
   escrowEnabled: escrowEnabledProp,
 }: EscrowCalculationDisplayProps) {
+  const [localEnabled, setLocalEnabled] = useState(false);
+  const { data: modeConfig, isLoading } = useGovernanceModeConfig(governanceMode);
+  const escrowPct = modeConfig?.escrow_deposit_pct ?? 100;
+
   const escrowMode = governanceMode === 'CONTROLLED'
     ? 'mandatory'
     : governanceMode === 'STRUCTURED'
       ? 'optional'
       : 'not_applicable';
 
-  if (escrowMode === 'not_applicable') return null;
-
-  const [localEnabled, setLocalEnabled] = useState(false);
-  const escrowEnabled = escrowMode === 'mandatory'
+  const isMandatory = escrowMode === 'mandatory';
+  const escrowEnabled = isMandatory
     ? true
     : (escrowEnabledProp ?? localEnabled);
 
@@ -55,9 +57,6 @@ export function EscrowCalculationDisplay({
     setLocalEnabled(enabled);
     onEscrowToggle?.(enabled);
   };
-
-  const { data: modeConfig, isLoading } = useGovernanceModeConfig(governanceMode);
-  const escrowPct = modeConfig?.escrow_deposit_pct ?? 100;
 
   const calc = useMemo(() => {
     const prizePool = prizePlatinum;
@@ -70,10 +69,10 @@ export function EscrowCalculationDisplay({
   const fmt = (n: number) =>
     `${currencyCode} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const isMandatory = escrowMode === 'mandatory';
-  const titleSuffix = isMandatory ? '(Required)' : '(Optional)';
-
+  if (escrowMode === 'not_applicable') return null;
   if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  const titleSuffix = isMandatory ? '(Required)' : '(Optional)';
 
   return (
     <Card className="border-primary/20 bg-primary/5">
@@ -81,7 +80,7 @@ export function EscrowCalculationDisplay({
         <CardTitle className="text-sm flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
           Escrow Calculation {titleSuffix}
-          {isMandatory && <Lock className="h-3.5 w-3.5 text-amber-600" />}
+          {isMandatory && <Lock className="h-3.5 w-3.5 text-destructive" />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
