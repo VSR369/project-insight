@@ -1619,6 +1619,7 @@ export type Database = {
           solution_type: string | null
           solution_types: Json | null
           solutions_awarded: number
+          solver_audience: string
           solver_eligibility_id: string | null
           solver_eligibility_types: Json | null
           solver_expertise_requirements: Json | null
@@ -1701,6 +1702,7 @@ export type Database = {
           solution_type?: string | null
           solution_types?: Json | null
           solutions_awarded?: number
+          solver_audience?: string
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
           solver_expertise_requirements?: Json | null
@@ -1783,6 +1785,7 @@ export type Database = {
           solution_type?: string | null
           solution_types?: Json | null
           solutions_awarded?: number
+          solver_audience?: string
           solver_eligibility_id?: string | null
           solver_eligibility_types?: Json | null
           solver_expertise_requirements?: Json | null
