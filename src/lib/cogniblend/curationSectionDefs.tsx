@@ -244,6 +244,43 @@ export const SECTIONS: SectionDef[] = [
     },
   },
   {
+    key: "solver_audience",
+    label: "Solver Audience",
+    attribution: "by CR",
+    dbField: "solver_audience",
+    isFilled: (ch) => !!(ch as any).solver_audience,
+    render: (ch) => {
+      const audience = (ch as any).solver_audience ?? 'ALL';
+      const model = (ch as any).operating_model ?? 'MP';
+      if (model !== 'AGG') return <p className="text-sm text-muted-foreground">Marketplace model — open to all solvers</p>;
+      const labels: Record<string, string> = {
+        ALL: 'All Solvers — open to internal pool and external marketplace',
+        INTERNAL: 'Internal Pool Only — restricted to organization members',
+        EXTERNAL: 'External Marketplace Only — restricted to outside solvers',
+      };
+      return <p className="text-sm">{labels[audience] ?? audience}</p>;
+    },
+  },
+  {
+    key: "evaluation_config",
+    label: "Evaluation Configuration",
+    attribution: "by CR",
+    dbField: "evaluation_method",
+    isFilled: (ch) => !!(ch as any).evaluation_method,
+    render: (ch) => {
+      const method = (ch as any).evaluation_method ?? 'SINGLE';
+      const count = (ch as any).evaluator_count ?? 1;
+      const blind = (ch as any).governance_mode_override === 'CONTROLLED' ||
+                    (ch as any).governance_profile === 'CONTROLLED';
+      return (
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{method === 'DELPHI' ? `Delphi Panel (${count} evaluators)` : 'Single Evaluator'}</p>
+          {blind && <p className="text-xs text-amber-700">Blinded evaluation — solver identities hidden from evaluators</p>}
+        </div>
+      );
+    },
+  },
+  {
     key: "legal_docs",
     label: "Legal Documents",
     attribution: "by LC",
@@ -755,7 +792,7 @@ export const GROUPS: GroupDef[] = [
     colorDone: "bg-violet-100 text-violet-800 border-violet-300",
     colorActive: "bg-violet-50 border-violet-400",
     colorBorder: "border-violet-200",
-    sectionKeys: ["hook", "visibility", "domain_tags", "legal_docs", "escrow_funding"],
+    sectionKeys: ["hook", "visibility", "domain_tags", "solver_audience", "evaluation_config", "legal_docs", "escrow_funding"],
     prerequisiteGroups: ["execution"],
   },
 ];
