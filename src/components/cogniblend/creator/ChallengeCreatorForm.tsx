@@ -35,7 +35,7 @@ import { useCreatorFileUpload } from '@/hooks/cogniblend/useCreatorFileUpload';
 import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
-import { MP_SEED, AGG_SEED } from './creatorSeedContent';
+import { MP_SEED, AGG_SEED, getSeedForCombination } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 import { CreatorLegalDocsPreview } from './CreatorLegalDocsPreview';
 import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
@@ -180,7 +180,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
 
   const handleFillTestData = useCallback(() => {
     if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
-    const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
+    const seed = getSeedForCombination(governanceMode as 'QUICK' | 'STRUCTURED' | 'CONTROLLED', engagementModel as 'MP' | 'AGG');
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
     const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegmentId || '' }, fieldRules) : seed;
     form.reset(filtered as CreatorFormValues);
