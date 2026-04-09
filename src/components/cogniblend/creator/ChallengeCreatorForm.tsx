@@ -199,7 +199,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
         </Tabs>
-        {engagementModel === 'MP' && governanceMode !== 'QUICK' && (
+        {governanceMode !== 'QUICK' && (
           <EscrowCalculationDisplay
             prizePlatinum={form.watch('platinum_award')}
             currencyCode={form.watch('currency_code')}
