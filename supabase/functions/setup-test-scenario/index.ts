@@ -261,6 +261,7 @@ serve(async (req) => {
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 500000 },
       extended_brief: { creator_approval_required: true, context_background: "Healthcare division serves 15 of top 20 pharma companies." },
       industry_segment_id: healthId, created_by: aggCr?.userId ?? null,
+      creator_legal_instructions: "HIPAA compliance is critical — all IP clauses must reference 45 CFR Part 164. Our pharma clients require mandatory arbitration in Delaware. Please ensure the CPA includes a data residency clause restricting solution processing to US-based servers only.",
     }, "C1");
     challengeIds.push(c1Id);
     if (aggCr) await assignRole(sa, aggCr.userId, c1Id, "CR");
@@ -287,6 +288,7 @@ serve(async (req) => {
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 250000 },
       extended_brief: { creator_approval_required: true, context_background: "Financial Services practice supports 12 of top 25 global banks." },
       industry_segment_id: financeId, created_by: mpCr?.userId ?? null,
+      creator_legal_instructions: "This challenge involves financial data subject to SOX and GDPR. The CPA must include cross-border data transfer clauses for 40+ jurisdictions. Our compliance team requires a specific non-solicitation clause for AML analysts involved in evaluation.",
     }, "C2");
     challengeIds.push(c2Id);
     if (mpCr) await assignRole(sa, mpCr.userId, c2Id, "CR");
@@ -310,6 +312,7 @@ serve(async (req) => {
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000 },
       extended_brief: { creator_approval_required: true },
       industry_segment_id: techId, created_by: aggCr?.userId ?? null,
+      creator_legal_instructions: "MindSphere integration requires Siemens IP licensing acknowledgment. Please add a clause that solver's predictive models remain compatible with SAP QM data formats.",
     }, "C3");
     challengeIds.push(c3Id);
     if (aggCr) await assignRole(sa, aggCr.userId, c3Id, "CR");
@@ -331,6 +334,7 @@ serve(async (req) => {
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 50000 },
       extended_brief: { creator_approval_required: true },
       industry_segment_id: energyId, created_by: mpCr?.userId ?? null,
+      creator_legal_instructions: "Smart grid data is NERC CIP regulated. Solvers must acknowledge critical infrastructure data handling requirements.",
     }, "C4");
     challengeIds.push(c4Id);
     if (mpCr) await assignRole(sa, mpCr.userId, c4Id, "CR");
