@@ -25,7 +25,7 @@ export interface SectionConfig {
 }
 
 const ROLE_CONTEXT_LABELS: Record<string, string> = {
-  intake: 'intake brief submitted by an Account Manager or Challenge Requestor',
+  intake: 'challenge created by the Challenge Creator',
   spec: 'AI-generated challenge specification from the Creator/Architect perspective',
   curation: 'challenge specification for publication readiness',
   legal: 'challenge legal documentation and compliance',

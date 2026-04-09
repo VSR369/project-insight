@@ -187,7 +187,7 @@ export function useCompletePhase(
         // Check 3-cycle max (GAP-09: escalate to ID instead of allowing another return)
         if (latestAmendment.amendment_number >= 3 && latestAmendment.status === 'PENDING') {
           throw new Error(
-            'Maximum modification cycles (3) reached. This challenge must be escalated to the Innovation Director for resolution.'
+            'Maximum modification cycles (3) reached. This challenge must be escalated to the Curator for resolution.'
           );
         }
 

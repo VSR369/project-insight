@@ -1496,10 +1496,10 @@ export default function AISpecReviewPage() {
             <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border-2 border-border bg-muted/30 p-4 hover:bg-accent/30 transition-colors">
               <ShieldCheck className="h-5 w-5 text-muted-foreground" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Account Manager's Original Brief</p>
+                <p className="text-sm font-semibold text-foreground">Creator's Original Brief</p>
                 <p className="text-xs text-muted-foreground">Problem summary, budget, and timeline — read only</p>
               </div>
-              <Badge variant="outline" className="text-[10px] shrink-0">From AM</Badge>
+              <Badge variant="outline" className="text-[10px] shrink-0">From Creator</Badge>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </CollapsibleTrigger>
             <CollapsibleContent className="rounded-xl border-2 border-t-0 border-border bg-muted/10 px-5 pb-5 pt-3 space-y-3">
@@ -1664,10 +1664,10 @@ export default function AISpecReviewPage() {
             <CollapsibleTrigger className="flex items-center gap-3 w-full text-left rounded-xl border-2 border-border bg-muted/30 p-4 hover:bg-accent/30 transition-colors">
               <ShieldCheck className="h-5 w-5 text-muted-foreground" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Account Manager's Original Brief</p>
+                <p className="text-sm font-semibold text-foreground">Creator's Original Brief</p>
                 <p className="text-xs text-muted-foreground">Problem summary, budget, and timeline — read only</p>
               </div>
-              <Badge variant="outline" className="text-[10px] shrink-0">From AM</Badge>
+              <Badge variant="outline" className="text-[10px] shrink-0">From Creator</Badge>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </CollapsibleTrigger>
             <CollapsibleContent className="rounded-xl border-2 border-t-0 border-border bg-muted/10 px-5 pb-5 pt-3 space-y-3">

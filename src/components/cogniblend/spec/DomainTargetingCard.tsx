@@ -1,6 +1,6 @@
 /**
- * DomainTargetingCard — Taxonomy cascade selector for CR/CA on the Spec Review page.
- * Industry Segment is editable by CR/CA (with reference to original AM/RQ selection).
+ * DomainTargetingCard — Taxonomy cascade selector for CR on the Spec Review page.
+ * Industry Segment is editable by CR (with reference to original Creator selection).
  * Proficiency Areas, Sub Domains, Specialities are optional multi-selects.
  * "Not selected" = ALL for downstream role assignments.
  */
@@ -173,12 +173,12 @@ export default function DomainTargetingCard({
               </Select>
               {hasChanged && originalSegmentName && (
                 <p className="text-[11px] text-muted-foreground italic">
-                  Originally from AM/RQ: {originalSegmentName}
+                  Originally from Creator: {originalSegmentName}
                 </p>
               )}
               {!hasChanged && originalIndustrySegmentId && (
                 <p className="text-[11px] text-muted-foreground">
-                  <Badge variant="outline" className="text-[10px] mr-1">From AM/RQ</Badge>
+                  <Badge variant="outline" className="text-[10px] mr-1">From Creator</Badge>
                 </p>
               )}
             </div>

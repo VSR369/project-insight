@@ -1,6 +1,6 @@
 /**
  * OriginalBriefAccordion — Read-only accordion showing the original brief
- * submitted by the Account Manager or Challenge Requestor.
+ * submitted by the Challenge Creator.
  *
  * Extracted from CurationHeaderBar.tsx.
  */
@@ -58,7 +58,7 @@ export function OriginalBriefAccordion({
         <AccordionTrigger className="px-4 py-2 text-sm font-semibold hover:no-underline gap-2">
           <div className="flex items-center gap-2 flex-1 text-left">
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span>Original Brief from {operatingModel === "MP" ? "Account Manager" : "Challenge Requestor"}</span>
+            <span>Creator's Original Brief</span>
             <Badge variant="outline" className="text-[10px] ml-auto">Read Only</Badge>
           </div>
         </AccordionTrigger>

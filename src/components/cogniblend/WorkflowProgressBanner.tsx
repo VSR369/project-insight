@@ -1,6 +1,10 @@
 /**
  * WorkflowProgressBanner — Contextual step indicator for challenge lifecycle screens.
  * Shows current step, next step, and required role so users always know where they are.
+ *
+ * Corrected phase mapping:
+ *   Phase 1 → Create, Phase 2 → Curation, Phase 3 → Compliance,
+ *   Phase 4 → Published, Phase 5-8 → Solver Flow, Phase 9-10 → Award & Close
  */
 
 import { Info, ArrowRight } from 'lucide-react';
@@ -19,45 +23,45 @@ interface WorkflowStep {
 const WORKFLOW_STEPS: Record<number, WorkflowStep> = {
   1: {
     step: 1,
-    label: 'Create Challenge',
-    nextLabel: 'AI Spec Review',
-    nextRole: 'Challenge Creator (CR)',
-    description: 'Fill in the intake form and let AI generate the specification.',
+    label: 'Create',
+    nextLabel: 'Curation',
+    nextRole: 'Curator (CU)',
+    description: 'Creator fills in the challenge form and submits for review.',
   },
   2: {
     step: 2,
-    label: 'AI Spec Review',
-    nextLabel: 'Legal Document Attachment',
-    nextRole: 'Challenge Creator (CR)',
-    description: 'Review and approve each section of the AI-generated specification.',
+    label: 'Curation',
+    nextLabel: 'Compliance',
+    nextRole: 'Legal (LC) / Finance (FC)',
+    description: 'Curator reviews the specification, runs AI review, and completes the checklist.',
   },
   3: {
     step: 3,
-    label: 'Legal Documents',
-    nextLabel: 'Curation Review',
-    nextRole: 'Curator (CU)',
-    description: 'Legal Coordinator reviews challenge, generates and attaches legal documents, then submits for curation.',
+    label: 'Compliance',
+    nextLabel: 'Published',
+    nextRole: 'System',
+    description: 'Legal Coordinator reviews documents and Financial Controller verifies escrow.',
   },
   4: {
     step: 4,
-    label: 'Curation Review',
-    nextLabel: 'Curator Approval',
-    nextRole: 'Curator (CU)',
-    description: 'Complete the 14-point checklist and approve the challenge for publication.',
+    label: 'Published',
+    nextLabel: 'Solver Flow',
+    nextRole: 'Solvers',
+    description: 'Challenge is live and accepting submissions from solvers.',
   },
   5: {
     step: 5,
-    label: 'Curator Approval',
-    nextLabel: 'Publication',
-    nextRole: 'System / CR',
-    description: 'Curator reviews and approves the challenge for publication.',
+    label: 'Solver Flow',
+    nextLabel: 'Award & Close',
+    nextRole: 'Expert Reviewer (ER)',
+    description: 'Solvers submit abstracts and solutions; expert reviewers evaluate them.',
   },
   6: {
     step: 6,
-    label: 'Published',
+    label: 'Award & Close',
     nextLabel: null,
     nextRole: null,
-    description: 'Challenge is live and accepting submissions.',
+    description: 'Winners selected, payments processed, challenge closed.',
   },
 };
 
@@ -71,7 +75,7 @@ function phaseToStep(currentPhase: number | null | undefined): number {
   if (phase === 2) return 2;
   if (phase === 3) return 3;
   if (phase === 4) return 4;
-  if (phase === 5) return 5;
+  if (phase >= 5 && phase <= 8) return 5;
   return 6;
 }
 
