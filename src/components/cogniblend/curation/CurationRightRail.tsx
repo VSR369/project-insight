@@ -129,6 +129,16 @@ export function CurationRightRail(props: CurationRightRailProps) {
         onReReviewStale={async () => { setAiReviewLoading(true); try { await onReReviewStale(); } finally { setAiReviewLoading(false); } }}
       />
 
+      {props.userId && (
+        <LegalReviewPanel
+          challengeId={challengeId}
+          userId={props.userId}
+          lockStatus={props.lockStatus ?? 'OPEN'}
+          governanceMode={props.governanceMode ?? 'QUICK'}
+          currentPhase={props.currentPhase ?? null}
+        />
+      )}
+
       <ModificationPointsTracker challengeId={challengeId} mode={isReadOnly ? "readonly" : "curator"} />
     </div>
   );
