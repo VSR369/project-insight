@@ -55,7 +55,6 @@ export default function CurationReviewPage() {
         challengeTitle={o.challenge.title}
         governanceProfile={(o.challenge as any).governance_mode_override ?? o.challenge.governance_profile}
         governanceModeOverride={(o.challenge as any).governance_mode_override}
-        userId={o.user?.id}
         operatingModel={o.challenge.operating_model}
         currentPhase={o.challenge.current_phase}
         phaseStatus={o.challenge.phase_status}

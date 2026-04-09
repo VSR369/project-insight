@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   Eye,
 } from "lucide-react";
-import { GovernanceProfileBadge } from "@/components/cogniblend/GovernanceProfileBadge";
+import { GovernanceModeSwitcher } from "@/components/cogniblend/curation/GovernanceModeSwitcher";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { OriginalBriefAccordion } from "@/components/cogniblend/curation/OriginalBriefAccordion";
