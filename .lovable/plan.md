@@ -1,47 +1,41 @@
 
 
-## Plan: Remove Phase 1 Bypass + Unify AI Prompt
+## Fix: Correct Phase Order in DemoWorkflowSteps and DemoLoginPage
 
-Two independent cleanups in one pass.
-
----
-
-### Part 1 — Remove Phase 1 Bypass (3 files)
-
-**src/hooks/queries/useOrgContext.ts**
-- Remove `phase1Bypass` from `OrgModelContext` interface
-- Remove `phase1_bypass` from the `.select()` column list
-- Remove the `phase1Bypass` line from the return object
-- Update the file comment to drop the phase1_bypass mention
-
-**src/pages/cogniblend/ChallengeWizardPage.tsx**
-- Delete `isAggBypass` variable (line 119)
-- Line 582: simplify `operatingModel` to `propEngagementModel === 'AGG' ? 'AGG' : 'MP'`
-- Lines 593-600: remove the `if (isAggBypass)` audit_trail insert block
-- Lines 705-720: remove the bypass banner JSX block
-
-**src/pages/cogniblend/CogniDashboardPage.tsx**
-- Remove `showBypassBanner` variable and the bypass banner JSX (lines 42, 49-60)
-- Remove the `Zap` import (no longer used)
-
-Database column `phase1_bypass` is intentionally left in place for later cleanup.
+The current code has Compliance and Curation swapped (showing LC before CU), contradicting the database phase order (Phase 2 = Curation, Phase 3 = Compliance).
 
 ---
 
-### Part 2 — Unify AI Quality Prompt (1 file)
+### File 1: `src/components/cogniblend/demo/DemoWorkflowSteps.tsx`
 
-**supabase/functions/check-challenge-quality/promptBuilder.ts**
-- Lines 42-49: replace the MP/AGG branching with a single unified engagement model prompt:
-  `"Verify solver eligibility breadth, clarity of deliverables and evaluation criteria, IP model clarity, and org-specific legal requirements."`
-- Redeploy the `check-challenge-quality` edge function
+**Replace `buildSteps` to return governance-specific step sets:**
+
+- Remove the `ai/manual` variant distinction (the `aiNote`/`manualNote` split is no longer needed — use a single `description` field per step)
+- QUICK: 3 steps (Create → Auto-Complete → Solver Submit)
+- STRUCTURED: 5 steps (Create → Curation → Compliance → Publication → Solver Submit)
+- CONTROLLED: 5 steps (Create → Curation → Compliance LC+FC → Publication → Solver Submit)
+- Each step has `label`, `role`, `description` matching the exact DB phase descriptions provided
+- Update the `Step` interface to use a single `description` instead of `aiNote`/`manualNote`
+- Update the render to display `step.description` instead of the ai/manual conditional
+
+### File 2: `src/pages/cogniblend/DemoLoginPage.tsx`
+
+**Replace `buildDemoUsers` with governance-mode-conditional logic:**
+
+- QUICK: Returns 1 user (Sam Solo, all 5 roles merged)
+- STRUCTURED: Returns 4 users in order: CR → CU → LC → ER (no FC, no ER2, no Solo)
+- CONTROLLED: Returns 6 users in order: CR → CU → LC → FC → ER1 → ER2 (no Solo)
+
+**Update role description constants** (`CR_DESC`, `CU_DESC`, `LC_DESC`, `ER_DESC`) with the exact DB-aligned descriptions provided.
+
+**Add a governance-mode-aware section heading** above the role cards:
+- QUICK: "1 person — all roles merged (no role conflicts)"
+- STRUCTURED: "4 roles — sequential handoff (CR≠CU, CR≠ER enforced)"
+- CONTROLLED: "6 roles — full separation of duties (LC+FC parallel at Phase 3, dual blind ER at Phase 6)"
+
+**Update the static export** to use STRUCTURED as default: `export const DEMO_USERS = buildDemoUsers('MP', 'STRUCTURED')`.
 
 ---
 
-### Files touched
-| File | Change |
-|------|--------|
-| `src/hooks/queries/useOrgContext.ts` | Remove `phase1Bypass` from type + query |
-| `src/pages/cogniblend/ChallengeWizardPage.tsx` | Remove bypass variable, logic, banner |
-| `src/pages/cogniblend/CogniDashboardPage.tsx` | Remove bypass banner + Zap import |
-| `supabase/functions/check-challenge-quality/promptBuilder.ts` | Unify engagement model prompt |
+### No other files changed.
 
