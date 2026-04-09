@@ -152,10 +152,53 @@ export function buildChallengeUpdatePayload(
 
   return {
     title: rawPayload.title?.trim() || rawPayload.businessProblem.substring(0, 100).trim(),
+    hook: fp.hook || null,
     problem_statement: fp.businessProblem || null,
     scope: fp.constraints || null,
     expected_outcomes: serializeLineItems(fp.expectedOutcomes),
+    deliverables: fp.deliverablesList?.filter(Boolean).length
+      ? serializeLineItems(fp.deliverablesList)
+      : null,
     submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
+    governance_mode_override: rawPayload.governanceModeOverride ?? null,
+    currency_code: fp.currency ?? rawPayload.currency,
+    reward_structure: {
+      currency: fp.currency ?? rawPayload.currency,
+      budget_min: fp.budgetMin ?? 0,
+      budget_max: fp.budgetMax ?? 0,
+      platinum_award: fp.budgetMax ?? 0,
+      source_role: 'CR',
+      source_date: new Date().toISOString(),
+      upstream_source: {
+        role: 'CR',
+        date: new Date().toISOString(),
+        budget_min: fp.budgetMin ?? 0,
+        budget_max: fp.budgetMax ?? 0,
+        currency: fp.currency ?? rawPayload.currency,
+      },
+    },
+    evaluation_criteria: fp.weightedCriteria?.length
+      ? { weighted_criteria: fp.weightedCriteria }
+      : null,
+    phase_schedule: {
+      expected_timeline: fp.expectedTimeline,
+    },
+    maturity_level: normalizedConstrainedFields.maturity_level,
+    solution_maturity_id: fp.solutionMaturityId || null,
+    ip_model: normalizedConstrainedFields.ip_model,
+    domain_tags: fp.domainTags || null,
+    industry_segment_id: fp.industrySegmentId || null,
+    eligibility: JSON.stringify({
+      domain_tags: fp.domainTags,
+      urgency: fp.urgency,
+      constraints: fp.constraints || undefined,
+      industry_segment_id: fp.industrySegmentId || undefined,
+      sub_domain_ids: fp.subDomainIds?.length ? fp.subDomainIds : undefined,
+      specialty_tags: fp.specialtyTags?.length ? fp.specialtyTags : undefined,
+    }),
+    extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
+  };
+}
     governance_mode_override: rawPayload.governanceModeOverride ?? null,
     currency_code: fp.currency ?? rawPayload.currency,
     reward_structure: {
