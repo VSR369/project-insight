@@ -5,12 +5,44 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import React from "react";
 import { useState } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
 import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
+import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
+import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
+import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
+import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
+import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
+import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
+import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
+import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
+import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, ChevronsDownUp, ChevronsUpDown, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export default function CurationReviewPage() {
+  const o = useCurationPageOrchestrator();
+  const freezeMut = useFreezeForLegalReview(o.challengeId ?? '');
+  const assembleMut = useAssembleCpa(o.challengeId ?? '');
+  const [pwaAccepted, setPwaAccepted] = useState(false);
+
+  const opModel = (o.challenge as any)?.operating_model ?? 'IP';
+  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
+    opModel === 'MP' ? o.user?.id : undefined
+  );
+
+  const handleFreezeForLegal = async () => {
+    if (!o.user?.id) return;
+    try {
+      await freezeMut.mutateAsync(o.user.id);
+      await assembleMut.mutateAsync(o.user.id);
+    } catch { /* errors handled by individual mutation onError */ }
+  };
 
   // ── Loading / not-found ──
   if (o.isLoading) {
