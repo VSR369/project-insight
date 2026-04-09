@@ -6,7 +6,7 @@
  *   2. Solution Provider Eligibility Criteria (expertise, proficiencies, sub-domains, specialities)
  *   3. IP Model
  *   4. Permitted Artifact Types
- *   5. Targeting Filters (Enterprise only)
+ *   5. Targeting Filters (Controlled only)
  */
 
 import { useState, useEffect, useMemo } from 'react';

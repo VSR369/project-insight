@@ -11,7 +11,7 @@
  *   7. Payment Mode (Escrow / Direct)
  *   8. Payment Schedule (milestone-based)
  *   9. Platform Provider Fee banner
- *  10. Rejection Fee slider (Enterprise only)
+ *  10. Rejection Fee slider (Controlled only)
  */
 
 import { useEffect } from 'react';
