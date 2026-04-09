@@ -1,81 +1,40 @@
 
-Goal
 
-Make `setup-test-scenario` rerunnable and fully aligned with Legal V2 so the demo seed works reliably across all 6 governance × engagement combinations.
+# Fix `assemble_cpa` Database Function — 5 Bug Fixes
 
-5-why analysis
+## Problem
+The current `assemble_cpa` function crashes on insert due to validation trigger violations and produces incomplete/incorrect assembled CPAs.
 
-1. Why is “Seed Demo Scenario” failing?
-   - The edge function returns HTTP 500.
+## Confirmed Bugs (from DB inspection)
 
-2. Why is it returning 500?
-   - The org insert fails on `idx_seeker_orgs_unique_name_country`.
+| Bug | Current Code | Constraint | Fix |
+|-----|-------------|------------|-----|
+| 1. Tier | `'challenge'` | Trigger requires `TIER_1` or `TIER_2` | Use `'TIER_1'` |
+| 2. Status | `'DRAFT'` | Trigger requires `ATTACHED/TRIGGERED/SIGNED/EXPIRED/ai_suggested` | Use `'ATTACHED'` |
+| 3. Geography | `WHERE challenge_id = ...` | `geography_context` has no `challenge_id` | Resolve via `org.hq_country_id` → `countries.code` → `geography_context.country_codes` |
+| 4. Prize | Uses `total_fee` (often 0) | `platinum_award` doesn't exist either | Get Platinum tier from `challenge_prize_tiers` where `tier_name = 'Platinum'` and `rank = 1`, use `COALESCE(fixed_amount, percentage_of_pool * total_fee / 100, total_fee)` |
+| 5. Missing variables | Only 10 of 17 replaced | Templates use `{{ip_clause}}`, `{{escrow_terms}}`, `{{anti_disintermediation}}`, `{{seeker_org_name}}`, `{{prize_amount}}`, `{{solver_audience}}`, `{{evaluation_method}}` | Add all 7 missing variables |
+| 6. No `lc_status` | Not set | Column exists, trigger validates it | Set `'approved'` for QUICK, `'pending_review'` for others |
 
-3. Why does that duplicate org still exist?
-   - The cleanup path tries to hard-delete prior orgs, but it only clears challenge-centric tables and ignores delete errors on `seeker_organizations`, so the old active org can remain.
+**Key schema discovery**: The user's proposed SQL references `platinum_award` on `challenges`, but that column does not exist. Prize must come from `challenge_prize_tiers` table or fall back to `total_fee`.
 
-4. Why is that cleanup path brittle?
-   - It treats the tenant root as disposable instead of reusing/resetting the existing demo org, even though many `seeker_*` tables reference it.
+## Migration SQL
 
-5. Why did this survive the legal-architecture rewrite?
-   - The seeder was updated for CPA assembly, but idempotency was not redesigned for the new org-level setup, and the function also dropped some baseline demo provisioning (notably the premium subscription state the demo expects).
+A single migration will `DROP FUNCTION` + `CREATE OR REPLACE FUNCTION` for `assemble_cpa` with:
 
-Implementation plan
+1. Prize lookup: query `challenge_prize_tiers` for Platinum tier's `fixed_amount`, fall back to `total_fee`
+2. Geography: `JOIN countries co ON gc.country_codes @> ARRAY[co.code] WHERE co.id = v_org.hq_country_id`
+3. IP clause expansion from `ip_model` code → human-readable text
+4. Conditional `escrow_terms` (CONTROLLED only) and `anti_disintermediation` (AGG only)
+5. All 11+ template variable replacements
+6. `tier = 'TIER_1'`, `status = 'ATTACHED'`, `lc_status` set per governance mode
+7. Audit trail entry
 
-1. Make the org step idempotent in `supabase/functions/setup-test-scenario/index.ts`
-   - Resolve the country first.
-   - Look up the demo org by `organization_name + hq_country_id` to match the unique index.
-   - If found, reuse that `orgId` and reset/update it (`is_deleted = false`, `is_active = true`, tier/governance/meta fields).
-   - Only insert a new org when no matching org exists.
+## Files Changed
 
-2. Replace brittle org deletion with scoped reset logic
-   - Keep challenge cleanup for that org.
-   - Stop depending on deleting the tenant root row.
-   - Explicitly clear/reseed demo-owned org rows touched by this function, especially:
-     - `org_users`
-     - `org_legal_document_templates`
-     - `seeker_subscriptions`
-     - scenario pool/member rows as needed
-   - Throw on cleanup errors instead of continuing silently.
+| File | Change |
+|------|--------|
+| New migration | `DROP + CREATE OR REPLACE FUNCTION assemble_cpa` |
 
-3. Restore the missing Legal V2 baseline
-   - Re-ensure SPA / SKPA / PWA content in `legal_document_templates` using the actual body column (`content` in this schema).
-   - Delete and recreate only the org’s 3 CPA templates:
-     - `CPA_QUICK`
-     - `CPA_STRUCTURED`
-     - `CPA_CONTROLLED`
-   - Recreate/update the org’s active Premium subscription in `seeker_subscriptions` by looking up the `premium` tier and billing cycle ids.
+No edge function or frontend changes.
 
-4. Keep the 6-challenge matrix deterministic
-   - Preserve the 6 seeded challenges.
-   - Keep `assemble_cpa` for all 6 challenges.
-   - Preserve governance-specific behavior:
-     - CONTROLLED → `DELPHI`, 3 evaluators
-     - STRUCTURED → `SINGLE`, 1 evaluator
-     - QUICK → `SINGLE`, 1 evaluator and publish-ready state
-
-5. Reduce deploy-time fragility
-   - Trim `setup-test-scenario/index.ts` by moving challenge definitions / cleanup constants into a `_shared` helper file so the entry file stays smaller and less likely to hit codegen/bundle timeouts again.
-   - No DB schema changes are required for this fix.
-
-Files to change
-
-- `supabase/functions/setup-test-scenario/index.ts`
-- `supabase/functions/_shared/setup-test-scenario-data.ts` (new shared constants/helper data)
-
-Validation after implementation
-
-1. Deploy `setup-test-scenario`.
-2. Run the seed once: expect `success: true`.
-3. Run it again immediately: expect `success: true` again.
-4. Confirm the response/logs show:
-   - org resolved or reset successfully
-   - 3 CPA templates seeded
-   - platform doc content updated
-   - premium subscription present
-   - CPA assembled for all 6 challenges
-5. Confirm the duplicate-key error is gone.
-
-Expected result
-
-The demo seed becomes truly rerunnable, works with the new 3 platform docs + 3 CPA template architecture, and consistently exercises all 6 governance/engagement combinations.
