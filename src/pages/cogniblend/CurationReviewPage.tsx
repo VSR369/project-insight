@@ -244,6 +244,10 @@ export default function CurationReviewPage() {
           blockingReason={o.blockingReason}
           onReReviewStale={o.reReviewStale}
           setAiReviewLoading={o.setAiReviewLoading}
+          userId={o.user?.id}
+          lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
+          governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile) ?? 'QUICK'}
+          currentPhase={o.challenge.current_phase}
         />
       </div>
 
