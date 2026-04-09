@@ -1,7 +1,7 @@
 /**
  * renderOpsSections — Operations/governance section renderers.
  * Handles: phase_schedule, legal_docs, escrow_funding,
- *          data_resources_provided, success_metrics_kpis
+ *          data_resources_provided, success_metrics_kpis, creator_references
  */
 
 import React from "react";
@@ -11,13 +11,14 @@ import {
   LegalDocsSectionRenderer,
 } from "@/components/cogniblend/curation/renderers";
 import { TableSectionEditor } from "@/components/cogniblend/curation/renderers/TableSectionEditor";
+import { CreatorReferencesRenderer } from "@/components/cogniblend/curation/renderers/CreatorReferencesRenderer";
 import { resolveGovernanceMode, isControlledMode } from "@/lib/governanceMode";
 import { parseJson } from "@/lib/cogniblend/curationHelpers";
 import type { RenderSectionContentArgs } from "@/components/cogniblend/curation/renderSectionContent";
 
 const OPS_KEYS = new Set([
   "phase_schedule", "legal_docs", "escrow_funding",
-  "data_resources_provided", "success_metrics_kpis",
+  "data_resources_provided", "success_metrics_kpis", "creator_references",
 ]);
 
 export function renderOpsSection(args: RenderSectionContentArgs, editButton: React.ReactNode): React.ReactNode | null {
@@ -138,6 +139,9 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
         </>
       );
     }
+
+    case "creator_references":
+      return <CreatorReferencesRenderer challengeId={args.challengeId} />;
 
     default:
       return null;
