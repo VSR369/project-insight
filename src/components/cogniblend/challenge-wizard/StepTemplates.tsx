@@ -35,8 +35,8 @@ const LEGAL_DOC_TYPES = [
   { type: 'TERMS_AND_CONDITIONS', label: 'Challenge Life Cycle Management Terms & Conditions', tier: 'entry', required: true },
   { type: 'NDA', label: 'Non-Disclosure Agreement', tier: 'entry', required: true },
   { type: 'PARTICIPATION_AGREEMENT', label: 'Participation Agreement', tier: 'entry', required: true },
-  { type: 'IP_ASSIGNMENT', label: 'IP Assignment Deed', tier: 'solution', required: false, enterpriseOnly: true },
-  { type: 'ESCROW_AGREEMENT', label: 'Escrow Agreement', tier: 'solution', required: false, enterpriseOnly: true },
+  { type: 'IP_ASSIGNMENT', label: 'IP Assignment Deed', tier: 'solution', required: false, controlledOnly: true },
+  { type: 'ESCROW_AGREEMENT', label: 'Escrow Agreement', tier: 'solution', required: false, controlledOnly: true },
 ];
 
 export function StepTemplates({ form, isQuick }: StepTemplatesProps) {
@@ -127,7 +127,7 @@ export function StepTemplates({ form, isQuick }: StepTemplatesProps) {
     });
   };
 
-  const visibleDocs = LEGAL_DOC_TYPES.filter((d) => !d.enterpriseOnly || !isQuick);
+  const visibleDocs = LEGAL_DOC_TYPES.filter((d) => !d.controlledOnly || !isQuick);
 
   return (
     <div className="space-y-6">

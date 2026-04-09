@@ -138,7 +138,7 @@ export function useVerifyEscrow() {
         } as any);
       }
 
-      // Notify the Innovation Director (ID)
+      // Notify the Curator (CU)
       // Find active CU for this challenge
       const { data: cuRoles } = await supabase
         .from('user_challenge_roles' as any)

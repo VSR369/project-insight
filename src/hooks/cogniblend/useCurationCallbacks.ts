@@ -70,9 +70,9 @@ export function useCurationCallbacks({
           message: `Budget shortfall detected (${shortfall.gapPercentage}% gap). Strategy: ${shortfall.strategy}. Original: ${shortfall.originalBudget}, Minimum: ${shortfall.minimumViableReward}.`,
         });
       }
-      toast.success('Revision accepted. Notification sent to Account Manager.');
+      toast.success('Revision accepted. Notification sent to Creator.');
     } catch {
-      toast.error('Failed to send notification to Account Manager.');
+      toast.error('Failed to send notification to Creator.');
     }
     setBudgetShortfall(null);
   }, [curationStore, challengeId, setBudgetShortfall]);

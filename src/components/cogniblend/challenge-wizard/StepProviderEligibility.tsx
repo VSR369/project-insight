@@ -6,7 +6,7 @@
  *   2. Solution Provider Eligibility Criteria (expertise, proficiencies, sub-domains, specialities)
  *   3. IP Model
  *   4. Permitted Artifact Types
- *   5. Targeting Filters (Enterprise only)
+ *   5. Targeting Filters (Controlled only)
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -477,7 +477,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
           </div>
         )}
 
-        {/* ── Lightweight: Summary note ── */}
+        {/* ── Quick: Summary note ── */}
         {isQuick && (
           <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
             <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
@@ -704,7 +704,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
       {isQuick && (
         <div className="rounded-lg border border-border bg-muted/30 p-4">
           <p className="text-sm text-muted-foreground">
-            Lightweight governance uses open enrollment by default. Upgrade to Enterprise for advanced targeting filters.
+            Quick governance uses open enrollment by default. Upgrade to Structured or Controlled for advanced targeting filters.
           </p>
         </div>
       )}

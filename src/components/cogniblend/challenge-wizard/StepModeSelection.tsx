@@ -54,7 +54,7 @@ const MODE_CARDS: Array<{
       'Full field set with manual curation',
       'Optional add-ons (escrow, targeting)',
       'Distinct creator & curator roles',
-      'Best for standard enterprise challenges',
+      'Best for standard business challenges',
     ],
   },
   {

@@ -11,7 +11,7 @@
  *   7. Payment Mode (Escrow / Direct)
  *   8. Payment Schedule (milestone-based)
  *   9. Platform Provider Fee banner
- *  10. Rejection Fee slider (Enterprise only)
+ *  10. Rejection Fee slider (Controlled only)
  */
 
 import { useEffect } from 'react';
@@ -374,7 +374,7 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
                   <Lock className="h-5 w-5 shrink-0 mt-0.5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Direct Pay</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Not available. Contact support for enterprise direct payment.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Not available. Contact support for Controlled governance direct payment.</p>
                   </div>
                 </div>
               </div>
@@ -502,7 +502,7 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
         </div>
       )}
 
-      {/* ═══ 8. Rejection Fee (Enterprise only) ═══ */}
+      {/* ═══ 8. Rejection Fee (Controlled only) ═══ */}
       {!isQuick && rewardType === 'monetary' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">

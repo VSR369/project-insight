@@ -86,7 +86,7 @@ export function BudgetRevisionPanel({
           <div className="flex items-start gap-2 rounded-md bg-amber-100/50 dark:bg-amber-900/20 px-2 py-1.5">
             <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-[10px] text-amber-700 dark:text-amber-400">
-              Requires Account Manager approval before proceeding.
+              Requires Creator approval before proceeding.
             </p>
           </div>
         )}

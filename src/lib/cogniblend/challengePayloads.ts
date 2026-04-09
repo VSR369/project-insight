@@ -1,6 +1,5 @@
 /**
- * solutionRequestPayloads — Shared types and payload builder for challenge creation.
- * Extracted from useSubmitSolutionRequest.ts.
+ * challengePayloads — Shared types and payload builder for challenge creation.
  */
 
 import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';

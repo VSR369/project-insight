@@ -16,7 +16,7 @@ import { ChallengeCreatorForm } from '@/components/cogniblend/creator/ChallengeC
 import { CreatorOrgContextCard } from '@/components/cogniblend/creator/CreatorOrgContextCard';
 import { ChallengeConfigurationPanel } from '@/components/cogniblend/creator/ChallengeConfigurationPanel';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
+import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import {
   getAvailableGovernanceModes,

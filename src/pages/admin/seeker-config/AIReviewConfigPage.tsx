@@ -94,7 +94,7 @@ interface GlobalConfig {
 
 const ROLE_CONTEXT_ORDER = ['intake', 'spec', 'curation', 'legal', 'finance', 'evaluation'];
 const ROLE_CONTEXT_LABELS: Record<string, string> = {
-  intake: 'Intake (AM / Challenge Requestor)',
+  intake: 'Create (Challenge Creator)',
   spec: 'Specification (Challenge Creator)',
   curation: 'Curation (Challenge Curator)',
   legal: 'Legal (Legal Coordinator)',

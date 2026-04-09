@@ -1,5 +1,5 @@
 /**
- * useSubmitSolutionRequest — Orchestrates challenge creation.
+ * useChallengeSubmit — Orchestrates challenge creation.
  * Role Architecture v2: CR creates challenge → moves to curation-ready (phase 2).
  *
  * useSaveDraft — Saves challenge in Phase 1 without advancing.
@@ -24,11 +24,11 @@ import {
   type SubmitResult,
   normalizeConstrainedChallengeFields,
   buildChallengeUpdatePayload,
-} from '@/lib/cogniblend/solutionRequestPayloads';
+} from '@/lib/cogniblend/challengePayloads';
 
 export type { SubmitPayload, DraftPayload, SubmitResult };
 
-export function useSubmitSolutionRequest() {
+export function useChallengeSubmit() {
   const queryClient = useQueryClient();
 
   return useMutation({

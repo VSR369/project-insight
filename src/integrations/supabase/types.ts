@@ -14246,7 +14246,7 @@ export type Database = {
         Args: {
           p_creator_id: string
           p_governance_mode_override?: string
-          p_operating_model: string
+          p_operating_model?: string
           p_org_id: string
           p_title: string
         }

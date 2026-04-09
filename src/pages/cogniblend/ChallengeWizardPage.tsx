@@ -28,13 +28,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
+import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
-import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import { useChallengeSubmit } from '@/hooks/cogniblend/useChallengeSubmit';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
 import { resolveGovernanceMode, resolveChallengeGovernance, isQuickMode, isStructuredOrAbove, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
 import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
@@ -172,7 +172,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const formCompletion = useFormCompletion(form, fieldRules);
 
   // ═══════ Hooks — mutations ═══════
-  const createChallengeMutation = useSubmitSolutionRequest();
+  const createChallengeMutation = useChallengeSubmit();
   const saveStepMutation = useSaveChallengeStep();
   const submitMutation = useSubmitChallengeForReview();
 
@@ -342,7 +342,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const isStructured = isStructuredOrAbove(governanceMode);
   const modeConfig = GOVERNANCE_MODE_CONFIG[governanceMode];
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Creating New Challenge';
-  const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;
+  
 
   // Calculate draft SLA (10 business days)
   const createdAt = (challengeData as any)?.created_at ? new Date((challengeData as any).created_at) : new Date();
@@ -441,7 +441,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         review_duration: values.review_duration || null,
         notes: values.phase_notes || null,
         phase_durations: values.phase_durations || null,
-        source_request_context: sourceRequest || null,
+        
       },
       complexity_parameters: values.complexity_params || null,
       complexity_score: complexityScore,
@@ -701,23 +701,6 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         )}
       </div>
 
-      {/* ── Source Request Banner ──────────────────────── */}
-      {sourceRequest && (
-        <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-4 flex items-start gap-3">
-          <FileText className="h-5 w-5 text-[hsl(210,68%,54%)] shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-[hsl(210,68%,30%)]">
-              Creating challenge from Solution Request {sourceRequest.source_sr_title ?? ''}
-            </p>
-            <p className="text-xs text-[hsl(210,40%,45%)] mt-0.5">
-              by {sourceRequest.source_sr_creator_name ?? 'Unknown'} ({sourceRequest.source_sr_org_name ?? ''})
-            </p>
-          </div>
-          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => navigate('/cogni/my-challenges')}>
-            View Challenge
-          </Button>
-        </div>
-      )}
 
       {/* ── AGG Phase 1 Bypass Banner ─────────────────── */}
       {isAggBypass && !isEditMode && (

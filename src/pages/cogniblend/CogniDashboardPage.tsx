@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
+import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
 import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
