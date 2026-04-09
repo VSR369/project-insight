@@ -8,13 +8,15 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Send, Save, Loader2, FlaskConical, Sparkles } from 'lucide-react';
+import { Send, Save, Loader2, FlaskConical, Sparkles, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useChallengeSubmit } from '@/hooks/cogniblend/useChallengeSubmit';
@@ -207,6 +209,32 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             currencyCode={form.watch('currency_code')}
             governanceMode={governanceMode}
           />
+        )}
+        {engagementModel === 'AGG' && (
+          <div className="rounded-lg border border-border p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Solver Audience
+            </div>
+            <RadioGroup
+              value={form.watch('solver_audience')}
+              onValueChange={(v) => form.setValue('solver_audience', v as 'ALL' | 'INTERNAL' | 'EXTERNAL', { shouldDirty: true })}
+              className="flex flex-col gap-1.5"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="ALL" id="sa-all" />
+                <Label htmlFor="sa-all" className="text-sm font-normal cursor-pointer">All Solvers</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="INTERNAL" id="sa-internal" />
+                <Label htmlFor="sa-internal" className="text-sm font-normal cursor-pointer">Internal Pool Only</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="EXTERNAL" id="sa-external" />
+                <Label htmlFor="sa-external" className="text-sm font-normal cursor-pointer">External Marketplace Only</Label>
+              </div>
+            </RadioGroup>
+          </div>
         )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {isQuick ? (
