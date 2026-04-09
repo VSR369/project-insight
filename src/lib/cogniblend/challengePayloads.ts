@@ -8,6 +8,7 @@ import {
   fetchGovernanceFieldRules,
   stripHiddenExtendedBriefFields,
 } from '@/lib/cogniblend/governanceFieldFilter';
+import { applyAutoDefaults } from '@/lib/cogniblend/autoDefaults';
 
 /* ── Shared payload interfaces ── */
 
@@ -155,7 +156,7 @@ export function buildChallengeUpdatePayload(
       : {}),
   };
 
-  return {
+  const rawResult = {
     title: rawPayload.title?.trim() || rawPayload.businessProblem.substring(0, 100).trim(),
     hook: fp.hook || null,
     problem_statement: fp.businessProblem || null,
@@ -206,4 +207,6 @@ export function buildChallengeUpdatePayload(
     evaluation_method: fp.evaluationMethod ?? 'SINGLE',
     evaluator_count: fp.evaluatorCount ?? 1,
   };
+
+  return applyAutoDefaults(rawResult, governanceRules);
 }

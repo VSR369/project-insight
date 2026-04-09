@@ -4,10 +4,13 @@
  * Industry segment elevated to config panel — not rendered here.
  */
 
+import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { isFieldVisible, isFieldRequired, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
@@ -21,11 +24,16 @@ interface EssentialDetailsTabProps {
 }
 
 export function EssentialDetailsTab({ engagementModel, governanceMode, fieldRules }: EssentialDetailsTabProps) {
+  const [optionalOpen, setOptionalOpen] = useState(false);
   const { control, register, setValue, formState: { errors } } = useFormContext();
   const isMPBudgetRequired = engagementModel === 'MP';
   const rules = fieldRules ?? {};
   const showScope = isFieldVisible(rules, 'scope');
   const showHook = isFieldVisible(rules, 'hook');
+  const isStructured = governanceMode === 'STRUCTURED';
+  const showContextBackground = isFieldVisible(rules, 'context_background');
+  const showExpectedTimeline = isFieldVisible(rules, 'expected_timeline');
+  const showOptionalSection = isStructured && (showContextBackground || showExpectedTimeline);
   const { data: maturityOptions = [], isLoading: maturityLoading } = useSolutionMaturityList();
 
   return (
@@ -96,6 +104,39 @@ export function EssentialDetailsTab({ engagementModel, governanceMode, fieldRule
         isMPBudgetRequired={isMPBudgetRequired}
         governanceMode={governanceMode}
       />
+
+      {/* Collapsible optional fields for STRUCTURED mode */}
+      {showOptionalSection && (
+        <Collapsible open={optionalOpen} onOpenChange={setOptionalOpen}>
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full py-2">
+            <ChevronDown className={`h-4 w-4 transition-transform ${optionalOpen ? 'rotate-180' : ''}`} />
+            Additional context (optional)
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-6 pt-2">
+            {showContextBackground && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Organization Context {isFieldRequired(rules, 'context_background') && <span className="text-destructive">*</span>}
+                </Label>
+                <p className="text-xs text-muted-foreground">Background about your organization relevant to this challenge.</p>
+                <Controller name="context_background" control={control} render={({ field }) => (
+                  <RichTextEditor value={field.value ?? ''} onChange={field.onChange} placeholder="Describe your organization context..." />
+                )} />
+                {errors.context_background?.message && <p className="text-xs text-destructive">{String(errors.context_background.message)}</p>}
+              </div>
+            )}
+            {showExpectedTimeline && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Expected Timeline {isFieldRequired(rules, 'expected_timeline') && <span className="text-destructive">*</span>}
+                </Label>
+                <Input placeholder="e.g. 4-6 weeks" {...register('expected_timeline')} />
+                {errors.expected_timeline?.message && <p className="text-xs text-destructive">{String(errors.expected_timeline.message)}</p>}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 }

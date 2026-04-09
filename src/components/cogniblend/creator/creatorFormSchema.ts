@@ -24,52 +24,58 @@ const criterionSchema = z.object({
 export function buildCreatorSchema(governanceMode: GovernanceMode, engagementModel: string) {
   const isQuick = governanceMode === 'QUICK';
   const isControlled = governanceMode === 'CONTROLLED';
+  const isStructured = governanceMode === 'STRUCTURED';
 
   const problemMin = isQuick ? 100 : isControlled ? 500 : 300;
 
-  // QUICK: hidden/optional fields get safe defaults
-  const scopeRule = isQuick
-    ? z.string().optional().default('')
-    : z.string().min(isControlled ? 200 : 150, `At least ${isControlled ? 200 : 150} characters required`);
+  // QUICK & STRUCTURED: scope hidden → optional; CONTROLLED: required
+  const scopeRule = isQuick || isStructured
+    ? (isStructured
+      ? z.string().min(150, 'At least 150 characters required')
+      : z.string().optional().default(''))
+    : z.string().min(200, 'At least 200 characters required');
 
-  const ipRule = isQuick
-    ? z.string().optional().default('IP-NEL')
-    : isControlled
-      ? z.string().min(1, 'Please select an IP model')
-      : z.string().optional().default('');
+  // QUICK & STRUCTURED: ip_model auto/hidden → optional
+  const ipRule = isControlled
+    ? z.string().min(1, 'Please select an IP model')
+    : z.string().optional().default('IP-NEL');
 
+  // QUICK: maturity hidden → optional
   const maturityRule = isQuick
     ? z.string().optional().default('')
     : z.string().min(1, 'Please select a solution type');
 
-  const outcomesRule = isQuick
-    ? z.array(z.string()).optional().default([])
-    : z.array(z.string()).min(1, 'Add at least one expected outcome');
+  // QUICK & STRUCTURED: expected_outcomes hidden → optional
+  const outcomesRule = isControlled
+    ? z.array(z.string()).min(1, 'Add at least one expected outcome')
+    : z.array(z.string()).optional().default([]);
 
+  // QUICK: weighted_criteria hidden → optional
   const weightedCriteriaRule = isQuick
     ? z.array(criterionSchema).optional().default([])
     : z.array(criterionSchema).min(1, 'Add at least one evaluation criterion');
 
+  // CONTROLLED: context fields required; STRUCTURED: optional; QUICK: hidden
   const contextStringRule = isControlled
     ? z.string().min(1, 'Required for Controlled governance')
     : z.string().optional().default('');
 
+  // CONTROLLED: line items required; others: optional
   const lineItemRule = isControlled
     ? z.array(z.string()).min(1, 'Required for Controlled governance')
     : z.array(z.string()).default(['']);
 
+  // CONTROLLED: stakeholders required; others: optional
   const stakeholderRule = isControlled
     ? z.array(stakeholderRowSchema).min(1, 'Required for Controlled governance')
     : z.array(stakeholderRowSchema).default([]);
 
+  // CONTROLLED: hook required; others: optional
   const hookRule = isControlled
     ? z.string().min(1, 'One-line summary required').max(300)
     : z.string().optional().default('');
 
-  const evaluationMethodRule = isQuick
-    ? z.enum(['SINGLE', 'DELPHI']).default('SINGLE')
-    : z.enum(['SINGLE', 'DELPHI']).default('SINGLE');
-
+  const evaluationMethodRule = z.enum(['SINGLE', 'DELPHI']).default('SINGLE');
   const evaluatorCountRule = isQuick
     ? z.coerce.number().default(1)
     : z.coerce.number().min(1).max(5).default(1);
