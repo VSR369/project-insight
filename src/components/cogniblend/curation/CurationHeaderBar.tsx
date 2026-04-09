@@ -77,6 +77,7 @@ export function CurationHeaderBar({
   challengeTitle,
   governanceProfile,
   governanceModeOverride,
+  operatingModel,
   currentPhase,
   problemStatement,
   extendedBrief,
@@ -123,7 +124,13 @@ export function CurationHeaderBar({
             <Eye className="h-3 w-3" />View Only
           </Badge>
         )}
-        <GovernanceProfileBadge profile={governanceProfile} compact />
+        <GovernanceModeSwitcher
+          challengeId={challengeId}
+          currentProfile={governanceProfile}
+          currentPhase={currentPhase}
+          phaseStatus={null}
+          userId={userId}
+        />
         {orgTypeName && (
           <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
         )}
