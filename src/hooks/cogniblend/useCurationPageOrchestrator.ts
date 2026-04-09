@@ -168,7 +168,7 @@ export function useCurationPageOrchestrator() {
   // ── Derived state ──
   const isLegalAccepted = sectionActions.some(a => a.section_key === 'legal_docs' && a.action_type === 'approval' && a.status === 'approved');
   const isEscrowAccepted = sectionActions.some(a => a.section_key === 'escrow_funding' && a.action_type === 'approval' && a.status === 'approved');
-  const governanceMode = challenge ? resolveGovernanceMode(challenge.governance_profile) : null;
+  const governanceMode = challenge ? resolveGovernanceMode((challenge as any).governance_mode_override ?? challenge.governance_profile) : null;
   // CONTROLLED: Curator does content only — LC/FC handle legal+escrow independently in Phase 3
   // STRUCTURED: Curator handles legal+escrow (auto-approved in complete_phase)
   const isControlled = governanceMode ? isControlledMode(governanceMode) : false;

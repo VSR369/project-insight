@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   Eye,
 } from "lucide-react";
-import { GovernanceProfileBadge } from "@/components/cogniblend/GovernanceProfileBadge";
+import { GovernanceModeSwitcher } from "@/components/cogniblend/curation/GovernanceModeSwitcher";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { OriginalBriefAccordion } from "@/components/cogniblend/curation/OriginalBriefAccordion";
@@ -27,6 +27,7 @@ export interface CurationHeaderBarProps {
   challengeId: string;
   challengeTitle: string;
   governanceProfile: string | null;
+  governanceModeOverride?: string | null;
   operatingModel: string | null;
   currentPhase: number | null;
   phaseStatus: string | null;
@@ -75,6 +76,7 @@ export function CurationHeaderBar({
   challengeId,
   challengeTitle,
   governanceProfile,
+  governanceModeOverride,
   operatingModel,
   currentPhase,
   problemStatement,
@@ -122,7 +124,13 @@ export function CurationHeaderBar({
             <Eye className="h-3 w-3" />View Only
           </Badge>
         )}
-        <GovernanceProfileBadge profile={governanceProfile} compact />
+        <GovernanceModeSwitcher
+          challengeId={challengeId}
+          currentProfile={governanceProfile}
+          currentPhase={currentPhase}
+          phaseStatus={null}
+          userId={userId}
+        />
         {orgTypeName && (
           <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
         )}
