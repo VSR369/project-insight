@@ -44,7 +44,7 @@ interface ChallengeCreatorFormProps {
   engagementModel: string;
   governanceMode: GovernanceMode;
   industrySegmentId: string;
-  onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
+  onDraftModeSync?: (governance: GovernanceMode, engagement: string, industrySegmentId?: string) => void;
   onFillTestData?: () => void;
   onDraftIdChange?: (id: string) => void;
 }
@@ -136,6 +136,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       maturityLevel: data.maturity_level || undefined, solutionMaturityId: data.solution_maturity_id || undefined,
       ipModel: data.ip_model || undefined, hook: data.hook || undefined,
       weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
+      deliverablesList: cleanArray(data.deliverables_list),
     };
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 

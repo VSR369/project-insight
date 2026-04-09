@@ -10,10 +10,10 @@ import type { CreatorFormValues } from '@/components/cogniblend/creator/creatorF
 import { toFormMaturityCode } from '@/components/cogniblend/creator/creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
-const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model';
+const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model, evaluation_criteria, deliverables';
 
 interface DraftSyncCallback {
-  (gov: GovernanceMode, eng: string): void;
+  (gov: GovernanceMode, eng: string, industrySegmentId?: string): void;
 }
 
 function parseLineItems(value: unknown): string[] {
@@ -71,10 +71,12 @@ export function useCreatorDraftLoader(
       if (onDraftModeSync) {
         const draftGov = (challenge as Record<string, unknown>).governance_mode_override as string | null;
         const draftEng = (challenge as Record<string, unknown>).operating_model as string | null;
-        if (draftGov || draftEng) {
+        const draftIndustry = (challenge.industry_segment_id as string) || undefined;
+        if (draftGov || draftEng || draftIndustry) {
           onDraftModeSync(
             (draftGov as GovernanceMode) ?? governanceMode,
             draftEng ?? engagementModel,
+            draftIndustry,
           );
         }
       }

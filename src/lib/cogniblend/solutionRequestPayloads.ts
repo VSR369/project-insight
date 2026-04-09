@@ -50,6 +50,8 @@ export interface SubmitPayload {
   maturityLevel?: string;
   solutionMaturityId?: string;
   ipModel?: string;
+  hook?: string;
+  deliverablesList?: string[];
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
 }
@@ -90,6 +92,8 @@ export interface DraftPayload {
   maturityLevel?: string;
   solutionMaturityId?: string;
   ipModel?: string;
+  hook?: string;
+  deliverablesList?: string[];
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
 }
@@ -148,9 +152,13 @@ export function buildChallengeUpdatePayload(
 
   return {
     title: rawPayload.title?.trim() || rawPayload.businessProblem.substring(0, 100).trim(),
+    hook: fp.hook || null,
     problem_statement: fp.businessProblem || null,
     scope: fp.constraints || null,
     expected_outcomes: serializeLineItems(fp.expectedOutcomes),
+    deliverables: fp.deliverablesList?.filter(Boolean).length
+      ? serializeLineItems(fp.deliverablesList)
+      : null,
     submission_guidelines: fp.submissionGuidelines ? serializeLineItems(fp.submissionGuidelines) : null,
     governance_mode_override: rawPayload.governanceModeOverride ?? null,
     currency_code: fp.currency ?? rawPayload.currency,
