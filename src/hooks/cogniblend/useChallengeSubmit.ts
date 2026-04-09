@@ -118,6 +118,8 @@ export function useChallengeSubmit() {
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           extended_brief: filteredExtendedBrief,
           solver_audience: payload.solverAudience ?? 'ALL',
+          evaluation_method: filteredPayload.evaluationMethod ?? 'SINGLE',
+          evaluator_count: filteredPayload.evaluatorCount ?? 1,
         } as any)
         .eq('id', challengeId);
 
