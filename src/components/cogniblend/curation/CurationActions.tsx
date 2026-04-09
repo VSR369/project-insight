@@ -203,10 +203,25 @@ export default function CurationActions({
       )}
 
       {!readOnly && lockStatus === 'FROZEN' && (
-        <div className="p-3 rounded-lg border border-blue-400/30 bg-blue-50 dark:bg-blue-900/20 text-center">
+        <div className="p-3 rounded-lg border border-blue-400/30 bg-blue-50 dark:bg-blue-900/20 text-center space-y-2">
           <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
             Content Frozen — Awaiting Legal Review
           </p>
+          {onFreezeForLegal && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-amber-600 border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+              onClick={() => {
+                if (confirm('This will reset legal approval. You must re-review legal documents. Continue?')) {
+                  onFreezeForLegal();
+                }
+              }}
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Unlock for Re-curation
+            </Button>
+          )}
         </div>
       )}
 
