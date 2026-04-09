@@ -90,6 +90,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     expected_timeline: isControlled
       ? z.string().min(1, 'Timeline is required')
       : z.string().optional().default(''),
+    solver_audience: z.enum(['ALL', 'INTERNAL', 'EXTERNAL']).default('ALL'),
   });
 
   if (engagementModel === 'MP') {
@@ -129,6 +130,7 @@ export type CreatorFormValues = {
   root_causes: string[];
   expected_timeline: string;
   industry_segment_id: string;
+  solver_audience: 'ALL' | 'INTERNAL' | 'EXTERNAL';
 };
 
 export function toFormMaturityCode(value: string | null | undefined): string {

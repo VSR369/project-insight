@@ -94,6 +94,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       weighted_criteria: [], deliverables_list: [],
       context_background: '', preferred_approach: [''], approaches_not_of_interest: [''],
       affected_stakeholders: [], current_deficiencies: [''], root_causes: [''], expected_timeline: '',
+      solver_audience: 'ALL' as const,
     },
   });
 
@@ -137,6 +138,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       ipModel: data.ip_model || undefined, hook: data.hook || undefined,
       weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
       deliverablesList: cleanArray(data.deliverables_list),
+      solverAudience: engagementModel === 'AGG' ? data.solver_audience : 'ALL',
     };
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
