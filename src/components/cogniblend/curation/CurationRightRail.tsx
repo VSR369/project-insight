@@ -7,6 +7,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Bot, Loader2 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
+import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
