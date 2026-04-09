@@ -60,7 +60,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         ipModel: data.ip_model || undefined, hook: data.hook || undefined,
         weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
         deliverablesList: cleanArray(data.deliverables_list),
-        solverAudience: data.solver_audience ?? 'ALL',
+        solverAudience: engagementModel === 'AGG' ? (data.solver_audience ?? 'ALL') : 'ALL',
       };
       if (draftChallengeId) {
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });
