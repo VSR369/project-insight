@@ -126,6 +126,7 @@ export const MP_SEED: SeedContent = {
   solver_audience: 'ALL',
   evaluation_method: 'SINGLE',
   evaluator_count: 1,
+  creator_legal_instructions: '',
 };
 
 /**
@@ -232,6 +233,7 @@ export const AGG_SEED: SeedContent = {
   solver_audience: 'ALL',
   evaluation_method: 'SINGLE',
   evaluator_count: 1,
+  creator_legal_instructions: '',
 };
 
 /**
@@ -270,6 +272,7 @@ export function getSeedForCombination(
       current_deficiencies: [''],
       root_causes: [''],
       affected_stakeholders: [],
+      creator_legal_instructions: '',
     };
   }
 
@@ -278,6 +281,9 @@ export function getSeedForCombination(
       ...base,
       evaluation_method: 'SINGLE',
       evaluator_count: 1,
+      creator_legal_instructions: engagementModel === 'MP'
+        ? 'Smart grid operational data is NERC CIP regulated. Please ensure the CPA includes critical infrastructure data handling clauses and solver background check requirements.'
+        : 'Predictive analytics models must remain compatible with client SAP QM data formats. Please add Siemens MindSphere IP licensing acknowledgment clause.',
     };
   }
 
@@ -286,6 +292,9 @@ export function getSeedForCombination(
     ...base,
     evaluation_method: 'DELPHI',
     evaluator_count: 3,
+    creator_legal_instructions: engagementModel === 'MP'
+      ? 'Financial transaction data subject to SOX, GDPR, and 40+ jurisdictional regulations. CPA must include cross-border data transfer clauses and mandatory arbitration in Singapore.'
+      : 'HIPAA compliance required — all IP clauses must reference 45 CFR Part 164. Mandatory arbitration in Delaware. Data residency restricted to US-based servers.',
   };
 }
 

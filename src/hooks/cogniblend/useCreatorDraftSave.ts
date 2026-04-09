@@ -63,6 +63,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         solverAudience: engagementModel === 'AGG' ? (data.solver_audience ?? 'ALL') : 'ALL',
         evaluationMethod: data.evaluation_method ?? 'SINGLE',
         evaluatorCount: data.evaluator_count ?? 1,
+        creatorLegalInstructions: data.creator_legal_instructions || undefined,
       };
       if (draftChallengeId) {
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });
