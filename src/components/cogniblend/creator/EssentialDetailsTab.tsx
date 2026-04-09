@@ -12,6 +12,7 @@ import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { isFieldVisible, isFieldRequired, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 import { EssentialFieldRenderers } from './EssentialFieldRenderers';
+import { DomainTagsInput } from './DomainTagsInput';
 
 interface EssentialDetailsTabProps {
   engagementModel: string;
@@ -69,7 +70,21 @@ export function EssentialDetailsTab({ engagementModel, governanceMode, fieldRule
         </div>
       )}
 
-      {/* Maturity, Domain Tags, Budget, IP Model, Weighted Criteria */}
+      {/* Domain Tags */}
+      <Controller
+        name="domain_tags"
+        control={control}
+        render={({ field }) => (
+          <DomainTagsInput
+            value={(field.value as string[]) ?? []}
+            onChange={field.onChange}
+            error={errors.domain_tags?.message ? String(errors.domain_tags.message) : undefined}
+            required
+          />
+        )}
+      />
+
+      {/* Maturity, Budget, IP Model, Weighted Criteria */}
       <EssentialFieldRenderers
         control={control}
         register={register}
