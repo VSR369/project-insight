@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
+import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
 import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
