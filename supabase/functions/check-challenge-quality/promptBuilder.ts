@@ -13,6 +13,14 @@ const GOVERNANCE_DESCRIPTIONS: Record<string, string> = {
   CONTROLLED: "CONTROLLED mode: full compliance, 12 required fields. Mandatory escrow, formal gates, distinct roles. Apply maximum rigor — expect comprehensive detail, IP model, timeline, org context.",
 };
 
+/* ── Creator field lists by governance mode (for reviewScope filtering) ── */
+
+const CREATOR_FIELD_LISTS: Record<string, string[]> = {
+  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
+  STRUCTURED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria'],
+  CONTROLLED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
+};
+
 /* ── Prompt builders ── */
 
 interface PromptParams {
@@ -74,6 +82,12 @@ export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams
   if (ctx.rateCard) {
     const rc = ctx.rateCard;
     parts.push(`\n## RATE CARD BENCHMARK\nReward floor: ${rc.reward_floor_amount}, Reward ceiling: ${rc.reward_ceiling}, Effort rate floor: ${rc.effort_rate_floor}/hr.\nCompare challenge prize against these benchmarks and flag if outside range.`);
+  }
+
+  // Review scope filtering
+  if (params.reviewScope === 'creator_fields_only') {
+    const fieldList = CREATOR_FIELD_LISTS[params.governanceMode] ?? CREATOR_FIELD_LISTS.STRUCTURED;
+    parts.push(`\n## REVIEW SCOPE: CREATOR FIELDS ONLY\nFocus your gaps analysis EXCLUSIVELY on these creator-owned fields: ${fieldList.join(', ')}.\nDo NOT report gaps on fields outside this list. Dimension scores should still reflect the overall challenge but gaps[] must only reference these fields.`);
   }
 
   // Scoring criteria

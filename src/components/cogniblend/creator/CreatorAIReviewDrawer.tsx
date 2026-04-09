@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -16,6 +16,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { AIReviewFieldCard } from './AIReviewFieldCard';
+import { DimensionScoreBadges } from './DimensionScoreBadges';
 import { useCreatorAIReview, type FieldReviewResult } from '@/hooks/cogniblend/useCreatorAIReview';
 import { CREATOR_REVIEW_FIELDS } from '@/constants/creatorReviewFields';
 import type { GovernanceMode } from '@/lib/governanceMode';
@@ -46,6 +47,7 @@ export function CreatorAIReviewDrawer({
   const govCfg = GOVERNANCE_MODE_CONFIG[governanceMode];
 
   const [checkedFields, setCheckedFields] = useState<Record<string, boolean>>({});
+  const [showStrengths, setShowStrengths] = useState(false);
 
   useEffect(() => {
     if (open && !mutation.data && !mutation.isPending) {
@@ -118,6 +120,40 @@ export function CreatorAIReviewDrawer({
                 <p className="text-2xl font-bold">{overallScore}/100</p>
                 <p className="text-xs text-muted-foreground">Overall Quality Score</p>
               </div>
+
+              {/* Dimension Scores */}
+              <DimensionScoreBadges dimensions={mutation.data.dimensions} />
+
+              {/* Summary */}
+              {mutation.data.summary && (
+                <p className="text-sm text-muted-foreground leading-relaxed px-1">
+                  {mutation.data.summary}
+                </p>
+              )}
+
+              {/* Strengths */}
+              {mutation.data.strengths.length > 0 && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 w-full"
+                    onClick={() => setShowStrengths((p) => !p)}
+                  >
+                    {showStrengths ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {mutation.data.strengths.length} Strengths Identified
+                  </button>
+                  {showStrengths && (
+                    <ul className="mt-2 space-y-1 text-xs text-emerald-800">
+                      {mutation.data.strengths.map((s, i) => (
+                        <li key={i} className="flex gap-1.5">
+                          <span className="shrink-0">✅</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               {/* Per-field cards */}
               {reviewFields.map((f) => {
