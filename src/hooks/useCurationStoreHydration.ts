@@ -35,8 +35,8 @@ interface ChallengeDataSlice {
   
   expected_outcomes: unknown;
   extended_brief: unknown;
-  solver_expertise_requirements: unknown;
-  complexity_parameters: unknown;
+  solver_expertise_requirements?: unknown;
+  complexity_parameters?: unknown;
   submission_guidelines?: unknown;
   solution_types?: unknown;
 }
