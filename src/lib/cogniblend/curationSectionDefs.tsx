@@ -23,6 +23,7 @@ import {
   FileText,
   AlertTriangle,
   ShieldCheck,
+  Link as LinkIcon,
 } from "lucide-react";
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { DeliverableCardRenderer } from "@/components/cogniblend/curation/renderers";
@@ -679,6 +680,40 @@ export const SECTIONS: SectionDef[] = [
     },
   },
   {
+    key: "creator_references",
+    label: "Creator Reference Documents",
+    attribution: "by CR",
+    dbField: undefined,
+    isFilled: () => false, // Determined dynamically via attachments query
+    render: () => null, // Rendered by CreatorReferencesRenderer component
+  },
+  {
+    key: "reference_urls",
+    label: "Reference URLs",
+    attribution: "by CR",
+    dbField: "extended_brief",
+    isFilled: (ch) => {
+      const eb = parseJson<Record<string, unknown>>(ch.extended_brief);
+      const urls = (eb as Record<string, unknown>)?.reference_urls;
+      return Array.isArray(urls) && urls.length > 0;
+    },
+    render: (ch) => {
+      const eb = parseJson<Record<string, unknown>>(ch.extended_brief);
+      const urls: string[] = Array.isArray((eb as Record<string, unknown>)?.reference_urls) ? (eb as Record<string, unknown>).reference_urls as string[] : [];
+      if (urls.length === 0) return <p className="text-sm text-muted-foreground">No reference URLs provided.</p>;
+      return (
+        <div className="space-y-2">
+          {urls.map((url, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
+              <LinkIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate">{url}</a>
+            </div>
+          ))}
+        </div>
+      );
+    },
+  },
+  {
     key: "success_metrics_kpis",
     label: "Success Metrics & KPIs",
     attribution: "by CA / Curator",
@@ -762,7 +797,7 @@ export const GROUPS: GroupDef[] = [
     colorDone: "bg-blue-100 text-blue-800 border-blue-300",
     colorActive: "bg-blue-50 border-blue-400",
     colorBorder: "border-blue-200",
-    sectionKeys: ["solution_type", "deliverables", "maturity_level", "data_resources_provided", "success_metrics_kpis"],
+    sectionKeys: ["solution_type", "deliverables", "maturity_level", "data_resources_provided", "creator_references", "reference_urls", "success_metrics_kpis"],
     prerequisiteGroups: ["foundation"],
   },
   {
