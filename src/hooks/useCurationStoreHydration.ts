@@ -29,14 +29,14 @@ interface ChallengeDataSlice {
   ip_model: string | null;
   maturity_level: string | null;
   visibility: string | null;
-  eligibility: string | null;
+  eligibility?: string | null;
   description: string | null;
   domain_tags: unknown;
   
   expected_outcomes: unknown;
   extended_brief: unknown;
-  solver_expertise_requirements: unknown;
-  complexity_parameters: unknown;
+  solver_expertise_requirements?: unknown;
+  complexity_parameters?: unknown;
   submission_guidelines?: unknown;
   solution_types?: unknown;
 }

@@ -7,47 +7,69 @@
 
 import type { Json } from "@/integrations/supabase/types";
 
-export interface ChallengeData {
+/** Core fields loaded immediately for initial render */
+export interface ChallengeDataCore {
   id: string;
   title: string;
   problem_statement: string | null;
   scope: string | null;
+  hook: string | null;
+  description: string | null;
   deliverables: Json | null;
+  expected_outcomes: Json | null;
   evaluation_criteria: Json | null;
   reward_structure: Json | null;
   phase_schedule: Json | null;
+  ip_model: string | null;
+  maturity_level: string | null;
+  domain_tags: Json | null;
+  currency_code: string | null;
+  operating_model: string | null;
+  governance_profile: string | null;
+  governance_mode_override: string | null;
+  current_phase: number | null;
+  phase_status: string | null;
+  organization_id: string;
+  curation_lock_status: string | null;
+  curation_frozen_at: string | null;
+  extended_brief: Json | null;
+  creator_legal_instructions: string | null;
+  ai_section_reviews: Json | null;
+  visibility: string | null;
+  evaluation_method: string | null;
+  evaluator_count: number | null;
+  solver_audience: string | null;
+  /** Joined from seeker_organizations → organization_types */
+  seeker_organizations?: {
+    organization_type_id: string | null;
+    organization_types: { name: string } | null;
+  } | null;
+}
+
+/** Deferred fields loaded after initial render */
+export interface ChallengeDataDeferred {
   complexity_score: number | null;
   complexity_level: string | null;
   complexity_parameters: Json | null;
-  ip_model: string | null;
-  maturity_level: string | null;
-  visibility: string | null;
-  eligibility: string | null;
-  description: string | null;
-  operating_model: string | null;
-  governance_profile: string | null;
-  current_phase: number | null;
-  phase_status: string | null;
-  domain_tags: Json | null;
-  ai_section_reviews: Json | null;
-  currency_code: string | null;
-  hook: string | null;
-  max_solutions: number | null;
-  extended_brief: Json | null;
-  expected_outcomes: Json | null;
-  // Phase 5A: solver-tier fields for eligibility/visibility
+  complexity_locked: boolean | null;
+  complexity_locked_at: string | null;
+  complexity_locked_by: string | null;
   solver_eligibility_types: Json | null;
   solver_visibility_types: Json | null;
-  // Phase: solver expertise requirements
   solver_expertise_requirements: Json | null;
   targeting_filters: Json | null;
   eligibility_model: string | null;
-  organization_id: string;
+  eligibility: string | null;
   solution_type: string | null;
   solution_types: Json | null;
   data_resources_provided: Json | null;
   success_metrics_kpis: Json | null;
+  max_solutions: number | null;
+  lc_review_required: boolean | null;
 }
+
+/** Full challenge data — core + deferred merged */
+export type ChallengeData = ChallengeDataCore & Partial<ChallengeDataDeferred>;
 
 export interface LegalDocSummary {
   tier: string;
