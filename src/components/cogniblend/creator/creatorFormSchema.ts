@@ -66,6 +66,14 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     ? z.string().min(1, 'One-line summary required').max(300)
     : z.string().optional().default('');
 
+  const evaluationMethodRule = isQuick
+    ? z.enum(['SINGLE', 'DELPHI']).default('SINGLE')
+    : z.enum(['SINGLE', 'DELPHI']).default('SINGLE');
+
+  const evaluatorCountRule = isQuick
+    ? z.coerce.number().default(1)
+    : z.coerce.number().min(1).max(5).default(1);
+
   const base = z.object({
     title: z.string().trim().min(1, 'Title is required').max(200, 'Max 200 characters'),
     hook: hookRule,
@@ -91,6 +99,8 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
       ? z.string().min(1, 'Timeline is required')
       : z.string().optional().default(''),
     solver_audience: z.enum(['ALL', 'INTERNAL', 'EXTERNAL']).default('ALL'),
+    evaluation_method: evaluationMethodRule,
+    evaluator_count: evaluatorCountRule,
   });
 
   if (engagementModel === 'MP') {
@@ -131,6 +141,8 @@ export type CreatorFormValues = {
   expected_timeline: string;
   industry_segment_id: string;
   solver_audience: 'ALL' | 'INTERNAL' | 'EXTERNAL';
+  evaluation_method: 'SINGLE' | 'DELPHI';
+  evaluator_count: number;
 };
 
 export function toFormMaturityCode(value: string | null | undefined): string {
