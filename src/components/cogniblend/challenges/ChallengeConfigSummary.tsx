@@ -98,7 +98,7 @@ export function ChallengeConfigSummary({
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-foreground">
-              {effectiveGovernance === 'CONTROLLED' ? 'Enterprise Review Pipeline' : 'Professional Review'}
+              {effectiveGovernance === 'CONTROLLED' ? 'Controlled Review Pipeline' : 'Professional Review'}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {effectiveGovernance === 'CONTROLLED'

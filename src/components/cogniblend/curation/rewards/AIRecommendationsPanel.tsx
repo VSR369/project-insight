@@ -1,6 +1,6 @@
 /**
  * AIRecommendationsPanel — Inline AI recommendations card for monetary/non-monetary tabs.
- * Flow A: Lightweight structured suggestions with Apply/Accept controls.
+ * Flow A: Compact structured suggestions with Apply/Accept controls.
  */
 
 import { Sparkles } from 'lucide-react';

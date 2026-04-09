@@ -29,7 +29,7 @@ const GOVERNANCE_DESCRIPTIONS: Record<GovernanceMode, { headline: string; body: 
     bestFor: 'R&D challenges, funded initiatives ($25K–$100K)',
   },
   CONTROLLED: {
-    headline: 'Enterprise compliance — full audit trail',
+    headline: 'Controlled compliance — full audit trail',
     body: 'You fill 12 fields with mandatory AI quality review. Separate Legal and Financial coordinators.',
     bestFor: 'Pharma, defense, financial services ($100K+)',
   },

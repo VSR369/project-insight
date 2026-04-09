@@ -55,22 +55,22 @@ interface PhaseConfig {
   letter: string;
   label: string;
   defaultDays: number;
-  lightweightVisible: boolean;
+  quickVisible: boolean;
   color: string;
 }
 
 /* ─── Constants ──────────────────────────────────────────── */
 
 const PHASES: PhaseConfig[] = [
-  { key: 'curation_period',        letter: 'a', label: 'Curation Period',                  defaultDays: 7,  lightweightVisible: false, color: 'bg-blue-800' },
-  { key: 'id_review',              letter: 'b', label: 'Innovation Director Review',       defaultDays: 5,  lightweightVisible: false, color: 'bg-blue-600' },
-  { key: 'modification_period',    letter: 'c', label: 'Modification Period (if returned)', defaultDays: 5,  lightweightVisible: false, color: 'bg-red-400' },
-  { key: 'qa_period',              letter: 'd', label: 'Q&A Period',                       defaultDays: 14, lightweightVisible: true,  color: 'bg-orange-500' },
-  { key: 'abstract_submission',    letter: 'e', label: 'Abstract Submission Deadline',     defaultDays: 21, lightweightVisible: true,  color: 'bg-indigo-500' },
-  { key: 'screening_shortlisting', letter: 'f', label: 'Screening / Shortlisting',        defaultDays: 10, lightweightVisible: true,  color: 'bg-teal-500' },
-  { key: 'full_solution_upload',   letter: 'g', label: 'Full Solution Upload',             defaultDays: 30, lightweightVisible: true,  color: 'bg-purple-600' },
-  { key: 'expert_evaluation',      letter: 'h', label: 'Expert Evaluation',                defaultDays: 21, lightweightVisible: true,  color: 'bg-red-600' },
-  { key: 'final_selection',        letter: 'i', label: 'Final Selection Decision',         defaultDays: 7,  lightweightVisible: true,  color: 'bg-emerald-500' },
+  { key: 'curation_period',        letter: 'a', label: 'Curation Period',                  defaultDays: 7,  quickVisible: false, color: 'bg-blue-800' },
+  { key: 'curator_review',         letter: 'b', label: 'Curator Review',                   defaultDays: 5,  quickVisible: false, color: 'bg-blue-600' },
+  { key: 'modification_period',    letter: 'c', label: 'Modification Period (if returned)', defaultDays: 5,  quickVisible: false, color: 'bg-red-400' },
+  { key: 'qa_period',              letter: 'd', label: 'Q&A Period',                       defaultDays: 14, quickVisible: true,  color: 'bg-orange-500' },
+  { key: 'abstract_submission',    letter: 'e', label: 'Abstract Submission Deadline',     defaultDays: 21, quickVisible: true,  color: 'bg-indigo-500' },
+  { key: 'screening_shortlisting', letter: 'f', label: 'Screening / Shortlisting',        defaultDays: 10, quickVisible: true,  color: 'bg-teal-500' },
+  { key: 'full_solution_upload',   letter: 'g', label: 'Full Solution Upload',             defaultDays: 30, quickVisible: true,  color: 'bg-purple-600' },
+  { key: 'expert_evaluation',      letter: 'h', label: 'Expert Evaluation',                defaultDays: 21, quickVisible: true,  color: 'bg-red-600' },
+  { key: 'final_selection',        letter: 'i', label: 'Final Selection Decision',         defaultDays: 7,  quickVisible: true,  color: 'bg-emerald-500' },
 ];
 
 /* ─── Complexity helpers ─────────────────────────────────── */
@@ -240,7 +240,7 @@ export function StepTimeline({ form, mandatoryFields, isQuick }: StepTimelinePro
   });
 
   // Visible phases
-  const visiblePhases = isQuick ? PHASES.filter((p) => p.lightweightVisible) : PHASES;
+  const visiblePhases = isQuick ? PHASES.filter((p) => p.quickVisible) : PHASES;
 
   // Total duration
   const totalDays = useMemo(() => {
