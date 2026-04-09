@@ -1,12 +1,14 @@
 /**
  * useCreatorAIReview — Calls check-challenge-quality edge function for Creator's fields.
- * Returns per-field scores and comments.
+ * Transforms the holistic AI response into per-field scores for the drawer.
  */
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError } from '@/lib/errorHandler';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import { CREATOR_REVIEW_FIELDS } from '@/constants/creatorReviewFields';
+import { resolveFieldKey, deriveFieldScore, buildFieldComment } from '@/lib/creatorReviewMapper';
 
 export interface FieldReviewResult {
   fieldKey: string;
@@ -15,8 +17,19 @@ export interface FieldReviewResult {
   suggestion?: string;
 }
 
+export interface DimensionScores {
+  completeness: number;
+  clarity: number;
+  solverReadiness: number;
+  legalCompliance: number;
+  governanceAlignment: number;
+}
+
 export interface AIReviewResult {
   overallScore: number;
+  dimensions: DimensionScores;
+  summary: string;
+  strengths: string[];
   fieldResults: FieldReviewResult[];
 }
 
@@ -25,6 +38,24 @@ interface ReviewParams {
   governanceMode: GovernanceMode;
   engagementModel: string;
   industrySegmentId: string;
+}
+
+interface RawGap {
+  field: string;
+  severity: string;
+  message: string;
+}
+
+interface RawAIData {
+  overall_score?: number;
+  completeness_score?: number;
+  clarity_score?: number;
+  solver_readiness_score?: number;
+  legal_compliance_score?: number;
+  governance_alignment_score?: number;
+  summary?: string;
+  gaps?: RawGap[];
+  strengths?: string[];
 }
 
 export function useCreatorAIReview() {
@@ -42,13 +73,50 @@ export function useCreatorAIReview() {
 
       if (error) throw new Error(error.message || 'AI review failed');
 
-      const result = data as Record<string, unknown>;
-      const fieldResults = Array.isArray(result.fieldResults)
-        ? (result.fieldResults as FieldReviewResult[])
-        : [];
+      const envelope = data as { success?: boolean; data?: RawAIData; error?: { message?: string } };
+      if (!envelope.success || !envelope.data) {
+        throw new Error(envelope.error?.message ?? 'AI review returned no data');
+      }
+
+      const raw = envelope.data;
+      const dimensions: DimensionScores = {
+        completeness: raw.completeness_score ?? 0,
+        clarity: raw.clarity_score ?? 0,
+        solverReadiness: raw.solver_readiness_score ?? 0,
+        legalCompliance: raw.legal_compliance_score ?? 0,
+        governanceAlignment: raw.governance_alignment_score ?? 0,
+      };
+
+      const dimAvg = Math.round(
+        (dimensions.completeness + dimensions.clarity + dimensions.solverReadiness +
+         dimensions.legalCompliance + dimensions.governanceAlignment) / 5
+      );
+
+      const gaps = Array.isArray(raw.gaps) ? raw.gaps : [];
+      const strengths = Array.isArray(raw.strengths) ? raw.strengths : [];
+      const reviewFields = CREATOR_REVIEW_FIELDS[governanceMode];
+
+      const gapsByField = new Map<string, RawGap[]>();
+      for (const gap of gaps) {
+        const canonical = resolveFieldKey(gap.field);
+        if (!canonical) continue;
+        const existing = gapsByField.get(canonical) ?? [];
+        existing.push(gap);
+        gapsByField.set(canonical, existing);
+      }
+
+      const fieldResults: FieldReviewResult[] = reviewFields.map((f) => {
+        const fieldGaps = gapsByField.get(f.key);
+        const score = deriveFieldScore(fieldGaps, dimAvg);
+        const comment = buildFieldComment(fieldGaps, strengths, f.label);
+        return { fieldKey: f.key, score, comment };
+      });
 
       return {
-        overallScore: typeof result.overallScore === 'number' ? result.overallScore : 0,
+        overallScore: raw.overall_score ?? 0,
+        dimensions,
+        summary: raw.summary ?? '',
+        strengths,
         fieldResults,
       };
     },

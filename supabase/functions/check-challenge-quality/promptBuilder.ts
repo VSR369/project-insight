@@ -76,6 +76,12 @@ export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams
     parts.push(`\n## RATE CARD BENCHMARK\nReward floor: ${rc.reward_floor_amount}, Reward ceiling: ${rc.reward_ceiling}, Effort rate floor: ${rc.effort_rate_floor}/hr.\nCompare challenge prize against these benchmarks and flag if outside range.`);
   }
 
+  // Review scope filtering
+  if (params.reviewScope === 'creator_fields_only') {
+    const fieldList = CREATOR_FIELD_LISTS[params.governanceMode] ?? CREATOR_FIELD_LISTS.STRUCTURED;
+    parts.push(`\n## REVIEW SCOPE: CREATOR FIELDS ONLY\nFocus your gaps analysis EXCLUSIVELY on these creator-owned fields: ${fieldList.join(', ')}.\nDo NOT report gaps on fields outside this list. Dimension scores should still reflect the overall challenge but gaps[] must only reference these fields.`);
+  }
+
   // Scoring criteria
   parts.push(`\n## SCORING CRITERIA
 - Completeness (0-100): Are all governance-required fields filled with substantive content?

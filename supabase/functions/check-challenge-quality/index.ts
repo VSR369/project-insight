@@ -133,7 +133,8 @@ serve(async (req) => {
       throw e;
     }
 
-    const params = { governanceMode, engagementModel };
+    const reviewScope = (body.reviewScope as string) ?? undefined;
+    const params = { governanceMode, engagementModel, reviewScope };
     const systemPrompt = buildSystemPrompt(ctx, params);
     const userPrompt = buildUserPrompt(ctx, params);
 
