@@ -66,7 +66,15 @@ export default function CurationReviewPage() {
     return <div className="p-6 text-center text-muted-foreground">Challenge not found.</div>;
   }
 
-  const isReadOnly = false;
+  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <PwaAcceptanceGate userId={o.user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
