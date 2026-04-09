@@ -7,6 +7,7 @@
 
 import React from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
+import { useFreezeForLegalReview } from "@/hooks/cogniblend/useFreezeActions";
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
 import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
@@ -24,6 +25,11 @@ import { cn } from "@/lib/utils";
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
+  const freezeMut = useFreezeForLegalReview(o.challengeId ?? '');
+  const handleFreezeForLegal = () => {
+    if (!o.user?.id) return;
+    freezeMut.mutate(o.user.id);
+  };
 
   // ── Loading / not-found ──
   if (o.isLoading) {
@@ -248,6 +254,7 @@ export default function CurationReviewPage() {
           lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
           governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile) ?? 'QUICK'}
           currentPhase={o.challenge.current_phase}
+          onFreezeForLegal={handleFreezeForLegal}
         />
       </div>
 

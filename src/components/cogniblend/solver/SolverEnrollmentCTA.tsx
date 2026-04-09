@@ -36,6 +36,7 @@ import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance'
 import { ScrollToAcceptLegal } from './ScrollToAcceptLegal';
 import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
 import { LegalGateModal } from '@/components/legal/LegalGateModal';
+import { CpaEnrollmentGate } from './CpaEnrollmentGate';
 import { toast } from 'sonner';
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -271,6 +272,7 @@ export function SolverEnrollmentCTA({
   const legalAcceptanceMutation = useRecordLegalAcceptance();
 
   const [legalDialogOpen, setLegalDialogOpen] = useState(false);
+  const [showCpaGate, setShowCpaGate] = useState(false);
 
   // Legal gate for SOLVER_ENROLLMENT trigger (PSA acceptance)
   const solverGate = useLegalGateAction({
@@ -519,10 +521,26 @@ export function SolverEnrollmentCTA({
       <LegalAcceptDialog
         open={legalDialogOpen}
         onOpenChange={setLegalDialogOpen}
-        onAccept={handleLegalAccept}
+        onAccept={(scrollConfirmed, adAccepted) => {
+          handleLegalAccept(scrollConfirmed, adAccepted);
+          setShowCpaGate(true);
+        }}
         isSubmitting={isProcessing}
         showAdAgreement={isAggModel}
       />
+
+      {/* CPA Enrollment Gate — shown after NDA acceptance */}
+      {showCpaGate && user && (
+        <Dialog open={showCpaGate} onOpenChange={setShowCpaGate}>
+          <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <CpaEnrollmentGate
+              challengeId={challengeId}
+              userId={user.id}
+              onAccepted={() => setShowCpaGate(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* SOLVER_ENROLLMENT legal gate (PSA) */}
       {solverGate.showGate && (

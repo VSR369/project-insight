@@ -66,6 +66,7 @@ export interface CurationRightRailProps {
   lockStatus?: string;
   governanceMode?: string;
   currentPhase?: number | null;
+  onFreezeForLegal?: () => void;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -116,6 +117,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
         checklistSummary={checklistSummary} completedCount={completedCount} totalCount={checklistSummary.length}
         operatingModel={operatingModel} readOnly={isReadOnly} legalEscrowBlocked={legalEscrowBlocked} blockingReason={blockingReason}
+        lockStatus={props.lockStatus} governanceMode={props.governanceMode} onFreezeForLegal={props.onFreezeForLegal}
         staleSections={staleSections.map(s => ({ key: s.key, name: getSectionDisplayName(s.key), causes: s.staleBecauseOf.map(c => getSectionDisplayName(c)), staleAt: s.staleAt ?? new Date().toISOString() }))}
         unreviewedSections={aiReviews.filter(r => r.status === 'needs_revision').map(r => ({ key: r.section_key, name: sectionMap.get(r.section_key)?.label ?? r.section_key }))}
         onNavigateToStale={() => {
