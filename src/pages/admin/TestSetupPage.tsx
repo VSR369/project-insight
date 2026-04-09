@@ -27,6 +27,7 @@ interface ScenarioDef {
   userCount: number;
   icon: React.ReactNode;
   badgeColor: string;
+  tier?: string;
 }
 
 const SCENARIOS: ScenarioDef[] = [
