@@ -1,6 +1,6 @@
 /**
  * useOrgContext — Provides org operating model + phase1_bypass
- * and Challenge Architect (CR role) users for the Solution Request form.
+ * and Challenge Creator (CR role) users for the challenge form.
  */
 
 import { useQuery } from '@tanstack/react-query';
