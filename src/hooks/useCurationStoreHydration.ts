@@ -29,7 +29,7 @@ interface ChallengeDataSlice {
   ip_model: string | null;
   maturity_level: string | null;
   visibility: string | null;
-  eligibility: string | null;
+  eligibility?: string | null;
   description: string | null;
   domain_tags: unknown;
   
