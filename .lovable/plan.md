@@ -1,83 +1,47 @@
 
 
-# Fix Draft Resume — Complete Data Persistence Across Governance Modes
+## Plan: Remove Phase 1 Bypass + Unify AI Prompt
 
-## Root Causes Found
-
-### Bug 1 — Industry Segment never synced to parent on resume
-`ChallengeCreatePage.handleDraftModeSync` accepts `(gov, eng)` — no industry segment parameter. When a draft loads, `useCreatorDraftLoader` calls `onDraftModeSync(gov, eng)` but the parent's `industrySegmentId` state stays at org default. The `ChallengeConfigurationPanel` shows the wrong industry.
-
-### Bug 2 — `evaluation_criteria` and `deliverables` missing from DRAFT_COLUMNS
-`useCreatorDraftLoader.ts` line 13: `DRAFT_COLUMNS` does not include `evaluation_criteria` or `deliverables`. Lines 98-99 cast `challenge.evaluation_criteria` and `challenge.deliverables` but they were never fetched — always `undefined`. Result: weighted criteria and deliverables are always empty on resume.
-
-### Bug 3 — `hook` field never persisted in drafts
-`useCreatorDraftSave.ts` line 60 sets `hook: data.hook` in the base payload, but `DraftPayload` in `solutionRequestPayloads.ts` has NO `hook` field. `buildChallengeUpdatePayload` doesn't write `hook` to the DB. On resume, `hook` is always empty. This breaks CONTROLLED mode which requires the hook field.
-
-### Bug 4 — `weightedCriteria` and `deliverables_list` never included in draft save payload
-`useCreatorDraftSave.ts` builds the `base` object (lines 46-61) but never includes `weightedCriteria` or `deliverables_list`. These form fields are silently dropped during Save Draft even though they exist in the form values. The `DraftPayload` type does include `weightedCriteria` but the hook never maps it. `deliverables_list` has no corresponding payload field at all.
-
-### Bug 5 — `onDraftModeSync` callback type too narrow
-The callback type `(gov: GovernanceMode, eng: string) => void` cannot carry industry segment ID back to the parent.
+Two independent cleanups in one pass.
 
 ---
 
-## Fixes
+### Part 1 — Remove Phase 1 Bypass (3 files)
 
-### 1. `src/hooks/cogniblend/useCreatorDraftLoader.ts`
-- Add `evaluation_criteria, deliverables` to `DRAFT_COLUMNS`
-- Extend `DraftSyncCallback` to `(gov: GovernanceMode, eng: string, industrySegmentId?: string) => void`
-- Pass `challenge.industry_segment_id` in the `onDraftModeSync` call
+**src/hooks/queries/useOrgContext.ts**
+- Remove `phase1Bypass` from `OrgModelContext` interface
+- Remove `phase1_bypass` from the `.select()` column list
+- Remove the `phase1Bypass` line from the return object
+- Update the file comment to drop the phase1_bypass mention
 
-### 2. `src/pages/cogniblend/ChallengeCreatePage.tsx`
-- Update `handleDraftModeSync` to accept and apply the third `industry` argument:
-```typescript
-const handleDraftModeSync = useCallback((gov: GovernanceMode, eng: string, industry?: string) => {
-  setGovernanceMode(gov);
-  setEngagementModel(eng);
-  if (industry) setIndustrySegmentId(industry);
-}, []);
-```
+**src/pages/cogniblend/ChallengeWizardPage.tsx**
+- Delete `isAggBypass` variable (line 119)
+- Line 582: simplify `operatingModel` to `propEngagementModel === 'AGG' ? 'AGG' : 'MP'`
+- Lines 593-600: remove the `if (isAggBypass)` audit_trail insert block
+- Lines 705-720: remove the bypass banner JSX block
 
-### 3. `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
-- Update `onDraftModeSync` prop type to match the new 3-argument signature
+**src/pages/cogniblend/CogniDashboardPage.tsx**
+- Remove `showBypassBanner` variable and the bypass banner JSX (lines 42, 49-60)
+- Remove the `Zap` import (no longer used)
 
-### 4. `src/lib/cogniblend/solutionRequestPayloads.ts`
-- Add `hook?: string` and `deliverablesList?: string[]` to both `DraftPayload` and `SubmitPayload` interfaces
-- Update `buildChallengeUpdatePayload` to write `hook` and `deliverables` columns to the DB
-
-### 5. `src/hooks/cogniblend/useCreatorDraftSave.ts`
-- Add `weightedCriteria` and `deliverablesList` to the `base` payload object:
-```typescript
-weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
-deliverablesList: cleanArray(data.deliverables_list),
-```
-
-### 6. `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
-- Ensure `hook` and `deliverables` are written in the submit flow's `.update()` call (they're currently missing there too)
+Database column `phase1_bypass` is intentionally left in place for later cleanup.
 
 ---
 
-## Governance Mode Impact Matrix
+### Part 2 — Unify AI Quality Prompt (1 file)
 
-| Field | QUICK (5) | STRUCTURED (8) | CONTROLLED (12) | Bug Impact |
-|-------|-----------|----------------|-----------------|------------|
-| industry_segment_id | Optional | Required | Required | Lost on resume (Bug 1) |
-| weighted_criteria | Hidden | Required | Required | Never saved/loaded (Bug 2, 4) |
-| deliverables_list | Hidden | Optional | Required | Never saved/loaded (Bug 2, 4) |
-| hook | Hidden | Hidden | Required | Never persisted (Bug 3) |
-
-QUICK mode is least affected (only industry). CONTROLLED mode is most broken — 3 of its 12 required fields are silently lost on resume.
+**supabase/functions/check-challenge-quality/promptBuilder.ts**
+- Lines 42-49: replace the MP/AGG branching with a single unified engagement model prompt:
+  `"Verify solver eligibility breadth, clarity of deliverables and evaluation criteria, IP model clarity, and org-specific legal requirements."`
+- Redeploy the `check-challenge-quality` edge function
 
 ---
 
-## Files Changed
-
+### Files touched
 | File | Change |
 |------|--------|
-| `src/hooks/cogniblend/useCreatorDraftLoader.ts` | Add missing columns, sync industry segment |
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Accept industry in draft sync callback |
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Update onDraftModeSync prop type |
-| `src/lib/cogniblend/solutionRequestPayloads.ts` | Add hook + deliverablesList to types and update builder |
-| `src/hooks/cogniblend/useCreatorDraftSave.ts` | Include weightedCriteria + deliverablesList in save payload |
-| `src/hooks/cogniblend/useSubmitSolutionRequest.ts` | Write hook + deliverables in submit update |
+| `src/hooks/queries/useOrgContext.ts` | Remove `phase1Bypass` from type + query |
+| `src/pages/cogniblend/ChallengeWizardPage.tsx` | Remove bypass variable, logic, banner |
+| `src/pages/cogniblend/CogniDashboardPage.tsx` | Remove bypass banner + Zap import |
+| `supabase/functions/check-challenge-quality/promptBuilder.ts` | Unify engagement model prompt |
 
