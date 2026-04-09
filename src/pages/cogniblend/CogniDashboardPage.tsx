@@ -6,7 +6,6 @@
 
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
 import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
@@ -15,8 +14,6 @@ import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourne
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();
-  const { data: orgContext } = useOrgModelContext();
-  // useCogniPermissions kept for future use
 
   // CR challenges mapped to RequestRow shape for journey section
   const { data: challengesData } = useMyChallenges(user?.id);
