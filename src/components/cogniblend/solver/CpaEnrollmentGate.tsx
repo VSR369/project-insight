@@ -45,7 +45,7 @@ export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnroll
   const handleAccept = () => {
     if (!cpaDoc) return;
     recordAcceptance.mutate(
-      { userId, templateId: cpaDoc.id, documentCode: cpaDoc.document_type, version: '1.0', challengeId },
+      { userId, challengeId, documentType: cpaDoc.document_type, documentName: cpaDoc.document_name ?? 'CPA', documentVersion: '1.0', scrollConfirmed: true },
       { onSuccess: () => { toast.success('Challenge Participation Agreement accepted'); onAccepted(); } },
     );
   };

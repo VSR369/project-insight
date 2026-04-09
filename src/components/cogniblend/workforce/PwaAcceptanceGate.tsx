@@ -41,7 +41,7 @@ export function PwaAcceptanceGate({ userId, challengeId, onAccepted }: PwaAccept
   const handleAccept = () => {
     if (!pwaTemplate) return;
     recordAcceptance.mutate(
-      { userId, templateId: pwaTemplate.template_id, documentCode: 'PWA', version: pwaTemplate.version, challengeId },
+      { userId, challengeId: challengeId ?? '', documentType: 'PWA', documentName: pwaTemplate.document_name, documentVersion: pwaTemplate.version, scrollConfirmed: true },
       { onSuccess: () => { toast.success('Prize & Work Agreement accepted'); onAccepted(); } },
     );
   };

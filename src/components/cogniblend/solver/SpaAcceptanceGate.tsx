@@ -40,7 +40,7 @@ export function SpaAcceptanceGate({ userId, onAccepted }: SpaAcceptanceGateProps
   const handleAccept = () => {
     if (!spaTemplate) return;
     recordAcceptance.mutate(
-      { userId, templateId: spaTemplate.template_id, documentCode: 'SPA', version: spaTemplate.version },
+      { userId, challengeId: '', documentType: 'SPA', documentName: spaTemplate.document_name, documentVersion: spaTemplate.version, scrollConfirmed: true },
       { onSuccess: () => { toast.success('Solver Platform Agreement accepted'); onAccepted(); } },
     );
   };
