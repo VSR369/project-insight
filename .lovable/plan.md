@@ -1,41 +1,62 @@
 
 
-## Fix: Correct Phase Order in DemoWorkflowSteps and DemoLoginPage
+## Plan: Restore Domain Tags as Free-Form Editable Field on Creator Form
 
-The current code has Compliance and Curation swapped (showing LC before CU), contradicting the database phase order (Phase 2 = Curation, Phase 3 = Compliance).
-
----
-
-### File 1: `src/components/cogniblend/demo/DemoWorkflowSteps.tsx`
-
-**Replace `buildSteps` to return governance-specific step sets:**
-
-- Remove the `ai/manual` variant distinction (the `aiNote`/`manualNote` split is no longer needed — use a single `description` field per step)
-- QUICK: 3 steps (Create → Auto-Complete → Solver Submit)
-- STRUCTURED: 5 steps (Create → Curation → Compliance → Publication → Solver Submit)
-- CONTROLLED: 5 steps (Create → Curation → Compliance LC+FC → Publication → Solver Submit)
-- Each step has `label`, `role`, `description` matching the exact DB phase descriptions provided
-- Update the `Step` interface to use a single `description` instead of `aiNote`/`manualNote`
-- Update the render to display `step.description` instead of the ai/manual conditional
-
-### File 2: `src/pages/cogniblend/DemoLoginPage.tsx`
-
-**Replace `buildDemoUsers` with governance-mode-conditional logic:**
-
-- QUICK: Returns 1 user (Sam Solo, all 5 roles merged)
-- STRUCTURED: Returns 4 users in order: CR → CU → LC → ER (no FC, no ER2, no Solo)
-- CONTROLLED: Returns 6 users in order: CR → CU → LC → FC → ER1 → ER2 (no Solo)
-
-**Update role description constants** (`CR_DESC`, `CU_DESC`, `LC_DESC`, `ER_DESC`) with the exact DB-aligned descriptions provided.
-
-**Add a governance-mode-aware section heading** above the role cards:
-- QUICK: "1 person — all roles merged (no role conflicts)"
-- STRUCTURED: "4 roles — sequential handoff (CR≠CU, CR≠ER enforced)"
-- CONTROLLED: "6 roles — full separation of duties (LC+FC parallel at Phase 3, dual blind ER at Phase 6)"
-
-**Update the static export** to use STRUCTURED as default: `export const DEMO_USERS = buildDemoUsers('MP', 'STRUCTURED')`.
+The `domain_tags` field was previously removed from the Creator form in favor of `industry_segment_id`. The user wants it back as a free-form, editable tag input — not a fixed dropdown — where tags are contextual to the challenge description. Both fields can coexist: `industry_segment_id` for broad classification, `domain_tags` for specific challenge-relevant tagging.
 
 ---
 
-### No other files changed.
+### What Changes
+
+**1. Creator Form Schema (`src/components/cogniblend/creator/creatorFormSchema.ts`)**
+- Add `domain_tags: z.array(z.string()).default([])` to the schema (required for all modes — min 1 tag)
+- Add `domain_tags: string[]` to the `CreatorFormValues` type
+- Remove the comment "domain_tags removed"
+
+**2. Essential Details Tab — Add Domain Tags Input (`src/components/cogniblend/creator/EssentialDetailsTab.tsx`)**
+- Import and render a `DomainTagsInput` component (new, see below) between the problem statement and maturity fields
+- Wire it via `Controller` to `domain_tags`
+
+**3. New Component: `DomainTagsInput` (`src/components/cogniblend/creator/DomainTagsInput.tsx`)**
+- Free-form tag input: user types a tag and presses Enter or comma to add it
+- Shows tags as removable badges (colored chips)
+- No fixed list — any text is accepted
+- Provides a few contextual suggestions based on common innovation domains (shown as subtle chips the user can click to add, similar to the wizard's `DomainTagSelect` but with emphasis on custom entry)
+- Placeholder: "Type a domain tag and press Enter (e.g., AI/ML, Supply Chain, IoT)"
+- Required label with asterisk for all governance modes
+
+**4. Creator Form Wiring (`src/components/cogniblend/creator/ChallengeCreatorForm.tsx`)**
+- Pass `domain_tags` from form values into the submit/draft payloads (`domainTags: data.domain_tags`)
+- Remove the current fallback that derives `domainTags` from `industrySegmentId`
+- Add `domain_tags: []` to default values
+
+**5. Seed Content (`src/components/cogniblend/creator/creatorSeedContent.ts`)**
+- Add relevant `domain_tags` to both `MP_SEED` and `AGG_SEED` (e.g., `['AI/ML', 'SAP Integration', 'Supply Chain Optimization']`)
+
+**6. AI Review Fields (`src/constants/creatorReviewFields.ts`)**
+- Keep `domain_tags` as-is (it's already there and correct)
+
+**7. AI Review Mapper (`src/lib/creatorReviewMapper.ts`)**
+- Keep `domain_tags` / `tags` aliases as-is (already correct)
+
+**8. Edge Function Prompt (`supabase/functions/check-challenge-quality/promptBuilder.ts`)**
+- Keep `domain_tags` in `CREATOR_FIELD_LISTS` (already correct)
+- No changes needed
+
+**9. Fill Test Data Guard (`src/components/cogniblend/creator/ChallengeCreatorForm.tsx`)**
+- Add confirmation dialog when `form.formState.isDirty` before `form.reset(seed)` to prevent accidental overwrite of user edits
+
+---
+
+### Summary of Files Changed
+
+| File | Change |
+|------|--------|
+| `creatorFormSchema.ts` | Add `domain_tags` field to schema + type |
+| `EssentialDetailsTab.tsx` | Render `DomainTagsInput` |
+| `DomainTagsInput.tsx` (new) | Free-form tag input component |
+| `ChallengeCreatorForm.tsx` | Wire domain_tags to payloads, add fill-test-data guard |
+| `creatorSeedContent.ts` | Add domain_tags to seed data |
+
+No changes to `creatorReviewFields.ts`, `creatorReviewMapper.ts`, or `promptBuilder.ts` — they already reference `domain_tags` correctly.
 
