@@ -3,6 +3,8 @@
  * Also triggers PMA (Platform Master Agreement) acceptance check on first login.
  * Then checks SPA (Solver Platform Agreement) acceptance.
  * Fail-open: If the legal gate RPC errors, the user is not trapped.
+ *
+ * PERF: Legal gate result cached in sessionStorage to avoid RPC on every navigation.
  */
 import { ReactNode, useState, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -14,6 +16,8 @@ import { useSpaStatus } from '@/hooks/cogniblend/useSpaStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+const LEGAL_GATE_KEY = 'cogniblend_legal_gate_passed';
+
 interface AuthGuardProps {
   children: ReactNode;
 }
@@ -21,8 +25,11 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const [legalGatePassed, setLegalGatePassed] = useState(false);
-  const [showLegalGate, setShowLegalGate] = useState(true);
+
+  // PERF: Check sessionStorage first — skip RPC if already passed this session
+  const cachedGatePassed = sessionStorage.getItem(LEGAL_GATE_KEY) === 'true';
+  const [legalGatePassed, setLegalGatePassed] = useState(cachedGatePassed);
+  const [showLegalGate, setShowLegalGate] = useState(!cachedGatePassed);
   const [spaAccepted, setSpaAccepted] = useState(false);
 
   const { data: hasSpa, isLoading: spaLoading } = useSpaStatus(user?.id);
@@ -30,6 +37,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const handleAllAccepted = useCallback(() => {
     setLegalGatePassed(true);
     setShowLegalGate(false);
+    sessionStorage.setItem(LEGAL_GATE_KEY, 'true');
   }, []);
 
   const handleDeclined = useCallback(async () => {

@@ -211,31 +211,9 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: legalDocs = [] } = useQuery({
-    queryKey: ["curation-legal-summary", challengeId],
-    queryFn: async (): Promise<LegalDocSummary[]> => {
-      const { data, error } = await supabase
-        .from("challenge_legal_docs")
-        .select("tier, status")
-        .eq("challenge_id", challengeId!);
-      if (error) return [];
-      const rows = data ?? [];
-      const tiers = ["TIER_1", "TIER_2"];
-      return tiers.map((tier) => {
-        const ofTier = rows.filter((r) => r.tier === tier);
-        return {
-          tier: tier === "TIER_1" ? "Tier 1: Entry-Phase" : "Tier 2: Solution-Phase",
-          total: ofTier.length,
-          attached: ofTier.filter((r) => r.status === "default_applied" || r.status === "custom_uploaded" || r.status === "ATTACHED").length,
-        };
-      });
-    },
-    enabled: !!challengeId,
-    ...CACHE_STANDARD,
-  });
-
-  const { data: legalDetails = [] } = useQuery({
-    queryKey: ["curation-legal-details", challengeId],
+  // PERF: Single merged query for both legal summaries and details
+  const { data: legalDocsRaw = [] } = useQuery({
+    queryKey: ["curation-legal-docs", challengeId],
     queryFn: async (): Promise<LegalDocDetail[]> => {
       const { data, error } = await supabase
         .from("challenge_legal_docs")
@@ -250,6 +228,22 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
     ...CACHE_STANDARD,
   });
 
+  // Derive summary from merged query (client-side, no extra network call)
+  const legalDocs: LegalDocSummary[] = (() => {
+    const tiers = ["TIER_1", "TIER_2"] as const;
+    return tiers.map((tier) => {
+      const ofTier = legalDocsRaw.filter((r) => r.tier === tier);
+      return {
+        tier: tier === "TIER_1" ? "Tier 1: Entry-Phase" : "Tier 2: Solution-Phase",
+        total: ofTier.length,
+        attached: ofTier.filter((r) => r.status === "default_applied" || r.status === "custom_uploaded" || r.status === "ATTACHED").length,
+      };
+    });
+  })();
+
+  const legalDetails = legalDocsRaw;
+
+  // PERF: Deferred — not needed for initial render
   const { data: escrowRecord = null } = useQuery({
     queryKey: ["curation-escrow", challengeId],
     queryFn: async (): Promise<EscrowRecord | null> => {
@@ -261,7 +255,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
       if (error) return null;
       return data as EscrowRecord | null;
     },
-    enabled: !!challengeId,
+    enabled: !!challengeId && !isLoading,
     ...CACHE_STANDARD,
   });
 
@@ -289,7 +283,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
         response_html: string | null;
       }>;
     },
-    enabled: !!challengeId,
+    enabled: !!challengeId && !isLoading,
     ...CACHE_STANDARD,
   });
 
