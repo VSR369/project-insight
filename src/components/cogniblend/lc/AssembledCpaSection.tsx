@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { handleMutationError } from '@/lib/errorHandler';
 import { LcAddendumUpload } from './LcAddendumUpload';
-import { handleMutationError } from '@/lib/errorHandler';
 
 interface AssembledCpaSectionProps {
   challengeId: string;
