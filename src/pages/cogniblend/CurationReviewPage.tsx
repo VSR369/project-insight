@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
+import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
 import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
@@ -279,6 +280,18 @@ export default function CurationReviewPage() {
           currentPhase={o.challenge.current_phase}
           onFreezeForLegal={handleFreezeForLegal}
         />
+
+        {/* STRUCTURED + FROZEN: curator-led legal review panel */}
+        {(o.challenge as any)?.curation_lock_status === 'FROZEN' &&
+          ((o.challenge as any)?.governance_mode_override ?? (o.challenge as any)?.governance_profile ?? 'STRUCTURED').toUpperCase() === 'STRUCTURED' && (
+          <LegalReviewPanel
+            challengeId={o.challengeId!}
+            userId={o.user?.id ?? ''}
+            lockStatus="FROZEN"
+            governanceMode="STRUCTURED"
+            currentPhase={o.challenge.current_phase}
+          />
+        )}
       </div>
 
       {/* ═══ MODALS & OVERLAYS ═══ */}
