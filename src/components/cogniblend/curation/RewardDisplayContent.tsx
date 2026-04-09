@@ -173,7 +173,7 @@ export function RewardDisplayContent(props: RewardDisplayContentProps) {
       {showBothBanner && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2">
           <Info className="h-3 w-3 text-blue-500 shrink-0" />
-          <span className="text-[12px] text-blue-700">AM defined both reward types. Review each tab independently before submitting.</span>
+          <span className="text-[12px] text-blue-700">Creator defined both reward types. Review each tab independently before submitting.</span>
         </div>
       )}
 
