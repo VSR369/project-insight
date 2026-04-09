@@ -116,7 +116,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const { data: tierLimit, isLoading: tierLimitLoading } = useTierLimitCheck();
   const readinessGate = useRoleReadinessGate();
 
-  const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
+
 
   // Resolve governance: challenge override → org default → tier ceiling
   const challengeOverride = isEditMode ? challengeData?.governance_mode_override ?? null : null;
@@ -590,14 +590,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
           urgency: 'normal',
         });
 
-        if (isAggBypass) {
-          await supabase.from('audit_trail').insert({
-            user_id: user.id, challenge_id: newId, action: 'PHASE_COMPLETED', method: 'SYSTEM',
-            phase_from: 1, phase_to: 2,
-            details: { status: 'COMPLETED_BYPASSED', reason: 'AGG_PHASE1_BYPASS' },
-            created_by: user.id,
-          });
-        }
+
+
 
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
         if (isStructured) {
@@ -702,22 +696,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       </div>
 
 
-      {/* ── AGG Phase 1 Bypass Banner ─────────────────── */}
-      {isAggBypass && !isEditMode && (
-        <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-4 flex items-start gap-3">
-          <span className="shrink-0 mt-0.5 rounded-full bg-[hsl(210,68%,54%)] p-1">
-            <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-[hsl(210,68%,30%)]">Phase 1 Bypass Active</p>
-            <p className="text-xs text-[hsl(210,40%,45%)] mt-0.5">
-              Your organization has Aggregator model with direct creation enabled. Phase 1 (Solution Request) is automatically skipped.
-            </p>
-          </div>
-        </div>
-      )}
+
+
 
       {/* ── Progress Bar ──────────────────────────────── */}
       <ChallengeProgressBar

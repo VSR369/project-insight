@@ -11,7 +11,6 @@ import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItems
 import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyActionItemsSection';
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-// useCogniPermissions available for future permission checks
 import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourneySection';
 
 export default function CogniDashboardPage() {
@@ -38,25 +37,11 @@ export default function CogniDashboardPage() {
       }));
   }, [challengesData]);
 
-  const showBypassBanner = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
   return (
     <>
       {/* ── Welcome Banner + Stats ────────────────────── */}
       <ActionItemsWidget />
-
-      {/* ── AGG Phase 1 Bypass Banner ────────────────── */}
-      {showBypassBanner && (
-        <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-5 flex items-center gap-3">
-          <Zap className="h-5 w-5 shrink-0 text-[hsl(210,68%,54%)]" />
-          <p className="text-sm font-medium text-[hsl(210,68%,30%)]">
-            Your organization has direct challenge creation enabled.
-            <span className="font-normal text-[hsl(210,40%,45%)] ml-1">
-              Phase 1 (Solution Request) is automatically bypassed.
-            </span>
-          </p>
-        </div>
-      )}
 
       {/* ── Section 1: My Action Items ────────────────── */}
       <MyActionItemsSection />
