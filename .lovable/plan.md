@@ -1,57 +1,76 @@
 
 
-## Plan: Creator Legal Preview + Instructions + Seed Updates
+## Performance Optimization Plan
 
 ### Summary
-Create a new `CreatorLegalPreview` component showing solver-facing CPA/SPA preview, add a `creator_legal_instructions` text field for Creator→Curator/LC guidance, remove the legacy `LegalGateModal` from submit flow, and update seed/fill-test-data.
+Apply 4 safe, high-impact performance fixes. Two bottlenecks from the audit (Bottleneck 4: LC workspace decomposition, Bottleneck 6: narrowing SELECT statements) are deferred to a second pass due to medium regression risk and higher effort.
 
 ---
 
-### Part A — Database Migration
-Add `creator_legal_instructions TEXT` column to `challenges` table.
+### Fix 1: AuthGuard — Cache legal gate in sessionStorage (Bottleneck 1)
 
-### Part B — Create `src/components/cogniblend/creator/CreatorLegalPreview.tsx` (~180 lines)
-- Props: `governanceMode`, `organizationId?`
-- Reuses `useOrgCpaTemplates(organizationId)` filtered to `CPA_{governanceMode}`
-- Small inline `useQuery` for platform SPA from `legal_document_templates`
-- Layout: Header → CPA card (color-coded by mode, View Template dialog) → Addendum note (STRUCTURED/CONTROLLED) → Creator Legal Instructions textarea (STRUCTURED/CONTROLLED only, RHF Controller, 2000 char limit) → Footer → SPA footnote
-- Missing CPA template shows amber warning
-- View dialog reuses `LegalDocumentViewer`
+**What changes:**
+- In `AuthGuard.tsx`, on mount check `sessionStorage.getItem('cogniblend_legal_gate_passed')`. If `'true'`, skip the `LegalGateModal` entirely.
+- In `handleAllAccepted`, write `sessionStorage.setItem('cogniblend_legal_gate_passed', 'true')`.
+- The existing `useAuth` signOut already clears sessionStorage keys — add `cogniblend_legal_gate_passed` to the list cleared on SIGNED_OUT in `useAuth.tsx`.
+- For SPA status: update `useSpaStatus.ts` to use `CACHE_STATIC` (30min staleTime) instead of current 5min. Import from `@/config/queryCache`.
 
-### Part C — Modify `ChallengeCreatorForm.tsx`
-- Remove imports: `CreatorLegalDocsPreview`, `QuickLegalDocsSummary`, `LegalGateModal`
-- Add import: `CreatorLegalPreview`
-- Remove: `showLegalGate`, `pendingSubmitData` state, `handleLegalAccepted` callback, `LegalGateModal` render block
-- Replace legal display section (lines 248-255) with `<CreatorLegalPreview governanceMode={governanceMode} organizationId={currentOrg?.organizationId} />`
-- Merge submit flow: `handleSubmit` calls `executeSubmit(data)` directly (no legal gate intermediary), preserving file upload chain
+**Files:**
+- `src/components/auth/AuthGuard.tsx` — add sessionStorage check + write
+- `src/hooks/useAuth.tsx` — clear `cogniblend_legal_gate_passed` on sign out
+- `src/hooks/cogniblend/useSpaStatus.ts` — switch to `CACHE_STATIC`
 
-### Part D — Schema + Payload updates
-- `creatorFormSchema.ts`: Add `creator_legal_instructions: z.string().max(2000).optional().default('')` to schema, add to `CreatorFormValues` type
-- `challengePayloads.ts`: Add `creatorLegalInstructions?: string` to `DraftPayload`, add `creator_legal_instructions: fp.creatorLegalInstructions || null` to `buildChallengeUpdatePayload`
-- `useCreatorDraftSave.ts`: Add `creatorLegalInstructions: data.creator_legal_instructions || undefined` to base payload
-- `ChallengeCreatorForm.tsx` `buildPayload`: Add `creatorLegalInstructions` field
+**Risk:** LOW. Legal gate still fires on first login per session. sessionStorage clears on tab close and on sign-out.
 
-### Part E — Curation section for Creator Legal Instructions
-- `curationSectionDefs.tsx`: Add `creator_legal_instructions` section before `legal_docs` with amber-styled render. Add key to "6. Publish" group.
-- `useCurationPageData.ts`: Append `creator_legal_instructions` to challenge `.select()` string (line 183)
+---
 
-### Part F — Update seed data
-- `supabase/functions/_shared/setup-test-scenario-data.ts`: Add `creator_legal_instructions` to each challenge insert (domain-specific text for CONTROLLED/STRUCTURED, null for QUICK)
+### Fix 2: PWA status — Use CACHE_STATIC (Bottleneck 2)
 
-### Part G — Update fill test data
-- `creatorSeedContent.ts`: Add `creator_legal_instructions` to `SeedContent` type, `MP_SEED`, `AGG_SEED`, and `getSeedForCombination` overrides per governance mode
+**What changes:**
+- In `usePwaStatus.ts`, replace `staleTime: 5 * 60_000` with `...CACHE_STATIC` import from `@/config/queryCache`.
 
-### Files touched
-1. **New migration** — `ALTER TABLE challenges ADD COLUMN creator_legal_instructions`
-2. **New file** — `src/components/cogniblend/creator/CreatorLegalPreview.tsx`
-3. **Edit** — `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
-4. **Edit** — `src/components/cogniblend/creator/creatorFormSchema.ts`
-5. **Edit** — `src/lib/cogniblend/challengePayloads.ts`
-6. **Edit** — `src/hooks/cogniblend/useCreatorDraftSave.ts`
-7. **Edit** — `src/lib/cogniblend/curationSectionDefs.tsx`
-8. **Edit** — `src/hooks/cogniblend/useCurationPageData.ts`
-9. **Edit** — `src/components/cogniblend/creator/creatorSeedContent.ts`
-10. **Edit** — `supabase/functions/_shared/setup-test-scenario-data.ts`
+**Files:**
+- `src/hooks/cogniblend/usePwaStatus.ts` — 2-line change
 
-Old files (`CreatorLegalDocsPreview.tsx`, `QuickLegalDocsSummary.tsx`, `LegalGateModal.tsx`) kept in place — imports removed only from `ChallengeCreatorForm`.
+**Risk:** VERY LOW. PWA acceptance is immutable within a session.
+
+---
+
+### Fix 3: Lazy-load auth pages (Bottleneck 5)
+
+**What changes:**
+- In `App.tsx`, convert the 5 eagerly imported pages (`Login`, `Register`, `ForgotPassword`, `ResetPassword`, `InviteAccept`, `Dashboard`, `Welcome`, `NotFound`) to `lazy()` imports using the existing `lazyRetry` wrapper.
+- They're already wrapped in `<Suspense>` via `RouteLoadingFallback`.
+
+**Files:**
+- `src/App.tsx` — replace 8 direct imports with lazy imports (lines 45-54)
+
+**Risk:** VERY LOW. 195+ other pages already use this pattern.
+
+---
+
+### Fix 4: Curation page — Merge legal queries + defer non-critical (Bottleneck 3, partial)
+
+**What changes:**
+- In `useCurationPageData.ts`, merge `legalDocs` (summary) and `legalDetails` queries into a single query that fetches all needed columns from `challenge_legal_docs`, then derives both summaries and details client-side.
+- Defer `escrowRecord` and `sectionActions` queries: add `enabled: !!challengeId && !isLoading` so they fire after the main challenge query resolves and content is visible.
+- The `orgTypeName` waterfall (challenge → org → org_type) stays as-is for now since it already has `staleTime: 5min` and the fix requires a JOIN that changes the query structure significantly.
+
+**Files:**
+- `src/hooks/cogniblend/useCurationPageData.ts` — merge 2 legal queries into 1, defer escrow + sectionActions
+
+**Risk:** LOW-MEDIUM. The merged query returns a superset of fields. Derived summaries are computed client-side from the same data. Deferred queries don't affect initial render.
+
+---
+
+### Deferred (second pass)
+- **Bottleneck 4** (LC workspace decomposition): 1358-line file needs careful extraction into sub-components. High effort, medium risk — no perf fix without thorough prop mapping.
+- **Bottleneck 6** (Narrow SELECT): Reducing the challenge SELECT column list requires verifying every section renderer still has its data. Medium risk.
+
+### Technical details
+
+All changes preserve existing fail-open semantics (legal gates default to passing on error). No database changes needed. No new dependencies.
+
+Cache tier mapping:
+- `CACHE_STATIC` = `{ staleTime: 30min, gcTime: 60min }` — appropriate for acceptance statuses that are immutable within a session.
 
