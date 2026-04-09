@@ -31,6 +31,17 @@ interface ScenarioDef {
 
 const SCENARIOS: ScenarioDef[] = [
   {
+    key: 'new_horizon_demo',
+    title: 'Mahindra & Mahindra — Full Matrix',
+    description: 'Creates premium org + 11 users + 6 challenges (3 governance × 2 models). All roles split.',
+    model: 'MP + AGG',
+    governance: 'QUICK + STRUCTURED + CONTROLLED',
+    userCount: 11,
+    icon: <Building2 className="h-5 w-5" />,
+    badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
+    tier: 'Premium (all governance modes)',
+  },
+  {
     key: 'mp_lightweight',
     title: 'MP Lightweight Org',
     description: 'Creates org + 1 user with all roles (CR, CU, ER, LC, FC)',
