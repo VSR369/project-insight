@@ -124,10 +124,10 @@ export function OriginalBriefAccordion({
 
           {operatingModel === "MP" && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground">AM Approval Required</p>
+              <p className="text-xs font-medium text-muted-foreground">CR Approval Required</p>
               {amApproval ? (
                 <Badge className="mt-1 text-[10px] bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">
-                  <AlertTriangle className="h-3 w-3 mr-1" />AM Gate Active
+                  <AlertTriangle className="h-3 w-3 mr-1" />CR Gate Active
                 </Badge>
               ) : (
                 <p className="text-sm text-muted-foreground italic mt-0.5">No — direct to curation</p>

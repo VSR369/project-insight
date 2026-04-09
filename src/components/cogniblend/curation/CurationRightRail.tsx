@@ -100,7 +100,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       {budgetShortfall && (
         <BudgetRevisionPanel shortfall={budgetShortfall} currencyCode={challengeCurrencyCode ?? 'USD'}
-          onAcceptAndSendToAM={() => onAcceptBudgetRevision(budgetShortfall)} onModifyManually={onModifyRewardManually} onReject={onDismissBudgetShortfall} />
+          onAcceptAndSendToCreator={() => onAcceptBudgetRevision(budgetShortfall)} onModifyManually={onModifyRewardManually} onReject={onDismissBudgetShortfall} />
       )}
 
       <CompletionBanner phase2Status={phase2Status} triageTotalCount={triageTotalCount} aiReviews={aiReviews} />

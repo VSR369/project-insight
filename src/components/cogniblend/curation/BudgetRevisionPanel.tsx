@@ -2,7 +2,7 @@
  * BudgetRevisionPanel — Shown when budget shortfall is detected after Wave 5.
  *
  * Displays gap analysis and recommended strategy with three actions:
- * Accept & Send to AM, Modify Manually, Reject.
+ * Accept & Send to Creator, Modify Manually, Reject.
  */
 
 import React from 'react';
@@ -15,7 +15,7 @@ import type { BudgetShortfallResult } from '@/lib/cogniblend/budgetShortfallDete
 interface BudgetRevisionPanelProps {
   shortfall: BudgetShortfallResult;
   currencyCode?: string;
-  onAcceptAndSendToAM: () => void;
+  onAcceptAndSendToCreator: () => void;
   onModifyManually: () => void;
   onReject: () => void;
 }
@@ -30,7 +30,7 @@ const STRATEGY_LABELS: Record<string, { label: string; color: string }> = {
 export function BudgetRevisionPanel({
   shortfall,
   currencyCode = 'USD',
-  onAcceptAndSendToAM,
+  onAcceptAndSendToCreator,
   onModifyManually,
   onReject,
 }: BudgetRevisionPanelProps) {
@@ -93,8 +93,8 @@ export function BudgetRevisionPanel({
 
         {/* Actions */}
         <div className="flex flex-col gap-2 pt-1">
-          <Button size="sm" onClick={onAcceptAndSendToAM}>
-            Accept &amp; Send to AM
+          <Button size="sm" onClick={onAcceptAndSendToCreator}>
+            Accept &amp; Send to Creator
           </Button>
           <Button variant="outline" size="sm" onClick={onModifyManually}>
             Modify Manually

@@ -2,10 +2,10 @@
  * SourceBadge — Small pill badge indicating field origin.
  *
  * Colors:
- *   AM → amber/warning (pre-filled, curator should verify)
+ *   CR → amber/warning (pre-filled, curator should verify)
  *   AI → blue/info (suggested, not yet confirmed)
  *   Curator → gray/secondary (curator-owned value)
- *   Modified → amber + pencil icon (overridden from AM/AI)
+ *   Modified → amber + pencil icon (overridden from CR/AI)
  */
 
 import { Pencil } from 'lucide-react';
