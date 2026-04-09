@@ -130,6 +130,14 @@ serve(async (req) => {
     if (orgErr) throw new Error(`Org: ${orgErr.message}`);
     results.push(`✅ Org: "${config.orgName}"`);
 
+    // ─── Ensure tier governance access rows exist for premium ───
+    await sa.from("md_tier_governance_access").upsert([
+      { tier_code: config.subscriptionTier, governance_mode: "QUICK", is_default: false },
+      { tier_code: config.subscriptionTier, governance_mode: "STRUCTURED", is_default: false },
+      { tier_code: config.subscriptionTier, governance_mode: "CONTROLLED", is_default: true },
+    ], { onConflict: "tier_code,governance_mode", ignoreDuplicates: true });
+    results.push(`✅ Tier governance access: ${config.subscriptionTier} → QUICK+STRUCTURED+CONTROLLED`);
+
     // ─── Seed org-level legal templates (required for AGG complete_phase branching) ───
     const { data: platTemplates } = await sa
       .from("legal_document_templates")
@@ -406,6 +414,7 @@ serve(async (req) => {
     results.push("", "═══════════════════════════════════════");
     results.push(`🎉 6 challenges seeded!`);
     results.push(`C1 CTRL+AGG: ${c1Id}`, `C2 CTRL+MP: ${c2Id}`, `C3 STRUCT+AGG: ${c3Id}`, `C4 STRUCT+MP: ${c4Id}`, `C5 QUICK+AGG: ${c5Id}`, `C6 QUICK+MP: ${c6Id}`);
+    results.push(`📊 Testing matrix: 3 governance modes × 2 engagement models = 6 combinations available`);
     results.push("═══════════════════════════════════════");
 
     return new Response(
