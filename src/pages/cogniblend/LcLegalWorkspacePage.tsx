@@ -18,6 +18,9 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
+import { AssembledCpaSection } from '@/components/cogniblend/lc/AssembledCpaSection';
+import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
+import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
@@ -869,6 +872,11 @@ export default function LcLegalWorkspacePage() {
         </CardContent>
       </Card>
 
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* SECTION 1.5: Assembled CPA Documents                   */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <AssembledCpaSection challengeId={challengeId!} />
+
       <Separator />
 
       {/* ════════════════════════════════════════════════════════ */}
@@ -1312,6 +1320,10 @@ export default function LcLegalWorkspacePage() {
                 ? `Challenge is currently at Phase ${challenge?.current_phase ?? '?'}. It must be at Phase 2 before LC can submit to curation.`
                 : 'Accept all required documents before submitting to curation.'}
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <LcReturnToCurator challengeId={challengeId!} userId={user?.id ?? ''} disabled={submitting} />
+            <LcApproveAction challengeId={challengeId!} userId={user?.id ?? ''} disabled={submitting || totalAccepted === 0} />
           </div>
           <Button
             onClick={handleSubmitToCuration}

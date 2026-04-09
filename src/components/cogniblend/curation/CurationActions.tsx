@@ -31,12 +31,19 @@ interface CurationActionsProps {
   unreviewedSections?: UnreviewedSectionInfo[];
   onNavigateToStale?: () => void;
   onReReviewStale?: () => void;
+  /** Curation lock status: OPEN | FROZEN */
+  lockStatus?: string;
+  /** Governance mode: QUICK | STRUCTURED | CONTROLLED */
+  governanceMode?: string;
+  /** Called when curator freezes for legal review (STRUCTURED/CONTROLLED) */
+  onFreezeForLegal?: () => void;
 }
 
 export default function CurationActions({
   challengeId, phaseStatus, allComplete, checklistSummary, completedCount, totalCount,
   operatingModel, readOnly = false, legalEscrowBlocked = false, blockingReason,
   staleSections = [], unreviewedSections = [], onNavigateToStale, onReReviewStale,
+  lockStatus = 'OPEN', governanceMode = 'QUICK', onFreezeForLegal,
 }: CurationActionsProps) {
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -195,16 +202,34 @@ export default function CurationActions({
         </div>
       )}
 
-      {!readOnly && (
+      {!readOnly && lockStatus === 'FROZEN' && (
+        <div className="p-3 rounded-lg border border-blue-400/30 bg-blue-50 dark:bg-blue-900/20 text-center">
+          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+            Content Frozen — Awaiting Legal Review
+          </p>
+        </div>
+      )}
+
+      {!readOnly && lockStatus !== 'FROZEN' && (
         <div className="space-y-2">
-          <Button className="w-full" onClick={handleSubmitClick}
-            disabled={completePhase.isPending || crApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
-            title={staleSections.length > 0 ? `${staleSections.length} stale section(s) need re-review` : legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
-          >
-            {(completePhase.isPending || crApprovalMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
-            {isAmDeclined ? 'Resubmit to Challenge Creator' : crApprovalRequired ? 'Send to Creator for Approval' : 'Approve & Submit for Publication'}
-          </Button>
-          <Button variant="outline" className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20" onClick={() => setShowReturnModal(true)}>
+          {governanceMode !== 'QUICK' && onFreezeForLegal ? (
+            <Button className="w-full" onClick={onFreezeForLegal}
+              disabled={completePhase.isPending || crApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
+              title={staleSections.length > 0 ? `${staleSections.length} stale section(s) need re-review` : legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
+            >
+              {(completePhase.isPending) ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
+              Complete Curation & Send to Legal
+            </Button>
+          ) : (
+            <Button className="w-full" onClick={handleSubmitClick}
+              disabled={completePhase.isPending || crApprovalMutation.isPending || hasOutstandingRequired || legalEscrowBlocked || staleSections.length > 0}
+              title={staleSections.length > 0 ? `${staleSections.length} stale section(s) need re-review` : legalEscrowBlocked ? (blockingReason || 'Legal Documents and Escrow & Funding must be accepted before submitting') : undefined}
+            >
+              {(completePhase.isPending || crApprovalMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
+              {isAmDeclined ? 'Resubmit to Challenge Creator' : crApprovalRequired ? 'Send to Creator for Approval' : 'Approve & Submit for Publication'}
+            </Button>
+          )}
+          <Button variant="outline" className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20" onClick={() => setShowReturnModal(true)} disabled={lockStatus === 'FROZEN'}>
             <RotateCcw className="h-4 w-4 mr-1.5" /> Return to Creator
           </Button>
         </div>

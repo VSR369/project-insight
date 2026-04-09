@@ -21,12 +21,20 @@ import { XCircle, AlertTriangle, ChevronRight, Sparkles, PenLine } from 'lucide-
 import type { PreFlightResult, PreFlightItem } from '@/lib/cogniblend/preFlightCheck';
 import { SECTION_TO_TAB } from '@/lib/cogniblend/preFlightCheck';
 
+interface IntegrityCheckResult {
+  valid: boolean;
+  computedHash: string;
+  storedHash: string | null;
+}
+
 interface PreFlightGateDialogProps {
   result: PreFlightResult | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGoToSection: (sectionKey: string) => void;
   onProceed: () => void;
+  /** Optional content integrity check result */
+  integrityCheck?: IntegrityCheckResult | null;
 }
 
 function NavigableRow({
@@ -138,8 +146,11 @@ export function PreFlightGateDialog({
   onOpenChange,
   onGoToSection,
   onProceed,
+  integrityCheck,
 }: PreFlightGateDialogProps) {
   if (!result) return null;
+
+  const integrityFailed = integrityCheck && !integrityCheck.valid;
 
   const allErrors = [
     ...result.missingMandatory,
@@ -150,10 +161,10 @@ export function PreFlightGateDialog({
     ...(result.budgetAlignmentWarnings ?? []),
   ];
 
-  const isBlocking = !result.canProceed;
+  const isBlocking = !result.canProceed || !!integrityFailed;
   const hasWarnings = allWarnings.length > 0;
 
-  if (!isBlocking && !hasWarnings && result.qualityPrediction.qualityPct >= 95) return null;
+  if (!isBlocking && !hasWarnings && !integrityFailed && result.qualityPrediction.qualityPct >= 95) return null;
 
   const handleNavigate = (sectionId: string) => {
     onGoToSection(sectionId);
@@ -203,6 +214,19 @@ export function PreFlightGateDialog({
           />
 
           {/* Mandatory missing sections + budget alignment errors */}
+          {integrityFailed && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-1">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                <p className="text-sm font-semibold text-destructive">Content Integrity Failed</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The challenge content has been modified since it was frozen for legal review.
+                Return to curation to re-freeze or resolve discrepancies.
+              </p>
+            </div>
+          )}
+
           {allErrors.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-destructive px-1">

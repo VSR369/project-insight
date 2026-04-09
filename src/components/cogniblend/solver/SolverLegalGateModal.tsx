@@ -53,9 +53,16 @@ export function SolverLegalGateModal({
 
   const recordAcceptance = useRecordLegalAcceptance();
 
-  const currentDoc = pendingDocs[currentIndex];
-  const isLast = currentIndex === pendingDocs.length - 1;
-  const progress = pendingDocs.length > 0 ? currentIndex + 1 : 0;
+  // V2 2-doc model: prefer SPA/CPA_* types when available, fallback to legacy
+  const V2_DOC_PREFIXES = ['SPA', 'CPA_'];
+  const v2Docs = pendingDocs.filter(d =>
+    V2_DOC_PREFIXES.some(prefix => d.document_type.startsWith(prefix))
+  );
+  const effectiveDocs = v2Docs.length > 0 ? v2Docs : pendingDocs;
+
+  const currentDoc = effectiveDocs[currentIndex];
+  const isLast = currentIndex === effectiveDocs.length - 1;
+  const progress = effectiveDocs.length > 0 ? currentIndex + 1 : 0;
 
   const handleAcceptCurrent = async () => {
     if (!currentDoc || !user?.id) return;
@@ -97,15 +104,15 @@ export function SolverLegalGateModal({
 
         <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
           {/* Progress indicator */}
-          {pendingDocs.length > 1 && (
+          {effectiveDocs.length > 1 && (
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-[11px]">
-                Document {progress} of {pendingDocs.length}
+                Document {progress} of {effectiveDocs.length}
               </Badge>
               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full transition-all duration-300"
-                  style={{ width: `${(progress / pendingDocs.length) * 100}%` }}
+                  style={{ width: `${(progress / effectiveDocs.length) * 100}%` }}
                 />
               </div>
             </div>
