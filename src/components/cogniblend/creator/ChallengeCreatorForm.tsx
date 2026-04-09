@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useChallengeSubmit';
+import { useChallengeSubmit } from '@/hooks/cogniblend/useChallengeSubmit';
 
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
@@ -59,7 +59,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   
   const { data: solutionMaturityOptions = [] } = useSolutionMaturityList();
   const { data: tierLimit } = useTierLimitCheck();
-  const submitMutation = useSubmitSolutionRequest();
+  const submitMutation = useChallengeSubmit();
   const { data: fieldRules } = useGovernanceFieldRules(governanceMode);
   const { uploadFiles } = useCreatorFileUpload();
 
