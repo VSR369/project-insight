@@ -27,6 +27,7 @@ export interface CurationHeaderBarProps {
   challengeId: string;
   challengeTitle: string;
   governanceProfile: string | null;
+  governanceModeOverride?: string | null;
   operatingModel: string | null;
   currentPhase: number | null;
   phaseStatus: string | null;
@@ -75,7 +76,7 @@ export function CurationHeaderBar({
   challengeId,
   challengeTitle,
   governanceProfile,
-  operatingModel,
+  governanceModeOverride,
   currentPhase,
   problemStatement,
   extendedBrief,
