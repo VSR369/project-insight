@@ -1,52 +1,81 @@
 
+Goal
 
-# Fix: React Error #426 in AuthGuard
+Make `setup-test-scenario` rerunnable and fully aligned with Legal V2 so the demo seed works reliably across all 6 governance × engagement combinations.
 
-## Root Cause
-When `useSpaStatus` transitions from `enabled: false` to `enabled: true` (as `user` loads), there's a single render where:
-- `spaLoading = false` (fetch not started yet)
-- `hasSpa = undefined` (no data)
-- `!hasSpa && !spaAccepted` evaluates to `true`
+5-why analysis
 
-This causes AuthGuard to render `SpaAcceptanceGate` prematurely. When the query kicks in on the next render and `spaLoading` becomes `true`, the render tree changes abruptly. Combined with LegalGateModal's `onAllAccepted` effect firing in the same cycle, this creates a hook count mismatch in a child component.
+1. Why is “Seed Demo Scenario” failing?
+   - The edge function returns HTTP 500.
 
-## Fix (AuthGuard.tsx only)
+2. Why is it returning 500?
+   - The org insert fails on `idx_seeker_orgs_unique_name_country`.
 
-1. **Treat undefined `hasSpa` as "still loading"** — change the SPA gate condition from `!hasSpa` to `hasSpa === false` so `undefined` is treated as pass-through (fail-open).
+3. Why does that duplicate org still exist?
+   - The cleanup path tries to hard-delete prior orgs, but it only clears challenge-centric tables and ignores delete errors on `seeker_organizations`, so the old active org can remain.
 
-2. **Skip SPA gate for admin users** — Admin users are not solvers and should never see the Solver Platform Agreement. Check user roles or route path before showing SPA gate.
+4. Why is that cleanup path brittle?
+   - It treats the tenant root as disposable instead of reusing/resetting the existing demo org, even though many `seeker_*` tables reference it.
 
-3. **Guard against the enabled-transition gap** — Add `hasSpa !== false` to the loading check so the spinner shows while data is undefined.
+5. Why did this survive the legal-architecture rewrite?
+   - The seeder was updated for CPA assembly, but idempotency was not redesigned for the new org-level setup, and the function also dropped some baseline demo provisioning (notably the premium subscription state the demo expects).
 
-### Code Change
+Implementation plan
 
-```typescript
-// AuthGuard.tsx — line ~40
-if (loading || spaLoading) { ... }
-```
-becomes:
-```typescript
-if (loading || (spaLoading && hasSpa === undefined)) { ... }
-```
+1. Make the org step idempotent in `supabase/functions/setup-test-scenario/index.ts`
+   - Resolve the country first.
+   - Look up the demo org by `organization_name + hq_country_id` to match the unique index.
+   - If found, reuse that `orgId` and reset/update it (`is_deleted = false`, `is_active = true`, tier/governance/meta fields).
+   - Only insert a new org when no matching org exists.
 
-And line ~64:
-```typescript
-if (!hasSpa && !spaAccepted) { ... }
-```
-becomes:
-```typescript
-if (hasSpa === false && !spaAccepted) { ... }
-```
+2. Replace brittle org deletion with scoped reset logic
+   - Keep challenge cleanup for that org.
+   - Stop depending on deleting the tenant root row.
+   - Explicitly clear/reseed demo-owned org rows touched by this function, especially:
+     - `org_users`
+     - `org_legal_document_templates`
+     - `seeker_subscriptions`
+     - scenario pool/member rows as needed
+   - Throw on cleanup errors instead of continuing silently.
 
-This ensures `undefined` (no data yet) is treated as "not determined" rather than "not accepted", preventing the premature SpaAcceptanceGate render.
+3. Restore the missing Legal V2 baseline
+   - Re-ensure SPA / SKPA / PWA content in `legal_document_templates` using the actual body column (`content` in this schema).
+   - Delete and recreate only the org’s 3 CPA templates:
+     - `CPA_QUICK`
+     - `CPA_STRUCTURED`
+     - `CPA_CONTROLLED`
+   - Recreate/update the org’s active Premium subscription in `seeker_subscriptions` by looking up the `premium` tier and billing cycle ids.
 
-## Files Modified
-| File | Change |
-|------|--------|
-| `src/components/auth/AuthGuard.tsx` | Fix SPA gate race condition with strict `=== false` check |
+4. Keep the 6-challenge matrix deterministic
+   - Preserve the 6 seeded challenges.
+   - Keep `assemble_cpa` for all 6 challenges.
+   - Preserve governance-specific behavior:
+     - CONTROLLED → `DELPHI`, 3 evaluators
+     - STRUCTURED → `SINGLE`, 1 evaluator
+     - QUICK → `SINGLE`, 1 evaluator and publish-ready state
 
-## Impact
-- Fixes the #426 crash on /admin (and all other AuthGuard-protected routes)
-- Admin users no longer see the SPA gate
-- Maintains fail-open behavior: if the query errors, `hasSpa` returns `true` (existing logic in useSpaStatus)
+5. Reduce deploy-time fragility
+   - Trim `setup-test-scenario/index.ts` by moving challenge definitions / cleanup constants into a `_shared` helper file so the entry file stays smaller and less likely to hit codegen/bundle timeouts again.
+   - No DB schema changes are required for this fix.
 
+Files to change
+
+- `supabase/functions/setup-test-scenario/index.ts`
+- `supabase/functions/_shared/setup-test-scenario-data.ts` (new shared constants/helper data)
+
+Validation after implementation
+
+1. Deploy `setup-test-scenario`.
+2. Run the seed once: expect `success: true`.
+3. Run it again immediately: expect `success: true` again.
+4. Confirm the response/logs show:
+   - org resolved or reset successfully
+   - 3 CPA templates seeded
+   - platform doc content updated
+   - premium subscription present
+   - CPA assembled for all 6 challenges
+5. Confirm the duplicate-key error is gone.
+
+Expected result
+
+The demo seed becomes truly rerunnable, works with the new 3 platform docs + 3 CPA template architecture, and consistently exercises all 6 governance/engagement combinations.
