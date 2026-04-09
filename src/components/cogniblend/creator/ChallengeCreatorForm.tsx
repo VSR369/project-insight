@@ -24,7 +24,7 @@ import { useChallengeSubmit } from '@/hooks/cogniblend/useChallengeSubmit';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSolutionMaturityList } from '@/hooks/queries/useSolutionMaturity';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
-import { LegalGateModal } from '@/components/legal/LegalGateModal';
+import { CreatorLegalPreview } from './CreatorLegalPreview';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
 import { filterSeedByGovernance } from '@/lib/cogniblend/governanceFieldFilter';
@@ -37,8 +37,6 @@ import { AdditionalContextTab } from './AdditionalContextTab';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED, getSeedForCombination } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
-import { CreatorLegalDocsPreview } from './CreatorLegalDocsPreview';
-import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 import { EvaluationMethodSection } from './EvaluationMethodSection';
@@ -74,10 +72,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   });
 
   const [showTierModal, setShowTierModal] = useState(false);
-  const [showLegalGate, setShowLegalGate] = useState(false);
   const [showAIReview, setShowAIReview] = useState(false);
   const [aiReviewCompleted, setAiReviewCompleted] = useState(false);
-  const [pendingSubmitData, setPendingSubmitData] = useState<CreatorFormValues | null>(null);
   const [activeTab, setActiveTab] = useState('essential');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
@@ -97,6 +93,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       weighted_criteria: [], deliverables_list: [],
       context_background: '', preferred_approach: [''], approaches_not_of_interest: [''],
       affected_stakeholders: [], current_deficiencies: [''], root_causes: [''], expected_timeline: '',
+      creator_legal_instructions: '',
       solver_audience: 'ALL' as const,
       evaluation_method: 'SINGLE' as const,
       evaluator_count: 1,
@@ -146,6 +143,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       solverAudience: engagementModel === 'AGG' ? data.solver_audience : 'ALL',
       evaluationMethod: data.evaluation_method,
       evaluatorCount: data.evaluator_count,
+      creatorLegalInstructions: data.creator_legal_instructions || undefined,
     };
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
@@ -170,13 +168,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
 
   const handleSubmit = form.handleSubmit(async (data) => {
     if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
-    setPendingSubmitData(data); setShowLegalGate(true);
+    executeSubmit(data);
   });
-
-  const handleLegalAccepted = useCallback(() => {
-    setShowLegalGate(false);
-    if (pendingSubmitData) { executeSubmit(pendingSubmitData); setPendingSubmitData(null); }
-  }, [pendingSubmitData, executeSubmit]);
 
   const handleFillTestData = useCallback(() => {
     if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
@@ -245,14 +238,10 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             </RadioGroup>
           </div>
         )}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {isQuick ? (
-            <QuickLegalDocsSummary engagementModel={engagementModel} />
-          ) : (
-            <CreatorLegalDocsPreview engagementModel={engagementModel} governanceMode={governanceMode} />
-          )}
-          {isQuick && <SolverAudiencePreview engagementModel={engagementModel} />}
-        </div>
+        <CreatorLegalPreview
+          governanceMode={governanceMode}
+          organizationId={currentOrg?.organizationId}
+        />
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
           <div className="flex items-center gap-3 ml-auto">
@@ -263,7 +252,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         </div>
       </form>
       {showTierModal && tierLimit && <TierLimitModal isOpen={showTierModal} onClose={() => setShowTierModal(false)} tierName={tierLimit.tier_name} maxAllowed={tierLimit.max_allowed} currentActive={tierLimit.current_active} />}
-      {showLegalGate && <LegalGateModal triggerEvent="CHALLENGE_SUBMIT" onAllAccepted={handleLegalAccepted} onDeclined={() => { setShowLegalGate(false); setPendingSubmitData(null); toast.error('Submission cancelled — legal agreement declined'); }} />}
       {showAIReview && draftSave.draftChallengeId && <CreatorAIReviewDrawer open={showAIReview} onClose={() => setShowAIReview(false)} challengeId={draftSave.draftChallengeId} governanceMode={governanceMode} engagementModel={engagementModel} industrySegmentId={industrySegmentId} onReviewComplete={() => setAiReviewCompleted(true)} />}
     </FormProvider>
   );

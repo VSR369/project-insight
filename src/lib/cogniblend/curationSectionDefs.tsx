@@ -282,6 +282,26 @@ export const SECTIONS: SectionDef[] = [
     },
   },
   {
+    key: "creator_legal_instructions",
+    label: "Creator Legal Instructions",
+    attribution: "by CR",
+    dbField: "creator_legal_instructions",
+    isFilled: (ch) => !!(ch as unknown as Record<string, unknown>).creator_legal_instructions && String((ch as unknown as Record<string, unknown>).creator_legal_instructions).trim().length > 0,
+    render: (ch) => {
+      const instructions = (ch as unknown as Record<string, unknown>).creator_legal_instructions as string | undefined;
+      if (!instructions?.trim()) return <p className="text-sm text-muted-foreground italic">No legal instructions provided by Creator.</p>;
+      return (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800/30 p-3 space-y-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Creator&apos;s Legal Guidance
+          </div>
+          <p className="text-sm text-amber-900 dark:text-amber-300 whitespace-pre-wrap">{instructions}</p>
+        </div>
+      );
+    },
+  },
+  {
     key: "legal_docs",
     label: "Legal Documents",
     attribution: "by LC",
@@ -827,7 +847,7 @@ export const GROUPS: GroupDef[] = [
     colorDone: "bg-violet-100 text-violet-800 border-violet-300",
     colorActive: "bg-violet-50 border-violet-400",
     colorBorder: "border-violet-200",
-    sectionKeys: ["hook", "visibility", "domain_tags", "solver_audience", "evaluation_config", "legal_docs", "escrow_funding"],
+    sectionKeys: ["hook", "visibility", "domain_tags", "solver_audience", "evaluation_config", "creator_legal_instructions", "legal_docs", "escrow_funding"],
     prerequisiteGroups: ["execution"],
   },
 ];

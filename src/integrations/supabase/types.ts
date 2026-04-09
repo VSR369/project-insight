@@ -1595,6 +1595,7 @@ export type Database = {
           consulting_fee: number | null
           created_at: string
           created_by: string | null
+          creator_legal_instructions: string | null
           creator_snapshot: Json | null
           curation_frozen_at: string | null
           curation_frozen_by: string | null
@@ -1684,6 +1685,7 @@ export type Database = {
           consulting_fee?: number | null
           created_at?: string
           created_by?: string | null
+          creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
           curation_frozen_at?: string | null
           curation_frozen_by?: string | null
@@ -1773,6 +1775,7 @@ export type Database = {
           consulting_fee?: number | null
           created_at?: string
           created_by?: string | null
+          creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
           curation_frozen_at?: string | null
           curation_frozen_by?: string | null

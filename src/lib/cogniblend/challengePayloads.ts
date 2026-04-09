@@ -57,6 +57,7 @@ export interface SubmitPayload {
   solverAudience?: string;
   evaluationMethod?: string;
   evaluatorCount?: number;
+  creatorLegalInstructions?: string;
 }
 
 export interface DraftPayload {
@@ -102,6 +103,7 @@ export interface DraftPayload {
   solverAudience?: string;
   evaluationMethod?: string;
   evaluatorCount?: number;
+  creatorLegalInstructions?: string;
 }
 
 export interface SubmitResult {
@@ -206,6 +208,7 @@ export function buildChallengeUpdatePayload(
     solver_audience: fp.solverAudience ?? 'ALL',
     evaluation_method: fp.evaluationMethod ?? 'SINGLE',
     evaluator_count: fp.evaluatorCount ?? 1,
+    creator_legal_instructions: fp.creatorLegalInstructions || null,
   };
 
   return applyAutoDefaults(rawResult, governanceRules);
