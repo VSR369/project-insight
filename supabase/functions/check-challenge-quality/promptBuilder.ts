@@ -42,7 +42,7 @@ export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams
   // Engagement model awareness
   const emName = ctx.engagementModelName ?? params.engagementModel;
   if (emName) {
-    parts.push(`\n## ENGAGEMENT MODEL: ${emName}\nVerify solver eligibility breadth (are requirements clear enough for a wide range of qualified solvers?), clarity of deliverables and evaluation criteria (are expected outputs, milestones, and acceptance criteria unambiguous?), IP model clarity, and org-specific legal requirements.`);
+    parts.push(`\n## ENGAGEMENT MODEL: ${emName}\nRegardless of operating model, review ALL of the following with equal weight:\n- Solver eligibility breadth: Are requirements clear enough for qualified solvers to self-select? Are there unnecessary barriers?\n- Deliverables clarity: Are expected outputs, milestones, and acceptance criteria unambiguous and measurable?\n- IP model clarity: Is the intellectual property arrangement clearly defined for all parties?\n- Legal requirements: Are org-specific or platform legal obligations addressed?`);
   }
 
   // Industry intelligence
