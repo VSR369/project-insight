@@ -123,6 +123,8 @@ export const MP_SEED: SeedContent = {
   expected_timeline: '24w',
   industry_segment_id: '',
   solver_audience: 'ALL',
+  evaluation_method: 'SINGLE',
+  evaluator_count: 1,
 };
 
 /**
@@ -226,6 +228,8 @@ export const AGG_SEED: SeedContent = {
   expected_timeline: '20w',
   industry_segment_id: '',
   solver_audience: 'ALL',
+  evaluation_method: 'SINGLE',
+  evaluator_count: 1,
 };
 
 /**
