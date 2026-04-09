@@ -1,99 +1,123 @@
 
 
-# Legal Architecture V2 — Prompt 1: Database Migration
+# Legal Architecture V2 — Complete Implementation Plan
 
-## What This Does
-Creates the foundational database schema for the new 3-stakeholder legal model. Replaces the old 5-document structure (PMA, CA, PSA, IPAA, EPIA) with 3 platform agreements (SPA, SKPA, PWA) and adds freeze/lock infrastructure for challenge content integrity during legal review.
+## Status Summary
 
-This is **database only** — no frontend changes.
-
----
-
-## Current State
-- `challenges` table: no freeze/lock columns exist
-- `challenge_legal_docs` table: no content/assembly columns exist
-- `legal_document_templates`: 5 active documents (PMA, CA, PSA, IPAA, EPIA)
-- `document_code` column is plain TEXT (no CHECK constraint blocking new codes)
-- RPCs `freeze_for_legal_review`, `unfreeze_for_recuration`, `assemble_cpa` do not exist
-- Tables `audit_trail`, `geography_context`, `legal_acceptance_ledger` all exist
-- `org_legal_document_templates` has `template_content` column (used by `assemble_cpa`)
+| Prompt | Status | What's Done |
+|--------|--------|-------------|
+| 1 — Database Migration | **~30% done** | Constraint updates + SPA/SKPA/PWA seed + types. Missing: freeze columns, assembly columns, 3 RPCs, trigger, pgcrypto |
+| 2 — Platform Admin UI | Not started | |
+| 3 — Org Admin CPA Templates | Not started | |
+| 4 — Curator Freeze + Legal Review | Not started | |
+| 5 — LC Review Assembled CPA | Not started | |
+| 6 — Integrity + Pre-Flight Gate | Not started | |
+| 7 — Solver Enrollment + PWA | Not started | |
 
 ---
 
-## Migration Content (Single SQL file)
+## Implementation Sequence
 
-### Part A — Freeze/lock columns on `challenges`
-- `curation_frozen_at TIMESTAMPTZ`
-- `curation_frozen_by UUID` (FK to auth.users)
-- `legal_review_content_hash TEXT`
-- `curation_lock_status TEXT NOT NULL DEFAULT 'OPEN'` with CHECK constraint (OPEN/FROZEN/RETURNED)
+### Step 1: Complete Prompt 1 — Remaining Database Migration
 
-### Part B — Content/assembly columns on `challenge_legal_docs`
-- `content TEXT`, `content_html TEXT`
-- `assembled_from_template_id UUID`
-- `assembly_variables JSONB`
-- `reviewer_notes TEXT`
-- `is_assembled BOOLEAN NOT NULL DEFAULT false`
-- `reviewed_by UUID`, `reviewed_at TIMESTAMPTZ`
+New migration to add everything that's missing:
 
-### Part C — Deactivate old 5 documents, insert 3 new platform documents
-- UPDATE to deactivate PMA, CA, PSA, IPAA, EPIA
-- INSERT SPA, SKPA, PWA with appropriate descriptions
-- Uses `ON CONFLICT DO NOTHING` for idempotency
+- **Part A**: Add `curation_frozen_at`, `curation_frozen_by`, `legal_review_content_hash`, `curation_lock_status` (with CHECK) to `challenges`
+- **Part B**: Add `content`, `content_html`, `assembled_from_template_id`, `assembly_variables`, `reviewer_notes`, `is_assembled`, `reviewed_by`, `reviewed_at` to `challenge_legal_docs`
+- **Part D**: `freeze_for_legal_review` RPC — validates Phase 2, computes SHA-256 hash, sets FROZEN
+- **Part E**: `unfreeze_for_recuration` RPC — resets to OPEN, deletes assembled docs
+- **Part F**: `assemble_cpa` RPC — resolves org template by governance mode, substitutes `{{variables}}`, inserts assembled CPA
+- **Part G**: `trg_prevent_frozen_content_edit` trigger — blocks content edits when FROZEN
+- **Part H**: `CREATE EXTENSION IF NOT EXISTS pgcrypto`
 
-### Part D — `freeze_for_legal_review(p_challenge_id, p_user_id)` RPC
-- Validates challenge is Phase 2 and not already frozen
-- Computes SHA-256 content hash from key fields using `pgcrypto`
-- Sets lock status to FROZEN, records hash and timestamp
-- Inserts audit trail entry
-
-### Part E — `unfreeze_for_recuration(p_challenge_id, p_user_id, p_reason)` RPC
-- Validates challenge is frozen
-- Resets lock columns, sets phase back to 2
-- Deletes assembled CPA docs (`is_assembled = true`)
-- Inserts audit trail entry
-
-### Part F — `assemble_cpa(p_challenge_id, p_user_id)` RPC
-- Determines governance mode → picks `CPA_QUICK`/`CPA_STRUCTURED`/`CPA_CONTROLLED` template from `org_legal_document_templates`
-- Looks up IP clause, escrow terms, anti-disintermediation clause
-- Resolves geography context for jurisdiction/governing law
-- Performs `{{variable}}` substitution on template content
-- Falls back to generated default CPA if no template exists
-- Inserts assembled doc into `challenge_legal_docs` with `is_assembled=true`
-- Inserts audit trail entry
-
-### Part G — Content protection trigger
-- `trg_prevent_frozen_content_edit` — BEFORE UPDATE trigger on challenges
-- Blocks modifications to content fields (title, problem_statement, scope, hook, ip_model, platinum_award, evaluation_criteria) when `curation_lock_status = 'FROZEN'`
-
-### Part H — Ensure pgcrypto extension
-- `CREATE EXTENSION IF NOT EXISTS pgcrypto`
+No frontend changes.
 
 ---
 
-## Frontend Type Updates (Minimal)
-After migration executes, update `src/types/legal.types.ts`:
-- Extend `DocumentCode` union to include `'SPA' | 'SKPA' | 'PWA' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED'`
-- Add corresponding entries to `DOCUMENT_CODE_LABELS`
+### Step 2: Prompt 2 — Platform Admin: 3 Document Cards
+
+**Modified**: `src/pages/admin/legal/LegalDocumentListPage.tsx` — add imports for new components
+
+**New files**:
+- `src/components/admin/legal/PlatformAgreementsSection.tsx` (~120 lines) — "Platform Agreements (3)" section with description banner, 3 cards for SPA/SKPA/PWA
+- `src/components/admin/legal/PlatformAgreementCard.tsx` (~90 lines) — Card showing name, code, status badge, "Content needed" amber badge, "Edit" button linking to existing editor
+- `src/components/admin/legal/LegacyDocumentsSection.tsx` (~80 lines) — Collapsed "Legacy Documents (archived)" section, greyed out, read-only
 
 ---
 
-## Files Changed
+### Step 3: Prompt 3 — Org Admin: 3 CPA Template Cards
 
-| File | Action |
-|------|--------|
-| New migration SQL | Create — all schema + functions + seed data |
-| `src/types/legal.types.ts` | Edit — extend DocumentCode type and labels |
+**Modified**: `src/components/org-settings/OrgLegalTemplatesTab.tsx` — add CPA section at top
+
+**New files**:
+- `src/components/org-settings/CpaTemplateSection.tsx` (~100 lines) — "Challenge Participation Agreements" header with 3 cards
+- `src/components/org-settings/CpaTemplateCard.tsx` (~130 lines) — Card with governance mode badge (green/blue/purple), word count, "Edit Template" or "Create Template" button
+- `src/components/org-settings/CpaVariableReference.tsx` (~80 lines) — Collapsible reference listing all `{{variable}}` placeholders
+- `src/constants/cpaDefaults.constants.ts` (~120 lines) — Default template content for QUICK/STRUCTURED/CONTROLLED
+
+**Hook**: `src/hooks/queries/useOrgCpaTemplates.ts` (~80 lines) — CRUD for org CPA templates in `org_legal_document_templates`
 
 ---
 
-## What Comes Next (Not in this prompt)
-- Prompt 2: Platform Admin UI (3 document cards)
-- Prompt 3: Org Admin UI (3 CPA template cards)
-- Prompt 4: Curator freeze + legal review
-- Prompt 5: LC assembled CPA review
-- Prompt 6: Integrity + pre-flight gate
-- Prompt 7: Solver enrollment + PWA onboarding
+### Step 4: Prompt 4 — Curator: Freeze + Legal Review
 
-Each subsequent prompt will be implemented one at a time after this migration is confirmed working.
+**New files**:
+- `src/components/cogniblend/curation/FreezeStatusBanner.tsx` (~70 lines) — OPEN/FROZEN/RETURNED banners
+- `src/components/cogniblend/curation/LegalReviewPanel.tsx` (~190 lines) — Assembled CPA editor for STRUCTURED, approve/unlock buttons
+- `src/hooks/cogniblend/useFreezeActions.ts` (~80 lines) — Mutations for freeze/unfreeze/assemble RPCs
+
+**Modified**:
+- `src/components/cogniblend/curation/CurationActions.tsx` — Change submit button to "Complete Curation & Send to Legal" when OPEN, show mode-specific UI when FROZEN
+- `CurationReviewPage.tsx` — Fetch lock status, show banner, disable editing when frozen
+
+---
+
+### Step 5: Prompt 5 — LC: Review Assembled CPA
+
+**New files**:
+- `src/components/cogniblend/lc/AssembledCpaSection.tsx` (~190 lines) — CPA editor with variables collapsible, AI review button
+- `src/components/cogniblend/lc/LcReturnToCurator.tsx` (~100 lines) — Return dialog with mandatory reason
+- `src/components/cogniblend/lc/LcApproveAction.tsx` (~100 lines) — Approve button, sets lc_compliance_complete
+
+**Modified**: `src/pages/cogniblend/LcLegalWorkspacePage.tsx` — Minimal: import and render 3 new components at top
+
+---
+
+### Step 6: Prompt 6 — Integrity + Pre-Flight Gate
+
+**New files**:
+- `src/lib/cogniblend/contentHashVerifier.ts` (~55 lines) — Recomputes SHA-256 hash client-side, compares with stored hash
+
+**Modified**: Pre-flight gate component — add "Legal Content Integrity" check row with governance-specific logic (QUICK=auto-green, STRUCTURED=curator_reviewed, CONTROLLED=lc_approved)
+
+---
+
+### Step 7: Prompt 7 — Solver Enrollment + PWA Onboarding
+
+**New files**:
+- `src/components/cogniblend/solver/SpaAcceptanceGate.tsx` (~150 lines) — SPA acceptance at registration/login
+- `src/components/cogniblend/solver/CpaEnrollmentGate.tsx` (~150 lines) — Challenge-specific CPA at enrollment
+- `src/components/cogniblend/workforce/PwaAcceptanceGate.tsx` (~150 lines) — PWA for MP workforce roles
+
+**Modified**:
+- Solver registration/onboarding flow — integrate SPA gate
+- Challenge enrollment flow — replace old multi-doc with single CPA
+- CurationReviewPage, LcLegalWorkspacePage, EscrowManagementPage — integrate PWA gate for MP model
+
+---
+
+## File Summary
+
+| Category | New Files | Modified Files |
+|----------|-----------|----------------|
+| Database | 1 migration | — |
+| Admin UI | 3 components | 1 page |
+| Org Admin | 4 components + 1 hook + 1 constants | 1 component |
+| Curator | 2 components + 1 hook | 2 files |
+| LC | 3 components | 1 page |
+| Integrity | 1 utility | 1 component |
+| Enrollment | 3 components | 3 files |
+| **Total** | **~19 new files** | **~9 modified files** |
+
+All component files kept under 200 lines. Each prompt implemented sequentially, verified before moving to the next. Implementation will start with completing the Prompt 1 migration.
 
