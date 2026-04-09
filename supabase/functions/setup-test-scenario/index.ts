@@ -120,7 +120,7 @@ async function ensureSubscription(sa: SA, orgId: string) {
   const oneYear = new Date(now); oneYear.setFullYear(oneYear.getFullYear() + 1);
   const { error } = await sa.from("seeker_subscriptions").insert({
     tenant_id: orgId, organization_id: orgId, tier_id: tier.id, billing_cycle_id: cycle.id,
-    status: "active", payment_type: "invoice", monthly_base_price: 0, discount_percentage: 0,
+    status: "active", payment_type: "shadow", monthly_base_price: 0, discount_percentage: 0,
     effective_monthly_cost: 0, starts_at: now.toISOString(), ends_at: oneYear.toISOString(),
     auto_renew: true, is_active: true,
   });
