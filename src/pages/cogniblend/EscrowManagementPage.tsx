@@ -40,7 +40,6 @@ export default function EscrowManagementPage() {
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
   const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(user?.id);
   const [pwaAccepted, setPwaAccepted] = useState(false);
-  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
 
   const form = useForm<EscrowFormValues>({
     resolver: zodResolver(escrowFormSchema),
