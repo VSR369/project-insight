@@ -1,15 +1,16 @@
 /**
- * EscrowCalculationDisplay — Read-only escrow calculation for Creator form (MP model).
- * Shows: Prize Pool → Platform Fee → Total Fee → Escrow Deposit
+ * EscrowCalculationDisplay — Governance-aware escrow calculation for Creator form.
+ * QUICK: hidden. STRUCTURED: optional toggle. CONTROLLED: mandatory with lock icon.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGovernanceModeConfig } from '@/hooks/queries/useGovernanceModeConfig';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Lock } from 'lucide-react';
+import { EscrowModeBanner } from './EscrowModeBanner';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
 interface EscrowCalculationDisplayProps {
@@ -21,6 +22,8 @@ interface EscrowCalculationDisplayProps {
   managementFee?: number;
   onConfirm?: (confirmed: boolean) => void;
   confirmed?: boolean;
+  onEscrowToggle?: (enabled: boolean) => void;
+  escrowEnabled?: boolean;
 }
 
 export function EscrowCalculationDisplay({
@@ -32,7 +35,27 @@ export function EscrowCalculationDisplay({
   managementFee = 0,
   onConfirm,
   confirmed = false,
+  onEscrowToggle,
+  escrowEnabled: escrowEnabledProp,
 }: EscrowCalculationDisplayProps) {
+  const escrowMode = governanceMode === 'CONTROLLED'
+    ? 'mandatory'
+    : governanceMode === 'STRUCTURED'
+      ? 'optional'
+      : 'not_applicable';
+
+  if (escrowMode === 'not_applicable') return null;
+
+  const [localEnabled, setLocalEnabled] = useState(false);
+  const escrowEnabled = escrowMode === 'mandatory'
+    ? true
+    : (escrowEnabledProp ?? localEnabled);
+
+  const handleToggle = (enabled: boolean) => {
+    setLocalEnabled(enabled);
+    onEscrowToggle?.(enabled);
+  };
+
   const { data: modeConfig, isLoading } = useGovernanceModeConfig(governanceMode);
   const escrowPct = modeConfig?.escrow_deposit_pct ?? 100;
 
@@ -44,7 +67,11 @@ export function EscrowCalculationDisplay({
     return { prizePool, platformFee, totalFee, escrowDeposit };
   }, [prizePlatinum, platformFeePct, consultingFee, managementFee, escrowPct]);
 
-  const fmt = (n: number) => `${currencyCode} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmt = (n: number) =>
+    `${currencyCode} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const isMandatory = escrowMode === 'mandatory';
+  const titleSuffix = isMandatory ? '(Required)' : '(Optional)';
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
 
@@ -53,11 +80,18 @@ export function EscrowCalculationDisplay({
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
-          Escrow Calculation
+          Escrow Calculation {titleSuffix}
+          {isMandatory && <Lock className="h-3.5 w-3.5 text-amber-600" />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 text-sm">
+        <EscrowModeBanner
+          escrowMode={escrowMode}
+          escrowEnabled={escrowEnabled}
+          onEscrowToggle={isMandatory ? undefined : handleToggle}
+        />
+
+        <div className={`grid grid-cols-2 gap-2 text-sm transition-opacity ${escrowEnabled ? 'opacity-100' : 'opacity-40'}`}>
           <span className="text-muted-foreground">Prize Pool</span>
           <span className="text-right font-mono">{fmt(calc.prizePool)}</span>
 
@@ -84,7 +118,13 @@ export function EscrowCalculationDisplay({
           <span className="text-right font-mono font-semibold text-primary">{fmt(calc.escrowDeposit)}</span>
         </div>
 
-        {onConfirm && (
+        {!escrowEnabled && (
+          <p className="text-xs text-muted-foreground italic">
+            Escrow not enabled — direct payment will be used.
+          </p>
+        )}
+
+        {escrowEnabled && onConfirm && (
           <div className="flex items-start gap-2 pt-2 border-t">
             <Checkbox id="escrow-confirm" checked={confirmed} onCheckedChange={(v) => onConfirm(v === true)} />
             <Label htmlFor="escrow-confirm" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
