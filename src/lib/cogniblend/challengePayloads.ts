@@ -54,6 +54,8 @@ export interface SubmitPayload {
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
   solverAudience?: string;
+  evaluationMethod?: string;
+  evaluatorCount?: number;
 }
 
 export interface DraftPayload {
@@ -97,6 +99,8 @@ export interface DraftPayload {
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
   solverAudience?: string;
+  evaluationMethod?: string;
+  evaluatorCount?: number;
 }
 
 export interface SubmitResult {
@@ -199,5 +203,7 @@ export function buildChallengeUpdatePayload(
     }),
     extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
     solver_audience: fp.solverAudience ?? 'ALL',
+    evaluation_method: fp.evaluationMethod ?? 'SINGLE',
+    evaluator_count: fp.evaluatorCount ?? 1,
   };
 }
