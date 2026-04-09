@@ -8,12 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FileText, ChevronDown, ChevronRight, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { handleMutationError } from '@/lib/errorHandler';
+import { LcAddendumUpload } from './LcAddendumUpload';
 
 interface AssembledCpaSectionProps {
   challengeId: string;
@@ -128,11 +130,7 @@ export function AssembledCpaSection({ challengeId }: AssembledCpaSectionProps) {
 
             {editing ? (
               <div className="space-y-2">
-                <Textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="min-h-[200px] font-mono text-sm"
-                />
+                <RichTextEditor value={editContent} onChange={setEditContent} />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => handleSave(doc.id)} disabled={saving}>
                     {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
@@ -154,6 +152,7 @@ export function AssembledCpaSection({ challengeId }: AssembledCpaSectionProps) {
           </CardContent>
         </Card>
       ))}
+      <LcAddendumUpload challengeId={challengeId} />
     </div>
   );
 }
