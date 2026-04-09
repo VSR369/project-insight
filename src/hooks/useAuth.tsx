@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (event === 'SIGNED_OUT') {
             sessionStorage.removeItem('activePortal');
             sessionStorage.removeItem('proofPoint.lastCategory');
+            sessionStorage.removeItem('cogniblend_legal_gate_passed');
           }
         }
       }
@@ -116,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem('activeEnrollmentId');
     sessionStorage.removeItem('activePortal');
     sessionStorage.removeItem('proofPoint.lastCategory');
+    sessionStorage.removeItem('cogniblend_legal_gate_passed');
     // Immediately clear user/session state to prevent race conditions
     // where Login page sees a stale user and redirects back to portal
     setUser(null);
