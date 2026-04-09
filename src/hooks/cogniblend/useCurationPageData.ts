@@ -271,8 +271,9 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
   const { data: sectionActions = [] } = useQuery({
     queryKey: ["curator-section-actions", challengeId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("curator_section_actions" as unknown as "challenges")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("curator_section_actions")
         .select("id, section_key, action_type, status, addressed_to, priority, comment_html, created_at, responded_at, response_html")
         .eq("challenge_id", challengeId!)
         .order("created_at", { ascending: false });
