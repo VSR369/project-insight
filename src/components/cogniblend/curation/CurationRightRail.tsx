@@ -62,6 +62,10 @@ export interface CurationRightRailProps {
   blockingReason: string;
   onReReviewStale: () => Promise<void>;
   setAiReviewLoading: (v: boolean) => void;
+  userId?: string;
+  lockStatus?: string;
+  governanceMode?: string;
+  currentPhase?: number | null;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
