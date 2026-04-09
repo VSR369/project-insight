@@ -185,6 +185,11 @@ export default function TestSetupPage() {
                   <Badge variant="secondary" className="text-[10px] font-semibold">
                     {scenario.userCount} user{scenario.userCount > 1 ? 's' : ''}
                   </Badge>
+                  {scenario.tier && (
+                    <Badge variant="outline" className="text-[10px] font-semibold border-primary/30 text-primary">
+                      {scenario.tier}
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Action button */}
