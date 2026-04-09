@@ -15,7 +15,7 @@ import { AlertTriangle, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import { StakeholderEditor } from './StakeholderEditor';
-import { LegalDocUploadSection } from '@/components/cogniblend/LegalDocUploadSection';
+import { Info } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
@@ -140,12 +140,12 @@ export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles
         )}
       </div>
 
-      {engagementModel === 'MP' && draftChallengeId && (
-        <LegalDocUploadSection
-          challengeId={draftChallengeId}
-          governanceMode={governanceMode}
-        />
-      )}
+      <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
+        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
+          Legal documents are automatically assembled after curation review, based on your organization's CPA templates and the challenge configuration.
+        </p>
+      </div>
     </div>
   );
 }

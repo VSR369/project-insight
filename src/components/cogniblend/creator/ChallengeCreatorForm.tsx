@@ -186,7 +186,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     form.reset(filtered as CreatorFormValues);
     onFillTestData?.();
     setTimeout(async () => { await draftSave.handleSaveDraft(); toast.success('Test data filled & saved as draft'); }, 150);
-  }, [engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);
+  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);
 
   if (publishedResult && isQuick) {
     return (
