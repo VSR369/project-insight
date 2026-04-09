@@ -117,5 +117,6 @@ export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabPro
         </DialogContent>
       </Dialog>
     </Card>
+    </div>
   );
 }
