@@ -54,7 +54,7 @@ export function SolverLegalGateModal({
   const recordAcceptance = useRecordLegalAcceptance();
 
   // V2 2-doc model: prefer SPA/CPA_* types when available, fallback to legacy
-  const V2_DOC_PREFIXES = ['SPA', 'CPA_'];
+  const V2_DOC_PREFIXES = ['SPA', 'CPA'];
   const v2Docs = pendingDocs.filter(d =>
     V2_DOC_PREFIXES.some(prefix => d.document_type.startsWith(prefix))
   );

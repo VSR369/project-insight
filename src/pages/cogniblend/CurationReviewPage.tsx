@@ -5,9 +5,11 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import React from "react";
+import { useState } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
-import { useFreezeForLegalReview } from "@/hooks/cogniblend/useFreezeActions";
+import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
+import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
+import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
 import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
@@ -26,9 +28,20 @@ import { cn } from "@/lib/utils";
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
   const freezeMut = useFreezeForLegalReview(o.challengeId ?? '');
-  const handleFreezeForLegal = () => {
+  const assembleMut = useAssembleCpa(o.challengeId ?? '');
+  const [pwaAccepted, setPwaAccepted] = useState(false);
+
+  const opModel = (o.challenge as any)?.operating_model ?? 'IP';
+  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
+    opModel === 'MP' ? o.user?.id : undefined
+  );
+
+  const handleFreezeForLegal = async () => {
     if (!o.user?.id) return;
-    freezeMut.mutate(o.user.id);
+    try {
+      await freezeMut.mutateAsync(o.user.id);
+      await assembleMut.mutateAsync(o.user.id);
+    } catch { /* errors handled by individual mutation onError */ }
   };
 
   // ── Loading / not-found ──
@@ -52,6 +65,16 @@ export default function CurationReviewPage() {
   if (!o.challenge) {
     return <div className="p-6 text-center text-muted-foreground">Challenge not found.</div>;
   }
+
+  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <PwaAcceptanceGate userId={o.user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
+      </div>
+    );
+  }
+
+
 
   const isReadOnly = false;
 

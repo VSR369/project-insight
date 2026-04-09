@@ -8,6 +8,8 @@
  */
 
 import { useState, useCallback } from 'react';
+import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
+import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -293,7 +295,12 @@ export default function LcLegalWorkspacePage() {
     data: aiSuggestions,
     isLoading: suggestionsQueryLoading,
   } = usePersistedSuggestions(challengeId);
-  
+
+  const opModel = (challenge as any)?.operating_model ?? 'IP';
+  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
+    opModel === 'MP' ? user?.id : undefined
+  );
+  const [pwaAccepted, setPwaAccepted] = useState(false);
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -610,6 +617,14 @@ export default function LcLegalWorkspacePage() {
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <PwaAcceptanceGate userId={user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
       </div>
     );
   }
