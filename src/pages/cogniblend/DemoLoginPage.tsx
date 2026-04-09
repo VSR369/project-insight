@@ -27,6 +27,7 @@ import {
 } from '@/lib/governanceMode';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { DemoUserCard } from '@/components/cogniblend/demo/DemoUserCard';
 
 export const DEMO_TEST_PASSWORD = 'TestSetup2026!';
 /** @deprecated Use DEMO_TEST_PASSWORD */
@@ -41,86 +42,134 @@ export interface DemoUser {
   stepLabel?: string;
 }
 
-
 const CR_DESC: Record<GovernanceMode, string> = {
-  QUICK: 'Creates challenge with 5 required fields, auto-published on submit',
-  STRUCTURED: 'Configures industry & governance, fills 8 fields, AI Review recommended, submits to Curator',
-  CONTROLLED: 'Configures full challenge settings, fills 12 fields, AI Review required before submit to Curator',
-};
-const LC_DESC: Record<GovernanceMode, string> = {
-  QUICK: 'Auto-applied legal defaults — no manual review needed',
-  STRUCTURED: 'Reviews legal docs, optional escrow setup',
-  CONTROLLED: 'Full legal review with mandatory escrow gate',
+  QUICK: 'Creator defines the challenge with 5 fields. Auto-published on submit.',
+  STRUCTURED: 'Creator defines the challenge with 8 standard fields. AI Review recommended.',
+  CONTROLLED: 'Creator defines challenge with extended 12-field form and risk assessment.',
 };
 const CU_DESC: Record<GovernanceMode, string> = {
-  QUICK: 'Auto-completed quality check with simplified checklist',
-  STRUCTURED: 'AI-assisted quality review with 14-point checklist',
-  CONTROLLED: 'Formal compliance gate with full dual-curation checklist',
+  QUICK: 'Platform defaults applied — auto-completed.',
+  STRUCTURED: 'Curator reviews quality with 14-point checklist.',
+  CONTROLLED: 'Full 14-point checklist + mandatory AI review + dual curation.',
+};
+const LC_DESC: Record<GovernanceMode, string> = {
+  QUICK: 'Legal templates auto-attached, no escrow — auto-completed.',
+  STRUCTURED: 'Legal review on curated version. Optional escrow auto-approved.',
+  CONTROLLED: 'AI-powered legal review + mandatory escrow deposit (parallel with FC).',
 };
 const ER_DESC: Record<GovernanceMode, string> = {
-  QUICK: 'Evaluates submitted solutions against criteria',
-  STRUCTURED: 'Evaluates solutions with structured scoring rubric',
-  CONTROLLED: 'Blind evaluation with dual-reviewer consensus required',
+  QUICK: 'Expert evaluates submitted solutions against criteria.',
+  STRUCTURED: 'Expert evaluates abstracts with documented rationale and weighted scoring.',
+  CONTROLLED: 'Dual blind evaluation with anonymized scoring. Two reviewers required.',
+};
+
+const ROLE_HEADING: Record<GovernanceMode, string> = {
+  QUICK: '👤 1 person — all roles merged (no role conflicts)',
+  STRUCTURED: '👥 4 roles — sequential handoff (CR≠CU, CR≠ER enforced)',
+  CONTROLLED: '👥 6 roles — full separation of duties (LC+FC parallel at Phase 3, dual blind ER at Phase 6)',
 };
 
 /** Build the demo user list dynamically based on engagement model and governance */
-function buildDemoUsers(engagementModel: string, mode: GovernanceMode = 'STRUCTURED'): DemoUser[] {
+function buildDemoUsers(_engagementModel: string, mode: GovernanceMode = 'STRUCTURED'): DemoUser[] {
+  if (mode === 'QUICK') {
+    return [
+      {
+        email: 'nh-solo@testsetup.dev',
+        displayName: 'Sam Solo',
+        roles: ['CR', 'CU', 'ER', 'LC', 'FC'],
+        description: 'All 5 roles merged to one person. Creates, auto-curates, auto-completes legal, and publishes in one flow.',
+        destination: '/cogni/challenges/create',
+        stepLabel: 'All Steps',
+      },
+    ];
+  }
+
+  if (mode === 'CONTROLLED') {
+    return [
+      {
+        email: 'nh-cr@testsetup.dev',
+        displayName: 'Chris Rivera',
+        roles: ['CR'],
+        description: CR_DESC.CONTROLLED,
+        destination: '/cogni/challenges/create',
+        stepLabel: 'Phase 1',
+      },
+      {
+        email: 'nh-cu@testsetup.dev',
+        displayName: 'Casey Underwood',
+        roles: ['CU'],
+        description: CU_DESC.CONTROLLED,
+        destination: '/cogni/curation',
+        stepLabel: 'Phase 2',
+      },
+      {
+        email: 'nh-lc@testsetup.dev',
+        displayName: 'Leslie Chen',
+        roles: ['LC'],
+        description: 'AI-powered legal review. Runs in parallel with escrow.',
+        destination: '/cogni/lc-queue',
+        stepLabel: 'Phase 3a',
+      },
+      {
+        email: 'nh-fc@testsetup.dev',
+        displayName: 'Frank Coleman',
+        roles: ['FC'],
+        description: 'Mandatory escrow deposit. Runs in parallel with legal review.',
+        destination: '/cogni/escrow',
+        stepLabel: 'Phase 3b',
+      },
+      {
+        email: 'nh-er1@testsetup.dev',
+        displayName: 'Evelyn Rhodes',
+        roles: ['ER'],
+        description: 'Dual blind evaluation — first reviewer. Solver identities hidden.',
+        destination: '/cogni/review',
+        stepLabel: 'Phase 6a',
+      },
+      {
+        email: 'nh-er2@testsetup.dev',
+        displayName: 'Ethan Russell',
+        roles: ['ER'],
+        description: 'Dual blind evaluation — second reviewer. Independent scoring required.',
+        destination: '/cogni/review',
+        stepLabel: 'Phase 6b',
+      },
+    ];
+  }
+
+  // STRUCTURED (default)
   return [
     {
       email: 'nh-cr@testsetup.dev',
       displayName: 'Chris Rivera',
       roles: ['CR'],
-      description: CR_DESC[mode],
+      description: CR_DESC.STRUCTURED,
       destination: '/cogni/challenges/create',
-      stepLabel: 'Step 1',
-    },
-    {
-      email: 'nh-lc@testsetup.dev',
-      displayName: 'Leslie Chen',
-      roles: ['LC'],
-      description: LC_DESC[mode],
-      destination: '/cogni/lc-queue',
-      stepLabel: 'Step 2',
+      stepLabel: 'Phase 1',
     },
     {
       email: 'nh-cu@testsetup.dev',
       displayName: 'Casey Underwood',
       roles: ['CU'],
-      description: CU_DESC[mode],
+      description: CU_DESC.STRUCTURED,
       destination: '/cogni/curation',
-      stepLabel: 'Step 3',
+      stepLabel: 'Phase 2',
+    },
+    {
+      email: 'nh-lc@testsetup.dev',
+      displayName: 'Leslie Chen',
+      roles: ['LC'],
+      description: LC_DESC.STRUCTURED,
+      destination: '/cogni/lc-queue',
+      stepLabel: 'Phase 3',
     },
     {
       email: 'nh-er1@testsetup.dev',
       displayName: 'Evelyn Rhodes',
       roles: ['ER'],
-      description: ER_DESC[mode],
+      description: ER_DESC.STRUCTURED,
       destination: '/cogni/review',
-      stepLabel: 'Step 4',
-    },
-    {
-      email: 'nh-er2@testsetup.dev',
-      displayName: 'Ethan Russell',
-      roles: ['ER'],
-      description: mode === 'CONTROLLED' ? 'Second reviewer for mandatory dual-review gate' : 'Second reviewer for dual-review governance',
-      destination: '/cogni/review',
-      stepLabel: 'Step 5',
-    },
-    {
-      email: 'nh-fc@testsetup.dev',
-      displayName: 'Frank Coleman',
-      roles: ['FC'],
-      description: mode === 'CONTROLLED' ? 'Manages mandatory escrow funding and prize disbursement' : 'Manages escrow funding and prize disbursement',
-      destination: '/cogni/escrow',
-      stepLabel: 'Finance',
-    },
-    {
-      email: 'nh-solo@testsetup.dev',
-      displayName: 'Sam Solo',
-      roles: ['CR', 'CU', 'ER', 'LC', 'FC'],
-      description: `Solo operator — all roles, ${mode} governance walkthrough`,
-      destination: '/cogni/challenges/create',
-      stepLabel: 'All Steps',
+      stepLabel: 'Phase 6',
     },
   ];
 }
@@ -188,11 +237,8 @@ export default function DemoLoginPage() {
         }
       }
 
-      // Persist demo selections to sessionStorage (no demo path needed)
       sessionStorage.setItem('cogni_demo_governance', governanceMode);
       sessionStorage.setItem('cogni_demo_engagement', engagementModel);
-
-      // Force active role to match selected demo user's primary role
       localStorage.setItem('cogni_active_role', demoUser.roles[0]);
 
       toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')})`);
@@ -317,39 +363,26 @@ export default function DemoLoginPage() {
         </Card>
 
         {/* Workflow Steps */}
-        <DemoWorkflowSteps variant="ai" engagementModel={engagementModel} governanceMode={governanceMode} />
+        <DemoWorkflowSteps governanceMode={governanceMode} />
 
         {/* Role Cards */}
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Users className="h-5 w-5" />
           Pick a Role to Login
         </h2>
+        <p className="text-sm text-muted-foreground -mt-4">
+          {ROLE_HEADING[governanceMode]}
+        </p>
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
           {demoUsers.map((user) => (
-            <Card
+            <DemoUserCard
               key={user.email}
-              className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow"
-              onClick={() => !loadingEmail && handleLogin(user)}
-            >
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm text-foreground">{user.displayName}</span>
-                  <div className="flex items-center gap-2">
-                    {user.stepLabel && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {user.stepLabel}
-                      </Badge>
-                    )}
-                    {loadingEmail === user.email && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {user.roles.map((r) => getRoleBadge(r))}
-                </div>
-                <p className="text-xs text-muted-foreground">{user.description}</p>
-                <span className="text-[11px] text-muted-foreground/60 font-mono">{user.email}</span>
-              </CardContent>
-            </Card>
+              user={user}
+              isLoading={loadingEmail === user.email}
+              disabled={!!loadingEmail}
+              onLogin={() => handleLogin(user)}
+              getRoleBadge={getRoleBadge}
+            />
           ))}
         </div>
 
