@@ -1585,6 +1585,8 @@ export type Database = {
           eligibility_model: string | null
           engagement_model_id: string | null
           evaluation_criteria: Json | null
+          evaluation_method: string
+          evaluator_count: number
           expected_outcomes: Json | null
           extended_brief: Json | null
           fc_compliance_complete: boolean
@@ -1668,6 +1670,8 @@ export type Database = {
           eligibility_model?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
+          evaluation_method?: string
+          evaluator_count?: number
           expected_outcomes?: Json | null
           extended_brief?: Json | null
           fc_compliance_complete?: boolean
@@ -1751,6 +1755,8 @@ export type Database = {
           eligibility_model?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
+          evaluation_method?: string
+          evaluator_count?: number
           expected_outcomes?: Json | null
           extended_brief?: Json | null
           fc_compliance_complete?: boolean
