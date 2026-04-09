@@ -91,7 +91,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     resolver: zodResolver(schema as ReturnType<typeof buildCreatorSchema>),
     defaultValues: {
       title: '', hook: '', problem_statement: '', scope: '', maturity_level: '',
-      solution_maturity_id: '', industry_segment_id: industrySegmentId,
+      solution_maturity_id: '', industry_segment_id: industrySegmentId, domain_tags: [],
       currency_code: 'USD', platinum_award: 0,
       ip_model: isQuick ? 'IP-NEL' : '', expected_outcomes: [''],
       weighted_criteria: [], deliverables_list: [],
@@ -131,7 +131,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       title: data.title, businessProblem: data.problem_statement,
       expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
       currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
-      expectedTimeline: data.expected_timeline || '8w', domainTags: industrySegmentId ? [industrySegmentId] : [], urgency: 'standard',
+      expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags ?? [], urgency: 'standard',
       industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
       governanceModeOverride: governanceMode,
       contextBackground: data.context_background || undefined, rootCauses: cleanArray(data.root_causes),
@@ -179,6 +179,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   }, [pendingSubmitData, executeSubmit]);
 
   const handleFillTestData = useCallback(() => {
+    if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
     const seed = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
     const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegmentId || '' }, fieldRules) : seed;
