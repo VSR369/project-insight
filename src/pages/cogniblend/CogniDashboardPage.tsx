@@ -12,7 +12,6 @@ import { MyActionItemsSection } from '@/components/cogniblend/dashboard/MyAction
 import { RequestJourneySection } from '@/components/cogniblend/dashboard/RequestJourneySection';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 // useCogniPermissions available for future permission checks
-import { Zap } from 'lucide-react';
 import type { RequestRow } from '@/components/cogniblend/dashboard/RequestJourneySection';
 
 export default function CogniDashboardPage() {

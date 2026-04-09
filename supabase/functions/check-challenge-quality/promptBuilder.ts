@@ -42,10 +42,7 @@ export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams
   // Engagement model awareness
   const emName = ctx.engagementModelName ?? params.engagementModel;
   if (emName) {
-    const isMP = emName.toUpperCase().includes('MP') || emName.toUpperCase().includes('MARKETPLACE');
-    parts.push(`\n## ENGAGEMENT MODEL: ${emName}\n${isMP
-      ? "Marketplace model — verify org-specific legal requirements, solver eligibility breadth, and IP clarity for multi-party participation."
-      : "Aggregator model — single org manages solvers. Focus on clarity of deliverables and evaluation criteria."}`);
+    parts.push(`\n## ENGAGEMENT MODEL: ${emName}\nVerify solver eligibility breadth (are requirements clear enough for a wide range of qualified solvers?), clarity of deliverables and evaluation criteria (are expected outputs, milestones, and acceptance criteria unambiguous?), IP model clarity, and org-specific legal requirements.`);
   }
 
   // Industry intelligence

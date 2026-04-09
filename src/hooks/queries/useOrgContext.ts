@@ -1,5 +1,5 @@
 /**
- * useOrgContext — Provides org operating model + phase1_bypass
+ * useOrgContext — Provides org operating model context
  * and Challenge Creator (CR role) users for the challenge form.
  */
 
@@ -11,7 +11,6 @@ import { CACHE_STABLE } from '@/config/queryCache';
 
 export interface OrgModelContext {
   operatingModel: 'MP' | 'AGG' | null;
-  phase1Bypass: boolean;
   governanceProfile: string | null;
 }
 
@@ -26,7 +25,7 @@ export function useOrgModelContext() {
 
       const { data, error } = await supabase
         .from('seeker_organizations')
-        .select('operating_model, phase1_bypass, governance_profile')
+        .select('operating_model, governance_profile')
         .eq('id', orgId)
         .single();
 
@@ -34,7 +33,6 @@ export function useOrgModelContext() {
 
       return {
         operatingModel: (data.operating_model as 'MP' | 'AGG') ?? null,
-        phase1Bypass: !!(data as any).phase1_bypass,
         governanceProfile: data.governance_profile ?? null,
       };
     },
