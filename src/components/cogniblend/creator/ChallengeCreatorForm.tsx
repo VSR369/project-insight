@@ -41,6 +41,7 @@ import { CreatorLegalDocsPreview } from './CreatorLegalDocsPreview';
 import { QuickLegalDocsSummary } from './QuickLegalDocsSummary';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
+import { EvaluationMethodSection } from './EvaluationMethodSection';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -97,6 +98,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       context_background: '', preferred_approach: [''], approaches_not_of_interest: [''],
       affected_stakeholders: [], current_deficiencies: [''], root_causes: [''], expected_timeline: '',
       solver_audience: 'ALL' as const,
+      evaluation_method: 'SINGLE' as const,
+      evaluator_count: 1,
     },
   });
 
@@ -141,6 +144,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
       deliverablesList: cleanArray(data.deliverables_list),
       solverAudience: engagementModel === 'AGG' ? data.solver_audience : 'ALL',
+      evaluationMethod: data.evaluation_method,
+      evaluatorCount: data.evaluator_count,
     };
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
@@ -203,6 +208,9 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
         </Tabs>
+        {governanceMode !== 'QUICK' && (
+          <EvaluationMethodSection governanceMode={governanceMode} />
+        )}
         {governanceMode !== 'QUICK' && (
           <EscrowCalculationDisplay
             prizePlatinum={form.watch('platinum_award')}

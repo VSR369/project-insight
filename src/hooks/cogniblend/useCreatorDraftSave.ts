@@ -61,6 +61,8 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
         deliverablesList: cleanArray(data.deliverables_list),
         solverAudience: engagementModel === 'AGG' ? (data.solver_audience ?? 'ALL') : 'ALL',
+        evaluationMethod: data.evaluation_method ?? 'SINGLE',
+        evaluatorCount: data.evaluator_count ?? 1,
       };
       if (draftChallengeId) {
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });
