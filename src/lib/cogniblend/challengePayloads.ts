@@ -57,6 +57,7 @@ export interface SubmitPayload {
   solverAudience?: string;
   evaluationMethod?: string;
   evaluatorCount?: number;
+  creatorLegalInstructions?: string;
 }
 
 export interface DraftPayload {
