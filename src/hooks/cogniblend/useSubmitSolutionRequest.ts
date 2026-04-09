@@ -89,8 +89,12 @@ export function useSubmitSolutionRequest() {
         .from('challenges')
         .update({
           problem_statement: filteredPayload.businessProblem,
+          hook: filteredPayload.hook || null,
           scope: filteredPayload.constraints || null,
           expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
+          deliverables: filteredPayload.deliverablesList?.filter(Boolean).length
+            ? serializeLineItems(filteredPayload.deliverablesList)
+            : null,
           submission_guidelines: filteredPayload.submissionGuidelines ? serializeLineItems(filteredPayload.submissionGuidelines) : null,
           reward_structure: rewardStructure,
           currency_code: filteredPayload.currency ?? payload.currency,

@@ -50,6 +50,8 @@ export interface SubmitPayload {
   maturityLevel?: string;
   solutionMaturityId?: string;
   ipModel?: string;
+  hook?: string;
+  deliverablesList?: string[];
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
 }
@@ -90,6 +92,8 @@ export interface DraftPayload {
   maturityLevel?: string;
   solutionMaturityId?: string;
   ipModel?: string;
+  hook?: string;
+  deliverablesList?: string[];
   submissionGuidelines?: string[];
   weightedCriteria?: Array<{ name: string; weight: number }>;
 }

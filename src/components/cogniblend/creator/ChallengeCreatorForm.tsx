@@ -44,7 +44,7 @@ interface ChallengeCreatorFormProps {
   engagementModel: string;
   governanceMode: GovernanceMode;
   industrySegmentId: string;
-  onDraftModeSync?: (governance: GovernanceMode, engagement: string) => void;
+  onDraftModeSync?: (governance: GovernanceMode, engagement: string, industrySegmentId?: string) => void;
   onFillTestData?: () => void;
   onDraftIdChange?: (id: string) => void;
 }

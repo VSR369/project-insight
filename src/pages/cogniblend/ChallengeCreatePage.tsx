@@ -69,9 +69,10 @@ export default function ChallengeCreatePage() {
     }
   }, [orgContext?.operatingModel]);
 
-  const handleDraftModeSync = useCallback((gov: GovernanceMode, eng: string) => {
+  const handleDraftModeSync = useCallback((gov: GovernanceMode, eng: string, industry?: string) => {
     setGovernanceMode(gov);
     setEngagementModel(eng);
+    if (industry) setIndustrySegmentId(industry);
   }, []);
 
   if (orgLoading || modelLoading) {
