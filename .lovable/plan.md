@@ -1,62 +1,99 @@
 
 
-## Fix: Enforce 5-8-12 Field Visibility Rule for Creator Form
+# Legal Architecture V2 — Prompt 1: Database Migration
 
-### Problem
-The Creator form shows too many fields because `md_governance_field_rules` has `optional` and `ai_drafted` visibility for many fields that should be `hidden` from the Creator. Currently:
-- **QUICK**: 5 required, 2 optional, 34 hidden, 14 auto — mostly correct
-- **STRUCTURED**: 8 required, 23 optional, 10 ai_drafted, 1 hidden, 13 auto — **33 visible fields instead of 10**
-- **CONTROLLED**: 12 required, 19 optional, 10 ai_drafted, 1 hidden, 13 auto — **41 visible fields instead of 18**
+## What This Does
+Creates the foundational database schema for the new 3-stakeholder legal model. Replaces the old 5-document structure (PMA, CA, PSA, IPAA, EPIA) with 3 platform agreements (SPA, SKPA, PWA) and adds freeze/lock infrastructure for challenge content integrity during legal review.
 
-The `isFieldVisible()` helper shows anything not `hidden` or `auto`, so `optional` and `ai_drafted` fields all render on the Creator form.
+This is **database only** — no frontend changes.
 
-### Part A — Database Migration
+---
 
-A single migration that resets all three modes to `hidden`, then selectively sets visible fields.
+## Current State
+- `challenges` table: no freeze/lock columns exist
+- `challenge_legal_docs` table: no content/assembly columns exist
+- `legal_document_templates`: 5 active documents (PMA, CA, PSA, IPAA, EPIA)
+- `document_code` column is plain TEXT (no CHECK constraint blocking new codes)
+- RPCs `freeze_for_legal_review`, `unfreeze_for_recuration`, `assemble_cpa` do not exist
+- Tables `audit_trail`, `geography_context`, `legal_acceptance_ledger` all exist
+- `org_legal_document_templates` has `template_content` column (used by `assemble_cpa`)
 
-**QUICK (5 required):** title, problem_statement, domain_tags, currency_code, platinum_award
-- Auto-defaults for: reward_type, challenge_visibility, challenge_enrollment, challenge_submission, eligibility, maturity_level, num_rewarded_solutions, gold_award, rejection_fee_pct, ip_model
-- Everything else: hidden
+---
 
-**STRUCTURED (8 required + 2 optional):**
-- Required: title, problem_statement, scope, domain_tags, currency_code, platinum_award, maturity_level, weighted_criteria
-- Optional: context_background, expected_timeline
-- Auto: reward_type, challenge_visibility, challenge_enrollment, challenge_submission, eligibility, num_rewarded_solutions, gold_award, rejection_fee_pct, ip_model, deliverables_list
-- Everything else: hidden
+## Migration Content (Single SQL file)
 
-**CONTROLLED (18 required):**
-- Required (Essential): title, problem_statement, scope, domain_tags, currency_code, platinum_award, maturity_level, weighted_criteria, hook, context_background, ip_model, expected_timeline
-- Required (Additional Context): preferred_approach, approaches_not_of_interest, current_deficiencies, root_causes, affected_stakeholders, expected_outcomes
-- Auto: reward_type, challenge_visibility, challenge_enrollment, challenge_submission, eligibility, num_rewarded_solutions, gold_award, rejection_fee_pct, deliverables_list
-- Everything else: hidden
+### Part A — Freeze/lock columns on `challenges`
+- `curation_frozen_at TIMESTAMPTZ`
+- `curation_frozen_by UUID` (FK to auth.users)
+- `legal_review_content_hash TEXT`
+- `curation_lock_status TEXT NOT NULL DEFAULT 'OPEN'` with CHECK constraint (OPEN/FROZEN/RETURNED)
 
-### Part B — Frontend: Auto-defaults for hidden fields on submit
+### Part B — Content/assembly columns on `challenge_legal_docs`
+- `content TEXT`, `content_html TEXT`
+- `assembled_from_template_id UUID`
+- `assembly_variables JSONB`
+- `reviewer_notes TEXT`
+- `is_assembled BOOLEAN NOT NULL DEFAULT false`
+- `reviewed_by UUID`, `reviewed_at TIMESTAMPTZ`
 
-**File: `src/lib/cogniblend/challengePayloads.ts`**
-- Add an `AUTO_DEFAULTS` constant with sensible defaults for auto-populated fields (reward_type, challenge_visibility, ip_model, maturity_level, etc.)
-- In `buildChallengeUpdatePayload`, apply these defaults when the field value is empty/null and the governance rules mark it as `auto`
+### Part C — Deactivate old 5 documents, insert 3 new platform documents
+- UPDATE to deactivate PMA, CA, PSA, IPAA, EPIA
+- INSERT SPA, SKPA, PWA with appropriate descriptions
+- Uses `ON CONFLICT DO NOTHING` for idempotency
 
-**File: `src/components/cogniblend/creator/creatorFormSchema.ts`**
-- For STRUCTURED mode: make `expected_outcomes`, `ip_model`, `hook`, `preferred_approach`, `approaches_not_of_interest`, `current_deficiencies`, `root_causes`, `affected_stakeholders` all optional with safe defaults (they are hidden from the Creator in STRUCTURED)
-- The schema already handles QUICK correctly; ensure STRUCTURED doesn't require hidden fields
+### Part D — `freeze_for_legal_review(p_challenge_id, p_user_id)` RPC
+- Validates challenge is Phase 2 and not already frozen
+- Computes SHA-256 content hash from key fields using `pgcrypto`
+- Sets lock status to FROZEN, records hash and timestamp
+- Inserts audit trail entry
 
-### Part C — Frontend: Hide Additional Context tab for STRUCTURED
+### Part E — `unfreeze_for_recuration(p_challenge_id, p_user_id, p_reason)` RPC
+- Validates challenge is frozen
+- Resets lock columns, sets phase back to 2
+- Deletes assembled CPA docs (`is_assembled = true`)
+- Inserts audit trail entry
 
-**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
-- Change line 207 from `{!isQuick && <TabsTrigger ...>}` to `{isControlled && <TabsTrigger ...>}`
-- For STRUCTURED, move context_background and expected_timeline to the bottom of EssentialDetailsTab in a collapsible "Additional context (optional)" section
+### Part F — `assemble_cpa(p_challenge_id, p_user_id)` RPC
+- Determines governance mode → picks `CPA_QUICK`/`CPA_STRUCTURED`/`CPA_CONTROLLED` template from `org_legal_document_templates`
+- Looks up IP clause, escrow terms, anti-disintermediation clause
+- Resolves geography context for jurisdiction/governing law
+- Performs `{{variable}}` substitution on template content
+- Falls back to generated default CPA if no template exists
+- Inserts assembled doc into `challenge_legal_docs` with `is_assembled=true`
+- Inserts audit trail entry
 
-**File: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`**
-- Add a collapsible section at the bottom (using `Collapsible` from shadcn) containing context_background (RichTextEditor) and expected_timeline (Select) — only rendered when `governanceMode === 'STRUCTURED'`
-- These fields are already governance-gated by `isFieldVisible()` so they'll naturally appear only when the DB says they should
+### Part G — Content protection trigger
+- `trg_prevent_frozen_content_edit` — BEFORE UPDATE trigger on challenges
+- Blocks modifications to content fields (title, problem_statement, scope, hook, ip_model, platinum_award, evaluation_criteria) when `curation_lock_status = 'FROZEN'`
 
-### Files Changed
+### Part H — Ensure pgcrypto extension
+- `CREATE EXTENSION IF NOT EXISTS pgcrypto`
 
-| File | Change |
+---
+
+## Frontend Type Updates (Minimal)
+After migration executes, update `src/types/legal.types.ts`:
+- Extend `DocumentCode` union to include `'SPA' | 'SKPA' | 'PWA' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED'`
+- Add corresponding entries to `DOCUMENT_CODE_LABELS`
+
+---
+
+## Files Changed
+
+| File | Action |
 |------|--------|
-| New migration | Reset + set correct visibility for all 3 modes |
-| `challengePayloads.ts` | Add AUTO_DEFAULTS, apply on submit |
-| `creatorFormSchema.ts` | Make hidden fields optional in STRUCTURED |
-| `ChallengeCreatorForm.tsx` | Show Additional Context tab only for CONTROLLED |
-| `EssentialDetailsTab.tsx` | Add collapsible optional section for STRUCTURED |
+| New migration SQL | Create — all schema + functions + seed data |
+| `src/types/legal.types.ts` | Edit — extend DocumentCode type and labels |
+
+---
+
+## What Comes Next (Not in this prompt)
+- Prompt 2: Platform Admin UI (3 document cards)
+- Prompt 3: Org Admin UI (3 CPA template cards)
+- Prompt 4: Curator freeze + legal review
+- Prompt 5: LC assembled CPA review
+- Prompt 6: Integrity + pre-flight gate
+- Prompt 7: Solver enrollment + PWA onboarding
+
+Each subsequent prompt will be implemented one at a time after this migration is confirmed working.
 
