@@ -42,6 +42,9 @@ export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabPro
   if (isLoading) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
 
   return (
+    <div className="space-y-6">
+      <CpaTemplateSection organizationId={organizationId} tenantId={tenantId} />
+      <Separator />
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
