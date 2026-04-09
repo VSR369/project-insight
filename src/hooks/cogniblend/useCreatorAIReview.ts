@@ -73,7 +73,10 @@ export function useCreatorAIReview() {
 
       if (error) throw new Error(error.message || 'AI review failed');
 
-      const envelope = data as { success?: boolean; data?: RawAIData; error?: { message?: string } };
+      const envelope = data as { success?: boolean; data?: RawAIData; error?: { message?: string; code?: string }; fallback?: boolean };
+      if (envelope.fallback) {
+        throw new Error('AI service temporarily unavailable. Please try again in 30 seconds.');
+      }
       if (!envelope.success || !envelope.data) {
         throw new Error(envelope.error?.message ?? 'AI review returned no data');
       }

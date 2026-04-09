@@ -154,7 +154,12 @@ serve(async (req) => {
       if (response.status === 429) return new Response(JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }), { status: 429, headers: JSON_CT });
       if (response.status === 402) return new Response(JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }), { status: 402, headers: JSON_CT });
       console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Return 200 with fallback signal so client SDK can read the structured error body
+      return new Response(JSON.stringify({
+        success: false,
+        error: { code: "AI_SERVICE_UNAVAILABLE", message: "The AI service is temporarily unavailable. Please try again in 30 seconds." },
+        fallback: true,
+      }), { status: 200, headers: JSON_CT });
     }
 
     const result = await response.json();
