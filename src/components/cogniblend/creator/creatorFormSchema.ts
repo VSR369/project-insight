@@ -107,6 +107,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     solver_audience: z.enum(['ALL', 'INTERNAL', 'EXTERNAL']).default('ALL'),
     evaluation_method: evaluationMethodRule,
     evaluator_count: evaluatorCountRule,
+    creator_legal_instructions: z.string().max(2000).optional().default(''),
   });
 
   if (engagementModel === 'MP') {
@@ -149,6 +150,7 @@ export type CreatorFormValues = {
   solver_audience: 'ALL' | 'INTERNAL' | 'EXTERNAL';
   evaluation_method: 'SINGLE' | 'DELPHI';
   evaluator_count: number;
+  creator_legal_instructions: string;
 };
 
 export function toFormMaturityCode(value: string | null | undefined): string {
