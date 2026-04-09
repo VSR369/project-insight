@@ -441,7 +441,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         review_duration: values.review_duration || null,
         notes: values.phase_notes || null,
         phase_durations: values.phase_durations || null,
-        source_request_context: sourceRequest || null,
+        
       },
       complexity_parameters: values.complexity_params || null,
       complexity_score: complexityScore,
