@@ -6,7 +6,7 @@
  * no side effects, no rendering logic.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CACHE_STANDARD } from "@/config/queryCache";
@@ -16,16 +16,45 @@ import type { BudgetShortfallResult } from "@/lib/cogniblend/budgetShortfallDete
 import type { SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import type {
   ChallengeData,
+  ChallengeDataCore,
+  ChallengeDataDeferred,
   LegalDocSummary,
   LegalDocDetail,
   EscrowRecord,
   AIQualitySummary,
 } from "@/lib/cogniblend/curationTypes";
 
-/* ── Return type ──────────────────────────────────────── */
+/* ── SELECT column lists ─────────────────────────────── */
+
+const CHALLENGE_CORE_SELECT = [
+  "id", "title", "problem_statement", "scope", "hook", "description",
+  "deliverables", "expected_outcomes", "evaluation_criteria",
+  "reward_structure", "phase_schedule", "ip_model", "maturity_level",
+  "domain_tags", "currency_code", "operating_model",
+  "governance_profile", "governance_mode_override",
+  "current_phase", "phase_status", "organization_id",
+  "curation_lock_status", "curation_frozen_at",
+  "extended_brief", "creator_legal_instructions",
+  "ai_section_reviews", "visibility",
+  "evaluation_method", "evaluator_count", "solver_audience",
+  // JOIN org type name inline to eliminate waterfall
+  "seeker_organizations(organization_type_id, organization_types(name))",
+].join(", ");
+
+const CHALLENGE_DEFERRED_SELECT = [
+  "id",
+  "complexity_score", "complexity_level", "complexity_parameters",
+  "complexity_locked", "complexity_locked_at", "complexity_locked_by",
+  "solver_eligibility_types", "solver_visibility_types",
+  "solver_expertise_requirements", "targeting_filters",
+  "eligibility_model", "eligibility", "solution_type", "solution_types",
+  "data_resources_provided", "success_metrics_kpis",
+  "max_solutions", "lc_review_required",
+].join(", ");
+
+/* ── Return type (unchanged shape) ───────────────────── */
 
 export interface CurationPageState {
-  // State: group & section editing
   activeGroup: string;
   setActiveGroup: React.Dispatch<React.SetStateAction<string>>;
   editingSection: string | null;
@@ -34,26 +63,18 @@ export interface CurationPageState {
   setSavingSection: React.Dispatch<React.SetStateAction<boolean>>;
   approvedSections: Record<string, boolean>;
   setApprovedSections: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-
-  // State: AI reviews
   aiReviews: SectionReview[];
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
   aiReviewsLoaded: boolean;
   setAiReviewsLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   aiReviewLoading: boolean;
   setAiReviewLoading: React.Dispatch<React.SetStateAction<boolean>>;
-
-  // State: phase-2 wave progress
   phase2Progress: { total: number; completed: number };
   setPhase2Progress: React.Dispatch<React.SetStateAction<{ total: number; completed: number }>>;
   phase2Status: "idle" | "running" | "completed";
   setPhase2Status: React.Dispatch<React.SetStateAction<"idle" | "running" | "completed">>;
-
-  // State: complexity
   aiSuggestedComplexity: Record<string, { rating: number; justification: string; evidence_sections?: string[] }> | null;
   setAiSuggestedComplexity: React.Dispatch<React.SetStateAction<Record<string, { rating: number; justification: string; evidence_sections?: string[] }> | null>>;
-
-  // State: UI toggles
   triageTotalCount: number;
   setTriageTotalCount: React.Dispatch<React.SetStateAction<number>>;
   manualOverrides: Record<number, boolean>;
@@ -68,36 +89,24 @@ export interface CurationPageState {
   setGuidedMode: React.Dispatch<React.SetStateAction<boolean>>;
   dismissedPrereqBanner: Set<string>;
   setDismissedPrereqBanner: React.Dispatch<React.SetStateAction<Set<string>>>;
-
-  // State: optimistic industry segment
   optimisticIndustrySegId: string | null;
   setOptimisticIndustrySegId: React.Dispatch<React.SetStateAction<string | null>>;
-
-  // State: escrow & legal
   escrowEnabled: boolean;
   setEscrowEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   isAcceptingAllLegal: boolean;
   setIsAcceptingAllLegal: React.Dispatch<React.SetStateAction<boolean>>;
-
-  // State: pre-flight & budget
   preFlightResult: PreFlightResult | null;
   setPreFlightResult: React.Dispatch<React.SetStateAction<PreFlightResult | null>>;
   preFlightDialogOpen: boolean;
   setPreFlightDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   budgetShortfall: BudgetShortfallResult | null;
   setBudgetShortfall: React.Dispatch<React.SetStateAction<BudgetShortfallResult | null>>;
-
-  // State: context library
   contextLibraryOpen: boolean;
   setContextLibraryOpen: React.Dispatch<React.SetStateAction<boolean>>;
-
-  // State: AI quality
   aiQuality: AIQualitySummary | null;
   setAiQuality: React.Dispatch<React.SetStateAction<AIQualitySummary | null>>;
   aiQualityLoading: boolean;
   setAiQualityLoading: React.Dispatch<React.SetStateAction<boolean>>;
-
-  // State: locked send modal
   lockedSendState: {
     open: boolean;
     sectionKey: string;
@@ -112,8 +121,6 @@ export interface CurationPageState {
     initialComment: string;
     aiOriginalComments: string;
   }>>;
-
-  // Query results
   challenge: ChallengeData | undefined;
   isLoading: boolean;
   orgTypeName: string | null | undefined;
@@ -138,7 +145,7 @@ export interface CurationPageState {
 /* ── Hook ─────────────────────────────────────────────── */
 
 export function useCurationPageData(challengeId: string | undefined): CurationPageState {
-  // ── useState declarations (identical order to original) ──
+  // ── useState declarations ──
   const [activeGroup, setActiveGroup] = useState<string>("organization");
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState(false);
@@ -166,52 +173,52 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
   const [lockedSendState, setLockedSendState] = useState<{
-    open: boolean;
-    sectionKey: string;
-    sectionLabel: string;
-    initialComment: string;
-    aiOriginalComments: string;
+    open: boolean; sectionKey: string; sectionLabel: string;
+    initialComment: string; aiOriginalComments: string;
   }>({ open: false, sectionKey: "", sectionLabel: "", initialComment: "", aiOriginalComments: "" });
 
-  // ── useQuery declarations ──
-
-  const { data: challenge, isLoading } = useQuery({
+  // ── Core challenge query (with org type JOIN — eliminates waterfall) ──
+  const { data: challengeCore, isLoading } = useQuery({
     queryKey: ["curation-review", challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenges")
-        .select("id, title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, complexity_locked, complexity_locked_at, complexity_locked_by, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, governance_mode_override, current_phase, phase_status, domain_tags, ai_section_reviews, currency_code, hook, max_solutions, extended_brief, solver_eligibility_types, solver_visibility_types, solver_expertise_requirements, lc_review_required, targeting_filters, eligibility_model, organization_id, solution_type, solution_types, data_resources_provided, success_metrics_kpis, curation_lock_status, curation_frozen_at, creator_legal_instructions")
+        .select(CHALLENGE_CORE_SELECT)
         .eq("id", challengeId!)
         .single();
       if (error) throw new Error(error.message);
-      return data as ChallengeData;
+      return data as unknown as ChallengeDataCore;
     },
     enabled: !!challengeId,
-    placeholderData: (previousData: ChallengeData | undefined) => previousData,
+    placeholderData: (prev: ChallengeDataCore | undefined) => prev,
   });
 
-  const { data: orgTypeName } = useQuery({
-    queryKey: ["curation-org-type", challenge?.organization_id],
+  // Derive orgTypeName from the JOIN result (no separate query)
+  const orgTypeName = challengeCore?.seeker_organizations?.organization_types?.name ?? null;
+
+  // ── Deferred challenge fields (analysis/assessment — loaded after initial render) ──
+  const { data: challengeDetails } = useQuery({
+    queryKey: ["curation-challenge-details", challengeId],
     queryFn: async () => {
-      const { data: org, error: orgErr } = await supabase
-        .from("seeker_organizations")
-        .select("organization_type_id")
-        .eq("id", challenge!.organization_id)
-        .single();
-      if (orgErr || !org?.organization_type_id) return null;
-      const { data: ot, error: otErr } = await supabase
-        .from("organization_types")
-        .select("name")
-        .eq("id", org.organization_type_id)
-        .single();
-      if (otErr) return null;
-      return ot?.name ?? null;
+      const { data, error } = await supabase
+        .from("challenges")
+        .select(CHALLENGE_DEFERRED_SELECT)
+        .eq("id", challengeId!)
+        .maybeSingle();
+      if (error) return null;
+      return data as unknown as ChallengeDataDeferred;
     },
-    enabled: !!challenge?.organization_id,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!challengeId && !isLoading,
+    ...CACHE_STANDARD,
   });
 
-  // PERF: Single merged query for both legal summaries and details
+  // Merge core + deferred into unified ChallengeData
+  const challenge: ChallengeData | undefined = useMemo(() => {
+    if (!challengeCore) return undefined;
+    return { ...challengeCore, ...(challengeDetails ?? {}) } as ChallengeData;
+  }, [challengeCore, challengeDetails]);
+
+  // ── Legal docs (single merged query) ──
   const { data: legalDocsRaw = [] } = useQuery({
     queryKey: ["curation-legal-docs", challengeId],
     queryFn: async (): Promise<LegalDocDetail[]> => {
@@ -228,7 +235,6 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
     ...CACHE_STANDARD,
   });
 
-  // Derive summary from merged query (client-side, no extra network call)
   const legalDocs: LegalDocSummary[] = (() => {
     const tiers = ["TIER_1", "TIER_2"] as const;
     return tiers.map((tier) => {
@@ -243,7 +249,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
 
   const legalDetails = legalDocsRaw;
 
-  // PERF: Deferred — not needed for initial render
+  // ── Deferred: escrow (not needed for initial render) ──
   const { data: escrowRecord = null } = useQuery({
     queryKey: ["curation-escrow", challengeId],
     queryFn: async (): Promise<EscrowRecord | null> => {
@@ -261,26 +267,20 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
 
   const masterData = useCurationMasterData();
 
+  // ── Deferred: section actions ──
   const { data: sectionActions = [] } = useQuery({
     queryKey: ["curator-section-actions", challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("curator_section_actions" as any)
+        .from("curator_section_actions" as unknown as "challenges")
         .select("id, section_key, action_type, status, addressed_to, priority, comment_html, created_at, responded_at, response_html")
         .eq("challenge_id", challengeId!)
         .order("created_at", { ascending: false });
       if (error) return [];
       return (data ?? []) as unknown as Array<{
-        id: string;
-        section_key: string;
-        action_type: string;
-        status: string;
-        addressed_to: string | null;
-        priority: string | null;
-        comment_html: string | null;
-        created_at: string;
-        responded_at: string | null;
-        response_html: string | null;
+        id: string; section_key: string; action_type: string; status: string;
+        addressed_to: string | null; priority: string | null; comment_html: string | null;
+        created_at: string; responded_at: string | null; response_html: string | null;
       }>;
     },
     enabled: !!challengeId && !isLoading,
@@ -288,36 +288,23 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
   });
 
   return {
-    activeGroup, setActiveGroup,
-    editingSection, setEditingSection,
-    savingSection, setSavingSection,
-    approvedSections, setApprovedSections,
-    aiReviews, setAiReviews,
-    aiReviewsLoaded, setAiReviewsLoaded,
+    activeGroup, setActiveGroup, editingSection, setEditingSection,
+    savingSection, setSavingSection, approvedSections, setApprovedSections,
+    aiReviews, setAiReviews, aiReviewsLoaded, setAiReviewsLoaded,
     aiReviewLoading, setAiReviewLoading,
-    phase2Progress, setPhase2Progress,
-    phase2Status, setPhase2Status,
+    phase2Progress, setPhase2Progress, phase2Status, setPhase2Status,
     aiSuggestedComplexity, setAiSuggestedComplexity,
-    triageTotalCount, setTriageTotalCount,
-    manualOverrides, setManualOverrides,
-    expandVersion, setExpandVersion,
-    highlightWarnings, setHighlightWarnings,
-    showOnlyStale, setShowOnlyStale,
-    guidedMode, setGuidedMode,
+    triageTotalCount, setTriageTotalCount, manualOverrides, setManualOverrides,
+    expandVersion, setExpandVersion, highlightWarnings, setHighlightWarnings,
+    showOnlyStale, setShowOnlyStale, guidedMode, setGuidedMode,
     dismissedPrereqBanner, setDismissedPrereqBanner,
     optimisticIndustrySegId, setOptimisticIndustrySegId,
-    escrowEnabled, setEscrowEnabled,
-    isAcceptingAllLegal, setIsAcceptingAllLegal,
-    preFlightResult, setPreFlightResult,
-    preFlightDialogOpen, setPreFlightDialogOpen,
-    budgetShortfall, setBudgetShortfall,
-    contextLibraryOpen, setContextLibraryOpen,
-    aiQuality, setAiQuality,
-    aiQualityLoading, setAiQualityLoading,
+    escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, setIsAcceptingAllLegal,
+    preFlightResult, setPreFlightResult, preFlightDialogOpen, setPreFlightDialogOpen,
+    budgetShortfall, setBudgetShortfall, contextLibraryOpen, setContextLibraryOpen,
+    aiQuality, setAiQuality, aiQualityLoading, setAiQualityLoading,
     lockedSendState, setLockedSendState,
-    challenge, isLoading,
-    orgTypeName,
-    legalDocs, legalDetails, escrowRecord,
-    masterData, sectionActions,
+    challenge, isLoading, orgTypeName,
+    legalDocs, legalDetails, escrowRecord, masterData, sectionActions,
   };
 }
