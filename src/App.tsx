@@ -40,17 +40,17 @@ const RouteLoadingFallback = () => (
 // LAZY IMPORTS — Auth & core pages (PERF: reduces initial bundle ~50-100KB)
 // ============================================================================
 
-// Auth Pages
-const Login = lazy(() => import("@/pages/Login"));
-const Register = lazy(() => import("@/pages/Register"));
+// Auth Pages — eagerly loaded (critical path, prevents Suspense crashes on sync navigation)
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const InviteAccept = lazy(() => import("@/pages/InviteAccept"));
 
-// Main Pages
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const Welcome = lazy(() => import("@/pages/Welcome"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
+// Main Pages — eagerly loaded (immediate post-auth targets)
+import Dashboard from "@/pages/Dashboard";
+import Welcome from "@/pages/Welcome";
+import NotFound from "@/pages/NotFound";
 
 // Enrollment Wizard Pages (lazy loaded — reduces initial bundle by ~100KB)
 const EnrollRegistration = lazy(() => import("@/pages/enroll/Registration"));
