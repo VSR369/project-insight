@@ -12,6 +12,7 @@ import { CurationSectionList } from "@/components/cogniblend/curation/CurationSe
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
 import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
 import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
+import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
 import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
 import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
 import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
@@ -50,6 +51,10 @@ export default function CurationReviewPage() {
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
+      <FreezeStatusBanner
+        lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
+        frozenAt={(o.challenge as any).curation_frozen_at}
+      />
       <CurationHeaderBar
         challengeId={o.challengeId!}
         challengeTitle={o.challenge.title}
@@ -239,6 +244,10 @@ export default function CurationReviewPage() {
           blockingReason={o.blockingReason}
           onReReviewStale={o.reReviewStale}
           setAiReviewLoading={o.setAiReviewLoading}
+          userId={o.user?.id}
+          lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
+          governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile) ?? 'QUICK'}
+          currentPhase={o.challenge.current_phase}
         />
       </div>
 

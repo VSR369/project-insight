@@ -7,6 +7,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Bot, Loader2 } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
+import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
@@ -61,6 +62,10 @@ export interface CurationRightRailProps {
   blockingReason: string;
   onReReviewStale: () => Promise<void>;
   setAiReviewLoading: (v: boolean) => void;
+  userId?: string;
+  lockStatus?: string;
+  governanceMode?: string;
+  currentPhase?: number | null;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -123,6 +128,16 @@ export function CurationRightRail(props: CurationRightRailProps) {
         }}
         onReReviewStale={async () => { setAiReviewLoading(true); try { await onReReviewStale(); } finally { setAiReviewLoading(false); } }}
       />
+
+      {props.userId && (
+        <LegalReviewPanel
+          challengeId={challengeId}
+          userId={props.userId}
+          lockStatus={props.lockStatus ?? 'OPEN'}
+          governanceMode={props.governanceMode ?? 'QUICK'}
+          currentPhase={props.currentPhase ?? null}
+        />
+      )}
 
       <ModificationPointsTracker challengeId={challengeId} mode={isReadOnly ? "readonly" : "curator"} />
     </div>

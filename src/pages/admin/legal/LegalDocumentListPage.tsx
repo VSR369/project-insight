@@ -1,30 +1,21 @@
 /**
- * LegalDocumentListPage — Card grid showing all legal document templates.
+ * LegalDocumentListPage — Platform agreements + legacy documents.
  * Route: /admin/legal-documents
  */
 import { useNavigate } from 'react-router-dom';
 import { Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLegalDocumentTemplates } from '@/hooks/queries/useLegalDocumentTemplates';
-import { LegalDocumentCard } from '@/components/admin/legal/LegalDocumentCard';
+import { PlatformAgreementsSection } from '@/components/admin/legal/PlatformAgreementsSection';
+import { LegacyDocumentsSection } from '@/components/admin/legal/LegacyDocumentsSection';
 import type { DocumentCode } from '@/types/legal.types';
-
-const DOCUMENT_CODES: DocumentCode[] = ['PMA', 'CA', 'PSA', 'IPAA', 'EPIA'];
 
 export default function LegalDocumentListPage() {
   const navigate = useNavigate();
-  const { data: templates = [], isLoading } = useLegalDocumentTemplates(true, ['DRAFT', 'ACTIVE']);
+  const { data: templates = [], isLoading } = useLegalDocumentTemplates(true, ['DRAFT', 'ACTIVE', 'ARCHIVED']);
 
-  const templatesByCode = templates.reduce<Record<string, typeof templates>>(
-    (acc, t) => {
-      if (t.document_code) {
-        acc[t.document_code] = acc[t.document_code] || [];
-        acc[t.document_code].push(t);
-      }
-      return acc;
-    },
-    {},
-  );
+  const handleEdit = (id: string) => navigate(`/admin/legal-documents/${id}/edit`);
+  const handleCreate = (code: DocumentCode) => navigate(`/admin/legal-documents/new?code=${code}`);
 
   if (isLoading) {
     return (
@@ -35,12 +26,12 @@ export default function LegalDocumentListPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Legal Document Templates</h1>
           <p className="text-muted-foreground mt-1">
-            Manage the 5 master legal documents for the platform
+            Manage platform agreements and challenge legal documents
           </p>
         </div>
         <Button onClick={() => navigate('/admin/legal-documents/new')}>
@@ -49,17 +40,16 @@ export default function LegalDocumentListPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {DOCUMENT_CODES.map((code) => (
-          <LegalDocumentCard
-            key={code}
-            code={code}
-            templates={templatesByCode[code] ?? []}
-            onEdit={(id) => navigate(`/admin/legal-documents/${id}/edit`)}
-            onCreate={() => navigate(`/admin/legal-documents/new?code=${code}`)}
-          />
-        ))}
-      </div>
+      <PlatformAgreementsSection
+        templates={templates}
+        onEdit={handleEdit}
+        onCreate={handleCreate}
+      />
+
+      <LegacyDocumentsSection
+        templates={templates}
+        onEdit={handleEdit}
+      />
     </div>
   );
 }

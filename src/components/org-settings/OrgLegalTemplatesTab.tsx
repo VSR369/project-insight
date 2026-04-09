@@ -13,8 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useOrgLegalTemplates, useCreateOrgLegalTemplate, useUpdateOrgLegalTemplate } from '@/hooks/queries/useOrgLegalTemplates';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { CpaTemplateSection } from './CpaTemplateSection';
 
 interface OrgLegalTemplatesTabProps { organizationId: string; }
 
@@ -40,6 +42,9 @@ export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabPro
   if (isLoading) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
 
   return (
+    <div className="space-y-6">
+      <CpaTemplateSection organizationId={organizationId} tenantId={tenantId} />
+      <Separator />
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
@@ -112,5 +117,6 @@ export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabPro
         </DialogContent>
       </Dialog>
     </Card>
+    </div>
   );
 }

@@ -1094,14 +1094,19 @@ export type Database = {
       }
       challenge_legal_docs: {
         Row: {
+          assembled_from_template_id: string | null
+          assembly_variables: Json | null
           attached_by: string | null
           challenge_id: string
+          content: string | null
+          content_html: string | null
           content_summary: string | null
           created_at: string
           created_by: string | null
           document_name: string | null
           document_type: string
           id: string
+          is_assembled: boolean
           lc_review_notes: string | null
           lc_reviewed_at: string | null
           lc_reviewed_by: string | null
@@ -1109,6 +1114,9 @@ export type Database = {
           maturity_level: string | null
           priority: string | null
           rationale: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
           status: string | null
           template_version: string | null
           tier: string
@@ -1117,14 +1125,19 @@ export type Database = {
           version_history: Json
         }
         Insert: {
+          assembled_from_template_id?: string | null
+          assembly_variables?: Json | null
           attached_by?: string | null
           challenge_id: string
+          content?: string | null
+          content_html?: string | null
           content_summary?: string | null
           created_at?: string
           created_by?: string | null
           document_name?: string | null
           document_type: string
           id?: string
+          is_assembled?: boolean
           lc_review_notes?: string | null
           lc_reviewed_at?: string | null
           lc_reviewed_by?: string | null
@@ -1132,6 +1145,9 @@ export type Database = {
           maturity_level?: string | null
           priority?: string | null
           rationale?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
           status?: string | null
           template_version?: string | null
           tier: string
@@ -1140,14 +1156,19 @@ export type Database = {
           version_history?: Json
         }
         Update: {
+          assembled_from_template_id?: string | null
+          assembly_variables?: Json | null
           attached_by?: string | null
           challenge_id?: string
+          content?: string | null
+          content_html?: string | null
           content_summary?: string | null
           created_at?: string
           created_by?: string | null
           document_name?: string | null
           document_type?: string
           id?: string
+          is_assembled?: boolean
           lc_review_notes?: string | null
           lc_reviewed_at?: string | null
           lc_reviewed_by?: string | null
@@ -1155,6 +1176,9 @@ export type Database = {
           maturity_level?: string | null
           priority?: string | null
           rationale?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
           status?: string | null
           template_version?: string | null
           tier?: string
@@ -1572,6 +1596,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           creator_snapshot: Json | null
+          curation_frozen_at: string | null
+          curation_frozen_by: string | null
+          curation_lock_status: string
           currency_code: string | null
           current_phase: number | null
           data_resources_provided: Json | null
@@ -1602,6 +1629,7 @@ export type Database = {
           is_qa_closed: boolean
           lc_compliance_complete: boolean
           lc_review_required: boolean
+          legal_review_content_hash: string | null
           management_fee: number | null
           master_status: string | null
           maturity_level: string | null
@@ -1657,6 +1685,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           creator_snapshot?: Json | null
+          curation_frozen_at?: string | null
+          curation_frozen_by?: string | null
+          curation_lock_status?: string
           currency_code?: string | null
           current_phase?: number | null
           data_resources_provided?: Json | null
@@ -1687,6 +1718,7 @@ export type Database = {
           is_qa_closed?: boolean
           lc_compliance_complete?: boolean
           lc_review_required?: boolean
+          legal_review_content_hash?: string | null
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
@@ -1742,6 +1774,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           creator_snapshot?: Json | null
+          curation_frozen_at?: string | null
+          curation_frozen_by?: string | null
+          curation_lock_status?: string
           currency_code?: string | null
           current_phase?: number | null
           data_resources_provided?: Json | null
@@ -1772,6 +1807,7 @@ export type Database = {
           is_qa_closed?: boolean
           lc_compliance_complete?: boolean
           lc_review_required?: boolean
+          legal_review_content_hash?: string | null
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
@@ -13813,6 +13849,10 @@ export type Database = {
       }
     }
     Functions: {
+      assemble_cpa: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       assign_challenge_role: {
         Args: {
           p_assigned_by: string
@@ -14056,6 +14096,10 @@ export type Database = {
           p_challenge_id: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      freeze_for_legal_review: {
+        Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
       }
       generate_terms_acceptance_hash: {
@@ -14508,6 +14552,10 @@ export type Database = {
       }
       supervisor_reassign_to_self: {
         Args: { p_verification_id: string }
+        Returns: Json
+      }
+      unfreeze_for_recuration: {
+        Args: { p_challenge_id: string; p_reason?: string; p_user_id: string }
         Returns: Json
       }
       update_config_param: {
