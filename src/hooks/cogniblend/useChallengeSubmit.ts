@@ -117,6 +117,7 @@ export function useChallengeSubmit() {
           industry_segment_id: filteredPayload.industrySegmentId || null,
           title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
           extended_brief: filteredExtendedBrief,
+          solver_audience: payload.solverAudience ?? 'ALL',
         } as any)
         .eq('id', challengeId);
 
