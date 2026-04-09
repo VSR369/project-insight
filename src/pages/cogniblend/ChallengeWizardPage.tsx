@@ -34,7 +34,7 @@ import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
-import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useChallengeSubmit';
+import { useChallengeSubmit } from '@/hooks/cogniblend/useChallengeSubmit';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
 import { resolveGovernanceMode, resolveChallengeGovernance, isQuickMode, isStructuredOrAbove, getDefaultGovernanceMode, getAvailableGovernanceModes, type GovernanceMode } from '@/lib/governanceMode';
 import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
@@ -172,7 +172,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
   const formCompletion = useFormCompletion(form, fieldRules);
 
   // ═══════ Hooks — mutations ═══════
-  const createChallengeMutation = useSubmitSolutionRequest();
+  const createChallengeMutation = useChallengeSubmit();
   const saveStepMutation = useSaveChallengeStep();
   const submitMutation = useSubmitChallengeForReview();
 
