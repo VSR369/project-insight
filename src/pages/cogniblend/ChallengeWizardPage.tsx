@@ -701,23 +701,6 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         )}
       </div>
 
-      {/* ── Source Request Banner ──────────────────────── */}
-      {sourceRequest && (
-        <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-4 flex items-start gap-3">
-          <FileText className="h-5 w-5 text-[hsl(210,68%,54%)] shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-[hsl(210,68%,30%)]">
-              Creating challenge from Solution Request {sourceRequest.source_sr_title ?? ''}
-            </p>
-            <p className="text-xs text-[hsl(210,40%,45%)] mt-0.5">
-              by {sourceRequest.source_sr_creator_name ?? 'Unknown'} ({sourceRequest.source_sr_org_name ?? ''})
-            </p>
-          </div>
-          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => navigate('/cogni/my-challenges')}>
-            View Challenge
-          </Button>
-        </div>
-      )}
 
       {/* ── AGG Phase 1 Bypass Banner ─────────────────── */}
       {isAggBypass && !isEditMode && (
