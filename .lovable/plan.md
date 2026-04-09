@@ -1,104 +1,98 @@
 
 
-# Fix Legal Documents + Remaining Governance Bugs
+# Fix Creator AI Review — Response Shape Mismatch
 
-## Overview
+## Problem
 
-Six interlinked fixes addressing legal document visibility, governance mode resolution, and test alignment.
+The edge function (`check-challenge-quality`) works correctly and returns rich data. The hook (`useCreatorAIReview`) fails to display it due to 3 bugs:
 
----
+1. **Never unwraps `data.data`** — `supabase.functions.invoke()` returns `{ success, data: { overall_score, gaps[], ... } }`. The hook reads `data.fieldResults` (top-level, undefined).
+2. **Shape mismatch** — Edge function returns dimension scores + `gaps[{ field, severity, message }]`. Hook expects `fieldResults[{ fieldKey, score, comment }]`. These are completely different shapes.
+3. **`reviewScope` sent but ignored** — Defined in `PromptParams` interface but never used in prompt construction.
 
-## Fix A — LegalDocumentAttachmentPage reads wrong governance field
+Result: Every field shows 0/100 and "No feedback available" in all modes.
 
-**File:** `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx`
+## Fix Strategy
 
-**Problem:** Line 205 queries only `governance_profile` (org-level legacy value). Line 460 resolves governance from `challenge?.governance_profile` — never reads `governance_mode_override`.
-
-**Fix:**
-- Add `governance_mode_override` to the `.select()` on line 205
-- Change line 460 to resolve from `COALESCE(governance_mode_override, governance_profile)`:
-  ```typescript
-  const isQuick = isQuickMode(resolveGovernanceMode(
-    challenge?.governance_mode_override ?? challenge?.governance_profile
-  ));
-  ```
-- Similarly update the RPC call (line 227) to pass the resolved mode instead of raw `governance_profile`
+Transform the edge function's actual response shape into the per-field format the drawer expects. No changes to the edge function or drawer — only fix the hook and add `reviewScope` prompt filtering.
 
 ---
 
-## Fix B — Legacy mode names not mapped in resolveGovernanceMode
+## Changes
 
-**File:** `src/lib/governanceMode.ts`
+### 1. Rewrite `useCreatorAIReview.ts` — response transformation
 
-**Problem:** `resolveGovernanceMode('ENTERPRISE')` falls to `'STRUCTURED'` (correct), but `resolveGovernanceMode('LIGHTWEIGHT')` also falls to `'STRUCTURED'` instead of `'QUICK'`.
+**File:** `src/hooks/cogniblend/useCreatorAIReview.ts`
 
-**Fix:** Add a legacy normalization map before the `VALID_MODES` check:
-```typescript
-const LEGACY_MODE_MAP: Record<string, GovernanceMode> = {
-  LIGHTWEIGHT: 'QUICK',
-  ENTERPRISE: 'CONTROLLED',
-};
-```
-Apply it: if `LEGACY_MODE_MAP[raw]` exists, return it; otherwise proceed to `VALID_MODES` check.
+- Unwrap `data.data` correctly from the `supabase.functions.invoke()` response
+- Add a field alias map to normalize AI gap field names to canonical `creatorReviewFields` keys (e.g. `problem` → `problem_statement`, `prize`/`top_prize` → `platinum_award`, `tags` → `domain_tags`)
+- Map `gaps[]` entries to per-field results: derive score from severity (`critical` → 35, `warning` → 65, `suggestion` → 80), use gap `message` as the comment
+- For fields with no gaps, derive a baseline score from the dimension scores (`completeness_score`, `clarity_score`, etc.) — average them, then add a positive comment from `strengths[]` if available
+- Update `AIReviewResult` interface to also expose the raw dimension scores and summary for the drawer's overall score card
+- Use `overallScore` from `data.data.overall_score`
 
----
+### 2. Enhance drawer with dimension scores — `CreatorAIReviewDrawer.tsx`
 
-## Fix C — get_required_legal_docs RPC uses legacy 'enterprise' check
+**File:** `src/components/cogniblend/creator/CreatorAIReviewDrawer.tsx`
 
-**File:** New migration
+- Below the overall score card, add a compact sub-scores row showing the 5 dimension scores (completeness, clarity, solver readiness, legal compliance, governance alignment) as small badges
+- Display the AI summary text below the score card
+- Show `strengths[]` as a collapsed list if present
+- Keep existing per-field card rendering unchanged
 
-**Problem:** The RPC (line 84) checks `LOWER(p_governance_profile) = 'enterprise'` — never matches `'CONTROLLED'`. CONTROLLED mode gets the lightweight (non-enterprise) document set.
+### 3. Wire `reviewScope` into prompt — `promptBuilder.ts`
 
-**Fix:** Replace the enterprise check with new mode names:
-```sql
-IF UPPER(TRIM(p_governance_profile)) IN ('CONTROLLED', 'ENTERPRISE') THEN
-  -- Include enterprise-level Tier 2 docs
-ELSE
-  -- Standard/Quick: only plain maturity matches
-END IF;
-```
+**File:** `supabase/functions/check-challenge-quality/promptBuilder.ts`
 
----
+- Read `params.reviewScope` in `buildSystemPrompt`
+- When `reviewScope === 'creator_fields_only'`, add a prompt section instructing the AI to focus gaps analysis on the governance-specific creator fields only (inject the field list from `GOVERNANCE_DESCRIPTIONS`)
+- Pass `reviewScope` through from `index.ts` to `params`
 
-## Fix D — QUICK mode submit never creates challenge_legal_docs rows
+### 4. Pass `reviewScope` in edge function — `index.ts`
 
-**File:** `src/hooks/cogniblend/useSubmitSolutionRequest.ts`
+**File:** `supabase/functions/check-challenge-quality/index.ts`
 
-**Problem:** QUICK submit calls `complete_phase` which auto-advances through Phase 3. The `complete_phase` function does insert legal docs at Phase 3 entry (line 89-97), but only inserts `TIER_1` with no maturity filter — it grabs ALL active templates. The `ChallengeLegalDocsCard` on the detail page queries `challenge_legal_docs` and shows them, but since `complete_phase` uses `ON CONFLICT DO NOTHING`, any conflict silently drops rows.
-
-**Current state:** `complete_phase` already handles QUICK auto-attach (lines 86-98). The issue is it doesn't filter by maturity level. Fix in migration:
-
-```sql
--- In the QUICK auto_apply block, add maturity filter:
-AND (required_for_maturity ? v_maturity_key OR required_for_maturity IS NULL)
-```
-
-Also add the same maturity filter to STRUCTURED and CONTROLLED blocks.
+- Read `body.reviewScope` from request
+- Include it in `params` object passed to `buildSystemPrompt` and `buildUserPrompt`
 
 ---
 
-## Fix E — sectionRoutes.ts missing complexity entry
+## Field Alias Map (in hook)
 
-**File:** `src/lib/sectionRoutes.ts`
-
-**Problem:** Test expects `complexity → 'assess-complexity'` but the route map only has `reward_structure`.
-
-**Fix:** Add the entry:
-```typescript
-export const SECTION_REVIEW_ROUTES: Partial<Record<SectionKey, string>> = {
-  complexity: 'assess-complexity',
-  reward_structure: 'refine-challenge-section',
-};
+```text
+AI gap field name     →  Canonical key
+─────────────────────────────────────
+problem               →  problem_statement
+problem_statement     →  problem_statement (direct)
+tags / domain_tags    →  domain_tags
+currency / currency_code → currency_code
+prize / top_prize / platinum_award → platinum_award
+title                 →  title (direct)
+scope                 →  scope (direct)
+maturity / maturity_level → maturity_level
+criteria / weighted_criteria / evaluation_criteria → weighted_criteria
+hook / one_liner      →  hook
+context / context_background / org_context → context_background
+ip / ip_model         →  ip_model
+timeline / expected_timeline → expected_timeline
 ```
 
----
+## Score Derivation Logic (in hook)
 
-## Summary of Files
+```text
+For each creator field:
+  1. Find matching gaps via alias map
+  2. If gap exists → score = severity map (critical:35, warning:65, suggestion:80), comment = gap.message
+  3. If multiple gaps → use worst severity, concatenate messages
+  4. If no gap → score = avg(dimension scores) clamped 70-95, comment = "Looks good" or matched strength
+```
 
-| File | Change |
-|------|--------|
-| `src/lib/governanceMode.ts` | Add `LEGACY_MODE_MAP` for LIGHTWEIGHT→QUICK, ENTERPRISE→CONTROLLED |
-| `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx` | Fetch `governance_mode_override`, resolve effective mode |
-| `src/lib/sectionRoutes.ts` | Add `complexity: 'assess-complexity'` |
-| New migration SQL | Rewrite `get_required_legal_docs` to use QUICK/STRUCTURED/CONTROLLED; add maturity filter to `complete_phase` legal doc inserts |
+## Files Changed
+
+| File | Type |
+|------|------|
+| `src/hooks/cogniblend/useCreatorAIReview.ts` | Rewrite response transformation |
+| `src/components/cogniblend/creator/CreatorAIReviewDrawer.tsx` | Add dimension scores display |
+| `supabase/functions/check-challenge-quality/promptBuilder.ts` | Wire reviewScope |
+| `supabase/functions/check-challenge-quality/index.ts` | Pass reviewScope to params |
 
