@@ -52,6 +52,161 @@ async function insertChallenge(sa: SA, payload: Record<string, unknown>, label: 
   if (error) throw new Error(`${label}: ${error.message}`);
 }
 
+// ─── 3 CPA templates (one per governance mode) ───
+const CPA_TEMPLATES = [
+  {
+    document_code: "CPA_QUICK",
+    document_name: "Challenge Participation Agreement (Quick)",
+    applies_to_mode: "QUICK",
+    template_content: `CHALLENGE PARTICIPATION AGREEMENT (QUICK)
+Challenge: {{challenge_title}}
+Organization: {{seeker_org_name}}
+
+1. PARTICIPATION
+By enrolling, you agree to participate in good faith, submit original work, and comply with deadlines.
+
+2. CONFIDENTIALITY
+You will not share proprietary challenge details outside the platform.
+
+3. INTELLECTUAL PROPERTY
+{{ip_clause}}
+
+4. PRIZE AND PAYMENT
+Prize: {{currency}} {{prize_amount}}. Payment processed within 30 days of winner confirmation.
+
+5. GOVERNING LAW
+This agreement is governed by the laws of {{jurisdiction}}. Applicable regulations: {{governing_law}}.`,
+  },
+  {
+    document_code: "CPA_STRUCTURED",
+    document_name: "Challenge Participation Agreement (Structured)",
+    applies_to_mode: "STRUCTURED",
+    template_content: `CHALLENGE PARTICIPATION AGREEMENT (STRUCTURED)
+Challenge: {{challenge_title}}
+Organization: {{seeker_org_name}}
+
+1. PARTICIPATION RULES
+By enrolling, you agree to: (a) participate in good faith; (b) submit original work; (c) maintain confidentiality; (d) comply with all requirements and deadlines.
+
+2. CONFIDENTIALITY
+You shall not disclose proprietary information provided by the Organization including challenge details, business context, and technical specifications.
+
+3. INTELLECTUAL PROPERTY
+{{ip_clause}}
+You warrant your submission is original and you have authority to grant the above rights.
+
+4. PRIZE AND PAYMENT
+Prize: {{currency}} {{prize_amount}}. Payment within 30 days of winner confirmation.
+
+5. EVALUATION PROCESS
+Submissions evaluated using {{evaluation_method}} method against published criteria. Organization's decision is final subject to dispute resolution.
+
+6. DATA PROTECTION
+Applicable data protection: {{governing_law}}.
+
+7. CANCELLATION
+If cancelled post-enrollment, solvers who submitted receive compensation per Platform cancellation policy.
+
+{{anti_disintermediation}}
+
+8. GOVERNING LAW
+Governed by laws of {{jurisdiction}}.`,
+  },
+  {
+    document_code: "CPA_CONTROLLED",
+    document_name: "Challenge Participation Agreement (Controlled)",
+    applies_to_mode: "CONTROLLED",
+    template_content: `CHALLENGE PARTICIPATION AGREEMENT (CONTROLLED)
+Challenge: {{challenge_title}}
+Organization: {{seeker_org_name}}
+
+1. PARTICIPATION RULES
+By enrolling, you agree to: (a) participate in good faith; (b) submit original work not infringing third-party IP; (c) maintain strict confidentiality; (d) comply with all requirements, deadlines, and governance rules.
+
+2. CONFIDENTIALITY
+You shall not disclose, share, or use for any purpose other than challenge participation, any confidential information. This obligation survives challenge completion by 24 months.
+
+3. INTELLECTUAL PROPERTY
+{{ip_clause}}
+You warrant your submission is original and you have full authority to grant the above rights.
+
+4. PRIZE AND PAYMENT
+Prize: {{currency}} {{prize_amount}}.
+{{escrow_terms}}
+
+5. EVALUATION PROCESS
+Submissions evaluated using {{evaluation_method}} method. Evaluator and solver identities are blinded during evaluation.
+
+6. DATA PROTECTION AND REGULATORY COMPLIANCE
+Applicable regulations: {{governing_law}}.
+
+7. AUDIT RIGHTS
+The Platform reserves the right to audit the challenge process for compliance with fairness and integrity standards.
+
+8. CANCELLATION AND COMPENSATION
+If cancelled post-enrollment: (a) solvers with submitted solutions receive cancellation compensation; (b) remaining escrow returned after deducting Platform fees.
+
+9. INTEGRITY COMMITMENTS
+Organization commits to: (a) evaluate fairly without bias; (b) not use submissions without IP agreement; (c) disclose conflicts of interest.
+
+{{anti_disintermediation}}
+
+10. GOVERNING LAW
+Governed by laws of {{jurisdiction}}.`,
+  },
+];
+
+// ─── Platform document body content for SPA, SKPA, PWA ───
+const PLATFORM_DOC_CONTENT: Record<string, string> = {
+  SPA: `SOLVER PLATFORM AGREEMENT
+
+1. ACCEPTANCE: By creating an account, you accept these terms governing your use of the CogniBlend Platform.
+
+2. CONDUCT: You agree to participate professionally, submit original work, respect confidentiality, and comply with challenge rules.
+
+3. DATA PRIVACY: Your personal data is processed per our Privacy Policy. Submission data is shared only with the relevant seeking organization per challenge terms.
+
+4. INTELLECTUAL PROPERTY: Default IP terms are specified per challenge. You retain all IP until a specific IP agreement is executed for a winning submission.
+
+5. PAYMENTS: Prize payments are processed through the Platform within 30 days of winner confirmation and IP agreement execution.
+
+6. DISPUTE RESOLUTION: Disputes are resolved through Platform mediation, then binding arbitration.
+
+7. TERMINATION: Either party may terminate with 30 days notice. Active challenge participations must be honored.`,
+
+  SKPA: `SEEKER PLATFORM AGREEMENT
+
+1. ACCEPTANCE: By enrolling your organization, you accept these terms governing challenge creation and management on the CogniBlend Platform.
+
+2. CHALLENGE OBLIGATIONS: You agree to provide accurate challenge descriptions, honor prize commitments, evaluate solutions fairly, and maintain solver confidentiality.
+
+3. FEES: Platform service fees are per your subscription plan. Escrow fees apply to Controlled governance challenges.
+
+4. DATA HANDLING: Solver personal data accessed through the Platform is subject to data protection laws. You may not contact solvers outside the Platform without consent.
+
+5. ESCROW: For Controlled governance, full prize deposit in escrow is required before challenge publication.
+
+6. LIABILITY: The Platform facilitates but does not guarantee challenge outcomes. The Platform is not liable for solver performance or solution quality.
+
+7. TERMINATION: Active challenges at termination must be honored including prize obligations.`,
+
+  PWA: `PLATFORM WORKFORCE AGREEMENT
+
+1. ACCEPTANCE: By accepting a role assignment (Curator, Expert Reviewer, Legal Coordinator, or Finance Controller), you accept these terms.
+
+2. EVALUATION STANDARDS: You agree to evaluate challenges and solutions impartially, based solely on published criteria, and provide substantive documented feedback.
+
+3. CONFIDENTIALITY: All challenge details, solver submissions, and evaluation deliberations are strictly confidential. You may not share or use this information outside your Platform role.
+
+4. CONFLICT OF INTEREST: You must disclose any personal, financial, or professional relationship with seeking organizations or solvers that could affect impartiality.
+
+5. PERFORMANCE: You agree to meet evaluation SLAs. Repeated failure may result in role reassignment.
+
+6. COMPENSATION: Compensation for Platform workforce roles is per your individual agreement with the Platform.
+
+7. IMPARTIALITY: In blinded evaluations (Controlled governance), you must not attempt to identify solvers.`,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -138,44 +293,41 @@ serve(async (req) => {
     ], { onConflict: "tier_code,governance_mode", ignoreDuplicates: true });
     results.push(`✅ Tier governance access: ${config.subscriptionTier} → QUICK+STRUCTURED+CONTROLLED`);
 
-    // ─── Seed org-level legal templates (required for AGG complete_phase branching) ───
-    const { data: platTemplates } = await sa
-      .from("legal_document_templates")
-      .select("template_id, document_code, document_name, document_type, tier, version, is_mandatory")
-      .eq("is_active", true)
-      .eq("version_status", "ACTIVE")
-      .limit(10);
-    if (platTemplates && platTemplates.length > 0) {
-      const modeMap: Record<string, string> = {
-        PMA: "ALL", CA: "ALL", PSA: "ALL",
-        IPAA: "STRUCTURED", EPIA: "CONTROLLED",
-      };
-      const orgTemplateRows = platTemplates.map((t: {
-        document_code?: string; document_name: string;
-        document_type: string; tier: string; version: string; is_mandatory: boolean;
-      }) => ({
+    // ─── PART A: Seed 3 org CPA templates (one per governance mode) ───
+    await sa.from("org_legal_document_templates")
+      .delete()
+      .eq("organization_id", orgId)
+      .in("document_code", ["CPA_QUICK", "CPA_STRUCTURED", "CPA_CONTROLLED"]);
+
+    for (const tpl of CPA_TEMPLATES) {
+      const { error } = await sa.from("org_legal_document_templates").insert({
         organization_id: orgId,
         tenant_id: orgId,
-        document_name: t.document_name,
-        document_code: t.document_code ?? null,
-        document_type: t.document_type ?? "standard",
-        description: "Org-level copy of platform template for AGG model",
-        tier: t.tier ?? "TIER_1",
-        version: t.version ?? "1.0",
+        document_name: tpl.document_name,
+        document_code: tpl.document_code,
+        document_type: "challenge_participation_agreement",
+        description: `CPA template for ${tpl.applies_to_mode} governance mode`,
+        tier: "TIER_1",
+        template_content: tpl.template_content,
+        version: "1.0",
         version_status: "ACTIVE",
-        applies_to_mode: modeMap[t.document_code ?? ""] ?? "ALL",
-        is_mandatory: t.is_mandatory ?? true,
+        applies_to_mode: tpl.applies_to_mode,
+        is_mandatory: true,
         is_active: true,
         effective_date: new Date().toISOString().slice(0, 10),
-      }));
-      const { error: oltErr } = await sa
-        .from("org_legal_document_templates")
-        .insert(orgTemplateRows);
-      if (oltErr) results.push(`⚠️ Org legal templates: ${oltErr.message}`);
-      else results.push(`✅ Org legal templates: ${orgTemplateRows.length} seeded`);
-    } else {
-      results.push(`⚠️ No platform legal templates found to copy`);
+      });
+      if (error) results.push(`⚠️ CPA ${tpl.document_code}: ${error.message}`);
     }
+    results.push(`✅ 3 CPA templates seeded (CPA_QUICK, CPA_STRUCTURED, CPA_CONTROLLED)`);
+
+    // ─── PART C: Ensure platform docs have body content (SPA, SKPA, PWA) ───
+    for (const [code, content] of Object.entries(PLATFORM_DOC_CONTENT)) {
+      await sa.from("legal_document_templates")
+        .update({ content: content, updated_at: new Date().toISOString() })
+        .eq("document_code", code)
+        .eq("is_active", true);
+    }
+    results.push(`✅ Platform doc content updated (SPA, SKPA, PWA)`);
 
     // ─── Create users (parallel) ───
     const userPromises = config.users.map(async (u): Promise<ResolvedUser> => {
@@ -242,6 +394,7 @@ serve(async (req) => {
       operating_model: "AGG", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
       challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c1Prob, scope: c1Scope, maturity_level: "PROTOTYPE", evaluation_criteria: c1Crit,
+      evaluation_method: "DELPHI", evaluator_count: 3,
       currency_code: "USD", domain_tags: c1Tags, ip_model: "IP-EL", phase_schedule: { expected_timeline: "6-12" },
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 500000 },
       extended_brief: { creator_approval_required: true, context_background: c1Ctx },
@@ -271,6 +424,7 @@ serve(async (req) => {
       operating_model: "MP", governance_profile: "CONTROLLED", governance_mode_override: "CONTROLLED",
       challenge_model_is_agg: false, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c2Prob, scope: c2Scope, maturity_level: "PROTOTYPE", evaluation_criteria: c2Crit,
+      evaluation_method: "DELPHI", evaluator_count: 3,
       currency_code: "USD", domain_tags: c2Tags, ip_model: "IP-EL", phase_schedule: { expected_timeline: "9-12" },
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 250000 },
       extended_brief: { creator_approval_required: true, context_background: c2Ctx },
@@ -296,6 +450,7 @@ serve(async (req) => {
       operating_model: "AGG", governance_profile: "STRUCTURED", governance_mode_override: "STRUCTURED",
       challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c3Prob, scope: c3Scope, maturity_level: "POC", evaluation_criteria: c3Crit,
+      evaluation_method: "SINGLE", evaluator_count: 1,
       currency_code: "USD", domain_tags: c3Tags, ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 75000 },
       extended_brief: { creator_approval_required: true },
@@ -319,6 +474,7 @@ serve(async (req) => {
       operating_model: "MP", governance_profile: "STRUCTURED", governance_mode_override: "STRUCTURED",
       challenge_model_is_agg: false, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c4Prob, scope: c4Scope, maturity_level: "POC", evaluation_criteria: c4Crit,
+      evaluation_method: "SINGLE", evaluator_count: 1,
       currency_code: "USD", domain_tags: c4Tags, ip_model: "IP-NEL", phase_schedule: { expected_timeline: "3-6" },
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 50000 },
       extended_brief: { creator_approval_required: true },
@@ -340,6 +496,7 @@ serve(async (req) => {
       operating_model: "AGG", governance_profile: "QUICK", governance_mode_override: "QUICK",
       challenge_model_is_agg: true, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c5Prob, currency_code: "USD", domain_tags: c5Tags, ip_model: "IP-NEL",
+      evaluation_method: "SINGLE", evaluator_count: 1,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 10000 },
       extended_brief: { creator_approval_required: false },
       creator_snapshot: { title: "Internal Carbon Footprint Tracker", problem_statement: c5Prob, domain_tags: c5Tags, currency_code: "USD", platinum_award: 10000 },
@@ -360,6 +517,7 @@ serve(async (req) => {
       operating_model: "MP", governance_profile: "QUICK", governance_mode_override: "QUICK",
       challenge_model_is_agg: false, challenge_visibility: "public", is_active: true, is_deleted: false, is_qa_closed: false, solutions_awarded: 0,
       problem_statement: c6Prob, currency_code: "USD", domain_tags: c6Tags, ip_model: "IP-NEL",
+      evaluation_method: "SINGLE", evaluator_count: 1,
       reward_structure: { reward_type: "monetary", currency: "USD", platinum_award: 5000 },
       extended_brief: { creator_approval_required: false },
       creator_snapshot: { title: "Customer Onboarding UX Ideas", problem_statement: c6Prob, domain_tags: c6Tags, currency_code: "USD", platinum_award: 5000 },
@@ -370,21 +528,23 @@ serve(async (req) => {
     if (solo) for (const r of ["CR","CU","ER","LC","FC"]) await assignRole(solo.userId, c6Id, r);
     results.push(`✅ C6: QUICK+MP $5K Phase5 — Solo=ALL`);
 
-    // ─── Legal docs ───
-    const { data: orgLT } = await sa.from("org_legal_document_templates").select("id, document_code, document_name, tier").eq("organization_id", orgId).eq("is_active", true).limit(20);
-    const { data: platLT } = await sa.from("legal_document_templates").select("template_id, document_code, document_name, tier").eq("is_active", true).eq("version_status", "ACTIVE").limit(20);
-    const attachLegal = async (cid: string, tmpls: { document_code?: string; document_name?: string; tier?: string }[] | null, st: string, lcs: string, by: string | null) => {
-      if (!tmpls?.length) return 0;
-      for (const t of tmpls) await sa.from("challenge_legal_docs").insert({ challenge_id: cid, document_type: t.document_code ?? t.document_name ?? "UNKNOWN", document_name: t.document_name, tier: t.tier ?? "TIER_1", status: st, lc_status: lcs, created_by: by });
-      return tmpls.length;
+    // ─── PART B: Legal docs — Assemble CPA per challenge via RPC ───
+    const assembleForChallenge = async (cid: string, creatorId: string | null, label: string) => {
+      if (!creatorId) return;
+      const { error } = await sa.rpc("assemble_cpa", { p_challenge_id: cid, p_user_id: creatorId });
+      if (error) results.push(`⚠️ CPA assembly ${label}: ${error.message}`);
     };
-    await attachLegal(c1Id, orgLT, "pending_review", "pending", aggCr?.userId ?? null);
-    await attachLegal(c2Id, platLT, "pending_review", "pending", mpCr?.userId ?? null);
-    await attachLegal(c3Id, orgLT, "curator_reviewed", "approved", aggCr?.userId ?? null);
-    await attachLegal(c4Id, platLT, "curator_reviewed", "approved", mpCr?.userId ?? null);
-    await attachLegal(c5Id, platLT, "auto_accepted", "approved", solo?.userId ?? null);
-    await attachLegal(c6Id, platLT, "auto_accepted", "approved", solo?.userId ?? null);
-    results.push(`✅ Legal docs attached`);
+
+    // CONTROLLED challenges (Phase 2) — CPA assembled, pending LC review
+    await assembleForChallenge(c1Id, aggCr?.userId ?? null, "C1");
+    await assembleForChallenge(c2Id, mpCr?.userId ?? null, "C2");
+    // STRUCTURED challenges (Phase 2) — CPA assembled, pending curator review
+    await assembleForChallenge(c3Id, aggCr?.userId ?? null, "C3");
+    await assembleForChallenge(c4Id, mpCr?.userId ?? null, "C4");
+    // QUICK challenges (Phase 5) — CPA assembled and auto-approved
+    await assembleForChallenge(c5Id, solo?.userId ?? null, "C5");
+    await assembleForChallenge(c6Id, solo?.userId ?? null, "C6");
+    results.push(`✅ CPA assembled for all 6 challenges`);
 
     // ─── Escrow (CONTROLLED only) ───
     for (const [cid, amt, lbl, by] of [[c1Id, 500000, "C1", aggCr?.userId], [c2Id, 250000, "C2", mpCr?.userId]] as [string, number, string, string | undefined][]) {
