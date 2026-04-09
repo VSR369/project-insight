@@ -295,7 +295,12 @@ export default function LcLegalWorkspacePage() {
     data: aiSuggestions,
     isLoading: suggestionsQueryLoading,
   } = usePersistedSuggestions(challengeId);
-  
+
+  const opModel = (challenge as any)?.operating_model ?? 'IP';
+  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
+    opModel === 'MP' ? user?.id : undefined
+  );
+  const [pwaAccepted, setPwaAccepted] = useState(false);
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
