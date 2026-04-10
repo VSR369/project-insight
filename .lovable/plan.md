@@ -1,79 +1,56 @@
 
 
-## Fix Alt+Tab Data Loss — Corrected 3-Layer Defense
+## Fix "Permission denied for phase 1 (requires CR)" on Submit
 
-### Current State
-- **Layer 3** (ChallengeCreatePage.tsx useRef guards): Already implemented (lines 49-78)
-- **Layer 1** (useAuth.tsx — prevent cache wipe on token refresh): NOT implemented
-- **Layer 2** (OrgContext.tsx — prevent tree unmount during refetch): NOT implemented
+### Root Cause
 
-The form still loses data because Supabase fires `SIGNED_IN` on token refresh → `queryClient.clear()` runs unconditionally → OrgProvider unmounts children → form destroyed.
+The `complete_phase` RPC calls `can_perform(p_user_id, p_challenge_id, 'CR')` which checks the `user_challenge_roles` table for an active CR assignment. However, `initialize_challenge` creates the challenge row but **never inserts a CR role** into `user_challenge_roles`. Result: every submit fails with "Permission denied for phase 1 (requires CR)."
 
-### Changes
+This affects all 6 governance × engagement combinations.
 
-**File 1: `src/hooks/useAuth.tsx` — Layer 1 (Root Cause)**
+### Persistence Check
 
-Add `previousUserIdRef` to skip `queryClient.clear()` when the user hasn't actually changed (token refresh = same user):
+The 3-layer defense for Alt+Tab data loss is confirmed in place:
+- Layer 1 (`useAuth.tsx`): `previousUserIdRef` seeded at line 76 — present
+- Layer 2 (`OrgContext.tsx`): `orgLoadedOnce` ref with conditional spinner at line 91 — present
+- Layer 3 (`ChallengeCreatePage.tsx`): `useRef` initialization guards — present
 
-1. Add `previousUserIdRef = useRef<string | null>(null)` (line ~25)
-2. In `onAuthStateChange` handler (line 50), replace the unconditional `queryClient.clear()` block with user-change detection:
-   ```typescript
-   if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-     const newUserId = newSession?.user?.id ?? null;
-     const userChanged = newUserId !== previousUserIdRef.current;
-     previousUserIdRef.current = newUserId;
-     
-     if (userChanged) {
-       queryClient.clear();
-       sessionStorage.removeItem('activeEnrollmentId');
-       if (event === 'SIGNED_OUT') {
-         sessionStorage.removeItem('activePortal');
-         sessionStorage.removeItem('proofPoint.lastCategory');
-         sessionStorage.removeItem('cogniblend_legal_gate_passed');
-       }
-     }
-   }
-   ```
-3. **Critical Gap 1 fix**: In `getSession().then()` (line 68), seed the ref to prevent startup race:
-   ```typescript
-   previousUserIdRef.current = existingSession?.user?.id ?? null;
-   ```
-4. In `signOut()` (line 113): Remove the direct `queryClient.clear()` call — let the handler handle it uniformly via `SIGNED_OUT` event. Keep the `setUser(null)` / `setSession(null)` immediate clears and sessionStorage cleanup.
+### Fix
 
-**File 2: `src/contexts/OrgContext.tsx` — Layer 2 (Defense-in-Depth)**
+**Database migration** — Update `initialize_challenge` to insert a CR role into `user_challenge_roles` after creating the challenge:
 
-Prevent OrgProvider from unmounting the entire component tree during a brief refetch:
+```sql
+CREATE OR REPLACE FUNCTION public.initialize_challenge(
+  p_org_id UUID, p_creator_id UUID, p_title TEXT,
+  p_operating_model TEXT DEFAULT 'MP',
+  p_governance_mode_override TEXT DEFAULT NULL
+) RETURNS UUID ...
+AS $$
+DECLARE
+  v_challenge_id UUID;
+  -- existing vars...
+BEGIN
+  -- existing challenge INSERT...
 
-1. Add `useRef` to the import (line 7)
-2. Add `orgLoadedOnce` ref inside `OrgProvider`:
-   ```typescript
-   const orgLoadedOnce = useRef(false);
-   ```
-3. After the hooks section, track successful load:
-   ```typescript
-   if (org) orgLoadedOnce.current = true;
-   ```
-4. Change the loading conditional (line 86) from:
-   ```typescript
-   if (isLoading || isAutoCreating)
-   ```
-   to:
-   ```typescript
-   if ((isLoading && !orgLoadedOnce.current) || isAutoCreating)
-   ```
-   This means: show spinner only on first load or during auto-creation. Once org has loaded once, keep rendering children during background refetches.
+  -- NEW: Assign CR role to creator
+  INSERT INTO public.user_challenge_roles (
+    user_id, challenge_id, role_code, is_active, assigned_by
+  ) VALUES (
+    p_creator_id, v_challenge_id, 'CR', true, p_creator_id
+  ) ON CONFLICT (user_id, challenge_id, role_code) DO NOTHING;
+
+  RETURN v_challenge_id;
+END;
+$$;
+```
+
+This is the minimal, surgical fix. The CR role assignment is atomic with challenge creation — no race conditions, no client-side workaround needed.
 
 ### Summary
 
-| Layer | File | Fix | Prevents |
-|-------|------|-----|----------|
-| 1 (Root cause) | `useAuth.tsx` | `previousUserIdRef` + seed from `getSession()` | Cache wipe on token refresh |
-| 2 (Defense) | `OrgContext.tsx` | `orgLoadedOnce` ref, conditional spinner | Tree unmount during refetch |
-| 3 (Resilience) | `ChallengeCreatePage.tsx` | Already done | Governance/engagement reset |
+| Change | File/Location | What |
+|--------|--------------|------|
+| DB migration | `initialize_challenge` RPC | Add CR role insert after challenge creation |
 
-### Technical Notes
-- Gap 1 (startup race) is addressed by seeding `previousUserIdRef` in `getSession().then()`
-- Gap 2 (Layer 3 missing) is already resolved in the current codebase
-- Gap 3 (missing `useRef` import in OrgContext) is included
-- Gap 4 (signOut double-clear) is cleaned up by removing the direct `queryClient.clear()` from `signOut()`
+No frontend changes needed. The submit flow already correctly passes `creatorId` to `complete_phase`.
 
