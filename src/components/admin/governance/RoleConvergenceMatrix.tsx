@@ -44,7 +44,7 @@ function buildConflictMap(rules: ConflictRule[]): ConflictMap {
   return map;
 }
 
-export function RoleConvergenceMatrix({ governanceMode }: RoleConvergenceMatrixProps) {
+export function RoleConflictMatrix({ governanceMode }: RoleConflictMatrixProps) {
   const queryClient = useQueryClient();
   const isQuick = governanceMode === 'QUICK';
 
