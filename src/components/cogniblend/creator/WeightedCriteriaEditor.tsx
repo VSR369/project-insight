@@ -3,7 +3,8 @@
  * Total must equal 100%. Shows validation state inline.
  */
 
-import { useFieldArray, type Control } from 'react-hook-form';
+import { useEffect } from 'react';
+import { useFieldArray, useWatch, type Control } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -16,10 +17,22 @@ interface WeightedCriteriaEditorProps {
 }
 
 export function WeightedCriteriaEditor({ control, isRequired, error }: WeightedCriteriaEditorProps) {
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: 'weighted_criteria' as never,
   });
+
+  // Watch external form value to sync when form.reset() bypasses useFieldArray
+  const watchedCriteria = useWatch({ control, name: 'weighted_criteria' as never }) as
+    | Array<{ name: string; weight: number }>
+    | undefined;
+
+  useEffect(() => {
+    if (!watchedCriteria || watchedCriteria.length === 0) return;
+    if (fields.length > 0) return;
+    // External value exists but useFieldArray hasn't synced — force replace
+    replace(watchedCriteria as never[]);
+  }, [watchedCriteria, fields.length, replace]);
 
   const items = fields as Array<{ id: string; name: string; weight: number }>;
   const totalWeight = items.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
