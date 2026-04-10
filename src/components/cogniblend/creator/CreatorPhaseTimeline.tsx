@@ -98,16 +98,54 @@ export function CreatorPhaseTimeline({ governanceMode, value, onChange }: Creato
     const updated = phases.map((p, i) => i === idx ? { ...p, target_date: dateStr } : p);
     updated.forEach((p, i) => { p.duration_days = calcDuration(updated, i); });
     setPhases(updated);
-    onChange({ expected_timeline: timeline, phase_durations: updated });
-  }, [phases, timeline, onChange, calcDuration]);
+
+    // Bottom-up sync: snap the dropdown to match the actual date span
+    const lastDate = updated[updated.length - 1].target_date;
+    const newTimeline = lastDate
+      ? daysToTimeline(differenceInCalendarDays(new Date(lastDate), new Date(today)))
+      : timeline;
+    onChange({ expected_timeline: newTimeline, phase_durations: updated });
+  }, [phases, timeline, onChange, calcDuration, today]);
 
   const handleTimelineChange = useCallback((val: string) => {
-    if (showPhases) {
-      onChange({ expected_timeline: val, phase_durations: phases });
-    } else {
+    if (!showPhases) {
       onChange({ expected_timeline: val });
+      return;
     }
-  }, [showPhases, phases, onChange]);
+
+    const newTotalDays = timelineToDays(val);
+    const todayDate = new Date(today);
+
+    // Check if phases already have dates
+    const lastDate = phases[phases.length - 1].target_date;
+    if (lastDate) {
+      // Top-down: proportionally redistribute existing dates
+      const currentTotalDays = differenceInCalendarDays(new Date(lastDate), todayDate);
+      if (currentTotalDays > 0) {
+        const ratio = newTotalDays / currentTotalDays;
+        const redistributed = phases.map((p) => {
+          if (!p.target_date) return p;
+          const offset = differenceInCalendarDays(new Date(p.target_date), todayDate);
+          const newDate = addDays(todayDate, Math.round(offset * ratio));
+          return { ...p, target_date: format(newDate, 'yyyy-MM-dd') };
+        });
+        redistributed.forEach((p, i) => { p.duration_days = calcDuration(redistributed, i); });
+        setPhases(redistributed);
+        onChange({ expected_timeline: val, phase_durations: redistributed });
+        return;
+      }
+    }
+
+    // No dates set: auto-populate with even distribution
+    const step = Math.floor(newTotalDays / phases.length);
+    const autoPop = phases.map((p, i) => ({
+      ...p,
+      target_date: format(addDays(todayDate, step * (i + 1)), 'yyyy-MM-dd'),
+    }));
+    autoPop.forEach((p, i) => { p.duration_days = calcDuration(autoPop, i); });
+    setPhases(autoPop);
+    onChange({ expected_timeline: val, phase_durations: autoPop });
+  }, [showPhases, phases, onChange, today, calcDuration]);
 
   const handleToggle = useCallback((on: boolean) => {
     setShowPhases(on);
