@@ -19,6 +19,11 @@ import { validateRoleAssignment } from "@/hooks/cogniblend/useValidateRoleAssign
 import { getPoolCodesForGovernanceRole } from "@/constants/roleCodeMapping.constants";
 import { logWarning } from "@/lib/errorHandler";
 
+/** STRUCTURED/CONTROLLED modes require a human Curator in the workflow chain */
+function requiresCurator(mode: string): boolean {
+  return mode === 'STRUCTURED' || mode === 'CONTROLLED';
+}
+
 interface AssignmentInput {
   challengeId: string;
   roleCode: string;
