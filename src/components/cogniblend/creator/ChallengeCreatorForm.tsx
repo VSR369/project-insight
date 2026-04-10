@@ -176,9 +176,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     const seed = getSeedForCombination(governanceMode as 'QUICK' | 'STRUCTURED' | 'CONTROLLED', engagementModel as 'MP' | 'AGG');
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
     const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegmentId || '' }, fieldRules) : seed;
-    form.reset(filtered as CreatorFormValues);
+    form.reset(filtered as CreatorFormValues, { keepDefaultValues: true });
     onFillTestData?.();
-    setTimeout(async () => { await draftSave.handleSaveDraft(); toast.success('Test data filled & saved as draft'); }, 150);
+    // Use rAF + microtask to ensure React has flushed form state before saving draft
+    requestAnimationFrame(() => {
+      void form.trigger().then(() => {
+        void draftSave.handleSaveDraft().then(() => {
+          toast.success('Test data filled & saved as draft');
+        });
+      });
+    });
   }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);
 
   if (publishedResult && isQuick) {
