@@ -1,49 +1,69 @@
 
 
-## Fix: complete_phase missing role_code in sla_timers INSERT
+## Integrated Fix: Submit to Curator — All 3 Bugs in One Migration
 
-### Root Cause (confirmed from console logs + DB inspection)
+### Current state (verified from live DB)
 
-The error is: `null value in column "role_code" of relation "sla_timers" violates not-null constraint`
+| Bug | Status | Evidence |
+|-----|--------|----------|
+| Duplicate `initialize_challenge` overload | **LIVE** | 2 rows in `pg_proc` with different arg orders |
+| `complete_phase` SLA: `sla_hours` reference | **Already fixed** | Live function uses `sla_days` correctly |
+| `complete_phase` SLA: missing `role_code` | **Already fixed** | Live function includes `role_code` with `COALESCE` |
+| `initialize_challenge` SLA: missing `role_code`/`deadline_at` | **Swallowed** | Exception block hides the failure — no SLA timer created for Phase 1 |
+| `handle_phase1_bypass` wrong arg count | **LIVE** | Function requires 3 args, called with 1 |
 
-The `complete_phase` function at line 160 inserts into `sla_timers` with only 5 columns:
+### The blocker right now
+
+**Bug 1 (duplicate overload)** is the primary blocker. PostgREST cannot resolve which `initialize_challenge` to call, so challenge creation fails immediately with "Could not choose the best candidate function". Nothing else runs.
+
+### One migration to fix everything
+
+**Step 1 — Drop the accidental duplicate signature**
+
 ```sql
-INSERT INTO public.sla_timers (challenge_id, phase, started_at, deadline_at, status)
+DROP FUNCTION IF EXISTS public.initialize_challenge(uuid, text, uuid, text, text);
 ```
 
-But `sla_timers.role_code` is `NOT NULL`. The insert crashes, rolling back the entire phase transition.
+This removes the overload `(p_org_id, p_title, p_creator_id, p_governance_mode_override, p_operating_model)`.
 
-The `sla_hours` bug was already fixed in the current deployed function (it uses `sla_days` now). The user's root cause analysis references an older state. The **only remaining bug** is the missing `role_code`.
+**Step 2 — Recreate the canonical `initialize_challenge`**
 
-### Fix
+Signature: `(p_org_id UUID, p_creator_id UUID, p_title TEXT, p_operating_model TEXT DEFAULT 'MP', p_governance_mode_override TEXT DEFAULT NULL)`
 
-**One database migration** — recreate `complete_phase` with the SLA insert line fixed to include `role_code`:
+Merged fixes from both solutions:
+- SLA timer insert includes `role_code` (from `required_role`, fallback `'CR'`) and `deadline_at` (from `sla_days`)
+- `handle_phase1_bypass` called with correct 3 args: `(v_challenge_id, p_operating_model, TRUE)`
+- Audit trail and role auto-assignment preserved
+- Exception handling on non-critical blocks
 
-```sql
--- Line 160-162 changes from:
-INSERT INTO public.sla_timers (challenge_id, phase, started_at, deadline_at, status)
-VALUES (p_challenge_id, v_next_phase, NOW(), NOW() + make_interval(days => v_next_config.sla_days), 'ACTIVE')
+**Step 3 — Recreate `complete_phase` with protective wrapping**
 
--- To:
-INSERT INTO public.sla_timers (challenge_id, phase, role_code, started_at, deadline_at, status)
-VALUES (p_challenge_id, v_next_phase, COALESCE(v_next_config.required_role, 'SYS'),
-        NOW(), NOW() + make_interval(days => v_next_config.sla_days), 'ACTIVE')
-```
+The current live function already has the `sla_days` and `role_code` fixes. Solution 1 adds a `BEGIN/EXCEPTION` wrapper around the SLA insert so timer failures never block phase advancement. This is a good hardening measure — adopt it.
 
-The `role_code` comes from the next phase's `required_role` in `md_lifecycle_phase_config`. Falls back to `'SYS'` if null (for auto-complete phases with no explicit role).
+### What changes
 
-### Also check: initialize_challenge SLA insert
+| Area | Change |
+|------|--------|
+| DB: `initialize_challenge` | Drop duplicate, recreate canonical with all fixes |
+| DB: `complete_phase` | Add `BEGIN/EXCEPTION` wrapper around SLA insert (hardening only) |
+| Frontend: `useChallengeSubmit.ts` | Add error mapping for "Could not choose the best candidate function" (optional hardening) |
+| No other files change | |
 
-The `initialize_challenge` function may have the same missing `role_code` bug in its SLA timer insert. I'll verify and fix both in the same migration.
+### Technical details
 
-### No frontend changes needed
+The migration SQL combines:
+1. `DROP FUNCTION` for the bad overload
+2. `CREATE OR REPLACE FUNCTION public.initialize_challenge(...)` — the canonical version from Solution 1, which already includes all fixes from Solution 2
+3. `CREATE OR REPLACE FUNCTION public.complete_phase(...)` — current live version + the `BEGIN/EXCEPTION` wrapper from Solution 1 around the SLA block
 
-The frontend error handling already surfaces the constraint error correctly. Once the DB insert succeeds, the flow will work.
+The `complete_phase` body is taken from Solution 1 since it matches the current live function but adds the protective exception handling. No logic changes — just crash protection.
 
-### Summary
+### Validation
 
-| Change | Location | What |
-|--------|----------|------|
-| DB migration | `complete_phase` RPC | Add `role_code` to sla_timers INSERT |
-| DB migration | `initialize_challenge` RPC | Same fix if applicable |
+After deployment:
+- Save Draft creates a challenge (no ambiguous RPC error)
+- Submit to Curator advances from Phase 1 to Phase 2
+- `sla_timers` row created with valid `role_code` and `deadline_at`
+- AGG model correctly calls `handle_phase1_bypass` with 3 args
+- Recursive auto-complete still works for QUICK mode
 
