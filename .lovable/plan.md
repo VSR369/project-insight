@@ -1,52 +1,34 @@
 
 
-## Creator AI Review — Score Fix Plan
+## Fill Test Data — Bug Fix Plan
 
-### Problem
-Creator AI Review scores always land around ~55 due to 8 root causes, primarily: legal compliance penalization (creators don't attach legal docs), wrong DB column names causing NULL geography, harsh scoring curves, and circular score dependencies.
+### Problems Identified
 
-### Changes
+**Bug 1: Evaluation criteria not appearing on first click (CONTROLLED/STRUCTURED)**
+- `WeightedCriteriaEditor` uses `useFieldArray` which maintains its own internal field registry
+- `form.reset()` updates form values but `useFieldArray`'s `fields` state doesn't re-sync on the same render cycle
+- On second click, `useFieldArray` picks up the already-populated values from the previous reset
 
-**File 1: `supabase/functions/check-challenge-quality/contextFetcher.ts`**
-- Fix org query: change `hq_country_code` → `hq_country_id` and `name` → `organization_name`
-- Add a JOIN to `countries` table to resolve `hq_country_id` (UUID) → `code` (2-letter ISO) for geography lookup
-- Filter challenge fields sent to AI based on governance mode (only send the fields relevant to QUICK/STRUCTURED/CONTROLLED instead of all 40+ fields)
+**Bug 2: Data not persisting on navigation or submit**
+- `handleFillTestData` calls `form.reset(filtered)` which clears `isDirty` flag
+- The `setTimeout(() => draftSave.handleSaveDraft(), 150)` fires before React has flushed the form state — `form.getValues()` may return stale values
+- More critically: the `form.reset()` call resets `isDirty` to `false`, so `form.watch()` in `useFormPersistence` (if used) won't trigger a save
+- The `weighted_criteria` field is stripped by `filterSeedByGovernance` when the governance key `weighted_criteria` is not in `FORM_FIELD_TO_GOVERNANCE_KEY` — checking: it IS missing from the mapping, meaning it's never stripped. But the `stripHiddenFields` function in `useSaveDraft` pathway uses `weightedCriteria` (camelCase) which IS also missing from the mapping. This is fine — unmapped fields pass through.
+- The actual persistence issue: `form.reset()` replaces ALL values atomically, but the 150ms `setTimeout` for `handleSaveDraft` races with React's state updates. The draft save reads `form.getValues()` which may not yet reflect the reset values.
 
-**File 2: `supabase/functions/check-challenge-quality/promptBuilder.ts`**
-- Remove `legal_compliance_score` from scoring criteria in system prompt
-- Replace with 4-dimension model: Completeness, Clarity, Solver Readiness, Governance Alignment
-- Remove "Analyze legal documents" instruction from system prompt
-- Remove legal document section from user prompt when `reviewScope === 'creator_fields_only'`
-- Add explicit instruction: "Do NOT penalize for missing legal documents — legal docs are assembled after curation, not by creators"
-- Adjust scoring guidance to be calibrated: suggestion=minor polish, warning=should address, critical=blocker
+### Fix
 
-**File 3: `supabase/functions/check-challenge-quality/index.ts`**
-- Remove `legal_compliance_score` from TOOL_SCHEMA required fields
-- Remove `legal_gaps` from required fields
-- Keep them as optional (backwards compat for non-creator reviews)
-- Add a new optional `content_quality_score` to replace legal_compliance in creator scope
+**File 1: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
+- In `handleFillTestData`, replace `form.reset(filtered)` with `form.reset(filtered, { keepDefaultValues: true })` — this ensures `useFieldArray` re-initializes its field registry
+- Increase the setTimeout delay from 150ms to 300ms to ensure React has flushed the form state before draft save reads `form.getValues()`
+- Add an explicit `form.trigger()` call after reset to force validation and ensure all field arrays are properly registered
+- Alternatively (more robust): instead of setTimeout, use `requestAnimationFrame` + microtask to ensure the form state is flushed
 
-**File 4: `src/hooks/cogniblend/useCreatorAIReview.ts`**
-- Change `DimensionScores` to 4 dimensions (drop `legalCompliance`)
-- Update `dimAvg` calculation: divide by 4 instead of 5
-- Use `content_quality_score` if returned by AI, otherwise derive from completeness+clarity avg
-
-**File 5: `src/lib/creatorReviewMapper.ts`**
-- Adjust severity scores: `critical: 45`, `warning: 72`, `suggestion: 88`
-- Fix `deriveFieldScore`: no-gap fields score 92-98 (cap 98, floor 82), independent of dimAvg
-- Break circular dependency: no-gap score uses a fixed baseline, not dimAvg
-
-**File 6: `src/components/cogniblend/creator/DimensionScoreBadges.tsx`**
-- Remove `legalCompliance` dimension from display
-- Update to show 4 badges instead of 5
-
-### Risk Assessment
-- **LOW risk**: All changes are scoped to Creator review path only (`reviewScope === 'creator_fields_only'`). Non-creator reviews (Curator/LC) are unaffected because they don't use this edge function.
-- The tool schema keeps legal fields as optional, so if the AI returns them they're just ignored client-side.
-- Geography fix corrects a bug — previously always NULL.
+**File 2: `src/components/cogniblend/creator/WeightedCriteriaEditor.tsx`**
+- Add a `useEffect` that watches the form's `weighted_criteria` value via `useWatch` and forces `useFieldArray` to `replace()` when the external value changes but `fields` is empty — this handles the sync gap on `form.reset()`
 
 ### Technical Details
-- `seeker_organizations.hq_country_id` is a UUID FK to `countries(id)` where `countries.code` has the 2-letter ISO code
-- The context fetcher will JOIN: `.select("id, organization_type_id, hq_country_id, governance_profile, organization_name, countries(code)")` 
-- Then extract: `const countryCode = org?.countries?.code`
+- `useFieldArray` in react-hook-form v7 has a known behavior where `form.reset()` doesn't always trigger a re-render of the field array component in the same cycle
+- The fix uses `replace()` from `useFieldArray` which explicitly overwrites the field array's internal state
+- For persistence: the 150ms delay is inherently fragile. A better pattern is to call `handleSaveDraft` directly after confirming form values are set, using `await` on a microtask
 
