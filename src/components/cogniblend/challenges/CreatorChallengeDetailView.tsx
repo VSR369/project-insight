@@ -9,6 +9,7 @@ import {
   ArrowLeft, Building2, Globe, Search, BookOpen, Info, FileText,
 } from 'lucide-react';
 import { ChallengeConfigSummary } from './ChallengeConfigSummary';
+import { CreatorAttachmentsSection } from './CreatorAttachmentsSection';
 import { ChallengeLegalDocsCard } from './ChallengeLegalDocsCard';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FilteredSections, type SectionDef } from './CreatorSectionRenderers';
-import { buildMyVersionSections, buildCuratorSections } from './CreatorSectionBuilders';
+import { buildMyVersionSections, buildCuratorSections, CREATOR_SECTION_KEYS } from './CreatorSectionBuilders';
 import type { PublicChallengeData } from '@/hooks/cogniblend/usePublicChallenge';
 import { resolveGovernanceMode } from '@/lib/governanceMode';
 import { governanceLabel, complexityColor } from '@/lib/cogniblend/displayHelpers';
@@ -46,12 +47,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   const isQuickMode = effectiveGovernance === 'QUICK';
 
   const creatorKeys = useMemo(() => {
-    const keys: Record<string, string[]> = {
-      QUICK: ['problem_statement', 'domain_tags', 'platinum_award'],
-      STRUCTURED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria'],
-      CONTROLLED: ['problem_statement', 'scope', 'domain_tags', 'maturity_level', 'platinum_award', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
-    };
-    return keys[effectiveGovernance] ?? keys.STRUCTURED;
+    return CREATOR_SECTION_KEYS[effectiveGovernance] ?? CREATOR_SECTION_KEYS.STRUCTURED;
   }, [effectiveGovernance]);
 
   const statusMessage = useMemo(() => {
@@ -210,6 +206,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         </Tabs>
       )}
 
+      <CreatorAttachmentsSection challengeId={challengeId} />
       <ChallengeLegalDocsCard challengeId={challengeId} isQuickMode={isQuickMode} />
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />
