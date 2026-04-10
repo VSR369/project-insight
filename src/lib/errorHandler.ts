@@ -271,6 +271,11 @@ export function getUserFacingMessage(technicalMessage: string, operation: string
     return 'A background process could not be dispatched. The save may have succeeded — please refresh and verify. Contact support if the issue persists.';
   }
 
+  // RPC resolution ambiguity (duplicate function signatures)
+  if (lowerMessage.includes('could not choose the best candidate function')) {
+    return 'A server configuration issue prevented this action. Please try again or contact support.';
+  }
+
   // Constraint errors
   if (lowerMessage.includes('constraint') || lowerMessage.includes('unique') || lowerMessage.includes('foreign key') || lowerMessage.includes('check constraint')) {
     return 'A data constraint prevented this action. Please check your input and try again.';
