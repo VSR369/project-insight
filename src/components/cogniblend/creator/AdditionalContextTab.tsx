@@ -20,12 +20,6 @@ import { toast } from 'sonner';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
-
-const TIMELINE_OPTIONS = [
-  { value: '4w', label: '4 weeks' }, { value: '8w', label: '8 weeks' },
-  { value: '16w', label: '16 weeks' }, { value: '32w', label: '32 weeks' },
-] as const;
-
 const LINE_ITEM_FIELDS = [
   { key: 'preferred_approach' as const, label: 'Preferred Approach', placeholder: 'Any preferred technology or methodology?', addLabel: 'Add Approach' },
   { key: 'approaches_not_of_interest' as const, label: 'Approaches NOT of Interest', placeholder: "Anything you've tried or don't want?", addLabel: 'Add Exclusion' },

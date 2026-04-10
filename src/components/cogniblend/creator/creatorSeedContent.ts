@@ -289,11 +289,24 @@ export function getSeedForCombination(
     };
   }
 
-  // CONTROLLED: full content with Delphi evaluation
+  // CONTROLLED: full content with Delphi evaluation + creator phase durations
+  const today = new Date();
+  const d = (offset: number) => {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() + offset);
+    return dt.toISOString().split('T')[0];
+  };
   return {
     ...base,
     evaluation_method: 'DELPHI',
     evaluator_count: 3,
+    phase_durations: [
+      { phase_number: 5, label: 'Solver Submission Period', target_date: d(45), duration_days: 45 },
+      { phase_number: 6, label: 'Abstract/Proposal Review', target_date: d(62), duration_days: 17 },
+      { phase_number: 8, label: 'Full Solution Review', target_date: d(93), duration_days: 31 },
+      { phase_number: 9, label: 'Award Decision', target_date: d(107), duration_days: 14 },
+      { phase_number: 10, label: 'Payment & Delivery', target_date: d(123), duration_days: 16 },
+    ],
     creator_legal_instructions: engagementModel === 'MP'
       ? 'Financial transaction data subject to SOX, GDPR, and 40+ jurisdictional regulations. CPA must include cross-border data transfer clauses and mandatory arbitration in Singapore.'
       : 'HIPAA compliance required — all IP clauses must reference 45 CFR Part 164. Mandatory arbitration in Delaware. Data residency restricted to US-based servers.',
