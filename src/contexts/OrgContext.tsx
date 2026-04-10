@@ -50,6 +50,11 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { data: org, isLoading, error } = useCurrentOrg();
   const queryClient = useQueryClient();
 
+  // Track whether org was successfully loaded at least once.
+  // Prevents unmounting the entire component tree during brief refetches.
+  const orgLoadedOnce = useRef(false);
+  if (org) orgLoadedOnce.current = true;
+
   // ══════════════════════════════════════
   // SECTION 3: useEffect — auto-onboarding
   // ══════════════════════════════════════
@@ -83,7 +88,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   // ══════════════════════════════════════
   // SECTION 4: Conditional returns
   // ══════════════════════════════════════
-  if (isLoading || isAutoCreating) {
+  if ((isLoading && !orgLoadedOnce.current) || isAutoCreating) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="text-center space-y-3">
