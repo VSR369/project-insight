@@ -1,68 +1,59 @@
 
 
-## Fix Seed Demo + Fill Test Data + Field Sync Bugs
+## Bidirectional Sync: Target Timeline ↔ Phase Schedule
 
-### Problem Summary
-1. **Seed Demo edge function** — CONTROLLED challenges (C1, C2) have no `phase_durations` or `source` in `phase_schedule`
-2. **WeightedCriteriaEditor double-click bug** — The `useEffect` sync only replaces when `fields.length === 0`, so on second fill, stale fields persist until a re-render cycle
-3. **CreatorPhaseTimeline internal state not syncing** — Uses `useState` initialized once; `form.reset()` doesn't update internal `phases` state, so toggling shows stale/empty dates after fill
+### Problem
+Currently there is **no sync** between the two controls:
+1. Changing the **Target Timeline** dropdown (e.g., 4w → 16w) does NOT adjust phase dates
+2. Changing **phase dates** does NOT update the Target Timeline dropdown to reflect actual total duration
+3. The dropdown only offers fixed values (4w/8w/16w/32w), so a 72-day schedule still shows "8 weeks"
 
-### Changes
+### Solution
 
-**File 1: `supabase/functions/setup-test-scenario/index.ts`**
-- C1 (CONTROLLED+AGG, line 260): Replace `phase_schedule: { expected_timeline: "6-12" }` with:
-  ```
-  phase_schedule: {
-    expected_timeline: "6-12",
-    source: "creator",
-    phase_durations: [
-      { phase_number: 5, label: "Solver Submission Period", target_date: "2026-07-15", duration_days: 45 },
-      { phase_number: 6, label: "Abstract/Proposal Review", target_date: "2026-08-01", duration_days: 17 },
-      { phase_number: 8, label: "Full Solution Review", target_date: "2026-09-01", duration_days: 31 },
-      { phase_number: 9, label: "Award Decision", target_date: "2026-09-15", duration_days: 14 },
-      { phase_number: 10, label: "Payment & Delivery", target_date: "2026-10-01", duration_days: 16 },
-    ]
-  }
-  ```
-- C2 (CONTROLLED+MP, line 287): Same pattern with slightly different dates
-- C3/C4 (STRUCTURED): Add `source: "creator"` only (no `phase_durations` — Curator sets phases)
+**Direction 1 — Phase dates → Timeline dropdown (bottom-up sync):**
+- After any phase date change, calculate `totalDays` from today to last phase date
+- Find the closest matching `TIMELINE_OPTIONS` entry and auto-update the dropdown
+- Use a "snap to nearest" approach: 0-35 days → 4w, 36-84 → 8w, 85-168 → 16w, 169+ → 32w
 
-**File 2: `src/components/cogniblend/creator/WeightedCriteriaEditor.tsx`**
-- Fix the sync `useEffect` to handle both cases: fields empty AND fields stale (different length than watched value)
-- Change condition from `fields.length === 0` to comparing lengths AND checking if values actually differ:
-  ```typescript
-  useEffect(() => {
-    if (!watchedCriteria || watchedCriteria.length === 0) return;
-    // Replace when fields are empty OR when external value changed (e.g., second fill)
-    if (fields.length !== watchedCriteria.length ||
-        fields.some((f, i) => (f as any).name !== watchedCriteria[i]?.name)) {
-      replace(watchedCriteria as never[]);
-    }
-  }, [watchedCriteria, fields, replace]);
-  ```
+**Direction 2 — Timeline dropdown → Phase dates (top-down sync):**
+- When user changes the dropdown AND phases already have dates, proportionally redistribute dates
+- Calculate current total span, compute scale factor (`newDays / oldDays`), apply to each phase offset from today
+- If no dates are set yet, auto-populate evenly spaced dates across the selected duration
 
-**File 3: `src/components/cogniblend/creator/CreatorPhaseTimeline.tsx`**
-- Add a `useEffect` that watches `value.phase_durations` prop and syncs internal `phases` state + `showPhases` toggle when the external value changes (handles `form.reset()` from Fill Test Data):
-  ```typescript
-  useEffect(() => {
-    const incoming = value.phase_durations;
-    if (incoming?.length) {
-      setPhases(incoming);
-      setShowPhases(true);
-    } else if (!incoming || incoming.length === 0) {
-      setShowPhases(false);
-      setPhases(CREATOR_PHASES.map(p => ({ ... empty ... })));
-    }
-  }, [value.phase_durations]);
-  ```
-- This ensures: CONTROLLED fill → toggle ON with dates populated; STRUCTURED fill → toggle OFF with empty phases
+### Changes — Single file: `src/components/cogniblend/creator/CreatorPhaseTimeline.tsx`
 
-**File 4: `src/components/cogniblend/creator/creatorSeedContent.ts`**
-- Already has `phase_durations` for CONTROLLED (lines 303-309) — no change needed
-- Already has empty `phase_durations` for STRUCTURED — no change needed
+1. **Add `daysToTimeline` helper** — maps total days to nearest timeline option value
+   ```
+   function daysToTimeline(days: number): string {
+     if (days <= 35) return '4w';
+     if (days <= 84) return '8w';
+     if (days <= 168) return '16w';
+     return '32w';
+   }
+   ```
+
+2. **Update `updatePhaseDate`** — after setting dates and calling `onChange`, also compute the matching timeline:
+   ```
+   const lastDate = updated[updated.length - 1].target_date;
+   if (lastDate) {
+     const total = differenceInCalendarDays(new Date(lastDate), new Date(today));
+     const newTimeline = daysToTimeline(total);
+     onChange({ expected_timeline: newTimeline, phase_durations: updated });
+   }
+   ```
+
+3. **Update `handleTimelineChange`** — when dropdown changes and phases have dates, redistribute:
+   - Calculate current total span (today → last phase date)
+   - Compute ratio: `newDays / currentTotalDays`
+   - Scale each phase's offset from today by that ratio, round to whole days
+   - Recalculate `duration_days` for each phase
+   - Call `setPhases(redistributed)` and `onChange` with both new timeline and updated phases
+   - If no dates set, auto-populate with even distribution across the new duration
+
+4. **Remove the mismatch warning badge** — since timeline and dates now stay in sync, the "X days over/under" warning becomes unnecessary (dates always snap the dropdown). Keep total days badge for reference.
 
 ### Technical Notes
-- The WeightedCriteriaEditor fix uses a shallow comparison of criterion names to detect stale fields, avoiding unnecessary re-renders when values haven't changed
-- The CreatorPhaseTimeline sync uses a JSON-stable reference check via the prop to avoid infinite loops
-- Edge function deploy required for seed demo changes
+- The proportional redistribution preserves the relative spacing the user set — e.g., if submission was 50% of total time, it stays 50% after rescaling
+- `daysToTimeline` uses midpoint boundaries so the dropdown reflects the closest standard option
+- No schema or payload changes needed — `expected_timeline` and `phase_durations` are already wired
 
