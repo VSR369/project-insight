@@ -48,6 +48,14 @@ function timelineToDays(tl: string): number {
   return TIMELINE_OPTIONS.find((o) => o.value === tl)?.days ?? 56;
 }
 
+/** Snap a day-count to the closest standard timeline option */
+function daysToTimeline(days: number): string {
+  if (days <= 35) return '4w';
+  if (days <= 84) return '8w';
+  if (days <= 168) return '16w';
+  return '32w';
+}
+
 export function CreatorPhaseTimeline({ governanceMode, value, onChange }: CreatorPhaseTimelineProps) {
   const timeline = value.expected_timeline || '8w';
   const [showPhases, setShowPhases] = useState(() => (value.phase_durations?.length ?? 0) > 0);
