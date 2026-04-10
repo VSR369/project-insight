@@ -1,59 +1,31 @@
 
 
-## Bidirectional Sync: Target Timeline ↔ Phase Schedule
+## Fix Timeline Format Mismatches in Seed & Fill Data
 
 ### Problem
-Currently there is **no sync** between the two controls:
-1. Changing the **Target Timeline** dropdown (e.g., 4w → 16w) does NOT adjust phase dates
-2. Changing **phase dates** does NOT update the Target Timeline dropdown to reflect actual total duration
-3. The dropdown only offers fixed values (4w/8w/16w/32w), so a 72-day schedule still shows "8 weeks"
+The bidirectional sync introduced `4w/8w/16w/32w` as the only valid timeline dropdown values. But both seed sources still use old formats:
+- **Fill Test Data**: MP_SEED uses `'24w'`, AGG_SEED uses `'20w'` — neither exists in the dropdown
+- **Seed Demo edge function**: All 4 challenges use month-range strings (`"6-12"`, `"9-12"`, `"3-6"`) instead of week codes
 
-### Solution
+This means the Target Timeline dropdown won't display a selection for seeded/filled data, and the bidirectional sync logic can't match these values.
 
-**Direction 1 — Phase dates → Timeline dropdown (bottom-up sync):**
-- After any phase date change, calculate `totalDays` from today to last phase date
-- Find the closest matching `TIMELINE_OPTIONS` entry and auto-update the dropdown
-- Use a "snap to nearest" approach: 0-35 days → 4w, 36-84 → 8w, 85-168 → 16w, 169+ → 32w
+### Changes
 
-**Direction 2 — Timeline dropdown → Phase dates (top-down sync):**
-- When user changes the dropdown AND phases already have dates, proportionally redistribute dates
-- Calculate current total span, compute scale factor (`newDays / oldDays`), apply to each phase offset from today
-- If no dates are set yet, auto-populate evenly spaced dates across the selected duration
+**File 1: `src/components/cogniblend/creator/creatorSeedContent.ts`**
+- MP_SEED (line 124): Change `expected_timeline: '24w'` → `'32w'` (closest valid option for ~168 day challenge)
+- AGG_SEED (line 232): Change `expected_timeline: '20w'` → `'16w'` (closest valid option for ~140 days)
+- CONTROLLED branch (line 303-309): The phase_durations total 123 days → `daysToTimeline(123)` = `'16w'`, so the base `expected_timeline` inherited from MP/AGG seed will now be correct after the above fix
 
-### Changes — Single file: `src/components/cogniblend/creator/CreatorPhaseTimeline.tsx`
-
-1. **Add `daysToTimeline` helper** — maps total days to nearest timeline option value
-   ```
-   function daysToTimeline(days: number): string {
-     if (days <= 35) return '4w';
-     if (days <= 84) return '8w';
-     if (days <= 168) return '16w';
-     return '32w';
-   }
-   ```
-
-2. **Update `updatePhaseDate`** — after setting dates and calling `onChange`, also compute the matching timeline:
-   ```
-   const lastDate = updated[updated.length - 1].target_date;
-   if (lastDate) {
-     const total = differenceInCalendarDays(new Date(lastDate), new Date(today));
-     const newTimeline = daysToTimeline(total);
-     onChange({ expected_timeline: newTimeline, phase_durations: updated });
-   }
-   ```
-
-3. **Update `handleTimelineChange`** — when dropdown changes and phases have dates, redistribute:
-   - Calculate current total span (today → last phase date)
-   - Compute ratio: `newDays / currentTotalDays`
-   - Scale each phase's offset from today by that ratio, round to whole days
-   - Recalculate `duration_days` for each phase
-   - Call `setPhases(redistributed)` and `onChange` with both new timeline and updated phases
-   - If no dates set, auto-populate with even distribution across the new duration
-
-4. **Remove the mismatch warning badge** — since timeline and dates now stay in sync, the "X days over/under" warning becomes unnecessary (dates always snap the dropdown). Keep total days badge for reference.
+**File 2: `supabase/functions/setup-test-scenario/index.ts`**
+- C1 CONTROLLED+AGG (line 261): `"6-12"` → `"16w"` (123 days of phases = 16w bucket)
+- C2 CONTROLLED+MP (line 297): `"9-12"` → `"16w"` (140 days of phases = 16w bucket)
+- C3 STRUCTURED+AGG (line 329): `"3-6"` → `"8w"` (structured, no phase dates)
+- C4 STRUCTURED+MP (line 351): `"3-6"` → `"8w"`
+- Also check C5/C6 (QUICK) for the same issue
+- Redeploy the edge function
 
 ### Technical Notes
-- The proportional redistribution preserves the relative spacing the user set — e.g., if submission was 50% of total time, it stays 50% after rescaling
-- `daysToTimeline` uses midpoint boundaries so the dropdown reflects the closest standard option
-- No schema or payload changes needed — `expected_timeline` and `phase_durations` are already wired
+- The `daysToTimeline` snap boundaries: ≤35→4w, ≤84→8w, ≤168→16w, 169+→32w
+- No schema changes needed — just value alignment
+- Edge function redeploy required
 
