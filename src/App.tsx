@@ -6,7 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from "react-router-dom";
 const RegistrationLayout = lazy(() => import("@/components/layouts/RegistrationLayout").then(m => ({ default: m.RegistrationLayout })));
 import { AuthProvider } from "@/hooks/useAuth";
-const CogniShell = lazy(() => import("@/components/cogniblend/shell/CogniShell").then(m => ({ default: m.CogniShell })));
+import { CogniShell } from "@/components/cogniblend/shell/CogniShell";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -237,7 +237,7 @@ const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage
 // CogniBlend Pages (lazy loaded)
 const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
 const DemoLoginPage = lazy(() => import("@/pages/cogniblend/DemoLoginPage"));
-const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
+import CogniDashboardPage from "@/pages/cogniblend/CogniDashboardPage";
 
 const CogniChallengeCreatePage = lazy(() => import("@/pages/cogniblend/ChallengeCreatePage"));
 const AISpecReviewPage = lazy(() => import("@/pages/cogniblend/AISpecReviewPage"));
@@ -352,7 +352,7 @@ const App = () => (
                 <CogniShell />
               </AuthGuard>
             }>
-              <Route path="/cogni/dashboard" element={<LazyRoute><CogniDashboardPage /></LazyRoute>} />
+              <Route path="/cogni/dashboard" element={<CogniDashboardPage />} />
               <Route path="/cogni/challenges/create" element={<LazyRoute><CogniChallengeCreatePage /></LazyRoute>} />
               <Route path="/cogni/challenges/new" element={<Navigate to="/cogni/challenges/create" replace />} />
               <Route path="/cogni/challenges/:id/spec" element={<LazyRoute><AISpecReviewPage /></LazyRoute>} />
