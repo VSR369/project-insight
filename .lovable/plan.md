@@ -1,56 +1,32 @@
 
 
-## Fix: Save Draft Silent Failure — Missing User Feedback on Early Returns
+## Fix: Save Draft Toast & Race Condition Bugs
 
-### Root Cause
+### What's wrong
 
-The `handleSaveDraft` function in `useCreatorDraftSave.ts` has **silent early returns** at lines 42-44:
+1. **Double toast on save**: `useSaveDraft.onSuccess` shows "Draft saved successfully" and `useUpdateDraft.onSuccess` shows "Draft updated successfully". These are the only toast sources — the caller (`handleSaveDraft`) has no toast of its own. The problem is there's no differentiation for the user, and if the mutation succeeds, the toast fires automatically. This is actually correct single-toast behavior per mutation. However, if future code adds a toast in `handleSaveDraft`, it would double up. The comment on line 82 is misleading.
 
-```typescript
-if (!form) return;              // no toast, no message
-if (!orgId || !userId) return;  // no toast, no message
-```
+2. **No early-exit guard in handleSaveDraft**: If `isSaving` is true (rapid double-click), the function still executes because there's no `if (isSaving) return` guard inside the callback itself — the button `disabled` prop helps but isn't bulletproof (race between click event and React re-render).
 
-When any of these conditions is true, the Save Draft button click does absolutely nothing — no loading spinner, no success toast, no error toast. The user sees no feedback whatsoever.
+3. **No "already saved" indicator**: When a draft already exists and nothing changed, the update still fires silently.
 
-This happens when:
-- `draftForm` is still `null` (set via `useEffect` with a render delay)
-- `currentOrg?.organizationId` is undefined (org data still loading)
-- `user?.id` is undefined (auth state not yet resolved)
+### Changes
 
-Additionally, the `catch` block at line 77 is empty (`catch { /* handled by mutation onError */ }`), which is correct since the mutation's `onError` handles it — but the early returns bypass the mutation entirely.
+**File 1: `src/hooks/cogniblend/useChallengeSubmit.ts`**
+- Remove `toast.success(...)` from `useSaveDraft.onSuccess` (line 294)
+- Remove `toast.success(...)` from `useUpdateDraft.onSuccess` (line 322)
+- Keep query invalidation in both `onSuccess` handlers
 
-### Fix
+**File 2: `src/hooks/cogniblend/useCreatorDraftSave.ts`**
+- Add `isSaving` guard at top of `handleSaveDraft`: `if (isSaving) return;` — prevents race condition
+- Add `toast.success()` after successful save/update with distinct messages:
+  - New draft: `toast.success('Draft saved successfully')`
+  - Existing draft updated: `toast.success('Draft updated successfully')`
+- Keep existing `toast.error()` guards for missing form/org/user
 
-**One file change: `src/hooks/cogniblend/useCreatorDraftSave.ts`**
+### Why this is the correct fix (not a workaround)
 
-Replace the silent early returns with user-facing toast warnings:
-
-```typescript
-const handleSaveDraft = useCallback(async () => {
-  if (!form) {
-    toast.error('Form is not ready yet. Please wait a moment and try again.');
-    return;
-  }
-  const data = form.getValues();
-  if (!orgId || !userId) {
-    toast.error('Organization or user context not loaded. Please wait and try again.');
-    return;
-  }
-  // ... rest of the function unchanged
-```
-
-This is not a workaround — it is the correct fix. The early returns are legitimate guard clauses, but they must inform the user instead of silently swallowing the click.
-
-### No other changes needed
-
-- The DB functions (`initialize_challenge`, `complete_phase`) are already fixed and verified
-- The mutation `onSuccess` and `onError` handlers already show toasts correctly
-- Only these silent guard clauses lack feedback
-
-### Summary
-
-| File | Change |
-|------|--------|
-| `src/hooks/cogniblend/useCreatorDraftSave.ts` | Add toast.error() to both early return paths (lines 42, 44) |
+- Toast responsibility belongs in the orchestrator (`handleSaveDraft`) which knows whether it's a create or update — not in the generic mutation hooks which don't have that context
+- The `isSaving` guard inside the callback is defense-in-depth against the React render cycle race — the button `disabled` prop is the primary guard but isn't synchronous with click dispatch
+- No tech debt: clean separation of concerns between mutation hooks (data + cache) and orchestrator (UX feedback)
 
