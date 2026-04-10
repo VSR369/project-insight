@@ -189,9 +189,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     // Use rAF + microtask to ensure React has flushed form state before saving draft
     requestAnimationFrame(() => {
       void form.trigger().then(() => {
-        void draftSave.handleSaveDraft().then(() => {
-          toast.success('Test data filled & saved as draft');
-        });
+        void draftSave.handleSaveDraft();
       });
     });
   }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);

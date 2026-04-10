@@ -6,7 +6,7 @@
  * Step 2: ChallengeCreatorForm (governance-aware 2-tab form)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Building2 } from 'lucide-react';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
@@ -46,10 +46,15 @@ export default function ChallengeCreatePage() {
     if (orgIndustry) setIndustrySegmentId(orgIndustry);
   }, [orgContext]);
 
+  const governanceInitialized = useRef(false);
+  const engagementInitialized = useRef(false);
+
   useEffect(() => {
+    if (governanceInitialized.current) return;
     const demoGov = sessionStorage.getItem('cogni_demo_governance') as GovernanceMode | null;
     sessionStorage.removeItem('cogni_demo_governance');
     if (currentOrg) {
+      governanceInitialized.current = true;
       const available = getAvailableGovernanceModes(currentOrg.tierCode);
       if (demoGov && available.includes(demoGov)) {
         setGovernanceMode(demoGov);
@@ -60,11 +65,14 @@ export default function ChallengeCreatePage() {
   }, [currentOrg]);
 
   useEffect(() => {
+    if (engagementInitialized.current) return;
     const demoEng = sessionStorage.getItem('cogni_demo_engagement');
     if (demoEng && ['MP', 'AGG'].includes(demoEng)) {
+      engagementInitialized.current = true;
       setEngagementModel(demoEng);
       sessionStorage.removeItem('cogni_demo_engagement');
     } else if (orgContext?.operatingModel) {
+      engagementInitialized.current = true;
       setEngagementModel(orgContext.operatingModel === 'AGG' ? 'AGG' : 'MP');
     }
   }, [orgContext?.operatingModel]);

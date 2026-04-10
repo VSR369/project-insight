@@ -73,7 +73,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         setDraftChallengeId(result.challengeId);
         onDraftIdChange?.(result.challengeId);
       }
-      toast.success(draftChallengeId ? 'Draft updated' : 'Draft saved');
+      // Toast handled by mutation onSuccess handlers in useChallengeSubmit
     } catch { /* handled by mutation onError */ }
   }, [form, orgId, userId, engagementModel, governanceMode, industrySegmentId, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
 
