@@ -101,7 +101,13 @@ export function useChallengeSubmit() {
           evaluation_criteria: filteredPayload.weightedCriteria?.length
             ? { weighted_criteria: filteredPayload.weightedCriteria }
             : null,
-          phase_schedule: { expected_timeline: filteredPayload.expectedTimeline },
+          phase_schedule: {
+            expected_timeline: filteredPayload.expectedTimeline,
+            source: 'creator',
+            ...(filteredPayload.phaseDurations?.length
+              ? { phase_durations: filteredPayload.phaseDurations }
+              : {}),
+          },
           governance_mode_override: payload.governanceModeOverride ?? null,
           eligibility: JSON.stringify({
             domain_tags: filteredPayload.domainTags, urgency: filteredPayload.urgency,
@@ -149,7 +155,14 @@ export function useChallengeSubmit() {
       const rawSnapshot: Record<string, unknown> = {
         problem_statement: filteredPayload.businessProblem, scope: filteredPayload.constraints || null,
         expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
-        reward_structure: rewardStructure, phase_schedule: { expected_timeline: filteredPayload.expectedTimeline },
+        reward_structure: rewardStructure,
+        phase_schedule: {
+          expected_timeline: filteredPayload.expectedTimeline,
+          source: 'creator',
+          ...(filteredPayload.phaseDurations?.length
+            ? { phase_durations: filteredPayload.phaseDurations }
+            : {}),
+        },
         extended_brief: filteredSnapshotBrief,
         title: payload.title?.trim() || payload.businessProblem.substring(0, 100).trim(),
         maturity_level: normalizedConstrainedFields.maturity_level,
