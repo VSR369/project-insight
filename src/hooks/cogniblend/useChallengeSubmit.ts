@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';
 import { autoAssignChallengeRole } from '@/hooks/cogniblend/useAutoAssignChallengeRoles';
+import { sendRoutedNotification } from '@/services/notificationRoutingService';
 import {
   fetchGovernanceFieldRules,
   stripHiddenFields,
@@ -209,32 +210,65 @@ export function useChallengeSubmit() {
             industrySegmentId: payload.industrySegmentId || undefined,
             assignedBy: payload.creatorId,
           });
-          // Notify the assigned curator
-          const { data: curatorRoles } = await supabase
-            .from('user_challenge_roles')
-            .select('user_id')
-            .eq('challenge_id', challengeId)
-            .eq('role_code', 'CU')
-            .eq('is_active', true)
-            .limit(5);
-
-          if (curatorRoles && curatorRoles.length > 0) {
-            const notifRows = curatorRoles.map((r) => ({
-              user_id: r.user_id,
-              notification_type: 'CHALLENGE_ASSIGNED_CU',
-              title: 'New Challenge for Curation',
-              message: `Challenge "${payload.title ?? 'Untitled'}" has been assigned to you for curation review.`,
-              challenge_id: challengeId,
-              is_read: false,
-            }));
-            await supabase.from('cogni_notifications').insert(notifRows);
-          }
         } catch (err) {
           logWarning('Auto-assign CU after submit failed', {
             operation: 'auto_assign_challenge_role',
             additionalData: { challengeId, error: String(err) },
           });
         }
+
+        // Notify via routing infrastructure (fans out to primary + CC + escalation roles)
+        const challengeTitle = payload.title ?? 'Untitled';
+        try {
+          const routed = await sendRoutedNotification({
+            challengeId,
+            phase: 2,
+            eventType: 'ROLE_ASSIGNED',
+            title: 'New Challenge for Curation',
+            message: `Challenge "${challengeTitle}" has been assigned for curation review.`,
+          });
+
+          // Fallback: if no routing config matched, notify CU directly
+          if (routed === 0) {
+            const { data: curatorRoles } = await supabase
+              .from('user_challenge_roles')
+              .select('user_id')
+              .eq('challenge_id', challengeId)
+              .eq('role_code', 'CU')
+              .eq('is_active', true)
+              .limit(5);
+
+            if (curatorRoles && curatorRoles.length > 0) {
+              const notifRows = curatorRoles.map((r) => ({
+                user_id: r.user_id,
+                notification_type: 'CHALLENGE_ASSIGNED_CU',
+                title: 'New Challenge for Curation',
+                message: `Challenge "${challengeTitle}" has been assigned to you for curation review.`,
+                challenge_id: challengeId,
+                is_read: false,
+              }));
+              await supabase.from('cogni_notifications').insert(notifRows);
+            }
+          }
+        } catch (notifErr) {
+          logWarning('Curator notification failed', {
+            operation: 'send_routed_notification',
+            additionalData: { challengeId, error: String(notifErr) },
+          });
+        }
+      }
+
+      // Phase 1 completion notification (non-blocking)
+      try {
+        await sendRoutedNotification({
+          challengeId,
+          phase: 1,
+          eventType: 'PHASE_COMPLETE',
+          title: 'Challenge Submitted',
+          message: `Challenge "${payload.title ?? 'Untitled'}" has been submitted for curation.`,
+        });
+      } catch {
+        // Non-critical — don't block submission
       }
 
       // QUICK: auto-notify registered solvers (non-blocking)
