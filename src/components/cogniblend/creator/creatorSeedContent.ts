@@ -127,6 +127,7 @@ export const MP_SEED: SeedContent = {
   evaluation_method: 'SINGLE',
   evaluator_count: 1,
   creator_legal_instructions: '',
+  phase_durations: [],
 };
 
 /**
@@ -234,6 +235,7 @@ export const AGG_SEED: SeedContent = {
   evaluation_method: 'SINGLE',
   evaluator_count: 1,
   creator_legal_instructions: '',
+  phase_durations: [],
 };
 
 /**

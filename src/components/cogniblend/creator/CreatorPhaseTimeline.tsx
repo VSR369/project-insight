@@ -185,7 +185,7 @@ export function CreatorPhaseTimeline({ governanceMode, value, onChange }: Creato
             <div className="flex items-center gap-2 text-sm">
               <Badge variant="outline">Total: {totalDays} days</Badge>
               {Math.abs(daysDiff) > 7 && (
-                <Badge variant="outline" className={cn(daysDiff > 0 ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-blue-300 bg-blue-50 text-blue-700')}>
+                <Badge variant="outline" className={cn(daysDiff > 0 ? 'border-destructive/40 bg-destructive/10 text-destructive' : 'border-primary/40 bg-primary/10 text-primary')}>
                   {daysDiff > 0 ? `${daysDiff} days over` : `${Math.abs(daysDiff)} days under`} selected timeline
                 </Badge>
               )}
