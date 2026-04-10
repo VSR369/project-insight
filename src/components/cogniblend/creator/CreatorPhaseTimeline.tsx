@@ -3,7 +3,7 @@
  * STRUCTURED and CONTROLLED governance modes only.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, differenceInCalendarDays, addDays } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
