@@ -144,6 +144,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       evaluationMethod: data.evaluation_method,
       evaluatorCount: data.evaluator_count,
       creatorLegalInstructions: data.creator_legal_instructions || undefined,
+      phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined,
     };
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
@@ -166,10 +167,17 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     } catch { /* handled by mutation onError */ }
   }, [buildPayload, submitMutation, referenceUrls, draftSave.draftChallengeId, attachedFiles, currentOrg, user, navigate, isQuick, uploadFiles]);
 
-  const handleSubmit = form.handleSubmit(async (data) => {
-    if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
-    executeSubmit(data);
-  });
+  const handleSubmit = form.handleSubmit(
+    async (data) => {
+      if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
+      executeSubmit(data);
+    },
+    (errors) => {
+      const firstKey = Object.keys(errors)[0];
+      const firstError = errors[firstKey as keyof typeof errors];
+      toast.error(`Please fix: ${firstError?.message || firstKey}`);
+    },
+  );
 
   const handleFillTestData = useCallback(() => {
     if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
