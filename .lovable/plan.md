@@ -1,59 +1,68 @@
 
 
-## Phase-wise Timeline Toggle for Creator Screen
+## Fix Seed Demo + Fill Test Data + Field Sync Bugs
 
-### Overview
-Add a toggle to STRUCTURED and CONTROLLED governance modes that lets creators optionally define target dates for solver-facing phases. Default shows duration-only (current behavior). When toggled ON, shows an editable phase table.
+### Problem Summary
+1. **Seed Demo edge function** — CONTROLLED challenges (C1, C2) have no `phase_durations` or `source` in `phase_schedule`
+2. **WeightedCriteriaEditor double-click bug** — The `useEffect` sync only replaces when `fields.length === 0`, so on second fill, stale fields persist until a re-render cycle
+3. **CreatorPhaseTimeline internal state not syncing** — Uses `useState` initialized once; `form.reset()` doesn't update internal `phases` state, so toggling shows stale/empty dates after fill
 
 ### Changes
 
-**File 1: `src/components/cogniblend/creator/CreatorPhaseTimeline.tsx`** (NEW, ~180 lines)
-- Props: `governanceMode`, `value` (timeline + phase_durations), `onChange`
-- Top section: duration select dropdown (4w/8w/16w/32w) — same TIMELINE_OPTIONS
-- Toggle: "Define phase-wise schedule" Switch, default OFF
-- Helper text changes based on toggle state
-- Phase table (visible when ON): 5 rows for phases 5/6/8/9/10
-  - Phase label + description (read-only)
-  - Target date input (`type="date"`, min=today)
-  - Duration days badge (auto-calculated from previous phase date or today)
-  - Validation: each date must be >= previous date (red error if out of order)
-  - Total duration badge at bottom with amber warning if mismatch with selected timeline
-- `onChange` emits full `phase_schedule` object with `source: "creator"` and optional `phase_durations` array
-
-**File 2: `src/components/cogniblend/creator/creatorFormSchema.ts`**
-- Add `phase_durations` optional field to schema:
+**File 1: `supabase/functions/setup-test-scenario/index.ts`**
+- C1 (CONTROLLED+AGG, line 260): Replace `phase_schedule: { expected_timeline: "6-12" }` with:
   ```
-  phase_durations: z.array(z.object({
-    phase_number: z.number(), label: z.string(),
-    target_date: z.string(), duration_days: z.number(),
-  })).optional().default([])
+  phase_schedule: {
+    expected_timeline: "6-12",
+    source: "creator",
+    phase_durations: [
+      { phase_number: 5, label: "Solver Submission Period", target_date: "2026-07-15", duration_days: 45 },
+      { phase_number: 6, label: "Abstract/Proposal Review", target_date: "2026-08-01", duration_days: 17 },
+      { phase_number: 8, label: "Full Solution Review", target_date: "2026-09-01", duration_days: 31 },
+      { phase_number: 9, label: "Award Decision", target_date: "2026-09-15", duration_days: 14 },
+      { phase_number: 10, label: "Payment & Delivery", target_date: "2026-10-01", duration_days: 16 },
+    ]
+  }
   ```
-- Add `phase_durations` to `CreatorFormValues` type
+- C2 (CONTROLLED+MP, line 287): Same pattern with slightly different dates
+- C3/C4 (STRUCTURED): Add `source: "creator"` only (no `phase_durations` — Curator sets phases)
 
-**File 3: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`**
-- Replace the plain `Input` for `expected_timeline` in STRUCTURED collapsible with `CreatorPhaseTimeline` using nested `Controller` for both `expected_timeline` and `phase_durations`
+**File 2: `src/components/cogniblend/creator/WeightedCriteriaEditor.tsx`**
+- Fix the sync `useEffect` to handle both cases: fields empty AND fields stale (different length than watched value)
+- Change condition from `fields.length === 0` to comparing lengths AND checking if values actually differ:
+  ```typescript
+  useEffect(() => {
+    if (!watchedCriteria || watchedCriteria.length === 0) return;
+    // Replace when fields are empty OR when external value changed (e.g., second fill)
+    if (fields.length !== watchedCriteria.length ||
+        fields.some((f, i) => (f as any).name !== watchedCriteria[i]?.name)) {
+      replace(watchedCriteria as never[]);
+    }
+  }, [watchedCriteria, fields, replace]);
+  ```
 
-**File 4: `src/components/cogniblend/creator/AdditionalContextTab.tsx`**
-- Replace the `Select` for `expected_timeline` (CONTROLLED) with `CreatorPhaseTimeline` using nested `Controller`
+**File 3: `src/components/cogniblend/creator/CreatorPhaseTimeline.tsx`**
+- Add a `useEffect` that watches `value.phase_durations` prop and syncs internal `phases` state + `showPhases` toggle when the external value changes (handles `form.reset()` from Fill Test Data):
+  ```typescript
+  useEffect(() => {
+    const incoming = value.phase_durations;
+    if (incoming?.length) {
+      setPhases(incoming);
+      setShowPhases(true);
+    } else if (!incoming || incoming.length === 0) {
+      setShowPhases(false);
+      setPhases(CREATOR_PHASES.map(p => ({ ... empty ... })));
+    }
+  }, [value.phase_durations]);
+  ```
+- This ensures: CONTROLLED fill → toggle ON with dates populated; STRUCTURED fill → toggle OFF with empty phases
 
-**File 5: `src/lib/cogniblend/challengePayloads.ts`**
-- Add `phaseDurations` to `DraftPayload` and `SubmitPayload` interfaces
-- Update `buildChallengeUpdatePayload` to include `phase_durations` and `source: "creator"` in `phase_schedule`
+**File 4: `src/components/cogniblend/creator/creatorSeedContent.ts`**
+- Already has `phase_durations` for CONTROLLED (lines 303-309) — no change needed
+- Already has empty `phase_durations` for STRUCTURED — no change needed
 
-**File 6: `src/hooks/cogniblend/useCreatorDraftSave.ts`**
-- Add `phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined` to the base payload
-
-**File 7: `src/lib/cogniblend/curationSectionDefs.tsx`**
-- Add "Target Date" column to the phase_schedule table rendering (lines ~449-461)
-- Add source badge when `phase_schedule.source === 'creator'`
-
-**File 8: `src/components/cogniblend/creator/creatorSeedContent.ts`**
-- CONTROLLED seeds: add `phase_durations` with dates ~3 months from today
-- STRUCTURED seeds: no `phase_durations` (toggle OFF)
-
-### Technical Details
-- No database migration needed — `phase_schedule` JSONB column already exists
-- Duration calculation: `daysBetween(prevDate || today, currentDate)`
-- Timeline weeks to days mapping: `{ '4w': 28, '8w': 56, '16w': 112, '32w': 224 }`
-- Phase numbers 5/6/8/9/10 match `md_lifecycle_phase_config` solver-facing phases (skipping 7 which is internal)
+### Technical Notes
+- The WeightedCriteriaEditor fix uses a shallow comparison of criterion names to detect stale fields, avoiding unnecessary re-renders when values haven't changed
+- The CreatorPhaseTimeline sync uses a JSON-stable reference check via the prop to avoid infinite loops
+- Edge function deploy required for seed demo changes
 
