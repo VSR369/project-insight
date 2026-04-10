@@ -23,6 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   // Track whether the initial session has been resolved to prevent race conditions
   const initialSessionResolved = useRef(false);
+  // Track previous user ID to avoid nuking cache on token refresh (same user)
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -45,18 +47,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
-        // CRITICAL: Clear all cached data when auth state changes
-        // This ensures fresh data fetch for new user (login) or clean state (logout)
+        // Only clear cached data when the ACTUAL USER changes (login/logout/switch)
+        // Token refreshes fire SIGNED_IN with the same user — skip cache wipe for those
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          queryClient.clear();
-          // Clear enrollment session storage on BOTH login and logout
-          // This prevents stale enrollment IDs from previous user sessions
-          sessionStorage.removeItem('activeEnrollmentId');
-          // Only clear portal preference on sign out (preserve it on sign in)
-          if (event === 'SIGNED_OUT') {
-            sessionStorage.removeItem('activePortal');
-            sessionStorage.removeItem('proofPoint.lastCategory');
-            sessionStorage.removeItem('cogniblend_legal_gate_passed');
+          const newUserId = newSession?.user?.id ?? null;
+          const userChanged = newUserId !== previousUserIdRef.current;
+          previousUserIdRef.current = newUserId;
+
+          if (userChanged) {
+            queryClient.clear();
+            sessionStorage.removeItem('activeEnrollmentId');
+            if (event === 'SIGNED_OUT') {
+              sessionStorage.removeItem('activePortal');
+              sessionStorage.removeItem('proofPoint.lastCategory');
+              sessionStorage.removeItem('cogniblend_legal_gate_passed');
+            }
           }
         }
       }
@@ -66,8 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
+      // Seed previousUserIdRef to prevent startup race: first token refresh
+      // would otherwise see null → realId = "changed" and nuke the cache
+      previousUserIdRef.current = existingSession?.user?.id ?? null;
       // Mark initial session as resolved BEFORE setting loading to false
-      // This ensures onAuthStateChange won't cause race conditions
       initialSessionResolved.current = true;
       setLoading(false);
     }).catch((err) => {
@@ -111,9 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    // Clear React Query cache before signing out
-    queryClient.clear();
-    // Clear all portal-related session storage
+    // Clear portal-related session storage eagerly
     sessionStorage.removeItem('activeEnrollmentId');
     sessionStorage.removeItem('activePortal');
     sessionStorage.removeItem('proofPoint.lastCategory');
@@ -122,7 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // where Login page sees a stale user and redirects back to portal
     setUser(null);
     setSession(null);
-    // Sign out from Supabase
+    // Sign out from Supabase — the onAuthStateChange handler will
+    // detect userChanged (previous ID → null) and call queryClient.clear()
     await supabase.auth.signOut();
   };
 

@@ -4,7 +4,7 @@
  * Auto-onboarding: if user has no org, auto-creates one via edge function.
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useCurrentOrg, type CurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
