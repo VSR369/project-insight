@@ -1,5 +1,6 @@
 /**
- * DimensionScoreBadges — Compact row of 5 dimension scores for AI Review drawer.
+ * DimensionScoreBadges — Compact row of 4 dimension scores for AI Review drawer.
+ * Uses 4-dimension model (no legal compliance for Creator scope).
  */
 
 import { cn } from '@/lib/utils';
@@ -13,7 +14,6 @@ const DIMENSION_LABELS: { key: keyof DimensionScores; label: string }[] = [
   { key: 'completeness', label: 'Complete' },
   { key: 'clarity', label: 'Clarity' },
   { key: 'solverReadiness', label: 'Solver Ready' },
-  { key: 'legalCompliance', label: 'Legal' },
   { key: 'governanceAlignment', label: 'Governance' },
 ];
 

@@ -1,6 +1,7 @@
 /**
  * check-challenge-quality — AI edge function for Creator AI Review.
  * Enriched with governance, industry, geography, and rate card context.
+ * Uses 4-dimension model for creator scope (no legal compliance).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -17,6 +18,7 @@ const corsHeaders = {
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const JSON_CT = { ...corsHeaders, "Content-Type": "application/json" };
 
+/* Tool schema — legal fields optional for creator scope backward compat */
 const TOOL_SCHEMA = {
   type: "function" as const,
   function: {
@@ -29,8 +31,9 @@ const TOOL_SCHEMA = {
         completeness_score: { type: "number", description: "Completeness score 0-100" },
         clarity_score: { type: "number", description: "Clarity score 0-100" },
         solver_readiness_score: { type: "number", description: "Solver readiness score 0-100" },
-        legal_compliance_score: { type: "number", description: "Legal compliance score 0-100" },
+        legal_compliance_score: { type: "number", description: "Legal compliance score 0-100 (non-creator reviews only)" },
         governance_alignment_score: { type: "number", description: "Governance mode alignment score 0-100" },
+        content_quality_score: { type: "number", description: "Content quality score 0-100 (creator reviews)" },
         summary: { type: "string", description: "2-3 sentence quality summary" },
         gaps: {
           type: "array",
@@ -60,7 +63,7 @@ const TOOL_SCHEMA = {
         industry_relevance_notes: {
           type: "array",
           items: { type: "string" },
-          description: "Industry-specific observations and recommendations",
+          description: "Industry-specific observations",
         },
         rate_card_assessment: {
           type: "object",
@@ -68,7 +71,6 @@ const TOOL_SCHEMA = {
             is_within_range: { type: "boolean" },
             recommendation: { type: "string" },
           },
-          description: "Prize reasonableness vs rate card benchmarks",
         },
         flagged_checklist_items: {
           type: "array",
@@ -81,9 +83,9 @@ const TOOL_SCHEMA = {
         strengths: { type: "array", items: { type: "string" }, description: "2-4 notable strengths" },
       },
       required: [
-        "overall_score", "completeness_score", "clarity_score", "solver_readiness_score",
-        "legal_compliance_score", "governance_alignment_score", "summary", "gaps",
-        "legal_gaps", "flagged_checklist_items", "strengths",
+        "overall_score", "completeness_score", "clarity_score",
+        "solver_readiness_score", "governance_alignment_score",
+        "summary", "gaps", "strengths",
       ],
       additionalProperties: false,
     },
@@ -99,7 +101,6 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Auth
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -122,10 +123,9 @@ serve(async (req) => {
 
     const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
-    // Fetch all enrichment context
     let ctx;
     try {
-      ctx = await fetchChallengeContext(adminClient, { challengeId, engagementModel, industrySegmentId });
+      ctx = await fetchChallengeContext(adminClient, { challengeId, engagementModel, industrySegmentId, governanceMode });
     } catch (e) {
       if (e instanceof Error && e.message === "CHALLENGE_NOT_FOUND") {
         return new Response(JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found" } }), { status: 404, headers: JSON_CT });
@@ -154,7 +154,6 @@ serve(async (req) => {
       if (response.status === 429) return new Response(JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }), { status: 429, headers: JSON_CT });
       if (response.status === 402) return new Response(JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }), { status: 402, headers: JSON_CT });
       console.error("AI gateway error:", response.status, errText);
-      // Return 200 with fallback signal so client SDK can read the structured error body
       return new Response(JSON.stringify({
         success: false,
         error: { code: "AI_SERVICE_UNAVAILABLE", message: "The AI service is temporarily unavailable. Please try again in 30 seconds." },

@@ -1,6 +1,6 @@
 /**
  * promptBuilder.ts — Builds enriched system + user prompts for Creator AI Review.
- * Injects governance, engagement model, industry, geography, and rate card context.
+ * Uses 4-dimension model for Creator scope (no legal compliance).
  */
 
 import type { QualityCheckContext } from "./contextFetcher.ts";
@@ -13,7 +13,7 @@ const GOVERNANCE_DESCRIPTIONS: Record<string, string> = {
   CONTROLLED: "CONTROLLED mode: full compliance, 12 required fields. Mandatory escrow, formal gates, distinct roles. Apply maximum rigor — expect comprehensive detail, IP model, timeline, org context.",
 };
 
-/* ── Creator field lists by governance mode (for reviewScope filtering) ── */
+/* ── Creator field lists by governance mode ── */
 
 const CREATOR_FIELD_LISTS: Record<string, string[]> = {
   QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
@@ -30,9 +30,13 @@ interface PromptParams {
 }
 
 export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams): string {
+  const isCreatorScope = params.reviewScope === 'creator_fields_only';
+
   const parts: string[] = [
     `You are an expert innovation challenge quality reviewer for a global open innovation platform.`,
-    `Analyze a challenge specification AND its attached legal documents to provide a structured quality assessment using the assess_challenge_quality tool.`,
+    isCreatorScope
+      ? `Analyze a challenge specification to provide a structured quality assessment using the assess_challenge_quality tool.`
+      : `Analyze a challenge specification AND its attached legal documents to provide a structured quality assessment using the assess_challenge_quality tool.`,
   ];
 
   // Governance awareness
@@ -42,7 +46,7 @@ export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams
   // Engagement model awareness
   const emName = ctx.engagementModelName ?? params.engagementModel;
   if (emName) {
-    parts.push(`\n## ENGAGEMENT MODEL: ${emName}\nRegardless of operating model, review ALL of the following with equal weight:\n- Solver eligibility breadth: Are requirements clear enough for qualified solvers to self-select? Are there unnecessary barriers?\n- Deliverables clarity: Are expected outputs, milestones, and acceptance criteria unambiguous and measurable?\n- IP model clarity: Is the intellectual property arrangement clearly defined for all parties?\n- Legal requirements: Are org-specific or platform legal obligations addressed?`);
+    parts.push(`\n## ENGAGEMENT MODEL: ${emName}\nRegardless of operating model, review ALL of the following with equal weight:\n- Solver eligibility breadth: Are requirements clear enough for qualified solvers to self-select?\n- Deliverables clarity: Are expected outputs, milestones, and acceptance criteria unambiguous?\n- IP model clarity: Is the intellectual property arrangement clearly defined?\n- Legal requirements: Are org-specific or platform legal obligations addressed?`);
   }
 
   // Industry intelligence
@@ -82,13 +86,35 @@ export function buildSystemPrompt(ctx: QualityCheckContext, params: PromptParams
   }
 
   // Review scope filtering
-  if (params.reviewScope === 'creator_fields_only') {
+  if (isCreatorScope) {
     const fieldList = CREATOR_FIELD_LISTS[params.governanceMode] ?? CREATOR_FIELD_LISTS.STRUCTURED;
-    parts.push(`\n## REVIEW SCOPE: CREATOR FIELDS ONLY\nFocus your gaps analysis EXCLUSIVELY on these creator-owned fields: ${fieldList.join(', ')}.\nDo NOT report gaps on fields outside this list. Dimension scores should still reflect the overall challenge but gaps[] must only reference these fields.`);
+    parts.push(`\n## REVIEW SCOPE: CREATOR FIELDS ONLY\nFocus your gaps analysis EXCLUSIVELY on these creator-owned fields: ${fieldList.join(', ')}.\nDo NOT report gaps on fields outside this list.\nDo NOT penalize for missing legal documents — legal documents (CPAs) are assembled AFTER curation freeze, not by creators. This is by design.\nDimension scores should reflect the quality of the creator-owned content only.`);
   }
 
-  // Scoring criteria
-  parts.push(`\n## SCORING CRITERIA
+  // Scoring criteria — 4-dimension for creator, 5-dimension otherwise
+  if (isCreatorScope) {
+    parts.push(`\n## SCORING CRITERIA (4 DIMENSIONS — Creator Review)
+- Completeness (0-100): Are all governance-required creator fields filled with substantive content?
+- Clarity (0-100): Is the problem clearly defined? Would a solver understand what's needed?
+- Solver Readiness (0-100): Could a qualified solver start working with this information?
+- Governance Alignment (0-100): Does the challenge meet the governance mode expectations?
+- Overall Score (0-100): Weighted average of the above 4 dimensions.
+- Content Quality (0-100): Overall content quality — depth, specificity, and professionalism of writing.
+
+IMPORTANT: Do NOT include legal_compliance_score for Creator reviews. Legal docs are not the creator's responsibility.
+
+Scoring calibration:
+- 90-100: Excellent, publish-ready content
+- 75-89: Good, minor polish needed
+- 60-74: Adequate but should be improved before publication
+- Below 60: Significant gaps that would confuse solvers
+
+Gap severity calibration:
+- "suggestion": Minor polish, nice-to-have (score impact: small)
+- "warning": Should be addressed for better solver outcomes (score impact: moderate)
+- "critical": Blocks solver participation or creates confusion (score impact: large)`);
+  } else {
+    parts.push(`\n## SCORING CRITERIA
 - Completeness (0-100): Are all governance-required fields filled with substantive content?
 - Clarity (0-100): Is the problem clearly defined? Would a solver understand what's needed?
 - Solver Readiness (0-100): Could a qualified solver start working today?
@@ -100,24 +126,13 @@ Gap severity:
 - "critical": Blocks solver participation
 - "warning": Should be added for better outcomes
 - "suggestion": Nice-to-have improvements`);
+  }
 
   return parts.join('\n');
 }
 
 export function buildUserPrompt(ctx: QualityCheckContext, params: PromptParams): string {
-  const legalSummary = {
-    total_documents: ctx.legalDocs.length,
-    by_tier: {
-      tier_1: ctx.legalDocs.filter((d) => d.tier === "1" || d.tier === "tier_1"),
-      tier_2: ctx.legalDocs.filter((d) => d.tier === "2" || d.tier === "tier_2"),
-    },
-    statuses: ctx.legalDocs.map((d) => ({
-      name: d.document_name || d.document_type,
-      tier: d.tier,
-      status: d.status,
-      lc_review_status: d.lc_status,
-    })),
-  };
+  const isCreatorScope = params.reviewScope === 'creator_fields_only';
 
   const sections: string[] = [
     `Analyze this challenge for quality, solver readiness, and compliance:`,
@@ -128,7 +143,24 @@ export function buildUserPrompt(ctx: QualityCheckContext, params: PromptParams):
   if (ctx.engagementModelName) sections.push(`ENGAGEMENT MODEL: ${ctx.engagementModelName}`);
 
   sections.push(`\nCHALLENGE SPECIFICATION:\n${JSON.stringify(ctx.challenge, null, 2)}`);
-  sections.push(`\nLEGAL DOCUMENTS:\n${JSON.stringify(legalSummary, null, 2)}`);
+
+  // Only include legal docs section for non-creator reviews
+  if (!isCreatorScope) {
+    const legalSummary = {
+      total_documents: ctx.legalDocs.length,
+      by_tier: {
+        tier_1: ctx.legalDocs.filter((d) => d.tier === "1" || d.tier === "tier_1"),
+        tier_2: ctx.legalDocs.filter((d) => d.tier === "2" || d.tier === "tier_2"),
+      },
+      statuses: ctx.legalDocs.map((d) => ({
+        name: d.document_name || d.document_type,
+        tier: d.tier,
+        status: d.status,
+        lc_review_status: d.lc_status,
+      })),
+    };
+    sections.push(`\nLEGAL DOCUMENTS:\n${JSON.stringify(legalSummary, null, 2)}`);
+  }
 
   if (ctx.rateCard) {
     const reward = ctx.challenge.reward_structure as Record<string, unknown> | null;
