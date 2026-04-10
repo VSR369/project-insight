@@ -23,7 +23,7 @@ export function WeightedCriteriaEditor({ control, isRequired, error }: WeightedC
   });
 
   // Watch external form value to sync when form.reset() bypasses useFieldArray
-  const watchedCriteria = useWatch({ control, name: 'weighted_criteria' as never }) as
+  const watchedCriteria = useWatch({ control, name: 'weighted_criteria' as never }) as unknown as
     | Array<{ name: string; weight: number }>
     | undefined;
 
