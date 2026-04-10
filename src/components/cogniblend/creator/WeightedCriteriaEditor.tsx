@@ -29,10 +29,12 @@ export function WeightedCriteriaEditor({ control, isRequired, error }: WeightedC
 
   useEffect(() => {
     if (!watchedCriteria || watchedCriteria.length === 0) return;
-    if (fields.length > 0) return;
-    // External value exists but useFieldArray hasn't synced — force replace
-    replace(watchedCriteria as never[]);
-  }, [watchedCriteria, fields.length, replace]);
+    // Replace when fields are empty OR when external value changed (e.g., second fill)
+    if (fields.length !== watchedCriteria.length ||
+        fields.some((f, i) => (f as { name?: string }).name !== watchedCriteria[i]?.name)) {
+      replace(watchedCriteria as never[]);
+    }
+  }, [watchedCriteria, fields, replace]);
 
   const items = fields as Array<{ id: string; name: string; weight: number }>;
   const totalWeight = items.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);

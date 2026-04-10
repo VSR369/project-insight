@@ -3,7 +3,7 @@
  * STRUCTURED and CONTROLLED governance modes only.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, differenceInCalendarDays, addDays } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
@@ -57,6 +57,22 @@ export function CreatorPhaseTimeline({ governanceMode, value, onChange }: Creato
     if (value.phase_durations?.length) return value.phase_durations;
     return CREATOR_PHASES.map((p) => ({ phase_number: p.phase_number, label: p.label, target_date: '', duration_days: 0 }));
   });
+
+  // Sync internal state when external value changes (e.g., Fill Test Data / form.reset)
+  useEffect(() => {
+    const incoming = value.phase_durations;
+    if (incoming?.length) {
+      const hasNewData = incoming.length !== phases.length ||
+        incoming.some((p, i) => p.target_date !== phases[i]?.target_date || p.label !== phases[i]?.label);
+      if (hasNewData) {
+        setPhases(incoming);
+        setShowPhases(true);
+      }
+    } else if (phases.some((p) => p.target_date !== '')) {
+      setShowPhases(false);
+      setPhases(CREATOR_PHASES.map((p) => ({ phase_number: p.phase_number, label: p.label, target_date: '', duration_days: 0 })));
+    }
+  }, [value.phase_durations]);
 
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
