@@ -1,69 +1,56 @@
 
 
-## Integrated Fix: Submit to Curator — All 3 Bugs in One Migration
+## Fix: Save Draft Silent Failure — Missing User Feedback on Early Returns
 
-### Current state (verified from live DB)
+### Root Cause
 
-| Bug | Status | Evidence |
-|-----|--------|----------|
-| Duplicate `initialize_challenge` overload | **LIVE** | 2 rows in `pg_proc` with different arg orders |
-| `complete_phase` SLA: `sla_hours` reference | **Already fixed** | Live function uses `sla_days` correctly |
-| `complete_phase` SLA: missing `role_code` | **Already fixed** | Live function includes `role_code` with `COALESCE` |
-| `initialize_challenge` SLA: missing `role_code`/`deadline_at` | **Swallowed** | Exception block hides the failure — no SLA timer created for Phase 1 |
-| `handle_phase1_bypass` wrong arg count | **LIVE** | Function requires 3 args, called with 1 |
+The `handleSaveDraft` function in `useCreatorDraftSave.ts` has **silent early returns** at lines 42-44:
 
-### The blocker right now
-
-**Bug 1 (duplicate overload)** is the primary blocker. PostgREST cannot resolve which `initialize_challenge` to call, so challenge creation fails immediately with "Could not choose the best candidate function". Nothing else runs.
-
-### One migration to fix everything
-
-**Step 1 — Drop the accidental duplicate signature**
-
-```sql
-DROP FUNCTION IF EXISTS public.initialize_challenge(uuid, text, uuid, text, text);
+```typescript
+if (!form) return;              // no toast, no message
+if (!orgId || !userId) return;  // no toast, no message
 ```
 
-This removes the overload `(p_org_id, p_title, p_creator_id, p_governance_mode_override, p_operating_model)`.
+When any of these conditions is true, the Save Draft button click does absolutely nothing — no loading spinner, no success toast, no error toast. The user sees no feedback whatsoever.
 
-**Step 2 — Recreate the canonical `initialize_challenge`**
+This happens when:
+- `draftForm` is still `null` (set via `useEffect` with a render delay)
+- `currentOrg?.organizationId` is undefined (org data still loading)
+- `user?.id` is undefined (auth state not yet resolved)
 
-Signature: `(p_org_id UUID, p_creator_id UUID, p_title TEXT, p_operating_model TEXT DEFAULT 'MP', p_governance_mode_override TEXT DEFAULT NULL)`
+Additionally, the `catch` block at line 77 is empty (`catch { /* handled by mutation onError */ }`), which is correct since the mutation's `onError` handles it — but the early returns bypass the mutation entirely.
 
-Merged fixes from both solutions:
-- SLA timer insert includes `role_code` (from `required_role`, fallback `'CR'`) and `deadline_at` (from `sla_days`)
-- `handle_phase1_bypass` called with correct 3 args: `(v_challenge_id, p_operating_model, TRUE)`
-- Audit trail and role auto-assignment preserved
-- Exception handling on non-critical blocks
+### Fix
 
-**Step 3 — Recreate `complete_phase` with protective wrapping**
+**One file change: `src/hooks/cogniblend/useCreatorDraftSave.ts`**
 
-The current live function already has the `sla_days` and `role_code` fixes. Solution 1 adds a `BEGIN/EXCEPTION` wrapper around the SLA insert so timer failures never block phase advancement. This is a good hardening measure — adopt it.
+Replace the silent early returns with user-facing toast warnings:
 
-### What changes
+```typescript
+const handleSaveDraft = useCallback(async () => {
+  if (!form) {
+    toast.error('Form is not ready yet. Please wait a moment and try again.');
+    return;
+  }
+  const data = form.getValues();
+  if (!orgId || !userId) {
+    toast.error('Organization or user context not loaded. Please wait and try again.');
+    return;
+  }
+  // ... rest of the function unchanged
+```
 
-| Area | Change |
+This is not a workaround — it is the correct fix. The early returns are legitimate guard clauses, but they must inform the user instead of silently swallowing the click.
+
+### No other changes needed
+
+- The DB functions (`initialize_challenge`, `complete_phase`) are already fixed and verified
+- The mutation `onSuccess` and `onError` handlers already show toasts correctly
+- Only these silent guard clauses lack feedback
+
+### Summary
+
+| File | Change |
 |------|--------|
-| DB: `initialize_challenge` | Drop duplicate, recreate canonical with all fixes |
-| DB: `complete_phase` | Add `BEGIN/EXCEPTION` wrapper around SLA insert (hardening only) |
-| Frontend: `useChallengeSubmit.ts` | Add error mapping for "Could not choose the best candidate function" (optional hardening) |
-| No other files change | |
-
-### Technical details
-
-The migration SQL combines:
-1. `DROP FUNCTION` for the bad overload
-2. `CREATE OR REPLACE FUNCTION public.initialize_challenge(...)` — the canonical version from Solution 1, which already includes all fixes from Solution 2
-3. `CREATE OR REPLACE FUNCTION public.complete_phase(...)` — current live version + the `BEGIN/EXCEPTION` wrapper from Solution 1 around the SLA block
-
-The `complete_phase` body is taken from Solution 1 since it matches the current live function but adds the protective exception handling. No logic changes — just crash protection.
-
-### Validation
-
-After deployment:
-- Save Draft creates a challenge (no ambiguous RPC error)
-- Submit to Curator advances from Phase 1 to Phase 2
-- `sla_timers` row created with valid `role_code` and `deadline_at`
-- AGG model correctly calls `handle_phase1_bypass` with 3 args
-- Recursive auto-complete still works for QUICK mode
+| `src/hooks/cogniblend/useCreatorDraftSave.ts` | Add toast.error() to both early return paths (lines 42, 44) |
 
