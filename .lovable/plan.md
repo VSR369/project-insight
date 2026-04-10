@@ -1,47 +1,79 @@
 
 
-## Fix Alt+Tab Data Loss & Submit Race Condition
+## Fix Alt+Tab Data Loss — Corrected 3-Layer Defense
 
-### Bug 1 — Form Data Lost on Alt+Tab (useEffect re-initialization)
+### Current State
+- **Layer 3** (ChallengeCreatePage.tsx useRef guards): Already implemented (lines 49-78)
+- **Layer 1** (useAuth.tsx — prevent cache wipe on token refresh): NOT implemented
+- **Layer 2** (OrgContext.tsx — prevent tree unmount during refetch): NOT implemented
 
-**Root cause**: `ChallengeCreatePage.tsx` lines 49-70 — two `useEffect` hooks depend on `[currentOrg]` and `[orgContext?.operatingModel]`. While `refetchOnWindowFocus` is globally `false`, any query invalidation (e.g., after draft save) creates a new object reference for `currentOrg` → useEffect fires → `setGovernanceMode(default)` overwrites user's manual selection → the `key={governanceMode-engagementModel}` on the form remounts the entire `ChallengeCreatorForm` → all data wiped.
+The form still loses data because Supabase fires `SIGNED_IN` on token refresh → `queryClient.clear()` runs unconditionally → OrgProvider unmounts children → form destroyed.
 
-**Fix**: Add `useRef` initialization guards so governance and engagement are only set once from server data. Manual user changes via `ChallengeConfigurationPanel` already call `setGovernanceMode` directly, which is unaffected.
+### Changes
 
-**File: `src/pages/cogniblend/ChallengeCreatePage.tsx`**
-- Import `useRef`
-- Add `governanceInitialized` and `engagementInitialized` refs (default `false`)
-- In the governance useEffect (line 49): early return if `governanceInitialized.current` is `true`; set it `true` after first initialization
-- In the engagement useEffect (line 62): same pattern with `engagementInitialized.current`
+**File 1: `src/hooks/useAuth.tsx` — Layer 1 (Root Cause)**
 
-### Bug 2 — Double Toast & isBusy Race on Submit
+Add `previousUserIdRef` to skip `queryClient.clear()` when the user hasn't actually changed (token refresh = same user):
 
-**Root cause**: Three layers of toast duplication:
-1. `useSaveDraft.onSuccess` → `toast.success('Draft saved successfully')` (line 286)
-2. `useUpdateDraft.onSuccess` → `toast.success('Draft updated successfully')` (line 314)
-3. `useCreatorDraftSave.handleSaveDraft` → `toast.success('Draft updated'/'Draft saved')` (line 76)
-4. `handleFillTestData` → `toast.success('Test data filled & saved as draft')` (line 193)
+1. Add `previousUserIdRef = useRef<string | null>(null)` (line ~25)
+2. In `onAuthStateChange` handler (line 50), replace the unconditional `queryClient.clear()` block with user-change detection:
+   ```typescript
+   if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+     const newUserId = newSession?.user?.id ?? null;
+     const userChanged = newUserId !== previousUserIdRef.current;
+     previousUserIdRef.current = newUserId;
+     
+     if (userChanged) {
+       queryClient.clear();
+       sessionStorage.removeItem('activeEnrollmentId');
+       if (event === 'SIGNED_OUT') {
+         sessionStorage.removeItem('activePortal');
+         sessionStorage.removeItem('proofPoint.lastCategory');
+         sessionStorage.removeItem('cogniblend_legal_gate_passed');
+       }
+     }
+   }
+   ```
+3. **Critical Gap 1 fix**: In `getSession().then()` (line 68), seed the ref to prevent startup race:
+   ```typescript
+   previousUserIdRef.current = existingSession?.user?.id ?? null;
+   ```
+4. In `signOut()` (line 113): Remove the direct `queryClient.clear()` call — let the handler handle it uniformly via `SIGNED_OUT` event. Keep the `setUser(null)` / `setSession(null)` immediate clears and sessionStorage cleanup.
 
-So "Fill Test Data" triggers up to 3 toasts. And `isBusy` stays true during draft save, blocking the submit button.
+**File 2: `src/contexts/OrgContext.tsx` — Layer 2 (Defense-in-Depth)**
 
-**Fix**:
+Prevent OrgProvider from unmounting the entire component tree during a brief refetch:
 
-**File: `src/hooks/cogniblend/useCreatorDraftSave.ts`**
-- Remove `toast.success(...)` on line 76 — the mutation `onSuccess` handlers already toast
+1. Add `useRef` to the import (line 7)
+2. Add `orgLoadedOnce` ref inside `OrgProvider`:
+   ```typescript
+   const orgLoadedOnce = useRef(false);
+   ```
+3. After the hooks section, track successful load:
+   ```typescript
+   if (org) orgLoadedOnce.current = true;
+   ```
+4. Change the loading conditional (line 86) from:
+   ```typescript
+   if (isLoading || isAutoCreating)
+   ```
+   to:
+   ```typescript
+   if ((isLoading && !orgLoadedOnce.current) || isAutoCreating)
+   ```
+   This means: show spinner only on first load or during auto-creation. Once org has loaded once, keep rendering children during background refetches.
 
-**File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
-- In `handleFillTestData`: remove the `.then(() => toast.success('Test data filled & saved as draft'))` chain — just fire-and-forget `draftSave.handleSaveDraft()` since the mutation already toasts
+### Summary
 
-### Summary of Changes
-
-| File | Change |
-|------|--------|
-| `ChallengeCreatePage.tsx` | Add `useRef` guards to prevent re-initialization of governance/engagement |
-| `useCreatorDraftSave.ts` | Remove duplicate `toast.success` (line 76) |
-| `ChallengeCreatorForm.tsx` | Remove extra toast from `handleFillTestData` |
+| Layer | File | Fix | Prevents |
+|-------|------|-----|----------|
+| 1 (Root cause) | `useAuth.tsx` | `previousUserIdRef` + seed from `getSession()` | Cache wipe on token refresh |
+| 2 (Defense) | `OrgContext.tsx` | `orgLoadedOnce` ref, conditional spinner | Tree unmount during refetch |
+| 3 (Resilience) | `ChallengeCreatePage.tsx` | Already done | Governance/engagement reset |
 
 ### Technical Notes
-- `refetchOnWindowFocus` is already `false` globally, so the Alt+Tab issue only manifests when queries are invalidated (e.g., after draft save invalidates `cogni-dashboard`). The `useRef` guard is still essential because any invalidation path recreates the object reference.
-- Removing the duplicate toast from `useCreatorDraftSave` is safe — `useSaveDraft.onSuccess` and `useUpdateDraft.onSuccess` already provide user feedback.
-- The `isBusy` race is mitigated by removing the chained `.then()` in `handleFillTestData`, making the draft save non-blocking relative to the toast. The submit button will still be disabled while `isSaving` is true (correct behavior), but the user won't see confusing triple-toasts that suggest the operation is stuck.
+- Gap 1 (startup race) is addressed by seeding `previousUserIdRef` in `getSession().then()`
+- Gap 2 (Layer 3 missing) is already resolved in the current codebase
+- Gap 3 (missing `useRef` import in OrgContext) is included
+- Gap 4 (signOut double-clear) is cleaned up by removing the direct `queryClient.clear()` from `signOut()`
 
