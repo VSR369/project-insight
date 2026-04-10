@@ -1,31 +1,48 @@
 
 
-## Fix Timeline Format Mismatches in Seed & Fill Data
+## Fix "Submit to Curator" for CONTROLLED and STRUCTURED Modes
 
 ### Problem
-The bidirectional sync introduced `4w/8w/16w/32w` as the only valid timeline dropdown values. But both seed sources still use old formats:
-- **Fill Test Data**: MP_SEED uses `'24w'`, AGG_SEED uses `'20w'` — neither exists in the dropdown
-- **Seed Demo edge function**: All 4 challenges use month-range strings (`"6-12"`, `"9-12"`, `"3-6"`) instead of week codes
+The "Submit to Curator" button silently fails. Two root causes:
 
-This means the Target Timeline dropdown won't display a selection for seeded/filled data, and the bidirectional sync logic can't match these values.
+1. **No validation error feedback** — `form.handleSubmit()` has no error handler (second argument). When Zod validation fails (likely for CONTROLLED's many required fields), nothing happens — no toast, no visual indication.
+
+2. **Phase schedule data lost on submit** — The `buildPayload` function in `ChallengeCreatorForm.tsx` doesn't pass `phaseDurations` to the `SubmitPayload`. Additionally, the `useChallengeSubmit` mutation (line 104) hardcodes `phase_schedule: { expected_timeline: ... }`, overwriting `phase_durations` and `source` even when they exist.
 
 ### Changes
 
-**File 1: `src/components/cogniblend/creator/creatorSeedContent.ts`**
-- MP_SEED (line 124): Change `expected_timeline: '24w'` → `'32w'` (closest valid option for ~168 day challenge)
-- AGG_SEED (line 232): Change `expected_timeline: '20w'` → `'16w'` (closest valid option for ~140 days)
-- CONTROLLED branch (line 303-309): The phase_durations total 123 days → `daysToTimeline(123)` = `'16w'`, so the base `expected_timeline` inherited from MP/AGG seed will now be correct after the above fix
+**File 1: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
+- Add error handler to `form.handleSubmit` that shows a toast with the first validation error and logs the field name:
+  ```typescript
+  const handleSubmit = form.handleSubmit(
+    async (data) => { ... },
+    (errors) => {
+      const firstKey = Object.keys(errors)[0];
+      const firstError = errors[firstKey as keyof typeof errors];
+      toast.error(`Please fix: ${firstError?.message || firstKey}`);
+    }
+  );
+  ```
+- Add `phaseDurations` to `buildPayload`:
+  ```typescript
+  phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined,
+  ```
 
-**File 2: `supabase/functions/setup-test-scenario/index.ts`**
-- C1 CONTROLLED+AGG (line 261): `"6-12"` → `"16w"` (123 days of phases = 16w bucket)
-- C2 CONTROLLED+MP (line 297): `"9-12"` → `"16w"` (140 days of phases = 16w bucket)
-- C3 STRUCTURED+AGG (line 329): `"3-6"` → `"8w"` (structured, no phase dates)
-- C4 STRUCTURED+MP (line 351): `"3-6"` → `"8w"`
-- Also check C5/C6 (QUICK) for the same issue
-- Redeploy the edge function
+**File 2: `src/hooks/cogniblend/useChallengeSubmit.ts`**
+- Fix line 104 to include `phase_durations` and `source` in the `phase_schedule` object:
+  ```typescript
+  phase_schedule: {
+    expected_timeline: filteredPayload.expectedTimeline,
+    source: 'creator',
+    ...(filteredPayload.phaseDurations?.length
+      ? { phase_durations: filteredPayload.phaseDurations }
+      : {}),
+  },
+  ```
+- Same fix for the creator snapshot `phase_schedule` on line 152
 
 ### Technical Notes
-- The `daysToTimeline` snap boundaries: ≤35→4w, ≤84→8w, ≤168→16w, 169+→32w
-- No schema changes needed — just value alignment
-- Edge function redeploy required
+- The silent failure is the primary UX issue — adding the error handler will immediately show users which field is blocking submission
+- The `phase_durations` fix ensures the bidirectional timeline data survives the submit flow
+- No database or RPC changes needed — `phase_schedule` is already a JSONB column that accepts any structure
 
