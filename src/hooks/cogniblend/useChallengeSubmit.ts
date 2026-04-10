@@ -209,6 +209,26 @@ export function useChallengeSubmit() {
             industrySegmentId: payload.industrySegmentId || undefined,
             assignedBy: payload.creatorId,
           });
+          // Notify the assigned curator
+          const { data: curatorRoles } = await supabase
+            .from('user_challenge_roles')
+            .select('user_id')
+            .eq('challenge_id', challengeId)
+            .eq('role_code', 'CU')
+            .eq('is_active', true)
+            .limit(5);
+
+          if (curatorRoles && curatorRoles.length > 0) {
+            const notifRows = curatorRoles.map((r) => ({
+              user_id: r.user_id,
+              notification_type: 'CHALLENGE_ASSIGNED_CU',
+              title: 'New Challenge for Curation',
+              message: `Challenge "${payload.title ?? 'Untitled'}" has been assigned to you for curation review.`,
+              challenge_id: challengeId,
+              is_read: false,
+            }));
+            await supabase.from('cogni_notifications').insert(notifRows);
+          }
         } catch (err) {
           logWarning('Auto-assign CU after submit failed', {
             operation: 'auto_assign_challenge_role',
@@ -294,6 +314,7 @@ export function useSaveDraft() {
       return { challengeId };
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tier_limit_check'] });
       queryClient.invalidateQueries({ queryKey: ['org-solution-requests'] });
@@ -320,9 +341,11 @@ export function useUpdateDraft() {
 
       return { challengeId: payload.challengeId };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['public-challenge', result.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-detail', result.challengeId] });
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'update_draft' });
