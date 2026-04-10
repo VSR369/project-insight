@@ -184,7 +184,15 @@ export function useChallengeSubmit() {
       const { data: phaseResult, error: phaseError } = await supabase.rpc('complete_phase', {
         p_challenge_id: challengeId, p_user_id: payload.creatorId,
       });
-      if (phaseError) throw new Error(phaseError.message);
+      if (phaseError) {
+        const msg = phaseError.message || 'Unknown phase transition error';
+        const userMsg = msg.includes('Permission denied')
+          ? 'You do not have the required role to submit this challenge.'
+          : msg.includes('Phase not active')
+            ? 'This challenge phase is not currently active.'
+            : `Phase transition failed: ${msg}`;
+        throw new Error(userMsg);
+      }
 
       // Parse phase result to check current phase
       const phaseData = phaseResult as unknown as { current_phase?: number } | null;
