@@ -39,9 +39,15 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
   }, [onDraftIdChange]);
 
   const handleSaveDraft = useCallback(async () => {
-    if (!form) return;
+    if (!form) {
+      toast.error('Form is not ready yet. Please wait a moment and try again.');
+      return;
+    }
     const data = form.getValues();
-    if (!orgId || !userId) return;
+    if (!orgId || !userId) {
+      toast.error('Organization or user context not loaded. Please wait and try again.');
+      return;
+    }
     try {
       const base = {
         orgId, creatorId: userId, operatingModel: engagementModel,
