@@ -237,9 +237,15 @@ async function tryOrgFallback(
     .eq("organization_id", challenge.organization_id)
     .eq("is_active", true);
 
-  const eligibleUsers = (orgUsers ?? []).filter(
+  let eligibleUsers = (orgUsers ?? []).filter(
     (u) => u.user_id && u.user_id !== input.assignedBy,
   );
+
+  // Single-user org fallback: STRUCTURED/CONTROLLED require a human Curator.
+  // In single-user orgs, the creator IS the legitimate Curator — allow self-assignment.
+  if (eligibleUsers.length === 0 && requiresCurator(governanceMode)) {
+    eligibleUsers = (orgUsers ?? []).filter((u) => !!u.user_id && u.user_id === input.assignedBy);
+  }
 
   if (eligibleUsers.length === 0) return null;
 

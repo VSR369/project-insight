@@ -8,6 +8,9 @@
  * Two resolver layers:
  *   - `sees` (visibility): always checks ALL availableRoles — drives nav item rendering.
  *   - `can`  (action):     respects focused activeRole — drives dashboard sections & write actions.
+ *
+ * `requiresHumanActor` filters out system-artifact roles from QUICK mode
+ * auto-advancement — ensures nav items only appear for human-assigned roles.
  */
 
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
@@ -18,7 +21,7 @@ const SEEKING_ORG_ROLES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
 
 export function useCogniPermissions() {
   const { activeRole, availableRoles } = useCogniRoleContext();
-  const { hasNonQuickChallenges, nonQuickRoleCodes } = useCogniUserRoles();
+  const { hasHumanAssignedRoles, humanAssignedRoleCodes } = useCogniUserRoles();
 
   // Visibility: always all roles (nav items stay visible, dimmed by ROLE_NAV_RELEVANCE)
   const visibilityRoles = availableRoles;
@@ -32,25 +35,27 @@ export function useCogniPermissions() {
   const canSeeSolverFeatures = availableRoles.length > 0 &&
     !availableRoles.every(r => SEEKING_ORG_ROLES.has(r));
 
-  // For QUICK-only users, hide CU/LC/FC/ER nav items (they are system artifacts)
-  const govAware = (codes: string[], base: boolean): boolean => {
+  // Only show queue nav items for roles where a human actor was explicitly assigned.
+  // QUICK mode auto-completes CU/LC/FC/ER phases as system artifacts — those
+  // should not grant access to curation/legal/eval/escrow queues.
+  const requiresHumanActor = (codes: string[], base: boolean): boolean => {
     if (!base) return false;
     // Show item only if user holds THIS specific role for a non-QUICK challenge
-    if (codes.some(c => nonQuickRoleCodes.has(c))) return true;
+    if (codes.some(c => humanAssignedRoleCodes.has(c))) return true;
     // QUICK-only: only CR items visible
     return codes.includes('CR');
   };
 
   return {
-    // ── Nav visibility flags (governance-aware) ──
+    // ── Nav visibility flags (human-actor-aware) ──
     canSeeChallengePage:    sees(['CR']),
     canSeeCreatorDashboard: sees(['CR']),
-    canSeeCurationQueue:    govAware(['CU'], sees(['CU'])),
-    canSeeLegalWorkspace:   govAware(['LC'], sees(['LC'])),
-    canSeeEvaluation:       govAware(['ER'], sees(['ER'])),
-    canSeeEscrow:           govAware(['FC'], sees(['FC'])),
+    canSeeCurationQueue:    requiresHumanActor(['CU'], sees(['CU'])),
+    canSeeLegalWorkspace:   requiresHumanActor(['LC'], sees(['LC'])),
+    canSeeEvaluation:       requiresHumanActor(['ER'], sees(['ER'])),
+    canSeeEscrow:           requiresHumanActor(['FC'], sees(['FC'])),
     canSeeSolverFeatures,
-    hasNonQuickChallenges,
+    hasHumanAssignedRoles,
 
     // ── Action permissions (respects focused role) ──
     canCreateChallenge:   can(['CR']),

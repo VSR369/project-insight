@@ -1,6 +1,6 @@
 /**
- * RoleConvergencePage — Admin page for managing role conflict rules per governance mode.
- * Route: /admin/seeker-config/role-convergence
+ * RoleCoassignmentPage — Admin page for managing role co-assignment rules per governance mode.
+ * Route: /admin/seeker-config/role-coassignment
  */
 
 import { useState } from 'react';
@@ -8,12 +8,12 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RoleConvergenceMatrix } from '@/components/admin/governance/RoleConvergenceMatrix';
+import { RoleConflictMatrix } from '@/components/admin/governance/RoleConvergenceMatrix';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
 const MODES: GovernanceMode[] = ['QUICK', 'STRUCTURED', 'CONTROLLED'];
 
-export default function RoleConvergencePage() {
+export default function RoleCoassignmentPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<GovernanceMode>('STRUCTURED');
 
@@ -24,7 +24,7 @@ export default function RoleConvergencePage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Role Convergence Matrix</h1>
+          <h1 className="text-2xl font-bold">Role Co-assignment Rules</h1>
           <p className="text-sm text-muted-foreground">
             Define which roles can be held by the same person per governance mode.
           </p>
@@ -39,7 +39,7 @@ export default function RoleConvergencePage() {
         </TabsList>
         {MODES.map((mode) => (
           <TabsContent key={mode} value={mode}>
-            <RoleConvergenceMatrix governanceMode={mode} />
+            <RoleConflictMatrix governanceMode={mode} />
           </TabsContent>
         ))}
       </Tabs>
