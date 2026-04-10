@@ -1,18 +1,20 @@
 /**
  * ChallengeLegalDocsCard — Displays auto-populated legal documents for a challenge.
  * View-only for QUICK mode (auto-accepted). Shows review status for STRUCTURED/CONTROLLED.
+ * Shows informative placeholder when docs haven't been assembled yet.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, ShieldCheck } from 'lucide-react';
+import { FileText, ShieldCheck, Clock } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
   isQuickMode: boolean;
+  currentPhase?: number;
 }
 
 interface LegalDocRow {
@@ -24,7 +26,7 @@ interface LegalDocRow {
   lc_status: string | null;
 }
 
-export function ChallengeLegalDocsCard({ challengeId, isQuickMode }: ChallengeLegalDocsCardProps) {
+export function ChallengeLegalDocsCard({ challengeId, isQuickMode, currentPhase }: ChallengeLegalDocsCardProps) {
   const { data: legalDocs } = useQuery<LegalDocRow[]>({
     queryKey: ['challenge-legal-docs', challengeId],
     queryFn: async () => {
@@ -43,7 +45,29 @@ export function ChallengeLegalDocsCard({ challengeId, isQuickMode }: ChallengeLe
     staleTime: 30_000,
   });
 
-  if (!legalDocs || legalDocs.length === 0) return null;
+  // No docs yet — show pending message for non-QUICK modes in early phases
+  if (!legalDocs || legalDocs.length === 0) {
+    if (!isQuickMode && (currentPhase ?? 1) < 3) {
+      return (
+        <Card className="border-dashed border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" /> Legal Documents
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4 shrink-0" />
+              <p className="text-sm italic">
+                Legal documents will be assembled after the curation review is complete.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+    return null;
+  }
 
   return (
     <Card className="border-border">
