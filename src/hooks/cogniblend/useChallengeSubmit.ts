@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { serializeLineItems } from '@/lib/cogniblend/creatorCuratorFieldMap';
 import { autoAssignChallengeRole } from '@/hooks/cogniblend/useAutoAssignChallengeRoles';
+import { sendRoutedNotification } from '@/services/notificationRoutingService';
 import {
   fetchGovernanceFieldRules,
   stripHiddenFields,
