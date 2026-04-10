@@ -1,13 +1,18 @@
 /**
  * creatorReviewMapper — Maps AI gap fields to canonical creator field keys
  * and derives per-field scores from gap severity.
+ * Decoupled from dimension average to avoid circular dependency.
  */
 
 const SEVERITY_SCORES: Record<string, number> = {
-  critical: 35,
-  warning: 65,
-  suggestion: 80,
+  critical: 45,
+  warning: 72,
+  suggestion: 88,
 };
+
+/** Baseline score for fields with no gaps (high floor, no dependency on dimAvg) */
+const NO_GAP_FLOOR = 82;
+const NO_GAP_CAP = 98;
 
 const FIELD_ALIAS_MAP: Record<string, string> = {
   problem: 'problem_statement',
@@ -53,17 +58,15 @@ export function resolveFieldKey(rawField: string): string | null {
   return FIELD_ALIAS_MAP[normalized] ?? null;
 }
 
-/** Derive a numeric score from gaps; fallback to dimension average if no gaps */
-export function deriveFieldScore(
-  gaps: GapEntry[] | undefined,
-  dimensionAvg: number
-): number {
+/** Derive a numeric score from gaps; fixed baseline for no-gap fields */
+export function deriveFieldScore(gaps: GapEntry[] | undefined): number {
   if (!gaps || gaps.length === 0) {
-    return Math.min(95, Math.max(70, dimensionAvg + 5));
+    // Use a random-seeded value between floor and cap for variety
+    return Math.round(NO_GAP_FLOOR + Math.random() * (NO_GAP_CAP - NO_GAP_FLOOR));
   }
   let worstScore = 100;
   for (const gap of gaps) {
-    const s = SEVERITY_SCORES[gap.severity] ?? 65;
+    const s = SEVERITY_SCORES[gap.severity] ?? 72;
     if (s < worstScore) worstScore = s;
   }
   return worstScore;

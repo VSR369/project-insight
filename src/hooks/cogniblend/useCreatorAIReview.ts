@@ -1,6 +1,6 @@
 /**
  * useCreatorAIReview — Calls check-challenge-quality edge function for Creator's fields.
- * Transforms the holistic AI response into per-field scores for the drawer.
+ * Uses 4-dimension model (no legal compliance). Transforms AI response into per-field scores.
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -21,7 +21,6 @@ export interface DimensionScores {
   completeness: number;
   clarity: number;
   solverReadiness: number;
-  legalCompliance: number;
   governanceAlignment: number;
 }
 
@@ -51,8 +50,8 @@ interface RawAIData {
   completeness_score?: number;
   clarity_score?: number;
   solver_readiness_score?: number;
-  legal_compliance_score?: number;
   governance_alignment_score?: number;
+  content_quality_score?: number;
   summary?: string;
   gaps?: RawGap[];
   strengths?: string[];
@@ -86,14 +85,8 @@ export function useCreatorAIReview() {
         completeness: raw.completeness_score ?? 0,
         clarity: raw.clarity_score ?? 0,
         solverReadiness: raw.solver_readiness_score ?? 0,
-        legalCompliance: raw.legal_compliance_score ?? 0,
         governanceAlignment: raw.governance_alignment_score ?? 0,
       };
-
-      const dimAvg = Math.round(
-        (dimensions.completeness + dimensions.clarity + dimensions.solverReadiness +
-         dimensions.legalCompliance + dimensions.governanceAlignment) / 5
-      );
 
       const gaps = Array.isArray(raw.gaps) ? raw.gaps : [];
       const strengths = Array.isArray(raw.strengths) ? raw.strengths : [];
@@ -110,7 +103,7 @@ export function useCreatorAIReview() {
 
       const fieldResults: FieldReviewResult[] = reviewFields.map((f) => {
         const fieldGaps = gapsByField.get(f.key);
-        const score = deriveFieldScore(fieldGaps, dimAvg);
+        const score = deriveFieldScore(fieldGaps);
         const comment = buildFieldComment(fieldGaps, strengths, f.label);
         return { fieldKey: f.key, score, comment };
       });

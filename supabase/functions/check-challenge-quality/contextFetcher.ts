@@ -5,7 +5,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-/* ── Country → Region mapping (duplicated from review-challenge-sections) ── */
+/* ── Country → Region mapping ── */
 
 const COUNTRY_TO_REGION: Record<string, string> = {
   IN: 'india', US: 'us',
@@ -19,6 +19,14 @@ const COUNTRY_TO_REGION: Record<string, string> = {
   JP: 'apac_other', KR: 'apac_other', MY: 'apac_other',
   TH: 'apac_other', ID: 'apac_other', PH: 'apac_other',
   VN: 'apac_other', TW: 'apac_other',
+};
+
+/* ── Governance-filtered challenge fields ── */
+
+const CHALLENGE_FIELDS_BY_MODE: Record<string, string> = {
+  QUICK: "title, problem_statement, domain_tags, currency_code, reward_structure, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, maturity_level",
+  STRUCTURED: "title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, evaluation_criteria, organization_id, engagement_model_id, industry_segment_id, governance_mode_override",
+  CONTROLLED: "title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, evaluation_criteria, hook, description, ip_model, phase_schedule, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, eligibility, visibility",
 };
 
 /* ── Types ── */
@@ -38,6 +46,7 @@ interface FetchParams {
   challengeId: string;
   engagementModel?: string;
   industrySegmentId?: string;
+  governanceMode?: string;
 }
 
 /* ── Main fetcher ── */
@@ -46,12 +55,15 @@ export async function fetchChallengeContext(
   adminClient: SupabaseClient,
   params: FetchParams,
 ): Promise<QualityCheckContext> {
-  const { challengeId, engagementModel, industrySegmentId } = params;
+  const { challengeId, engagementModel, industrySegmentId, governanceMode } = params;
+
+  const challengeSelect = CHALLENGE_FIELDS_BY_MODE[governanceMode ?? 'STRUCTURED']
+    ?? CHALLENGE_FIELDS_BY_MODE.STRUCTURED;
 
   // Parallel: challenge + legal docs
   const [challengeRes, legalRes] = await Promise.all([
     adminClient.from("challenges")
-      .select("title, problem_statement, scope, description, deliverables, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, visibility, hook, phase_schedule, organization_id, engagement_model_id, industry_segment_id, currency_code, domain_tags, governance_mode_override")
+      .select(challengeSelect)
       .eq("id", challengeId)
       .single(),
     adminClient.from("challenge_legal_docs")
@@ -66,12 +78,16 @@ export async function fetchChallengeContext(
   const challenge = challengeRes.data as Record<string, unknown>;
   const legalDocs = (legalRes.data ?? []) as Record<string, unknown>[];
 
-  // Fetch org data
+  // Fetch org data with country JOIN
   const orgId = challenge.organization_id as string;
   const { data: org } = await adminClient.from("seeker_organizations")
-    .select("id, organization_type_id, hq_country_code, governance_profile, name")
+    .select("id, organization_type_id, hq_country_id, governance_profile, organization_name, countries(code)")
     .eq("id", orgId)
     .single();
+
+  // Resolve country code from JOIN
+  const countryRecord = (org as Record<string, unknown>)?.countries as Record<string, unknown> | null;
+  const countryCode = (countryRecord?.code as string | null) ?? null;
 
   // Resolve industry code
   const segId = industrySegmentId || (challenge.industry_segment_id as string | null);
@@ -91,7 +107,6 @@ export async function fetchChallengeContext(
 
   // Geography context
   let geoContext: Record<string, unknown> | null = null;
-  const countryCode = (org?.hq_country_code as string | null) ?? null;
   if (countryCode) {
     const regionCode = COUNTRY_TO_REGION[countryCode.toUpperCase()] ?? null;
     if (regionCode) {
@@ -129,7 +144,7 @@ export async function fetchChallengeContext(
   return {
     challenge,
     legalDocs,
-    orgName: (org?.name as string) ?? null,
+    orgName: (org?.organization_name as string) ?? null,
     governanceProfile: (org?.governance_profile as string) ?? null,
     industryPack,
     geoContext,
