@@ -1,46 +1,59 @@
 
 
-## Fix: "Component suspended while responding to synchronous input" on `/cogni/dashboard`
+## Phase-wise Timeline Toggle for Creator Screen
 
-### Root Cause
+### Overview
+Add a toggle to STRUCTURED and CONTROLLED governance modes that lets creators optionally define target dates for solver-facing phases. Default shows duration-only (current behavior). When toggled ON, shows an editable phase table.
 
-`CogniShell` is lazy-loaded (line 9 of `App.tsx`) but serves as a **layout route element** — it wraps all `/cogni/*` child routes. When React Router performs a synchronous navigation (e.g., after auth redirect), `CogniShell` suspends before any child `<Suspense>` boundary can catch it, causing the crash.
+### Changes
 
-Same pattern previously fixed for `Login`, `Register`, `Dashboard`, `Welcome`, `NotFound`.
+**File 1: `src/components/cogniblend/creator/CreatorPhaseTimeline.tsx`** (NEW, ~180 lines)
+- Props: `governanceMode`, `value` (timeline + phase_durations), `onChange`
+- Top section: duration select dropdown (4w/8w/16w/32w) — same TIMELINE_OPTIONS
+- Toggle: "Define phase-wise schedule" Switch, default OFF
+- Helper text changes based on toggle state
+- Phase table (visible when ON): 5 rows for phases 5/6/8/9/10
+  - Phase label + description (read-only)
+  - Target date input (`type="date"`, min=today)
+  - Duration days badge (auto-calculated from previous phase date or today)
+  - Validation: each date must be >= previous date (red error if out of order)
+  - Total duration badge at bottom with amber warning if mismatch with selected timeline
+- `onChange` emits full `phase_schedule` object with `source: "creator"` and optional `phase_durations` array
 
-### Fix
+**File 2: `src/components/cogniblend/creator/creatorFormSchema.ts`**
+- Add `phase_durations` optional field to schema:
+  ```
+  phase_durations: z.array(z.object({
+    phase_number: z.number(), label: z.string(),
+    target_date: z.string(), duration_days: z.number(),
+  })).optional().default([])
+  ```
+- Add `phase_durations` to `CreatorFormValues` type
 
-**File: `src/App.tsx`**
+**File 3: `src/components/cogniblend/creator/EssentialDetailsTab.tsx`**
+- Replace the plain `Input` for `expected_timeline` in STRUCTURED collapsible with `CreatorPhaseTimeline` using nested `Controller` for both `expected_timeline` and `phase_durations`
 
-1. Change `CogniShell` from lazy to eager import:
-   ```typescript
-   // BEFORE (line 9):
-   const CogniShell = lazy(() => import("@/components/cogniblend/shell/CogniShell").then(m => ({ default: m.CogniShell })));
-   
-   // AFTER:
-   import { CogniShell } from "@/components/cogniblend/shell/CogniShell";
-   ```
+**File 4: `src/components/cogniblend/creator/AdditionalContextTab.tsx`**
+- Replace the `Select` for `expected_timeline` (CONTROLLED) with `CreatorPhaseTimeline` using nested `Controller`
 
-2. Change `CogniDashboardPage` from lazy to eager import (it's the primary post-login target for CogniBlend users):
-   ```typescript
-   // BEFORE (line 240):
-   const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
-   
-   // AFTER:
-   import CogniDashboardPage from "@/pages/cogniblend/CogniDashboardPage";
-   ```
+**File 5: `src/lib/cogniblend/challengePayloads.ts`**
+- Add `phaseDurations` to `DraftPayload` and `SubmitPayload` interfaces
+- Update `buildChallengeUpdatePayload` to include `phase_durations` and `source: "creator"` in `phase_schedule`
 
-3. Update the route element for `/cogni/dashboard` to remove the `<LazyRoute>` wrapper since it's now eager:
-   ```typescript
-   // BEFORE (line 355):
-   <Route path="/cogni/dashboard" element={<LazyRoute><CogniDashboardPage /></LazyRoute>} />
-   
-   // AFTER:
-   <Route path="/cogni/dashboard" element={<CogniDashboardPage />} />
-   ```
+**File 6: `src/hooks/cogniblend/useCreatorDraftSave.ts`**
+- Add `phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined` to the base payload
 
-All other CogniBlend pages remain lazy — they're accessed via explicit user clicks (not synchronous redirects), so Suspense works fine for them.
+**File 7: `src/lib/cogniblend/curationSectionDefs.tsx`**
+- Add "Target Date" column to the phase_schedule table rendering (lines ~449-461)
+- Add source badge when `phase_schedule.source === 'creator'`
 
-### Risk
-Low. Only moves two imports from lazy to eager, adding minimal bundle overhead. The CogniShell component is small (~60 lines). CogniDashboardPage is the immediate landing page so it would be loaded anyway.
+**File 8: `src/components/cogniblend/creator/creatorSeedContent.ts`**
+- CONTROLLED seeds: add `phase_durations` with dates ~3 months from today
+- STRUCTURED seeds: no `phase_durations` (toggle OFF)
+
+### Technical Details
+- No database migration needed — `phase_schedule` JSONB column already exists
+- Duration calculation: `daysBetween(prevDate || today, currentDate)`
+- Timeline weeks to days mapping: `{ '4w': 28, '8w': 56, '16w': 112, '32w': 224 }`
+- Phase numbers 5/6/8/9/10 match `md_lifecycle_phase_config` solver-facing phases (skipping 7 which is internal)
 
