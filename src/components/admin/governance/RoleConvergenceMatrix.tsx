@@ -1,5 +1,5 @@
 /**
- * RoleConvergenceMatrix — 5x5 interactive matrix for role conflict rules.
+ * RoleConflictMatrix — 5x5 interactive matrix for role conflict rules.
  * Upper triangle is editable; lower mirrors it. Diagonal shows dashes.
  */
 
@@ -11,11 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { handleMutationError, handleQueryError } from '@/lib/errorHandler';
-import { countBlocks, deriveMinTeamSize } from '@/lib/convergenceUtils';
+import { countBlocks, deriveMinTeamSize } from '@/lib/roleConflictUtils';
 import { toast } from 'sonner';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
-interface RoleConvergenceMatrixProps {
+interface RoleConflictMatrixProps {
   governanceMode: GovernanceMode;
 }
 
