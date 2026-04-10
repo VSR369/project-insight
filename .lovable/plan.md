@@ -1,76 +1,52 @@
 
 
-## Performance Optimization Plan
+## Creator AI Review — Score Fix Plan
 
-### Summary
-Apply 4 safe, high-impact performance fixes. Two bottlenecks from the audit (Bottleneck 4: LC workspace decomposition, Bottleneck 6: narrowing SELECT statements) are deferred to a second pass due to medium regression risk and higher effort.
+### Problem
+Creator AI Review scores always land around ~55 due to 8 root causes, primarily: legal compliance penalization (creators don't attach legal docs), wrong DB column names causing NULL geography, harsh scoring curves, and circular score dependencies.
 
----
+### Changes
 
-### Fix 1: AuthGuard — Cache legal gate in sessionStorage (Bottleneck 1)
+**File 1: `supabase/functions/check-challenge-quality/contextFetcher.ts`**
+- Fix org query: change `hq_country_code` → `hq_country_id` and `name` → `organization_name`
+- Add a JOIN to `countries` table to resolve `hq_country_id` (UUID) → `code` (2-letter ISO) for geography lookup
+- Filter challenge fields sent to AI based on governance mode (only send the fields relevant to QUICK/STRUCTURED/CONTROLLED instead of all 40+ fields)
 
-**What changes:**
-- In `AuthGuard.tsx`, on mount check `sessionStorage.getItem('cogniblend_legal_gate_passed')`. If `'true'`, skip the `LegalGateModal` entirely.
-- In `handleAllAccepted`, write `sessionStorage.setItem('cogniblend_legal_gate_passed', 'true')`.
-- The existing `useAuth` signOut already clears sessionStorage keys — add `cogniblend_legal_gate_passed` to the list cleared on SIGNED_OUT in `useAuth.tsx`.
-- For SPA status: update `useSpaStatus.ts` to use `CACHE_STATIC` (30min staleTime) instead of current 5min. Import from `@/config/queryCache`.
+**File 2: `supabase/functions/check-challenge-quality/promptBuilder.ts`**
+- Remove `legal_compliance_score` from scoring criteria in system prompt
+- Replace with 4-dimension model: Completeness, Clarity, Solver Readiness, Governance Alignment
+- Remove "Analyze legal documents" instruction from system prompt
+- Remove legal document section from user prompt when `reviewScope === 'creator_fields_only'`
+- Add explicit instruction: "Do NOT penalize for missing legal documents — legal docs are assembled after curation, not by creators"
+- Adjust scoring guidance to be calibrated: suggestion=minor polish, warning=should address, critical=blocker
 
-**Files:**
-- `src/components/auth/AuthGuard.tsx` — add sessionStorage check + write
-- `src/hooks/useAuth.tsx` — clear `cogniblend_legal_gate_passed` on sign out
-- `src/hooks/cogniblend/useSpaStatus.ts` — switch to `CACHE_STATIC`
+**File 3: `supabase/functions/check-challenge-quality/index.ts`**
+- Remove `legal_compliance_score` from TOOL_SCHEMA required fields
+- Remove `legal_gaps` from required fields
+- Keep them as optional (backwards compat for non-creator reviews)
+- Add a new optional `content_quality_score` to replace legal_compliance in creator scope
 
-**Risk:** LOW. Legal gate still fires on first login per session. sessionStorage clears on tab close and on sign-out.
+**File 4: `src/hooks/cogniblend/useCreatorAIReview.ts`**
+- Change `DimensionScores` to 4 dimensions (drop `legalCompliance`)
+- Update `dimAvg` calculation: divide by 4 instead of 5
+- Use `content_quality_score` if returned by AI, otherwise derive from completeness+clarity avg
 
----
+**File 5: `src/lib/creatorReviewMapper.ts`**
+- Adjust severity scores: `critical: 45`, `warning: 72`, `suggestion: 88`
+- Fix `deriveFieldScore`: no-gap fields score 92-98 (cap 98, floor 82), independent of dimAvg
+- Break circular dependency: no-gap score uses a fixed baseline, not dimAvg
 
-### Fix 2: PWA status — Use CACHE_STATIC (Bottleneck 2)
+**File 6: `src/components/cogniblend/creator/DimensionScoreBadges.tsx`**
+- Remove `legalCompliance` dimension from display
+- Update to show 4 badges instead of 5
 
-**What changes:**
-- In `usePwaStatus.ts`, replace `staleTime: 5 * 60_000` with `...CACHE_STATIC` import from `@/config/queryCache`.
+### Risk Assessment
+- **LOW risk**: All changes are scoped to Creator review path only (`reviewScope === 'creator_fields_only'`). Non-creator reviews (Curator/LC) are unaffected because they don't use this edge function.
+- The tool schema keeps legal fields as optional, so if the AI returns them they're just ignored client-side.
+- Geography fix corrects a bug — previously always NULL.
 
-**Files:**
-- `src/hooks/cogniblend/usePwaStatus.ts` — 2-line change
-
-**Risk:** VERY LOW. PWA acceptance is immutable within a session.
-
----
-
-### Fix 3: Lazy-load auth pages (Bottleneck 5)
-
-**What changes:**
-- In `App.tsx`, convert the 5 eagerly imported pages (`Login`, `Register`, `ForgotPassword`, `ResetPassword`, `InviteAccept`, `Dashboard`, `Welcome`, `NotFound`) to `lazy()` imports using the existing `lazyRetry` wrapper.
-- They're already wrapped in `<Suspense>` via `RouteLoadingFallback`.
-
-**Files:**
-- `src/App.tsx` — replace 8 direct imports with lazy imports (lines 45-54)
-
-**Risk:** VERY LOW. 195+ other pages already use this pattern.
-
----
-
-### Fix 4: Curation page — Merge legal queries + defer non-critical (Bottleneck 3, partial)
-
-**What changes:**
-- In `useCurationPageData.ts`, merge `legalDocs` (summary) and `legalDetails` queries into a single query that fetches all needed columns from `challenge_legal_docs`, then derives both summaries and details client-side.
-- Defer `escrowRecord` and `sectionActions` queries: add `enabled: !!challengeId && !isLoading` so they fire after the main challenge query resolves and content is visible.
-- The `orgTypeName` waterfall (challenge → org → org_type) stays as-is for now since it already has `staleTime: 5min` and the fix requires a JOIN that changes the query structure significantly.
-
-**Files:**
-- `src/hooks/cogniblend/useCurationPageData.ts` — merge 2 legal queries into 1, defer escrow + sectionActions
-
-**Risk:** LOW-MEDIUM. The merged query returns a superset of fields. Derived summaries are computed client-side from the same data. Deferred queries don't affect initial render.
-
----
-
-### Deferred (second pass)
-- **Bottleneck 4** (LC workspace decomposition): 1358-line file needs careful extraction into sub-components. High effort, medium risk — no perf fix without thorough prop mapping.
-- **Bottleneck 6** (Narrow SELECT): Reducing the challenge SELECT column list requires verifying every section renderer still has its data. Medium risk.
-
-### Technical details
-
-All changes preserve existing fail-open semantics (legal gates default to passing on error). No database changes needed. No new dependencies.
-
-Cache tier mapping:
-- `CACHE_STATIC` = `{ staleTime: 30min, gcTime: 60min }` — appropriate for acceptance statuses that are immutable within a session.
+### Technical Details
+- `seeker_organizations.hq_country_id` is a UUID FK to `countries(id)` where `countries.code` has the 2-letter ISO code
+- The context fetcher will JOIN: `.select("id, organization_type_id, hq_country_id, governance_profile, organization_name, countries(code)")` 
+- Then extract: `const countryCode = org?.countries?.code`
 
