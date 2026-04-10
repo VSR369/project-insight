@@ -1,90 +1,76 @@
 
 
-## Remove Convergence-Era Terminology and Fix Architectural Debt
+## Fix: Creator Detail View — 5 Bugs in Governance-Aware Section Display
 
-Four layers of changes, ordered by risk.
+### Summary
 
----
+The "My Version" and "Curator Version" tabs show incorrect/incomplete content because the section key lists don't match the authoritative `creatorReviewFields.ts` (5/8/12 rule), and several data types (title, reference URLs, uploaded files) are never rendered.
 
-### Layer A — Rename "convergence" to "co-assignment" (cosmetic, zero risk)
+### Bug-by-Bug Fixes
+
+**Bug 1 — CREATOR_SECTION_KEYS wrong counts (3/6/10 instead of 5/8/12)**
+
+File: `src/components/cogniblend/challenges/CreatorSectionBuilders.tsx`
+
+Update `CREATOR_SECTION_KEYS` to match `creatorReviewFields.ts`:
+- QUICK: add `title`, `currency_code` → 5 keys
+- STRUCTURED: add `title`, `currency_code` → 8 keys
+- CONTROLLED: add `title`, `currency_code` → 12 keys
+
+Also update the duplicate `creatorKeys` in `CreatorChallengeDetailView.tsx` (lines 48-55) to match.
+
+**Bug 2 — buildAllSnapshotSections missing `title` and `currency_code` sections**
+
+File: `src/components/cogniblend/challenges/CreatorSectionBuilders.tsx`
+
+Add a `title` section (fieldKey: `'title'`) as the first entry in `buildAllSnapshotSections` — renders as a simple Card with the challenge title text. Add a `currency_code` section that displays the currency. Similarly add both to `buildAllCuratorSections`.
+
+**Bug 3 — Curator `expected_timeline` reads wrong field**
+
+File: `src/components/cogniblend/challenges/CreatorSectionBuilders.tsx`, line 255
+
+Change from:
+```
+content: data.submission_deadline ? <BadgeSection ... value={data.submission_deadline} />
+```
+To:
+```
+content: phaseSchedule?.expected_timeline
+  ? <BadgeSection ... value={String(phaseSchedule.expected_timeline)} />
+  : null
+```
+`phaseSchedule` already exists (line 198). The `submission_deadline` is a date — not the timeline text.
+
+**Bug 4 — Reference URLs never displayed**
+
+File: `src/components/cogniblend/challenges/CreatorSectionRenderers.tsx`
+
+Add a `ReferenceLinksSection` component that renders an array of URL strings as clickable links.
+
+File: `src/components/cogniblend/challenges/CreatorSectionBuilders.tsx`
+
+Add a `reference_urls` section to both `buildAllSnapshotSections` (reads from `eb.reference_urls`) and `buildAllCuratorSections` (reads from `extended_brief.reference_urls`). This section is not governance-gated — it renders whenever URLs exist, similar to how deliverables work in the curator view.
+
+**Bug 5 — Creator-uploaded attachments never shown**
+
+File: `src/components/cogniblend/challenges/CreatorAttachmentsSection.tsx` (new file)
+
+Create a component that queries `challenge_attachments` for `section_key IN ('creator_reference', 'org_profile')` and displays filenames with type badges and download buttons (using signed URLs). Keep under 250 lines.
+
+File: `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx`
+
+Import and render `CreatorAttachmentsSection` between the tabs/content area and `ChallengeLegalDocsCard` (line 213).
+
+### Files Changed (4 modified, 1 new)
 
 | File | Change |
 |------|--------|
-| `src/lib/convergenceUtils.ts` | Rename file to `src/lib/roleConflictUtils.ts`, update JSDoc |
-| `src/components/admin/governance/RoleConvergenceMatrix.tsx` | Update import path from `convergenceUtils` to `roleConflictUtils`, rename interface `RoleConvergenceMatrixProps` → `RoleConflictMatrixProps`, rename component export to `RoleConflictMatrix` |
-| `src/pages/admin/seeker-config/RoleConvergencePage.tsx` | Update import to `RoleConflictMatrix`, rename page title to "Role Co-assignment Rules", update description |
-| `src/components/admin/AdminSidebar.tsx` line 121 | Change label from `'Role Convergence'` to `'Role Co-assignment Rules'` |
-| `src/App.tsx` line 775 | Add new route `seeker-config/role-coassignment` pointing to the same page. Keep old route as redirect via `Navigate` to avoid broken bookmarks |
-| `src/App.tsx` line 164 | Rename lazy import variable from `RoleConvergencePage` to `RoleCoassignmentPage` |
+| `src/components/cogniblend/challenges/CreatorSectionBuilders.tsx` | Fix CREATOR_SECTION_KEYS counts, add title/currency_code sections, fix expected_timeline source, add reference_urls sections |
+| `src/components/cogniblend/challenges/CreatorSectionRenderers.tsx` | Add `ReferenceLinksSection` component |
+| `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` | Fix duplicate creatorKeys, add CreatorAttachmentsSection import and render |
+| `src/components/cogniblend/challenges/CreatorAttachmentsSection.tsx` | **New** — queries and displays creator-uploaded files |
 
----
+### No DB changes needed
 
-### Layer B — Rename `govAware`/`nonQuickRoleCodes` to semantic names (zero behavior change)
-
-| File | Change |
-|------|--------|
-| `src/hooks/cogniblend/useCogniUserRoles.ts` | Rename `nonQuickRoleCodes` → `humanAssignedRoleCodes`, `hasNonQuickChallenges` → `hasHumanAssignedRoles`. Update JSDoc to explain the concept: "roles from challenges where a human actor was assigned, not auto-completed system artifacts" |
-| `src/hooks/cogniblend/useCogniPermissions.ts` | Rename `govAware` → `requiresHumanActor`. Update destructured imports to use new names. Update all references: `hasNonQuickChallenges` → `hasHumanAssignedRoles`, `nonQuickRoleCodes` → `humanAssignedRoleCodes` |
-
-Logic stays identical — only variable/function names change.
-
----
-
-### Layer C — Fix self-exclusion in `tryOrgFallback` (Layer D from analysis)
-
-**File: `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts`**
-
-After the initial filter on line 240-242, add fallback for single-user orgs:
-
-```typescript
-let eligibleUsers = (orgUsers ?? []).filter(
-  (u) => u.user_id && u.user_id !== input.assignedBy,
-);
-// Single-user org fallback: STRUCTURED/CONTROLLED require a human Curator
-if (eligibleUsers.length === 0 && requiresCurator(governanceMode)) {
-  eligibleUsers = (orgUsers ?? []).filter((u) => u.user_id === input.assignedBy);
-}
-if (eligibleUsers.length === 0) return null;
-```
-
-Add helper after imports:
-```typescript
-function requiresCurator(mode: string): boolean {
-  return mode === 'STRUCTURED' || mode === 'CONTROLLED';
-}
-```
-
----
-
-### Layer D — Add missing cache invalidations after submit
-
-**File: `src/hooks/cogniblend/useChallengeSubmit.ts`** — `useChallengeSubmit.onSuccess` (line 257-261)
-
-Add three invalidations:
-```typescript
-queryClient.invalidateQueries({ queryKey: ['cogni_user_roles'] });
-queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
-queryClient.invalidateQueries({ queryKey: ['challenge-roles'] });
-```
-
----
-
-### What is NOT changed
-
-- **Filter logic preserved**: `requiresHumanActor` (renamed from `govAware`) keeps the exact same behavior — QUICK system-artifact roles still hidden from nav
-- **Admin tool preserved**: `RoleConflictMatrix` (renamed from `RoleConvergenceMatrix`) still manages `role_conflict_rules` table
-- **No DB migration needed**: All changes are frontend-only renames and two logic fixes
-- **Upstream RPC fix** (ensuring QUICK auto-complete phases don't create `user_challenge_roles` entries): Flagged for future DB work, not in this batch
-
-### Files touched (7 total)
-
-1. `src/lib/convergenceUtils.ts` → renamed to `src/lib/roleConflictUtils.ts`
-2. `src/components/admin/governance/RoleConvergenceMatrix.tsx`
-3. `src/pages/admin/seeker-config/RoleConvergencePage.tsx`
-4. `src/components/admin/AdminSidebar.tsx`
-5. `src/App.tsx`
-6. `src/hooks/cogniblend/useCogniUserRoles.ts`
-7. `src/hooks/cogniblend/useCogniPermissions.ts`
-8. `src/hooks/cogniblend/useAutoAssignChallengeRoles.ts`
-9. `src/hooks/cogniblend/useChallengeSubmit.ts`
+All data already exists in the database. The bugs are purely in the frontend display layer.
 
