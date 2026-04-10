@@ -167,6 +167,31 @@ export function TagsSection({ title, tags }: { title: string; tags: string[] | n
   );
 }
 
+export function ReferenceLinksSection({ title, urls }: { title: string; urls: string[] }) {
+  if (!urls || urls.length === 0) return null;
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <Tag className="h-3.5 w-3.5 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-1.5">
+          {urls.map((url, i) => (
+            <li key={i} className="text-sm flex items-start gap-2">
+              <span className="text-primary font-bold mt-0.5">•</span>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 break-all hover:text-primary/80">
+                {url}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function EmptyPlaceholder({ message }: { message: string }) {
   return (
     <Card className="border-dashed">
