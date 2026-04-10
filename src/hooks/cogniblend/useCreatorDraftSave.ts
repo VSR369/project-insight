@@ -39,6 +39,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
   }, [onDraftIdChange]);
 
   const handleSaveDraft = useCallback(async () => {
+    if (isSaving) return;
     if (!form) {
       toast.error('Form is not ready yet. Please wait a moment and try again.');
       return;
@@ -74,14 +75,15 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
       };
       if (draftChallengeId) {
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });
+        toast.success('Draft updated successfully');
       } else {
         const result = await draftMutation.mutateAsync(base);
         setDraftChallengeId(result.challengeId);
         onDraftIdChange?.(result.challengeId);
+        toast.success('Draft saved successfully');
       }
-      // Toast handled by mutation onSuccess handlers in useChallengeSubmit
     } catch { /* handled by mutation onError */ }
-  }, [form, orgId, userId, engagementModel, governanceMode, industrySegmentId, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
+  }, [isSaving, form, orgId, userId, engagementModel, governanceMode, industrySegmentId, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
 
   return { handleSaveDraft, isSaving, draftChallengeId, initFromUrl };
 }

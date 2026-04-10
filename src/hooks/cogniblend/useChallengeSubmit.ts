@@ -291,7 +291,6 @@ export function useSaveDraft() {
       return { challengeId };
     },
     onSuccess: () => {
-      toast.success('Draft saved successfully');
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tier_limit_check'] });
       queryClient.invalidateQueries({ queryKey: ['org-solution-requests'] });
@@ -319,7 +318,6 @@ export function useUpdateDraft() {
       return { challengeId: payload.challengeId };
     },
     onSuccess: () => {
-      toast.success('Draft updated successfully');
       queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
     },
