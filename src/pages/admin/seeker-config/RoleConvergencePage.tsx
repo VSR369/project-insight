@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RoleConflictMatrix } from '@/components/admin/governance/RoleConvergenceMatrix';
+import { RoleConflictMatrix } from '@/components/admin/governance/RoleConflictMatrix';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
 const MODES: GovernanceMode[] = ['QUICK', 'STRUCTURED', 'CONTROLLED'];
