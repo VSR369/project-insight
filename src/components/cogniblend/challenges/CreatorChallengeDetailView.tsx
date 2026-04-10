@@ -66,8 +66,8 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
     return '';
   }, [currentPhase, isQuickMode]);
 
-  // Show Curator Version for Phase 2+ (Creator owns the data and should see it)
-  const showCuratorContent = isPendingApproval || currentPhase >= 2;
+  // Show Curator Version only when curator explicitly sent it back (CR_APPROVAL_PENDING/RETURNED) or curation is complete (Phase 3+)
+  const showCuratorContent = isPendingApproval || currentPhase >= 3;
 
   const myVersionSections: SectionDef[] = useMemo(() => {
     if (!snapshot) return [];
