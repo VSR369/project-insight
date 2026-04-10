@@ -259,6 +259,9 @@ export function useChallengeSubmit() {
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['tier_limit_check'] });
+      queryClient.invalidateQueries({ queryKey: ['cogni_user_roles'] });
+      queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-roles'] });
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'submit_solution_request' });

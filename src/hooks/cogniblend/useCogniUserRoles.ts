@@ -2,8 +2,9 @@
  * useCogniUserRoles — Fetches all challenge role_codes for the current user
  * via the get_user_all_challenge_roles RPC and returns a flat Set of role codes.
  *
- * Legacy codes (AM, RQ, CA, ID) are resolved to modern equivalents (CR, CU)
- * before being added to the role set.
+ * `humanAssignedRoleCodes` contains role codes from non-QUICK challenges only —
+ * these represent roles where a human actor was explicitly assigned, not
+ * auto-completed system artifacts from QUICK mode workflow advancement.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -68,19 +69,20 @@ export function useCogniUserRoles() {
     (r) => r.current_phase === 4 && r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
-  // Collect role codes ONLY from non-QUICK challenges
-  const nonQuickRoleCodes = new Set<string>();
+  // Collect role codes ONLY from challenges where a human actor was assigned
+  // (not auto-completed system artifacts from QUICK mode)
+  const humanAssignedRoleCodes = new Set<string>();
   if (query.data) {
     for (const row of query.data) {
       if (row.governance_mode && row.governance_mode.toUpperCase() !== 'QUICK') {
         for (const code of row.role_codes ?? []) {
-          nonQuickRoleCodes.add(code);
+          humanAssignedRoleCodes.add(code);
         }
       }
     }
   }
 
-  const hasNonQuickChallenges = nonQuickRoleCodes.size > 0;
+  const hasHumanAssignedRoles = humanAssignedRoleCodes.size > 0;
 
   return {
     ...query,
@@ -88,7 +90,7 @@ export function useCogniUserRoles() {
     activeChallengeCount,
     curationQueueCount,
     approvalQueueCount,
-    hasNonQuickChallenges,
-    nonQuickRoleCodes,
+    hasHumanAssignedRoles,
+    humanAssignedRoleCodes,
   };
 }

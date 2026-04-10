@@ -1,5 +1,5 @@
 /**
- * convergenceUtils — Utility functions for role convergence matrix.
+ * roleConflictUtils — Utility functions for role co-assignment conflict matrix.
  */
 
 import { ROLE_PRIORITY } from '@/types/cogniRoles';

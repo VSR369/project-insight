@@ -161,7 +161,7 @@ const BillingCyclesPage = lazy(() => import("@/pages/admin/billing-cycles").then
 const PaymentMethodsPage = lazy(() => import("@/pages/admin/payment-methods").then(m => ({ default: m.PaymentMethodsPage })));
 const GovernanceRulesPage = lazy(() => import("@/pages/admin/seeker-config/GovernanceRulesPage"));
 const GovernanceModeConfigPage = lazy(() => import("@/pages/admin/seeker-config/GovernanceModeConfigPage"));
-const RoleConvergencePage = lazy(() => import("@/pages/admin/seeker-config/RoleConvergencePage"));
+const RoleCoassignmentPage = lazy(() => import("@/pages/admin/seeker-config/RoleConvergencePage"));
 const TierGovernanceAccessPage = lazy(() => import("@/pages/admin/seeker-config/TierGovernanceAccessPage"));
 const LifecyclePhaseConfigPage = lazy(() => import("@/pages/admin/seeker-config/LifecyclePhaseConfigPage"));
 const AIReviewConfigPage = lazy(() => import("@/pages/admin/seeker-config/AIReviewConfigPage"));
@@ -772,7 +772,8 @@ const App = () => (
               <Route path="seeker-config/payment-methods" element={<PermissionGuard permissionKey="seeker_config.view"><PaymentMethodsPage /></PermissionGuard>} />
               <Route path="seeker-config/governance-rules" element={<PermissionGuard permissionKey="seeker_config.view"><GovernanceRulesPage /></PermissionGuard>} />
               <Route path="seeker-config/governance-modes" element={<PermissionGuard permissionKey="seeker_config.edit"><GovernanceModeConfigPage /></PermissionGuard>} />
-              <Route path="seeker-config/role-convergence" element={<PermissionGuard permissionKey="seeker_config.edit"><RoleConvergencePage /></PermissionGuard>} />
+              <Route path="seeker-config/role-coassignment" element={<PermissionGuard permissionKey="seeker_config.edit"><RoleCoassignmentPage /></PermissionGuard>} />
+              <Route path="seeker-config/role-convergence" element={<Navigate to="/admin/seeker-config/role-coassignment" replace />} />
               <Route path="seeker-config/tier-access" element={<PermissionGuard permissionKey="seeker_config.edit"><TierGovernanceAccessPage /></PermissionGuard>} />
               <Route path="seeker-config/lifecycle-phases" element={<PermissionGuard permissionKey="seeker_config.edit"><LifecyclePhaseConfigPage /></PermissionGuard>} />
               <Route path="seeker-config/ai-review-config" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIReviewConfigPage /></PermissionGuard>} />
