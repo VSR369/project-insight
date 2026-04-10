@@ -202,9 +202,22 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     <FormProvider {...form}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full max-w-md">
-            <TabsTrigger value="essential" className="flex-1 gap-1.5">✏️ Essential Details</TabsTrigger>
-            {isControlled && <TabsTrigger value="context" className="flex-1 gap-1.5">📋 Additional Context<span className="text-destructive text-xs ml-1">*</span></TabsTrigger>}
+          <TabsList className="w-full max-w-lg h-auto p-1.5 gap-2 bg-muted/60 border border-border rounded-xl">
+            <TabsTrigger
+              value="essential"
+              className="flex-1 gap-2 py-3 px-5 text-sm font-semibold rounded-lg border border-transparent data-[state=active]:border-primary/30 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200"
+            >
+              ✏️ Essential Details
+            </TabsTrigger>
+            {isControlled && (
+              <TabsTrigger
+                value="context"
+                className="flex-1 gap-2 py-3 px-5 text-sm font-semibold rounded-lg border border-transparent data-[state=active]:border-accent/40 data-[state=active]:bg-background data-[state=active]:text-accent-foreground data-[state=active]:shadow-md transition-all duration-200"
+              >
+                📋 Additional Context
+                <span className="text-destructive text-xs font-bold ml-0.5">*</span>
+              </TabsTrigger>
+            )}
           </TabsList>
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
           <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
