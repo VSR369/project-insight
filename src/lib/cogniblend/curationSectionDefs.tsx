@@ -434,6 +434,9 @@ export const SECTIONS: SectionDef[] = [
         return <p className="text-sm text-muted-foreground">Not defined.</p>;
       return (
         <div className="space-y-3">
+          {raw.source === 'creator' && (
+            <Badge variant="outline" className="text-xs border-accent bg-accent/10 text-accent-foreground">Creator-proposed dates</Badge>
+          )}
           {metaEntries.length > 0 && (
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {metaEntries.map(([k, v]) => (
@@ -447,13 +450,14 @@ export const SECTIONS: SectionDef[] = [
           {durations && durations.length > 0 && (
             <div className="relative w-full overflow-auto">
               <Table>
-                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Phase</TableHead><TableHead>Name</TableHead><TableHead>Target Date</TableHead><TableHead className="text-right">Duration (days)</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {durations.map((p: any, i: number) => (
+                  {durations.map((p: Record<string, unknown>, i: number) => (
                     <TableRow key={i}>
-                      <TableCell className="text-sm">{p.phase ?? p.phase_number ?? i + 1}</TableCell>
-                      <TableCell className="text-sm">{p.label ?? p.name ?? "—"}</TableCell>
-                      <TableCell className="text-sm text-right">{p.duration_days ?? p.days ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{String(p.phase ?? p.phase_number ?? i + 1)}</TableCell>
+                      <TableCell className="text-sm">{String(p.label ?? p.name ?? "—")}</TableCell>
+                      <TableCell className="text-sm">{p.target_date ? String(p.target_date) : "—"}</TableCell>
+                      <TableCell className="text-sm text-right">{String(p.duration_days ?? p.days ?? "—")}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

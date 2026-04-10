@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CreatorPhaseTimeline, type PhaseEntry } from './CreatorPhaseTimeline';
 import { AlertTriangle, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
@@ -20,12 +20,6 @@ import { toast } from 'sonner';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
-
-const TIMELINE_OPTIONS = [
-  { value: '4w', label: '4 weeks' }, { value: '8w', label: '8 weeks' },
-  { value: '16w', label: '16 weeks' }, { value: '32w', label: '32 weeks' },
-] as const;
-
 const LINE_ITEM_FIELDS = [
   { key: 'preferred_approach' as const, label: 'Preferred Approach', placeholder: 'Any preferred technology or methodology?', addLabel: 'Add Approach' },
   { key: 'approaches_not_of_interest' as const, label: 'Approaches NOT of Interest', placeholder: "Anything you've tried or don't want?", addLabel: 'Add Exclusion' },
@@ -104,15 +98,15 @@ export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles
       {isFieldVisible(rules, 'affected_stakeholders') && <StakeholderEditor isControlled={isControlled} />}
 
       {isFieldVisible(rules, 'expected_timeline') && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Target Timeline</Label>
-          <Controller name="expected_timeline" control={control} render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
-              <SelectTrigger className="w-full max-w-xs text-base"><SelectValue placeholder="Select expected timeline" /></SelectTrigger>
-              <SelectContent>{TIMELINE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-            </Select>
+        <Controller name="expected_timeline" control={control} render={({ field: tlField }) => (
+          <Controller name="phase_durations" control={control} render={({ field: pdField }) => (
+            <CreatorPhaseTimeline
+              governanceMode={governanceMode as 'STRUCTURED' | 'CONTROLLED'}
+              value={{ expected_timeline: tlField.value, phase_durations: pdField.value as PhaseEntry[] }}
+              onChange={(val) => { tlField.onChange(val.expected_timeline); pdField.onChange(val.phase_durations ?? []); }}
+            />
           )} />
-        </div>
+        )} />
       )}
 
       <div className="space-y-2">

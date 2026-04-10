@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { CreatorPhaseTimeline, type PhaseEntry } from './CreatorPhaseTimeline';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -126,13 +127,15 @@ export function EssentialDetailsTab({ engagementModel, governanceMode, fieldRule
               </div>
             )}
             {showExpectedTimeline && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Expected Timeline {isFieldRequired(rules, 'expected_timeline') && <span className="text-destructive">*</span>}
-                </Label>
-                <Input placeholder="e.g. 4-6 weeks" {...register('expected_timeline')} />
-                {errors.expected_timeline?.message && <p className="text-xs text-destructive">{String(errors.expected_timeline.message)}</p>}
-              </div>
+              <Controller name="expected_timeline" control={control} render={({ field: tlField }) => (
+                <Controller name="phase_durations" control={control} render={({ field: pdField }) => (
+                  <CreatorPhaseTimeline
+                    governanceMode="STRUCTURED"
+                    value={{ expected_timeline: tlField.value, phase_durations: pdField.value as PhaseEntry[] }}
+                    onChange={(val) => { tlField.onChange(val.expected_timeline); pdField.onChange(val.phase_durations ?? []); }}
+                  />
+                )} />
+              )} />
             )}
           </CollapsibleContent>
         </Collapsible>

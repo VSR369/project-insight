@@ -58,6 +58,7 @@ export interface SubmitPayload {
   evaluationMethod?: string;
   evaluatorCount?: number;
   creatorLegalInstructions?: string;
+  phaseDurations?: Array<{ phase_number: number; label: string; target_date: string; duration_days: number }>;
 }
 
 export interface DraftPayload {
@@ -104,6 +105,7 @@ export interface DraftPayload {
   evaluationMethod?: string;
   evaluatorCount?: number;
   creatorLegalInstructions?: string;
+  phaseDurations?: Array<{ phase_number: number; label: string; target_date: string; duration_days: number }>;
 }
 
 export interface SubmitResult {
@@ -190,6 +192,8 @@ export function buildChallengeUpdatePayload(
       : null,
     phase_schedule: {
       expected_timeline: fp.expectedTimeline,
+      source: 'creator' as const,
+      ...(fp.phaseDurations?.length ? { phase_durations: fp.phaseDurations } : {}),
     },
     maturity_level: normalizedConstrainedFields.maturity_level,
     solution_maturity_id: fp.solutionMaturityId || null,
