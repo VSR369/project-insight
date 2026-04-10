@@ -174,8 +174,6 @@ export function CreatorPhaseTimeline({ governanceMode, value, onChange }: Creato
     return differenceInCalendarDays(new Date(last), new Date(today));
   }, [showPhases, phases, today]);
 
-  const selectedDays = timelineToDays(timeline);
-  const daysDiff = totalDays - selectedDays;
 
   return (
     <div className="space-y-4">
@@ -246,11 +244,6 @@ export function CreatorPhaseTimeline({ governanceMode, value, onChange }: Creato
           {totalDays > 0 && (
             <div className="flex items-center gap-2 text-sm">
               <Badge variant="outline">Total: {totalDays} days</Badge>
-              {Math.abs(daysDiff) > 7 && (
-                <Badge variant="outline" className={cn(daysDiff > 0 ? 'border-destructive/40 bg-destructive/10 text-destructive' : 'border-primary/40 bg-primary/10 text-primary')}>
-                  {daysDiff > 0 ? `${daysDiff} days over` : `${Math.abs(daysDiff)} days under`} selected timeline
-                </Badge>
-              )}
             </div>
           )}
         </div>
