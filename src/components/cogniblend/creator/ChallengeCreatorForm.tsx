@@ -64,12 +64,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const { data: fieldRules } = useGovernanceFieldRules(governanceMode);
   const { uploadFiles } = useCreatorFileUpload();
 
-  const draftSave = useCreatorDraftSave({
-    form: null, // will be set after useForm below
-    orgId: currentOrg?.organizationId, userId: user?.id,
-    engagementModel, governanceMode, industrySegmentId, onDraftIdChange,
-  });
-
   const [showTierModal, setShowTierModal] = useState(false);
   const [showAIReview, setShowAIReview] = useState(false);
   const [aiReviewCompleted, setAiReviewCompleted] = useState(false);
@@ -99,7 +93,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     },
   });
 
-  useEffect(() => { setDraftForm(form); }, [form]);
+  const draftSave = useCreatorDraftSave({
+    form,
+    orgId: currentOrg?.organizationId, userId: user?.id,
+    engagementModel, governanceMode, industrySegmentId, onDraftIdChange,
+  });
+
   useEffect(() => { draftSave.initFromUrl(searchParams.get('draft')); }, []);
 
   useCreatorDraftLoader(draftSave.draftChallengeId, form, governanceMode, engagementModel, onDraftModeSync);
