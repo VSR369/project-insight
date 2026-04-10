@@ -64,9 +64,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const { data: fieldRules } = useGovernanceFieldRules(governanceMode);
   const { uploadFiles } = useCreatorFileUpload();
 
-  const [draftForm, setDraftForm] = useState<ReturnType<typeof useForm<CreatorFormValues>> | null>(null);
   const draftSave = useCreatorDraftSave({
-    form: draftForm,
+    form: null, // will be set after useForm below
     orgId: currentOrg?.organizationId, userId: user?.id,
     engagementModel, governanceMode, industrySegmentId, onDraftIdChange,
   });
@@ -164,7 +163,11 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         toast.success(`Challenge "${data.title}" submitted to Curator for review.`);
         navigate('/cogni/my-challenges');
       }
-    } catch { /* handled by mutation onError */ }
+    } catch (err) {
+      if (err instanceof Error && !submitMutation.isError) {
+        toast.error(err.message || 'Submission failed. Please try again.');
+      }
+    }
   }, [buildPayload, submitMutation, referenceUrls, draftSave.draftChallengeId, attachedFiles, currentOrg, user, navigate, isQuick, uploadFiles]);
 
   const handleSubmit = form.handleSubmit(

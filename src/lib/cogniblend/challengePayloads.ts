@@ -94,6 +94,7 @@ export interface DraftPayload {
   approachesNotOfInterest?: string[];
   solutionExpectations?: string;
   currentDeficiencies?: string[];
+  referenceUrls?: string[];
   maturityLevel?: string;
   solutionMaturityId?: string;
   ipModel?: string;
@@ -158,6 +159,7 @@ export function buildChallengeUpdatePayload(
     ...(fp.currentDeficiencies?.filter(Boolean).length
       ? { current_deficiencies: fp.currentDeficiencies.filter(Boolean) }
       : {}),
+    ...(fp.referenceUrls?.length ? { reference_urls: fp.referenceUrls } : {}),
   };
 
   const rawResult = {

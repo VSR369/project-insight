@@ -529,7 +529,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         {
           orgId: currentOrg.organizationId,
           creatorId: user.id,
-          operatingModel: 'MP',
+          operatingModel: propEngagementModel ?? orgContext?.operatingModel ?? 'MP',
           businessProblem: values.problem_statement || values.title,
           expectedOutcomes: Array.isArray(values.expected_outcomes) ? values.expected_outcomes : (values.expected_outcomes ? [values.expected_outcomes as unknown as string] : []),
           currency: values.currency_code,
