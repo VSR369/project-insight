@@ -108,6 +108,12 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     evaluation_method: evaluationMethodRule,
     evaluator_count: evaluatorCountRule,
     creator_legal_instructions: z.string().max(2000).optional().default(''),
+    phase_durations: z.array(z.object({
+      phase_number: z.number(),
+      label: z.string(),
+      target_date: z.string(),
+      duration_days: z.number(),
+    })).optional().default([]),
   });
 
   if (engagementModel === 'MP') {
@@ -151,6 +157,12 @@ export type CreatorFormValues = {
   evaluation_method: 'SINGLE' | 'DELPHI';
   evaluator_count: number;
   creator_legal_instructions: string;
+  phase_durations: Array<{
+    phase_number: number;
+    label: string;
+    target_date: string;
+    duration_days: number;
+  }>;
 };
 
 export function toFormMaturityCode(value: string | null | undefined): string {
