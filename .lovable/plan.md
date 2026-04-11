@@ -1,41 +1,40 @@
 
 
-## Add Wave 7 — Discover Contextual Sources to Progress Panel
+## Fix: Add Checkboxes + Content Status Indicators to Source List
 
 ### Problem
-When "Analyse Challenge" runs, the progress panel shows waves 1-6 completing, then jumps to "complete" — but the context discovery step that follows is invisible. The user has no feedback that discovery is running, and the progress bar shows 100% prematurely.
-
-### Approach
-Add Wave 7 as a virtual "discovery" wave that only appears during the Analyse flow (Pass 1). It is not part of the AI review executor — instead, `handleAnalyse` manually injects it into the progress state around the `discover-context-resources` call.
+1. No checkboxes on suggested sources — users can't select specific sources for bulk accept
+2. No visibility into whether Summary, Full Text, or Key Data have been extracted for each source in the list — users must click into the detail panel to find out
 
 ### Changes
 
-**1. `src/lib/cogniblend/waveConfig.ts`**
-- Add `DISCOVERY_WAVE_NUMBER = 7` constant
-- Add `createInitialWaveProgressWithDiscovery()` that returns 7 waves (the 6 review waves + a Wave 7 entry with name "Discover Contextual Sources", empty sections array)
-- Export the constant so other files can reference it
+**1. `SuggestionCard.tsx`** — Add checkbox for bulk selection
+- Add `Checkbox` import from `@/components/ui/checkbox`
+- Add props: `isSelected: boolean`, `onToggleSelect: (id: string) => void`
+- Place checkbox before the Sparkles icon, with `stopPropagation` on its click
+- Checkbox checked state bound to `isSelected`
+- Add content status indicators (3 small dots/icons) showing presence of `extracted_summary`, `extracted_text`, `extracted_key_data`
 
-**2. `src/hooks/useWaveExecutor.ts`**
-- Expose `setWaveProgress` in the return type (rename to `updateWaveProgress`) so the caller can inject Wave 7 state changes externally
-- Add it to `UseWaveExecutorReturn` interface
+**2. `SourceList.tsx`** — Manage selection state + wire checkboxes
+- Add `useState<Set<string>>` for `selectedIds`
+- Add "Select All" / "Deselect All" toggle in the suggested section header
+- Pass `isSelected` and `onToggleSelect` to each `SuggestionCard`
+- Change "Accept All" button to "Accept Selected (N)" when selections exist
+- Wire `onAcceptMultiple` to use `selectedIds` when selections exist, otherwise all suggested
+- Add content status indicators to accepted source rows too (Summary/Text/Data dots)
+- Clear selection set after accept/reject actions
 
-**3. `src/hooks/cogniblend/useCurationWaveSetup.ts`**
-- Expose `pass1SetWaveProgress` from `pass1Executor.updateWaveProgress` in the return object
-- Pass it through to `useCurationAIActions`
+**3. Accepted source rows in `SourceList.tsx`** — Add content indicators
+- Below each accepted source's extraction badge, add 3 small indicator badges: "S" (Summary), "T" (Text), "D" (Data)
+- Color-coded: present = emerald outline, missing = muted/dashed outline
+- This gives at-a-glance visibility into extraction completeness without clicking into detail
 
-**4. `src/hooks/cogniblend/useCurationAIActions.ts` — `handleAnalyse`**
-- Before calling `executeWavesPass1()`, override the initial progress to use the 7-wave variant via `pass1SetWaveProgress`
-- After `executeWavesPass1()` completes (waves 1-6 done), set Wave 7 to `running`
-- After `discover-context-resources` succeeds/fails, set Wave 7 to `completed` or `error`
-- Only then set `overallStatus: 'completed'`
-
-**5. `src/hooks/cogniblend/useCurationPageOrchestrator.ts`**
-- Thread `pass1SetWaveProgress` from `waveSetup` into `useCurationAIActions` options
-
-### No changes needed
-- `WaveProgressPanel.tsx` — already renders dynamically from whatever waves are in the progress object
-- `createInitialWaveProgress()` — untouched (used by Pass 2 and Full executors which don't need Wave 7)
+### No other files affected
+- `ContextLibraryDrawer.tsx` already passes all needed handlers
+- `SourceDetail.tsx` already shows the full tabs — no changes needed
 
 ### Technical Detail
-Wave 7 has an empty `sections` array since discovery isn't section-based. The `WaveProgressPanel` already handles this gracefully — it shows the wave name and status icon without section counts when there are no sections.
+- Selection state is local to `SourceList` since it's ephemeral UI state
+- Content indicators use the existing `extracted_summary`, `extracted_text`, `extracted_key_data` fields already fetched by `useContextSources`
+- Indicator component: ~15 lines, inline in SourceList or extracted as a tiny helper
 
