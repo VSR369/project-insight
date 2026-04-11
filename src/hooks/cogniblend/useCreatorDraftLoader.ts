@@ -52,6 +52,7 @@ export function useCreatorDraftLoader(
   governanceMode: GovernanceMode,
   engagementModel: string,
   onDraftModeSync?: DraftSyncCallback,
+  onReferenceUrlsLoaded?: (urls: string[]) => void,
 ) {
   const draftLoaded = useRef(false);
 
@@ -97,7 +98,12 @@ export function useCreatorDraftLoader(
         
         currency_code: ((rs?.currency as string) || 'USD') as CreatorFormValues['currency_code'],
         platinum_award: Number(rs?.platinum_award ?? rs?.budget_max ?? 0),
-        weighted_criteria: Array.isArray((challenge as Record<string, unknown>).evaluation_criteria) ? (challenge as Record<string, unknown>).evaluation_criteria as CreatorFormValues['weighted_criteria'] : [],
+        weighted_criteria: (() => {
+          const ec = (challenge as Record<string, unknown>).evaluation_criteria as Record<string, unknown> | null;
+          if (ec && Array.isArray(ec.weighted_criteria)) return ec.weighted_criteria as CreatorFormValues['weighted_criteria'];
+          if (Array.isArray(ec)) return ec as CreatorFormValues['weighted_criteria'];
+          return [];
+        })(),
         deliverables_list: parseLineItems((challenge as Record<string, unknown>).deliverables),
         ip_model: (challenge.ip_model as string) || '',
         expected_outcomes: parseLineItems(eo),
@@ -109,6 +115,14 @@ export function useCreatorDraftLoader(
         root_causes: parseLineItems(eb?.root_causes),
         expected_timeline: (ps?.expected_timeline as string) || '',
       });
+
+      // Restore reference URLs from extended_brief (stored outside RHF)
+      if (onReferenceUrlsLoaded) {
+        const urls = eb?.reference_urls;
+        if (Array.isArray(urls) && urls.length > 0) {
+          onReferenceUrlsLoaded(urls as string[]);
+        }
+      }
     })();
   }, [draftChallengeId, form]);
 }

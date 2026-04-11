@@ -96,12 +96,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const draftSave = useCreatorDraftSave({
     form,
     orgId: currentOrg?.organizationId, userId: user?.id,
-    engagementModel, governanceMode, industrySegmentId, onDraftIdChange,
+    engagementModel, governanceMode, industrySegmentId, referenceUrls, onDraftIdChange,
   });
 
   useEffect(() => { draftSave.initFromUrl(searchParams.get('draft')); }, []);
 
-  useCreatorDraftLoader(draftSave.draftChallengeId, form, governanceMode, engagementModel, onDraftModeSync);
+  const handleReferenceUrlsLoaded = useCallback((urls: string[]) => {
+    if (urls.length > 0) setReferenceUrls(urls);
+  }, []);
+
+  useCreatorDraftLoader(draftSave.draftChallengeId, form, governanceMode, engagementModel, onDraftModeSync, handleReferenceUrlsLoaded);
 
   const currentMaturityLevel = form.watch('maturity_level');
   const currentSolutionMaturityId = form.watch('solution_maturity_id');
