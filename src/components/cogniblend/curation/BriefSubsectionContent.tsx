@@ -1,6 +1,6 @@
 /**
  * BriefSubsectionContent — Format-specific rendering for each Extended Brief subsection.
- * Extracted from ExtendedBriefDisplay.tsx.
+ * Autosaves on change (debounced by parent hook).
  */
 
 import React from "react";
@@ -16,6 +16,8 @@ import {
   ensureStakeholderArray,
 } from "./ExtendedBriefStakeholderTable";
 import { ensureStringArray } from "./ExtendedBriefDisplay";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 interface BriefSubsectionContentProps {
   subsectionKey: string;
@@ -26,6 +28,7 @@ interface BriefSubsectionContentProps {
   onSave: (subsectionKey: string, value: unknown) => void;
   onEdit: (key: string) => void;
   onCancelEdit: () => void;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
 export function BriefSubsectionContent({
@@ -37,6 +40,7 @@ export function BriefSubsectionContent({
   onSave,
   onEdit,
   onCancelEdit,
+  autoSaveStatus,
 }: BriefSubsectionContentProps) {
   switch (subsectionKey) {
     // ── Rich text sections ──
@@ -58,6 +62,7 @@ export function BriefSubsectionContent({
               <Pencil className="h-3 w-3 mr-1" />Edit
             </Button>
           )}
+          {isEditing && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
         </>
       );
     }
@@ -83,6 +88,7 @@ export function BriefSubsectionContent({
               <Pencil className="h-3 w-3 mr-1" />Edit
             </Button>
           )}
+          {isEditing && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
         </>
       );
     }
@@ -111,6 +117,7 @@ export function BriefSubsectionContent({
               <Pencil className="h-3 w-3 mr-1" />Edit
             </Button>
           )}
+          {isEditing && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
         </>
       );
     }
@@ -120,12 +127,15 @@ export function BriefSubsectionContent({
       const rows = ensureStakeholderArray(rawVal);
       if (isEditing && !readOnly) {
         return (
-          <StakeholderTableEditor
-            rows={rows}
-            onSave={(newRows) => onSave(subsectionKey, newRows)}
-            onCancel={onCancelEdit}
-            saving={saving}
-          />
+          <>
+            <StakeholderTableEditor
+              rows={rows}
+              onSave={(newRows) => onSave(subsectionKey, newRows)}
+              onCancel={onCancelEdit}
+              saving={saving}
+            />
+            <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />
+          </>
         );
       }
       return (

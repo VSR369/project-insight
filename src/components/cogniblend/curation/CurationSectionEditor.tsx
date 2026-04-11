@@ -1,52 +1,61 @@
 /**
  * CurationSectionEditor — Inline editing for curation review sections.
- * Renders RichTextEditor for text fields and structured editors for JSON fields.
+ * All editors autosave on change (debounced by parent hook).
  *
  * Org-policy editors (Date, Select, Radio) extracted to OrgPolicyEditors.tsx.
  */
 
-import { useEffect, useState } from "react";
-import { Trash2, Plus, Save, X } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { normalizeAiContentForEditor } from "@/lib/aiContentFormatter";
+import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 // Re-export org-policy editors for backward compatibility
 export { DateFieldEditor, SelectFieldEditor, RadioFieldEditor } from "@/components/cogniblend/curation/OrgPolicyEditors";
 
-// ── Text field editor ──
+// ── Text field editor (autosave) ──
 
 interface TextEditorProps {
   value: string;
   onSave: (val: string) => void;
   onCancel: () => void;
   saving?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
-export function TextSectionEditor({ value, onSave, onCancel, saving }: TextEditorProps) {
+export function TextSectionEditor({ value, onSave, onCancel, saving, autoSaveStatus }: TextEditorProps) {
   const [draft, setDraft] = useState(() => normalizeAiContentForEditor(value));
+  const isInitialRef = useRef(true);
 
   useEffect(() => {
     setDraft(normalizeAiContentForEditor(value));
+    isInitialRef.current = true;
   }, [value]);
 
+  const handleChange = useCallback((val: string) => {
+    setDraft(val);
+    if (isInitialRef.current) {
+      isInitialRef.current = false;
+      return;
+    }
+    onSave(val);
+  }, [onSave]);
+
   return (
-    <div className="space-y-3">
-      <RichTextEditor value={draft} onChange={setDraft} placeholder="Enter content..." storagePath="curation-edits" />
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
-          <X className="h-3.5 w-3.5 mr-1" />Cancel
-        </Button>
-        <Button size="sm" onClick={() => onSave(draft)} disabled={saving}>
-          <Save className="h-3.5 w-3.5 mr-1" />{saving ? "Saving…" : "Save"}
-        </Button>
+    <div className="space-y-2">
+      <RichTextEditor value={draft} onChange={handleChange} placeholder="Enter content..." storagePath="curation-edits" />
+      <div className="flex justify-end">
+        <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
       </div>
     </div>
   );
 }
 
-// ── Deliverables editor ──
+// ── Deliverables editor (autosave) ──
 
 interface DeliverablesEditorProps {
   items: string[];
@@ -54,17 +63,27 @@ interface DeliverablesEditorProps {
   onCancel: () => void;
   saving?: boolean;
   itemLabel?: string;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
-export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, itemLabel = "Item" }: DeliverablesEditorProps) {
+export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, itemLabel = "Item", autoSaveStatus }: DeliverablesEditorProps) {
   const [items, setItems] = useState<string[]>(initial.length ? initial : [""]);
+
+  const triggerSave = useCallback((newItems: string[]) => {
+    onSave(newItems.filter((s) => s.trim()));
+  }, [onSave]);
 
   const update = (i: number, v: string) => {
     const next = [...items];
     next[i] = v;
     setItems(next);
+    triggerSave(next);
   };
-  const remove = (i: number) => setItems(items.filter((_, idx) => idx !== i));
+  const remove = (i: number) => {
+    const next = items.filter((_, idx) => idx !== i);
+    setItems(next);
+    triggerSave(next);
+  };
   const add = () => setItems([...items, ""]);
 
   return (
@@ -84,22 +103,17 @@ export function DeliverablesEditor({ items: initial, onSave, onCancel, saving, i
           )}
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={add}>
-        <Plus className="h-3.5 w-3.5 mr-1" />Add {itemLabel}
-      </Button>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
-          <X className="h-3.5 w-3.5 mr-1" />Cancel
+      <div className="flex items-center justify-between">
+        <Button variant="outline" size="sm" onClick={add}>
+          <Plus className="h-3.5 w-3.5 mr-1" />Add {itemLabel}
         </Button>
-        <Button size="sm" onClick={() => onSave(items.filter((s) => s.trim()))} disabled={saving}>
-          <Save className="h-3.5 w-3.5 mr-1" />{saving ? "Saving…" : "Save"}
-        </Button>
+        <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
       </div>
     </div>
   );
 }
 
-// ── Evaluation Criteria editor ──
+// ── Evaluation Criteria editor (autosave) ──
 
 interface CriterionDraft {
   name: string;
@@ -112,19 +126,29 @@ interface EvalCriteriaEditorProps {
   onSave: (criteria: CriterionDraft[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
-export function EvalCriteriaEditor({ criteria: initial, onSave, onCancel, saving }: EvalCriteriaEditorProps) {
+export function EvalCriteriaEditor({ criteria: initial, onSave, onCancel, saving, autoSaveStatus }: EvalCriteriaEditorProps) {
   const [rows, setRows] = useState<CriterionDraft[]>(initial.length ? initial : [{ name: "", weight: 0 }]);
 
   const totalWeight = rows.reduce((s, r) => s + (r.weight || 0), 0);
 
+  const triggerSave = useCallback((newRows: CriterionDraft[]) => {
+    onSave(newRows.filter((r) => r.name.trim()));
+  }, [onSave]);
+
   const update = (i: number, field: keyof CriterionDraft, v: string | number) => {
     const next = [...rows];
-    (next[i] as any)[field] = v;
+    (next[i] as Record<string, unknown>)[field] = v;
     setRows(next);
+    triggerSave(next);
   };
-  const remove = (i: number) => setRows(rows.filter((_, idx) => idx !== i));
+  const remove = (i: number) => {
+    const next = rows.filter((_, idx) => idx !== i);
+    setRows(next);
+    triggerSave(next);
+  };
   const add = () => setRows([...rows, { name: "", weight: 0 }]);
 
   return (
@@ -163,17 +187,12 @@ export function EvalCriteriaEditor({ criteria: initial, onSave, onCancel, saving
         <Button variant="outline" size="sm" onClick={add}>
           <Plus className="h-3.5 w-3.5 mr-1" />Add Criterion
         </Button>
-        <span className={`text-xs font-medium ${totalWeight === 100 ? "text-green-600" : "text-destructive"}`}>
-          Total: {totalWeight}% {totalWeight !== 100 && "(must be 100%)"}
-        </span>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
-          <X className="h-3.5 w-3.5 mr-1" />Cancel
-        </Button>
-        <Button size="sm" onClick={() => onSave(rows.filter((r) => r.name.trim()))} disabled={saving || totalWeight !== 100}>
-          <Save className="h-3.5 w-3.5 mr-1" />{saving ? "Saving…" : "Save"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className={`text-xs font-medium ${totalWeight === 100 ? "text-emerald-600" : "text-destructive"}`}>
+            Total: {totalWeight}% {totalWeight !== 100 && "(must be 100%)"}
+          </span>
+          <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
+        </div>
       </div>
     </div>
   );
