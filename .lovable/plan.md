@@ -1,78 +1,70 @@
 
 
-## Add 4 Missing Sections to AI Review Waves
+## Two-Pass Pipeline Optimization — 6 Fixes
 
 ### Problem
-The wave executor covers 27 sections but the curation UI defines 32. Four reviewable sections are missing from the AI pipeline: `creator_references`, `reference_urls`, `solver_audience`, and `evaluation_config`. The fifth (`creator_legal_instructions`) is correctly excluded as a read-only human directive.
-
-### Root Cause
-These 4 section keys do not exist in `SECTION_FORMAT_CONFIG` (the source of truth for `SectionKey` type). Adding them to `waveConfig.ts` without first registering them in the format config would cause a TypeScript compile error.
+1. "Analyse Challenge" wastefully runs Pass 2 (generating suggestions) then strips the results — doubling AI cost and latency
+2. Discovery runs in parallel with Pass 1 instead of after it
+3. "Generate Suggestions" re-runs Pass 1 from scratch instead of reusing existing analysis comments
+4. Discovered sources default to `"suggested"` status instead of `"accepted"`
 
 ### Changes
 
-**1. Register 4 new sections in `SECTION_FORMAT_CONFIG`**
+**Fix 1 — `src/hooks/useWaveReviewSection.ts`**
+Add `skipAnalysis` and `providedCommentsBySectionKey` options. When `skipAnalysis` is true, send `skip_analysis: true` and `provided_comments` (from stored Pass 1 reviews) in the edge function body. Add both to the `useCallback` dependency array.
 
-File: `src/lib/cogniblend/curationSectionFormats.ts`
+**Fix 2 — `src/hooks/useWaveExecutor.ts`**
+Add `skipAnalysis` and `providedCommentsBySectionKey` to `UseWaveExecutorOptions` interface. Forward both to `useWaveReviewSection`.
 
-Add entries for each new section with appropriate AI review settings:
+**Fix 3 — `src/hooks/cogniblend/useCurationWaveSetup.ts`**
+- Add an `aiReviewsRef` that stays in sync with `aiReviews` via a `useEffect`
+- Create a `buildPass2CommentMap` helper that converts `SectionReview[]` into `Record<string, unknown[]>`
+- Add a third executor `pass2Executor` with `skipAnalysis: true` and `providedCommentsBySectionKey` built from `aiReviewsRef.current`
+- Expose `executeWavesPass2` in the return object
+- Track pass2Executor completion for completeness check trigger (alongside fullExecutor)
+
+**Fix 4 — `src/hooks/cogniblend/useCurationAIActions.ts`**
+- Add `executeWavesPass2` to the options interface and destructure it
+- In `handleAnalyse`: Move `discover-context-resources` call to AFTER `await executeWavesPass1()` completes (sequential, not parallel). Keep the query invalidation and drawer open logic after discovery completes.
+- In `handleGenerateSuggestions`: Replace `executeWavesFull()` with `executeWavesPass2()` so it only runs Pass 2 using stored comments. Add `executeWavesPass2` to deps.
+
+**Fix 5 — `supabase/functions/review-challenge-sections/index.ts`** (lines 842-872)
+When `pass1_only === true`, call `callAIPass1Analyze` directly instead of `callAIBatchTwoPass`. This completely skips Pass 2 — no wasted API call. Remove the post-hoc suggestion-stripping block (lines 867-872) since it becomes unnecessary.
+
+**Fix 6 — `supabase/functions/discover-context-resources/index.ts`** (line 320)
+Change `discovery_status: "suggested"` to `discovery_status: "accepted"` so AI-discovered sources are auto-accepted and the curator only needs to reject unwanted ones.
+
+### Architecture After Fix
 
 ```text
-creator_references  → format: 'custom', aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
-reference_urls      → format: 'custom', aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
-solver_audience     → format: 'radio',  aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
-evaluation_config   → format: 'structured_fields', aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
+[Analyse Challenge]
+  └─ Pass 1 ONLY (callAIPass1Analyze) → 6 waves, 31 sections
+  └─ AFTER completion: discover-context-resources (sequential)
+  └─ Auto-open Context Library (sources auto-accepted)
+
+[Curator reviews Context Library]
+  └─ Reject unwanted sources → close drawer
+
+[Generate Suggestions]
+  └─ generate-context-digest (from accepted sources)
+  └─ Pass 2 ONLY (skip_analysis=true, provided_comments from stored reviews)
+  └─ 6 waves, 31 sections → Principal Consultant quality suggestions
 ```
 
-All four have `aiCanDraft: false` (AI should review but not generate these from scratch — they are Creator-authored inputs).
+### Impact
+- ~50% reduction in AI API cost during Analyse (no wasted Pass 2)
+- ~40% faster Analyse step
+- ~30% faster Generate Suggestions (no redundant Pass 1)
+- Suggestions grounded in verified context digest
 
-**2. Add sections to Wave 6 in `waveConfig.ts`**
+### Files Changed
 
-File: `src/lib/cogniblend/waveConfig.ts`
-
-Expand Wave 6 `sectionIds` from 5 to 9:
-```ts
-sectionIds: [
-  'hook', 'visibility', 'domain_tags',
-  'creator_references', 'reference_urls',
-  'evaluation_config', 'solver_audience',
-  'legal_docs', 'escrow_funding',
-],
-```
-
-Update the comment from "26 curation sections" to "31 curation sections".
-
-**3. Add section descriptions to edge function**
-
-File: `supabase/functions/review-challenge-sections/index.ts`
-
-Add 4 entries to `CURATION_SECTIONS` array under Wave 6:
-- `creator_references`: "Reference documents provided by the challenge creator — verify relevance to scope and accessibility for solvers"
-- `reference_urls`: "Reference URLs provided by the creator — verify they are active, relevant, and appropriately scoped"
-- `evaluation_config`: "Evaluation method (single vs Delphi panel) and blind review setting — must match complexity level and eligibility"
-- `solver_audience`: "Solver audience targeting (internal/external/all) — verify consistency with operating model and expertise requirements"
-
-**4. Add wave context entries**
-
-File: `supabase/functions/review-challenge-sections/contextIntelligence.ts`
-
-Add `SECTION_WAVE_CONTEXT` entries for the 4 new sections:
-- `creator_references` — Wave 6, strategic role: verify Creator-provided materials are relevant and don't contradict the refined specification
-- `reference_urls` — Wave 6, verify URLs are active and domain-relevant
-- `solver_audience` — Wave 6, verify AGG/MP consistency with operating model
-- `evaluation_config` — Wave 6, verify Delphi panel size matches complexity, blind review matches governance mode
-
-**5. Handle `creator_references` in `determineSectionAction`**
-
-File: `src/lib/cogniblend/waveConfig.ts`
-
-`creator_references` has no `dbField` and uses attachments. The current `determineSectionAction` checks content from the store, which may be null for attachment-based sections. Add `creator_references` to the `LOCKED_SECTIONS`-like handling: if content is null, action should be `'review'` (not `'generate'`), since the AI should still check whether attachments exist and are relevant. This requires a small tweak to treat attachment-based sections as always-review.
-
-### Files changed
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/lib/cogniblend/curationSectionFormats.ts` | Add 4 section format configs |
-| `src/lib/cogniblend/waveConfig.ts` | Add 4 sections to Wave 6, update comment, handle attachment sections |
-| `supabase/functions/review-challenge-sections/index.ts` | Add 4 section descriptions to `CURATION_SECTIONS` |
-| `supabase/functions/review-challenge-sections/contextIntelligence.ts` | Add 4 `SECTION_WAVE_CONTEXT` entries |
+| `src/hooks/useWaveReviewSection.ts` | Add `skipAnalysis` + `providedCommentsBySectionKey` |
+| `src/hooks/useWaveExecutor.ts` | Forward new options to review section hook |
+| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Add pass2Executor, expose `executeWavesPass2` |
+| `src/hooks/cogniblend/useCurationAIActions.ts` | Sequential discovery; use pass2 executor for suggestions |
+| `supabase/functions/review-challenge-sections/index.ts` | Short-circuit to Pass 1 only when `pass1_only` |
+| `supabase/functions/discover-context-resources/index.ts` | Auto-accept discovered sources |
 
