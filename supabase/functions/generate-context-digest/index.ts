@@ -86,6 +86,25 @@ ${summary}
 ${keyData ? `KEY DATA: ${keyData}` : ""}`;
     }).join("\n\n---\n\n");
 
+    // 3b. Build raw context block — full text + key data per section (for Pass 2 grounding)
+    const rawContextBySection: Record<string, string[]> = {};
+    for (const att of attachments) {
+      const sKey = att.section_key as string;
+      if (!rawContextBySection[sKey]) rawContextBySection[sKey] = [];
+      const name = (att.url_title || att.file_name || att.source_url || 'Unnamed') as string;
+      const type = att.source_type === 'url' ? 'WEB URL' : 'DOCUMENT';
+      let block = `[${type}] ${name}`;
+      if (att.source_url) block += `\nURL: ${att.source_url}`;
+      if (att.extracted_summary) block += `\n\nSUMMARY:\n${att.extracted_summary}`;
+      if (att.extracted_text) block += `\n\nFULL TEXT:\n${(att.extracted_text as string).substring(0, 8000)}`;
+      if (att.extracted_key_data) block += `\n\nSTRUCTURED DATA:\n${JSON.stringify(att.extracted_key_data, null, 2)}`;
+      rawContextBySection[sKey].push(block);
+    }
+    const rawContextBlock = Object.entries(rawContextBySection)
+      .map(([sec, blocks]) => `\n═══ ${sec.replace(/_/g, ' ').toUpperCase()} ═══\n${blocks.join('\n\n---\n')}`)
+      .join('\n\n')
+      .substring(0, 150000);
+
     // 4. Call AI to synthesize
     const systemPrompt = `You are an expert research analyst synthesizing verified external context for a business challenge curation team.
 
@@ -192,6 +211,8 @@ After the digest, output a JSON block with key facts:
           key_facts: keyFacts,
           source_count: attachments.length,
           generated_at: new Date().toISOString(),
+          raw_context_block: rawContextBlock,
+          raw_context_updated_at: new Date().toISOString(),
         })
         .eq("challenge_id", challenge_id);
       if (updateErr) throw new Error(updateErr.message);
@@ -207,6 +228,8 @@ After the digest, output a JSON block with key facts:
             key_facts: keyFacts,
             source_count: attachments.length,
             generated_at: new Date().toISOString(),
+            raw_context_block: rawContextBlock,
+            raw_context_updated_at: new Date().toISOString(),
           },
           { onConflict: "challenge_id" },
         );
