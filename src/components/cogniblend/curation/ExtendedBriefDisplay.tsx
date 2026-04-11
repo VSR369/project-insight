@@ -100,6 +100,7 @@ export default function ExtendedBriefDisplay({
   aiSectionReviews, onAcceptRefinement, onSingleSectionReview,
   onMarkAddressed, challengeContext, expandVersion,
   industrySegmentId, industrySegmentFromIntake, onIndustrySegmentChange,
+  suppressAutoRefine,
 }: ExtendedBriefDisplayProps) {
   const brief = parseExtendedBrief(data);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export default function ExtendedBriefDisplay({
                 onAcceptRefinement={onAcceptRefinement} onSingleSectionReview={onSingleSectionReview}
                 onMarkAddressed={onMarkAddressed}
                 defaultOpen={!aiReview?.addressed && (aiReview?.status === "warning" || aiReview?.status === "needs_revision")}
+                suppressAutoRefine={suppressAutoRefine}
               />
             }
             expandVersion={expandVersion}
