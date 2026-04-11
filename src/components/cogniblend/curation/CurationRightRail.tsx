@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Bot, Loader2, Sparkles } from "lucide-react";
+import { Bot, Loader2, Sparkles, BookOpen } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
@@ -115,9 +115,18 @@ export function CurationRightRail(props: CurationRightRailProps) {
           </Button>
           {props.pass1Done && (
             <>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 space-y-1">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1.5">
                 <p className="font-medium">Next step: Review discovered sources</p>
                 <p>Open the Context Library to review and accept/reject sources before generating suggestions.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-1 text-xs"
+                  onClick={onOpenContextLibrary}
+                >
+                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+                  Open Context Library
+                </Button>
               </div>
               <Button
                 variant="default"

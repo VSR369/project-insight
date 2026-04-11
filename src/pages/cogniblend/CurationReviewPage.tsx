@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -20,6 +20,7 @@ import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightG
 import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
 import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
 import { CuratorGuideModal, hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
+import { IncompleteSectionsBanner } from "@/components/cogniblend/curation/IncompleteSectionsBanner";
 import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
 import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +48,21 @@ export default function CurationReviewPage() {
       await assembleMut.mutateAsync(o.user.id);
     } catch { /* errors handled by individual mutation onError */ }
   };
+
+  // Dirty-state guard for back navigation (must be before conditional returns)
+  const handleNavigateBack = useCallback(() => {
+    const store = o.curationStore;
+    if (store) {
+      const sections = store.getState().sections;
+      const hasUnsaved = Object.values(sections).some(
+        (s) => s?.lastEditedAt && s?.lastReviewedAt && s.lastEditedAt > s.lastReviewedAt,
+      );
+      if (hasUnsaved && !window.confirm('You have unsaved changes. Leave without saving?')) {
+        return;
+      }
+    }
+    o.navigate("/cogni/curation");
+  }, [o.curationStore, o.navigate]);
 
   // ── Loading / not-found ──
   if (o.isLoading) {
@@ -86,8 +102,15 @@ export default function CurationReviewPage() {
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
       <FreezeStatusBanner
-        lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
-        frozenAt={(o.challenge as any).curation_frozen_at}
+        lockStatus={(o.challenge as unknown as Record<string, unknown>).curation_lock_status as string ?? 'OPEN'}
+        frozenAt={(o.challenge as unknown as Record<string, unknown>).curation_frozen_at as string | undefined}
+      />
+
+      <IncompleteSectionsBanner
+        groups={GROUPS}
+        sectionMap={SECTION_MAP}
+        groupProgress={o.groupProgress}
+        onNavigateToSection={o.handleNavigateToSection}
       />
       <CurationHeaderBar
         challengeId={o.challengeId!}
@@ -104,7 +127,7 @@ export default function CurationReviewPage() {
         challenge={o.challenge as any}
         isReadOnly={isReadOnly}
         orgTypeName={o.orgTypeName}
-        onNavigateBack={() => o.navigate("/cogni/curation")}
+        onNavigateBack={handleNavigateBack}
         guidedMode={o.guidedMode}
         onGuidedModeChange={o.setGuidedMode}
         userId={o.user?.id}
