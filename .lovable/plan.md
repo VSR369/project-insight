@@ -1,39 +1,82 @@
 
+Re-verified the current repo and the live `notification_routing` data.
 
-## Fix: QUICK Mode Demo Card — Remove Individual Role Badge Display
+Actual status right now
+- Bug 1 `draftForm` null relay: already fixed in source.
+- Bug 2 missing `cogni-my-challenges` invalidation: already fixed in source.
+- Bug 3 draft `referenceUrls` loss: already fixed in source.
+- Bug 4 `assign_challenge_role` RECORD vs JSONB: fixed in the latest repo migration; I will only re-apply if the live DB is behind.
+- Bug 5 `complete_phase` `sla_hours`: already fixed in the latest repo migration.
+- Bug 6 `sendRoutedNotification` not called: already fixed in `useChallengeSubmit`; the remaining notification problem is now caused by stale routing data.
+- Bug 7 stale `notification_routing` phases: still open and confirmed in the live DB.
+- Bug 8 org details missing: still open/partial.
+- Bug 9 “My Version” hook fallback: still open.
+- Bug 10 phase-2 legal docs empty: partially fixed in creator detail, still open in curator/curation flow.
 
-### Problem
+Root causes to fix
+1. `notification_routing` still uses the old phase mapping in the database.
+   - Confirmed: phase 2 `ROLE_ASSIGNED` / `PHASE_COMPLETE` still route to `CR`, while `CU` is still on phase 3.
 
-In QUICK governance mode, all 5 roles (CR, CU, ER, LC, FC) are system-automated artifacts — the single user never manually performs curation, evaluation, legal, or escrow. Displaying 5 separate role badges is misleading and contradicts the "merged roles / no role conflicts" heading. The user's screenshot confirms the current display shows all 5 badges individually.
+2. Organization details are not implemented as a proper detail section.
+   - The page only shows compact header metadata.
+   - `usePublicChallenge` also does not expose `organization_id`, which blocks richer org display and AGG legal-template preview.
 
-### Design Decision
+3. “My Version” still depends too heavily on `creator_snapshot`.
+   - `buildMyVersionSections` only reads the snapshot.
+   - The current snapshot write path in `useChallengeSubmit` still does not include `hook`.
+   - Result: hook can disappear from “My Version”.
 
-For QUICK mode, Sam Solo's card should show a single consolidated badge like "All Roles (Auto)" instead of 5 individual role badges. This aligns with:
-- Memory: QUICK mode = "merged roles, auto-curation, auto-completes legal"
-- Memory: `nonQuickRoleCodes` concept — system-assigned roles from QUICK mode are workflow artifacts, not actionable roles
-- The heading already says "1 person — all roles merged (no role conflicts)"
+4. Legal-doc preview logic is not shared across creator + curator flows.
+   - `ChallengeLegalDocsCard` has preview behavior, but curation `legal_docs` rendering still only reads `challenge_legal_docs`.
+   - So phase 2 still shows “No legal documents found” in curator review.
+   - AGG preview can also fail because `organization_id` is not loaded.
 
-### Changes
+Implementation plan
+1. Reconcile live DB state
+   - Verify the live `assign_challenge_role` body matches the repo’s JSONB fix.
+   - If the DB is behind, apply the pending function migration.
+   - Update existing `notification_routing` rows to the 10-phase model so phase 2 routes curator notifications correctly.
 
-**File 1: `src/pages/cogniblend/DemoLoginPage.tsx`**
-- Change QUICK mode Sam Solo's `roles` array from `['CR', 'CU', 'ER', 'LC', 'FC']` to just `['CR']` — Creator is the only role the user actually performs
-- Update description to emphasize the single-actor automated flow
+2. Fix org details properly
+   - Extend `usePublicChallenge` / `PublicChallengeData` with `organization_id` and the org fields needed for display.
+   - Add a dedicated read-only organization details section instead of relying on header text only.
+   - Keep the header summary, but make org details an explicit section.
 
-**File 2: `src/components/cogniblend/demo/DemoUserCard.tsx`**
-- Add a `governanceMode` prop (optional)
-- When `governanceMode === 'QUICK'` and user has `stepLabel === 'All Steps'`, render a single "Creator (Auto-Publish)" badge instead of iterating individual role badges
-- Below it, show a muted note: "CU, ER, LC, FC auto-completed by platform"
+3. Fix “My Version” fallback and future snapshot correctness
+   - Extract snapshot-building logic from the oversized `useChallengeSubmit.ts` into a typed helper/service.
+   - Include `hook` in new `creator_snapshot` writes.
+   - Update `buildMyVersionSections` to accept fallback live challenge data for legacy snapshots.
+   - Pass that fallback data from `CreatorChallengeDetailView`.
 
-**File 3: `src/pages/cogniblend/DemoLoginPage.tsx` (render section)**
-- Pass `governanceMode` to each `DemoUserCard`
+4. Fix phase-2 legal docs in both views
+   - Move legal preview fetching out of components into a typed hook/service to align with Lovable layering.
+   - Reuse the same preview model in:
+     - creator detail legal card
+     - curator/curation `legal_docs` renderer
+   - Show planned templates during phase 2 when no actual `challenge_legal_docs` rows exist.
+   - Keep real `challenge_legal_docs` as the source of truth from phase 3 onward.
 
-### Result
+5. Regression-check the already-fixed items instead of re-editing them
+   - Save Draft first click
+   - draft save/resume with reference URLs
+   - submit → CU assignment → routed notification after the routing remap
 
-QUICK mode card will show:
-- Name: "Sam Solo" with "All Steps" badge
-- Single badge: "CR — Challenge Creator"
-- Muted text: "CU, LC, FC, ER auto-completed by platform"
-- Description unchanged
+Files/areas to touch
+- `src/hooks/cogniblend/usePublicChallenge.ts`
+- `src/components/cogniblend/challenges/CreatorChallengeDetailView.tsx` (likely split to stay under Lovable file limits)
+- new organization details component(s)
+- `src/components/cogniblend/challenges/CreatorSectionBuilders.tsx`
+- `src/hooks/cogniblend/useChallengeSubmit.ts` (with extraction, not further growth)
+- new legal preview hook/service
+- `src/components/cogniblend/challenges/ChallengeLegalDocsCard.tsx`
+- `src/components/cogniblend/curation/renderers/LegalDocsSectionRenderer.tsx`
+- `src/components/cogniblend/curation/renderers/renderOpsSections.tsx`
+- DB update for `notification_routing`
+- DB function verification for `assign_challenge_role`
 
-STRUCTURED and CONTROLLED modes remain unaffected — they display individual role badges as before since those represent real human-actor assignments.
-
+Expected result
+- Curator notifications route correctly at phase 2
+- Org details appear as a real detail section
+- “My Version” reliably shows hook for both legacy and new challenges
+- Phase 2 legal docs no longer appear empty in creator or curator views
+- Already-fixed draft bugs stay fixed
