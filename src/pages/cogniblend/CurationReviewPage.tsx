@@ -111,6 +111,10 @@ export default function CurationReviewPage() {
         sectionMap={SECTION_MAP}
         groupProgress={o.groupProgress}
         onNavigateToSection={o.handleNavigateToSection}
+        challenge={o.challenge}
+        legalDocs={o.legalDocs}
+        legalDetails={o.legalDetails}
+        escrowRecord={o.escrowRecord}
       />
       <CurationHeaderBar
         challengeId={o.challengeId!}
