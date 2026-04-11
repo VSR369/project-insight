@@ -13,7 +13,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { FileText, ArrowRight, FolderOpen, Search } from 'lucide-react';
 import { ROLE_COLORS } from '@/types/cogniRoles';
-import { format } from 'date-fns';
 
 export default function LcChallengeQueuePage() {
   const { user } = useAuth();
