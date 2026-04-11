@@ -119,56 +119,54 @@ export function useCurationAIActions({
   }, [executeWaves, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
 
   const handleAIReview = useCallback(async () => {
-    if (!challengeId || !challenge) return;
-    if (isWaveRunning) return;
-
-    const store = curationStore;
-    const sectionContents: Record<string, string | null> = {};
-    if (store) {
-      const state = store.getState();
-      for (const [key, entry] of Object.entries(state.sections)) {
-        if ((entry as any)?.data != null) {
-          sectionContents[key] = typeof (entry as any).data === 'string' ? (entry as any).data : JSON.stringify((entry as any).data);
-        } else {
-          sectionContents[key] = (challenge as any)?.[key] ?? null;
-        }
-      }
-    }
-
-    const ebForPreFlight = jsonParse<Record<string, unknown>>(challenge.extended_brief as Json);
-    if (ebForPreFlight) {
-      for (const [subKey, jsonbField] of Object.entries(EXTENDED_BRIEF_FIELD_MAP)) {
-        if (!sectionContents[subKey]) {
-          const val = ebForPreFlight[jsonbField];
-          if (val != null) sectionContents[subKey] = typeof val === 'string' ? val : JSON.stringify(val);
-        }
-      }
-    }
-
-    if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
-    if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
-
-    const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge as unknown as ChallengeData);
-    if (!industrySegId) sectionContents['industry_segment'] = null;
-
-    const pfResult = preFlightCheck(sectionContents, challenge.operating_model as string | null);
-
-    if (!industrySegId) {
-      pfResult.missingMandatory.push({
-        sectionId: 'context_and_background' as any,
-        sectionName: 'Industry Segment',
-        reason: 'Industry segment must be set in Context & Background before AI review. It drives taxonomy cascades across all sections.',
-      });
-      pfResult.canProceed = false;
-    }
-
+    const pfResult = runPreFlight();
+    if (!pfResult) return;
     setPreFlightResult(pfResult);
     if (!pfResult.canProceed || pfResult.warnings.length > 0) {
       setPreFlightDialogOpen(true);
       return;
     }
     await executeWavesWithBudgetCheck();
-  }, [challengeId, challenge, isWaveRunning, curationStore, optimisticIndustrySegId, executeWavesWithBudgetCheck, setPreFlightResult, setPreFlightDialogOpen]);
+  }, [runPreFlight, executeWavesWithBudgetCheck, setPreFlightResult, setPreFlightDialogOpen]);
+
+  // ── Step 1: Analyse Challenge (Pass 1 only) ──
+  const handleAnalyse = useCallback(async () => {
+    const pfResult = runPreFlight();
+    if (!pfResult) return;
+    setPreFlightResult(pfResult);
+    if (!pfResult.canProceed || pfResult.warnings.length > 0) {
+      setPreFlightDialogOpen(true);
+      return;
+    }
+    setAiReviewLoading(true);
+    setTriageTotalCount(0);
+    try {
+      await executeWavesPass1();
+      setTriageTotalCount(24);
+      toast.success('Analysis complete. Review findings, then Generate Suggestions.');
+    } catch (e: any) {
+      toast.error(`Analysis failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setAiReviewLoading(false);
+    }
+  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount]);
+
+  // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
+  const handleGenerateSuggestions = useCallback(async () => {
+    setAiReviewLoading(true);
+    setTriageTotalCount(0);
+    try {
+      await executeWavesFull();
+      const ctx = buildChallengeContext(buildContextOptions());
+      const shortfall = detectBudgetShortfall(ctx);
+      setBudgetShortfall(shortfall);
+      setTriageTotalCount(24);
+    } catch (e: any) {
+      toast.error(`Generation failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setAiReviewLoading(false);
+    }
+  }, [executeWavesFull, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
@@ -216,6 +214,8 @@ export function useCurationAIActions({
   return {
     executeWavesWithBudgetCheck,
     handleAIReview,
+    handleAnalyse,
+    handleGenerateSuggestions,
     handleAIQualityAnalysis,
     handleSingleSectionReview,
     ...complexity,
