@@ -54,6 +54,54 @@ export function useCurationAIActions({
   setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
 }: UseCurationAIActionsOptions) {
 
+  // Shared pre-flight logic extracted for reuse
+  const runPreFlight = useCallback((): ReturnType<typeof preFlightCheck> | null => {
+    if (!challengeId || !challenge) return null;
+    if (isWaveRunning) return null;
+
+    const store = curationStore;
+    const sectionContents: Record<string, string | null> = {};
+    if (store) {
+      const state = store.getState();
+      for (const [key, entry] of Object.entries(state.sections)) {
+        if ((entry as any)?.data != null) {
+          sectionContents[key] = typeof (entry as any).data === 'string' ? (entry as any).data : JSON.stringify((entry as any).data);
+        } else {
+          sectionContents[key] = (challenge as any)?.[key] ?? null;
+        }
+      }
+    }
+
+    const ebForPreFlight = jsonParse<Record<string, unknown>>(challenge.extended_brief as Json);
+    if (ebForPreFlight) {
+      for (const [subKey, jsonbField] of Object.entries(EXTENDED_BRIEF_FIELD_MAP)) {
+        if (!sectionContents[subKey]) {
+          const val = ebForPreFlight[jsonbField];
+          if (val != null) sectionContents[subKey] = typeof val === 'string' ? val : JSON.stringify(val);
+        }
+      }
+    }
+
+    if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
+    if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
+
+    const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge as unknown as ChallengeData);
+    if (!industrySegId) sectionContents['industry_segment'] = null;
+
+    const pfResult = preFlightCheck(sectionContents, challenge.operating_model as string | null);
+
+    if (!industrySegId) {
+      pfResult.missingMandatory.push({
+        sectionId: 'context_and_background' as any,
+        sectionName: 'Industry Segment',
+        reason: 'Industry segment must be set in Context & Background before AI review.',
+      });
+      pfResult.canProceed = false;
+    }
+
+    return pfResult;
+  }, [challengeId, challenge, isWaveRunning, curationStore, optimisticIndustrySegId]);
+
   const executeWavesWithBudgetCheck = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
