@@ -1,40 +1,54 @@
 
 
-## Fix: Sequential Two-Step AI Workflow (Analyse → Context Library → Generate)
+## Fix Plan: 3 Remaining Gaps in Context Intelligence Implementation
 
-### Current Problem
-The UI shows either "Analyse Challenge" OR "Generate Suggestions" based on `pass1Done`, but:
-1. After analysis completes, it does NOT auto-open the Context Library
-2. The "Generate Suggestions" button appears immediately after pass1 — there's no gate requiring the curator to review context first
+### Status of All Spec Items
 
-### Correct Sequence (per spec)
-```text
-[Analyse Challenge] → Pass 1 runs → auto-opens Context Library drawer
-        ↓
-Curator reviews/accepts discovered sources, closes drawer
-        ↓
-[Generate Suggestions] button now appears (replacing Analyse)
-        ↓
-Curator clicks → Pass 2 runs with enriched context
+| # | Area | Status |
+|---|------|--------|
+| GAP 1 (Git) | N/A — Lovable manages commits automatically | **Not applicable** |
+| GAP 2 (curation-intelligence file) | File exists at 140 lines, deployed | **Done** |
+| GAP 3 | `discover-context-resources` has wrong column names | **BUG — needs fix** |
+| GAP 4 | `useAddContextUrl` missing digest regeneration | **BUG — needs fix** |
+| GAP 5 | Duplicate "Discover Sources" button in drawer | **UX fix needed** |
+
+### Changes
+
+**1. Fix `discover-context-resources/index.ts` (GAP 3)**
+
+The org query on line 62 uses columns that don't exist in `seeker_organizations`:
+- `name` → `organization_name`
+- `country` → (remove — need `hq_country_id` + join to `countries` or just use `hq_city`)
+- `city` → `hq_city`
+- `website` → `website_url`
+- `description` → `organization_description`
+
+Also add `industry_segment_id` to the challenge select (line 49) so discovery can use it directly instead of only relying on org's industry.
+
+Update the `variableMap` references accordingly (lines 97-105).
+
+**2. Fix `useAddContextUrl` in `useContextLibrary.ts` (GAP 4)**
+
+In the `onSuccess` callback (line 323), add a delayed digest regeneration call after URL extraction completes:
+```
+onSuccess: () => {
+  invalidateAll(qc, challengeId);
+  toast.success('URL added — extracting content...');
+  setTimeout(() => {
+    supabase.functions.invoke('generate-context-digest', {
+      body: { challenge_id: challengeId },
+    }).then(() => invalidateAll(qc, challengeId)).catch(() => {});
+  }, 5000);
+},
 ```
 
-### Changes (3 files)
+**3. Rename "Discover Sources" button in `ContextLibraryDrawer.tsx` (GAP 5)**
 
-**1. `useCurationAIActions.ts` (line 146)**
-After `executeWavesPass1()` succeeds, call `setContextLibraryOpen(true)` to auto-open the Context Library drawer so the curator can review discovered sources before generating suggestions.
+Change the button label from "Discover Sources" to "Re-discover Sources" since primary discovery now runs automatically during "Analyse Challenge". This makes it clear this is a manual re-run, not the primary entry point.
 
-**2. `CurationRightRail.tsx` (lines 103-121)**
-Replace the single-button toggle with a two-button sequential layout:
-- **"Analyse Challenge"** — always visible; disabled after pass1Done (can re-run, shown as secondary)
-- **"Generate Suggestions"** — visible only when `pass1Done` is true; primary action button
-
-This way both buttons can coexist, with "Generate Suggestions" appearing only after analysis is complete.
-
-**3. `CurationReviewPage.tsx` (line 252)**
-No change needed — the `pass1Done` derivation (`aiReviews.length > 0 && aiReviews.every(r => !r.suggestion)`) is correct and will naturally become true after Pass 1 (which strips suggestions).
-
-### What stays the same
-- All hooks, edge functions, executors, Context Library components unchanged
-- Legacy "Review Sections by AI" fallback button preserved
-- `handleSingleSectionReview` untouched
+### What is NOT touched
+- All other spec items already implemented correctly
+- No edge function logic changes beyond the column name fix
+- No hook interface changes
+- No migration needed
 
