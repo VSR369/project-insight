@@ -35,31 +35,27 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
   switch (section.key) {
     case "phase_schedule":
       return (
-        <>
-          <ScheduleTableSectionRenderer
-            data={parseJson<any>(challenge.phase_schedule)}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(rows) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
-              if (Array.isArray(rows) && rows.length > 0) {
-                const endDates = rows
-                  .map((r: any) => r.end_date)
-                  .filter(Boolean)
-                  .map((d: string) => new Date(d).getTime())
-                  .filter((t: number) => !isNaN(t));
-                if (endDates.length > 0) {
-                  const maxEnd = new Date(Math.max(...endDates)).toISOString().split("T")[0];
-                  saveSectionMutation.mutate({ field: "submission_deadline", value: maxEnd });
-                }
+        <ScheduleTableSectionRenderer
+          data={parseJson<unknown>(challenge.phase_schedule)}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(rows) => {
+            saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
+            if (Array.isArray(rows) && rows.length > 0) {
+              const endDates = rows
+                .map((r: Record<string, string>) => r.end_date)
+                .filter(Boolean)
+                .map((d: string) => new Date(d).getTime())
+                .filter((t: number) => !isNaN(t));
+              if (endDates.length > 0) {
+                const maxEnd = new Date(Math.max(...endDates)).toISOString().split("T")[0];
+                saveSectionMutation.mutate({ field: "submission_deadline", value: maxEnd });
               }
-            }}
-            onCancel={() => setEditingSection(null)}
-            saving={savingSection}
-          />
-          {editButton}
-        </>
+            }
+          }}
+          onCancel={() => setEditingSection(null)}
+          saving={savingSection}
+        />
       );
 
     case "legal_docs":
@@ -90,8 +86,8 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
     }
 
     case "data_resources_provided": {
-      const raw = parseJson<Record<string, string>[]>((challenge as any).data_resources_provided) ?? [];
-      if (isEditing && !isReadOnly) {
+      const raw = parseJson<Record<string, string>[]>((challenge as Record<string, unknown>).data_resources_provided) ?? [];
+      if (!isReadOnly) {
         return (
           <TableSectionEditor
             columns={[
@@ -112,14 +108,13 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
       return (
         <>
           {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-          {editButton}
         </>
       );
     }
 
     case "success_metrics_kpis": {
-      const raw = parseJson<Record<string, string>[]>((challenge as any).success_metrics_kpis) ?? [];
-      if (isEditing && !isReadOnly) {
+      const raw = parseJson<Record<string, string>[]>((challenge as Record<string, unknown>).success_metrics_kpis) ?? [];
+      if (!isReadOnly) {
         return (
           <TableSectionEditor
             columns={[
@@ -139,7 +134,6 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
       return (
         <>
           {section.render(challenge, legalDocs, legalDetails, escrowRecord)}
-          {editButton}
         </>
       );
     }

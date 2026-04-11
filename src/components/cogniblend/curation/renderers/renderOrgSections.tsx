@@ -44,8 +44,9 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
   switch (section.key) {
     case "problem_statement": {
       const resolvedSegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
-      const tf = parseJson<any>(challenge.targeting_filters);
-      const segmentFromIntake = !!(tf?.industries?.length > 0) && !tf?.industry_segment_id;
+      const tf = parseJson<Record<string, unknown>>(challenge.targeting_filters);
+      const industries = tf?.industries;
+      const segmentFromIntake = !!(Array.isArray(industries) && industries.length > 0) && !tf?.industry_segment_id;
       return (
         <>
           <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5 mb-3">
@@ -105,7 +106,6 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
             onEdit={() => setEditingSection(section.key)}
             saving={savingSection}
           />
-          {editButton}
         </>
       );
     }
@@ -113,18 +113,15 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
     case "scope":
     case "hook":
       return (
-        <>
-          <RichTextSectionRenderer
-            value={getFieldValue(challenge, section.key)}
-            readOnly={isReadOnly || isLocked}
-            editing={isEditing}
-            onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
-            onCancel={cancelEdit}
-            onEdit={() => setEditingSection(section.key)}
-            saving={savingSection}
-          />
-          {editButton}
-        </>
+        <RichTextSectionRenderer
+          value={getFieldValue(challenge, section.key)}
+          readOnly={isReadOnly || isLocked}
+          editing={isEditing}
+          onSave={(val) => handleSaveText(section.key, section.dbField!, val)}
+          onCancel={cancelEdit}
+          onEdit={() => setEditingSection(section.key)}
+          saving={savingSection}
+        />
       );
 
     case "domain_tags":
@@ -140,22 +137,17 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
     case "solver_expertise": {
       const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge);
       return (
-        <>
-          <SolverExpertiseSection
-            data={challenge.solver_expertise_requirements}
-            industrySegmentId={industrySegId}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(expertiseData) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
-              setEditingSection(null);
-            }}
-            saving={savingSection}
-            onCancel={cancelEdit}
-          />
-          {editButton}
-        </>
+        <SolverExpertiseSection
+          data={challenge.solver_expertise_requirements}
+          industrySegmentId={industrySegId}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(expertiseData) => {
+            saveSectionMutation.mutate({ field: "solver_expertise_requirements", value: expertiseData });
+          }}
+          saving={savingSection}
+          onCancel={cancelEdit}
+        />
       );
     }
 
@@ -164,21 +156,18 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
       const textVal = typeof getSubsectionValue(eb, "context_and_background") === "string"
         ? getSubsectionValue(eb, "context_and_background") as string : "";
       return (
-        <>
-          <RichTextSectionRenderer
-            value={textVal}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(val) => {
-              const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["context_and_background"]]: val };
-              handleSaveExtendedBrief(updated);
-            }}
-            onCancel={cancelEdit}
-            onEdit={() => setEditingSection(section.key)}
-            saving={savingSection}
-          />
-          {editButton}
-        </>
+        <RichTextSectionRenderer
+          value={textVal}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(val) => {
+            const updated = { ...eb, [EXTENDED_BRIEF_FIELD_MAP["context_and_background"]]: val };
+            handleSaveExtendedBrief(updated);
+          }}
+          onCancel={cancelEdit}
+          onEdit={() => setEditingSection(section.key)}
+          saving={savingSection}
+        />
       );
     }
 
