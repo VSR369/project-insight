@@ -16,6 +16,7 @@ interface DraftSaveConfig {
   engagementModel: string;
   governanceMode: GovernanceMode;
   industrySegmentId: string;
+  referenceUrls?: string[];
   onDraftIdChange?: (id: string) => void;
 }
 
@@ -24,7 +25,7 @@ function cleanArray(items: string[] | undefined): string[] {
 }
 
 export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { form: DraftSaveConfig['form'] | null }) {
-  const { form, orgId, userId, engagementModel, governanceMode, industrySegmentId, onDraftIdChange } = config;
+  const { form, orgId, userId, engagementModel, governanceMode, industrySegmentId, referenceUrls, onDraftIdChange } = config;
   const draftMutation = useSaveDraft();
   const updateDraftMutation = useUpdateDraft();
   const [draftChallengeId, setDraftChallengeId] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         ipModel: data.ip_model || undefined, hook: data.hook || undefined,
         weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
         deliverablesList: cleanArray(data.deliverables_list),
+        referenceUrls: referenceUrls?.length ? referenceUrls : undefined,
         solverAudience: engagementModel === 'AGG' ? (data.solver_audience ?? 'ALL') : 'ALL',
         evaluationMethod: data.evaluation_method ?? 'SINGLE',
         evaluatorCount: data.evaluator_count ?? 1,
@@ -83,7 +85,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         toast.success('Draft saved successfully');
       }
     } catch { /* handled by mutation onError */ }
-  }, [isSaving, form, orgId, userId, engagementModel, governanceMode, industrySegmentId, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
+  }, [isSaving, form, orgId, userId, engagementModel, governanceMode, industrySegmentId, referenceUrls, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
 
   return { handleSaveDraft, isSaving, draftChallengeId, initFromUrl };
 }
