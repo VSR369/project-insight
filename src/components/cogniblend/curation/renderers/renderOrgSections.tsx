@@ -37,6 +37,7 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
     handleSaveText, handleSaveExtendedBrief,
     handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange,
     saveSectionMutation, industrySegments, optimisticIndustrySegId, currentTags,
+    autoSaveStatus,
   } = args;
 
   if (!ORG_KEYS.has(section.key)) return null;
@@ -105,8 +106,7 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
             onCancel={cancelEdit}
             onEdit={() => setEditingSection(section.key)}
             saving={savingSection}
-            sectionDbField={section.dbField}
-            saveSectionMutation={saveSectionMutation}
+            autoSaveStatus={autoSaveStatus}
           />
         </>
       );
@@ -123,8 +123,7 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
           onCancel={cancelEdit}
           onEdit={() => setEditingSection(section.key)}
           saving={savingSection}
-          sectionDbField={section.dbField}
-          saveSectionMutation={saveSectionMutation}
+          autoSaveStatus={autoSaveStatus}
         />
       );
 
@@ -171,8 +170,7 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
           onCancel={cancelEdit}
           onEdit={() => setEditingSection(section.key)}
           saving={savingSection}
-          sectionDbField={undefined}
-          saveSectionMutation={undefined}
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useCallback } from "react";
+import { useAutoSaveSection } from "@/hooks/cogniblend/useAutoSaveSection";
 import { cn } from "@/lib/utils";
 import { useSectionNavigationListener } from "@/lib/cogniblend/sectionNavigation";
 
@@ -54,6 +55,7 @@ export interface SectionPanelItemProps {
   solutionTypeMap: any[];
 
   handleSaveText: (key: string, field: string, val: string) => void;
+  handleSyncText: (key: string, val: string) => void;
   handleSaveDeliverables: (items: string[]) => void;
   handleSaveStructuredDeliverables: (items: DeliverableItem[]) => void;
   handleSaveEvalCriteria: (criteria: { name: string; weight: number }[]) => void;
@@ -100,7 +102,7 @@ export interface SectionPanelItemProps {
   expandVersion: number;
 }
 
-export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, editingSection, setEditingSection, savingSection, setSavingSection, aiReview, approvedSections, toggleSectionApproval, sectionAIFlags, highlightWarnings, aiSuggestedComplexity, staleKeySet, reviewSessionActive, masterData, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap, handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel, handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity, handleAcceptRefinement, handleAcceptExtendedBriefRefinement, handleSingleSectionReview, handleMarkAddressed, handleComplexityReReview, handleApproveLockedSection, handleUndoApproval, handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange, handleAcceptAllLegalDefaults, saveSectionMutation, challengeCtx, optimisticIndustrySegId, escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, legalDocs, legalDetails, escrowRecord, rewardStructureRef, complexityModuleRef, curationStore, staleSections, sectionReadiness, getSectionActions, setLockedSendState, setContextLibraryOpen, expandVersion }: SectionPanelItemProps) {
+export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, editingSection, setEditingSection, savingSection, setSavingSection, aiReview, approvedSections, toggleSectionApproval, sectionAIFlags, highlightWarnings, aiSuggestedComplexity, staleKeySet, reviewSessionActive, masterData, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap, handleSaveText, handleSyncText, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel, handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity, handleAcceptRefinement, handleAcceptExtendedBriefRefinement, handleSingleSectionReview, handleMarkAddressed, handleComplexityReReview, handleApproveLockedSection, handleUndoApproval, handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange, handleAcceptAllLegalDefaults, saveSectionMutation, challengeCtx, optimisticIndustrySegId, escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, legalDocs, legalDetails, escrowRecord, rewardStructureRef, complexityModuleRef, curationStore, staleSections, sectionReadiness, getSectionActions, setLockedSendState, setContextLibraryOpen, expandVersion }: SectionPanelItemProps) {
   const [navHighlight, setNavHighlight] = useState(false);
   const [forceExpandTick, setForceExpandTick] = useState(0);
 
@@ -135,10 +137,24 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
 
   const cancelEdit = () => setEditingSection(null);
 
+  // Autosave: debounced DB writer for this section panel
+  const dbField = section.dbField ?? section.key;
+  const { save: autoSave, status: autoSaveStatus } = useAutoSaveSection(saveSectionMutation, {
+    field: dbField,
+    debounceMs: 700,
+    disabled: isReadOnly || LOCKED_SECTIONS.has(section.key),
+  });
+
+  // Wrap handleSaveText to sync store immediately + debounce DB write
+  const debouncedHandleSaveText = useCallback((key: string, _field: string, val: string) => {
+    handleSyncText(key, val);
+    autoSave(val);
+  }, [handleSyncText, autoSave]);
+
   const sectionContent = renderSectionContent({
     section, challenge, challengeId, isReadOnly, isEditing, isLocked, canEdit,
     savingSection, setSavingSection, cancelEdit, setEditingSection, panelStatus,
-    handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables,
+    handleSaveText: debouncedHandleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables,
     handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel,
     handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity,
     handleLockComplexity, handleUnlockComplexity, handleAcceptAllLegalDefaults,
@@ -150,6 +166,7 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
     isAcceptingAllLegal, currentTags,
     legalDocs, legalDetails, escrowRecord,
     rewardStructureRef, complexityModuleRef, aiSuggestedComplexity,
+    autoSaveStatus,
   });
 
   const sectionMasterDataOptions = (() => {

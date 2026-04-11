@@ -66,6 +66,7 @@ export interface CurationSectionListProps {
   solutionTypeMap: any[];
 
   handleSaveText: (key: string, field: string, val: string) => void;
+  handleSyncText: (key: string, val: string) => void;
   handleSaveDeliverables: (items: string[]) => void;
   handleSaveStructuredDeliverables: (items: DeliverableItem[]) => void;
   handleSaveEvalCriteria: (criteria: { name: string; weight: number }[]) => void;

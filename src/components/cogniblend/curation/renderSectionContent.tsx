@@ -16,6 +16,7 @@ import { renderOpsSection } from "@/components/cogniblend/curation/renderers/ren
 
 import { LOCKED_SECTIONS } from "@/lib/cogniblend/curationSectionDefs";
 
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 import type { ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord, SectionDef } from "@/lib/cogniblend/curationTypes";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 import type { SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
@@ -75,6 +76,7 @@ export interface RenderSectionContentArgs {
   rewardStructureRef: React.RefObject<RewardStructureDisplayHandle | null>;
   complexityModuleRef: React.RefObject<ComplexityModuleHandle | null>;
   aiSuggestedComplexity: any;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
 /* ── Dispatcher ── */
