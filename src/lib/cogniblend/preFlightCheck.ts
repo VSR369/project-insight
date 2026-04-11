@@ -258,9 +258,17 @@ export function preFlightCheck(
   const missingMandatory: PreFlightItem[] = [];
   const warnings: PreFlightItem[] = [];
 
+  // Per-section minimum length thresholds (enum codes like "POC" are short but valid)
+  const SECTION_MIN_LENGTH: Record<string, number> = {
+    maturity_level: 2,
+    domain_tags: 3,
+    problem_statement: 50,
+  };
+
   for (const s of MANDATORY_SECTIONS) {
     const content = getSectionContent(sections, s.sectionId);
-    if (content.length < 50) {
+    const minLen = SECTION_MIN_LENGTH[s.sectionId] ?? 50;
+    if (content.length < minLen) {
       missingMandatory.push(s);
     }
   }
@@ -309,24 +317,24 @@ export function preFlightCheck(
           coverageLevel: coverage.coverageLevel,
           recommendation: coverage.recommendation,
         };
+        // Emit at most one domain_tags warning — prioritize most actionable
         if (coverage.coverageLevel === 'thin') {
           warnings.push({
             sectionId: 'domain_tags' as SectionKey,
             sectionName: 'Domain Tags',
             reason: `Thin domain coverage: ${coverage.thinDomains.join(', ')}. AI has limited reference data — expect more curator edits.`,
           });
+        } else if (tags.length > 5) {
+          warnings.push({
+            sectionId: 'domain_tags' as SectionKey,
+            sectionName: 'Domain Tags',
+            reason: `${tags.length} domain tags selected. Broad domain coverage may reduce AI specificity — consider narrowing to 3-5 core domains.`,
+          });
         } else if (coverage.coverageLevel === 'moderate') {
           warnings.push({
             sectionId: 'domain_tags' as SectionKey,
             sectionName: 'Domain Tags',
             reason: coverage.recommendation,
-          });
-        }
-        if (tags.length > 5) {
-          warnings.push({
-            sectionId: 'domain_tags' as SectionKey,
-            sectionName: 'Domain Tags',
-            reason: `${tags.length} domain tags selected. Broad domain coverage may reduce AI specificity — consider narrowing to 3-5 core domains.`,
           });
         }
       }
