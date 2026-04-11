@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -94,12 +94,12 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
   };
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <SheetContent side="right" className="flex flex-col overflow-hidden gap-0 sm:max-w-none" style={{ padding: 0, width: 900, maxWidth: 900 }}>
-        <SheetHeader className="shrink-0 p-4 pb-3 border-b min-h-[4rem]">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+      <DialogContent className="w-[calc(100vw-80px)] max-w-none h-[calc(100vh-80px)] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 p-4 pb-3 border-b min-h-[4rem]">
           {/* Title row */}
           <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2 text-lg">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <BookOpen className="h-5 w-5" />
               Context Library
               {suggestedCount > 0 && (
@@ -107,7 +107,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
                   {suggestedCount} awaiting review
                 </Badge>
               )}
-            </SheetTitle>
+            </DialogTitle>
           </div>
           <p className="text-sm text-muted-foreground truncate">{challengeTitle}</p>
 
@@ -181,7 +181,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
               <Button size="sm" variant="ghost" onClick={() => setAddMode(null)}><X className="h-4 w-4" /></Button>
             </div>
           )}
-        </SheetHeader>
+        </DialogHeader>
 
         {/* Body */}
         <div className="flex-1 flex min-h-0">
@@ -220,7 +220,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
             />
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
