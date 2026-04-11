@@ -1018,26 +1018,35 @@ export type Database = {
       challenge_context_digest: {
         Row: {
           challenge_id: string
+          curator_edited: boolean
+          curator_edited_at: string | null
           digest_text: string
           generated_at: string
           id: string
           key_facts: Json | null
+          original_digest_text: string | null
           source_count: number
         }
         Insert: {
           challenge_id: string
+          curator_edited?: boolean
+          curator_edited_at?: string | null
           digest_text: string
           generated_at?: string
           id?: string
           key_facts?: Json | null
+          original_digest_text?: string | null
           source_count?: number
         }
         Update: {
           challenge_id?: string
+          curator_edited?: boolean
+          curator_edited_at?: string | null
           digest_text?: string
           generated_at?: string
           id?: string
           key_facts?: Json | null
+          original_digest_text?: string | null
           source_count?: number
         }
         Relationships: [
