@@ -146,6 +146,25 @@ export function usePendingSuggestionCount(challengeId: string | null) {
   });
 }
 
+/* ── Helpers ── */
+
+const EXTRACTION_POLL_INTERVAL_MS = 2000;
+const EXTRACTION_MAX_WAIT_MS = 45000;
+
+/** Poll until extraction_status is 'completed' or 'failed' (max 45s). */
+async function waitForExtraction(attachmentId: string): Promise<void> {
+  const maxAttempts = Math.ceil(EXTRACTION_MAX_WAIT_MS / EXTRACTION_POLL_INTERVAL_MS);
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, EXTRACTION_POLL_INTERVAL_MS));
+    const { data } = await supabase
+      .from('challenge_attachments')
+      .select('extraction_status')
+      .eq('id', attachmentId)
+      .single();
+    if (data?.extraction_status === 'completed' || data?.extraction_status === 'failed') return;
+  }
+}
+
 /* ── Mutations ── */
 
 export function useDiscoverSources(challengeId: string) {
@@ -175,16 +194,18 @@ export function useAcceptSuggestion(challengeId: string) {
         .update({ discovery_status: 'accepted', updated_at: new Date().toISOString() })
         .eq('id', attachmentId);
       if (error) throw new Error(error.message);
-      supabase.functions.invoke('extract-attachment-text', {
+
+      await supabase.functions.invoke('extract-attachment-text', {
         body: { attachment_id: attachmentId },
-      }).catch(() => { /* fire and forget */ });
+      });
+      await waitForExtraction(attachmentId);
+      await supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      });
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('Source accepted');
-      supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
+      toast.success('Source accepted and indexed');
     },
     onError: (err: Error) => toast.error(`Accept failed: ${err.message}`),
   });
@@ -216,18 +237,25 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
         .update({ discovery_status: 'accepted', updated_at: new Date().toISOString() })
         .in('id', ids);
       if (error) throw new Error(error.message);
-      for (const id of ids) {
-        supabase.functions.invoke('extract-attachment-text', {
-          body: { attachment_id: id },
-        }).catch(() => {});
-      }
+
+      // Trigger all extractions in parallel
+      await Promise.allSettled(
+        ids.map(id =>
+          supabase.functions.invoke('extract-attachment-text', {
+            body: { attachment_id: id },
+          })
+        )
+      );
+      // Wait for all extractions to finish
+      await Promise.allSettled(ids.map(id => waitForExtraction(id)));
+
+      await supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      });
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('Sources accepted');
-      supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
+      toast.success('Sources accepted and indexed');
     },
     onError: (err: Error) => toast.error(`Batch accept failed: ${err.message}`),
   });
@@ -280,21 +308,24 @@ export function useUploadContextFile(challengeId: string) {
         .single();
       if (insertErr) throw new Error(insertErr.message);
 
-      supabase.functions.invoke('extract-attachment-text', {
+      await supabase.functions.invoke('extract-attachment-text', {
         body: { attachment_id: att.id },
-      }).catch(() => {});
+      });
+      await waitForExtraction(att.id);
+      await supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      });
 
       return att;
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('File uploaded');
+      toast.success('File uploaded and indexed');
     },
     onError: (err: Error) => toast.error(`Upload failed: ${err.message}`),
   });
 }
 
-/** Bug 3 fix: await extraction before regenerating digest */
 export function useAddContextUrl(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -314,29 +345,19 @@ export function useAddContextUrl(challengeId: string) {
         .single();
       if (error) throw new Error(error.message);
 
-      // Await extraction before triggering digest
-      try {
-        await supabase.functions.invoke('extract-attachment-text', {
-          body: { attachment_id: att.id },
-        });
-      } catch {
-        toast.warning('URL content extraction failed — digest may be incomplete');
-      }
-
-      // Now regenerate digest with extracted content available
-      try {
-        await supabase.functions.invoke('generate-context-digest', {
-          body: { challenge_id: challengeId },
-        });
-      } catch {
-        // Non-blocking — digest can be regenerated manually
-      }
+      await supabase.functions.invoke('extract-attachment-text', {
+        body: { attachment_id: att.id },
+      });
+      await waitForExtraction(att.id);
+      await supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      });
 
       return att;
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('URL added and content extracted');
+      toast.success('URL added and indexed — digest updated');
     },
     onError: (err: Error) => toast.error(`Add URL failed: ${err.message}`),
   });
