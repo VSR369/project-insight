@@ -167,10 +167,6 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       <CompletionBanner phase2Status={phase2Status} triageTotalCount={triageTotalCount} aiReviews={aiReviews} />
 
-      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
-
-      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
-
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
         checklistSummary={checklistSummary} completedCount={completedCount} totalCount={checklistSummary.length}
         operatingModel={operatingModel} readOnly={isReadOnly} legalEscrowBlocked={legalEscrowBlocked} blockingReason={blockingReason}
@@ -197,6 +193,10 @@ export function CurationRightRail(props: CurationRightRailProps) {
           currentPhase={props.currentPhase ?? null}
         />
       )}
+
+      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
+
+      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
       <ModificationPointsTracker challengeId={challengeId} mode={isReadOnly ? "readonly" : "curator"} />
     </div>

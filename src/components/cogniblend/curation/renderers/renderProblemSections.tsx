@@ -53,6 +53,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           structuredItems={getDeliverableObjects(challenge)}
           onSaveStructured={handleSaveStructuredDeliverables}
           badgePrefix="D"
+          autoSaveStatus={autoSaveStatus}
         />
       );
 
@@ -79,6 +80,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           }}
           badgePrefix="S"
           hideAcceptanceCriteria
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }
@@ -105,6 +107,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           }}
           badgePrefix="O"
           hideAcceptanceCriteria
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }
@@ -136,6 +139,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
             onCancel={cancelEdit}
             saving={savingSection}
             itemLabel={itemLabel}
+            autoSaveStatus={autoSaveStatus}
           />
         </>
       );

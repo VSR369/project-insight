@@ -216,8 +216,8 @@ export function PreFlightGateDialog({
   if (!isBlocking && !hasWarnings && !integrityFailed && result.qualityPrediction.qualityPct >= 95) return null;
 
   const handleNavigate = (sectionId: string) => {
-    onGoToSection(sectionId);
     onOpenChange(false);
+    setTimeout(() => onGoToSection(sectionId), 50);
   };
 
   const firstError = allErrors[0];

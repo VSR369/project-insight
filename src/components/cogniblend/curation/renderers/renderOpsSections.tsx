@@ -102,6 +102,8 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
             onSave={(rows) => saveSectionMutation.mutate({ field: "data_resources_provided", value: rows })}
             onCancel={cancelEdit}
             saving={savingSection}
+            autoSaveStatus={autoSaveStatus}
+          />
           />
         );
       }
@@ -128,6 +130,8 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
             onSave={(rows) => saveSectionMutation.mutate({ field: "success_metrics_kpis", value: rows })}
             onCancel={cancelEdit}
             saving={savingSection}
+            autoSaveStatus={autoSaveStatus}
+          />
           />
         );
       }
