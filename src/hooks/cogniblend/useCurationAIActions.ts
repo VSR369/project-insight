@@ -144,17 +144,27 @@ export function useCurationAIActions({
     setAiReviewLoading(true);
     setTriageTotalCount(0);
     try {
+      // Fire discovery in parallel (non-blocking) so Context Library has sources ready
+      supabase.functions.invoke('discover-context-resources', {
+        body: { challenge_id: challengeId },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
+        queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
+        queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
+      }).catch(() => {});
+
       await executeWavesPass1();
       setTriageTotalCount(24);
       toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
       // Auto-open Context Library so curator can review/accept discovered sources
       setContextLibraryOpen(true);
-    } catch (e: any) {
-      toast.error(`Analysis failed: ${e.message ?? "Unknown error"}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      toast.error(`Analysis failed: ${msg}`);
     } finally {
       setAiReviewLoading(false);
     }
-  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount]);
+  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient]);
 
   // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
   const handleGenerateSuggestions = useCallback(async () => {
