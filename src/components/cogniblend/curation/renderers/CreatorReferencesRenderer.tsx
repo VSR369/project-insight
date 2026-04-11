@@ -136,7 +136,6 @@ export function CreatorReferencesRenderer({
         <SectionReferencePanel
           challengeId={challengeId}
           sectionKey="creator_references"
-          readOnly={false}
         />
       )}
     </div>
