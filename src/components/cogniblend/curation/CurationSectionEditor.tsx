@@ -140,7 +140,7 @@ export function EvalCriteriaEditor({ criteria: initial, onSave, onCancel, saving
 
   const update = (i: number, field: keyof CriterionDraft, v: string | number) => {
     const next = [...rows];
-    (next[i] as Record<string, unknown>)[field] = v;
+    (next[i] as unknown as Record<string, string | number | undefined>)[field] = v;
     setRows(next);
     triggerSave(next);
   };
