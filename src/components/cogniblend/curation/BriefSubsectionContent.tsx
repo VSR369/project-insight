@@ -4,8 +4,6 @@
  */
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
 import {
   RichTextSectionRenderer,
   LineItemsSectionRenderer,
@@ -56,13 +54,9 @@ export function BriefSubsectionContent({
             onCancel={onCancelEdit}
             onEdit={() => onEdit(subsectionKey)}
             saving={saving}
+            autoSaveStatus={autoSaveStatus}
           />
-          {!readOnly && !isEditing && (
-            <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => onEdit(subsectionKey)}>
-              <Pencil className="h-3 w-3 mr-1" />Edit
-            </Button>
-          )}
-          {isEditing && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
+          {!readOnly && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
         </>
       );
     }
@@ -77,18 +71,13 @@ export function BriefSubsectionContent({
           <LineItemsSectionRenderer
             items={items}
             readOnly={readOnly}
-            editing={isEditing}
+            editing={!readOnly}
             onSave={(newItems) => onSave(subsectionKey, newItems)}
             onCancel={onCancelEdit}
             saving={saving}
             itemLabel={subsectionKey === "root_causes" ? "Root Cause" : subsectionKey === "preferred_approach" ? "Approach" : "Deficiency"}
           />
-          {!readOnly && !isEditing && (
-            <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => onEdit(subsectionKey)}>
-              <Pencil className="h-3 w-3 mr-1" />Edit
-            </Button>
-          )}
-          {isEditing && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
+          {!readOnly && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
         </>
       );
     }
@@ -98,7 +87,7 @@ export function BriefSubsectionContent({
       const items = ensureStringArray(rawVal);
       return (
         <>
-          {items.length === 0 && !isEditing && (
+          {items.length === 0 && readOnly && (
             <p className="text-sm text-muted-foreground italic border border-dashed border-border rounded-md px-3 py-2">
               Add approaches you want solvers to avoid — e.g. specific technologies, vendor dependencies, or previously tried methods.
             </p>
@@ -106,18 +95,13 @@ export function BriefSubsectionContent({
           <LineItemsSectionRenderer
             items={items}
             readOnly={readOnly}
-            editing={isEditing}
+            editing={!readOnly}
             onSave={(newItems) => onSave(subsectionKey, newItems)}
             onCancel={onCancelEdit}
             saving={saving}
             itemLabel="Approach"
           />
-          {!readOnly && !isEditing && (
-            <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => onEdit(subsectionKey)}>
-              <Pencil className="h-3 w-3 mr-1" />Edit
-            </Button>
-          )}
-          {isEditing && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
+          {!readOnly && <AutoSaveIndicator status={autoSaveStatus ?? "idle"} className="mt-1" />}
         </>
       );
     }
@@ -138,16 +122,7 @@ export function BriefSubsectionContent({
           </>
         );
       }
-      return (
-        <>
-          <StakeholderTableView rows={rows} />
-          {!readOnly && (
-            <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => onEdit(subsectionKey)}>
-              <Pencil className="h-3 w-3 mr-1" />Edit
-            </Button>
-          )}
-        </>
-      );
+      return <StakeholderTableView rows={rows} />;
     }
 
     default:
