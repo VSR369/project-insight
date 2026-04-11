@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -83,12 +83,31 @@ export default function CurationReviewPage() {
     (o.challenge.current_phase ?? 0) > 2 ||
     (o.challenge as unknown as Record<string, unknown>).curation_lock_status === 'FROZEN';
 
+  // Dirty-state guard for back navigation
+  const handleNavigateBack = useCallback(() => {
+    const store = o.curationStore;
+    if (store) {
+      const sections = store.getState().sections;
+      const hasDirty = Object.values(sections).some((s) => s?.isDirty);
+      if (hasDirty && !window.confirm('You have unsaved changes. Leave without saving?')) {
+        return;
+      }
+    }
+    o.navigate("/cogni/curation");
+  }, [o.curationStore, o.navigate]);
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
       <FreezeStatusBanner
-        lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
-        frozenAt={(o.challenge as any).curation_frozen_at}
+        lockStatus={(o.challenge as unknown as Record<string, unknown>).curation_lock_status as string ?? 'OPEN'}
+        frozenAt={(o.challenge as unknown as Record<string, unknown>).curation_frozen_at as string | undefined}
+      />
+
+      <IncompleteSectionsBanner
+        groups={GROUPS}
+        sectionMap={SECTION_MAP}
+        groupProgress={o.groupProgress}
+        onNavigateToSection={o.handleNavigateToSection}
       />
       <CurationHeaderBar
         challengeId={o.challengeId!}
