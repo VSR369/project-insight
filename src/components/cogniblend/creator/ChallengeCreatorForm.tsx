@@ -151,6 +151,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
   const executeSubmit = useCallback(async (data: CreatorFormValues) => {
+    const loadingToastId = toast.loading(isQuick ? 'Publishing challenge…' : 'Submitting challenge to Curator…');
     try {
       const payload = buildPayload(data);
       const result = await submitMutation.mutateAsync({
@@ -160,13 +161,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId && user?.id) {
         await uploadFiles(attachedFiles, { challengeId: result.challengeId, orgId: currentOrg.organizationId, userId: user.id });
       }
+      toast.dismiss(loadingToastId);
       if (isQuick) {
+        toast.success('Challenge published successfully!');
         setPublishedResult({ challengeId: result.challengeId, title: data.title });
       } else {
         toast.success(`Challenge "${data.title}" submitted to Curator for review.`);
         navigate('/cogni/my-challenges');
       }
     } catch (err) {
+      toast.dismiss(loadingToastId);
       if (err instanceof Error && !submitMutation.isError) {
         toast.error(err.message || 'Submission failed. Please try again.');
       }
@@ -176,7 +180,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const handleSubmit = form.handleSubmit(
     async (data) => {
       if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
-      executeSubmit(data);
+      await executeSubmit(data);
     },
     (errors) => {
       const firstKey = Object.keys(errors)[0];
