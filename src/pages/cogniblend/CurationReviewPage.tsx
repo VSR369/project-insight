@@ -353,6 +353,13 @@ export default function CurationReviewPage() {
         onOpenChange={o.setPreFlightDialogOpen}
         onGoToSection={o.handlePreFlightGoToSection}
         onProceed={o.executeWavesWithBudgetCheck}
+        groups={GROUPS}
+        sectionMap={SECTION_MAP}
+        groupProgress={o.groupProgress}
+        challenge={o.challenge}
+        legalDocs={o.legalDocs}
+        legalDetails={o.legalDetails}
+        escrowRecord={o.escrowRecord}
       />
 
       {o.guidedMode && (
