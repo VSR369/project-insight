@@ -151,11 +151,11 @@ export function CurationRightRail(props: CurationRightRailProps) {
         </Button>
       )}
 
+      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
+
       <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
 
       {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
-
-      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
 
       <AIReviewSummaryCard aiReviews={aiReviews} staleSections={staleSections} groups={groups} sectionMap={sectionMap}
         getSectionDisplayName={getSectionDisplayName} setShowOnlyStale={setShowOnlyStale} setActiveGroup={setActiveGroup} />

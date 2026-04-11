@@ -5,7 +5,7 @@
  * Gap 4: Quality prediction bar + quick-action scroll buttons.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,8 @@ import { Progress } from '@/components/ui/progress';
 import { XCircle, AlertTriangle, ChevronRight, Sparkles, PenLine } from 'lucide-react';
 import type { PreFlightResult, PreFlightItem } from '@/lib/cogniblend/preFlightCheck';
 import { SECTION_TO_TAB } from '@/lib/cogniblend/preFlightCheck';
+import { buildIncompleteGroups } from '@/lib/cogniblend/incompleteSectionsUtil';
+import type { GroupDef, SectionDef, ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord } from '@/lib/cogniblend/curationTypes';
 
 interface IntegrityCheckResult {
   valid: boolean;
@@ -35,6 +37,14 @@ interface PreFlightGateDialogProps {
   onProceed: () => void;
   /** Optional content integrity check result */
   integrityCheck?: IntegrityCheckResult | null;
+  /** Shared incomplete-sections data for unified validation */
+  groups?: GroupDef[];
+  sectionMap?: Map<string, SectionDef>;
+  groupProgress?: Record<string, { done: number; total: number }>;
+  challenge?: ChallengeData | null;
+  legalDocs?: LegalDocSummary[];
+  legalDetails?: LegalDocDetail[];
+  escrowRecord?: EscrowRecord | null;
 }
 
 function NavigableRow({
@@ -147,10 +157,48 @@ export function PreFlightGateDialog({
   onGoToSection,
   onProceed,
   integrityCheck,
+  groups,
+  sectionMap,
+  groupProgress,
+  challenge,
+  legalDocs,
+  legalDetails,
+  escrowRecord,
 }: PreFlightGateDialogProps) {
+  // Build incomplete sections from shared util when props are available
+  const utilIncompleteKeys = useMemo(() => {
+    if (!groups || !sectionMap || !groupProgress) return new Set<string>();
+    const incGroups = buildIncompleteGroups(
+      groups, sectionMap, groupProgress, challenge, legalDocs, legalDetails, escrowRecord,
+    );
+    return new Set(incGroups.flatMap((g) => g.incompleteSectionKeys));
+  }, [groups, sectionMap, groupProgress, challenge, legalDocs, legalDetails, escrowRecord]);
+
   if (!result) return null;
 
   const integrityFailed = integrityCheck && !integrityCheck.valid;
+
+  // Merge pre-flight items with util-detected incomplete sections (deduplicate by sectionId)
+  const preFlightErrorIds = new Set(result.missingMandatory.map((i) => i.sectionId));
+  const preFlightWarningIds = new Set(result.warnings.map((i) => i.sectionId));
+  const budgetErrorIds = new Set((result.budgetAlignmentErrors ?? []).map((i) => i.sectionId));
+  const budgetWarningIds = new Set((result.budgetAlignmentWarnings ?? []).map((i) => i.sectionId));
+  const allKnownIds = new Set([...preFlightErrorIds, ...preFlightWarningIds, ...budgetErrorIds, ...budgetWarningIds]);
+
+  // Add util-detected sections not already in pre-flight as warnings
+  const utilExtraWarnings: PreFlightItem[] = [];
+  if (sectionMap) {
+    for (const key of utilIncompleteKeys) {
+      if (!allKnownIds.has(key)) {
+        const sec = sectionMap.get(key);
+        utilExtraWarnings.push({
+          sectionId: key,
+          sectionName: sec?.label ?? key,
+          reason: 'Section incomplete per completeness check',
+        });
+      }
+    }
+  }
 
   const allErrors = [
     ...result.missingMandatory,
@@ -159,6 +207,7 @@ export function PreFlightGateDialog({
   const allWarnings = [
     ...result.warnings,
     ...(result.budgetAlignmentWarnings ?? []),
+    ...utilExtraWarnings,
   ];
 
   const isBlocking = !result.canProceed || !!integrityFailed;
