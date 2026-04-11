@@ -1,13 +1,13 @@
 /**
  * CheckboxMultiSectionRenderer — View/edit for multi-select checkbox sections.
- * Used for: eligibility, visibility (master-data-driven)
+ * Autosaves immediately on every toggle (no Save/Cancel buttons).
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Save, X } from "lucide-react";
+import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 interface Option {
   value: string;
@@ -23,6 +23,7 @@ interface CheckboxMultiSectionRendererProps {
   onSave: (values: string[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
 export function CheckboxMultiSectionRenderer({
@@ -33,15 +34,20 @@ export function CheckboxMultiSectionRenderer({
   onSave,
   onCancel,
   saving,
+  autoSaveStatus,
 }: CheckboxMultiSectionRendererProps) {
   const [draft, setDraft] = useState<string[]>(selectedValues);
 
+  useEffect(() => {
+    setDraft(selectedValues);
+  }, [selectedValues]);
+
   const handleToggle = (value: string) => {
-    setDraft((prev) =>
-      prev.includes(value)
-        ? prev.filter((v) => v !== value)
-        : [...prev, value]
-    );
+    const next = draft.includes(value)
+      ? draft.filter((v) => v !== value)
+      : [...draft, value];
+    setDraft(next);
+    onSave(next);
   };
 
   if (editing && !readOnly) {
@@ -67,19 +73,8 @@ export function CheckboxMultiSectionRenderer({
             </label>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => onSave(draft)}
-            disabled={saving}
-            className="text-xs"
-          >
-            <Save className="h-3 w-3 mr-1" />
-            {saving ? "Saving..." : "Save"}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onCancel} className="text-xs">
-            <X className="h-3 w-3 mr-1" />Cancel
-          </Button>
+        <div className="flex justify-end">
+          <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
         </div>
       </div>
     );

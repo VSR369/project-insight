@@ -1,12 +1,14 @@
 /**
  * TableSectionEditor — Generic inline editor for JSON-array table sections.
- * Supports add/remove/edit rows with named columns.
+ * Autosaves on every cell change (debounced by parent).
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Save, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 export interface TableColumnDef {
   key: string;
@@ -20,6 +22,7 @@ interface TableSectionEditorProps {
   onSave: (rows: Record<string, string>[]) => void;
   onCancel: () => void;
   saving?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
 export function TableSectionEditor({
@@ -28,6 +31,7 @@ export function TableSectionEditor({
   onSave,
   onCancel,
   saving = false,
+  autoSaveStatus,
 }: TableSectionEditorProps) {
   const [rows, setRows] = useState<Record<string, string>[]>(
     initialRows.length > 0
@@ -35,22 +39,25 @@ export function TableSectionEditor({
       : [createEmptyRow(columns)],
   );
 
-  const updateCell = (rowIdx: number, colKey: string, value: string) => {
-    setRows((prev) =>
-      prev.map((r, i) => (i === rowIdx ? { ...r, [colKey]: value } : r)),
+  const triggerSave = useCallback((newRows: Record<string, string>[]) => {
+    const nonEmpty = newRows.filter((r) =>
+      columns.some((c) => (r[c.key] ?? "").trim().length > 0),
     );
+    onSave(nonEmpty);
+  }, [columns, onSave]);
+
+  const updateCell = (rowIdx: number, colKey: string, value: string) => {
+    const next = rows.map((r, i) => (i === rowIdx ? { ...r, [colKey]: value } : r));
+    setRows(next);
+    triggerSave(next);
   };
 
   const addRow = () => setRows((prev) => [...prev, createEmptyRow(columns)]);
 
-  const removeRow = (idx: number) =>
-    setRows((prev) => prev.filter((_, i) => i !== idx));
-
-  const handleSave = () => {
-    const nonEmpty = rows.filter((r) =>
-      columns.some((c) => (r[c.key] ?? "").trim().length > 0),
-    );
-    onSave(nonEmpty);
+  const removeRow = (idx: number) => {
+    const next = rows.filter((_, i) => i !== idx);
+    setRows(next);
+    triggerSave(next);
   };
 
   return (
@@ -96,34 +103,17 @@ export function TableSectionEditor({
         ))}
       </div>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="text-xs gap-1"
-        onClick={addRow}
-      >
-        <Plus className="h-3.5 w-3.5" /> Add Row
-      </Button>
-
-      <div className="flex gap-2 justify-end pt-2 border-t border-border">
+      <div className="flex items-center justify-between">
         <Button
-          variant="ghost"
+          type="button"
+          variant="outline"
           size="sm"
-          className="text-xs"
-          onClick={onCancel}
-          disabled={saving}
+          className="text-xs gap-1"
+          onClick={addRow}
         >
-          <X className="h-3.5 w-3.5 mr-1" /> Cancel
+          <Plus className="h-3.5 w-3.5" /> Add Row
         </Button>
-        <Button
-          size="sm"
-          className="text-xs"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          <Save className="h-3.5 w-3.5 mr-1" /> {saving ? "Saving…" : "Save"}
-        </Button>
+        <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
       </div>
     </div>
   );
