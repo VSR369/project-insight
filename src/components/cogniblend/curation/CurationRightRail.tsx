@@ -122,22 +122,25 @@ export function CurationRightRail(props: CurationRightRailProps) {
                   Open Context Library
                 </Button>
               </div>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={props.onGenerateSuggestions}
-                disabled={aiReviewLoading || !props.contextLibraryReviewed}
-                className="w-full"
-                title={!props.contextLibraryReviewed ? 'Review the Context Library first' : undefined}
-              >
-                {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-                Generate Suggestions
-              </Button>
-              {!props.contextLibraryReviewed && (
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Open &amp; close the Context Library to enable
-                </p>
-              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full block">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={props.onGenerateSuggestions}
+                      disabled={aiReviewLoading || !props.contextLibraryReviewed}
+                      className="w-full"
+                    >
+                      {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                      Generate Suggestions
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!props.contextLibraryReviewed && (
+                  <TooltipContent>Review Context Library sources first</TooltipContent>
+                )}
+              </Tooltip>
             </>
           )}
         </div>
