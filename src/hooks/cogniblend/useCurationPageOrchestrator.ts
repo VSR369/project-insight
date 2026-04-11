@@ -146,9 +146,10 @@ export function useCurationPageOrchestrator() {
     challengeId, challenge: challenge as Record<string, any> | null, curationStore,
     optimisticIndustrySegId, isWaveRunning: waveSetup.isWaveRunning, aiReviews,
     buildContextOptions: waveSetup.buildContextOptions, executeWaves: waveSetup.executeWaves,
+    executeWavesPass1: waveSetup.executeWavesPass1, executeWavesFull: waveSetup.executeWavesFull,
     saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading,
     setTriageTotalCount, setBudgetShortfall, setAiQuality, setAiQualityLoading,
-    setAiReviews, setAiSuggestedComplexity, setHighlightWarnings,
+    setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
   });
 
   const handleAcceptAllPassing = useCallback(() => aiActionsHook.handleAcceptAllPassing(sectionActionsHook.handleMarkAddressed), [aiActionsHook, sectionActionsHook.handleMarkAddressed]);
