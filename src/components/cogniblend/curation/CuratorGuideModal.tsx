@@ -65,8 +65,9 @@ export function CuratorGuideModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden p-0"
-        hideCloseButton
+        className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         {/* Header */}
         <DialogHeader className="p-6 pb-4 border-b bg-muted/30">
