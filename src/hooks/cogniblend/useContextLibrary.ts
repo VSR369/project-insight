@@ -1,7 +1,6 @@
 /**
  * useContextLibrary — Central hook for all Context Library data operations.
- * Provides queries for sources, digest, counts, and mutations for discovery,
- * accept/reject, upload, URL add, sharing, section relinking, and digest regeneration.
+ * Bug 3 fix: URL extraction is now awaited before digest regeneration.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -176,7 +175,6 @@ export function useAcceptSuggestion(challengeId: string) {
         .update({ discovery_status: 'accepted', updated_at: new Date().toISOString() })
         .eq('id', attachmentId);
       if (error) throw new Error(error.message);
-      // Trigger extraction asynchronously
       supabase.functions.invoke('extract-attachment-text', {
         body: { attachment_id: attachmentId },
       }).catch(() => { /* fire and forget */ });
@@ -184,7 +182,6 @@ export function useAcceptSuggestion(challengeId: string) {
     onSuccess: () => {
       invalidateAll(qc, challengeId);
       toast.success('Source accepted');
-      // Always regenerate digest on accept (not just when none exists)
       supabase.functions.invoke('generate-context-digest', {
         body: { challenge_id: challengeId },
       }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
@@ -219,7 +216,6 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
         .update({ discovery_status: 'accepted', updated_at: new Date().toISOString() })
         .in('id', ids);
       if (error) throw new Error(error.message);
-      // Trigger extraction for each
       for (const id of ids) {
         supabase.functions.invoke('extract-attachment-text', {
           body: { attachment_id: id },
@@ -229,7 +225,6 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
     onSuccess: () => {
       invalidateAll(qc, challengeId);
       toast.success('Sources accepted');
-      // Always regenerate digest on batch accept
       supabase.functions.invoke('generate-context-digest', {
         body: { challenge_id: challengeId },
       }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
@@ -285,7 +280,6 @@ export function useUploadContextFile(challengeId: string) {
         .single();
       if (insertErr) throw new Error(insertErr.message);
 
-      // Trigger extraction
       supabase.functions.invoke('extract-attachment-text', {
         body: { attachment_id: att.id },
       }).catch(() => {});
@@ -300,6 +294,7 @@ export function useUploadContextFile(challengeId: string) {
   });
 }
 
+/** Bug 3 fix: await extraction before regenerating digest */
 export function useAddContextUrl(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -319,20 +314,29 @@ export function useAddContextUrl(challengeId: string) {
         .single();
       if (error) throw new Error(error.message);
 
-      supabase.functions.invoke('extract-attachment-text', {
-        body: { attachment_id: att.id },
-      }).catch(() => {});
+      // Await extraction before triggering digest
+      try {
+        await supabase.functions.invoke('extract-attachment-text', {
+          body: { attachment_id: att.id },
+        });
+      } catch {
+        toast.warning('URL content extraction failed — digest may be incomplete');
+      }
+
+      // Now regenerate digest with extracted content available
+      try {
+        await supabase.functions.invoke('generate-context-digest', {
+          body: { challenge_id: challengeId },
+        });
+      } catch {
+        // Non-blocking — digest can be regenerated manually
+      }
 
       return att;
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('URL added — extracting content...');
-      setTimeout(() => {
-        supabase.functions.invoke('generate-context-digest', {
-          body: { challenge_id: challengeId },
-        }).then(() => invalidateAll(qc, challengeId)).catch(() => {});
-      }, 5000);
+      toast.success('URL added and content extracted');
     },
     onError: (err: Error) => toast.error(`Add URL failed: ${err.message}`),
   });

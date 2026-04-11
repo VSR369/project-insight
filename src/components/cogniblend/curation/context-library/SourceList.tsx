@@ -1,6 +1,6 @@
 /**
  * SourceList — Left panel showing suggested + accepted sources grouped by section.
- * < 250 lines per plan spec.
+ * Bug 7 fix: Accepts onAcceptOne/onRejectOne and forwards to SuggestionCard.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -19,6 +19,8 @@ interface SourceListProps {
   onSelectSource: (id: string) => void;
   onAcceptMultiple: (ids: string[]) => void;
   onRejectAll: () => void;
+  onAcceptOne: (id: string) => void;
+  onRejectOne: (id: string) => void;
   isAcceptPending: boolean;
   isRejectPending: boolean;
   isLoading: boolean;
@@ -39,7 +41,8 @@ function ExtractionBadge({ status }: { status: string | null }) {
 
 export function SourceList({
   sources, searchTerm, selectedId, onSelectSource,
-  onAcceptMultiple, onRejectAll, isAcceptPending, isRejectPending, isLoading,
+  onAcceptMultiple, onRejectAll, onAcceptOne, onRejectOne,
+  isAcceptPending, isRejectPending, isLoading,
 }: SourceListProps) {
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<Set<string>>(new Set());
 
@@ -98,6 +101,8 @@ export function SourceList({
                   isActive={selectedId === s.id}
                   onSelect={() => onSelectSource(s.id)}
                   onToggleCheck={() => toggleSuggestion(s.id)}
+                  onAccept={() => onAcceptOne(s.id)}
+                  onReject={() => onRejectOne(s.id)}
                 />
               ))}
             </div>
