@@ -14,6 +14,7 @@ import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormat
 import { resolveIndustrySegmentId, parseJson } from '@/lib/cogniblend/curationHelpers';
 import { DISCOVERY_WAVE_NUMBER, createInitialWaveProgressWithDiscovery, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
+import { parseJson as jsonParse } from '@/lib/cogniblend/jsonbUnwrap';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
