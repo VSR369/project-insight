@@ -1,29 +1,22 @@
 
 
-## Fix 2 — Auto-Accept by Confidence Threshold
+## Fix 3 — Move creator_references + reference_urls from Wave 6 to Wave 3
 
 ### What This Fixes
-Currently all AI-discovered sources are inserted as `"accepted"`. This fix adds a confidence threshold: sources with confidence >= 0.85 stay auto-accepted, while lower-confidence sources are marked `"suggested"` for curator review in the SourceList panel.
+Creator reference documents and URLs should inform the AI review of deliverables and scope (Wave 3), not wait until the final presentation wave (Wave 6). Moving them earlier means the AI can use creator-provided references when reviewing specification sections.
 
-### Change
+### Changes
 
-**`supabase/functions/discover-context-resources/index.ts`** (line 320)
+**`src/lib/cogniblend/waveConfig.ts`** — Two edits:
 
-Replace the hardcoded `discovery_status: "accepted"` with a conditional expression:
+1. **Wave 3** (line ~67): Add `'creator_references'` and `'reference_urls'` to `sectionIds`
+2. **Wave 6** (line ~89): Remove `'creator_references'` and `'reference_urls'` from `sectionIds`
 
-```ts
-discovery_status: (
-  typeof s.confidence_score === "number" && s.confidence_score >= 0.85
-    ? "accepted"
-    : "suggested"
-),
-```
-
-Single line change. Then redeploy the edge function.
+No other files affected.
 
 ### Files Changed
 
 | File | Action |
 |------|--------|
-| `supabase/functions/discover-context-resources/index.ts` | Conditional `discovery_status` based on confidence threshold |
+| `src/lib/cogniblend/waveConfig.ts` | Move 2 sections from Wave 6 to Wave 3 |
 
