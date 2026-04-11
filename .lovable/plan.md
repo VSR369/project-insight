@@ -1,36 +1,60 @@
 
 
-## Fix: Revert Additional Context Tab to CONTROLLED-Only
+## Critical Review of Audit Findings
 
-### Root Cause
+### Verdict Summary
 
-The previous fix changed the Additional Context tab visibility from `isControlled` to `!isQuick`, which was wrong. This exposes all CONTROLLED-level fields (stakeholders, root causes, deficiencies, preferred approach, etc.) to STRUCTURED mode users — violating the 5-8-12 field rule.
+| # | Claimed Bug | Actual Status | Action |
+|---|---|---|---|
+| A | File upload/URLs hidden for STRUCTURED | **REAL** | Fix needed — extract file/URL section |
+| B | referenceUrls not restored on draft reopen | **Already fixed** | No action |
+| C | Schema misalignment for QUICK | **Invalid** | DB confirms only 5 required fields; schema matches |
+| D | crApprovalRequired always true | **REAL** | Fix needed |
+| E | Missing query invalidations in useCompletePhase | **REAL** | Fix needed |
+| F | No curator→creator notification | **Already handled by RPC** | No action — `complete_phase` RPC + `notification_routing` table handles this server-side |
+| G | SQL migrations not applied | **Already applied** | No action — both JSONB fix and routing config are live |
 
-STRUCTURED mode's 8 fields are: title, problem_statement, domain_tags, currency_code, platinum_award, scope, maturity_level, weighted_criteria. The two optional context fields (context_background, expected_timeline) already appear in a collapsible section inside the **Essential Details** tab (EssentialDetailsTab.tsx lines 109-145). STRUCTURED does NOT need the Additional Context tab at all.
+### Detailed Analysis
 
-### Fix (1 file, 1 line)
+**Bug B (referenceUrls):** Code at `useCreatorDraftLoader.ts:119-124` already calls `onReferenceUrlsLoaded(urls)`. `ChallengeCreatorForm.tsx:108` passes `handleReferenceUrlsLoaded` which calls `setReferenceUrls`. This is wired correctly.
 
-**`src/components/cogniblend/creator/ChallengeCreatorForm.tsx`**
+**Bug C (QUICK schema):** DB query confirms QUICK has exactly 5 required fields: `title, problem_statement, domain_tags, currency_code, platinum_award`. The schema correctly makes `maturity_level` and `weighted_criteria` optional for QUICK. The audit claim is wrong.
 
-Revert the tab trigger gate from `{!isQuick && (` back to `{isControlled && (`:
+**Bug F (notifications):** The `notification_routing` table has a row for `phase=2, event_type=PHASE_COMPLETE` routing to CU. The `complete_phase` RPC triggers these. No client-side notification needed.
 
-```tsx
-{isControlled && (
-  <TabsTrigger
-    value="context"
-    className="flex-1 gap-2 py-3 px-5 text-sm font-semibold rounded-lg border border-transparent data-[state=active]:border-accent/40 data-[state=active]:bg-background data-[state=active]:text-accent-foreground data-[state=active]:shadow-md transition-all duration-200"
-  >
-    📋 Additional Context
-    <span className="text-destructive text-xs font-bold ml-0.5">*</span>
-  </TabsTrigger>
-)}
-```
+**Bug G (migrations):** Verified live: `assign_challenge_role` uses JSONB (not RECORD), and `notification_routing` has phase 2 entries.
 
-### Field visibility summary after fix
+---
 
-| Mode | Essential Details Tab | Additional Context Tab |
-|------|----------------------|----------------------|
-| QUICK | 5 required fields | Hidden |
-| STRUCTURED | 8 fields + collapsible optional section (context_background, expected_timeline) | Hidden |
-| CONTROLLED | 8 core fields | Visible with all 4 extra context fields required (12 total) |
+### Fixes to Implement (3 genuine bugs)
+
+#### Fix A — File Upload + Reference URLs accessible for STRUCTURED
+
+**Problem:** These sections live inside `AdditionalContextTab`, which is gated behind `isControlled`. STRUCTURED creators cannot attach files or add URLs.
+
+**Approach:** We cannot flip the tab to `!isQuick` (that was tried and correctly reverted — it exposes CONTROLLED-only fields to STRUCTURED). Instead, extract the file upload and reference URL sections into a new `ReferenceAttachmentsSection` component and render it below the tabs for all non-QUICK modes. The CONTROLLED-only context fields (stakeholders, root causes, etc.) stay in the Additional Context tab.
+
+Files:
+- **New:** `src/components/cogniblend/creator/ReferenceAttachmentsSection.tsx` — file upload + URL input (extracted from AdditionalContextTab lines 112-135)
+- **Edit:** `src/components/cogniblend/creator/AdditionalContextTab.tsx` — remove file upload and URL sections
+- **Edit:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` — render `ReferenceAttachmentsSection` below tabs for `!isQuick`, pass attachedFiles/referenceUrls state
+
+#### Fix D — crApprovalRequired derives from governance mode
+
+**Problem:** `useCurationActionData.ts:174` reads `extendedBrief?.creator_approval_required` which is never written by the Creator form. Result: always `undefined !== false → true`, so every MP challenge forces Creator approval — QUICK MP can never auto-publish from curation.
+
+**Fix:** Pass `governanceMode` into `useCurationActionData`. Derive: `crApprovalRequired = governanceMode !== 'QUICK'` (QUICK auto-publishes; STRUCTURED/CONTROLLED require Creator approval). Remove the `extendedBrief` query since it's only used for this check.
+
+Files:
+- **Edit:** `src/hooks/cogniblend/useCurationActionData.ts` — add `governanceMode` to options, replace line 174 logic, remove extendedBrief query
+- **Edit:** `src/components/cogniblend/curation/CurationActions.tsx` — pass `governanceMode` to the hook
+
+#### Fix E — Missing cache invalidations in useCompletePhase
+
+**Problem:** `onSuccess` only invalidates `cogni-dashboard`, `cogni-waiting-for`, `cogni-open-challenges`. Missing: `curation-review`, `curation-queue`, `public-challenge`, `cogni-my-challenges`. Curator submits but their queue doesn't refresh.
+
+**Fix:** Add the 4 missing invalidations to `useCompletePhase.ts` onSuccess callback.
+
+File:
+- **Edit:** `src/hooks/cogniblend/useCompletePhase.ts` — add 4 `invalidateQueries` calls at lines 228-230
 
