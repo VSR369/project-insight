@@ -70,7 +70,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
           <p className="text-sm text-muted-foreground truncate">{challengeTitle}</p>
           <div className="flex items-center gap-2 flex-wrap mt-2">
             <Button size="sm" variant="default" onClick={() => discover.mutate()} disabled={discover.isPending}>
-              <Sparkles className="h-4 w-4 mr-1" />{discover.isPending ? 'Discovering...' : 'Discover Sources'}
+              <Sparkles className="h-4 w-4 mr-1" />{discover.isPending ? 'Discovering...' : 'Re-discover Sources'}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setShowUrlInput(!showUrlInput)}>
               <Link className="h-4 w-4 mr-1" />Add URL

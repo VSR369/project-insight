@@ -322,7 +322,12 @@ export function useAddContextUrl(challengeId: string) {
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('URL added');
+      toast.success('URL added — extracting content...');
+      setTimeout(() => {
+        supabase.functions.invoke('generate-context-digest', {
+          body: { challenge_id: challengeId },
+        }).then(() => invalidateAll(qc, challengeId)).catch(() => {});
+      }, 5000);
     },
     onError: (err: Error) => toast.error(`Add URL failed: ${err.message}`),
   });
