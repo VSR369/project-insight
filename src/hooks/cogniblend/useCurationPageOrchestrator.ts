@@ -115,7 +115,7 @@ export function useCurationPageOrchestrator() {
       const { error } = await supabase.from('challenges').update({ [field]: value, updated_by: user?.id ?? null } as any).eq('id', challengeId!);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] }); toast.success('Section updated successfully'); setEditingSection(null); setSavingSection(false); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] }); setSavingSection(false); },
     onError: (error: Error) => { toast.error(`Failed to save: ${error.message}`); setSavingSection(false); },
   });
 
