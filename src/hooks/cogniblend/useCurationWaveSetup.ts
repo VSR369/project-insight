@@ -4,7 +4,7 @@
  * Now supports two-step workflow: pass1Executor (analyse) + fullExecutor (generate).
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useUpdateCurationProgress } from '@/hooks/cogniblend/useCurationProgress';
 import { useCompletenessCheckDefs, useRunCompletenessCheck } from '@/hooks/queries/useCompletenessChecks';
 import { useWaveExecutor } from '@/hooks/useWaveExecutor';
@@ -91,6 +91,33 @@ export function useCurationWaveSetup({
     pass1Only: true,
   });
 
+  // ── Pass 2 executor (skip analysis — reuse existing Pass 1 comments) ──
+  const aiReviewsRef = useRef<SectionReview[]>(aiReviews);
+  useEffect(() => {
+    aiReviewsRef.current = aiReviews;
+  }, [aiReviews]);
+
+  const pass2CommentMap = useMemo(() => {
+    const map: Record<string, unknown[]> = {};
+    for (const r of aiReviews) {
+      if (r.comments?.length) {
+        map[r.section_key] = r.comments;
+      }
+    }
+    return map;
+  }, [aiReviews]);
+
+  const pass2Executor = useWaveExecutor({
+    challengeId: challengeId!,
+    buildContextOptions,
+    onSectionReviewed: handleWaveSectionReviewed,
+    onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
+    onProgress: progressCallbacks,
+    pass1Only: false,
+    skipAnalysis: true,
+    providedCommentsBySectionKey: pass2CommentMap,
+  });
+
   // ── Full executor (Pass 1 + Pass 2 — with suggestions) ──
   const fullExecutor = useWaveExecutor({
     challengeId: challengeId!,
@@ -101,7 +128,7 @@ export function useCurationWaveSetup({
     pass1Only: false,
   });
 
-  const isWaveRunning = pass1Executor.isRunning || fullExecutor.isRunning;
+  const isWaveRunning = pass1Executor.isRunning || fullExecutor.isRunning || pass2Executor.isRunning;
 
   // ── Completeness checks ──
   const { data: completenessCheckDefs = [] } = useCompletenessCheckDefs();
@@ -114,29 +141,37 @@ export function useCurationWaveSetup({
   const runCompletenessCheckRef = useRef(runCompletenessCheck);
   runCompletenessCheckRef.current = runCompletenessCheck;
 
-  // Track full executor for completeness check trigger
+  // Track full/pass2 executor for completeness check trigger
   useEffect(() => {
-    const currentStatus = fullExecutor.waveProgress?.overallStatus;
+    const fullStatus = fullExecutor.waveProgress?.overallStatus;
+    const pass2Status = pass2Executor.waveProgress?.overallStatus;
+    const currentStatus = fullStatus === 'completed' ? 'completed' : pass2Status;
     if (prevWaveStatusRef.current === 'running' && currentStatus === 'completed') {
       runCompletenessCheckRef.current();
     }
-    prevWaveStatusRef.current = currentStatus;
-  }, [fullExecutor.waveProgress?.overallStatus]);
+    prevWaveStatusRef.current = (fullExecutor.isRunning || pass2Executor.isRunning) ? 'running' : currentStatus;
+  }, [fullExecutor.waveProgress?.overallStatus, pass2Executor.waveProgress?.overallStatus, fullExecutor.isRunning, pass2Executor.isRunning]);
 
   return {
     buildContextOptions,
     // Legacy: executeWaves points to full executor for backward compatibility
     executeWaves: fullExecutor.executeWaves,
-    // New: separate pass1 and full executors
+    // New: separate pass1, pass2, and full executors
     executeWavesPass1: pass1Executor.executeWaves,
     executeWavesFull: fullExecutor.executeWaves,
+    executeWavesPass2: pass2Executor.executeWaves,
     reReviewStale: fullExecutor.reReviewStale,
     cancelReview: () => {
       pass1Executor.cancelReview();
       fullExecutor.cancelReview();
+      pass2Executor.cancelReview();
     },
     // Show progress from whichever is running
-    waveProgress: pass1Executor.isRunning ? pass1Executor.waveProgress : fullExecutor.waveProgress,
+    waveProgress: pass1Executor.isRunning
+      ? pass1Executor.waveProgress
+      : pass2Executor.isRunning
+        ? pass2Executor.waveProgress
+        : fullExecutor.waveProgress,
     isWaveRunning,
     completenessCheckDefs,
     completenessResult,
