@@ -33,6 +33,7 @@ interface UseCurationAIActionsOptions {
   executeWavesPass1: () => Promise<void>;
   executeWavesFull: () => Promise<void>;
   executeWavesPass2: () => Promise<void>;
+  pass1SetWaveProgress: Dispatch<SetStateAction<WaveProgress>>;
   saveSectionMutationRef: React.RefObject<any>;
   setPreFlightResult: (v: any) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
@@ -52,6 +53,7 @@ export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions, executeWaves,
   executeWavesPass1, executeWavesFull, executeWavesPass2,
+  executeWavesPass1, executeWavesFull, executeWavesPass2, pass1SetWaveProgress,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
