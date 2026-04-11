@@ -1,6 +1,7 @@
 /**
  * useCurationWaveSetup — Wave executor wiring + completeness checks
  * extracted from useCurationPageOrchestrator (Batch B).
+ * Now supports two-step workflow: pass1Executor (analyse) + fullExecutor (generate).
  */
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -65,25 +66,42 @@ export function useCurationWaveSetup({
   }, [aiReviews]);
 
   const updateProgress = useUpdateCurationProgress();
-  const { executeWaves, reReviewStale, cancelReview, waveProgress, isRunning: isWaveRunning } = useWaveExecutor({
+
+  const progressCallbacks = {
+    onWaveStart: (waveNum: number) => updateProgress.mutate({
+      challengeId: challengeId!, status: 'ai_review', current_wave: waveNum,
+      ...(waveNum === 1 ? { ai_review_started_at: new Date().toISOString() } : {}),
+    }),
+    onWaveComplete: (_waveNum: number, _count: number, total: number) => updateProgress.mutate({
+      challengeId: challengeId!, sections_reviewed: total,
+    }),
+    onAllComplete: () => updateProgress.mutate({
+      challengeId: challengeId!, status: 'curator_editing',
+      ai_review_completed_at: new Date().toISOString(), sections_reviewed: 27,
+    }),
+  };
+
+  // ── Pass 1 executor (analyse only — no suggestions) ──
+  const pass1Executor = useWaveExecutor({
     challengeId: challengeId!,
     buildContextOptions,
     onSectionReviewed: handleWaveSectionReviewed,
     onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
-    onProgress: {
-      onWaveStart: (waveNum) => updateProgress.mutate({
-        challengeId: challengeId!, status: 'ai_review', current_wave: waveNum,
-        ...(waveNum === 1 ? { ai_review_started_at: new Date().toISOString() } : {}),
-      }),
-      onWaveComplete: (_waveNum, _count, total) => updateProgress.mutate({
-        challengeId: challengeId!, sections_reviewed: total,
-      }),
-      onAllComplete: () => updateProgress.mutate({
-        challengeId: challengeId!, status: 'curator_editing',
-        ai_review_completed_at: new Date().toISOString(), sections_reviewed: 27,
-      }),
-    },
+    onProgress: progressCallbacks,
+    pass1Only: true,
   });
+
+  // ── Full executor (Pass 1 + Pass 2 — with suggestions) ──
+  const fullExecutor = useWaveExecutor({
+    challengeId: challengeId!,
+    buildContextOptions,
+    onSectionReviewed: handleWaveSectionReviewed,
+    onComplexitySuggestion: (suggestion) => setAiSuggestedComplexity(suggestion),
+    onProgress: progressCallbacks,
+    pass1Only: false,
+  });
+
+  const isWaveRunning = pass1Executor.isRunning || fullExecutor.isRunning;
 
   // ── Completeness checks ──
   const { data: completenessCheckDefs = [] } = useCompletenessCheckDefs();
@@ -95,20 +113,30 @@ export function useCurationWaveSetup({
   const prevWaveStatusRef = useRef<string | undefined>();
   const runCompletenessCheckRef = useRef(runCompletenessCheck);
   runCompletenessCheckRef.current = runCompletenessCheck;
+
+  // Track full executor for completeness check trigger
   useEffect(() => {
-    const currentStatus = waveProgress?.overallStatus;
+    const currentStatus = fullExecutor.waveProgress?.overallStatus;
     if (prevWaveStatusRef.current === 'running' && currentStatus === 'completed') {
       runCompletenessCheckRef.current();
     }
     prevWaveStatusRef.current = currentStatus;
-  }, [waveProgress?.overallStatus]);
+  }, [fullExecutor.waveProgress?.overallStatus]);
 
   return {
     buildContextOptions,
-    executeWaves,
-    reReviewStale,
-    cancelReview,
-    waveProgress,
+    // Legacy: executeWaves points to full executor for backward compatibility
+    executeWaves: fullExecutor.executeWaves,
+    // New: separate pass1 and full executors
+    executeWavesPass1: pass1Executor.executeWaves,
+    executeWavesFull: fullExecutor.executeWaves,
+    reReviewStale: fullExecutor.reReviewStale,
+    cancelReview: () => {
+      pass1Executor.cancelReview();
+      fullExecutor.cancelReview();
+    },
+    // Show progress from whichever is running
+    waveProgress: pass1Executor.isRunning ? pass1Executor.waveProgress : fullExecutor.waveProgress,
     isWaveRunning,
     completenessCheckDefs,
     completenessResult,

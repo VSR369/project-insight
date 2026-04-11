@@ -247,6 +247,9 @@ export default function CurationReviewPage() {
           onOpenContextLibrary={() => o.setContextLibraryOpen(true)}
           aiReviewLoading={o.aiReviewLoading}
           onAIReview={o.handleAIReview}
+          onAnalyse={o.handleAnalyse}
+          onGenerateSuggestions={o.handleGenerateSuggestions}
+          pass1Done={o.aiReviews.length > 0 && o.aiReviews.every((r: any) => !r.suggestion)}
           waveProgress={o.waveProgress}
           onCancelReview={o.cancelReview}
           budgetShortfall={o.budgetShortfall}

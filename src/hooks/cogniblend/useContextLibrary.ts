@@ -179,13 +179,10 @@ export function useAcceptSuggestion(challengeId: string) {
     onSuccess: () => {
       invalidateAll(qc, challengeId);
       toast.success('Source accepted');
-      // Auto-generate digest if none exists yet
-      const existingDigest = qc.getQueryData(KEYS.digest(challengeId));
-      if (!existingDigest) {
-        supabase.functions.invoke('generate-context-digest', {
-          body: { challenge_id: challengeId },
-        }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
-      }
+      // Always regenerate digest on accept (not just when none exists)
+      supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
     },
     onError: (err: Error) => toast.error(`Accept failed: ${err.message}`),
   });
@@ -227,13 +224,10 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
     onSuccess: () => {
       invalidateAll(qc, challengeId);
       toast.success('Sources accepted');
-      // Auto-generate digest if none exists yet
-      const existingDigest = qc.getQueryData(KEYS.digest(challengeId));
-      if (!existingDigest) {
-        supabase.functions.invoke('generate-context-digest', {
-          body: { challenge_id: challengeId },
-        }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
-      }
+      // Always regenerate digest on batch accept
+      supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      }).then(() => invalidateAll(qc, challengeId)).catch(() => { /* silent */ });
     },
     onError: (err: Error) => toast.error(`Batch accept failed: ${err.message}`),
   });
@@ -402,5 +396,45 @@ export function useRegenerateDigest(challengeId: string) {
       toast.success('Context digest regenerated');
     },
     onError: (err: Error) => toast.error(`Digest generation failed: ${err.message}`),
+  });
+}
+
+/* ── Intake Status Query ── */
+
+export function useIntakeStatus(challengeId: string | null) {
+  return useQuery({
+    queryKey: ['context-intake-status', challengeId ?? ''],
+    queryFn: async () => {
+      if (!challengeId) return null;
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('context_intake_status')
+        .eq('id', challengeId)
+        .single();
+      if (error) throw new Error(error.message);
+      return (data as Record<string, unknown>)?.context_intake_status as string | null;
+    },
+    enabled: !!challengeId,
+    ...CACHE_FREQUENT,
+  });
+}
+
+/* ── Curation Intelligence Pipeline ── */
+
+export function useCurationIntelligence(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (stages?: string[]) => {
+      const { data, error } = await supabase.functions.invoke('curation-intelligence', {
+        body: { challenge_id: challengeId, stages },
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      invalidateAll(qc, challengeId);
+      toast.success('Intelligence pipeline complete');
+    },
+    onError: (err: Error) => toast.error(`Intelligence pipeline failed: ${err.message}`),
   });
 }

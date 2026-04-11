@@ -196,6 +196,7 @@ serve(async (req) => {
       challenge_id, section_key, role_context, context: clientContext,
       preview_mode, current_content, wave_action,
       skip_analysis, provided_comments,
+      pass1_only,
     } = await req.json();
     const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
 
@@ -297,7 +298,7 @@ serve(async (req) => {
         ? "title, reward_structure, phase_schedule, ai_section_reviews"
         : resolvedContext === "evaluation"
         ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
-        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id, submission_guidelines, operating_model";
+        : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id, submission_guidelines, operating_model, industry_segment_id";
 
       const fetchPromises: Promise<any>[] = [
         adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
@@ -857,6 +858,12 @@ GROUNDING RULE (CRITICAL):
         // Tag each result with prompt source
         for (const r of batchResults) {
           (r as any).prompt_source = promptSource;
+        }
+        // pass1_only: strip suggestion field to keep only analysis
+        if (pass1_only === true) {
+          for (const r of batchResults) {
+            delete (r as any).suggestion;
+          }
         }
         allNewSections.push(...batchResults);
       } catch (err: any) {

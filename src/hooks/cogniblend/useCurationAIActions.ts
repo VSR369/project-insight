@@ -28,6 +28,8 @@ interface UseCurationAIActionsOptions {
   aiReviews: SectionReview[];
   buildContextOptions: () => BuildChallengeContextOptions;
   executeWaves: () => Promise<void>;
+  executeWavesPass1: () => Promise<void>;
+  executeWavesFull: () => Promise<void>;
   saveSectionMutationRef: React.RefObject<any>;
   setPreFlightResult: (v: any) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
@@ -39,36 +41,23 @@ interface UseCurationAIActionsOptions {
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
   setAiSuggestedComplexity: (v: any) => void;
   setHighlightWarnings: (v: boolean) => void;
+  setContextLibraryOpen: (v: boolean) => void;
 }
 
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions, executeWaves,
+  executeWavesPass1, executeWavesFull,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
-  setAiSuggestedComplexity, setHighlightWarnings,
+  setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
 }: UseCurationAIActionsOptions) {
 
-  const executeWavesWithBudgetCheck = useCallback(async () => {
-    setAiReviewLoading(true);
-    setTriageTotalCount(0);
-    try {
-      await executeWaves();
-      const ctx = buildChallengeContext(buildContextOptions());
-      const shortfall = detectBudgetShortfall(ctx);
-      setBudgetShortfall(shortfall);
-      setTriageTotalCount(24);
-    } catch (e: any) {
-      toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
-    } finally {
-      setAiReviewLoading(false);
-    }
-  }, [executeWaves, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
-
-  const handleAIReview = useCallback(async () => {
-    if (!challengeId || !challenge) return;
-    if (isWaveRunning) return;
+  // Shared pre-flight logic extracted for reuse
+  const runPreFlight = useCallback((): ReturnType<typeof preFlightCheck> | null => {
+    if (!challengeId || !challenge) return null;
+    if (isWaveRunning) return null;
 
     const store = curationStore;
     const sectionContents: Record<string, string | null> = {};
@@ -105,18 +94,79 @@ export function useCurationAIActions({
       pfResult.missingMandatory.push({
         sectionId: 'context_and_background' as any,
         sectionName: 'Industry Segment',
-        reason: 'Industry segment must be set in Context & Background before AI review. It drives taxonomy cascades across all sections.',
+        reason: 'Industry segment must be set in Context & Background before AI review.',
       });
       pfResult.canProceed = false;
     }
 
+    return pfResult;
+  }, [challengeId, challenge, isWaveRunning, curationStore, optimisticIndustrySegId]);
+
+  const executeWavesWithBudgetCheck = useCallback(async () => {
+    setAiReviewLoading(true);
+    setTriageTotalCount(0);
+    try {
+      await executeWaves();
+      const ctx = buildChallengeContext(buildContextOptions());
+      const shortfall = detectBudgetShortfall(ctx);
+      setBudgetShortfall(shortfall);
+      setTriageTotalCount(24);
+    } catch (e: any) {
+      toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setAiReviewLoading(false);
+    }
+  }, [executeWaves, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
+
+  const handleAIReview = useCallback(async () => {
+    const pfResult = runPreFlight();
+    if (!pfResult) return;
     setPreFlightResult(pfResult);
     if (!pfResult.canProceed || pfResult.warnings.length > 0) {
       setPreFlightDialogOpen(true);
       return;
     }
     await executeWavesWithBudgetCheck();
-  }, [challengeId, challenge, isWaveRunning, curationStore, optimisticIndustrySegId, executeWavesWithBudgetCheck, setPreFlightResult, setPreFlightDialogOpen]);
+  }, [runPreFlight, executeWavesWithBudgetCheck, setPreFlightResult, setPreFlightDialogOpen]);
+
+  // ── Step 1: Analyse Challenge (Pass 1 only) ──
+  const handleAnalyse = useCallback(async () => {
+    const pfResult = runPreFlight();
+    if (!pfResult) return;
+    setPreFlightResult(pfResult);
+    if (!pfResult.canProceed || pfResult.warnings.length > 0) {
+      setPreFlightDialogOpen(true);
+      return;
+    }
+    setAiReviewLoading(true);
+    setTriageTotalCount(0);
+    try {
+      await executeWavesPass1();
+      setTriageTotalCount(24);
+      toast.success('Analysis complete. Review findings, then Generate Suggestions.');
+    } catch (e: any) {
+      toast.error(`Analysis failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setAiReviewLoading(false);
+    }
+  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount]);
+
+  // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
+  const handleGenerateSuggestions = useCallback(async () => {
+    setAiReviewLoading(true);
+    setTriageTotalCount(0);
+    try {
+      await executeWavesFull();
+      const ctx = buildChallengeContext(buildContextOptions());
+      const shortfall = detectBudgetShortfall(ctx);
+      setBudgetShortfall(shortfall);
+      setTriageTotalCount(24);
+    } catch (e: any) {
+      toast.error(`Generation failed: ${e.message ?? "Unknown error"}`);
+    } finally {
+      setAiReviewLoading(false);
+    }
+  }, [executeWavesFull, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
@@ -164,6 +214,8 @@ export function useCurationAIActions({
   return {
     executeWavesWithBudgetCheck,
     handleAIReview,
+    handleAnalyse,
+    handleGenerateSuggestions,
     handleAIQualityAnalysis,
     handleSingleSectionReview,
     ...complexity,
