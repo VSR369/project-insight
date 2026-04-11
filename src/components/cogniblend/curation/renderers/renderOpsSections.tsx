@@ -70,9 +70,9 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
           onAcceptAllDefaults={handleAcceptAllLegalDefaults}
           isAcceptingAll={isAcceptingAllLegal}
           challengeId={args.challengeId}
-          currentPhase={(challenge as Record<string, unknown>).current_phase as number | undefined}
-          engagementModel={(challenge as Record<string, unknown>).operating_model as string | undefined}
-          organizationId={(challenge as Record<string, unknown>).organization_id as string | undefined}
+          currentPhase={(challenge as unknown as Record<string, unknown>).current_phase as number | undefined}
+          engagementModel={(challenge as unknown as Record<string, unknown>).operating_model as string | undefined}
+          organizationId={(challenge as unknown as Record<string, unknown>).organization_id as string | undefined}
         />
       );
 
