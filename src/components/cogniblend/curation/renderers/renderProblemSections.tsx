@@ -35,6 +35,8 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
     saveSectionMutation, autoSaveStatus,
   } = args;
 
+  // autoSaveStatus is now destructured and forwarded to child renderers
+
   if (!PROBLEM_KEYS.has(section.key)) return null;
 
   switch (section.key) {
