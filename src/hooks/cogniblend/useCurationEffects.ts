@@ -10,11 +10,12 @@ import type { SectionReview } from '@/components/cogniblend/curation/CurationAIR
 import type { UseMutationResult } from '@tanstack/react-query';
 
 interface UseCurationEffectsOptions {
-  challenge: Record<string, any> | null;
+  challenge: Record<string, unknown> | null;
   aiReviewsLoaded: boolean;
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
   setAiReviewsLoaded: React.Dispatch<React.SetStateAction<boolean>>;
-  saveSectionMutation: UseMutationResult<void, Error, { field: string; value: any }>;
+  setPass1DoneSession?: React.Dispatch<React.SetStateAction<boolean>>;
+  saveSectionMutation: UseMutationResult<void, Error, { field: string; value: unknown }>;
 }
 
 export function useCurationEffects({
@@ -22,6 +23,7 @@ export function useCurationEffects({
   aiReviewsLoaded,
   setAiReviews,
   setAiReviewsLoaded,
+  setPass1DoneSession,
   saveSectionMutation,
 }: UseCurationEffectsOptions) {
   const saveSectionMutationRef = useRef(saveSectionMutation);
@@ -52,7 +54,11 @@ export function useCurationEffects({
           saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: stored });
         }
       }
-      if (stored.length > 0) setAiReviews(stored);
+      if (stored.length > 0) {
+        setAiReviews(stored);
+        // Seed pass1DoneSession so "Re-analyse" button persists across reloads
+        setPass1DoneSession?.(true);
+      }
       setAiReviewsLoaded(true);
     }
   }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
