@@ -228,6 +228,10 @@ export function useCompletePhase(
           queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
           queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
           queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
+          queryClient.invalidateQueries({ queryKey: ['curation-review'] });
+          queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
+          queryClient.invalidateQueries({ queryKey: ['public-challenge'] });
+          queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
         },
         userRoleCodes,
         navigateFn,

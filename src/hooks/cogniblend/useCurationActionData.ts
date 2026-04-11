@@ -19,6 +19,7 @@ interface UseCurationActionDataOptions {
   completedCount: number;
   totalCount: number;
   operatingModel?: string | null;
+  governanceMode?: string;
 }
 
 export function useCurationActionData({
@@ -27,6 +28,7 @@ export function useCurationActionData({
   completedCount,
   totalCount,
   operatingModel,
+  governanceMode = 'QUICK',
 }: UseCurationActionDataOptions) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -157,21 +159,8 @@ export function useCurationActionData({
     staleTime: 30_000,
   });
 
-  // ── Extended brief (CR approval check) ──
-  const { data: extendedBrief } = useQuery({
-    queryKey: ['challenge-extended-brief', challengeId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('challenges')
-        .select('extended_brief')
-        .eq('id', challengeId)
-        .single();
-      return (data?.extended_brief as any) ?? {};
-    },
-    enabled: !!challengeId,
-    staleTime: 5 * 60_000,
-  });
-  const crApprovalRequired = isMP && (extendedBrief?.creator_approval_required !== false);
+  // ── CR approval: QUICK auto-publishes, STRUCTURED/CONTROLLED require approval ──
+  const crApprovalRequired = isMP && governanceMode !== 'QUICK';
 
   // ── CR Approval mutation ──
   const crApprovalMutation = useMutation({
