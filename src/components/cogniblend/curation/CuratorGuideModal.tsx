@@ -65,7 +65,7 @@ export function CuratorGuideModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0"
+        className="w-[calc(100vw-2rem)] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden p-0"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -81,7 +81,7 @@ export function CuratorGuideModal({
         </DialogHeader>
 
         {/* Scrollable body */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6 space-y-5">
           <ReviewFlowSection />
           <AICoverageSection />
           <TimeSavingsSection />
@@ -213,7 +213,7 @@ function TimeSavingsSection() {
       <h3 className="text-sm font-semibold text-foreground">
         Time You Get Back
       </h3>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {metrics.map((m) => (
           <div
             key={m.label}
