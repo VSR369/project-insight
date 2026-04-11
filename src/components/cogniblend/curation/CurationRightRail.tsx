@@ -5,6 +5,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Bot, Loader2, Sparkles, BookOpen } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
