@@ -20,6 +20,7 @@ import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightG
 import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
 import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
 import { CuratorGuideModal, hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
+import { IncompleteSectionsBanner } from "@/components/cogniblend/curation/IncompleteSectionsBanner";
 import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
 import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
 import { Skeleton } from "@/components/ui/skeleton";
