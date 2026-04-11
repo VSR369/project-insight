@@ -272,6 +272,11 @@ export function useChallengeSubmit() {
         // Non-critical — don't block submission
       }
 
+      // Fire-and-forget context intake trigger
+      supabase.functions.invoke('trigger-context-intake', {
+        body: { challenge_id: challengeId },
+      }).catch(() => { /* non-critical */ });
+
       // QUICK: auto-notify registered solvers (non-blocking)
       if (normalizedGov === 'QUICK' && currentPhase >= 5) {
         try {
