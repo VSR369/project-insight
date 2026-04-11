@@ -83,6 +83,7 @@ export interface RewardDisplayContentProps {
   onAddIncentive: (incentiveId: string) => void;
   onRemoveIncentive: (selectionId: string) => void;
   onUpdateCommitment: (selectionId: string, commitment: string) => void;
+  onApplyAITiers?: () => void;
 }
 
 export function RewardDisplayContent(props: RewardDisplayContentProps) {
@@ -98,7 +99,7 @@ export function RewardDisplayContent(props: RewardDisplayContentProps) {
     onUpdateTier, onCurrencyChange, onAcceptAISuggestion, onAcceptAllMonetaryAI,
     onAddNMItem, onUpdateNMItem, onDeleteNMItem, onAcceptNMSuggestion, onAcceptAllNMAI,
     onAddPrizeTier, onUpdatePrizeTier, onDeletePrizeTier, onReorderPrizeTier,
-    onAddIncentive, onRemoveIncentive, onUpdateCommitment,
+    onAddIncentive, onRemoveIncentive, onUpdateCommitment, onApplyAITiers,
   } = props;
 
   const renderMonetaryEditor = (disabled: boolean, showErrors: boolean) => (
@@ -112,6 +113,7 @@ export function RewardDisplayContent(props: RewardDisplayContentProps) {
       onCurrencyChange={disabled ? () => {} : onCurrencyChange}
       onAcceptAISuggestion={disabled ? () => {} : onAcceptAISuggestion}
       onAcceptAllAI={disabled ? undefined : onAcceptAllMonetaryAI}
+      onApplyAITiers={disabled ? undefined : onApplyAITiers}
       hasAISuggestions={hasAISuggestions}
       aiRationale={aiRationale}
     />
