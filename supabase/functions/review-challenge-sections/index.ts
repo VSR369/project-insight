@@ -576,15 +576,25 @@ serve(async (req) => {
       try {
         const { data: digest } = await adminClient
           .from('challenge_context_digest')
-          .select('digest_text, source_count, key_facts')
+          .select('digest_text, source_count, key_facts, raw_context_block, curator_edited')
           .eq('challenge_id', challenge_id)
           .maybeSingle();
-        if (digest?.digest_text) {
-          contextDigestText = `\n\nCONTEXT DIGEST (synthesized from ${digest.source_count} verified sources):\n${digest.digest_text}`;
-          if (digest.key_facts) {
-            contextDigestText += `\n\nVERIFIED KEY FACTS:\n${JSON.stringify(digest.key_facts, null, 2)}`;
+        if (digest?.digest_text || digest?.raw_context_block) {
+          contextDigestText = `\n\n${'═'.repeat(60)}
+VERIFIED CONTEXT FROM ${digest.source_count} ACCEPTED SOURCES
+All suggestions MUST be grounded in this material
+${'═'.repeat(60)}\n`;
+
+          if (digest.digest_text) {
+            contextDigestText += `\n## SYNTHESIZED DIGEST${digest.curator_edited ? ' (Curator-Reviewed)' : ''}:\n${digest.digest_text}\n`;
           }
-          contextDigestText += '\n';
+          if (digest.key_facts) {
+            contextDigestText += `\n## VERIFIED KEY FACTS:\n${JSON.stringify(digest.key_facts, null, 2)}\n`;
+          }
+          if (digest.raw_context_block) {
+            contextDigestText += `\n## RAW SOURCE CONTENT (use for specific facts, statistics, benchmarks):\n${digest.raw_context_block}\n`;
+          }
+          contextDigestText += `\nGROUNDING RULE: Every specific claim MUST trace to a source above. Unverified inferences must be prefixed with [INFERENCE].\n${'═'.repeat(60)}\n`;
         }
       } catch { /* digest is optional */ }
     }

@@ -17,7 +17,7 @@ import {
   useAcceptSuggestion, useRejectSuggestion, useAcceptMultipleSuggestions,
   useRejectAllSuggestions, useAddContextUrl, useDeleteContextSource,
   useUpdateSourceSharing, useUpdateSourceSections, useRegenerateDigest,
-  useSaveDigest, useUploadContextFile,
+  useSaveDigest, useUploadContextFile, useReExtractSource,
 } from '@/hooks/cogniblend/useContextLibrary';
 import { SourceList } from './context-library/SourceList';
 import { SourceDetail } from './context-library/SourceDetail';
@@ -48,7 +48,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
   const [fileSection, setFileSection] = useState('problem_statement');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: sources = [], isLoading } = useContextSources(challengeId);
+  const { data: sources = [], isLoading, refetch: refetchSources } = useContextSources(challengeId);
   const { data: digest } = useContextDigest(challengeId);
   const discover = useDiscoverSources(challengeId);
   const acceptOne = useAcceptSuggestion(challengeId);
@@ -58,6 +58,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
   const addUrl = useAddContextUrl(challengeId);
   const uploadFile = useUploadContextFile(challengeId);
   const deleteSource = useDeleteContextSource(challengeId);
+  const reExtract = useReExtractSource(challengeId);
   const updateSharing = useUpdateSourceSharing(challengeId);
   const updateSection = useUpdateSourceSections(challengeId);
   const regenDigest = useRegenerateDigest(challengeId);
@@ -204,8 +205,11 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
                 onDelete={(s) => { deleteSource.mutate(s); setSelectedId(null); }}
                 onUpdateSection={(id, sk) => updateSection.mutate({ id, sectionKey: sk })}
                 onUpdateSharing={(id, v) => updateSharing.mutate({ id, shared: v })}
+                onReExtract={(id) => reExtract.mutate(id)}
+                onRefresh={() => refetchSources()}
                 isAcceptPending={acceptOne.isPending} isRejectPending={rejectOne.isPending}
                 isDeletePending={deleteSource.isPending}
+                isReExtractPending={reExtract.isPending}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Select a source to view details</div>

@@ -1025,6 +1025,8 @@ export type Database = {
           id: string
           key_facts: Json | null
           original_digest_text: string | null
+          raw_context_block: string | null
+          raw_context_updated_at: string | null
           source_count: number
         }
         Insert: {
@@ -1036,6 +1038,8 @@ export type Database = {
           id?: string
           key_facts?: Json | null
           original_digest_text?: string | null
+          raw_context_block?: string | null
+          raw_context_updated_at?: string | null
           source_count?: number
         }
         Update: {
@@ -1047,6 +1051,8 @@ export type Database = {
           id?: string
           key_facts?: Json | null
           original_digest_text?: string | null
+          raw_context_block?: string | null
+          raw_context_updated_at?: string | null
           source_count?: number
         }
         Relationships: [

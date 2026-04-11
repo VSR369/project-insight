@@ -386,6 +386,23 @@ export function useDeleteContextSource(challengeId: string) {
   });
 }
 
+export function useReExtractSource(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (attachmentId: string) => {
+      await supabase
+        .from('challenge_attachments')
+        .update({ extraction_status: 'pending', extraction_error: null, updated_at: new Date().toISOString() })
+        .eq('id', attachmentId);
+      await supabase.functions.invoke('extract-attachment-text', { body: { attachment_id: attachmentId } });
+      await waitForExtraction(attachmentId);
+      await supabase.functions.invoke('generate-context-digest', { body: { challenge_id: challengeId } });
+    },
+    onSuccess: () => { invalidateAll(qc, challengeId); toast.success('Content extracted and digest updated'); },
+    onError: (err: Error) => toast.error(`Extraction failed: ${err.message}`),
+  });
+}
+
 export function useUpdateSourceSharing(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
