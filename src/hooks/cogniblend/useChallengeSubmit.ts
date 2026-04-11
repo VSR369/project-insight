@@ -155,6 +155,7 @@ export function useChallengeSubmit() {
 
       const rawSnapshot: Record<string, unknown> = {
         problem_statement: filteredPayload.businessProblem, scope: filteredPayload.constraints || null,
+        hook: filteredPayload.hook || null,
         expected_outcomes: serializeLineItems(filteredPayload.expectedOutcomes),
         reward_structure: rewardStructure,
         phase_schedule: {

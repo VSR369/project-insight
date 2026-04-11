@@ -71,8 +71,9 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
 
   const myVersionSections: SectionDef[] = useMemo(() => {
     if (!snapshot) return [];
-    return buildMyVersionSections(snapshot);
-  }, [snapshot]);
+    // Pass live data as fallback for legacy snapshots missing fields like hook
+    return buildMyVersionSections(snapshot, data as unknown as Record<string, unknown>);
+  }, [snapshot, data]);
 
   const curatorSections: SectionDef[] = useMemo(() => {
     return buildCuratorSections(data);
@@ -132,8 +133,8 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         isQuickMode={isQuickMode}
         currentPhase={currentPhase}
         governanceMode={effectiveGovernance}
-        organizationId={(data as unknown as Record<string, unknown>).organization_id as string | undefined}
-        engagementModel={(data as unknown as Record<string, unknown>).operating_model as string | undefined}
+        organizationId={data.organization_id ?? undefined}
+        engagementModel={data.operating_model ?? undefined}
       />
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />

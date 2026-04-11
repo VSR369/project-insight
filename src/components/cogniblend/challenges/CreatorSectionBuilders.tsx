@@ -53,13 +53,17 @@ const CREATOR_SECTION_KEYS: Record<string, string[]> = {
 
 export { CREATOR_SECTION_KEYS };
 
-/* ── My Version (Creator snapshot) ── */
+/* ── My Version (Creator snapshot with optional live fallback) ── */
 
 export function buildMyVersionSections(
   snapshot: Record<string, unknown>,
+  fallbackData?: Record<string, unknown> | null,
 ): SectionDef[] {
-  // Build ALL sections; filtering is done by FilteredSections + fieldRules
-  return buildAllSnapshotSections(snapshot).filter((s) => s.content !== null);
+  // Merge fallback for fields that may be missing from legacy snapshots
+  const merged = fallbackData
+    ? { ...snapshot, hook: snapshot.hook ?? fallbackData.hook }
+    : snapshot;
+  return buildAllSnapshotSections(merged).filter((s) => s.content !== null);
 }
 
 function buildAllSnapshotSections(snapshot: Record<string, unknown>): SectionDef[] {
