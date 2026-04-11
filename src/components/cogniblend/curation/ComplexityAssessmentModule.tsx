@@ -101,10 +101,14 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
     (state.activeTab === 'quick_select' && state.overrideLevel !== null)
   );
   const hasExistingAssessment = currentScore != null || currentLevel != null;
+  const hasAiValues = state.activeTab === 'ai_review' &&
+    Object.values(state.aiDraft).some(v => v !== 5);
+  const hasManualValues = state.activeTab === 'manual_params' &&
+    Object.values(state.manualDraft).some(v => v !== 5);
+  const hasQuickSelect = state.activeTab === 'quick_select' && state.overrideLevel !== null;
+
   const canLock = hasExistingAssessment && !showActions && (
-    (state.activeTab === 'ai_review') ||
-    (state.activeTab === 'manual_params') ||
-    (state.activeTab === 'quick_select' && currentLevel != null && state.overrideLevel !== null)
+    hasAiValues || hasManualValues || hasQuickSelect
   );
 
   return (
