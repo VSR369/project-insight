@@ -215,9 +215,9 @@ export function useRewardStructureHandlers({
     const platinum = Math.round(totalPool * 0.50);
     const gold = Math.round(totalPool * 0.30);
     const silver = totalPool - platinum - gold;
-    updateTier('platinum', { enabled: true, amount: platinum, source: 'AI' as const });
-    updateTier('gold', { enabled: true, amount: gold, source: 'AI' as const });
-    updateTier('silver', { enabled: true, amount: silver, source: 'AI' as const });
+    updateTier('platinum', { enabled: true, amount: platinum });
+    updateTier('gold', { enabled: true, amount: gold });
+    updateTier('silver', { enabled: true, amount: silver });
     toast.success(`AI split applied: ${currSym}${platinum.toLocaleString()} / ${currSym}${gold.toLocaleString()} / ${currSym}${silver.toLocaleString()}`);
   }, [totalPool, updateTier, currSym]);
 
