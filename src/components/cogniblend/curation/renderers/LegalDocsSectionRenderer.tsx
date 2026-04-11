@@ -1,12 +1,13 @@
 /**
- * LegalDocsSectionRenderer — Read-only display for legal documents.
- * Used for: legal_docs (always read-only)
- * Phase 3: Added "Accept All Legal Defaults" button for STRUCTURED governance.
+ * LegalDocsSectionRenderer — Display for legal documents in curation view.
+ * Phase 3+: Shows actual challenge_legal_docs rows.
+ * Phase 2: Shows planned legal template previews when no docs exist yet.
  */
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { FileText, ShieldCheck, CheckCircle2, Eye, Clock } from "lucide-react";
+import type { LegalTemplatePreview } from "@/hooks/queries/useLegalTemplatePreview";
 
 interface LegalDocDetail {
   id: string;
@@ -32,12 +33,11 @@ function LcStatusBadge({ status }: { status: string | null }) {
 
 interface LegalDocsSectionRendererProps {
   documents: LegalDocDetail[];
-  /** Governance mode — enables bulk accept for STRUCTURED */
   governanceMode?: 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
-  /** Callback to bulk-accept all ai_suggested docs */
   onAcceptAllDefaults?: () => void;
-  /** Loading state for bulk accept */
   isAcceptingAll?: boolean;
+  /** Phase 2 planned template previews (when no actual docs exist) */
+  templatePreviews?: LegalTemplatePreview[];
 }
 
 export function LegalDocsSectionRenderer({
@@ -45,7 +45,46 @@ export function LegalDocsSectionRenderer({
   governanceMode,
   onAcceptAllDefaults,
   isAcceptingAll,
+  templatePreviews,
 }: LegalDocsSectionRendererProps) {
+  // Phase 2: show planned templates when no actual docs
+  if ((!documents || documents.length === 0) && templatePreviews && templatePreviews.length > 0) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/20 p-2.5">
+          <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            Legal documents will be assembled after curation review is complete.
+          </p>
+          <Badge variant="outline" className="text-[10px] ml-auto shrink-0">Planned</Badge>
+        </div>
+        {templatePreviews.map((t) => (
+          <div key={t.template_id} className="border border-dashed border-border rounded-md p-3 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium text-foreground truncate">
+                  {t.document_name}
+                </span>
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  {t.tier.replace("_", " ")}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {t.is_mandatory && (
+                  <Badge variant="secondary" className="text-[10px]">Required</Badge>
+                )}
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <Eye className="h-3 w-3" /> Preview
+                </Badge>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (!documents || documents.length === 0) {
     return <p className="text-sm text-muted-foreground">No legal documents found.</p>;
   }
