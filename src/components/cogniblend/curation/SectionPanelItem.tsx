@@ -37,6 +37,7 @@ export interface SectionPanelItemProps {
   highlightWarnings: boolean;
   aiSuggestedComplexity: any;
   staleKeySet: Set<string>;
+  reviewSessionActive?: boolean;
 
   masterData: {
     ipModelOptions: Array<{ value: string; label: string; description?: string }>;
@@ -98,7 +99,7 @@ export interface SectionPanelItemProps {
   expandVersion: number;
 }
 
-export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, editingSection, setEditingSection, savingSection, setSavingSection, aiReview, approvedSections, toggleSectionApproval, sectionAIFlags, highlightWarnings, aiSuggestedComplexity, staleKeySet, masterData, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap, handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel, handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity, handleAcceptRefinement, handleAcceptExtendedBriefRefinement, handleSingleSectionReview, handleMarkAddressed, handleComplexityReReview, handleApproveLockedSection, handleUndoApproval, handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange, handleAcceptAllLegalDefaults, saveSectionMutation, challengeCtx, optimisticIndustrySegId, escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, legalDocs, legalDetails, escrowRecord, rewardStructureRef, complexityModuleRef, curationStore, staleSections, sectionReadiness, getSectionActions, setLockedSendState, setContextLibraryOpen, expandVersion }: SectionPanelItemProps) {
+export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, editingSection, setEditingSection, savingSection, setSavingSection, aiReview, approvedSections, toggleSectionApproval, sectionAIFlags, highlightWarnings, aiSuggestedComplexity, staleKeySet, reviewSessionActive, masterData, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap, handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel, handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity, handleAcceptRefinement, handleAcceptExtendedBriefRefinement, handleSingleSectionReview, handleMarkAddressed, handleComplexityReReview, handleApproveLockedSection, handleUndoApproval, handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange, handleAcceptAllLegalDefaults, saveSectionMutation, challengeCtx, optimisticIndustrySegId, escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, legalDocs, legalDetails, escrowRecord, rewardStructureRef, complexityModuleRef, curationStore, staleSections, sectionReadiness, getSectionActions, setLockedSendState, setContextLibraryOpen, expandVersion }: SectionPanelItemProps) {
   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
   const isLocked = LOCKED_SECTIONS.has(section.key);
   // Standard (non-locked) sections are always in edit mode for autosave
@@ -109,7 +110,7 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
 
   let panelStatus: SectionStatus = "not_reviewed";
   if (isLocked) panelStatus = "view_only";
-  else if (aiReview) {
+  else if (aiReview && reviewSessionActive) {
     if (aiReview.addressed) panelStatus = "pass";
     else if (aiReview.status === "pass") panelStatus = "pass";
     else if (aiReview.status === "warning") panelStatus = "warning";

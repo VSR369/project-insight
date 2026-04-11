@@ -3,7 +3,7 @@
  * Autosaves immediately on every toggle (no Save/Cancel buttons).
  */
 
-import { useState, useEffect } from "react";
+import { useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
@@ -36,19 +36,21 @@ export function CheckboxMultiSectionRenderer({
   saving,
   autoSaveStatus,
 }: CheckboxMultiSectionRendererProps) {
-  const [draft, setDraft] = useState<string[]>(selectedValues);
+  // Use a ref to track optimistic state during save to avoid race with prop sync
+  const pendingSaveRef = useRef<string[] | null>(null);
 
-  useEffect(() => {
-    setDraft(selectedValues);
-  }, [selectedValues]);
+  const displayValues = pendingSaveRef.current ?? selectedValues;
 
-  const handleToggle = (value: string) => {
-    const next = draft.includes(value)
-      ? draft.filter((v) => v !== value)
-      : [...draft, value];
-    setDraft(next);
+  const handleToggle = useCallback((value: string) => {
+    const current = pendingSaveRef.current ?? selectedValues;
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    pendingSaveRef.current = next;
     onSave(next);
-  };
+    // Clear pending after a tick to allow prop sync
+    setTimeout(() => { pendingSaveRef.current = null; }, 500);
+  }, [selectedValues, onSave]);
 
   // Always show checkboxes when not readOnly (autosave mode)
   if (!readOnly) {
@@ -61,7 +63,7 @@ export function CheckboxMultiSectionRenderer({
               className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/30 transition-colors"
             >
               <Checkbox
-                checked={draft.includes(opt.value)}
+                checked={displayValues.includes(opt.value)}
                 onCheckedChange={() => handleToggle(opt.value)}
                 className="mt-0.5"
               />

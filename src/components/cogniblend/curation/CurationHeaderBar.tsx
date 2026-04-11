@@ -56,6 +56,7 @@ export interface CurationHeaderBarProps {
   };
   onAcceptAllPassing: () => void;
   onReviewWarnings: () => void;
+  reviewSessionActive?: boolean;
 
   phaseDescription: string;
   legalEscrowBlocked: boolean;
@@ -94,6 +95,7 @@ export function CurationHeaderBar({
   aiReviewCounts,
   onAcceptAllPassing,
   onReviewWarnings,
+  reviewSessionActive,
   phaseDescription,
   legalEscrowBlocked,
   blockingReason,
@@ -152,8 +154,8 @@ export function CurationHeaderBar({
         )}
       </div>
 
-      {/* Bulk action bar */}
-      {aiReviewCounts.hasReviews && (
+      {/* Bulk action bar — only show after AI review runs this session */}
+      {aiReviewCounts.hasReviews && reviewSessionActive && (
         <BulkActionBar
           warningCount={aiReviewCounts.warning}
           passCount={aiReviewCounts.pass}
