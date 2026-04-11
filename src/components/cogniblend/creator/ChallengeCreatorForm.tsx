@@ -34,6 +34,7 @@ import { useCreatorDraftSave } from '@/hooks/cogniblend/useCreatorDraftSave';
 import { useCreatorFileUpload } from '@/hooks/cogniblend/useCreatorFileUpload';
 import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
+import { ReferenceAttachmentsSection } from './ReferenceAttachmentsSection';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { MP_SEED, AGG_SEED, getSeedForCombination } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
@@ -236,8 +237,11 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             )}
           </TabsList>
           <TabsContent value="essential" className="mt-6"><EssentialDetailsTab engagementModel={engagementModel} governanceMode={governanceMode} fieldRules={fieldRules} /></TabsContent>
-          <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
+          <TabsContent value="context" className="mt-6"><AdditionalContextTab governanceMode={governanceMode} fieldRules={fieldRules} engagementModel={engagementModel} draftChallengeId={draftSave.draftChallengeId ?? undefined} /></TabsContent>
         </Tabs>
+        {!isQuick && (
+          <ReferenceAttachmentsSection attachedFiles={attachedFiles} onFilesChange={setAttachedFiles} referenceUrls={referenceUrls} onUrlsChange={setReferenceUrls} />
+        )}
         {governanceMode !== 'QUICK' && (
           <EvaluationMethodSection governanceMode={governanceMode} />
         )}

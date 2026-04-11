@@ -52,7 +52,7 @@ export default function CurationActions({
   const {
     user, navigate, completePhase, hasOutstandingRequired, amendmentCount,
     returnMutation, amDeclineReason, crApprovalRequired, crApprovalMutation,
-  } = useCurationActionData({ challengeId, checklistSummary, completedCount, totalCount, operatingModel });
+  } = useCurationActionData({ challengeId, checklistSummary, completedCount, totalCount, operatingModel, governanceMode });
 
   const isAmDeclined = phaseStatus === 'AM_DECLINED';
   const isFinalCycle = amendmentCount >= 3;
