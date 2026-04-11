@@ -87,9 +87,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     scope: scopeRule,
     maturity_level: maturityRule,
     solution_maturity_id: z.string().optional().default(''),
-    industry_segment_id: isQuick
-      ? z.string().optional().default('')
-      : z.string().min(1, 'Please select an industry segment'),
+    industry_segment_id: z.string().min(1, 'Please select an industry segment'),
     domain_tags: z.array(z.string()).min(1, 'Add at least one domain tag').default([]),
     currency_code: z.enum(['USD', 'EUR', 'GBP', 'INR']).default('USD'),
     platinum_award: z.coerce.number().min(0).default(0),
