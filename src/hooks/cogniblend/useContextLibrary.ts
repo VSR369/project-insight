@@ -46,6 +46,9 @@ export interface ContextDigest {
   key_facts: Record<string, unknown> | null;
   source_count: number;
   generated_at: string;
+  curator_edited: boolean;
+  curator_edited_at: string | null;
+  original_digest_text: string | null;
 }
 
 /* ── Query keys ── */
@@ -88,6 +91,8 @@ export function useContextSources(challengeId: string | null) {
   });
 }
 
+const DIGEST_COLUMNS = 'id, challenge_id, digest_text, key_facts, source_count, generated_at, curator_edited, curator_edited_at, original_digest_text';
+
 export function useContextDigest(challengeId: string | null) {
   return useQuery({
     queryKey: KEYS.digest(challengeId ?? ''),
@@ -95,7 +100,7 @@ export function useContextDigest(challengeId: string | null) {
       if (!challengeId) return null;
       const { data, error } = await supabase
         .from('challenge_context_digest')
-        .select('*')
+        .select(DIGEST_COLUMNS)
         .eq('challenge_id', challengeId)
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -401,6 +406,42 @@ export function useRegenerateDigest(challengeId: string) {
       toast.success('Context digest regenerated');
     },
     onError: (err: Error) => toast.error(`Digest generation failed: ${err.message}`),
+  });
+}
+
+/* ── Save curator-edited digest ── */
+
+export function useSaveDigest(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (editedText: string) => {
+      const { data: existing } = await supabase
+        .from('challenge_context_digest')
+        .select('digest_text, curator_edited, original_digest_text')
+        .eq('challenge_id', challengeId)
+        .maybeSingle();
+
+      const originalText = existing?.curator_edited
+        ? existing.original_digest_text
+        : existing?.digest_text ?? null;
+
+      const { error } = await supabase
+        .from('challenge_context_digest')
+        .update({
+          digest_text: editedText,
+          curator_edited: true,
+          curator_edited_at: new Date().toISOString(),
+          original_digest_text: originalText,
+        })
+        .eq('challenge_id', challengeId);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.digest(challengeId) });
+      toast.success('Digest saved');
+    },
+    onError: (err: Error) => toast.error(`Failed to save digest: ${err.message}`),
   });
 }
 

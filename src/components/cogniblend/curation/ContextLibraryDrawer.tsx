@@ -14,6 +14,7 @@ import {
   useAcceptSuggestion, useRejectSuggestion, useAcceptMultipleSuggestions,
   useRejectAllSuggestions, useAddContextUrl, useDeleteContextSource,
   useUpdateSourceSharing, useUpdateSourceSections, useRegenerateDigest,
+  useSaveDigest,
 } from '@/hooks/cogniblend/useContextLibrary';
 import { SourceList } from './context-library/SourceList';
 import { SourceDetail } from './context-library/SourceDetail';
@@ -48,6 +49,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
   const updateSharing = useUpdateSourceSharing(challengeId);
   const updateSection = useUpdateSourceSections(challengeId);
   const regenDigest = useRegenerateDigest(challengeId);
+  const saveDigest = useSaveDigest(challengeId);
 
   const selectedSource = useMemo(() => sources.find(s => s.id === selectedId) || null, [sources, selectedId]);
 
@@ -120,7 +122,14 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
             ) : (
               <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Select a source to view details</div>
             )}
-            <DigestPanel digest={digest} onRegenerate={() => regenDigest.mutate()} isRegenerating={regenDigest.isPending} />
+            <DigestPanel
+              digest={digest}
+              onRegenerate={() => regenDigest.mutate()}
+              isRegenerating={regenDigest.isPending}
+              onSave={(text) => saveDigest.mutate(text)}
+              isSaving={saveDigest.isPending}
+              onConfirm={handleClose}
+            />
           </div>
         </div>
       </SheetContent>
