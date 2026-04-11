@@ -1,7 +1,7 @@
 /**
  * CreatorReferencesRenderer — Displays creator-uploaded reference documents
- * for the curation review panel. Fetches from challenge_attachments where
- * section_key = 'creator_reference'.
+ * for the curation review panel. When not read-only, also renders the
+ * SectionReferencePanel so the Curator can upload/add references.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Download, Loader2 } from "lucide-react";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { handleQueryError } from "@/lib/errorHandler";
+import { SectionReferencePanel } from "@/components/cogniblend/curation/SectionReferencePanel";
 
 interface CreatorAttachment {
   id: string;
@@ -23,6 +24,7 @@ interface CreatorAttachment {
 
 interface CreatorReferencesRendererProps {
   challengeId: string;
+  isReadOnly?: boolean;
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -42,7 +44,10 @@ function getMimeLabel(mime: string | null): string {
   return mime.split("/").pop()?.toUpperCase() || "";
 }
 
-export function CreatorReferencesRenderer({ challengeId }: CreatorReferencesRendererProps) {
+export function CreatorReferencesRenderer({
+  challengeId,
+  isReadOnly = true,
+}: CreatorReferencesRendererProps) {
   const { data: attachments = [], isLoading, error } = useQuery({
     queryKey: ["creator-attachments", challengeId],
     enabled: !!challengeId,
@@ -75,10 +80,6 @@ export function CreatorReferencesRenderer({ challengeId }: CreatorReferencesRend
     return <p className="text-sm text-destructive">Failed to load reference documents.</p>;
   }
 
-  if (attachments.length === 0) {
-    return <p className="text-sm text-muted-foreground">No reference documents uploaded by Creator.</p>;
-  }
-
   const handleDownload = async (att: CreatorAttachment) => {
     if (!att.storage_path) return;
     const { data, error: signError } = await supabase.storage
@@ -89,37 +90,54 @@ export function CreatorReferencesRenderer({ challengeId }: CreatorReferencesRend
   };
 
   return (
-    <div className="space-y-2">
-      {attachments.map((att) => (
-        <div key={att.id} className="flex items-start gap-3 rounded-md border border-border p-3">
-          <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{att.file_name || "Untitled"}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              {att.mime_type && (
-                <Badge variant="secondary" className="text-[10px]">{getMimeLabel(att.mime_type)}</Badge>
-              )}
-              {att.file_size && (
-                <span className="text-xs text-muted-foreground">{formatFileSize(att.file_size)}</span>
-              )}
-              {att.created_at && (
-                <span className="text-xs text-muted-foreground">
-                  {new Date(att.created_at).toLocaleDateString()}
-                </span>
-              )}
+    <div className="space-y-4">
+      {/* Creator-uploaded attachments */}
+      {attachments.length > 0 && (
+        <div className="space-y-2">
+          {attachments.map((att) => (
+            <div key={att.id} className="flex items-start gap-3 rounded-md border border-border p-3">
+              <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{att.file_name || "Untitled"}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {att.mime_type && (
+                    <Badge variant="secondary" className="text-[10px]">{getMimeLabel(att.mime_type)}</Badge>
+                  )}
+                  {att.file_size && (
+                    <span className="text-xs text-muted-foreground">{formatFileSize(att.file_size)}</span>
+                  )}
+                  {att.created_at && (
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(att.created_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 text-xs h-7"
+                onClick={() => handleDownload(att)}
+                disabled={!att.storage_path}
+              >
+                <Download className="h-3 w-3 mr-1" /> Download
+              </Button>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 text-xs h-7"
-            onClick={() => handleDownload(att)}
-            disabled={!att.storage_path}
-          >
-            <Download className="h-3 w-3 mr-1" /> Download
-          </Button>
+          ))}
         </div>
-      ))}
+      )}
+
+      {attachments.length === 0 && (
+        <p className="text-sm text-muted-foreground">No reference documents uploaded by Creator.</p>
+      )}
+
+      {/* Curator upload/URL panel — shown when editable */}
+      {!isReadOnly && (
+        <SectionReferencePanel
+          challengeId={challengeId}
+          sectionKey="creator_references"
+        />
+      )}
     </div>
   );
 }

@@ -139,7 +139,7 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
     }
 
     case "creator_references":
-      return <CreatorReferencesRenderer challengeId={args.challengeId} />;
+      return <CreatorReferencesRenderer challengeId={args.challengeId} isReadOnly={isReadOnly} />;
 
     default:
       return null;

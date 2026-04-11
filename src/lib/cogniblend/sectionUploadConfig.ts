@@ -164,6 +164,13 @@ export const SECTION_UPLOAD_CONFIG: Record<string, SectionUploadCfg> = {
     urlPrompt: 'Add link to prior assessment or rejected approach write-up',
     sharingDefault: false, sharingRecommendation: 'discouraged',
   },
+  creator_references: {
+    enabled: true, maxFiles: 5, maxUrls: 3, maxFileSizeMB: 25,
+    acceptedFormats: DOC_IMG,
+    uploadPrompt: 'Upload reference documents, research papers, or supporting materials',
+    urlPrompt: 'Add link to external reference or resource',
+    sharingDefault: false, sharingRecommendation: 'optional',
+  },
   // ── Disabled (9 sections) ──
   hook: DISABLED,
   domain_tags: DISABLED,
@@ -198,4 +205,5 @@ export const SHARING_GUIDANCE: Partial<Record<string, string>> = {
   phase_schedule: 'Rarely needed. Timeline details are in the section itself.',
   solver_expertise: 'Rarely needed. Expertise requirements are in the section itself.',
   root_causes: 'Rarely needed. Root cause details are in the section itself.',
+  creator_references: 'Share reference documents that help solvers understand the challenge context. Remove confidential internal materials.',
 };
