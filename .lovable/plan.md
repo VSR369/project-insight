@@ -1,85 +1,39 @@
 
 
-## Analysis & Fix Plan: Remaining Open Bugs
+## Fix: QUICK Mode Demo Card — Remove Individual Role Badge Display
 
-### Verified Status
+### Problem
 
-| # | Issue | Status | Evidence |
-|---|-------|--------|----------|
-| draftForm null on first render | **FIXED** | `form` passed directly to `useCreatorDraftSave` (line 96-97) |
-| cogni-my-challenges invalidation | **FIXED** | Present in `useSaveDraft.onSuccess` (line 351) and `useUpdateDraft.onSuccess` (line 379) |
-| assign_challenge_role RECORD vs JSONB | **FIXED** | DB proc shows `v_validation JSONB` and `(v_validation->>'allowed')::boolean` |
-| sendRoutedNotification not called | **FIXED** | Called at lines 223 (ROLE_ASSIGNED) and 263 (PHASE_COMPLETE) in useChallengeSubmit |
-| complete_phase sla_hours vs sla_days | **FIXED** | DB proc shows `v_next_config.sla_days` throughout |
-| notification_routing phase alignment | **FIXED** | Phase 2 rows exist for ROLE_ASSIGNED and PHASE_COMPLETE |
-| reassign_role missing SLM tracking | **FIXED** | DB proc uses `assign_challenge_role`, handles pool decrement |
-| referenceUrls saved on draft | **BROKEN** | `useCreatorDraftSave.ts` base object (lines 53-75) never includes `referenceUrls` |
-| Draft loader restores referenceUrls | **BROKEN** | `useCreatorDraftLoader.ts` never reads `extended_brief.reference_urls` |
-| evaluation_criteria parsed on draft load | **BROKEN** | Line 100 checks `Array.isArray(evaluation_criteria)` but DB stores `{ weighted_criteria: [...] }` — always fails, criteria lost on resume |
-| Legal docs visible during Phase 2 | **STRUCTURAL GAP** | `challenge_legal_docs` rows only created at Phase 3 entry. Phase 2 shows nothing. |
-| Files uploaded on draft save | **BY DESIGN** | Files held in React state, uploaded only on final submit. Acceptable — but worth noting. |
+In QUICK governance mode, all 5 roles (CR, CU, ER, LC, FC) are system-automated artifacts — the single user never manually performs curation, evaluation, legal, or escrow. Displaying 5 separate role badges is misleading and contradicts the "merged roles / no role conflicts" heading. The user's screenshot confirms the current display shows all 5 badges individually.
 
-### Bugs to Fix (4 items)
+### Design Decision
 
----
+For QUICK mode, Sam Solo's card should show a single consolidated badge like "All Roles (Auto)" instead of 5 individual role badges. This aligns with:
+- Memory: QUICK mode = "merged roles, auto-curation, auto-completes legal"
+- Memory: `nonQuickRoleCodes` concept — system-assigned roles from QUICK mode are workflow artifacts, not actionable roles
+- The heading already says "1 person — all roles merged (no role conflicts)"
 
-**Fix 1: `useCreatorDraftSave.ts` — Pass `referenceUrls` in draft payload**
+### Changes
 
-The `base` object (lines 53-75) never includes reference URLs. The form stores them in React state (`referenceUrls`), not in the RHF form. This means the hook needs access to them.
+**File 1: `src/pages/cogniblend/DemoLoginPage.tsx`**
+- Change QUICK mode Sam Solo's `roles` array from `['CR', 'CU', 'ER', 'LC', 'FC']` to just `['CR']` — Creator is the only role the user actually performs
+- Update description to emphasize the single-actor automated flow
 
-- Add `referenceUrls?: string[]` to the config interface
-- Pass it through from `ChallengeCreatorForm.tsx`
-- Include `referenceUrls: config.referenceUrls` in the `base` object
+**File 2: `src/components/cogniblend/demo/DemoUserCard.tsx`**
+- Add a `governanceMode` prop (optional)
+- When `governanceMode === 'QUICK'` and user has `stepLabel === 'All Steps'`, render a single "Creator (Auto-Publish)" badge instead of iterating individual role badges
+- Below it, show a muted note: "CU, ER, LC, FC auto-completed by platform"
 
-**File changes:** `useCreatorDraftSave.ts` (add config field + pass to payload), `ChallengeCreatorForm.tsx` (pass `referenceUrls` to `useCreatorDraftSave`)
+**File 3: `src/pages/cogniblend/DemoLoginPage.tsx` (render section)**
+- Pass `governanceMode` to each `DemoUserCard`
 
----
+### Result
 
-**Fix 2: `useCreatorDraftLoader.ts` — Restore referenceUrls from extended_brief**
+QUICK mode card will show:
+- Name: "Sam Solo" with "All Steps" badge
+- Single badge: "CR — Challenge Creator"
+- Muted text: "CU, LC, FC, ER auto-completed by platform"
+- Description unchanged
 
-The draft loader reads `extended_brief` but never extracts `reference_urls`. After draft save writes them (Fix 1), they need to be restored when resuming.
-
-Since `referenceUrls` lives in React state (not RHF), the loader needs a callback to set them. Add an optional `onReferenceUrlsLoaded?: (urls: string[]) => void` param.
-
-- Parse `eb?.reference_urls` as `string[]`
-- Call `onReferenceUrlsLoaded(urls)` if present
-
-**File changes:** `useCreatorDraftLoader.ts` (add param + parse), `ChallengeCreatorForm.tsx` (pass callback)
-
----
-
-**Fix 3: `useCreatorDraftLoader.ts` — Fix evaluation_criteria parsing**
-
-Line 100: `Array.isArray((challenge).evaluation_criteria)` — but DB stores `{ weighted_criteria: [...] }`. This always returns `false`, so `weighted_criteria` is never restored from a draft.
-
-Fix: Extract `weighted_criteria` from the JSONB wrapper:
-```typescript
-const ec = (challenge as Record<string, unknown>).evaluation_criteria as Record<string, unknown> | null;
-const weightedCriteria = Array.isArray(ec?.weighted_criteria) ? ec.weighted_criteria : [];
-```
-
-**File changes:** `useCreatorDraftLoader.ts` (fix parsing logic at line 100)
-
----
-
-**Fix 4: `ChallengeLegalDocsCard.tsx` — Show legal template preview during Phase 2**
-
-Currently shows "Legal documents will be assembled after curation review" for Phase 2. Instead, query `legal_document_templates` (or `org_legal_document_templates` for AGG) and show a preview of which templates will be applied.
-
-- When `currentPhase < 3` and no `challenge_legal_docs` exist, query the templates table
-- Display them as "Planned" with a preview badge instead of an empty state
-- Keep the actual `challenge_legal_docs` display for Phase 3+
-
-**File changes:** `ChallengeLegalDocsCard.tsx` (add template preview query + render)
-
----
-
-### Files Changed (4)
-
-| File | Changes |
-|------|---------|
-| `src/hooks/cogniblend/useCreatorDraftSave.ts` | Add `referenceUrls` to config + include in draft payload |
-| `src/hooks/cogniblend/useCreatorDraftLoader.ts` | Fix `evaluation_criteria` parsing; restore `referenceUrls` via callback |
-| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | Pass `referenceUrls` to draft save hook; pass URL restore callback to draft loader |
-| `src/components/cogniblend/challenges/ChallengeLegalDocsCard.tsx` | Add legal template preview for Phase 2 |
+STRUCTURED and CONTROLLED modes remain unaffected — they display individual role badges as before since those represent real human-actor assignments.
 
