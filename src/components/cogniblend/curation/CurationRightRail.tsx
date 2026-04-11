@@ -155,11 +155,10 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
 
-      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
-
-      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
-
       <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
+
+      <AIReviewSummaryCard aiReviews={aiReviews} staleSections={staleSections} groups={groups} sectionMap={sectionMap}
+        getSectionDisplayName={getSectionDisplayName} setShowOnlyStale={setShowOnlyStale} setActiveGroup={setActiveGroup} />
 
       {budgetShortfall && (
         <BudgetRevisionPanel shortfall={budgetShortfall} currencyCode={challengeCurrencyCode ?? 'USD'}
@@ -168,8 +167,9 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       <CompletionBanner phase2Status={phase2Status} triageTotalCount={triageTotalCount} aiReviews={aiReviews} />
 
-      <AIReviewSummaryCard aiReviews={aiReviews} staleSections={staleSections} groups={groups} sectionMap={sectionMap}
-        getSectionDisplayName={getSectionDisplayName} setShowOnlyStale={setShowOnlyStale} setActiveGroup={setActiveGroup} />
+      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
+
+      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
         checklistSummary={checklistSummary} completedCount={completedCount} totalCount={checklistSummary.length}
