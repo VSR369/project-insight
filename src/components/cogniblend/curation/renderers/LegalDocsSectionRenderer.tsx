@@ -1,13 +1,13 @@
 /**
  * LegalDocsSectionRenderer — Display for legal documents in curation view.
  * Phase 3+: Shows actual challenge_legal_docs rows.
- * Phase 2: Shows planned legal template previews when no docs exist yet.
+ * Phase 2: Automatically shows planned legal template previews when no docs exist.
  */
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, ShieldCheck, CheckCircle2, Eye, Clock } from "lucide-react";
-import type { LegalTemplatePreview } from "@/hooks/queries/useLegalTemplatePreview";
+import { useLegalTemplatePreview } from "@/hooks/queries/useLegalTemplatePreview";
 
 interface LegalDocDetail {
   id: string;
@@ -36,8 +36,14 @@ interface LegalDocsSectionRendererProps {
   governanceMode?: 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
   onAcceptAllDefaults?: () => void;
   isAcceptingAll?: boolean;
-  /** Phase 2 planned template previews (when no actual docs exist) */
-  templatePreviews?: LegalTemplatePreview[];
+  /** Challenge ID for template preview resolution */
+  challengeId?: string;
+  /** Current lifecycle phase */
+  currentPhase?: number;
+  /** Engagement model (MP/AGG) for template resolution */
+  engagementModel?: string;
+  /** Organization ID for AGG template resolution */
+  organizationId?: string;
 }
 
 export function LegalDocsSectionRenderer({
@@ -45,10 +51,24 @@ export function LegalDocsSectionRenderer({
   governanceMode,
   onAcceptAllDefaults,
   isAcceptingAll,
-  templatePreviews,
+  challengeId,
+  currentPhase,
+  engagementModel,
+  organizationId,
 }: LegalDocsSectionRendererProps) {
+  const hasActualDocs = documents && documents.length > 0;
+
+  // Phase 2 preview hook — only fetches when no actual docs exist
+  const { data: templatePreviews } = useLegalTemplatePreview(
+    challengeId ?? '',
+    currentPhase,
+    hasActualDocs,
+    engagementModel,
+    organizationId,
+  );
+
   // Phase 2: show planned templates when no actual docs
-  if ((!documents || documents.length === 0) && templatePreviews && templatePreviews.length > 0) {
+  if (!hasActualDocs && templatePreviews && templatePreviews.length > 0) {
     return (
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/20 p-2.5">
@@ -85,7 +105,7 @@ export function LegalDocsSectionRenderer({
     );
   }
 
-  if (!documents || documents.length === 0) {
+  if (!hasActualDocs) {
     return <p className="text-sm text-muted-foreground">No legal documents found.</p>;
   }
 
