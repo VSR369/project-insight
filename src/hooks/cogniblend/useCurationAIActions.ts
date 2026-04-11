@@ -55,6 +55,8 @@ export function useCurationAIActions({
   setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
 }: UseCurationAIActionsOptions) {
 
+  const queryClient = useQueryClient();
+
   // Shared pre-flight logic extracted for reuse
   const runPreFlight = useCallback((): ReturnType<typeof preFlightCheck> | null => {
     if (!challengeId || !challenge) return null;
