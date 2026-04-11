@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 interface Option {
   value: string;
@@ -26,6 +28,7 @@ interface CheckboxSingleSectionRendererProps {
   onSave: (val: string) => void;
   onCancel: () => void;
   saving?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
   /** Optional label and description to show in view mode */
   getLabel?: (val: string) => string;
   getDescription?: (val: string) => string | undefined;
@@ -39,28 +42,33 @@ export function CheckboxSingleSectionRenderer({
   onSave,
   onCancel,
   saving,
+  autoSaveStatus,
   getLabel,
   getDescription,
 }: CheckboxSingleSectionRendererProps) {
-  if (editing && !readOnly) {
+  // Always show select when not readOnly (autosave mode)
+  if (!readOnly) {
     return (
-      <Select value={value ?? ""} onValueChange={(val) => onSave(val)}>
-        <SelectTrigger className="w-full max-w-xs">
-          <SelectValue placeholder="Select..." />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              <div>
-                <span className="font-medium">{opt.label}</span>
-                {opt.description && (
-                  <span className="text-xs text-muted-foreground ml-2">— {opt.description}</span>
-                )}
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="space-y-2">
+        <Select value={value ?? ""} onValueChange={(val) => onSave(val)}>
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue placeholder="Select..." />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <div>
+                  <span className="font-medium">{opt.label}</span>
+                  {opt.description && (
+                    <span className="text-xs text-muted-foreground ml-2">— {opt.description}</span>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
+      </div>
     );
   }
 

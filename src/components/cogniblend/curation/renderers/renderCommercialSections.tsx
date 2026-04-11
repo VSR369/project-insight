@@ -38,84 +38,70 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
   switch (section.key) {
     case "ip_model":
       return (
-        <>
-          <CheckboxSingleSectionRenderer
-            value={challenge.ip_model}
-            options={masterData.ipModelOptions}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(val) => handleSaveOrgPolicyField("ip_model", val)}
-            onCancel={cancelEdit}
-            saving={savingSection}
-            getLabel={(v) => masterData.ipModelOptions.find((o) => o.value === v)?.label ?? v}
-            getDescription={(v) => masterData.ipModelOptions.find((o) => o.value === v)?.description}
-          />
-          {editButton}
-        </>
+        <CheckboxSingleSectionRenderer
+          value={challenge.ip_model}
+          options={masterData.ipModelOptions}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(val) => handleSaveOrgPolicyField("ip_model", val)}
+          onCancel={cancelEdit}
+          saving={savingSection}
+          getLabel={(v) => masterData.ipModelOptions.find((o) => o.value === v)?.label ?? v}
+          getDescription={(v) => masterData.ipModelOptions.find((o) => o.value === v)?.description}
+        />
       );
 
     case "eligibility": {
-      const solverElig = parseJson<any>(challenge.solver_eligibility_types);
+      const solverElig = parseJson<unknown>(challenge.solver_eligibility_types);
       const eligValues = Array.isArray(solverElig)
-        ? solverElig.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
+        ? solverElig.map((t: Record<string, string>) => typeof t === "string" ? t : t?.code ?? "")
         : [];
       return (
-        <>
-          <CheckboxMultiSectionRenderer
-            selectedValues={eligValues}
-            options={masterData.eligibilityOptions}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(values) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "solver_eligibility_types", value: values.map((v) => ({ code: v, label: masterData.eligibilityOptions.find((o) => o.value === v)?.label ?? v })) });
-            }}
-            onCancel={cancelEdit}
-            saving={savingSection}
-          />
-          {editButton}
-        </>
+        <CheckboxMultiSectionRenderer
+          selectedValues={eligValues}
+          options={masterData.eligibilityOptions}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(values) => {
+            saveSectionMutation.mutate({ field: "solver_eligibility_types", value: values.map((v) => ({ code: v, label: masterData.eligibilityOptions.find((o) => o.value === v)?.label ?? v })) });
+          }}
+          onCancel={cancelEdit}
+          saving={savingSection}
+        />
       );
     }
 
     case "visibility": {
-      const solverVis = parseJson<any>(challenge.solver_visibility_types);
+      const solverVis = parseJson<unknown>(challenge.solver_visibility_types);
       const visValues = Array.isArray(solverVis)
-        ? solverVis.map((t: any) => typeof t === "string" ? t : t?.code ?? "")
+        ? solverVis.map((t: Record<string, string>) => typeof t === "string" ? t : t?.code ?? "")
         : [];
       return (
-        <>
-          <CheckboxMultiSectionRenderer
-            selectedValues={visValues}
-            options={masterData.visibilityOptions}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(values) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "solver_visibility_types", value: values.map((v) => ({ code: v, label: masterData.visibilityOptions.find((o) => o.value === v)?.label ?? v })) });
-            }}
-            onCancel={cancelEdit}
-            saving={savingSection}
-          />
-          {editButton}
-        </>
+        <CheckboxMultiSectionRenderer
+          selectedValues={visValues}
+          options={masterData.visibilityOptions}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(values) => {
+            saveSectionMutation.mutate({ field: "solver_visibility_types", value: values.map((v) => ({ code: v, label: masterData.visibilityOptions.find((o) => o.value === v)?.label ?? v })) });
+          }}
+          onCancel={cancelEdit}
+          saving={savingSection}
+        />
       );
     }
 
     case "evaluation_criteria":
       return (
-        <>
-          <EvaluationCriteriaSection
-            criteria={getEvalCriteria(challenge)}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={handleSaveEvalCriteria}
-            onCancel={cancelEdit}
-            saving={savingSection}
-            aiStatus={panelStatus}
-          />
-          {editButton}
-        </>
+        <EvaluationCriteriaSection
+          criteria={getEvalCriteria(challenge)}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={handleSaveEvalCriteria}
+          onCancel={cancelEdit}
+          saving={savingSection}
+          aiStatus={panelStatus}
+        />
       );
 
     case "reward_structure":
@@ -140,7 +126,7 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
           challengeId={challengeId}
           currentScore={challenge.complexity_score ?? null}
           currentLevel={challenge.complexity_level ?? null}
-          currentParams={parseJson<any[]>(challenge.complexity_parameters) ?? null}
+          currentParams={parseJson<Record<string, unknown>[]>(challenge.complexity_parameters) ?? null}
           complexityParams={complexityParams}
           solutionType={challenge.solution_type as any}
           onSave={handleSaveComplexity}
@@ -154,39 +140,36 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
 
     case "solution_type": {
       const currentSolutionTypes: string[] = Array.isArray(challenge.solution_types) ? (challenge.solution_types as string[]) : [];
+      if (!isReadOnly) {
+        return (
+          <SolutionTypesEditor
+            groups={solutionTypeGroups}
+            selectedCodes={currentSolutionTypes}
+            onSave={(codes) => {
+              handleSaveSolutionTypes(codes);
+            }}
+            onCancel={cancelEdit}
+            saving={savingSection}
+          />
+        );
+      }
       return (
         <>
-          {isEditing && !isReadOnly ? (
-            <SolutionTypesEditor
-              groups={solutionTypeGroups}
-              selectedCodes={currentSolutionTypes}
-              onSave={(codes) => {
-                handleSaveSolutionTypes(codes);
-                setEditingSection(null);
-              }}
-              onCancel={cancelEdit}
-              saving={savingSection}
-            />
-          ) : (
-            <>
-              {currentSolutionTypes.length > 0 ? (
-                <div className="space-y-2">
-                  {solutionTypeGroups.filter((g: any) => g.types.some((t: any) => currentSolutionTypes.includes(t.code))).map((g: any) => (
-                    <div key={g.groupCode}>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{g.groupLabel}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {g.types.filter((t: any) => currentSolutionTypes.includes(t.code)).map((t: any) => (
-                          <Badge key={t.code} variant="secondary" className="text-xs">{t.label}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+          {currentSolutionTypes.length > 0 ? (
+            <div className="space-y-2">
+              {solutionTypeGroups.filter((g: Record<string, unknown>) => (g.types as Record<string, string>[]).some((t) => currentSolutionTypes.includes(t.code))).map((g: Record<string, unknown>) => (
+                <div key={g.groupCode as string}>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{g.groupLabel as string}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(g.types as Record<string, string>[]).filter((t) => currentSolutionTypes.includes(t.code)).map((t) => (
+                      <Badge key={t.code} variant="secondary" className="text-xs">{t.label}</Badge>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">Not set — select solution types to drive deliverables and complexity</p>
-              )}
-              {editButton}
-            </>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">Not set — select solution types to drive deliverables and complexity</p>
           )}
         </>
       );
@@ -194,20 +177,17 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
 
     case "maturity_level":
       return (
-        <>
-          <CheckboxSingleSectionRenderer
-            value={challenge.maturity_level}
-            options={masterData.maturityOptions}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(val) => handleSaveMaturityLevel(val)}
-            onCancel={cancelEdit}
-            saving={savingSection}
-            getLabel={getMaturityLabel}
-            getDescription={(val) => masterData.maturityOptions.find((o) => o.value.toLowerCase() === val.toLowerCase())?.description}
-          />
-          {editButton}
-        </>
+        <CheckboxSingleSectionRenderer
+          value={challenge.maturity_level}
+          options={masterData.maturityOptions}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(val) => handleSaveMaturityLevel(val)}
+          onCancel={cancelEdit}
+          saving={savingSection}
+          getLabel={getMaturityLabel}
+          getDescription={(val) => masterData.maturityOptions.find((o) => o.value.toLowerCase() === val.toLowerCase())?.description}
+        />
       );
 
     default:

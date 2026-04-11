@@ -5,6 +5,7 @@
 
 import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { TextSectionEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 interface RichTextSectionRendererProps {
   value: string;
@@ -14,6 +15,7 @@ interface RichTextSectionRendererProps {
   onCancel: () => void;
   onEdit: () => void;
   saving?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
 export function RichTextSectionRenderer({
@@ -24,14 +26,17 @@ export function RichTextSectionRenderer({
   onCancel,
   onEdit,
   saving,
+  autoSaveStatus,
 }: RichTextSectionRendererProps) {
-  if (editing && !readOnly) {
+  // Always show editor when not readOnly (autosave mode)
+  if (!readOnly) {
     return (
       <TextSectionEditor
         value={value}
         onSave={onSave}
         onCancel={onCancel}
         saving={saving}
+        autoSaveStatus={autoSaveStatus}
       />
     );
   }

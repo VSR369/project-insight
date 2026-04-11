@@ -15,6 +15,8 @@ import {
   StakeholderTableEditor,
   StakeholderTableView,
 } from "@/components/cogniblend/curation/ExtendedBriefDisplay";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
 import { EXTENDED_BRIEF_FIELD_MAP } from "@/lib/cogniblend/curationSectionFormats";
 import { parseJson, getDeliverableItems, getDeliverableObjects, getExpectedOutcomeObjects, getSubmissionGuidelineObjects } from "@/lib/cogniblend/curationHelpers";
 import type { RenderSectionContentArgs } from "@/components/cogniblend/curation/renderSectionContent";
@@ -38,21 +40,18 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
   switch (section.key) {
     case "deliverables":
       return (
-        <>
-          <LineItemsSectionRenderer
-            items={getDeliverableItems(challenge)}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={handleSaveDeliverables}
-            onCancel={cancelEdit}
-            saving={savingSection}
-            itemLabel="Deliverable"
-            structuredItems={getDeliverableObjects(challenge)}
-            onSaveStructured={handleSaveStructuredDeliverables}
-            badgePrefix="D"
-          />
-          {editButton}
-        </>
+        <LineItemsSectionRenderer
+          items={getDeliverableItems(challenge)}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={handleSaveDeliverables}
+          onCancel={cancelEdit}
+          saving={savingSection}
+          itemLabel="Deliverable"
+          structuredItems={getDeliverableObjects(challenge)}
+          onSaveStructured={handleSaveStructuredDeliverables}
+          badgePrefix="D"
+        />
       );
 
     case "submission_guidelines": {
@@ -62,59 +61,49 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
       const finalItems = lineItems.length > 0 ? lineItems : ((challenge as any).submission_guidelines ? [] : (challenge.description?.trim() ? [challenge.description] : []));
       const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
       return (
-        <>
-          <LineItemsSectionRenderer
-            items={finalItems}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(newItems) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: newItems } });
-            }}
-            onCancel={cancelEdit}
-            saving={savingSection}
-            itemLabel="Guideline"
-            structuredItems={structuredGuidelines}
-            onSaveStructured={(items) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: items.map(({ name, description }) => ({ name, description })) } });
-            }}
-            badgePrefix="S"
-            hideAcceptanceCriteria
-          />
-          {editButton}
-        </>
+        <LineItemsSectionRenderer
+          items={finalItems}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(newItems) => {
+            saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: newItems } });
+          }}
+          onCancel={cancelEdit}
+          saving={savingSection}
+          itemLabel="Guideline"
+          structuredItems={structuredGuidelines}
+          onSaveStructured={(items) => {
+            saveSectionMutation.mutate({ field: "submission_guidelines", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+          }}
+          badgePrefix="S"
+          hideAcceptanceCriteria
+        />
       );
     }
 
     case "expected_outcomes": {
-      const eo = parseJson<any>(challenge.expected_outcomes);
-      const outcomes = Array.isArray(eo) ? eo : (eo?.items ?? []);
-      const outcomeItems = outcomes.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+      const eo = parseJson<Record<string, unknown>>(challenge.expected_outcomes);
+      const outcomes = Array.isArray(eo) ? eo : ((eo as Record<string, unknown>)?.items ?? []);
+      const outcomeItems = (outcomes as unknown[]).map((item: unknown) => typeof item === "string" ? item : (item as Record<string, string>)?.name ?? "");
       const structuredOutcomes = getExpectedOutcomeObjects(challenge);
       return (
-        <>
-          <LineItemsSectionRenderer
-            items={outcomeItems}
-            readOnly={isReadOnly}
-            editing={isEditing}
-            onSave={(newItems) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: newItems } });
-            }}
-            onCancel={cancelEdit}
-            saving={savingSection}
-            itemLabel="Outcome"
-            structuredItems={structuredOutcomes}
-            onSaveStructured={(items) => {
-              setSavingSection(true);
-              saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description }) => ({ name, description })) } });
-            }}
-            badgePrefix="O"
-            hideAcceptanceCriteria
-          />
-          {editButton}
-        </>
+        <LineItemsSectionRenderer
+          items={outcomeItems}
+          readOnly={isReadOnly}
+          editing={isEditing}
+          onSave={(newItems) => {
+            saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: newItems } });
+          }}
+          onCancel={cancelEdit}
+          saving={savingSection}
+          itemLabel="Outcome"
+          structuredItems={structuredOutcomes}
+          onSaveStructured={(items) => {
+            saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+          }}
+          badgePrefix="O"
+          hideAcceptanceCriteria
+        />
       );
     }
 
@@ -146,7 +135,6 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
             saving={savingSection}
             itemLabel={itemLabel}
           />
-          {editButton}
         </>
       );
     }

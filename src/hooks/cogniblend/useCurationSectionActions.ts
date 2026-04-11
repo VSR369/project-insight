@@ -57,53 +57,46 @@ export function useCurationSectionActions({
   // ── Simple field saves ──
 
   const handleSaveText = useCallback((sectionKey: string, dbField: string, value: string) => {
-    setSavingSection(true);
     syncSectionToStore(sectionKey as SectionKey, value);
     saveSectionMutation.mutate({ field: dbField, value });
     notifyStaleness(sectionKey);
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveDeliverables = useCallback((items: string[]) => {
-    setSavingSection(true);
     const data = { items };
     syncSectionToStore('deliverables' as SectionKey, data);
     saveSectionMutation.mutate({ field: 'deliverables', value: data });
     notifyStaleness('deliverables');
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveStructuredDeliverables = useCallback((items: Array<{ name: string; description?: string; acceptance_criteria?: string }>) => {
-    setSavingSection(true);
     const data = { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) };
     syncSectionToStore('deliverables' as SectionKey, data);
     saveSectionMutation.mutate({ field: 'deliverables', value: data });
     notifyStaleness('deliverables');
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveEvalCriteria = useCallback((criteria: { name: string; weight: number }[]) => {
-    setSavingSection(true);
     const normalized = criteria.map((c) => ({ criterion_name: c.name, weight_percentage: c.weight }));
     const data = { criteria: normalized };
     syncSectionToStore('evaluation_criteria' as SectionKey, data);
     saveSectionMutation.mutate({ field: 'evaluation_criteria', value: data });
     notifyStaleness('evaluation_criteria');
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveMaturityLevel = useCallback((value: string) => {
-    setSavingSection(true);
     const upper = value.toUpperCase();
     syncSectionToStore('maturity_level' as SectionKey, upper);
     saveSectionMutation.mutate({ field: 'maturity_level', value: upper });
     notifyStaleness('maturity_level');
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   const handleSaveExtendedBrief = useCallback((updatedBrief: Record<string, unknown>) => {
-    setSavingSection(true);
     syncSectionToStore('extended_brief' as SectionKey, updatedBrief);
     saveSectionMutation.mutate({ field: 'extended_brief', value: updatedBrief });
-  }, [saveSectionMutation, syncSectionToStore, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore]);
 
   const handleSaveOrgPolicyField = useCallback((dbField: string, value: unknown) => {
-    setSavingSection(true);
     const fieldToSection: Record<string, string> = {
       ip_model: 'ip_model', solver_eligibility_types: 'eligibility',
       solver_visibility_types: 'visibility', solver_expertise_requirements: 'solver_expertise',
@@ -114,7 +107,7 @@ export function useCurationSectionActions({
       notifyStaleness(sectionKey);
     }
     saveSectionMutation.mutate({ field: dbField, value });
-  }, [saveSectionMutation, syncSectionToStore, notifyStaleness, setSavingSection]);
+  }, [saveSectionMutation, syncSectionToStore, notifyStaleness]);
 
   // ── Delegated: complexity, domain, industry, legal, approval ──
 

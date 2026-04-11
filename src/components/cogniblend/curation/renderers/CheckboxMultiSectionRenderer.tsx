@@ -50,7 +50,8 @@ export function CheckboxMultiSectionRenderer({
     onSave(next);
   };
 
-  if (editing && !readOnly) {
+  // Always show checkboxes when not readOnly (autosave mode)
+  if (!readOnly) {
     return (
       <div className="space-y-3">
         <div className="space-y-2">
