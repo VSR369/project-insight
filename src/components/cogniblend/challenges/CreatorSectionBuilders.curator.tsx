@@ -7,7 +7,7 @@ import React from 'react';
 import {
   Target, Layers, BookOpen, Info, Trophy, Clock, Tag,
   Briefcase, ListChecks, BarChart3, FileText, ShieldCheck,
-  Coins, Link2, Users, AlertTriangle, XCircle, Compass, Ban,
+  Coins, Link2, Users, AlertTriangle, XCircle, Compass, Ban, Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,6 +56,7 @@ function buildAllCuratorSections(data: PublicChallengeData): SectionDef[] {
   const refUrls = eb.reference_urls as string[] | undefined;
 
   return [
+    buildOrgDetailsSection(data),
     { title: 'Challenge Title', icon: FileText, fieldKey: 'title', content: data.title ? (
       <Card className="border-border"><CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5"><FileText className="h-3.5 w-3.5 text-primary" /> Challenge Title</CardTitle></CardHeader><CardContent><p className="text-sm font-medium text-foreground">{data.title}</p></CardContent></Card>
     ) : null },
@@ -90,4 +91,40 @@ function buildAllCuratorSections(data: PublicChallengeData): SectionDef[] {
     { title: 'Domain Tags', icon: Tag, fieldKey: 'domain_tags', content: (data.domain_tags as string[])?.length ? <TagsSection title="Domain Tags" tags={data.domain_tags as string[]} /> : null },
     { title: 'Reference Links', icon: Link2, content: refUrls?.length ? <ReferenceLinksSection title="Reference Links" urls={refUrls} /> : null },
   ];
+}
+
+function buildOrgDetailsSection(data: PublicChallengeData): SectionDef {
+  const hasContent = data.organization_name || data.organization_description || data.organization_website;
+  return {
+    title: 'Organization Details', icon: Building2, fieldKey: 'organization_details',
+    content: hasContent ? (
+      <Card className="border-border">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+            <Building2 className="h-3.5 w-3.5 text-primary" /> Organization Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {data.organization_name && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Organization</p>
+              <p className="font-medium text-foreground">{data.trade_brand_name || data.organization_name}</p>
+            </div>
+          )}
+          {data.organization_description && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Description</p>
+              <p className="text-muted-foreground leading-relaxed">{data.organization_description}</p>
+            </div>
+          )}
+          {data.organization_website && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Website</p>
+              <a href={data.organization_website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{data.organization_website}</a>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    ) : null,
+  };
 }
