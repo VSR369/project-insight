@@ -78,6 +78,7 @@ export interface RewardData {
   sourceDate?: string;
   isAutoPopulated: boolean;
   isEditable: boolean;
+  isTypeLocked?: boolean;
   /** Original upstream data for reset functionality */
   originalData?: RewardData;
   /** Immutable upstream source attribution — survives curator saves */
@@ -416,6 +417,9 @@ export function resolveRewardSource(
     ((migrated.monetary && (migrated.monetary.tiers.length > 0 || (migrated.monetary.totalPool ?? 0) > 0)) ||
       (migrated.nonMonetary && migrated.nonMonetary.items.length > 0));
 
+  // Read isTypeLocked from persisted data (supports both old and new key)
+  const isTypeLocked = raw?._typeLocked === true || raw?.isTypeLocked === true;
+
   // Curator-saved data: NOT auto-populated — it's the curator's own work
   if (embeddedRole === 'CURATOR' && hasContent) {
     return {
@@ -424,6 +428,7 @@ export function resolveRewardSource(
       sourceDate,
       isAutoPopulated: false,
       isEditable: true,
+      isTypeLocked,
       upstreamSource,
     };
   }
@@ -495,6 +500,10 @@ export function serializeRewardData(data: RewardData): Record<string, any> {
       budget_max: data.upstreamSource.budgetMax,
       currency: data.upstreamSource.currency,
     };
+  }
+
+  if (data.isTypeLocked) {
+    base._typeLocked = true;
   }
 
   const serializeMonetary = (m: MonetaryReward) => {

@@ -244,11 +244,7 @@ export function useRewardStructureState(
   const [totalPool, setTotalPoolState] = useState<number | undefined>(resolved.monetary?.totalPool);
   const [rewardType, setRewardTypeState] = useState<RewardType>(resolved.type);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isTypeLocked, setIsTypeLocked] = useState(() => {
-    // Restore isTypeLocked from persisted data if available
-    const raw = typeof rewardStructureRaw === 'object' && rewardStructureRaw !== null ? rewardStructureRaw : {};
-    return !!(raw as Record<string, unknown>).isTypeLocked;
-  });
+  const [isTypeLocked, setIsTypeLocked] = useState(() => resolved.isTypeLocked === true);
 
   // ── Validation ──
   const monetaryErrors = useMemo(() => {
@@ -540,13 +536,11 @@ export function useRewardStructureState(
       sourceRole: 'CURATOR',
       isAutoPopulated: false,
       isEditable: true,
+      isTypeLocked,
       upstreamSource: resolved.upstreamSource,
     };
 
     const serialized = serializeRewardData(data);
-
-    // Persist isTypeLocked for round-trip
-    serialized.isTypeLocked = isTypeLocked;
 
     // Also persist field sources for round-trip
     serialized.fieldSources = {
