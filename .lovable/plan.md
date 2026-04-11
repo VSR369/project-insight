@@ -1,65 +1,59 @@
 
 
-## Standardize All List/Queue Screens: Sort, Timestamps, Search & Filters
+## Root Cause Analysis: Challenge View "Not Found" & Curation Queue Issues
 
-### Problem
+### 5 Whys Analysis
 
-List screens are inconsistent — some lack search, some show date-only (no time), one sorts oldest-first, and several have no filters at all. Users cannot quickly find what they need.
+1. **Why does clicking "View" on My Challenges show "Challenge Not Found"?**
+   Because `usePublicChallenge` query returns `null` — PostgREST returns an error instead of data.
 
-### Global Standard to Apply
+2. **Why does the PostgREST query fail?**
+   Two missing/wrong columns in the SELECT: `challenge_enrollment` (doesn't exist in `challenges` table) and `website` (actual column name is `website_url` in `seeker_organizations`).
 
-Every list/inbox/queue screen must follow these rules:
-1. **Sort**: Newest first (created_at DESC) — always
-2. **Timestamp**: Full date + time format: `MMM d, yyyy · h:mm a` (e.g. "Apr 11, 2026 · 3:45 PM")
-3. **Search**: Text search input filtering by title (and relevant fields)
-4. **Filters**: At minimum, status/tab filters; add domain filters where data supports it
+3. **Why do missing columns break the entire query?**
+   PostgREST returns a 400/error for any invalid column reference. The hook treats any error as `null` → renders "Not Found".
 
-### Screen-by-Screen Audit & Fixes
+4. **Why weren't these column mismatches caught earlier?**
+   The columns were likely renamed or never created, and the hook was written against an assumed schema. No TypeScript compile-time check catches DB column mismatches.
 
-| Screen | Sort | Timestamp | Search | Filters | Fixes Needed |
-|--------|------|-----------|--------|---------|--------------|
-| **MyChallengesPage** | ✅ DESC | ✅ Full | ❌ None | ✅ Tabs | Add search input |
-| **BrowseChallengesPage** | ✅ DESC | ❌ Relative only | ✅ Has | ✅ Has | Show full timestamp alongside relative |
-| **CurationQueuePage** | ❌ ASC (bug!) | ❌ Date only | ❌ None | ✅ Tabs | Fix sort to DESC, add full timestamp, add search |
-| **ChallengeListPage** (org) | ✅ DESC | ❌ Date only | ✅ Has | ❌ Minimal | Add time to timestamp, add status filter |
-| **LcChallengeQueuePage** | ❌ No sort | ❌ No timestamp | ❌ None | ❌ None | Add sort, timestamp, search |
-| **FcChallengeQueuePage** | ❌ No sort | ❌ No timestamp | ❌ None | ❌ None | Add sort, timestamp, search |
+5. **Why does this affect curator queue visibility too?**
+   Curators navigating to review a challenge use the same `/view` route, hitting the same broken query. The curation queue listing itself may work, but the detail view fails.
 
-### Implementation Details
+### Evidence from DB Logs
 
-#### 1. MyChallengesPage.tsx — Add search input
-- Add `search` state + `Input` with search icon above the tabs
-- Filter `filteredItems` by title match (case-insensitive)
-- Timestamp already correct (`'MMM d, yyyy · h:mm a'`)
+```
+ERROR: column seeker_organizations_1.website does not exist
+ERROR: invalid input syntax for type uuid: "AI/ML"
+```
 
-#### 2. BrowseChallengesPage.tsx — Add full timestamp
-- Replace `formatDistanceToNow` with full timestamp + relative in parentheses: `"Apr 11, 2026 · 3:45 PM (2 days ago)"`
-- Import `format` from date-fns
+- `challenge_enrollment` — confirmed NOT in `information_schema.columns`
+- `seeker_organizations.website` — actual column is `website_url`
 
-#### 3. CurationQueuePage.tsx — Fix sort + add timestamp + add search
-- Line 213: Change `ascending: true` to `ascending: false` (critical bug — oldest first currently)
-- Change `formatDate` helper to include time: `'MMM d, yyyy · h:mm a'`
-- Add search input above tabs filtering by challenge title
+### Important Finding: My Challenges List DOES Work
 
-#### 4. ChallengeListPage.tsx (org) — Add time to timestamp + status filter
-- Change `format(new Date(c.created_at), 'MMM d, yyyy')` to `'MMM d, yyyy · h:mm a'`
-- Add status filter dropdown (draft/active/closed)
+Session replay confirms the challenge card appeared on My Challenges page (title, badges, tags all rendered). The failure happens when clicking **View** → `PublicChallengeDetailPage` → `usePublicChallenge` hook fails.
 
-#### 5. LcChallengeQueuePage.tsx — Add timestamp, search
-- Show `created_at` from challenge data (need to fetch it — add to select or use existing data)
-- Add search input filtering by challenge title
-- Ensure items sorted newest first
+### Fixes (1 file)
 
-#### 6. FcChallengeQueuePage.tsx — Add timestamp, search
-- Show created_at timestamp on each card
-- Add search input filtering by title
-- Items already fetched without sort — add client-side sort by newest first
+**File: `src/hooks/cogniblend/usePublicChallenge.ts`**
 
-### Files Changed (6 files)
-- `src/pages/cogniblend/MyChallengesPage.tsx` — add search input
-- `src/pages/cogniblend/BrowseChallengesPage.tsx` — full timestamp
-- `src/pages/cogniblend/CurationQueuePage.tsx` — fix sort direction, full timestamp, add search
-- `src/pages/org/ChallengeListPage.tsx` — full timestamp, status filter
-- `src/pages/cogniblend/LcChallengeQueuePage.tsx` — timestamp, search
-- `src/pages/cogniblend/FcChallengeQueuePage.tsx` — timestamp, search, sort
+1. **Remove `challenge_enrollment`** from the SELECT — this column doesn't exist. The `challenge_enrollment` field in the type interface should remain but default to `null`.
+
+2. **Change `website` to `website_url`** in the joined `seeker_organizations` select:
+   ```
+   // Before:
+   seeker_organizations!challenges_organization_id_fkey (
+     organization_name, trade_brand_name, website, description
+   )
+   
+   // After:
+   seeker_organizations!challenges_organization_id_fkey (
+     organization_name, trade_brand_name, website_url, description
+   )
+   ```
+   And update `buildResult` to read `org?.website_url` instead of `org?.website`.
+
+3. **Remove `industry_segments (name)`** join if `industry_segments` FK doesn't exist on challenges (potential secondary error source — needs verification during implementation).
+
+These 2-3 line fixes in a single file will unblock both the Creator view and Curator review detail pages.
 
