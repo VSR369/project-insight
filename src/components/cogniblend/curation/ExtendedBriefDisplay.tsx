@@ -35,6 +35,7 @@ interface ExtendedBriefDisplayProps {
   industrySegmentId?: string | null;
   industrySegmentFromIntake?: boolean;
   onIndustrySegmentChange?: (segmentId: string) => void;
+  suppressAutoRefine?: boolean;
 }
 
 // ---------------------------------------------------------------------------

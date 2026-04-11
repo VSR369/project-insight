@@ -200,6 +200,7 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
       isLockedSection={isLocked}
       coordinatorRole={coordinatorRole}
       hasSentBefore={hasSentBefore}
+      suppressAutoRefine={reviewSessionActive}
       onReReview={section.key === "complexity" ? handleComplexityReReview : undefined}
       complexityRatings={section.key === "complexity" ? (aiSuggestedComplexity ?? undefined) : undefined}
       prerequisitesReady={secReadiness?.ready ?? true}
