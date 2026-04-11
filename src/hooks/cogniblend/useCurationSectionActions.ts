@@ -56,6 +56,12 @@ export function useCurationSectionActions({
 
   // ── Simple field saves ──
 
+  /** Store sync + staleness only — no DB write. Used by autosave wrapper. */
+  const handleSyncText = useCallback((sectionKey: string, value: string) => {
+    syncSectionToStore(sectionKey as SectionKey, value);
+    notifyStaleness(sectionKey);
+  }, [syncSectionToStore, notifyStaleness]);
+
   const handleSaveText = useCallback((sectionKey: string, dbField: string, value: string) => {
     syncSectionToStore(sectionKey as SectionKey, value);
     saveSectionMutation.mutate({ field: dbField, value });
@@ -128,7 +134,7 @@ export function useCurationSectionActions({
   });
 
   return {
-    handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables,
+    handleSaveText, handleSyncText, handleSaveDeliverables, handleSaveStructuredDeliverables,
     handleSaveEvalCriteria, handleSaveMaturityLevel,
     handleSaveExtendedBrief, handleSaveOrgPolicyField,
     handleAcceptRefinement, handleAcceptExtendedBriefRefinement,
