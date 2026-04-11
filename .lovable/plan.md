@@ -1,81 +1,78 @@
 
 
-## Remaining Bug Fixes — Final Pass
+## Add 4 Missing Sections to AI Review Waves
 
-### Bug 1 — autoSaveStatus not passed to child renderers
+### Problem
+The wave executor covers 27 sections but the curation UI defines 32. Four reviewable sections are missing from the AI pipeline: `creator_references`, `reference_urls`, `solver_audience`, and `evaluation_config`. The fifth (`creator_legal_instructions`) is correctly excluded as a read-only human directive.
 
-**Status**: Destructured in both files but never forwarded to children.
+### Root Cause
+These 4 section keys do not exist in `SECTION_FORMAT_CONFIG` (the source of truth for `SectionKey` type). Adding them to `waveConfig.ts` without first registering them in the format config would cause a TypeScript compile error.
 
-**Problem**: `LineItemsSectionRenderer` doesn't accept `autoSaveStatus` as a prop at all. `TableSectionEditor` does accept it but the ops renderer never passes it.
+### Changes
 
-**Changes**:
-- **`LineItemsSectionRenderer.tsx`**: Add `autoSaveStatus?: AutoSaveStatus` to props interface, import the type, render `<AutoSaveIndicator>` below the editor when in edit mode
-- **`renderOpsSections.tsx`**: Pass `autoSaveStatus={autoSaveStatus}` to both `TableSectionEditor` calls (data_resources_provided, success_metrics_kpis)
-- **`renderProblemSections.tsx`**: No change needed — LineItemsSectionRenderer will handle it once the prop is added; pass `autoSaveStatus` to each `LineItemsSectionRenderer` call
+**1. Register 4 new sections in `SECTION_FORMAT_CONFIG`**
 
-### Bug 3 — PreFlightGateDialog navigation race condition
+File: `src/lib/cogniblend/curationSectionFormats.ts`
 
-**Status**: `buildIncompleteGroups` integration is done. The remaining issue is `handleNavigate` calls `onGoToSection` then `onOpenChange(false)` — dialog closes simultaneously with navigation, causing a render race.
+Add entries for each new section with appropriate AI review settings:
 
-**Change in `PreFlightGateDialog.tsx`** (line 218-221):
-```ts
-// Current:
-const handleNavigate = (sectionId: string) => {
-  onGoToSection(sectionId);
-  onOpenChange(false);
-};
-
-// Fix — close dialog first, navigate after render cycle:
-const handleNavigate = (sectionId: string) => {
-  onOpenChange(false);
-  setTimeout(() => onGoToSection(sectionId), 50);
-};
+```text
+creator_references  → format: 'custom', aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
+reference_urls      → format: 'custom', aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
+solver_audience     → format: 'radio',  aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
+evaluation_config   → format: 'structured_fields', aiCanDraft: false, aiReviewEnabled: true, curatorCanEdit: true
 ```
 
-### Bug 5a — Lock button appears for stale AI values from DB
+All four have `aiCanDraft: false` (AI should review but not generate these from scratch — they are Creator-authored inputs).
 
-**Status**: `hasAiValues` checks `aiDraft` values !== 5, but if the DB had non-5 scores, the draft loads them on mount and the lock button appears without curator review.
+**2. Add sections to Wave 6 in `waveConfig.ts`**
 
-**Change in `ComplexityAssessmentModule.tsx`** (lines 104-105):
+File: `src/lib/cogniblend/waveConfig.ts`
+
+Expand Wave 6 `sectionIds` from 5 to 9:
 ```ts
-// Current:
-const hasAiValues = state.activeTab === 'ai_review' &&
-  Object.values(state.aiDraft).some(v => v !== 5);
-
-// Fix — also require that at least one param has 'ai' or 'curator' source:
-const hasAiValues = state.activeTab === 'ai_review' &&
-  Object.values(state.aiDraft).some(v => v !== 5) &&
-  Object.values(state.aiParamSources).some(s => s === 'ai' || s === 'curator');
+sectionIds: [
+  'hook', 'visibility', 'domain_tags',
+  'creator_references', 'reference_urls',
+  'evaluation_config', 'solver_audience',
+  'legal_docs', 'escrow_funding',
+],
 ```
 
-This ensures the lock button only shows after an AI review has run or the curator has manually adjusted a slider.
+Update the comment from "26 curation sections" to "31 curation sections".
 
-### Bug 8 — Right rail ordering: AIQuality and Confidence still above submission actions
+**3. Add section descriptions to edge function**
 
-**Status**: Primary actions, wave, checklist, context, review summary are correctly ordered. But AIQualityCard (line 170) and AIConfidenceSummary (line 172) sit before CurationActions (line 174). User wants them after Legal Review.
+File: `supabase/functions/review-challenge-sections/index.ts`
 
-**Change in `CurationRightRail.tsx`**: Move `AIQualityCard` and `AIConfidenceSummary` to after `LegalReviewPanel`, before `ModificationPointsTracker`. New order:
-1. Primary AI actions
-2. WaveProgressPanel
-3. CompletenessChecklistCard
-4. ContextLibraryCard
-5. AIReviewSummaryCard
-6. BudgetRevisionPanel
-7. CompletionBanner
-8. CurationActions
-9. LegalReviewPanel
-10. AIQualityCard
-11. AIConfidenceSummary
-12. ModificationPointsTracker
+Add 4 entries to `CURATION_SECTIONS` array under Wave 6:
+- `creator_references`: "Reference documents provided by the challenge creator — verify relevance to scope and accessibility for solvers"
+- `reference_urls`: "Reference URLs provided by the creator — verify they are active, relevant, and appropriately scoped"
+- `evaluation_config`: "Evaluation method (single vs Delphi panel) and blind review setting — must match complexity level and eligibility"
+- `solver_audience`: "Solver audience targeting (internal/external/all) — verify consistency with operating model and expertise requirements"
+
+**4. Add wave context entries**
+
+File: `supabase/functions/review-challenge-sections/contextIntelligence.ts`
+
+Add `SECTION_WAVE_CONTEXT` entries for the 4 new sections:
+- `creator_references` — Wave 6, strategic role: verify Creator-provided materials are relevant and don't contradict the refined specification
+- `reference_urls` — Wave 6, verify URLs are active and domain-relevant
+- `solver_audience` — Wave 6, verify AGG/MP consistency with operating model
+- `evaluation_config` — Wave 6, verify Delphi panel size matches complexity, blind review matches governance mode
+
+**5. Handle `creator_references` in `determineSectionAction`**
+
+File: `src/lib/cogniblend/waveConfig.ts`
+
+`creator_references` has no `dbField` and uses attachments. The current `determineSectionAction` checks content from the store, which may be null for attachment-based sections. Add `creator_references` to the `LOCKED_SECTIONS`-like handling: if content is null, action should be `'review'` (not `'generate'`), since the AI should still check whether attachments exist and are relevant. This requires a small tweak to treat attachment-based sections as always-review.
 
 ### Files changed
 
 | File | Action |
 |------|--------|
-| `src/components/cogniblend/curation/renderers/LineItemsSectionRenderer.tsx` | Add `autoSaveStatus` prop + render `AutoSaveIndicator` |
-| `src/components/cogniblend/curation/renderers/renderProblemSections.tsx` | Pass `autoSaveStatus` to LineItemsSectionRenderer calls |
-| `src/components/cogniblend/curation/renderers/renderOpsSections.tsx` | Pass `autoSaveStatus` to TableSectionEditor calls |
-| `src/components/cogniblend/curation/PreFlightGateDialog.tsx` | Fix navigation race condition in `handleNavigate` |
-| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Gate `hasAiValues` on `aiParamSources` |
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | Move AIQuality + Confidence below Legal Review |
+| `src/lib/cogniblend/curationSectionFormats.ts` | Add 4 section format configs |
+| `src/lib/cogniblend/waveConfig.ts` | Add 4 sections to Wave 6, update comment, handle attachment sections |
+| `supabase/functions/review-challenge-sections/index.ts` | Add 4 section descriptions to `CURATION_SECTIONS` |
+| `supabase/functions/review-challenge-sections/contextIntelligence.ts` | Add 4 `SECTION_WAVE_CONTEXT` entries |
 
