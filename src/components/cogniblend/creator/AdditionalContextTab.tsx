@@ -35,15 +35,6 @@ export function AdditionalContextTab({ governanceMode, fieldRules, engagementMod
   const isControlled = governanceMode === 'CONTROLLED';
   const rules = fieldRules ?? {};
 
-  const handleAddUrl = useCallback(() => {
-    const trimmed = urlInput.trim();
-    if (!trimmed) return;
-    try { new URL(trimmed); } catch { toast.error('Please enter a valid URL'); return; }
-    if (referenceUrls.length >= MAX_URLS) { toast.error(`Maximum ${MAX_URLS} URLs allowed`); return; }
-    if (referenceUrls.includes(trimmed)) { toast.error('URL already added'); return; }
-    onUrlsChange?.([...referenceUrls, trimmed]);
-    setUrlInput('');
-  }, [urlInput, referenceUrls, onUrlsChange]);
 
   return (
     <div className="space-y-6">
