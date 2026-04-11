@@ -114,8 +114,8 @@ export function computeAutoChecks(
 
 export function resolveIndustrySegmentId(challenge: ChallengeData): string | null {
   // Rule 1: Direct column on challenge takes priority
-  if ((challenge as Record<string, unknown>).industry_segment_id) {
-    return (challenge as Record<string, unknown>).industry_segment_id as string;
+  if ((challenge as unknown as Record<string, unknown>).industry_segment_id) {
+    return (challenge as unknown as Record<string, unknown>).industry_segment_id as string;
   }
   const tf = parseJson<any>(challenge.targeting_filters);
   if (tf?.industry_segment_id) return tf.industry_segment_id;
