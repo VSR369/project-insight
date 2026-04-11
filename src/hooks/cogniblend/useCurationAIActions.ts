@@ -3,7 +3,7 @@
  * Complexity re-review, accept-all, and warning navigation extracted to useCurationComplexityActions.
  */
 
-import { useCallback } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -12,8 +12,8 @@ import { buildChallengeContext, type BuildChallengeContextOptions } from '@/lib/
 import { detectBudgetShortfall, type BudgetShortfallResult } from '@/lib/cogniblend/budgetShortfallDetection';
 import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import { resolveIndustrySegmentId, parseJson } from '@/lib/cogniblend/curationHelpers';
+import { DISCOVERY_WAVE_NUMBER, createInitialWaveProgressWithDiscovery, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
-import { parseJson as jsonParse } from '@/lib/cogniblend/jsonbUnwrap';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';

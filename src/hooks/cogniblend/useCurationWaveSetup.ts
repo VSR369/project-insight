@@ -160,6 +160,7 @@ export function useCurationWaveSetup({
     executeWavesPass1: pass1Executor.executeWaves,
     executeWavesFull: fullExecutor.executeWaves,
     executeWavesPass2: pass2Executor.executeWaves,
+    pass1SetWaveProgress: pass1Executor.updateWaveProgress,
     reReviewStale: fullExecutor.reReviewStale,
     cancelReview: () => {
       pass1Executor.cancelReview();
