@@ -51,7 +51,7 @@ interface UseRewardStructureHandlersArgs {
 }
 
 export function useRewardStructureHandlers({
-  challengeId, state, prizeTiers,
+  challengeId, currencyCode, state, prizeTiers,
   createPrizeTier, updatePrizeTierMut, deletePrizeTierMut,
   addIncentiveSelectionMut, removeIncentiveSelectionMut, updateIncentiveCommitmentMut,
 }: UseRewardStructureHandlersArgs) {
@@ -62,6 +62,15 @@ export function useRewardStructureHandlers({
     startEditing, cancelEditing, markSaved, markSubmitted, lockRewardType,
     resetToSource, acceptAISuggestion, acceptAINMSuggestion, applyAIReviewResult, setRewardType,
   } = state;
+
+  // Sync currency from challenge-level currencyCode prop
+  const prevCurrencyCode = useRef(currencyCode);
+  useEffect(() => {
+    if (currencyCode && currencyCode !== prevCurrencyCode.current && currencyCode !== currency) {
+      setCurrency(currencyCode);
+    }
+    prevCurrencyCode.current = currencyCode;
+  }, [currencyCode, currency, setCurrency]);
 
   const [saving, setSaving] = useState(false);
   const [hasAISuggestions, setHasAISuggestions] = useState(false);

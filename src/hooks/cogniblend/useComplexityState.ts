@@ -8,6 +8,7 @@ import { useComplexityDimensions } from '@/hooks/queries/useComplexityDimensions
 import type { ComplexityParam } from '@/hooks/queries/useComplexityParams';
 import type { SolutionType } from '@/lib/cogniblend/challengeContextAssembler';
 import {
+  COMPLEXITY_THRESHOLDS,
   deriveComplexityLevel,
   deriveComplexityLabel,
   getLabelForLevel,
@@ -150,7 +151,7 @@ export function useComplexityState({
     const effectiveKeys = effectiveParams.map(p => p.param_key);
     const unmatchedAiKeys = aiKeys.filter(k => !effectiveKeys.includes(k));
     if (unmatchedAiKeys.length > 0) {
-      console.warn('[ComplexityModule] AI returned unmatched keys:', unmatchedAiKeys, 'Expected:', effectiveKeys);
+      // AI returned keys not matching effective params — silently ignored
     }
 
     setAiDraft(newAiDraft);
@@ -190,7 +191,14 @@ export function useComplexityState({
   const aiLabelRef_ = aiScoreRef_ != null ? deriveComplexityLabel(aiScoreRef_) : null;
   const hasAiRatings = !!aiSuggestedRatings && Object.keys(aiSuggestedRatings).length > 0;
 
-  const displayScore = activeTab === 'quick_select' ? 0 : weightedScore;
+  // Quick select: derive a midpoint score from the selected level
+  const displayScore = activeTab === 'quick_select'
+    ? (() => {
+        if (!overrideLevel) return 0;
+        const t = COMPLEXITY_THRESHOLDS.find(th => th.level === overrideLevel);
+        return t ? Math.round(((t.min + t.max) / 2) * 100) / 100 : 0;
+      })()
+    : weightedScore;
   const displayLevel = activeTab === 'quick_select' && overrideLevel ? overrideLevel : derivedLevel;
   const displayLabel = activeTab === 'quick_select' && overrideLevel ? getLabelForLevel(overrideLevel) : derivedLabel;
   const levelColor = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L3;
