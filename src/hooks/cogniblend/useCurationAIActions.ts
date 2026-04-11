@@ -43,6 +43,7 @@ interface UseCurationAIActionsOptions {
   setAiSuggestedComplexity: (v: any) => void;
   setHighlightWarnings: (v: boolean) => void;
   setContextLibraryOpen: (v: boolean) => void;
+  setPass1DoneSession: (v: boolean) => void;
 }
 
 export function useCurationAIActions({
@@ -53,6 +54,7 @@ export function useCurationAIActions({
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
   setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
+  setPass1DoneSession,
 }: UseCurationAIActionsOptions) {
 
   const queryClient = useQueryClient();
@@ -155,7 +157,11 @@ export function useCurationAIActions({
 
       await executeWavesPass1();
       setTriageTotalCount(24);
+      setPass1DoneSession(true);
       toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
+      // Invalidate context queries before opening drawer so it fetches fresh data
+      queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
       // Auto-open Context Library so curator can review/accept discovered sources
       setContextLibraryOpen(true);
     } catch (e: unknown) {
@@ -171,17 +177,23 @@ export function useCurationAIActions({
     setAiReviewLoading(true);
     setTriageTotalCount(0);
     try {
+      // Regenerate digest so Pass 2 has enriched context from accepted sources
+      await supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      });
       await executeWavesFull();
       const ctx = buildChallengeContext(buildContextOptions());
       const shortfall = detectBudgetShortfall(ctx);
       setBudgetShortfall(shortfall);
       setTriageTotalCount(24);
-    } catch (e: any) {
-      toast.error(`Generation failed: ${e.message ?? "Unknown error"}`);
+      setPass1DoneSession(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      toast.error(`Generation failed: ${msg}`);
     } finally {
       setAiReviewLoading(false);
     }
-  }, [executeWavesFull, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
+  }, [executeWavesFull, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setPass1DoneSession]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;

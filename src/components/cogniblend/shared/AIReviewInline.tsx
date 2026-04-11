@@ -52,6 +52,7 @@ interface AIReviewInlineProps {
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
   prerequisitesReady?: boolean;
   missingPrerequisites?: string[];
+  suppressAutoRefine?: boolean;
 }
 
 export function AIReviewInline(props: AIReviewInlineProps) {

@@ -249,7 +249,7 @@ export default function CurationReviewPage() {
           onAIReview={o.handleAIReview}
           onAnalyse={o.handleAnalyse}
           onGenerateSuggestions={o.handleGenerateSuggestions}
-          pass1Done={o.aiReviews.length > 0 && o.aiReviews.every((r: any) => !r.suggestion)}
+          pass1Done={o.pass1DoneSession}
           waveProgress={o.waveProgress}
           onCancelReview={o.cancelReview}
           budgetShortfall={o.budgetShortfall}

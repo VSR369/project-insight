@@ -44,6 +44,7 @@ interface UseAIReviewInlineStateParams {
   complexityRatings?: Record<string, { rating: number; justification: string; evidence_sections?: string[] }>;
   prerequisitesReady?: boolean;
   missingPrerequisites?: string[];
+  suppressAutoRefine?: boolean;
 }
 
 export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
@@ -53,6 +54,7 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     defaultOpen = false, roleContext = "curation", masterDataOptions,
     isLockedSection = false, onReReview, initialRefinedContent,
     complexityRatings, prerequisitesReady, missingPrerequisites,
+    suppressAutoRefine = false,
   } = params;
 
   const [editedComments, setEditedComments] = useState<SectionComment[]>([]);
@@ -93,8 +95,9 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     }
   }, [comments.length]);
 
-  // Auto-refine trigger
+  // Auto-refine trigger — suppressed between Pass 1 and Generate Suggestions
   useEffect(() => {
+    if (suppressAutoRefine) return;
     if (
       !autoRefineTriggered.current &&
       !isLockedSection &&
@@ -130,7 +133,7 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size, sectionKey]);
+  }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size, sectionKey, suppressAutoRefine]);
 
   // Reset auto-refine on review change
   useEffect(() => {

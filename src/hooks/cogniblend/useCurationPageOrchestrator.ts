@@ -64,6 +64,7 @@ export function useCurationPageOrchestrator() {
     escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, setIsAcceptingAllLegal,
     preFlightResult, setPreFlightResult, preFlightDialogOpen, setPreFlightDialogOpen,
     budgetShortfall, setBudgetShortfall, contextLibraryOpen, setContextLibraryOpen,
+    pass1DoneSession, setPass1DoneSession,
     aiQuality, setAiQuality, aiQualityLoading, setAiQualityLoading,
     lockedSendState, setLockedSendState,
     challenge, isLoading, orgTypeName,
@@ -150,6 +151,7 @@ export function useCurationPageOrchestrator() {
     saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading,
     setTriageTotalCount, setBudgetShortfall, setAiQuality, setAiQualityLoading,
     setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
+    setPass1DoneSession,
   });
 
   const handleAcceptAllPassing = useCallback(() => aiActionsHook.handleAcceptAllPassing(sectionActionsHook.handleMarkAddressed), [aiActionsHook, sectionActionsHook.handleMarkAddressed]);
@@ -191,7 +193,8 @@ export function useCurationPageOrchestrator() {
     dismissedPrereqBanner, setDismissedPrereqBanner, optimisticIndustrySegId,
     escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, preFlightResult,
     preFlightDialogOpen, setPreFlightDialogOpen, budgetShortfall, setBudgetShortfall,
-    contextLibraryOpen, setContextLibraryOpen, aiQuality, aiQualityLoading,
+    contextLibraryOpen, setContextLibraryOpen, pass1DoneSession,
+    aiQuality, aiQualityLoading,
     lockedSendState, setLockedSendState, expandVersion, staleSections, curationStore, sectionActions,
     ...computedValues,
     legalEscrowBlocked, blockingReason, phaseDescription,
