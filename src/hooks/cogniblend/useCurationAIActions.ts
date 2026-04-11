@@ -87,8 +87,19 @@ export function useCurationAIActions({
       }
     }
 
-    if (!sectionContents['problem_statement']) sectionContents['problem_statement'] = challenge.problem_statement;
-    if (!sectionContents['scope']) sectionContents['scope'] = challenge.scope;
+    // Seed Creator-filled fields from DB if not already in store
+    const creatorFields = [
+      'problem_statement', 'scope', 'maturity_level', 'domain_tags',
+      'deliverables', 'evaluation_criteria', 'reward_structure',
+      'phase_schedule', 'ip_model', 'expected_outcomes',
+      'submission_guidelines', 'description', 'eligibility', 'visibility',
+    ];
+    for (const field of creatorFields) {
+      if (!sectionContents[field] && (challenge as Record<string, unknown>)?.[field] != null) {
+        const v = (challenge as Record<string, unknown>)[field];
+        sectionContents[field] = typeof v === 'string' ? v : JSON.stringify(v);
+      }
+    }
 
     const industrySegId = optimisticIndustrySegId ?? resolveIndustrySegmentId(challenge as unknown as ChallengeData);
     if (!industrySegId) sectionContents['industry_segment'] = null;

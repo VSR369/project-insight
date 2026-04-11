@@ -43,6 +43,7 @@ const CHALLENGE_CORE_SELECT = [
 
 const CHALLENGE_DEFERRED_SELECT = [
   "id",
+  "industry_segment_id",
   "complexity_score", "complexity_level", "complexity_parameters",
   "complexity_locked", "complexity_locked_at", "complexity_locked_by",
   "solver_eligibility_types", "solver_visibility_types",
