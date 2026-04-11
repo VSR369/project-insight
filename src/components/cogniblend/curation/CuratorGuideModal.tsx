@@ -32,6 +32,7 @@ interface CuratorGuideModalProps {
   challengeId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNavigateToSection?: (sectionKey: string) => void;
 }
 
 function markSeen(challengeId: string) {
@@ -52,6 +53,7 @@ export function CuratorGuideModal({
   challengeId,
   open,
   onOpenChange,
+  onNavigateToSection,
 }: CuratorGuideModalProps) {
   const handleGotIt = () => {
     markSeen(challengeId);
@@ -85,7 +87,10 @@ export function CuratorGuideModal({
           <ReviewFlowSection />
           <AICoverageSection />
           <TimeSavingsSection />
-          <DependencySection />
+          <DependencySection onNavigateToSection={(key) => {
+            onOpenChange(false);
+            onNavigateToSection?.(key);
+          }} />
         </div>
 
         {/* Footer */}
@@ -229,7 +234,9 @@ function TimeSavingsSection() {
   );
 }
 
-function DependencySection() {
+function DependencySection({ onNavigateToSection }: { onNavigateToSection?: (key: string) => void }) {
+  const linkClass = "font-semibold text-primary hover:underline cursor-pointer";
+
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50/60 dark:bg-blue-900/20 dark:border-blue-800/40 p-4 flex items-start gap-3">
       <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
@@ -238,10 +245,15 @@ function DependencySection() {
           Section dependencies matter
         </p>
         <p className="text-xs text-blue-800/80 dark:text-blue-300/80 leading-relaxed">
-          Complete <strong>Core Identity</strong> sections first — Problem
-          Statement, Scope, and Expected Outcomes feed into downstream sections
-          like Deliverables, Complexity, and Reward Structure. Skipping
-          upstream sections weakens AI analysis quality for dependent areas.
+          Complete <strong>Core Identity</strong> sections first —{' '}
+          <button type="button" className={linkClass} onClick={() => onNavigateToSection?.('problem_statement')}>Problem Statement</button>,{' '}
+          <button type="button" className={linkClass} onClick={() => onNavigateToSection?.('scope')}>Scope</button>, and{' '}
+          <button type="button" className={linkClass} onClick={() => onNavigateToSection?.('expected_outcomes')}>Expected Outcomes</button>{' '}
+          feed into downstream sections like{' '}
+          <button type="button" className={linkClass} onClick={() => onNavigateToSection?.('deliverables')}>Deliverables</button>,{' '}
+          <button type="button" className={linkClass} onClick={() => onNavigateToSection?.('complexity')}>Complexity</button>, and{' '}
+          <button type="button" className={linkClass} onClick={() => onNavigateToSection?.('reward_structure')}>Reward Structure</button>.
+          Skipping upstream sections weakens AI analysis quality for dependent areas.
         </p>
       </div>
     </div>

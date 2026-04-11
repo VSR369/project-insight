@@ -17,9 +17,10 @@ import {
 
 interface AICurationQualityPanelProps {
   challengeId: string;
+  onNavigateToSection?: (sectionKey: string) => void;
 }
 
-export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelProps) {
+export function AICurationQualityPanel({ challengeId, onNavigateToSection }: AICurationQualityPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
   const [assessment, setAssessment] = useState<QualityAssessment | null>(null);
@@ -83,6 +84,7 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
             onStrengthsOpenChange={setIsOpen}
             legalOpen={legalOpen}
             onLegalOpenChange={setLegalOpen}
+            onNavigateToSection={onNavigateToSection}
           />
         </CardContent>
       )}

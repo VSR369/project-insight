@@ -4,8 +4,9 @@
  * Extracted from CurationSectionList.tsx to keep files under 200 lines.
  */
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { useSectionNavigationListener } from "@/lib/cogniblend/sectionNavigation";
 
 import { CurationAIReviewInline, type SectionReview } from "@/components/cogniblend/curation/CurationAIReviewPanel";
 import { CuratorSectionPanel, type SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
@@ -100,6 +101,16 @@ export interface SectionPanelItemProps {
 }
 
 export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, editingSection, setEditingSection, savingSection, setSavingSection, aiReview, approvedSections, toggleSectionApproval, sectionAIFlags, highlightWarnings, aiSuggestedComplexity, staleKeySet, reviewSessionActive, masterData, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap, handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel, handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity, handleAcceptRefinement, handleAcceptExtendedBriefRefinement, handleSingleSectionReview, handleMarkAddressed, handleComplexityReReview, handleApproveLockedSection, handleUndoApproval, handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange, handleAcceptAllLegalDefaults, saveSectionMutation, challengeCtx, optimisticIndustrySegId, escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, legalDocs, legalDetails, escrowRecord, rewardStructureRef, complexityModuleRef, curationStore, staleSections, sectionReadiness, getSectionActions, setLockedSendState, setContextLibraryOpen, expandVersion }: SectionPanelItemProps) {
+  const [navHighlight, setNavHighlight] = useState(false);
+  const [forceExpandTick, setForceExpandTick] = useState(0);
+
+  useSectionNavigationListener(useCallback((key: string) => {
+    if (key !== section.key) return;
+    setForceExpandTick((t) => t + 1);
+    setNavHighlight(true);
+    setTimeout(() => setNavHighlight(false), 3000);
+  }, [section.key]));
+
   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
   const isLocked = LOCKED_SECTIONS.has(section.key);
   // Standard (non-locked) sections are always in edit mode for autosave
@@ -195,7 +206,9 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
     <div
       data-section-key={section.key}
       className={cn(
-        isWarningHighlighted && "ring-2 ring-amber-400 ring-offset-2 rounded-xl animate-pulse"
+        "transition-all duration-500",
+        isWarningHighlighted && "ring-2 ring-amber-400 ring-offset-2 rounded-xl animate-pulse",
+        navHighlight && !isWarningHighlighted && "ring-2 ring-primary ring-offset-2 rounded-xl",
       )}
     >
       <CuratorSectionPanel
@@ -217,6 +230,7 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
         sectionActions={getSectionActions(section.key)}
         promptSource={aiReview?.prompt_source ?? null}
         expandVersion={expandVersion}
+        forceExpandTick={forceExpandTick}
         staleBecauseOf={staleSections.find((s) => s.key === section.key)?.staleBecauseOf}
         staleAt={staleSections.find((s) => s.key === section.key)?.staleAt ?? null}
         aiAction={curationStore?.getState().getSectionEntry(section.key as SectionKey)?.aiAction ?? null}

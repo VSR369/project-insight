@@ -305,6 +305,7 @@ export default function CurationReviewPage() {
         challengeId={o.challengeId!}
         open={guideOpen}
         onOpenChange={setGuideOpen}
+        onNavigateToSection={o.handleNavigateToSection}
       />
       <SendForModificationModal
         open={o.lockedSendState.open}

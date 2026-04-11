@@ -7,6 +7,7 @@ import { useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GROUPS } from '@/lib/cogniblend/curationSectionDefs';
 import { toast } from 'sonner';
+import { dispatchNavigateToSection } from '@/lib/cogniblend/sectionNavigation';
 import type { SectionKey } from '@/types/sections';
 
 interface GroupProgress {
@@ -35,6 +36,7 @@ export function useCurationCallbacks({
   const handleNavigateToSection = useCallback((sectionKey: string) => {
     const group = GROUPS.find((g) => g.sectionKeys.includes(sectionKey));
     if (group) setActiveGroup(group.id);
+    setTimeout(() => dispatchNavigateToSection(sectionKey), 350);
   }, []);
 
   const handleGroupClick = useCallback((groupId: string) => {
@@ -102,10 +104,7 @@ export function useCurationCallbacks({
   const handlePreFlightGoToSection = useCallback((sectionKey: string) => {
     const group = GROUPS.find(g => g.sectionKeys.includes(sectionKey));
     if (group) setActiveGroup(group.id);
-    setTimeout(() => {
-      const el = document.getElementById(`section-${sectionKey}`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
+    setTimeout(() => dispatchNavigateToSection(sectionKey), 350);
   }, []);
 
   return {
