@@ -430,4 +430,28 @@ export const SECTION_WAVE_CONTEXT: Record<string, {
     upstreamSections: ['problem_statement', 'scope', 'deliverables', 'solution_type'],
     downstreamSections: [],
   },
+  creator_references: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE EVIDENCE BASE — Creator-provided documents and materials. Verify they are relevant to the refined specification, accessible to solvers, and do not contradict scope or deliverables.',
+    upstreamSections: ['problem_statement', 'scope', 'deliverables'],
+    downstreamSections: [],
+  },
+  reference_urls: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE EXTERNAL CONTEXT — Creator-provided URLs for background reading. Verify they are active, domain-relevant, and appropriately scoped for solvers.',
+    upstreamSections: ['problem_statement', 'scope', 'domain_tags'],
+    downstreamSections: [],
+  },
+  solver_audience: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE POOL SELECTOR — for AGG model challenges, controls whether internal-only, external-only, or all solvers see the challenge. Must be consistent with operating model and solver expertise requirements.',
+    upstreamSections: ['solver_expertise', 'eligibility'],
+    downstreamSections: [],
+  },
+  evaluation_config: {
+    wave: 6, waveName: 'Presentation',
+    strategicRole: 'THE GOVERNANCE SETTING — evaluation method (single evaluator vs Delphi panel) and blind review toggle. Delphi panel size must match complexity level. Blind review must align with eligibility and visibility settings.',
+    upstreamSections: ['complexity', 'evaluation_criteria', 'eligibility', 'visibility'],
+    downstreamSections: [],
+  },
 };

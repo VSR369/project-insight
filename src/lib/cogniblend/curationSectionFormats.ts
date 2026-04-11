@@ -241,6 +241,35 @@ export const SECTION_FORMAT_CONFIG: Record<string, SectionFormatConfig> = {
     curatorCanEdit: true,
     aiUsesContext: ['expected_outcomes', 'evaluation_criteria'],
   },
+  // ── Creator-authored sections (AI reviews but does not draft) ──
+  creator_references: {
+    format: 'custom',
+    aiCanDraft: false,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['problem_statement', 'scope', 'deliverables'],
+  },
+  reference_urls: {
+    format: 'custom',
+    aiCanDraft: false,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['problem_statement', 'scope', 'domain_tags'],
+  },
+  solver_audience: {
+    format: 'radio',
+    aiCanDraft: false,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['solver_expertise', 'eligibility'],
+  },
+  evaluation_config: {
+    format: 'structured_fields',
+    aiCanDraft: false,
+    aiReviewEnabled: true,
+    curatorCanEdit: true,
+    aiUsesContext: ['complexity', 'evaluation_criteria', 'eligibility', 'visibility'],
+  },
 };
 
 /** Sections where the curator has no edit access */
