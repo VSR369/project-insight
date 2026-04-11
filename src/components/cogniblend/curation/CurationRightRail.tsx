@@ -5,6 +5,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Bot, Loader2, Sparkles, BookOpen } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -121,22 +122,25 @@ export function CurationRightRail(props: CurationRightRailProps) {
                   Open Context Library
                 </Button>
               </div>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={props.onGenerateSuggestions}
-                disabled={aiReviewLoading || !props.contextLibraryReviewed}
-                className="w-full"
-                title={!props.contextLibraryReviewed ? 'Review the Context Library first' : undefined}
-              >
-                {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-                Generate Suggestions
-              </Button>
-              {!props.contextLibraryReviewed && (
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Open &amp; close the Context Library to enable
-                </p>
-              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full block">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={props.onGenerateSuggestions}
+                      disabled={aiReviewLoading || !props.contextLibraryReviewed}
+                      className="w-full"
+                    >
+                      {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                      Generate Suggestions
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!props.contextLibraryReviewed && (
+                  <TooltipContent>Review Context Library sources first</TooltipContent>
+                )}
+              </Tooltip>
             </>
           )}
         </div>
@@ -151,11 +155,10 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
 
-      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
-
-      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
-
       <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
+
+      <AIReviewSummaryCard aiReviews={aiReviews} staleSections={staleSections} groups={groups} sectionMap={sectionMap}
+        getSectionDisplayName={getSectionDisplayName} setShowOnlyStale={setShowOnlyStale} setActiveGroup={setActiveGroup} />
 
       {budgetShortfall && (
         <BudgetRevisionPanel shortfall={budgetShortfall} currencyCode={challengeCurrencyCode ?? 'USD'}
@@ -164,8 +167,9 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       <CompletionBanner phase2Status={phase2Status} triageTotalCount={triageTotalCount} aiReviews={aiReviews} />
 
-      <AIReviewSummaryCard aiReviews={aiReviews} staleSections={staleSections} groups={groups} sectionMap={sectionMap}
-        getSectionDisplayName={getSectionDisplayName} setShowOnlyStale={setShowOnlyStale} setActiveGroup={setActiveGroup} />
+      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
+
+      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
         checklistSummary={checklistSummary} completedCount={completedCount} totalCount={checklistSummary.length}
