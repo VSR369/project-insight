@@ -4,12 +4,13 @@
  * Route: /cogni/my-challenges
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Folder, Eye, Pencil, Trash2, Loader2,
-  Clock, CheckCircle2, XCircle, AlertCircle, AlertTriangle,
+  Clock, CheckCircle2, XCircle, AlertCircle, AlertTriangle, Search,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyChallenges, type MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
@@ -73,6 +74,8 @@ export default function MyChallengesPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
 
   /* ── Grouped data ── */
   const items = challengesData?.items ?? [];
@@ -88,12 +91,16 @@ export default function MyChallengesPage() {
   }, [items]);
 
   const filteredItems = useMemo(() => {
-    if (activeTab === 'all') return items;
-    if (activeTab === 'drafts') return items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase === 1);
-    if (activeTab === 'active') return items.filter((c) => (c.master_status === 'IN_PREPARATION' && c.current_phase > 1) || c.master_status === 'ACTIVE');
-    if (activeTab === 'completed') return items.filter((c) => c.master_status === 'COMPLETED' || c.master_status === 'CANCELLED' || c.master_status === 'TERMINATED');
-    return items;
-  }, [items, activeTab]);
+    let list = items;
+    if (activeTab === 'drafts') list = list.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase === 1);
+    else if (activeTab === 'active') list = list.filter((c) => (c.master_status === 'IN_PREPARATION' && c.current_phase > 1) || c.master_status === 'ACTIVE');
+    else if (activeTab === 'completed') list = list.filter((c) => c.master_status === 'COMPLETED' || c.master_status === 'CANCELLED' || c.master_status === 'TERMINATED');
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
+      list = list.filter((c) => c.title.toLowerCase().includes(q));
+    }
+    return list;
+  }, [items, activeTab, deferredSearch]);
 
   const draftCount = items.filter((c) => c.master_status === 'IN_PREPARATION' && c.current_phase === 1).length;
   const activeCount = items.filter((c) => (c.master_status === 'IN_PREPARATION' && c.current_phase > 1) || c.master_status === 'ACTIVE').length;
@@ -149,6 +156,17 @@ export default function MyChallengesPage() {
           <Plus className="h-4 w-4 mr-1.5" />
           <span className="hidden lg:inline">New Challenge</span>
         </Button>
+      </div>
+
+      {/* Search */}
+      <div className="relative w-full lg:max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search challenges..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 text-base"
+        />
       </div>
 
       {/* Tabs */}

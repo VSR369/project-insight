@@ -7,7 +7,7 @@
  * Includes assignment indicators (Assigned to Me / Other / Unassigned).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useDeferredValue } from "react";
 import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import { useCogniPermissions } from "@/hooks/cogniblend/useCogniPermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentOrg } from "@/hooks/queries/useCurrentOrg";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -31,7 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckSquare, Clock, Eye, FileCheck, User } from "lucide-react";
+import { CheckSquare, Clock, Eye, FileCheck, User, Search } from "lucide-react";
 import type { SlaStatus } from "@/hooks/cogniblend/useCogniDashboard";
 
 // ---------------------------------------------------------------------------
@@ -166,11 +167,10 @@ function assignmentBadge(label: "mine" | "other" | "unassigned", name: string | 
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${date} · ${time}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +182,8 @@ export default function CurationQueuePage() {
   // SECTION 1: State & hooks
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<FilterTab | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearch = useDeferredValue(searchQuery);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
@@ -210,7 +212,7 @@ export default function CurationQueuePage() {
         .in("current_phase", [2])
         .eq("is_deleted", false)
         .eq("is_active", true)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
 
       if (error) throw new Error(error.message);
       if (!rows || rows.length === 0) return [];
@@ -302,20 +304,20 @@ export default function CurationQueuePage() {
   }, [activeTab, tabCounts.awaiting]);
 
   const filtered = useMemo(() => {
-    if (resolvedTab === "all") return challenges;
+    let list = challenges;
     if (resolvedTab === "incoming") {
-      return challenges; // All Phase 2 challenges
+      // All Phase 2 challenges
+    } else if (resolvedTab === "revision") {
+      list = list.filter((c) => c.current_phase === 2 && c.sla?.status === "BREACHED");
+    } else if (resolvedTab === "awaiting") {
+      list = list.filter((c) => c.current_phase === 2 && c.sla?.status !== "BREACHED");
     }
-    if (resolvedTab === "revision") {
-      return challenges.filter(
-        (c) => c.current_phase === 2 && c.sla?.status === "BREACHED"
-      );
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
+      list = list.filter((c) => c.title.toLowerCase().includes(q));
     }
-    // "awaiting" — phase 2, non-breached
-    return challenges.filter(
-      (c) => c.current_phase === 2 && c.sla?.status !== "BREACHED"
-    );
-  }, [challenges, resolvedTab]);
+    return list;
+  }, [challenges, resolvedTab, deferredSearch]);
 
   // ══════════════════════════════════════
   // SECTION 5: Conditional returns
@@ -355,7 +357,18 @@ export default function CurationQueuePage() {
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
       {/* Page title */}
-      <h1 className="text-[22px] font-bold text-foreground">Curation Queue</h1>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <h1 className="text-[22px] font-bold text-foreground">Curation Queue</h1>
+        <div className="relative w-full lg:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search challenges..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 text-base"
+          />
+        </div>
+      </div>
 
       {/* Filter tabs with counts */}
       <div className="flex items-center gap-1 border-b border-border">

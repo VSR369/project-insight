@@ -3,28 +3,34 @@
  * Lists challenges assigned to the current user with the LC role.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, ArrowRight, FolderOpen } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { FileText, ArrowRight, FolderOpen, Search } from 'lucide-react';
 import { ROLE_COLORS } from '@/types/cogniRoles';
 
 export default function LcChallengeQueuePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: challengeRows, isLoading } = useCogniUserRoles();
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
 
   // Filter to challenges where user holds LC role
   const lcChallenges = useMemo(() => {
     if (!challengeRows) return [];
-    return challengeRows.filter((row) =>
-      row.role_codes?.includes('LC') && row.current_phase >= 2
-    );
-  }, [challengeRows]);
+    let list = challengeRows.filter((row) => row.role_codes?.includes('LC') && row.current_phase >= 2);
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
+      list = list.filter((c) => (c.challenge_title ?? '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [challengeRows, deferredSearch]);
 
   const handleOpenWorkspace = (challengeId: string) => {
     navigate(`/cogni/challenges/${challengeId}/legal`);
@@ -53,11 +59,14 @@ export default function LcChallengeQueuePage() {
         </p>
       </div>
 
-      <div
-        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground"
-      >
-        <FileText className="h-3.5 w-3.5" />
-        Legal Review
+      <div className="relative w-full lg:max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search challenges..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 text-base"
+        />
       </div>
 
       {lcChallenges.length === 0 ? (

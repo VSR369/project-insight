@@ -3,6 +3,7 @@
  * Route: /cogni/fc-queue
  */
 
+import { useState, useMemo, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +12,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Banknote, ArrowRight, Inbox } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Banknote, ArrowRight, Inbox, Search } from 'lucide-react';
+import { format } from 'date-fns';
 import { handleQueryError } from '@/lib/errorHandler';
 
 interface FcQueueItem {
@@ -21,11 +24,14 @@ interface FcQueueItem {
   currency: string;
   escrow_status: string | null;
   current_phase: number;
+  created_at: string;
 }
 
 export default function FcChallengeQueuePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearch = useDeferredValue(searchQuery);
 
   const { data: queue, isLoading, error } = useQuery({
     queryKey: ['fc-challenge-queue', user?.id],
@@ -41,7 +47,7 @@ export default function FcChallengeQueuePage() {
       const results: FcQueueItem[] = [];
       for (const cid of ids) {
         const [chRes, escRes] = await Promise.all([
-          supabase.from('challenges').select('id, title, reward_structure, current_phase, fc_compliance_complete').eq('id', cid).single(),
+          supabase.from('challenges').select('id, title, reward_structure, current_phase, fc_compliance_complete, created_at').eq('id', cid).single(),
           supabase.from('escrow_records').select('escrow_status').eq('challenge_id', cid).maybeSingle(),
         ]);
         if (!chRes.data) continue;
@@ -54,13 +60,21 @@ export default function FcChallengeQueuePage() {
           currency: (rs?.currency as string) ?? 'USD',
           escrow_status: escRes.data?.escrow_status ?? null,
           current_phase: ch.current_phase ?? 3,
+          created_at: ch.created_at,
         });
       }
-      return results;
+      return results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
     enabled: !!user?.id,
     staleTime: 30_000,
   });
+
+  const filteredQueue = useMemo(() => {
+    if (!queue) return [];
+    if (!deferredSearch.trim()) return queue;
+    const q = deferredSearch.toLowerCase();
+    return queue.filter((item) => item.title.toLowerCase().includes(q));
+  }, [queue, deferredSearch]);
 
   if (error) {
     handleQueryError(error as Error, { operation: 'fetch_fc_queue' });
@@ -87,20 +101,30 @@ export default function FcChallengeQueuePage() {
         </p>
       </div>
 
-      {(!queue || queue.length === 0) && (
+      <div className="relative w-full lg:max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search challenges..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 text-base"
+        />
+      </div>
+
+      {filteredQueue.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center">
             <Inbox className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-sm font-medium text-foreground">Queue is empty</p>
             <p className="text-xs text-muted-foreground mt-1">
-              No challenges currently need your escrow deposit.
+              {deferredSearch.trim() ? 'No challenges match your search.' : 'No challenges currently need your escrow deposit.'}
             </p>
           </CardContent>
         </Card>
       )}
 
       <div className="space-y-3">
-        {queue?.map((item) => (
+        {filteredQueue.map((item) => (
           <Card key={item.challenge_id}>
             <CardContent className="py-4">
               <div className="flex items-center justify-between gap-4">
@@ -118,6 +142,8 @@ export default function FcChallengeQueuePage() {
                       {item.escrow_status ?? 'Pending Deposit'}
                     </Badge>
                     <span>Phase {item.current_phase}</span>
+                    <span>·</span>
+                    <span>{format(new Date(item.created_at), 'MMM d, yyyy · h:mm a')}</span>
                   </div>
                 </div>
                 <Button
