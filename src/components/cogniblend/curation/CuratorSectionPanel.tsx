@@ -41,6 +41,7 @@ export interface CuratorSectionPanelProps {
   sectionActions?: SectionActionRecord[]; promptSource?: "supervisor" | "default" | null;
   expandVersion?: number; staleBecauseOf?: string[]; staleAt?: string | null;
   validationResult?: ValidationResult | null; aiAction?: AiActionType;
+  forceExpandTick?: number;
 }
 
 export { loadExpandState, saveExpandState };
@@ -60,7 +61,7 @@ export function CuratorSectionPanel({
   sectionKey, label, attribution, filled, status, isLocked, isReadOnly, isApproved,
   onToggleApproval, onApproveSection, onUndoApproval, challengeId, inlineFlags,
   children, aiReviewSlot, defaultExpanded, sectionActions, promptSource,
-  expandVersion, staleBecauseOf, staleAt, validationResult, aiAction,
+  expandVersion, staleBecauseOf, staleAt, validationResult, aiAction, forceExpandTick,
 }: CuratorSectionPanelProps) {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -96,6 +97,19 @@ export function CuratorSectionPanel({
     const saved = loadExpandState(challengeId);
     if (saved[sectionKey] !== undefined) setIsExpanded(saved[sectionKey]);
   }, [expandVersion, challengeId, sectionKey]);
+
+  // Force-expand + scroll when navigated to via section navigation events
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!forceExpandTick || forceExpandTick === 0) return;
+    setIsExpanded(true);
+    const saved = loadExpandState(challengeId);
+    saved[sectionKey] = true;
+    saveExpandState(challengeId, saved);
+    setTimeout(() => {
+      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }, [forceExpandTick, challengeId, sectionKey]);
 
   // Derived state
   const effectiveStatus: SectionStatus = (() => {
@@ -138,7 +152,7 @@ export function CuratorSectionPanel({
 
   return (
     <>
-      <div className={cn("rounded-xl shadow-sm hover:shadow-md transition-shadow border border-border/60 bg-card mb-4 overflow-hidden border-l-4", accentClass)}>
+      <div ref={panelRef} className={cn("rounded-xl shadow-sm hover:shadow-md transition-shadow border border-border/60 bg-card mb-4 overflow-hidden border-l-4", accentClass)}>
         <SectionPanelHeader
           sectionKey={sectionKey} label={label} attribution={attribution} filled={filled}
           effectiveStatus={effectiveStatus} isExpanded={isExpanded} isLocked={isLocked}

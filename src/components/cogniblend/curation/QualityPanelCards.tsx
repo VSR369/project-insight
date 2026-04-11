@@ -81,10 +81,11 @@ interface QualityAssessmentContentProps {
   onStrengthsOpenChange: (open: boolean) => void;
   legalOpen: boolean;
   onLegalOpenChange: (open: boolean) => void;
+  onNavigateToSection?: (sectionKey: string) => void;
 }
 
 export function QualityAssessmentContent({
-  assessment, strengthsOpen, onStrengthsOpenChange, legalOpen, onLegalOpenChange,
+  assessment, strengthsOpen, onStrengthsOpenChange, legalOpen, onLegalOpenChange, onNavigateToSection,
 }: QualityAssessmentContentProps) {
   const legalGaps = assessment.legal_gaps ?? [];
   const hasLegalGaps = legalGaps.length > 0;
@@ -130,7 +131,13 @@ export function QualityAssessmentContent({
               <div key={i} className={`flex items-start gap-2 text-xs p-2 rounded-md ${gap.severity === 'critical' ? 'bg-destructive/5' : gap.severity === 'warning' ? 'bg-amber-500/5' : 'bg-muted/30'}`}>
                 <SeverityIcon severity={gap.severity} />
                 <div>
-                  <span className="font-medium text-foreground">{gap.field}: </span>
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => onNavigateToSection?.(gap.field)}
+                  >
+                    {gap.field}:
+                  </button>{' '}
                   <span className="text-muted-foreground">{gap.message}</span>
                 </div>
               </div>
