@@ -1,69 +1,84 @@
 
 
-## Fix Plan: 4 Bugs in the Two-Step AI Workflow
+## Fix Plan: 4 Root-Cause Bugs in Creator→Curator Data Flow
 
-### Root Causes (confirmed)
+### Bug 1: `industry_segment_id` never fetched for Curator
 
-1. **"Re-analyse" on first visit**: `pass1Done` derives from `aiReviews` which hydrates from DB on page load. Legacy reviews have `suggestion: null` → `pass1Done = true` immediately.
-2. **Stale Context Library data**: Already partially fixed (invalidation after discovery), but drawer opens before invalidation arrives.
-3. **Generate Suggestions ineffective**: Digest may be empty if no sources were accepted. Also, auto-refine in `useAIReviewInlineState` fires independently per section (line 128), bypassing the wave executor and context digest entirely.
-4. **Section UI confusion**: After Pass 1, auto-refine fires immediately for every section (since `suggestion == null`), generating context-free suggestions that override the intended two-step flow.
+**Root cause:** Creator saves `industry_segment_id` to the `challenges` table (line 204 of `challengePayloads.ts`), but neither `CHALLENGE_CORE_SELECT` nor `CHALLENGE_DEFERRED_SELECT` in `useCurationPageData.ts` includes it. So `resolveIndustrySegmentId` Rule 1 reads `undefined` and falls through to null.
 
-### Changes (5 files)
+**Fix:** Add `"industry_segment_id"` to `CHALLENGE_DEFERRED_SELECT` (line 44-53 of `useCurationPageData.ts`).
 
-**1. `src/hooks/cogniblend/useCurationPageData.ts`**
-Add `pass1DoneSession` + `setPass1DoneSession` state (`useState(false)`). This session-scoped flag replaces the DB-derived `pass1Done`.
+### Bug 2: Pre-flight ignores Creator-filled values
 
-**2. `src/hooks/cogniblend/useCurationPageOrchestrator.ts`**
-- Thread `pass1DoneSession` and `setPass1DoneSession` from `pageData` into `useCurationAIActions` options.
-- Expose `pass1DoneSession` in the return object so `CurationReviewPage` can pass it to `CurationRightRail` and section components.
+**Root cause:** `runPreFlight` in `useCurationAIActions.ts` (lines 68-78) builds `sectionContents` by iterating `state.sections` from the Zustand store, which starts empty on page load. Only `problem_statement` and `scope` have explicit fallbacks (lines 90-91). Creator-filled `maturity_level`, `domain_tags`, `deliverables`, `evaluation_criteria`, etc. are never seeded.
 
-**3. `src/hooks/cogniblend/useCurationAIActions.ts`**
-- Accept `setPass1DoneSession` in options interface.
-- In `handleAnalyse` on success: call `setPass1DoneSession(true)`.
-- In `handleAnalyse`: invalidate context queries BEFORE opening the drawer (already partially done, just ensure ordering).
-- In `handleGenerateSuggestions`: regenerate digest before executing full waves, then call `setPass1DoneSession(false)` on success.
+**Fix:** After the store iteration loop, seed ALL mandatory/recommended fields from the challenge DB object if not already in `sectionContents`:
 
-**4. `src/pages/cogniblend/CurationReviewPage.tsx` (line 252)**
-Replace `pass1Done={o.aiReviews.length > 0 && o.aiReviews.every(...)}` with `pass1Done={o.pass1DoneSession}`.
+```typescript
+// Seed Creator-filled fields from DB if not already in store
+const creatorFields = [
+  'maturity_level', 'domain_tags', 'deliverables', 'evaluation_criteria',
+  'reward_structure', 'phase_schedule', 'ip_model', 'expected_outcomes',
+  'submission_guidelines', 'description', 'eligibility', 'visibility',
+];
+for (const field of creatorFields) {
+  if (!sectionContents[field] && (challenge as any)?.[field] != null) {
+    const v = (challenge as any)[field];
+    sectionContents[field] = typeof v === 'string' ? v : JSON.stringify(v);
+  }
+}
+```
 
-**5. `src/components/cogniblend/shared/useAIReviewInlineState.ts` (line 96-132)**
-Add a `suppressAutoRefine` prop to the params interface. When `true`, skip the auto-refine `useEffect` entirely. This prevents per-section AI calls from firing between Pass 1 and Generate Suggestions.
+### Bug 3: `maturity_level` "POC" always fails 50-char threshold
 
-**6. `src/components/cogniblend/shared/AIReviewInline.tsx`**
-Add `suppressAutoRefine?: boolean` to props, pass through to `useAIReviewInlineState`.
+**Root cause:** `preFlightCheck` line 263 uses `content.length < 50` for ALL mandatory sections. `maturity_level` is an enum code ("POC", "BLUEPRINT", etc.) — max ~10 chars. Always fails.
 
-**7. Section panel wiring** (where `AIReviewInline` is rendered)
-Pass `suppressAutoRefine={o.pass1DoneSession}` down from the page through section panels to `AIReviewInline`.
+**Fix:** Use per-section thresholds in the mandatory check loop:
 
-### Edge Function Change
+```typescript
+const SECTION_MIN_LENGTH: Record<string, number> = {
+  maturity_level: 2,   // enum code like "POC"
+  domain_tags: 3,      // at least one short tag like '["ai"]'
+  problem_statement: 50,
+};
 
-**`supabase/functions/review-challenge-sections/index.ts` (line 862-867)**
-When `pass1_only === true`, set `phase: 'triage'` on each result (in addition to stripping `suggestion`). This tags pass1 reviews so they can be distinguished from legacy reviews if needed for future hydration logic.
+for (const s of MANDATORY_SECTIONS) {
+  const content = getSectionContent(sections, s.sectionId);
+  const minLen = SECTION_MIN_LENGTH[s.sectionId] ?? 50;
+  if (content.length < minLen) {
+    missingMandatory.push(s);
+  }
+}
+```
+
+### Bug 4: Domain Tags duplicate warnings
+
+**Root cause:** The domain coverage scorer can emit up to 3 separate warnings for `domain_tags`: thin coverage, moderate coverage, AND too many tags. This creates duplicate entries in the pre-flight dialog.
+
+**Fix:** Emit at most one `domain_tags` warning — prioritize the most actionable one. Use an early return pattern:
+
+```typescript
+if (coverage.coverageLevel === 'thin') {
+  warnings.push({ ... thin warning ... });
+} else if (tags.length > 5) {
+  warnings.push({ ... too many tags warning ... });
+} else if (coverage.coverageLevel === 'moderate') {
+  warnings.push({ ... moderate warning ... });
+}
+```
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `useCurationPageData.ts` (line 44) | Add `industry_segment_id` to `CHALLENGE_DEFERRED_SELECT` |
+| `useCurationAIActions.ts` (line 78) | Seed Creator-filled fields from challenge DB object into `sectionContents` |
+| `preFlightCheck.ts` (line 263) | Per-section minimum length thresholds |
+| `preFlightCheck.ts` (line 312-331) | Deduplicate domain_tags warnings |
 
 ### What stays the same
-- `CurationRightRail.tsx` — no change needed, it already uses `pass1Done` prop correctly
-- `ContextLibraryDrawer.tsx` — unchanged
-- `useContextLibrary.ts` — digest regeneration on URL add already implemented
-- `useCurationWaveSetup.ts` — unchanged
+- No edge function changes
 - No migrations needed
-
-### Sequence after fix
-```text
-Page loads → pass1DoneSession = false → "Analyse Challenge" shown (primary)
-     ↓
-Click "Analyse Challenge" → Pass 1 runs + discovery fires in parallel
-     ↓
-Pass 1 completes → pass1DoneSession = true → Context Library auto-opens
-     ↓
-Auto-refine suppressed (suppressAutoRefine = true) → sections show comments only
-     ↓
-Curator reviews/accepts sources in Context Library → closes drawer
-     ↓
-"Generate Suggestions" now visible (primary) + "Re-analyse" (outline)
-     ↓
-Click "Generate Suggestions" → digest regenerated → full waves run
-     ↓
-pass1DoneSession = false → suggestions appear in sections → auto-refine enabled
-```
+- No component/UI changes
+- `resolveIndustrySegmentId` logic unchanged — it works correctly once the data is fetched
 
