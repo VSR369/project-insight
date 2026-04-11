@@ -69,6 +69,13 @@ export default function FcChallengeQueuePage() {
     staleTime: 30_000,
   });
 
+  const filteredQueue = useMemo(() => {
+    if (!queue) return [];
+    if (!deferredSearch.trim()) return queue;
+    const q = deferredSearch.toLowerCase();
+    return queue.filter((item) => item.title.toLowerCase().includes(q));
+  }, [queue, deferredSearch]);
+
   if (error) {
     handleQueryError(error as Error, { operation: 'fetch_fc_queue' });
   }
@@ -84,14 +91,6 @@ export default function FcChallengeQueuePage() {
   }
 
   return (
-  const filteredQueue = useMemo(() => {
-    if (!queue) return [];
-    if (!deferredSearch.trim()) return queue;
-    const q = deferredSearch.toLowerCase();
-    return queue.filter((item) => item.title.toLowerCase().includes(q));
-  }, [queue, deferredSearch]);
-
-    return (
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
