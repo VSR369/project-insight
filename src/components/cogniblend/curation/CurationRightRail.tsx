@@ -100,19 +100,32 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
 
-      {/* Two-step AI workflow buttons */}
+      {/* Two-step AI workflow: Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
-        props.pass1Done ? (
-          <Button variant="default" size="sm" onClick={props.onGenerateSuggestions} disabled={aiReviewLoading} className="w-full">
-            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-            Generate Suggestions
+        <div className="space-y-2">
+          <Button
+            variant={props.pass1Done ? "outline" : "default"}
+            size="sm"
+            onClick={props.onAnalyse}
+            disabled={aiReviewLoading}
+            className="w-full"
+          >
+            {aiReviewLoading && !props.pass1Done ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+            {props.pass1Done ? 'Re-analyse Challenge' : 'Analyse Challenge'}
           </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={props.onAnalyse} disabled={aiReviewLoading} className="w-full">
-            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-            Analyse Challenge
-          </Button>
-        )
+          {props.pass1Done && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={props.onGenerateSuggestions}
+              disabled={aiReviewLoading}
+              className="w-full"
+            >
+              {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+              Generate Suggestions
+            </Button>
+          )}
+        </div>
       ) : (
         <Button variant="outline" size="sm" onClick={onAIReview} disabled={aiReviewLoading} className="w-full">
           {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}

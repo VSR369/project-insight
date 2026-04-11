@@ -143,7 +143,9 @@ export function useCurationAIActions({
     try {
       await executeWavesPass1();
       setTriageTotalCount(24);
-      toast.success('Analysis complete. Review findings, then Generate Suggestions.');
+      toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
+      // Auto-open Context Library so curator can review/accept discovered sources
+      setContextLibraryOpen(true);
     } catch (e: any) {
       toast.error(`Analysis failed: ${e.message ?? "Unknown error"}`);
     } finally {
