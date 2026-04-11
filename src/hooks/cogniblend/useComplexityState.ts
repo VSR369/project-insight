@@ -8,6 +8,7 @@ import { useComplexityDimensions } from '@/hooks/queries/useComplexityDimensions
 import type { ComplexityParam } from '@/hooks/queries/useComplexityParams';
 import type { SolutionType } from '@/lib/cogniblend/challengeContextAssembler';
 import {
+  COMPLEXITY_THRESHOLDS,
   deriveComplexityLevel,
   deriveComplexityLabel,
   getLabelForLevel,
