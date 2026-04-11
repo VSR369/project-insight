@@ -105,6 +105,8 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
             onCancel={cancelEdit}
             onEdit={() => setEditingSection(section.key)}
             saving={savingSection}
+            sectionDbField={section.dbField}
+            saveSectionMutation={saveSectionMutation}
           />
         </>
       );
@@ -121,6 +123,8 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
           onCancel={cancelEdit}
           onEdit={() => setEditingSection(section.key)}
           saving={savingSection}
+          sectionDbField={section.dbField}
+          saveSectionMutation={saveSectionMutation}
         />
       );
 
@@ -167,6 +171,8 @@ export function renderOrgSection(args: RenderSectionContentArgs, editButton: Rea
           onCancel={cancelEdit}
           onEdit={() => setEditingSection(section.key)}
           saving={savingSection}
+          sectionDbField={undefined}
+          saveSectionMutation={undefined}
         />
       );
     }

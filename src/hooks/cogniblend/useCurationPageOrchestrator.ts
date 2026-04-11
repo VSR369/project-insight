@@ -3,7 +3,7 @@
  * Delegates sub-concerns to focused hooks.
  */
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -183,6 +183,18 @@ export function useCurationPageOrchestrator() {
   const blockingReason = blockingReasons.length > 0 ? `${blockingReasons.join(' and ')} must be accepted before submitting` : undefined;
   const phaseDescription = challenge?.current_phase === 1 ? 'Spec Creation (Phase 1)' : challenge?.current_phase === 2 ? 'Legal & Finance Review (Phase 2)' : '';
 
+  // ── Context Library reviewed gate (Issue #7) ──
+  const [contextLibraryReviewed, setContextLibraryReviewed] = useState(false);
+
+  // When Context Library drawer closes after being opened post-analysis, mark as reviewed
+  const prevContextLibraryOpenRef = useRef(false);
+  useEffect(() => {
+    if (prevContextLibraryOpenRef.current && !contextLibraryOpen && pass1DoneSession) {
+      setContextLibraryReviewed(true);
+    }
+    prevContextLibraryOpenRef.current = contextLibraryOpen;
+  }, [contextLibraryOpen, pass1DoneSession]);
+
   return {
     challengeId, navigate, user,
     challenge, isLoading, orgTypeName, legalDocs, legalDetails, escrowRecord, masterData,
@@ -194,6 +206,7 @@ export function useCurationPageOrchestrator() {
     escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, preFlightResult,
     preFlightDialogOpen, setPreFlightDialogOpen, budgetShortfall, setBudgetShortfall,
     contextLibraryOpen, setContextLibraryOpen, pass1DoneSession,
+    contextLibraryReviewed,
     aiQuality, aiQualityLoading,
     lockedSendState, setLockedSendState, expandVersion, staleSections, curationStore, sectionActions,
     ...computedValues,

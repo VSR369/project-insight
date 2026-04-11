@@ -312,6 +312,7 @@ export default function CurationReviewPage() {
           governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile) ?? 'QUICK'}
           currentPhase={o.challenge.current_phase}
           onFreezeForLegal={handleFreezeForLegal}
+          contextLibraryReviewed={o.contextLibraryReviewed}
         />
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}

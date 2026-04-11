@@ -70,6 +70,7 @@ export interface CurationRightRailProps {
   governanceMode?: string;
   currentPhase?: number | null;
   onFreezeForLegal?: () => void;
+  contextLibraryReviewed?: boolean;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -92,15 +93,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
   return (
     <div className="space-y-4">
-      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
-
-      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
-
-      <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
-
-      {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
-
-      {/* Two-step AI workflow: Analyse → Context Library → Generate */}
+      {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
         <div className="space-y-2">
           <Button
@@ -132,12 +125,18 @@ export function CurationRightRail(props: CurationRightRailProps) {
                 variant="default"
                 size="sm"
                 onClick={props.onGenerateSuggestions}
-                disabled={aiReviewLoading}
+                disabled={aiReviewLoading || !props.contextLibraryReviewed}
                 className="w-full"
+                title={!props.contextLibraryReviewed ? 'Review the Context Library first' : undefined}
               >
                 {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
                 Generate Suggestions
               </Button>
+              {!props.contextLibraryReviewed && (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Open &amp; close the Context Library to enable
+                </p>
+              )}
             </>
           )}
         </div>
@@ -147,6 +146,14 @@ export function CurationRightRail(props: CurationRightRailProps) {
           Review Sections by AI
         </Button>
       )}
+
+      <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
+
+      {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
+
+      <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
+
+      {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
       <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
 

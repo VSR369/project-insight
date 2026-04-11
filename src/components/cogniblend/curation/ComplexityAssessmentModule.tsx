@@ -104,7 +104,7 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
   const canLock = hasExistingAssessment && !showActions && (
     (state.activeTab === 'ai_review') ||
     (state.activeTab === 'manual_params') ||
-    (state.activeTab === 'quick_select' && currentLevel != null)
+    (state.activeTab === 'quick_select' && currentLevel != null && state.overrideLevel !== null)
   );
 
   return (

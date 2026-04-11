@@ -11,10 +11,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CACHE_STABLE } from "@/config/queryCache";
-import {
-  MATURITY_LABELS,
-  MATURITY_DESCRIPTIONS,
-} from "@/lib/maturityLabels";
+// Maturity options now fetched from md_solution_maturity DB table
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -81,14 +78,29 @@ export function useCurationMasterData(): CurationMasterData {
     ...CACHE_STABLE,
   });
 
-  // Build maturity options from constants — use UPPERCASE values to match DB normalizer
+  // Fetch maturity options from DB (md_solution_maturity)
+  const { data: maturityRows, isLoading: maturityLoading } = useQuery({
+    queryKey: ["master-solution-maturity"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("md_solution_maturity")
+        .select("id, code, label, description, display_order")
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) return [];
+      return data ?? [];
+    },
+    ...CACHE_STABLE,
+  });
+
+  // Build maturity options from DB
   const maturityOptions = useMemo<MasterDataOption[]>(() =>
-    Object.entries(MATURITY_LABELS).map(([key, label]) => ({
-      value: key.toUpperCase(),
-      label: label as string,
-      description: MATURITY_DESCRIPTIONS[key],
+    (maturityRows ?? []).map((r) => ({
+      value: r.code.toUpperCase(),
+      label: r.label,
+      description: r.description ?? undefined,
     })),
-    [],
+    [maturityRows],
   );
 
   // Build complexity options from DB
@@ -118,6 +130,6 @@ export function useCurationMasterData(): CurationMasterData {
     
     ipModelOptions: IP_MODEL_OPTIONS,
     eligibilityOptions: solverTierOptions,
-    isLoading: complexityLoading || solverTierLoading,
+    isLoading: complexityLoading || solverTierLoading || maturityLoading,
   };
 }

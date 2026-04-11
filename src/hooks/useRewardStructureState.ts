@@ -244,7 +244,11 @@ export function useRewardStructureState(
   const [totalPool, setTotalPoolState] = useState<number | undefined>(resolved.monetary?.totalPool);
   const [rewardType, setRewardTypeState] = useState<RewardType>(resolved.type);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isTypeLocked, setIsTypeLocked] = useState(false);
+  const [isTypeLocked, setIsTypeLocked] = useState(() => {
+    // Restore isTypeLocked from persisted data if available
+    const raw = typeof rewardStructureRaw === 'object' && rewardStructureRaw !== null ? rewardStructureRaw : {};
+    return !!(raw as Record<string, unknown>).isTypeLocked;
+  });
 
   // ── Validation ──
   const monetaryErrors = useMemo(() => {
@@ -513,7 +517,20 @@ export function useRewardStructureState(
     const includeMonetary = rewardType === 'monetary' || rewardType === 'both';
     const includeNM = rewardType === 'non_monetary' || rewardType === 'both';
 
-    const monetary = includeMonetary ? tierStateToTiers(tierStates, currency) : undefined;
+    // Auto-split: if totalPool exists but no tier has an amount, apply 50/30/20
+    let effectiveTiers = tierStates;
+    if (includeMonetary && totalPool && totalPool > 0) {
+      const hasAnyTierAmount = Object.values(tierStates).some(t => t.enabled && t.amount > 0);
+      if (!hasAnyTierAmount) {
+        effectiveTiers = {
+          platinum: { enabled: true, amount: Math.round(totalPool * 0.5), amountSrc: { src: 'ai' } },
+          gold: { enabled: true, amount: Math.round(totalPool * 0.3), amountSrc: { src: 'ai' } },
+          silver: { enabled: true, amount: Math.round(totalPool * 0.2), amountSrc: { src: 'ai' } },
+        };
+      }
+    }
+
+    const monetary = includeMonetary ? tierStateToTiers(effectiveTiers, currency) : undefined;
     const nonMonetary = includeNM ? nmItemsToLegacy(nmItems) : undefined;
 
     const data: RewardData = {
@@ -528,14 +545,17 @@ export function useRewardStructureState(
 
     const serialized = serializeRewardData(data);
 
+    // Persist isTypeLocked for round-trip
+    serialized.isTypeLocked = isTypeLocked;
+
     // Also persist field sources for round-trip
     serialized.fieldSources = {
-      tiers: tierStates,
+      tiers: effectiveTiers,
       nmItems,
     };
 
     return serialized;
-  }, [rewardType, tierStates, nmItems, currency, totalPool]);
+  }, [rewardType, tierStates, nmItems, currency, totalPool, isTypeLocked]);
 
   return {
     sectionState,
