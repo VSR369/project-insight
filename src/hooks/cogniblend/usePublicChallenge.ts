@@ -37,8 +37,11 @@ export interface PublicChallengeData {
   challenge_enrollment: string | null;
   challenge_visibility: string | null;
   tenant_id: string;
+  organization_id: string | null;
   organization_name: string | null;
   trade_brand_name: string | null;
+  organization_website: string | null;
+  organization_description: string | null;
   industry_name: string | null;
   status: string | null;
   master_status: string | null;
@@ -102,8 +105,9 @@ export function usePublicChallenge(challengeId: string | undefined) {
           data_resources_provided, success_metrics_kpis,
           submission_guidelines, functional_area, target_geography,
           challenge_visibility, creator_snapshot, governance_mode_override,
+          organization_id,
           seeker_organizations!challenges_organization_id_fkey (
-            organization_name, trade_brand_name
+            organization_name, trade_brand_name, website, description
           ),
           industry_segments (name)
         `)
@@ -185,6 +189,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     challenge_enrollment: c.challenge_enrollment as string | null,
     challenge_visibility: c.challenge_visibility as string | null,
     tenant_id: c.tenant_id as string,
+    organization_id: c.organization_id as string | null,
     status: c.status as string | null,
     master_status: c.master_status as string | null,
     current_phase: c.current_phase as number | null,
@@ -205,6 +210,8 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     governance_mode_override: c.governance_mode_override as string | null,
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
+    organization_website: (org?.website as string) ?? null,
+    organization_description: (org?.description as string) ?? null,
     industry_name: (industry?.name as string) ?? null,
   };
 }
