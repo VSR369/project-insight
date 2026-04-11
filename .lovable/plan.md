@@ -1,30 +1,34 @@
 
 
-## Fix: Formalize Reward Type Lock Persistence
+## Fix: AI Tier Auto-Split from Creator Budget
 
-### Current State
-The lock **does** persist today — the hook writes `isTypeLocked` directly to the serialized object (line 549) and reads it back from the raw JSONB (line 250). However, this bypasses the formal `RewardData` interface and the `serializeRewardData`/`resolveRewardStructure` functions, making the data flow implicit.
+### Problem
+When a Creator provides a total budget (`totalPool`), the curator has no quick way to distribute it across tiers using a standard 50/30/20 split. The `onApplyAITiers` prop exists on `MonetaryRewardEditor` but is only wired to the `AIRecommendationsPanel` — there's no standalone trigger when AI suggestions haven't been generated yet.
 
 ### Changes
 
-**1. `src/services/rewardStructureResolver.ts`**
+**1. `src/hooks/useRewardStructureHandlers.ts`**
+- Add `handleApplyAITiers` callback that computes 50/30/20 split from `totalPool` and calls `updateTier` for platinum, gold, silver with `enabled: true` and computed amounts
+- Show success toast with the split amounts
+- Export it in the return object
 
-- Add `isTypeLocked?: boolean` to the `RewardData` interface (line 82)
-- In `serializeRewardData`, add `_typeLocked` to the base object when `data.isTypeLocked` is true (before the return branches, ~line 498)
-- In `resolveRewardStructure`, set `resolved.isTypeLocked = raw?._typeLocked === true` so the resolver formally surfaces it
+**2. `src/components/cogniblend/curation/rewards/MonetaryRewardEditor.tsx`**
+- Add an "AI Split" banner between the currency selector and tier cards, shown when `totalPool > 0` and `hasAISuggestions === false`
+- Banner shows Creator budget amount, suggested split percentages, and an "Apply AI Split" button that calls `onApplyAITiers`
 
-**2. `src/hooks/useRewardStructureState.ts`**
+**3. `src/components/cogniblend/curation/RewardDisplayContent.tsx`**
+- Add `onApplyAITiers` to the props interface
+- Pass it through to `MonetaryRewardEditor` in `renderMonetaryEditor`
 
-- Initialize `isTypeLocked` from `resolved.isTypeLocked` instead of reading raw JSONB directly (line 247-251)
-- Add `isTypeLocked` to the `RewardData` object in `getSerializedData` (line 536-544) so `serializeRewardData` handles it
-- Remove the post-serialization `serialized.isTypeLocked = isTypeLocked` line (549) since the serializer now handles it
-
-**Migration note:** The serializer will write `_typeLocked` going forward. For backward compatibility, the resolver will also check for the old `isTypeLocked` key in raw data.
+**4. `src/components/cogniblend/curation/RewardStructureDisplay.tsx`**
+- Pass `handlers.handleApplyAITiers` as `onApplyAITiers` prop to `RewardDisplayContent`
 
 ### Files changed
 
 | File | Action |
 |------|--------|
-| `src/services/rewardStructureResolver.ts` | Add `isTypeLocked` to interface, serialize/resolve it |
-| `src/hooks/useRewardStructureState.ts` | Use resolved value, add to RewardData, remove post-hoc write |
+| `src/hooks/useRewardStructureHandlers.ts` | Add `handleApplyAITiers` handler |
+| `src/components/cogniblend/curation/rewards/MonetaryRewardEditor.tsx` | Add AI Split banner UI |
+| `src/components/cogniblend/curation/RewardDisplayContent.tsx` | Thread `onApplyAITiers` prop |
+| `src/components/cogniblend/curation/RewardStructureDisplay.tsx` | Pass handler to content |
 
