@@ -1,47 +1,41 @@
 
 
-## Fix: Banner Dismiss Resets + Per-Section Incomplete Chips
+## Fix: Complexity Lock Button Shows on Empty AI Tab
 
 ### Problem
-1. Dismissing the banner is permanent (`useState(false)`) — if new sections become incomplete, the banner stays hidden
-2. Expanded view only shows group-level chips, not individual incomplete sections
+The "Lock Assessment" button appears when the AI review tab is active even if no AI values have been changed from the default (5). This lets curators lock an empty/default assessment.
 
-### Changes
+### Change
 
-**1. `src/lib/cogniblend/incompleteSectionsUtil.ts`** — Add `incompleteSectionKeys` to `IncompleteGroup`
+**File: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`** (lines 104-108)
 
-Update `buildIncompleteGroups` to accept challenge data and call `isFilled()` per section to identify which specific sections are incomplete (not just all section keys in the group).
+Replace the current `canLock` logic with value-aware checks:
 
 ```typescript
-export interface IncompleteGroup {
-  groupId: string;
-  label: string;
-  missing: number;
-  total: number;
-  sectionKeys: string[];          // all valid keys
-  incompleteSectionKeys: string[]; // only the incomplete ones
-}
+// Before (lines 104-108):
+const canLock = hasExistingAssessment && !showActions && (
+  (state.activeTab === 'ai_review') ||
+  (state.activeTab === 'manual_params') ||
+  (state.activeTab === 'quick_select' && currentLevel != null && state.overrideLevel !== null)
+);
+
+// After:
+const hasAiValues = state.activeTab === 'ai_review' &&
+  Object.values(state.aiDraft).some(v => v !== 5);
+const hasManualValues = state.activeTab === 'manual_params' &&
+  Object.values(state.manualDraft).some(v => v !== 5);
+const hasQuickSelect = state.activeTab === 'quick_select' && state.overrideLevel !== null;
+
+const canLock = hasExistingAssessment && !showActions && (
+  hasAiValues || hasManualValues || hasQuickSelect
+);
 ```
 
-Add `challenge`, `legalDocs`, `legalDetails`, `escrowRecord` parameters. For each group's section keys, call `sec.isFilled(challenge, ...)` to filter incomplete ones. Fall back to existing `groupProgress` math if `challenge` is null.
-
-**2. `src/components/cogniblend/curation/IncompleteSectionsBanner.tsx`** — Smart dismiss + per-section chips
-
-- Replace `dismissed: boolean` with `dismissedAt: number | null` + `prevMissingCount` ref
-- Add `useEffect` that re-shows banner when `totalMissing > prevMissingCount` after dismiss
-- Replace expanded chip rendering: group headers with individual section buttons underneath
-- Add `challenge`, `legalDocs`, `legalDetails`, `escrowRecord` to props interface
-- Pass these through to `buildIncompleteGroups`
-
-**3. `src/pages/cogniblend/CurationReviewPage.tsx`** — Pass challenge data to banner
-
-Add `challenge`, `legalDocs`, `legalDetails`, `escrowRecord` props to the `IncompleteSectionsBanner` call site (all available from orchestrator).
+This ensures the lock button only appears when the active tab has meaningful (non-default) values.
 
 ### Files changed
 
 | File | Action |
 |------|--------|
-| `src/lib/cogniblend/incompleteSectionsUtil.ts` | Add per-section filtering via `isFilled` |
-| `src/components/cogniblend/curation/IncompleteSectionsBanner.tsx` | Smart dismiss + per-section chips |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Pass challenge data to banner |
+| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Replace `canLock` with value-aware gating |
 
