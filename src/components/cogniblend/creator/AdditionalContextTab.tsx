@@ -4,22 +4,18 @@
  * Stakeholder editor extracted to StakeholderEditor.tsx.
  */
 
-import { useState, useCallback } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { CreatorPhaseTimeline, type PhaseEntry } from './CreatorPhaseTimeline';
-import { AlertTriangle, Plus, X, Link as LinkIcon } from 'lucide-react';
-import { FileUploadZone } from '@/components/shared/FileUploadZone';
+import { AlertTriangle } from 'lucide-react';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import { StakeholderEditor } from './StakeholderEditor';
 import { Info } from 'lucide-react';
-import { toast } from 'sonner';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { isFieldVisible, type FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
+
 const LINE_ITEM_FIELDS = [
   { key: 'preferred_approach' as const, label: 'Preferred Approach', placeholder: 'Any preferred technology or methodology?', addLabel: 'Add Approach' },
   { key: 'approaches_not_of_interest' as const, label: 'Approaches NOT of Interest', placeholder: "Anything you've tried or don't want?", addLabel: 'Add Exclusion' },
@@ -27,32 +23,17 @@ const LINE_ITEM_FIELDS = [
   { key: 'root_causes' as const, label: 'Root Causes', placeholder: 'Why does this problem exist?', addLabel: 'Add Root Cause' },
 ] as const;
 
-const ATTACHMENT_CONFIG = {
-  maxSizeBytes: 10 * 1024 * 1024, maxSizeMB: 10,
-  allowedTypes: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'image/png', 'image/jpeg'] as readonly string[],
-  allowedExtensions: ['.pdf', '.docx', '.xlsx', '.csv', '.png', '.jpg'] as readonly string[],
-  label: 'Reference Documents',
-} as const;
-
-const MAX_FILES = 5;
-const MAX_URLS = 5;
-
 interface AdditionalContextTabProps {
   governanceMode: GovernanceMode;
   fieldRules?: FieldRulesMap;
-  attachedFiles?: File[];
-  onFilesChange?: (files: File[]) => void;
-  referenceUrls?: string[];
-  onUrlsChange?: (urls: string[]) => void;
   engagementModel?: string;
   draftChallengeId?: string;
 }
 
-export function AdditionalContextTab({ governanceMode, fieldRules, attachedFiles = [], onFilesChange, referenceUrls = [], onUrlsChange, engagementModel, draftChallengeId }: AdditionalContextTabProps) {
+export function AdditionalContextTab({ governanceMode, fieldRules, engagementModel, draftChallengeId }: AdditionalContextTabProps) {
   const { control, formState: { errors } } = useFormContext<CreatorFormValues>();
   const isControlled = governanceMode === 'CONTROLLED';
   const rules = fieldRules ?? {};
-  const [urlInput, setUrlInput] = useState('');
 
   const handleAddUrl = useCallback(() => {
     const trimmed = urlInput.trim();
