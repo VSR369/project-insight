@@ -1,31 +1,29 @@
 
 
-## Fix 5 — Sophisticated DigestPanel with Tabs, Preview, and Compare
+## Fix 6 — SuggestionCard Inline Accept/Reject
 
-### What Changes
+### Changes
 
-Upgrade the DigestPanel from basic edit/read modes to a tabbed editing experience:
+**1. `SuggestionCard.tsx`** — Full rewrite
+- Remove `Checkbox`, `isSelected`, `onToggleCheck` props (bulk selection moves to SourceList checkboxes if needed later)
+- New props: `onAccept(id)`, `onReject(id)`, `isAcceptPending`, `isRejectPending`
+- Add `ExternalLink` icon button for URL sources
+- Redesigned `ConfidenceBadge` with background color tiers (85%+, 70%+, below)
+- Inline accept (green check) and reject (red X) buttons in a horizontal row
 
-1. **Tabbed edit mode** — Replace plain textarea with `Tabs` component offering Edit / Preview / Compare views
-2. **Section coverage indicators** — Detect which of 7 standard digest sections are present and warn about missing ones
-3. **Compare view** — Side-by-side AI original vs curator version (only when `curator_edited` is true)
-4. **Preview tab** — Read-only preview of draft text while editing
-5. **Improved empty state** — Icon + CTA button instead of plain text
-6. **Key facts grid** — Replace raw JSON `<pre>` with a formatted 2-column grid
-7. **Refined word count** — Inline in tab header bar with color-coded thresholds (400/800)
+**2. `SourceList.tsx`** — Update `SuggestionCard` usage
+- Remove `selectedSuggestionIds` state and `toggleSuggestion` logic
+- Remove `Checkbox`-related props (`isSelected`, `onToggleCheck`) from SuggestionCard calls
+- Pass `onAccept`, `onReject`, `isAcceptPending`, `isRejectPending` directly
+- Keep "Accept Selected" bulk button but wire it to select-all or remove it (the user's snippet removes checkboxes from the card, so bulk select via checkboxes is dropped)
+- Keep "Reject All" button
 
-### File: `src/components/cogniblend/curation/context-library/DigestPanel.tsx`
+**3. `ContextLibraryDrawer.tsx`** — No changes needed (already passes `onAcceptOne`/`onRejectOne` to SourceList)
 
-**Full rewrite** — consolidate `EditMode` and `ReadMode` sub-components back into the main component since the tabbed UI needs shared state. Key structural changes:
+### Technical Details
 
-- Add imports: `Tabs, TabsContent, TabsList, TabsTrigger`, `Eye`, `SplitSquareHorizontal`, `AlertTriangle`
-- Add `view` state: `'edit' | 'preview' | 'compare'`
-- Add `sectionCoverage()` function with 7 standard section labels
-- Replace `WordIndicator` component with inline word count badge in tab bar
-- Empty state: centered layout with `BookOpen` icon + "Generate Digest" button
-- Edit mode: 3-tab layout (edit textarea, preview pane, compare side-by-side)
-- Read mode: digest text + formatted key facts grid + confirm row
-- Remove unused constants (`TARGET_WORDS`, `WORD_WARNING_LOW`, `WORD_WARNING_HIGH`)
-
-~200 lines total. No other files affected.
+- SuggestionCard becomes a simpler, action-focused card without checkbox state
+- SourceList simplifies by removing `selectedSuggestionIds` Set and related handlers
+- The "Accept Selected" bulk button is removed since individual cards no longer have checkboxes
+- All accept/reject actions flow: SuggestionCard → SourceList → ContextLibraryDrawer → hook mutations
 
