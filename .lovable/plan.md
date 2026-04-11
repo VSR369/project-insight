@@ -1,65 +1,90 @@
 
 
-## Smooth Section Navigation with Expand & Highlight
+## Curator Code Audit — Prioritized Fix Plan
 
-### What this does
-When a curator clicks a section name in the AI Quality Assessment panel (gaps list) or the Curator Guide Modal (dependency section), the app will:
-1. Switch to the correct tab/group containing that section
-2. Expand the section panel if collapsed
-3. Smooth-scroll to it
-4. Temporarily highlight it with a contrasting ring/border (fades after 3 seconds)
+This is a large audit with 13 issues. I'll group them into actionable batches by priority, noting which are real bugs vs. enhancements, and what's already working.
 
-### How it works
+### Triage Summary
 
-**1. Shared navigation event system** — `src/lib/cogniblend/sectionNavigation.ts` (new, ~30 lines)
-- Export a custom event dispatcher: `dispatchNavigateToSection(sectionKey: string)`
-- Export a hook: `useSectionNavigationListener(callback)` that listens for the event
-- Uses `CustomEvent` on `window` — no prop drilling needed
+| # | Issue | Verdict | Priority |
+|---|-------|---------|----------|
+| 1 | Master data live refresh | **Already working** — `useCurationMasterData` fetches from DB via React Query. Only IP models are static (intentional). No fix needed. | Skip |
+| 2 | Fixed notice board at top | Enhancement — not a bug. Current PrerequisiteBanner + CompletenessChecklist cover this. | Medium |
+| 3 | Notice board → navigate + highlight | **Already implemented** in last PR — `sectionNavigation.ts`, `SectionPanelItem` highlight, `useCurationCallbacks` dispatch. | Done |
+| 4 | PreFlight → navigate + highlight | **Already implemented** — `handlePreFlightGoToSection` dispatches nav event. | Done |
+| 5 | Unified sticky notice + popup | Enhancement — large effort, low ROI vs existing two systems. | Defer |
+| 6 | Context Library auto-open | **Already fixed** — `setContextLibraryOpen(true)` is called in `handleAnalyse` (line 177). | Done |
+| 7 | Context Library gate before Generate | Valid UX gap — no hard gate. | Low |
+| 8 | Universal autosave | Partially done — `useAutoSaveSection` exists. Extended brief/rewards use separate flows by design. | Low |
+| 9 | Re-review on reload (`pass1DoneSession`) | **Real bug** — resets to `false` on refresh. Should seed from `aiReviews.length > 0`. | High |
+| 10 | AI bounded to master data | Valid for structured fields only (maturity, IP, eligibility, visibility, complexity, solution_type). Free-text fields should not be bounded. | Medium |
+| 11 | Complexity section bugs | Multiple real issues — tab isolation, lock logic, score display. | High |
+| 12 | Rewards section bugs | Multiple real issues — lock mechanism, currency sync, type switching. | High |
+| 13 | Systemic UX: isReadOnly hardcoded, right rail order, dirty-state guard | `isReadOnly = false` is a **real bug**. Others are enhancements. | High (isReadOnly) |
 
-**2. SectionPanelItem listens for navigation events** — modify `SectionPanelItem.tsx`
-- Listen for the navigation event matching its `section.key`
-- When triggered: force-expand the `CuratorSectionPanel` and apply a temporary highlight ring class
-- Highlight: `ring-2 ring-primary ring-offset-2` with a 3-second timeout to remove
+### Batch 1 — Quick Critical Fixes (this implementation)
 
-**3. CuratorSectionPanel accepts `forceExpand` prop** — modify `CuratorSectionPanel.tsx`
-- New optional prop `forceExpand?: number` (increment to trigger)
-- `useEffect` on `forceExpand` sets `isExpanded = true` and scrolls into view
+**Fix 9: `pass1DoneSession` not seeded on page load**
 
-**4. handleNavigateToSection upgraded** — modify `useCurationCallbacks.ts`
-- After `setActiveGroup`, dispatch the custom navigation event so the section expands + highlights
-- Add a small delay (300ms) to let the group tab render before dispatching
+File: `src/hooks/cogniblend/useCurationEffects.ts`
+- After AI reviews are hydrated from DB (line 55), check if `aiReviews.length > 0`
+- If yes, call `setPass1DoneSession(true)` so the button shows "Re-analyse" on reload
+- Add `setPass1DoneSession` to the options interface
 
-**5. QualityPanelCards gap items become clickable** — modify `QualityPanelCards.tsx`
-- The `gap.field` values correspond to section keys (e.g., `problem_statement`, `scope`)
-- Wrap the field name in a clickable `<button>` that calls `onNavigateToSection(gap.field)`
-- Pass `onNavigateToSection` prop down from `AICurationQualityPanel` → `QualityAssessmentContent`
+**Fix 13a: `isReadOnly` hardcoded to `false`**
 
-**6. AICurationQualityPanel receives `onNavigateToSection`** — modify `AICurationQualityPanel.tsx`
-- Add `onNavigateToSection` prop, pass through to `QualityAssessmentContent`
+File: `src/pages/cogniblend/CurationReviewPage.tsx` (line 83)
+- Replace `const isReadOnly = false;` with phase/status-based logic:
+  ```typescript
+  const isReadOnly = (o.challenge.current_phase ?? 0) > 2 ||
+    (o.challenge as any).curation_lock_status === 'FROZEN';
+  ```
+- This makes curation read-only after Phase 2 or when frozen for legal review
 
-**7. CurationRightRail passes `onNavigateToSection` to AICurationQualityPanel** — already has the prop, just needs wiring
+**Fix 10: Pass master data options to AI review inline (structured fields only)**
 
-**8. CuratorGuideModal dependency section gets clickable section names** — modify `CuratorGuideModal.tsx`
-- Make "Problem Statement", "Scope", "Expected Outcomes" etc. clickable links
-- On click: close the modal + call `onNavigateToSection`
-- Add `onNavigateToSection` prop to `CuratorGuideModal`
+File: `src/components/cogniblend/curation/SectionPanelItem.tsx` — already passes `sectionMasterDataOptions` to `CurationAIReviewInline` (lines 155-165, 182). This is **already implemented**. The edge function prompt side needs the constraint — that's a separate edge function change, not a frontend fix.
 
-### Files changed
+### Batch 2 — Complexity Section Fixes
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/lib/cogniblend/sectionNavigation.ts` | **Create** | Custom event dispatcher + listener hook (~30 lines) |
-| `src/components/cogniblend/curation/SectionPanelItem.tsx` | **Modify** | Listen for nav events, force-expand + highlight |
-| `src/components/cogniblend/curation/CuratorSectionPanel.tsx` | **Modify** | Add `forceExpand` prop to expand + scroll |
-| `src/hooks/cogniblend/useCurationCallbacks.ts` | **Modify** | Dispatch nav event after group switch |
-| `src/components/cogniblend/curation/QualityPanelCards.tsx` | **Modify** | Make gap field names clickable |
-| `src/components/cogniblend/curation/AICurationQualityPanel.tsx` | **Modify** | Accept + pass `onNavigateToSection` |
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | **Modify** | Wire `onNavigateToSection` to quality panel |
-| `src/components/cogniblend/curation/CuratorGuideModal.tsx` | **Modify** | Make dependency section names clickable |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | **Modify** | Pass `onNavigateToSection` to guide modal |
+File: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` (and sub-components)
+- **Tab data isolation**: Ensure `aiDraft` and `manualDraft` are fully independent state objects; switching tabs must not cross-contaminate values
+- **Save guard**: Before saving, warn if unsaved changes exist on the other tab
+- **Lock button visibility**: Only show Lock when the active tab has valid data
+- **Score fidelity**: Quick Select must carry the selected level's score, not hardcode 0
+- **Unlock confirmation**: Add a confirmation dialog before unlocking
 
-### Highlight behavior
-- CSS: `ring-2 ring-primary ring-offset-2 transition-all duration-500` applied on navigate
-- Removed after 3 seconds via `setTimeout`
-- Stacks with the existing warning highlight without conflict (different ring colors)
+### Batch 3 — Rewards Section Fixes
+
+Files: `RewardStructureDisplay.tsx`, `MonetaryRewardEditor.tsx`, `RewardTypeChooser.tsx`
+- **Lock mechanism**: Add `isLocked`/`onLock`/`onUnlock` to reward structure, similar to complexity
+- **Currency sync**: Sync `currency` state from `challengeCurrencyCode` prop on mount and when prop changes
+- **Type switching warning**: Show confirmation dialog when switching reward type if data exists
+- **Active type indication**: Visually distinguish the selected reward type card
+
+### Batch 4 — Enhancements (lower priority)
+
+- **Issue 2**: Sticky incomplete-sections banner above the main grid
+- **Issue 5**: Unified notice + popup system
+- **Issue 7**: Gate "Generate Suggestions" behind Context Library review
+- **Issue 8**: Wire `useAutoSaveSection` to remaining text fields
+- **Issue 13b**: Right rail card ordering, dirty-state guard on navigate back
+
+---
+
+### Implementation — Batch 1 (this round)
+
+#### Files to modify
+
+| File | Change |
+|------|--------|
+| `src/hooks/cogniblend/useCurationEffects.ts` | Add `setPass1DoneSession` param; seed from hydrated AI reviews |
+| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Pass `setPass1DoneSession` to `useCurationEffects` |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Replace hardcoded `isReadOnly = false` with phase/freeze logic |
+
+#### What stays unchanged
+- `sectionNavigation.ts` — Issues 3, 4, 6 already resolved
+- `useCurationMasterData.ts` — Issue 1 already fetches from DB
+- `useCurationAIActions.ts` — `handleAnalyse` already auto-opens Context Library
+- Edge function prompt changes (Issue 10) — separate backend task, not frontend
 
