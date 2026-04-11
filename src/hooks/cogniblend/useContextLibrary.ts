@@ -398,3 +398,43 @@ export function useRegenerateDigest(challengeId: string) {
     onError: (err: Error) => toast.error(`Digest generation failed: ${err.message}`),
   });
 }
+
+/* ── Intake Status Query ── */
+
+export function useIntakeStatus(challengeId: string | null) {
+  return useQuery({
+    queryKey: ['context-intake-status', challengeId ?? ''],
+    queryFn: async () => {
+      if (!challengeId) return null;
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('context_intake_status')
+        .eq('id', challengeId)
+        .single();
+      if (error) throw new Error(error.message);
+      return (data as Record<string, unknown>)?.context_intake_status as string | null;
+    },
+    enabled: !!challengeId,
+    ...CACHE_FREQUENT,
+  });
+}
+
+/* ── Curation Intelligence Pipeline ── */
+
+export function useCurationIntelligence(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (stages?: string[]) => {
+      const { data, error } = await supabase.functions.invoke('curation-intelligence', {
+        body: { challenge_id: challengeId, stages },
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      invalidateAll(qc, challengeId);
+      toast.success('Intelligence pipeline complete');
+    },
+    onError: (err: Error) => toast.error(`Intelligence pipeline failed: ${err.message}`),
+  });
+}
