@@ -1,7 +1,7 @@
 /**
  * Wave-based execution configuration for global AI review.
  *
- * 6 dependency-ordered waves covering all 26 curation sections.
+ * 6 dependency-ordered waves covering all 31 curation sections.
  * Each wave's sections depend only on sections from prior waves.
  */
 
@@ -44,6 +44,9 @@ export interface WaveProgress {
 
 const LOCKED_SECTIONS: SectionKey[] = ['legal_docs', 'escrow_funding'];
 
+/** Sections backed by attachments/external data — always review, never generate */
+const ATTACHMENT_SECTIONS: SectionKey[] = ['creator_references', 'reference_urls'];
+
 export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 1,
@@ -78,7 +81,12 @@ export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 6,
     name: 'Presentation & Compliance',
-    sectionIds: ['hook', 'visibility', 'domain_tags', 'legal_docs', 'escrow_funding'],
+    sectionIds: [
+      'hook', 'visibility', 'domain_tags',
+      'creator_references', 'reference_urls',
+      'evaluation_config', 'solver_audience',
+      'legal_docs', 'escrow_funding',
+    ],
     prerequisiteSections: ['problem_statement', 'deliverables', 'reward_structure', 'evaluation_criteria'],
   },
 ];
@@ -91,6 +99,7 @@ export function determineSectionAction(
   sectionContent: string | null | unknown,
 ): SectionAction {
   const isLocked = LOCKED_SECTIONS.includes(sectionId);
+  const isAttachmentBased = ATTACHMENT_SECTIONS.includes(sectionId);
   const hasContent = (() => {
     if (sectionContent == null) return false;
     if (typeof sectionContent === 'string') return sectionContent.trim().length > 30;
@@ -102,6 +111,8 @@ export function determineSectionAction(
   })();
 
   if (isLocked) return hasContent ? 'review' : 'skip';
+  // Attachment-based sections: always review (AI checks if attachments exist & are relevant)
+  if (isAttachmentBased) return 'review';
   if (!hasContent) return 'generate';
   return 'review';
 }
