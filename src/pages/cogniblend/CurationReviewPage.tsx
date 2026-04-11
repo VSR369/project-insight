@@ -78,9 +78,10 @@ export default function CurationReviewPage() {
     );
   }
 
+  const isReadOnly =
+    (o.challenge.current_phase ?? 0) > 2 ||
+    ((o.challenge as Record<string, unknown>).curation_lock_status as string) === 'FROZEN';
 
-
-  const isReadOnly = false;
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
