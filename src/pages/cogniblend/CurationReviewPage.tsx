@@ -127,7 +127,7 @@ export default function CurationReviewPage() {
         challenge={o.challenge as any}
         isReadOnly={isReadOnly}
         orgTypeName={o.orgTypeName}
-        onNavigateBack={() => o.navigate("/cogni/curation")}
+        onNavigateBack={handleNavigateBack}
         guidedMode={o.guidedMode}
         onGuidedModeChange={o.setGuidedMode}
         userId={o.user?.id}
