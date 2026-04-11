@@ -1,9 +1,9 @@
 /**
  * SourceDetail — Right panel showing detail tabs for a selected source.
- * < 200 lines per plan spec.
+ * Includes polling for pending extraction, re-extract action, and content indicators.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -13,8 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Trash2, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Trash2, CheckCircle, Clock, XCircle, RefreshCw, Download } from 'lucide-react';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
+
+const POLL_INTERVAL_MS = 3000;
 
 interface SourceDetailProps {
   source: ContextSource;
@@ -23,9 +25,12 @@ interface SourceDetailProps {
   onDelete: (source: ContextSource) => void;
   onUpdateSection: (id: string, sectionKey: string) => void;
   onUpdateSharing: (id: string, shared: boolean) => void;
+  onReExtract: (id: string) => void;
+  onRefresh: () => void;
   isAcceptPending: boolean;
   isRejectPending: boolean;
   isDeletePending: boolean;
+  isReExtractPending?: boolean;
 }
 
 function ExtractionBadge({ status }: { status: string | null }) {
@@ -41,11 +46,46 @@ function ExtractionBadge({ status }: { status: string | null }) {
   }
 }
 
+function tabLabel(label: string, hasContent: boolean): React.ReactNode {
+  return (
+    <span className="flex items-center gap-1">
+      {label}
+      {hasContent && <CheckCircle className="h-3 w-3 text-emerald-500" />}
+    </span>
+  );
+}
+
 export function SourceDetail({
   source, onAccept, onReject, onDelete,
   onUpdateSection, onUpdateSharing,
+  onReExtract, onRefresh,
   isAcceptPending, isRejectPending, isDeletePending,
+  isReExtractPending = false,
 }: SourceDetailProps) {
+  const isPending = source.extraction_status === 'pending' || source.extraction_status === 'processing';
+
+  // Poll for extraction completion
+  useEffect(() => {
+    if (!isPending) return;
+    const interval = setInterval(() => onRefresh(), POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isPending, onRefresh]);
+
+  const hasSummary = !!source.extracted_summary;
+  const hasFullText = !!source.extracted_text;
+  const hasKeyData = !!source.extracted_key_data;
+
+  const emptyAction = (
+    <Button
+      size="sm" variant="outline" className="mt-2"
+      onClick={() => onReExtract(source.id)}
+      disabled={isReExtractPending || isPending}
+    >
+      <Download className="h-3 w-3 mr-1" />
+      {isReExtractPending ? 'Extracting...' : 'Extract Content Now'}
+    </Button>
+  );
+
   return (
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-4">
@@ -63,7 +103,15 @@ export function SourceDetail({
             <Badge variant="secondary" className="text-xs">
               {source.discovery_source === 'ai_suggested' ? '🤖 AI Discovered' : '📎 Manual'}
             </Badge>
+            {source.extraction_status === 'failed' && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onReExtract(source.id)} disabled={isReExtractPending}>
+                <RefreshCw className="h-3 w-3 mr-1" />Retry
+              </Button>
+            )}
           </div>
+          {source.extraction_error && (
+            <p className="text-xs text-destructive mt-1">{source.extraction_error}</p>
+          )}
         </div>
 
         {/* Suggestion actions */}
@@ -79,29 +127,42 @@ export function SourceDetail({
         {/* Content tabs */}
         <Tabs defaultValue="summary">
           <TabsList className="h-8">
-            <TabsTrigger value="summary" className="text-xs h-7">Summary</TabsTrigger>
-            <TabsTrigger value="full_text" className="text-xs h-7">Full Text</TabsTrigger>
-            <TabsTrigger value="key_data" className="text-xs h-7">Key Data</TabsTrigger>
+            <TabsTrigger value="summary" className="text-xs h-7">{tabLabel('Summary', hasSummary)}</TabsTrigger>
+            <TabsTrigger value="full_text" className="text-xs h-7">{tabLabel('Full Text', hasFullText)}</TabsTrigger>
+            <TabsTrigger value="key_data" className="text-xs h-7">{tabLabel('Key Data', hasKeyData)}</TabsTrigger>
           </TabsList>
           <TabsContent value="summary" className="mt-2">
-            {source.extracted_summary ? (
+            {hasSummary ? (
               <p className="text-sm whitespace-pre-wrap">{source.extracted_summary}</p>
             ) : (
-              <p className="text-sm text-muted-foreground">No summary available yet.</p>
+              <div>
+                <p className="text-sm text-muted-foreground">{isPending ? 'Extraction in progress...' : 'No summary available yet.'}</p>
+                {!isPending && emptyAction}
+              </div>
             )}
           </TabsContent>
           <TabsContent value="full_text" className="mt-2">
-            <pre className="text-xs whitespace-pre-wrap bg-muted/50 p-3 rounded-md max-h-[400px] overflow-y-auto">
-              {source.extracted_text || 'No text extracted yet.'}
-            </pre>
+            {hasFullText ? (
+              <pre className="text-xs whitespace-pre-wrap bg-muted/50 p-3 rounded-md max-h-[400px] overflow-y-auto">
+                {source.extracted_text}
+              </pre>
+            ) : (
+              <div>
+                <p className="text-sm text-muted-foreground">{isPending ? 'Extraction in progress...' : 'No text extracted yet.'}</p>
+                {!isPending && emptyAction}
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="key_data" className="mt-2">
-            {source.extracted_key_data ? (
+            {hasKeyData ? (
               <pre className="text-xs whitespace-pre-wrap bg-muted/50 p-3 rounded-md">
                 {JSON.stringify(source.extracted_key_data, null, 2)}
               </pre>
             ) : (
-              <p className="text-sm text-muted-foreground">No structured data extracted yet.</p>
+              <div>
+                <p className="text-sm text-muted-foreground">{isPending ? 'Extraction in progress...' : 'No structured data extracted yet.'}</p>
+                {!isPending && emptyAction}
+              </div>
             )}
           </TabsContent>
         </Tabs>
