@@ -76,8 +76,8 @@ function buildDemoUsers(_engagementModel: string, mode: GovernanceMode = 'STRUCT
       {
         email: 'nh-solo@testsetup.dev',
         displayName: 'Sam Solo',
-        roles: ['CR', 'CU', 'ER', 'LC', 'FC'],
-        description: 'All 5 roles merged to one person. Creates, auto-curates, auto-completes legal, and publishes in one flow.',
+        roles: ['CR'],
+        description: 'Single actor — creates challenge with 5 fields and auto-publishes. Curation, legal, and evaluation are handled automatically by the platform.',
         destination: '/cogni/challenges/create',
         stepLabel: 'All Steps',
       },
@@ -382,6 +382,7 @@ export default function DemoLoginPage() {
               disabled={!!loadingEmail}
               onLogin={() => handleLogin(user)}
               getRoleBadge={getRoleBadge}
+              governanceMode={governanceMode}
             />
           ))}
         </div>
