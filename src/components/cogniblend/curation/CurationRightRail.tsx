@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, Sparkles } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
@@ -38,6 +38,9 @@ export interface CurationRightRailProps {
   onOpenContextLibrary: () => void;
   aiReviewLoading: boolean;
   onAIReview: () => void;
+  onAnalyse?: () => void;
+  onGenerateSuggestions?: () => void;
+  pass1Done?: boolean;
   waveProgress: any;
   onCancelReview: () => void;
   budgetShortfall: BudgetShortfallResult | null;
@@ -97,10 +100,25 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
       {challengeId && <ContextLibraryCard challengeId={challengeId} onOpenLibrary={onOpenContextLibrary} />}
 
-      <Button variant="outline" size="sm" onClick={onAIReview} disabled={aiReviewLoading} className="w-full">
-        {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-        Review Sections by AI
-      </Button>
+      {/* Two-step AI workflow buttons */}
+      {props.onAnalyse && props.onGenerateSuggestions ? (
+        props.pass1Done ? (
+          <Button variant="default" size="sm" onClick={props.onGenerateSuggestions} disabled={aiReviewLoading} className="w-full">
+            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+            Generate Suggestions
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={props.onAnalyse} disabled={aiReviewLoading} className="w-full">
+            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+            Analyse Challenge
+          </Button>
+        )
+      ) : (
+        <Button variant="outline" size="sm" onClick={onAIReview} disabled={aiReviewLoading} className="w-full">
+          {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+          Review Sections by AI
+        </Button>
+      )}
 
       <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
 
