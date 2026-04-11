@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Save, X, Bot, SlidersHorizontal, Zap, Lock, Unlock } from 'lucide-react';
 import { DirtyConfirmDialog, LockConfirmDialog, SolutionTypeResetDialog } from './complexity/ComplexityDialogs';
 import { useComplexityState, TAB_TO_MODE } from '@/hooks/cogniblend/useComplexityState';
-import { deriveComplexityLevel } from '@/lib/cogniblend/complexityScoring';
+import { deriveComplexityLevel, COMPLEXITY_THRESHOLDS } from '@/lib/cogniblend/complexityScoring';
 import { LEVEL_COLORS } from '@/lib/cogniblend/complexityScoring';
 import {
   TabCard,
@@ -60,7 +60,13 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
   const handleSave = useCallback(() => {
     const mode = TAB_TO_MODE[state.activeTab];
     const finalLevel = state.activeTab === 'quick_select' && state.overrideLevel ? state.overrideLevel : state.derivedLevel;
-    const finalScore = state.activeTab === 'quick_select' ? 0 : state.weightedScore;
+    const finalScore = state.activeTab === 'quick_select'
+      ? (() => {
+          if (!state.overrideLevel) return 0;
+          const t = COMPLEXITY_THRESHOLDS.find(th => th.level === state.overrideLevel);
+          return t ? Math.round(((t.min + t.max) / 2) * 100) / 100 : 0;
+        })()
+      : state.weightedScore;
     const draftToSave = state.activeTab === 'ai_review' ? state.aiDraft : state.manualDraft;
     const resolvedParams: ResolvedParam[] = state.effectiveParams.map((p) => ({
       param_key: p.param_key, name: p.name,
@@ -91,10 +97,15 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
 
   const showActions = !isLocked && (
     (state.activeTab === 'ai_review' && state.editableParams.size > 0) ||
-    state.activeTab === 'manual_params' ||
+    (state.activeTab === 'manual_params' && state.isDirty) ||
     (state.activeTab === 'quick_select' && state.overrideLevel !== null)
   );
   const hasExistingAssessment = currentScore != null || currentLevel != null;
+  const canLock = hasExistingAssessment && !showActions && (
+    (state.activeTab === 'ai_review') ||
+    (state.activeTab === 'manual_params') ||
+    (state.activeTab === 'quick_select' && currentLevel != null)
+  );
 
   return (
     <div className="space-y-4">
@@ -145,8 +156,8 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
               </Button>
             </>
           )}
-          {hasExistingAssessment && onLock && !showActions && (
-            <Button size="sm" variant="default" onClick={() => state.setShowLockConfirm(true)} disabled={saving} className="bg-primary/90 hover:bg-primary">
+          {canLock && onLock && (
+            <Button size="sm" variant="default" onClick={() => state.setShowLockConfirm(true)} disabled={saving}>
               <Lock className="h-3.5 w-3.5 mr-1" />Lock Complexity
             </Button>
           )}
