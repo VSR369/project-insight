@@ -228,6 +228,14 @@ serve(async (req) => {
       console.warn('Industry source merge failed (non-blocking):', e);
     }
 
+    // 5b. Clear previous unreviewed AI suggestions to get fresh targeted results
+    await adminClient
+      .from("challenge_attachments")
+      .delete()
+      .eq("challenge_id", challenge_id)
+      .eq("discovery_source", "ai_suggested")
+      .eq("discovery_status", "suggested");
+
     // 6. Fetch existing URLs to deduplicate
     const { data: existingAtts } = await adminClient
       .from("challenge_attachments")
