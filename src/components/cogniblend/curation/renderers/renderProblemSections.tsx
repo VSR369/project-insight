@@ -32,7 +32,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
     section, challenge, isReadOnly, isEditing, savingSection,
     setSavingSection, cancelEdit, handleSaveDeliverables,
     handleSaveStructuredDeliverables, handleSaveExtendedBrief,
-    saveSectionMutation,
+    saveSectionMutation, autoSaveStatus,
   } = args;
 
   if (!PROBLEM_KEYS.has(section.key)) return null;

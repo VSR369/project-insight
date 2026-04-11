@@ -27,7 +27,7 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
     setSavingSection, cancelEdit, setEditingSection,
     handleAcceptAllLegalDefaults, saveSectionMutation,
     escrowEnabled, setEscrowEnabled, isAcceptingAllLegal,
-    legalDocs, legalDetails, escrowRecord,
+    legalDocs, legalDetails, escrowRecord, autoSaveStatus,
   } = args;
 
   if (!OPS_KEYS.has(section.key)) return null;
