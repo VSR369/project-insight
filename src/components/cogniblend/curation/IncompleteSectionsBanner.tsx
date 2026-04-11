@@ -1,12 +1,13 @@
 /**
  * IncompleteSectionsBanner — Sticky banner above the main grid showing
- * all incomplete/missing sections. Disappears when all are addressed.
+ * all incomplete/missing sections. Uses shared incompleteSectionsUtil.
  */
 
 import { useMemo, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { buildIncompleteGroups, countTotalMissing } from '@/lib/cogniblend/incompleteSectionsUtil';
 import type { GroupDef, SectionDef } from '@/lib/cogniblend/curationTypes';
 
 interface IncompleteSectionsBannerProps {
@@ -25,33 +26,12 @@ export function IncompleteSectionsBanner({
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const incompleteGroups = useMemo(() => {
-    return groups
-      .map((g) => {
-        const progress = groupProgress[g.id];
-        if (!progress || progress.done >= progress.total) return null;
-        const missing = g.sectionKeys.filter((key) => {
-          const sec = sectionMap.get(key);
-          return !!sec;
-        });
-        return {
-          groupId: g.id,
-          label: g.label,
-          missing: progress.total - progress.done,
-          total: progress.total,
-          sectionKeys: missing,
-        };
-      })
-      .filter(Boolean) as Array<{
-        groupId: string;
-        label: string;
-        missing: number;
-        total: number;
-        sectionKeys: string[];
-      }>;
-  }, [groups, groupProgress, sectionMap]);
+  const incompleteGroups = useMemo(
+    () => buildIncompleteGroups(groups, sectionMap, groupProgress),
+    [groups, sectionMap, groupProgress],
+  );
 
-  const totalMissing = incompleteGroups.reduce((s, g) => s + g.missing, 0);
+  const totalMissing = countTotalMissing(incompleteGroups);
 
   if (dismissed || totalMissing === 0) return null;
 
@@ -61,7 +41,8 @@ export function IncompleteSectionsBanner({
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="text-[13px] font-medium text-amber-800 dark:text-amber-300">
-            {totalMissing} section{totalMissing !== 1 ? 's' : ''} incomplete across {incompleteGroups.length} group{incompleteGroups.length !== 1 ? 's' : ''}
+            {totalMissing} section{totalMissing !== 1 ? 's' : ''} incomplete across{' '}
+            {incompleteGroups.length} group{incompleteGroups.length !== 1 ? 's' : ''}
           </span>
         </div>
         <div className="flex items-center gap-1">
