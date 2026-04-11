@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ArrowLeft,
   CheckCircle2,
   AlertTriangle,
   Eye,
+  HelpCircle,
 } from "lucide-react";
 import { GovernanceModeSwitcher } from "@/components/cogniblend/curation/GovernanceModeSwitcher";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
@@ -71,6 +73,7 @@ export interface CurationHeaderBarProps {
 
   optimisticIndustrySegId: string | null;
   industrySegments: Array<{ id: string; name: string }> | undefined;
+  onOpenGuide?: () => void;
 }
 
 export function CurationHeaderBar({
@@ -107,6 +110,7 @@ export function CurationHeaderBar({
   staleCountByGroup,
   optimisticIndustrySegId,
   industrySegments,
+  onOpenGuide,
 }: CurationHeaderBarProps) {
   return (
     <>
