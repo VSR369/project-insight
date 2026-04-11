@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
+import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
@@ -27,49 +28,6 @@ interface LegalDocRow {
   tier: string;
   status: string | null;
   lc_status: string | null;
-}
-
-interface LegalTemplatePreview {
-  template_id: string;
-  document_name: string;
-  tier: string;
-  is_mandatory: boolean;
-}
-
-function useLegalTemplatePreview(
-  challengeId: string,
-  currentPhase: number | undefined,
-  hasActualDocs: boolean,
-  engagementModel?: string,
-  organizationId?: string,
-) {
-  const isPhase2 = (currentPhase ?? 1) < 3 && !hasActualDocs;
-  const isAgg = engagementModel?.toUpperCase() === 'AGG';
-
-  return useQuery<LegalTemplatePreview[]>({
-    queryKey: ['legal-template-preview', challengeId, isAgg, organizationId],
-    queryFn: async () => {
-      if (isAgg && organizationId) {
-        const { data, error } = await supabase
-          .from('org_legal_document_templates')
-          .select('id, document_name, tier, is_mandatory')
-          .eq('organization_id', organizationId)
-          .eq('is_active', true)
-          .order('tier', { ascending: true });
-        if (error) { handleQueryError(error, { operation: 'fetch_org_legal_template_preview' }); return []; }
-        return (data ?? []).map((d) => ({ template_id: d.id, document_name: d.document_name, tier: d.tier, is_mandatory: d.is_mandatory }));
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('legal_document_templates') as any)
-        .select('template_id, document_name, tier, is_mandatory')
-        .eq('is_active', true)
-        .eq('version_status', 'ACTIVE');
-      if (error) { handleQueryError(error, { operation: 'fetch_legal_template_preview' }); return []; }
-      return (data ?? []) as LegalTemplatePreview[];
-    },
-    enabled: isPhase2,
-    staleTime: 5 * 60_000,
-  });
 }
 
 export function ChallengeLegalDocsCard({
