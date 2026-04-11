@@ -1,60 +1,65 @@
 
 
-## Critical Review of Audit Findings
+## Standardize All List/Queue Screens: Sort, Timestamps, Search & Filters
 
-### Verdict Summary
+### Problem
 
-| # | Claimed Bug | Actual Status | Action |
-|---|---|---|---|
-| A | File upload/URLs hidden for STRUCTURED | **REAL** | Fix needed — extract file/URL section |
-| B | referenceUrls not restored on draft reopen | **Already fixed** | No action |
-| C | Schema misalignment for QUICK | **Invalid** | DB confirms only 5 required fields; schema matches |
-| D | crApprovalRequired always true | **REAL** | Fix needed |
-| E | Missing query invalidations in useCompletePhase | **REAL** | Fix needed |
-| F | No curator→creator notification | **Already handled by RPC** | No action — `complete_phase` RPC + `notification_routing` table handles this server-side |
-| G | SQL migrations not applied | **Already applied** | No action — both JSONB fix and routing config are live |
+List screens are inconsistent — some lack search, some show date-only (no time), one sorts oldest-first, and several have no filters at all. Users cannot quickly find what they need.
 
-### Detailed Analysis
+### Global Standard to Apply
 
-**Bug B (referenceUrls):** Code at `useCreatorDraftLoader.ts:119-124` already calls `onReferenceUrlsLoaded(urls)`. `ChallengeCreatorForm.tsx:108` passes `handleReferenceUrlsLoaded` which calls `setReferenceUrls`. This is wired correctly.
+Every list/inbox/queue screen must follow these rules:
+1. **Sort**: Newest first (created_at DESC) — always
+2. **Timestamp**: Full date + time format: `MMM d, yyyy · h:mm a` (e.g. "Apr 11, 2026 · 3:45 PM")
+3. **Search**: Text search input filtering by title (and relevant fields)
+4. **Filters**: At minimum, status/tab filters; add domain filters where data supports it
 
-**Bug C (QUICK schema):** DB query confirms QUICK has exactly 5 required fields: `title, problem_statement, domain_tags, currency_code, platinum_award`. The schema correctly makes `maturity_level` and `weighted_criteria` optional for QUICK. The audit claim is wrong.
+### Screen-by-Screen Audit & Fixes
 
-**Bug F (notifications):** The `notification_routing` table has a row for `phase=2, event_type=PHASE_COMPLETE` routing to CU. The `complete_phase` RPC triggers these. No client-side notification needed.
+| Screen | Sort | Timestamp | Search | Filters | Fixes Needed |
+|--------|------|-----------|--------|---------|--------------|
+| **MyChallengesPage** | ✅ DESC | ✅ Full | ❌ None | ✅ Tabs | Add search input |
+| **BrowseChallengesPage** | ✅ DESC | ❌ Relative only | ✅ Has | ✅ Has | Show full timestamp alongside relative |
+| **CurationQueuePage** | ❌ ASC (bug!) | ❌ Date only | ❌ None | ✅ Tabs | Fix sort to DESC, add full timestamp, add search |
+| **ChallengeListPage** (org) | ✅ DESC | ❌ Date only | ✅ Has | ❌ Minimal | Add time to timestamp, add status filter |
+| **LcChallengeQueuePage** | ❌ No sort | ❌ No timestamp | ❌ None | ❌ None | Add sort, timestamp, search |
+| **FcChallengeQueuePage** | ❌ No sort | ❌ No timestamp | ❌ None | ❌ None | Add sort, timestamp, search |
 
-**Bug G (migrations):** Verified live: `assign_challenge_role` uses JSONB (not RECORD), and `notification_routing` has phase 2 entries.
+### Implementation Details
 
----
+#### 1. MyChallengesPage.tsx — Add search input
+- Add `search` state + `Input` with search icon above the tabs
+- Filter `filteredItems` by title match (case-insensitive)
+- Timestamp already correct (`'MMM d, yyyy · h:mm a'`)
 
-### Fixes to Implement (3 genuine bugs)
+#### 2. BrowseChallengesPage.tsx — Add full timestamp
+- Replace `formatDistanceToNow` with full timestamp + relative in parentheses: `"Apr 11, 2026 · 3:45 PM (2 days ago)"`
+- Import `format` from date-fns
 
-#### Fix A — File Upload + Reference URLs accessible for STRUCTURED
+#### 3. CurationQueuePage.tsx — Fix sort + add timestamp + add search
+- Line 213: Change `ascending: true` to `ascending: false` (critical bug — oldest first currently)
+- Change `formatDate` helper to include time: `'MMM d, yyyy · h:mm a'`
+- Add search input above tabs filtering by challenge title
 
-**Problem:** These sections live inside `AdditionalContextTab`, which is gated behind `isControlled`. STRUCTURED creators cannot attach files or add URLs.
+#### 4. ChallengeListPage.tsx (org) — Add time to timestamp + status filter
+- Change `format(new Date(c.created_at), 'MMM d, yyyy')` to `'MMM d, yyyy · h:mm a'`
+- Add status filter dropdown (draft/active/closed)
 
-**Approach:** We cannot flip the tab to `!isQuick` (that was tried and correctly reverted — it exposes CONTROLLED-only fields to STRUCTURED). Instead, extract the file upload and reference URL sections into a new `ReferenceAttachmentsSection` component and render it below the tabs for all non-QUICK modes. The CONTROLLED-only context fields (stakeholders, root causes, etc.) stay in the Additional Context tab.
+#### 5. LcChallengeQueuePage.tsx — Add timestamp, search
+- Show `created_at` from challenge data (need to fetch it — add to select or use existing data)
+- Add search input filtering by challenge title
+- Ensure items sorted newest first
 
-Files:
-- **New:** `src/components/cogniblend/creator/ReferenceAttachmentsSection.tsx` — file upload + URL input (extracted from AdditionalContextTab lines 112-135)
-- **Edit:** `src/components/cogniblend/creator/AdditionalContextTab.tsx` — remove file upload and URL sections
-- **Edit:** `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` — render `ReferenceAttachmentsSection` below tabs for `!isQuick`, pass attachedFiles/referenceUrls state
+#### 6. FcChallengeQueuePage.tsx — Add timestamp, search
+- Show created_at timestamp on each card
+- Add search input filtering by title
+- Items already fetched without sort — add client-side sort by newest first
 
-#### Fix D — crApprovalRequired derives from governance mode
-
-**Problem:** `useCurationActionData.ts:174` reads `extendedBrief?.creator_approval_required` which is never written by the Creator form. Result: always `undefined !== false → true`, so every MP challenge forces Creator approval — QUICK MP can never auto-publish from curation.
-
-**Fix:** Pass `governanceMode` into `useCurationActionData`. Derive: `crApprovalRequired = governanceMode !== 'QUICK'` (QUICK auto-publishes; STRUCTURED/CONTROLLED require Creator approval). Remove the `extendedBrief` query since it's only used for this check.
-
-Files:
-- **Edit:** `src/hooks/cogniblend/useCurationActionData.ts` — add `governanceMode` to options, replace line 174 logic, remove extendedBrief query
-- **Edit:** `src/components/cogniblend/curation/CurationActions.tsx` — pass `governanceMode` to the hook
-
-#### Fix E — Missing cache invalidations in useCompletePhase
-
-**Problem:** `onSuccess` only invalidates `cogni-dashboard`, `cogni-waiting-for`, `cogni-open-challenges`. Missing: `curation-review`, `curation-queue`, `public-challenge`, `cogni-my-challenges`. Curator submits but their queue doesn't refresh.
-
-**Fix:** Add the 4 missing invalidations to `useCompletePhase.ts` onSuccess callback.
-
-File:
-- **Edit:** `src/hooks/cogniblend/useCompletePhase.ts` — add 4 `invalidateQueries` calls at lines 228-230
+### Files Changed (6 files)
+- `src/pages/cogniblend/MyChallengesPage.tsx` — add search input
+- `src/pages/cogniblend/BrowseChallengesPage.tsx` — full timestamp
+- `src/pages/cogniblend/CurationQueuePage.tsx` — fix sort direction, full timestamp, add search
+- `src/pages/org/ChallengeListPage.tsx` — full timestamp, status filter
+- `src/pages/cogniblend/LcChallengeQueuePage.tsx` — timestamp, search
+- `src/pages/cogniblend/FcChallengeQueuePage.tsx` — timestamp, search, sort
 
