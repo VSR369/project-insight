@@ -127,7 +127,14 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
       )}
 
       <CreatorAttachmentsSection challengeId={challengeId} />
-      <ChallengeLegalDocsCard challengeId={challengeId} isQuickMode={isQuickMode} currentPhase={currentPhase} />
+      <ChallengeLegalDocsCard
+        challengeId={challengeId}
+        isQuickMode={isQuickMode}
+        currentPhase={currentPhase}
+        governanceMode={effectiveGovernance}
+        organizationId={(data as unknown as Record<string, unknown>).organization_id as string | undefined}
+        engagementModel={(data as unknown as Record<string, unknown>).operating_model as string | undefined}
+      />
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />
     </div>
