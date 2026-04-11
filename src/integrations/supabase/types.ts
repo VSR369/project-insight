@@ -1593,6 +1593,7 @@ export type Database = {
           complexity_parameters: Json | null
           complexity_score: number | null
           consulting_fee: number | null
+          context_intake_status: string | null
           created_at: string
           created_by: string | null
           creator_legal_instructions: string | null
@@ -1683,6 +1684,7 @@ export type Database = {
           complexity_parameters?: Json | null
           complexity_score?: number | null
           consulting_fee?: number | null
+          context_intake_status?: string | null
           created_at?: string
           created_by?: string | null
           creator_legal_instructions?: string | null
@@ -1773,6 +1775,7 @@ export type Database = {
           complexity_parameters?: Json | null
           complexity_score?: number | null
           consulting_fee?: number | null
+          context_intake_status?: string | null
           created_at?: string
           created_by?: string | null
           creator_legal_instructions?: string | null
