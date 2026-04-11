@@ -1,18 +1,22 @@
 /**
- * SuggestionCard — AI-suggested source with inline accept/reject actions.
+ * SuggestionCard — AI-suggested source with checkbox, inline accept/reject, and content indicators.
  */
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Sparkles, Check, X, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
+import { ContentIndicators } from './ContentIndicators';
 
 interface SuggestionCardProps {
   source: ContextSource;
   isActive: boolean;
+  isSelected: boolean;
   onSelect: () => void;
+  onToggleSelect: (id: string) => void;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
   isAcceptPending?: boolean;
@@ -36,8 +40,8 @@ function ConfidenceBadge({ score }: { score: number | null }) {
 }
 
 export function SuggestionCard({
-  source, isActive, onSelect, onAccept, onReject,
-  isAcceptPending, isRejectPending,
+  source, isActive, isSelected, onSelect, onToggleSelect,
+  onAccept, onReject, isAcceptPending, isRejectPending,
 }: SuggestionCardProps) {
   return (
     <div
@@ -48,6 +52,12 @@ export function SuggestionCard({
       onClick={onSelect}
     >
       <div className="flex items-start gap-2">
+        <div className="shrink-0 mt-0.5" onClick={e => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect(source.id)}
+          />
+        </div>
         <Sparkles className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
@@ -66,6 +76,7 @@ export function SuggestionCard({
             {source.resource_type && (
               <Badge variant="outline" className="text-[10px] h-4">{source.resource_type}</Badge>
             )}
+            <ContentIndicators source={source} />
           </div>
         </div>
 

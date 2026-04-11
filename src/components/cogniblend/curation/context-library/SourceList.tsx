@@ -2,13 +2,15 @@
  * SourceList — Left panel showing suggested + accepted sources grouped by section.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Globe, FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { SuggestionCard } from './SuggestionCard';
+import { ContentIndicators } from './ContentIndicators';
 import { SECTION_LABELS, displayName, matchSource, type ContextSource } from './types';
 
 interface SourceListProps {
@@ -43,6 +45,8 @@ export function SourceList({
   onAcceptMultiple, onRejectAll, onAcceptOne, onRejectOne,
   isAcceptPending, isRejectPending, isLoading,
 }: SourceListProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const accepted = useMemo(() => sources.filter(s => s.discovery_status === 'accepted'), [sources]);
   const suggested = useMemo(() => sources.filter(s => s.discovery_status === 'suggested'), [sources]);
 
@@ -64,10 +68,47 @@ export function SourceList({
     return groups;
   }, [filtered.accepted]);
 
-  const handleAcceptAll = () => {
-    const ids = filtered.suggested.map(s => s.id);
-    if (ids.length > 0) onAcceptMultiple(ids);
-  };
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const allIds = filtered.suggested.map(s => s.id);
+    const allSelected = allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  }, [filtered.suggested, selectedIds]);
+
+  const allSelected = filtered.suggested.length > 0 &&
+    filtered.suggested.every(s => selectedIds.has(s.id));
+
+  const handleAcceptAction = useCallback(() => {
+    const ids = selectedIds.size > 0
+      ? Array.from(selectedIds)
+      : filtered.suggested.map(s => s.id);
+    if (ids.length > 0) {
+      onAcceptMultiple(ids);
+      setSelectedIds(new Set());
+    }
+  }, [selectedIds, filtered.suggested, onAcceptMultiple]);
+
+  const handleAcceptOne = useCallback((id: string) => {
+    onAcceptOne(id);
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+  }, [onAcceptOne]);
+
+  const handleRejectOne = useCallback((id: string) => {
+    onRejectOne(id);
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+  }, [onRejectOne]);
+
+  const acceptLabel = selectedIds.size > 0
+    ? `Accept Selected (${selectedIds.size})`
+    : `Accept All (${filtered.suggested.length})`;
 
   return (
     <ScrollArea className="w-[40%] border-r">
@@ -76,7 +117,14 @@ export function SourceList({
         {filtered.suggested.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-primary">AI Suggested ({filtered.suggested.length})</h4>
+              <div className="flex items-center gap-2">
+                <div onClick={e => e.stopPropagation()}>
+                  <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} />
+                </div>
+                <h4 className="text-sm font-semibold text-primary">
+                  AI Suggested ({filtered.suggested.length})
+                </h4>
+              </div>
             </div>
             <div className="space-y-1">
               {filtered.suggested.map(s => (
@@ -84,9 +132,11 @@ export function SourceList({
                   key={s.id}
                   source={s}
                   isActive={selectedId === s.id}
+                  isSelected={selectedIds.has(s.id)}
                   onSelect={() => onSelectSource(s.id)}
-                  onAccept={onAcceptOne}
-                  onReject={onRejectOne}
+                  onToggleSelect={handleToggleSelect}
+                  onAccept={handleAcceptOne}
+                  onReject={handleRejectOne}
                   isAcceptPending={isAcceptPending}
                   isRejectPending={isRejectPending}
                 />
@@ -95,14 +145,15 @@ export function SourceList({
             <div className="flex gap-2 mt-2">
               <Button
                 size="sm" variant="default" className="text-xs h-7"
-                onClick={handleAcceptAll}
+                onClick={handleAcceptAction}
                 disabled={filtered.suggested.length === 0 || isAcceptPending}
               >
-                Accept All ({filtered.suggested.length})
+                {acceptLabel}
               </Button>
               <Button
                 size="sm" variant="outline" className="text-xs h-7"
-                onClick={onRejectAll} disabled={isRejectPending}
+                onClick={() => { onRejectAll(); setSelectedIds(new Set()); }}
+                disabled={isRejectPending}
               >
                 Reject All
               </Button>
@@ -131,9 +182,10 @@ export function SourceList({
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{displayName(s)}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                       <ExtractionBadge status={s.extraction_status} />
                       {s.resource_type && <Badge variant="outline" className="text-[10px] h-4">{s.resource_type}</Badge>}
+                      <ContentIndicators source={s} />
                     </div>
                   </div>
                 </div>
