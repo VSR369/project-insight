@@ -52,7 +52,6 @@ interface UseCurationAIActionsOptions {
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions, executeWaves,
-  executeWavesPass1, executeWavesFull, executeWavesPass2,
   executeWavesPass1, executeWavesFull, executeWavesPass2, pass1SetWaveProgress,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
