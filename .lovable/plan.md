@@ -1,29 +1,41 @@
 
 
-## Fix 6 — SuggestionCard Inline Accept/Reject
+## Add Wave 7 — Discover Contextual Sources to Progress Panel
+
+### Problem
+When "Analyse Challenge" runs, the progress panel shows waves 1-6 completing, then jumps to "complete" — but the context discovery step that follows is invisible. The user has no feedback that discovery is running, and the progress bar shows 100% prematurely.
+
+### Approach
+Add Wave 7 as a virtual "discovery" wave that only appears during the Analyse flow (Pass 1). It is not part of the AI review executor — instead, `handleAnalyse` manually injects it into the progress state around the `discover-context-resources` call.
 
 ### Changes
 
-**1. `SuggestionCard.tsx`** — Full rewrite
-- Remove `Checkbox`, `isSelected`, `onToggleCheck` props (bulk selection moves to SourceList checkboxes if needed later)
-- New props: `onAccept(id)`, `onReject(id)`, `isAcceptPending`, `isRejectPending`
-- Add `ExternalLink` icon button for URL sources
-- Redesigned `ConfidenceBadge` with background color tiers (85%+, 70%+, below)
-- Inline accept (green check) and reject (red X) buttons in a horizontal row
+**1. `src/lib/cogniblend/waveConfig.ts`**
+- Add `DISCOVERY_WAVE_NUMBER = 7` constant
+- Add `createInitialWaveProgressWithDiscovery()` that returns 7 waves (the 6 review waves + a Wave 7 entry with name "Discover Contextual Sources", empty sections array)
+- Export the constant so other files can reference it
 
-**2. `SourceList.tsx`** — Update `SuggestionCard` usage
-- Remove `selectedSuggestionIds` state and `toggleSuggestion` logic
-- Remove `Checkbox`-related props (`isSelected`, `onToggleCheck`) from SuggestionCard calls
-- Pass `onAccept`, `onReject`, `isAcceptPending`, `isRejectPending` directly
-- Keep "Accept Selected" bulk button but wire it to select-all or remove it (the user's snippet removes checkboxes from the card, so bulk select via checkboxes is dropped)
-- Keep "Reject All" button
+**2. `src/hooks/useWaveExecutor.ts`**
+- Expose `setWaveProgress` in the return type (rename to `updateWaveProgress`) so the caller can inject Wave 7 state changes externally
+- Add it to `UseWaveExecutorReturn` interface
 
-**3. `ContextLibraryDrawer.tsx`** — No changes needed (already passes `onAcceptOne`/`onRejectOne` to SourceList)
+**3. `src/hooks/cogniblend/useCurationWaveSetup.ts`**
+- Expose `pass1SetWaveProgress` from `pass1Executor.updateWaveProgress` in the return object
+- Pass it through to `useCurationAIActions`
 
-### Technical Details
+**4. `src/hooks/cogniblend/useCurationAIActions.ts` — `handleAnalyse`**
+- Before calling `executeWavesPass1()`, override the initial progress to use the 7-wave variant via `pass1SetWaveProgress`
+- After `executeWavesPass1()` completes (waves 1-6 done), set Wave 7 to `running`
+- After `discover-context-resources` succeeds/fails, set Wave 7 to `completed` or `error`
+- Only then set `overallStatus: 'completed'`
 
-- SuggestionCard becomes a simpler, action-focused card without checkbox state
-- SourceList simplifies by removing `selectedSuggestionIds` Set and related handlers
-- The "Accept Selected" bulk button is removed since individual cards no longer have checkboxes
-- All accept/reject actions flow: SuggestionCard → SourceList → ContextLibraryDrawer → hook mutations
+**5. `src/hooks/cogniblend/useCurationPageOrchestrator.ts`**
+- Thread `pass1SetWaveProgress` from `waveSetup` into `useCurationAIActions` options
+
+### No changes needed
+- `WaveProgressPanel.tsx` — already renders dynamically from whatever waves are in the progress object
+- `createInitialWaveProgress()` — untouched (used by Pass 2 and Full executors which don't need Wave 7)
+
+### Technical Detail
+Wave 7 has an empty `sections` array since discovery isn't section-based. The `WaveProgressPanel` already handles this gracefully — it shows the wave name and status icon without section counts when there are no sections.
 
