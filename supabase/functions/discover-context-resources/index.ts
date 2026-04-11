@@ -46,7 +46,7 @@ serve(async (req) => {
     // 1. Fetch challenge data
     const { data: challenge, error: chErr } = await adminClient
       .from("challenges")
-      .select("title, problem_statement, scope, domain_tags, maturity_level, solution_type, currency_code, organization_id")
+      .select("title, problem_statement, scope, domain_tags, maturity_level, solution_type, currency_code, organization_id, industry_segment_id")
       .eq("id", challenge_id)
       .single();
     if (chErr || !challenge) {
@@ -59,18 +59,19 @@ serve(async (req) => {
     // 2. Fetch org context
     const { data: org } = await adminClient
       .from("seeker_organizations")
-      .select("name, industry_segment_id, country, city, website, description")
+      .select("organization_name, industry_segment_id, hq_city, website_url, organization_description")
       .eq("id", challenge.organization_id)
       .single();
 
     // Get industry segment name and code
     let industryName = "";
     let industryCode = "";
-    if (org?.industry_segment_id) {
+    const segmentId = challenge.industry_segment_id || org?.industry_segment_id;
+    if (segmentId) {
       const { data: segment } = await adminClient
         .from("industry_segments")
         .select("name, code")
-        .eq("id", org.industry_segment_id)
+        .eq("id", segmentId)
         .single();
       industryName = segment?.name ?? "";
       industryCode = segment?.code ?? "";
@@ -96,11 +97,11 @@ serve(async (req) => {
 
     const variableMap: Record<string, string> = {
       "{{domain}}": primaryDomain,
-      "{{geography}}": org?.country || "global",
+      "{{geography}}": org?.hq_city || "global",
       "{{industry}}": industryName || "industry",
       "{{maturityLevel}}": challenge.maturity_level || "proof_of_concept",
       "{{solution_type}}": challenge.solution_type || "innovation",
-      "{{orgName}}": org?.name || "organization",
+      "{{orgName}}": org?.organization_name || "organization",
       "{{currency}}": challenge.currency_code || "USD",
     };
 
@@ -167,7 +168,7 @@ serve(async (req) => {
             SG: 'singapore', AU: 'australia', NZ: 'australia',
             JP: 'apac_other', KR: 'apac_other', MY: 'apac_other',
           };
-          const countryCode = org?.country?.toUpperCase?.() || '';
+          const countryCode = (org?.hq_city || '').toUpperCase().substring(0, 2);
           const regionCode = COUNTRY_TO_REGION[countryCode] || null;
           const globalRegs = industryPack.regulatory_landscape.global || [];
           const regionalRegs = regionCode
@@ -228,7 +229,7 @@ ${resourceTypes.map((rt: any) =>
 CHALLENGE: "${challenge.title}"
 PROBLEM: ${challenge.problem_statement || "Not specified"}
 SCOPE: ${challenge.scope || "Not specified"}
-ORGANIZATION: ${org?.name || "Unknown"} (${industryName}, ${org?.country || "global"})
+ORGANIZATION: ${org?.organization_name || "Unknown"} (${industryName}, ${org?.hq_city || "global"})
 DOMAIN: ${primaryDomain}
 MATURITY: ${challenge.maturity_level || "Unknown"}
 
