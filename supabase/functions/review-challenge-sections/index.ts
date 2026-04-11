@@ -859,10 +859,11 @@ GROUNDING RULE (CRITICAL):
         for (const r of batchResults) {
           (r as any).prompt_source = promptSource;
         }
-        // pass1_only: strip suggestion field to keep only analysis
+        // pass1_only: strip suggestion field and tag with phase: 'triage'
         if (pass1_only === true) {
           for (const r of batchResults) {
             delete (r as any).suggestion;
+            (r as any).phase = 'triage';
           }
         }
         allNewSections.push(...batchResults);

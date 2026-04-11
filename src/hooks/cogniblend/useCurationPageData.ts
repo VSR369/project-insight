@@ -103,6 +103,8 @@ export interface CurationPageState {
   setBudgetShortfall: React.Dispatch<React.SetStateAction<BudgetShortfallResult | null>>;
   contextLibraryOpen: boolean;
   setContextLibraryOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  pass1DoneSession: boolean;
+  setPass1DoneSession: React.Dispatch<React.SetStateAction<boolean>>;
   aiQuality: AIQualitySummary | null;
   setAiQuality: React.Dispatch<React.SetStateAction<AIQualitySummary | null>>;
   aiQualityLoading: boolean;
@@ -170,6 +172,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
   const [preFlightDialogOpen, setPreFlightDialogOpen] = useState(false);
   const [budgetShortfall, setBudgetShortfall] = useState<BudgetShortfallResult | null>(null);
   const [contextLibraryOpen, setContextLibraryOpen] = useState(false);
+  const [pass1DoneSession, setPass1DoneSession] = useState(false);
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
   const [lockedSendState, setLockedSendState] = useState<{
@@ -303,6 +306,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
     escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, setIsAcceptingAllLegal,
     preFlightResult, setPreFlightResult, preFlightDialogOpen, setPreFlightDialogOpen,
     budgetShortfall, setBudgetShortfall, contextLibraryOpen, setContextLibraryOpen,
+    pass1DoneSession, setPass1DoneSession,
     aiQuality, setAiQuality, aiQualityLoading, setAiQualityLoading,
     lockedSendState, setLockedSendState,
     challenge, isLoading, orgTypeName,
