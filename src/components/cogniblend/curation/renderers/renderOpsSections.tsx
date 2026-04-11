@@ -43,7 +43,7 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
             saveSectionMutation.mutate({ field: "phase_schedule", value: rows });
             if (Array.isArray(rows) && rows.length > 0) {
               const endDates = rows
-                .map((r: Record<string, string>) => r.end_date)
+                .map((r: any) => r.end_date)
                 .filter(Boolean)
                 .map((d: string) => new Date(d).getTime())
                 .filter((t: number) => !isNaN(t));
@@ -86,7 +86,7 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
     }
 
     case "data_resources_provided": {
-      const raw = parseJson<Record<string, string>[]>((challenge as Record<string, unknown>).data_resources_provided) ?? [];
+      const raw = parseJson<Record<string, string>[]>((challenge as any).data_resources_provided) ?? [];
       if (!isReadOnly) {
         return (
           <TableSectionEditor
@@ -113,7 +113,7 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
     }
 
     case "success_metrics_kpis": {
-      const raw = parseJson<Record<string, string>[]>((challenge as Record<string, unknown>).success_metrics_kpis) ?? [];
+      const raw = parseJson<Record<string, string>[]>((challenge as any).success_metrics_kpis) ?? [];
       if (!isReadOnly) {
         return (
           <TableSectionEditor

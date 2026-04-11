@@ -55,10 +55,10 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
       );
 
     case "submission_guidelines": {
-      const raw = parseJson<Record<string, unknown>>((challenge as Record<string, unknown>).submission_guidelines);
-      const items = Array.isArray(raw) ? raw : Array.isArray((raw as Record<string, unknown>)?.items) ? (raw as Record<string, unknown>).items as unknown[] : [];
-      const lineItems = (items as unknown[]).map((item: unknown) => typeof item === "string" ? item : (item as Record<string, string>)?.name ?? "");
-      const finalItems = lineItems.length > 0 ? lineItems : ((challenge as Record<string, unknown>).submission_guidelines ? [] : (challenge.description?.trim() ? [challenge.description] : []));
+      const raw = parseJson<any>((challenge as any).submission_guidelines);
+      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
+      const lineItems = items.map((item: any) => typeof item === "string" ? item : item?.name ?? "");
+      const finalItems = lineItems.length > 0 ? lineItems : ((challenge as any).submission_guidelines ? [] : (challenge.description?.trim() ? [challenge.description] : []));
       const structuredGuidelines = getSubmissionGuidelineObjects(challenge);
       return (
         <LineItemsSectionRenderer

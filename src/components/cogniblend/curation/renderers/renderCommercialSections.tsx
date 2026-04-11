@@ -128,11 +128,11 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
           currentLevel={challenge.complexity_level ?? null}
           currentParams={parseJson<Record<string, unknown>[]>(challenge.complexity_parameters) ?? null}
           complexityParams={complexityParams}
-          solutionType={challenge.solution_type as string}
+          solutionType={challenge.solution_type as any}
           onSave={handleSaveComplexity}
           onLock={handleLockComplexity}
           onUnlock={handleUnlockComplexity}
-          isLocked={(challenge as Record<string, unknown>).complexity_locked === true}
+          isLocked={(challenge as any).complexity_locked === true}
           saving={savingSection}
           aiSuggestedRatings={aiSuggestedComplexity}
         />
