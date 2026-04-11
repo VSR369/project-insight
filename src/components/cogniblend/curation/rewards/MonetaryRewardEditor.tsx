@@ -77,6 +77,30 @@ export default function MonetaryRewardEditor({
         </select>
       </div>
 
+      {/* AI Split banner */}
+      {totalPool != null && totalPool > 0 && hasAISuggestions === false && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-semibold text-blue-800 dark:text-blue-300">
+              Creator budget: {currSym}{totalPool.toLocaleString()}
+            </p>
+            <p className="text-[11px] text-blue-600 dark:text-blue-400">
+              AI suggests: 50% Platinum · 30% Gold · 20% Silver
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs shrink-0"
+            onClick={onApplyAITiers}
+            disabled={disabled}
+          >
+            <Sparkles className="h-3 w-3 mr-1" />
+            Apply AI Split
+          </Button>
+        </div>
+      )}
+
       {/* Three fixed tier cards */}
       {(['platinum', 'gold', 'silver'] as const).map((rank) => (
         <PrizeTierCard

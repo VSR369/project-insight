@@ -205,6 +205,22 @@ export function useRewardStructureHandlers({
   const handleRemoveIncentive = useCallback((selectionId: string) => removeIncentiveSelectionMut.mutate({ id: selectionId, challengeId }), [removeIncentiveSelectionMut, challengeId]);
   const handleUpdateCommitment = useCallback((selectionId: string, commitment: string) => updateIncentiveCommitmentMut.mutate({ id: selectionId, challengeId, seeker_commitment: commitment }), [updateIncentiveCommitmentMut, challengeId]);
 
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: '$', EUR: '€', GBP: '£', INR: '₹', AED: 'د.إ', SGD: 'S$', AUD: 'A$',
+  };
+  const currSym = CURRENCY_SYMBOLS[currency] ?? '$';
+
+  const handleApplyAITiers = useCallback(() => {
+    if (!totalPool) return;
+    const platinum = Math.round(totalPool * 0.50);
+    const gold = Math.round(totalPool * 0.30);
+    const silver = totalPool - platinum - gold;
+    updateTier('platinum', { enabled: true, amount: platinum });
+    updateTier('gold', { enabled: true, amount: gold });
+    updateTier('silver', { enabled: true, amount: silver });
+    toast.success(`AI split applied: ${currSym}${platinum.toLocaleString()} / ${currSym}${gold.toLocaleString()} / ${currSym}${silver.toLocaleString()}`);
+  }, [totalPool, updateTier, currSym]);
+
   return {
     saving, isDirty, hasAISuggestions, aiRationale, hasBeenReviewed,
     handleApplyAIReviewResult, handleSave, handleLockRewardType,
@@ -214,5 +230,6 @@ export function useRewardStructureHandlers({
     handleTypeSwitch, handleTypeSwitchFromReadOnly,
     handleAddPrizeTier, handleUpdatePrizeTier, handleDeletePrizeTier, handleReorderPrizeTier,
     handleAddIncentive, handleRemoveIncentive, handleUpdateCommitment,
+    handleApplyAITiers,
   };
 }

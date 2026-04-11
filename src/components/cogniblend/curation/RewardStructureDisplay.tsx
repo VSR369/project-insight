@@ -143,6 +143,7 @@ const RewardStructureDisplay = forwardRef<RewardStructureDisplayHandle, RewardSt
       onAddIncentive={handlers.handleAddIncentive}
       onRemoveIncentive={handlers.handleRemoveIncentive}
       onUpdateCommitment={handlers.handleUpdateCommitment}
+      onApplyAITiers={handlers.handleApplyAITiers}
     />
   );
 });
