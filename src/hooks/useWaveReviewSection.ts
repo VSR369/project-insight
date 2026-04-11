@@ -19,6 +19,8 @@ interface UseWaveReviewSectionOptions {
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
   onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
   pass1Only?: boolean;
+  skipAnalysis?: boolean;
+  providedCommentsBySectionKey?: Record<string, unknown[]>;
 }
 
 export function useWaveReviewSection({
@@ -26,6 +28,8 @@ export function useWaveReviewSection({
   onSectionReviewed,
   onComplexitySuggestion,
   pass1Only = false,
+  skipAnalysis = false,
+  providedCommentsBySectionKey,
 }: UseWaveReviewSectionOptions) {
   return useCallback(async (
     sectionKey: SectionKey,
@@ -39,16 +43,27 @@ export function useWaveReviewSection({
 
     try {
       const currentContent = context.sections[sectionKey] ?? null;
+      const body: Record<string, unknown> = {
+        challenge_id: challengeId,
+        section_key: sectionKey,
+        role_context: 'curation',
+        current_content: currentContent,
+        context,
+        wave_action: action,
+      };
+
+      if (pass1Only) body.pass1_only = true;
+
+      if (skipAnalysis && providedCommentsBySectionKey) {
+        const existingComments = providedCommentsBySectionKey[sectionKey];
+        if (existingComments?.length) {
+          body.skip_analysis = true;
+          body.provided_comments = existingComments;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
-        body: {
-          challenge_id: challengeId,
-          section_key: sectionKey,
-          role_context: 'curation',
-          current_content: currentContent,
-          context,
-          wave_action: action,
-          ...(pass1Only ? { pass1_only: true } : {}),
-        },
+        body,
       });
 
       if (error) throw new Error(error.message);
@@ -120,5 +135,5 @@ export function useWaveReviewSection({
       store.getState().setReviewStatus(sectionKey, 'error');
       return 'error';
     }
-  }, [challengeId, onSectionReviewed, onComplexitySuggestion, pass1Only]);
+  }, [challengeId, onSectionReviewed, onComplexitySuggestion, pass1Only, skipAnalysis, providedCommentsBySectionKey]);
 }

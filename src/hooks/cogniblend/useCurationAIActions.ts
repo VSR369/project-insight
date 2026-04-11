@@ -31,6 +31,7 @@ interface UseCurationAIActionsOptions {
   executeWaves: () => Promise<void>;
   executeWavesPass1: () => Promise<void>;
   executeWavesFull: () => Promise<void>;
+  executeWavesPass2: () => Promise<void>;
   saveSectionMutationRef: React.RefObject<any>;
   setPreFlightResult: (v: any) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
@@ -49,7 +50,7 @@ interface UseCurationAIActionsOptions {
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions, executeWaves,
-  executeWavesPass1, executeWavesFull,
+  executeWavesPass1, executeWavesFull, executeWavesPass2,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
@@ -157,22 +158,24 @@ export function useCurationAIActions({
     setAiReviewLoading(true);
     setTriageTotalCount(0);
     try {
-      // Fire discovery in parallel (non-blocking) so Context Library has sources ready
-      supabase.functions.invoke('discover-context-resources', {
-        body: { challenge_id: challengeId },
-      }).then(() => {
+      // Run Pass 1 analysis first
+      await executeWavesPass1();
+
+      // AFTER Pass 1 completes, run discovery sequentially
+      try {
+        await supabase.functions.invoke('discover-context-resources', {
+          body: { challenge_id: challengeId },
+        });
         queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
-      }).catch(() => {});
+      } catch {
+        // Discovery failure is non-blocking
+      }
 
-      await executeWavesPass1();
       setTriageTotalCount(24);
       setPass1DoneSession(true);
       toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
-      // Invalidate context queries before opening drawer so it fetches fresh data
-      queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
-      queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
       // Auto-open Context Library so curator can review/accept discovered sources
       setContextLibraryOpen(true);
     } catch (e: unknown) {
@@ -181,7 +184,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient]);
+  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen]);
 
   // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
   const handleGenerateSuggestions = useCallback(async () => {
@@ -192,7 +195,8 @@ export function useCurationAIActions({
       await supabase.functions.invoke('generate-context-digest', {
         body: { challenge_id: challengeId },
       });
-      await executeWavesFull();
+      // Run Pass 2 only — reuses stored Pass 1 comments, skips re-analysis
+      await executeWavesPass2();
       const ctx = buildChallengeContext(buildContextOptions());
       const shortfall = detectBudgetShortfall(ctx);
       setBudgetShortfall(shortfall);
@@ -204,7 +208,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [executeWavesFull, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setPass1DoneSession]);
+  }, [executeWavesPass2, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setPass1DoneSession]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;

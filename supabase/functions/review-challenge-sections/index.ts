@@ -840,35 +840,44 @@ GROUNDING RULE (CRITICAL):
 
       const promptSource = useDbConfig ? "supervisor" : "default";
       try {
-        // ═══ TWO-PASS: Pass 1 (Analyze) + Pass 2 (Rewrite) ═══
-        const batchResults = await callAIBatchTwoPass(
-          LOVABLE_API_KEY,
-          modelToUse,
-          systemPrompt,
-          userPrompt,
-          batch.map(s => s.key),
-          challengeData,
-          wave_action || 'review',
-          clientContext,
-          batchSectionConfigs,
-          skip_analysis === true,
-          provided_comments,
-          masterDataOptions,
-          orgContext,
-          attachmentsBySection,
-          contextDigestText,
-          useContextIntelligence,
-        );
+        let batchResults: any[];
+
+        if (pass1_only === true) {
+          // ═══ PASS 1 ONLY: Analyze without generating suggestions ═══
+          batchResults = await callAIPass1Analyze(
+            LOVABLE_API_KEY,
+            modelToUse,
+            systemPrompt,
+            userPrompt,
+            batch.map(s => s.key),
+          );
+          for (const r of batchResults) {
+            (r as any).phase = 'analysis';
+          }
+        } else {
+          // ═══ TWO-PASS: Pass 1 (Analyze) + Pass 2 (Rewrite) ═══
+          batchResults = await callAIBatchTwoPass(
+            LOVABLE_API_KEY,
+            modelToUse,
+            systemPrompt,
+            userPrompt,
+            batch.map(s => s.key),
+            challengeData,
+            wave_action || 'review',
+            clientContext,
+            batchSectionConfigs,
+            skip_analysis === true,
+            provided_comments,
+            masterDataOptions,
+            orgContext,
+            attachmentsBySection,
+            contextDigestText,
+            useContextIntelligence,
+          );
+        }
         // Tag each result with prompt source
         for (const r of batchResults) {
           (r as any).prompt_source = promptSource;
-        }
-        // pass1_only: strip suggestion field and tag with phase: 'triage'
-        if (pass1_only === true) {
-          for (const r of batchResults) {
-            delete (r as any).suggestion;
-            (r as any).phase = 'triage';
-          }
         }
         allNewSections.push(...batchResults);
       } catch (err: any) {

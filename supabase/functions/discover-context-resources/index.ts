@@ -317,7 +317,7 @@ IMPORTANT:
           source_url: s.url,
           url_title: s.title?.substring(0, 500) || null,
           discovery_source: "ai_suggested",
-          discovery_status: "suggested",
+          discovery_status: "accepted",
           resource_type: s.resource_type || null,
           relevance_explanation: s.relevance_explanation?.substring(0, 1000) || null,
           confidence_score: typeof s.confidence_score === "number" ? Math.min(Math.max(s.confidence_score, 0), 1) : null,
