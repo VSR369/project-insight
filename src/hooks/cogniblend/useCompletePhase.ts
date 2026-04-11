@@ -29,9 +29,12 @@ interface AutoCompletedPhase {
 }
 
 interface CompletePhaseResult {
+  completed: boolean;
   success: boolean;
   challenge_id: string;
-  new_phase: number;
+  previous_phase: number;
+  current_phase: number;
+  governance_mode: string;
   phases_auto_completed?: AutoCompletedPhase[];
   stopped_reason?: 'different_actor' | 'solver_phase' | null;
   waiting_for_role?: string | null;
@@ -77,7 +80,7 @@ function showSequentialToasts(
 
   // Final status toast
   setTimeout(() => {
-    if (result.stopped_reason === 'solver_phase' || result.new_phase === 4 || result.new_phase === 5) {
+    if (result.stopped_reason === 'solver_phase' || result.current_phase === 4 || result.current_phase === 5) {
       toast(
         createElement(
           'div',
@@ -116,7 +119,7 @@ function showSequentialToasts(
             createElement(
               'span',
               { className: 'text-[13px]' },
-              `Next: Act as ${navTarget.label} → Phase ${result.new_phase}`,
+              `Next: Act as ${navTarget.label} → Phase ${result.current_phase}`,
             ),
           ),
           {
@@ -143,7 +146,7 @@ function showSequentialToasts(
             createElement(
               'span',
               { className: 'text-[13px]' },
-              `Waiting for: ${result.waiting_for_role_name ?? result.waiting_for_role} to take action on Phase ${result.new_phase}.`,
+              `Waiting for: ${result.waiting_for_role_name ?? result.waiting_for_role} to take action on Phase ${result.current_phase}.`,
             ),
           ),
           {
