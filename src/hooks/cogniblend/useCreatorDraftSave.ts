@@ -50,6 +50,7 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
       toast.error('Organization or user context not loaded. Please wait and try again.');
       return;
     }
+    const loadingId = toast.loading('Saving draft…');
     try {
       const base = {
         orgId, creatorId: userId, operatingModel: engagementModel,
@@ -77,14 +78,19 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
       };
       if (draftChallengeId) {
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });
+        toast.dismiss(loadingId);
         toast.success('Draft updated successfully');
       } else {
         const result = await draftMutation.mutateAsync(base);
         setDraftChallengeId(result.challengeId);
         onDraftIdChange?.(result.challengeId);
+        toast.dismiss(loadingId);
         toast.success('Draft saved successfully');
       }
-    } catch { /* handled by mutation onError */ }
+    } catch {
+      toast.dismiss(loadingId);
+      /* handled by mutation onError */
+    }
   }, [isSaving, form, orgId, userId, engagementModel, governanceMode, industrySegmentId, referenceUrls, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
 
   return { handleSaveDraft, isSaving, draftChallengeId, initFromUrl };
