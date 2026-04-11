@@ -141,6 +141,16 @@ export function CurationHeaderBar({
           <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
         )}
         <div className="flex items-center gap-2 shrink-0">
+          {onOpenGuide && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onOpenGuide}>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Curation Guide</TooltipContent>
+            </Tooltip>
+          )}
           <Switch checked={guidedMode} onCheckedChange={onGuidedModeChange} />
           <span className="text-xs text-muted-foreground">
             {guidedMode ? "Guided" : "Free browse"}
