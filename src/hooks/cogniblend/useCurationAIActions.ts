@@ -28,6 +28,8 @@ interface UseCurationAIActionsOptions {
   aiReviews: SectionReview[];
   buildContextOptions: () => BuildChallengeContextOptions;
   executeWaves: () => Promise<void>;
+  executeWavesPass1: () => Promise<void>;
+  executeWavesFull: () => Promise<void>;
   saveSectionMutationRef: React.RefObject<any>;
   setPreFlightResult: (v: any) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
@@ -39,15 +41,17 @@ interface UseCurationAIActionsOptions {
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
   setAiSuggestedComplexity: (v: any) => void;
   setHighlightWarnings: (v: boolean) => void;
+  setContextLibraryOpen: (v: boolean) => void;
 }
 
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions, executeWaves,
+  executeWavesPass1, executeWavesFull,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
-  setAiSuggestedComplexity, setHighlightWarnings,
+  setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
 }: UseCurationAIActionsOptions) {
 
   const executeWavesWithBudgetCheck = useCallback(async () => {
