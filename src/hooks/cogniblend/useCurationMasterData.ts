@@ -1,17 +1,16 @@
 /**
  * useCurationMasterData — Batch-fetches master data options used by
  * curator section renderers (maturity levels, complexity levels,
- * visibility options, effort levels, IP models, eligibility/solver profiles).
+ * visibility options, IP models, eligibility/solver profiles).
  *
- * Centralizes all master data lookups so renderers don't hardcode options.
- * Phase 5A: Now fetches solver eligibility tiers from md_solver_eligibility.
+ * All options fetched from DB with graceful fallbacks.
  */
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CACHE_STABLE } from "@/config/queryCache";
-// Maturity options now fetched from md_solution_maturity DB table
+import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from "@/lib/maturityLabels";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -24,20 +23,15 @@ export interface MasterDataOption {
 export interface CurationMasterData {
   maturityOptions: MasterDataOption[];
   complexityOptions: MasterDataOption[];
-  /** Solver-tier visibility options from md_solver_eligibility */
   visibilityOptions: MasterDataOption[];
-  
-  
   ipModelOptions: MasterDataOption[];
-  /** Solver-tier eligibility options from md_solver_eligibility */
   eligibilityOptions: MasterDataOption[];
   isLoading: boolean;
 }
 
-/* ── Static options (no DB table needed) ───────────────── */
+/* ── Fallback constants ────────────────────────────────── */
 
-
-const IP_MODEL_OPTIONS: MasterDataOption[] = [
+const FALLBACK_IP_OPTIONS: MasterDataOption[] = [
   { value: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
   { value: "IP-NEL", label: "Non-Exclusive License", description: "Solver retains ownership, grants license to seeker" },
   { value: "IP-EL", label: "Exclusive License", description: "Solver grants exclusive license to seeker" },
@@ -48,7 +42,6 @@ const IP_MODEL_OPTIONS: MasterDataOption[] = [
 /* ── Hook ──────────────────────────────────────────────── */
 
 export function useCurationMasterData(): CurationMasterData {
-  // Fetch complexity levels from DB
   const { data: complexityRows, isLoading: complexityLoading } = useQuery({
     queryKey: ["master-complexity-levels"],
     queryFn: async () => {
@@ -63,7 +56,6 @@ export function useCurationMasterData(): CurationMasterData {
     ...CACHE_STABLE,
   });
 
-  // Fetch solver eligibility tiers from DB (used for BOTH eligibility & visibility sections)
   const { data: solverTierRows, isLoading: solverTierLoading } = useQuery({
     queryKey: ["master-solver-eligibility-tiers"],
     queryFn: async () => {
@@ -78,7 +70,6 @@ export function useCurationMasterData(): CurationMasterData {
     ...CACHE_STABLE,
   });
 
-  // Fetch maturity options from DB (md_solution_maturity)
   const { data: maturityRows, isLoading: maturityLoading } = useQuery({
     queryKey: ["master-solution-maturity"],
     queryFn: async () => {
@@ -93,17 +84,35 @@ export function useCurationMasterData(): CurationMasterData {
     ...CACHE_STABLE,
   });
 
-  // Build maturity options from DB
+  const { data: ipModelRows, isLoading: ipModelLoading } = useQuery({
+    queryKey: ["master-ip-models"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("md_ip_models" as never)
+        .select("id, code, label, description, display_order")
+        .eq("is_active", true)
+        .order("display_order");
+      if (error || !data || (data as unknown[]).length === 0) return null;
+      return data as { id: string; code: string; label: string; description: string | null; display_order: number }[];
+    },
+    ...CACHE_STABLE,
+  });
+
   const maturityOptions = useMemo<MasterDataOption[]>(() =>
-    (maturityRows ?? []).map((r) => ({
-      value: r.code.toUpperCase(),
-      label: r.label,
-      description: r.description ?? undefined,
-    })),
+    maturityRows && maturityRows.length > 0
+      ? maturityRows.map((r) => ({
+          value: r.code,
+          label: r.label,
+          description: r.description ?? undefined,
+        }))
+      : Object.entries(MATURITY_LABELS).map(([key, label]) => ({
+          value: key.toUpperCase(),
+          label,
+          description: MATURITY_DESCRIPTIONS[key],
+        })),
     [maturityRows],
   );
 
-  // Build complexity options from DB
   const complexityOptions = useMemo<MasterDataOption[]>(() =>
     (complexityRows ?? []).map((r) => ({
       value: r.complexity_code,
@@ -113,7 +122,6 @@ export function useCurationMasterData(): CurationMasterData {
     [complexityRows],
   );
 
-  // Build solver tier options from DB (shared for eligibility & visibility)
   const solverTierOptions = useMemo<MasterDataOption[]>(() =>
     (solverTierRows ?? []).map((r) => ({
       value: r.code,
@@ -123,13 +131,23 @@ export function useCurationMasterData(): CurationMasterData {
     [solverTierRows],
   );
 
+  const ipModelOptions = useMemo<MasterDataOption[]>(() =>
+    ipModelRows
+      ? ipModelRows.map((r) => ({
+          value: r.code,
+          label: r.label,
+          description: r.description ?? undefined,
+        }))
+      : FALLBACK_IP_OPTIONS,
+    [ipModelRows],
+  );
+
   return {
     maturityOptions,
     complexityOptions,
     visibilityOptions: solverTierOptions,
-    
-    ipModelOptions: IP_MODEL_OPTIONS,
+    ipModelOptions,
     eligibilityOptions: solverTierOptions,
-    isLoading: complexityLoading || solverTierLoading || maturityLoading,
+    isLoading: complexityLoading || solverTierLoading || maturityLoading || ipModelLoading,
   };
 }
