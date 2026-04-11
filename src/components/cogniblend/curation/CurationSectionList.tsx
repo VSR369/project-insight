@@ -45,6 +45,7 @@ export interface CurationSectionListProps {
   sectionAIFlags: Record<string, string[]>;
   highlightWarnings: boolean;
   aiSuggestedComplexity: any;
+  reviewSessionActive?: boolean;
 
   groupReadiness: Record<string, { ready: boolean; missingPrereqs: string[]; missingPrereqSections: string[]; completionPct: number }>;
   sectionReadiness: Record<string, { ready: boolean; missing: string[] }>;

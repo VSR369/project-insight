@@ -114,16 +114,22 @@ export function CurationRightRail(props: CurationRightRailProps) {
             {props.pass1Done ? 'Re-analyse Challenge' : 'Analyse Challenge'}
           </Button>
           {props.pass1Done && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={props.onGenerateSuggestions}
-              disabled={aiReviewLoading}
-              className="w-full"
-            >
-              {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-              Generate Suggestions
-            </Button>
+            <>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 space-y-1">
+                <p className="font-medium">Next step: Review discovered sources</p>
+                <p>Open the Context Library to review and accept/reject sources before generating suggestions.</p>
+              </div>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={props.onGenerateSuggestions}
+                disabled={aiReviewLoading}
+                className="w-full"
+              >
+                {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                Generate Suggestions
+              </Button>
+            </>
           )}
         </div>
       ) : (

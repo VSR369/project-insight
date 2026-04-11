@@ -109,6 +109,7 @@ export default function CurationReviewPage() {
         aiReviewCounts={o.aiReviewCounts}
         onAcceptAllPassing={o.handleAcceptAllPassing}
         onReviewWarnings={o.handleReviewWarnings}
+        reviewSessionActive={o.pass1DoneSession}
         phaseDescription={o.phaseDescription}
         legalEscrowBlocked={o.legalEscrowBlocked}
         blockingReason={o.blockingReason}
@@ -173,6 +174,7 @@ export default function CurationReviewPage() {
                 sectionAIFlags={o.sectionAIFlags}
                 highlightWarnings={o.highlightWarnings}
                 aiSuggestedComplexity={o.aiSuggestedComplexity}
+                reviewSessionActive={o.pass1DoneSession}
                 groupReadiness={o.groupReadiness}
                 sectionReadiness={o.sectionReadiness}
                 dismissedPrereqBanner={o.dismissedPrereqBanner}
