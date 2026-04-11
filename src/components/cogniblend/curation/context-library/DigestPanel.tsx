@@ -1,19 +1,22 @@
 /**
- * DigestPanel — Editable context digest with Save + Confirm flow.
- * Bug 5 fix: Added word/character count indicators.
+ * DigestPanel — Sophisticated editable context digest with:
+ * - Word count + section coverage indicators
+ * - Side-by-side AI original vs curator version (Compare tab)
+ * - Preview tab for read-only draft viewing
+ * - Confirm to unlock Generate Suggestions
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { RefreshCw, ChevronDown, BookOpen, Save, CheckCircle2, Pencil, RotateCcw } from 'lucide-react';
+import {
+  RefreshCw, ChevronDown, BookOpen, Save, CheckCircle2,
+  Pencil, RotateCcw, Eye, SplitSquareHorizontal, AlertTriangle,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const TARGET_WORDS = 600;
-const WORD_WARNING_LOW = 300;
-const WORD_WARNING_HIGH = 900;
 
 interface DigestData {
   digest_text: string | null;
@@ -32,40 +35,30 @@ interface DigestPanelProps {
   onConfirm: () => void;
 }
 
-function countWords(text: string): number {
+function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-function WordIndicator({ text }: { text: string }) {
-  const words = countWords(text);
-  const chars = text.length;
-  const isLow = words < WORD_WARNING_LOW && words > 0;
-  const isHigh = words > WORD_WARNING_HIGH;
-  const color = isLow || isHigh ? 'text-amber-600' : 'text-muted-foreground';
+const DIGEST_SECTIONS = [
+  'Organization Context', 'Industry Landscape', 'Regulatory Environment',
+  'Technology Context', 'Competitive Intelligence', 'Key Numbers', 'Risks',
+];
 
-  return (
-    <div className={`flex items-center gap-2 text-[11px] ${color}`}>
-      <span>{words} / ~{TARGET_WORDS} words</span>
-      <span className="text-muted-foreground">·</span>
-      <span className="text-muted-foreground">{chars.toLocaleString()} chars</span>
-      {isLow && <span className="text-amber-600">(too short)</span>}
-      {isHigh && <span className="text-amber-600">(consider trimming)</span>}
-    </div>
-  );
+function sectionCoverage(text: string): { present: string[]; missing: string[] } {
+  const lower = text.toLowerCase();
+  const present = DIGEST_SECTIONS.filter(s => lower.includes(s.toLowerCase()));
+  const missing = DIGEST_SECTIONS.filter(s => !lower.includes(s.toLowerCase()));
+  return { present, missing };
 }
 
 export function DigestPanel({
-  digest,
-  onRegenerate,
-  isRegenerating,
-  onSave,
-  isSaving,
-  onConfirm,
+  digest, onRegenerate, isRegenerating, onSave, isSaving, onConfirm,
 }: DigestPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [view, setView] = useState<'edit' | 'preview' | 'compare'>('edit');
 
   useEffect(() => {
     setDraft(digest?.digest_text ?? '');
@@ -74,6 +67,9 @@ export function DigestPanel({
 
   const isDirty = draft !== (digest?.digest_text ?? '');
   const hasDigest = !!digest?.digest_text;
+  const wc = useMemo(() => wordCount(draft), [draft]);
+  const coverage = useMemo(() => sectionCoverage(draft), [draft]);
+  const hasOriginal = !!digest?.curator_edited && !!digest.original_digest_text;
 
   const handleSave = useCallback(() => {
     if (!isDirty) { setIsEditing(false); return; }
@@ -81,120 +77,148 @@ export function DigestPanel({
     setIsEditing(false);
   }, [draft, isDirty, onSave]);
 
-  const handleRestoreOriginal = useCallback(() => {
-    if (digest?.original_digest_text) {
-      setDraft(digest.original_digest_text);
-    }
-  }, [digest?.original_digest_text]);
-
   const handleConfirm = useCallback(() => {
     setConfirmed(true);
     onConfirm();
   }, [onConfirm]);
 
   return (
-    <div className="shrink-0 border-t">
+    <div className="border rounded-lg bg-card">
       <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50">
-          <span className="text-sm font-semibold flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Context Digest
+        <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 rounded-t-lg">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">Context Digest</span>
             {digest?.source_count != null && (
-              <Badge variant="secondary" className="text-xs">{digest.source_count} sources</Badge>
+              <Badge variant="secondary" className="text-[10px] h-5">{digest.source_count} sources</Badge>
             )}
             {digest?.curator_edited && (
-              <Badge variant="outline" className="text-xs">Edited</Badge>
+              <Badge variant="outline" className="text-[10px] h-5 text-amber-600 border-amber-300">Curator edited</Badge>
             )}
             {confirmed && (
-              <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-300">
-                Confirmed
-              </Badge>
+              <Badge className="text-[10px] h-5 bg-emerald-100 text-emerald-700 border-emerald-300">Confirmed</Badge>
             )}
-          </span>
-          <div className="flex items-center gap-2">
+          </div>
+          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
             {!isEditing && hasDigest && (
-              <Button
-                size="sm" variant="ghost" className="h-6 text-xs"
-                onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-              >
+              <Button size="sm" variant="ghost" className="h-7 text-xs"
+                onClick={() => { setIsEditing(true); setView('edit'); }}>
                 <Pencil className="h-3 w-3 mr-1" />Edit
               </Button>
             )}
-            <Button
-              size="sm" variant="ghost" className="h-6 text-xs"
-              onClick={(e) => { e.stopPropagation(); onRegenerate(); setConfirmed(false); }}
-              disabled={isRegenerating}
-            >
+            <Button size="sm" variant="outline" className="h-7 text-xs"
+              onClick={() => { onRegenerate(); setConfirmed(false); }}
+              disabled={isRegenerating}>
               <RefreshCw className={cn('h-3 w-3 mr-1', isRegenerating && 'animate-spin')} />
-              {isRegenerating ? 'Generating...' : 'Regenerate'}
+              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
             </Button>
             <ChevronDown className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')} />
           </div>
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="px-3 pb-3 space-y-2">
-            {!hasDigest ? (
-              <p className="text-xs text-muted-foreground">
-                No digest generated yet. Accept sources above and click "Regenerate".
-              </p>
-            ) : isEditing ? (
-              <EditMode
-                draft={draft}
-                onDraftChange={setDraft}
-                onSave={handleSave}
-                onCancel={() => { setDraft(digest?.digest_text ?? ''); setIsEditing(false); }}
-                onRestore={handleRestoreOriginal}
-                canRestore={!!digest?.curator_edited && !!digest.original_digest_text}
-                isSaving={isSaving}
-                isDirty={isDirty}
-              />
-            ) : (
-              <ReadMode
-                digest={digest}
-                confirmed={confirmed}
-                onConfirm={handleConfirm}
-              />
-            )}
-          </div>
+          {!hasDigest ? (
+            <EmptyState onRegenerate={onRegenerate} isRegenerating={isRegenerating} />
+          ) : isEditing ? (
+            <EditMode
+              draft={draft} setDraft={setDraft} view={view} setView={setView}
+              wc={wc} coverage={coverage} hasOriginal={hasOriginal}
+              originalText={digest?.original_digest_text ?? ''}
+              onSave={handleSave}
+              onCancel={() => { setDraft(digest?.digest_text ?? ''); setIsEditing(false); }}
+              isSaving={isSaving} isDirty={isDirty}
+            />
+          ) : (
+            <ReadMode digest={digest!} confirmed={confirmed} onConfirm={handleConfirm} />
+          )}
         </CollapsibleContent>
       </Collapsible>
     </div>
   );
 }
 
-/* ── Sub-components ── */
+/* ---------- Sub-components ---------- */
 
-interface EditModeProps {
-  draft: string;
-  onDraftChange: (v: string) => void;
-  onSave: () => void;
-  onCancel: () => void;
-  onRestore: () => void;
-  canRestore: boolean;
-  isSaving: boolean;
-  isDirty: boolean;
+function EmptyState({ onRegenerate, isRegenerating }: { onRegenerate: () => void; isRegenerating: boolean }) {
+  return (
+    <div className="px-3 pb-4 pt-2 flex flex-col items-center justify-center gap-2 text-center min-h-[120px]">
+      <BookOpen className="h-8 w-8 text-muted-foreground/40" />
+      <p className="text-xs text-muted-foreground">No digest yet. Accept sources above and click Regenerate.</p>
+      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={onRegenerate} disabled={isRegenerating}>
+        <RefreshCw className="h-3 w-3 mr-1" />Generate Digest
+      </Button>
+    </div>
+  );
 }
 
-function EditMode({ draft, onDraftChange, onSave, onCancel, onRestore, canRestore, isSaving, isDirty }: EditModeProps) {
+interface EditModeProps {
+  draft: string; setDraft: (v: string) => void;
+  view: 'edit' | 'preview' | 'compare'; setView: (v: 'edit' | 'preview' | 'compare') => void;
+  wc: number; coverage: { missing: string[] }; hasOriginal: boolean; originalText: string;
+  onSave: () => void; onCancel: () => void; isSaving: boolean; isDirty: boolean;
+}
+
+function EditMode({ draft, setDraft, view, setView, wc, coverage, hasOriginal, originalText, onSave, onCancel, isSaving, isDirty }: EditModeProps) {
   return (
-    <>
-      <p className="text-[11px] text-muted-foreground">
-        Edit the digest text to focus AI suggestions on what matters most for this challenge.
-      </p>
-      <Textarea
-        value={draft}
-        onChange={(e) => onDraftChange(e.target.value)}
-        rows={10}
-        className="text-xs font-mono resize-none w-full"
-        placeholder="Digest text..."
-        autoFocus
-      />
-      <WordIndicator text={draft} />
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-1.5">
-          {canRestore && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={onRestore}>
+    <div className="px-3 pb-3 space-y-2">
+      <Tabs value={view} onValueChange={v => setView(v as 'edit' | 'preview' | 'compare')}>
+        <div className="flex items-center justify-between">
+          <TabsList className="h-7">
+            <TabsTrigger value="edit" className="text-[11px] h-6 px-2"><Pencil className="h-3 w-3 mr-1" />Edit</TabsTrigger>
+            <TabsTrigger value="preview" className="text-[11px] h-6 px-2"><Eye className="h-3 w-3 mr-1" />Preview</TabsTrigger>
+            {hasOriginal && (
+              <TabsTrigger value="compare" className="text-[11px] h-6 px-2">
+                <SplitSquareHorizontal className="h-3 w-3 mr-1" />Compare
+              </TabsTrigger>
+            )}
+          </TabsList>
+          <span className={cn('text-[10px] font-medium', wc < 400 || wc > 800 ? 'text-amber-600' : 'text-emerald-600')}>
+            {wc} words {wc < 400 ? '(too short)' : wc > 800 ? '(too long)' : '(good)'}
+          </span>
+        </div>
+
+        <TabsContent value="edit" className="mt-2 space-y-1.5">
+          <Textarea value={draft} onChange={e => setDraft(e.target.value)} rows={12}
+            className="text-xs resize-none w-full leading-relaxed" placeholder="Digest text..." autoFocus />
+          {coverage.missing.length > 0 && (
+            <div className="flex items-start gap-1.5 text-[10px] text-amber-600">
+              <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+              <span>Missing sections: {coverage.missing.join(' · ')}</span>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="preview" className="mt-2">
+          <div className="max-h-[280px] overflow-y-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap bg-muted/20">
+            {draft || <span className="text-muted-foreground italic">Nothing to preview</span>}
+          </div>
+        </TabsContent>
+
+        {hasOriginal && (
+          <TabsContent value="compare" className="mt-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground mb-1">AI Original</p>
+                <div className="max-h-[260px] overflow-y-auto rounded-md border p-2 text-[10px] leading-relaxed whitespace-pre-wrap bg-muted/10">
+                  {originalText}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-primary mb-1">Your Version</p>
+                <div className="max-h-[260px] overflow-y-auto rounded-md border border-primary/30 p-2 text-[10px] leading-relaxed whitespace-pre-wrap bg-primary/5">
+                  {draft}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        )}
+      </Tabs>
+
+      <div className="flex items-center justify-between gap-2 pt-1 border-t">
+        <div>
+          {hasOriginal && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+              onClick={() => setDraft(originalText)}>
               <RotateCcw className="h-3 w-3 mr-1" />Restore AI original
             </Button>
           )}
@@ -202,66 +226,52 @@ function EditMode({ draft, onDraftChange, onSave, onCancel, onRestore, canRestor
         <div className="flex gap-1.5">
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onCancel}>Cancel</Button>
           <Button size="sm" className="h-7 text-xs" onClick={onSave} disabled={isSaving || !isDirty}>
-            <Save className="h-3 w-3 mr-1" />
-            {isSaving ? 'Saving...' : 'Save'}
+            <Save className="h-3 w-3 mr-1" />{isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-interface ReadModeProps {
-  digest: DigestData;
-  confirmed: boolean;
-  onConfirm: () => void;
-}
-
-function ReadMode({ digest, confirmed, onConfirm }: ReadModeProps) {
+function ReadMode({ digest, confirmed, onConfirm }: { digest: DigestData; confirmed: boolean; onConfirm: () => void }) {
   const keyFacts = digest.key_facts as Record<string, unknown> | null | undefined;
-  const hasKeyFacts = keyFacts && Object.keys(keyFacts).length > 0;
+  const hasKeyFacts = keyFacts && typeof keyFacts === 'object' && Object.keys(keyFacts).length > 0;
 
   return (
-    <>
-      <div className="max-h-[180px] overflow-y-auto rounded-md bg-muted/30 p-2.5">
-        <p className="text-xs whitespace-pre-wrap text-foreground leading-relaxed">
-          {digest.digest_text}
-        </p>
+    <div className="px-3 pb-3 space-y-2">
+      <div className="max-h-[200px] overflow-y-auto rounded-md bg-muted/30 p-2.5 text-xs leading-relaxed whitespace-pre-wrap">
+        {digest.digest_text}
       </div>
 
-      {digest.digest_text && <WordIndicator text={digest.digest_text} />}
-
       {hasKeyFacts && (
-        <div className="rounded-md border bg-muted/20 p-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            Verified Key Facts
-          </p>
-          <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap overflow-auto max-h-[80px]">
-            {JSON.stringify(keyFacts, null, 2)}
-          </pre>
+        <div className="rounded-md border bg-primary/5 p-2 space-y-1">
+          <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Verified Key Facts</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+            {Object.entries(keyFacts)
+              .filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : true))
+              .map(([k, v]) => (
+                <div key={k} className="text-[10px]">
+                  <span className="font-medium text-muted-foreground capitalize">{k.replace(/_/g, ' ')}: </span>
+                  <span className="text-foreground">{Array.isArray(v) ? v.slice(0, 2).join(', ') : String(v)}</span>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-1 border-t">
-        <p className="text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-between gap-3 pt-1.5 border-t">
+        <p className="text-[11px] text-muted-foreground leading-tight">
           {confirmed
-            ? 'Digest confirmed — Generate Suggestions is now enabled.'
-            : 'Review the digest, then confirm to enable suggestions.'}
+            ? '✅ Digest confirmed — Generate Suggestions is enabled.'
+            : 'Review the digest above, edit if needed, then confirm to unlock suggestions.'}
         </p>
-        <Button
-          size="sm"
-          variant={confirmed ? 'outline' : 'default'}
-          className={cn(
-            'h-7 text-xs shrink-0',
-            confirmed && 'text-emerald-600 border-emerald-300',
-          )}
-          onClick={onConfirm}
-          disabled={confirmed}
-        >
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          {confirmed ? 'Confirmed' : 'Confirm Digest'}
+        <Button size="sm" variant={confirmed ? 'outline' : 'default'}
+          className={cn('h-7 text-xs shrink-0', confirmed && 'text-emerald-600 border-emerald-300')}
+          onClick={onConfirm} disabled={confirmed}>
+          <CheckCircle2 className="h-3 w-3 mr-1" />{confirmed ? 'Confirmed' : 'Confirm & Close'}
         </Button>
       </div>
-    </>
+    </div>
   );
 }
