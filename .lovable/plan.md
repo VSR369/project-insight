@@ -1,35 +1,28 @@
 
 
-## Full Rewrite: `discover-context-resources` Edge Function
+## Convert Context Library from Side Drawer to Fullscreen Dialog
 
-### What Changes
+### Problem
+The Context Library currently opens as a 900px right-aligned Sheet (drawer), which feels narrow and cramped for reviewing sources, reading extracted text, and managing suggestions. The user wants a fullscreen experience with a clear Close option.
 
-Replace the entire edge function with a richer, full-context discovery approach. Key improvements over current version:
+### Approach
+Replace the `Sheet` / `SheetContent` wrapper with a fullscreen `Dialog` / `DialogContent` — similar to the existing `SectionFullscreenModal` pattern already in the codebase.
 
-1. **All 27 challenge fields fetched** — current version only reads ~10 fields. New version reads problem_statement, scope, deliverables, evaluation_criteria, reward_structure, success_metrics, solver_expertise, complexity, and more.
+### Changes
 
-2. **Rich challenge context block** — `buildChallengeContext()` assembles all section content + extended_brief subsections into a structured text block injected into the AI prompt.
+**1. `src/components/cogniblend/curation/ContextLibraryDrawer.tsx`**
+- Replace `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` imports with `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`
+- Apply fullscreen sizing: `w-[calc(100vw-80px)] max-w-none h-[calc(100vh-80px)]` on `DialogContent` (matches the existing `SectionFullscreenModal` pattern)
+- Keep all internal layout (header actions, source list + detail split, digest panel) exactly the same
+- The Dialog component already renders a built-in X close button in the top-right corner
+- Remove the inline `style` prop hack (no longer needed since Dialog doesn't have the `sm:max-w-sm` issue)
 
-3. **Existing sources as negative context** — `buildExistingSourcesContext()` reads accepted/extracted attachments and includes their summaries so the AI avoids suggesting duplicates.
+### No other files change
+- `CurationReviewPage.tsx` already passes `open` and `onOpenChange` — Dialog uses the same props
+- All child components (`SourceList`, `SourceDetail`, `DigestPanel`) are layout-agnostic
 
-4. **Industry knowledge pack** — Fetches `common_kpis` and `technology_landscape` in addition to `preferred_analyst_sources` and `regulatory_landscape`.
-
-5. **Current section content in per-section specs** — Each section directive now includes the actual challenge content for that section, giving the AI precise context for what's already written.
-
-6. **Cleaner stale clearing** — Deletes ALL `ai_suggested` sources (not just `suggested` status), ensuring accepted AI suggestions from previous runs are also cleared for a fully fresh discovery.
-
-7. **Auto-extraction trigger** — Sources auto-accepted (confidence >= 0.85) immediately trigger `extract-attachment-text` asynchronously.
-
-8. **Tuned AI parameters** — max_tokens raised to 6000, temperature lowered to 0.2, max sources raised to 35.
-
-### Implementation
-
-Single file replacement + deploy:
-- **`supabase/functions/discover-context-resources/index.ts`** — Full rewrite with the provided code
-- Deploy via `supabase--deploy_edge_functions`
-
-### Risk Notes
-- Step 7 (clearing ALL `ai_suggested` including previously accepted) is intentional per the code comment — each run produces a clean slate. Previously accepted AI sources that the curator explicitly accepted will be re-discovered if still relevant.
-- The org query now fetches additional fields (`hq_country_id`, `annual_revenue_range`, `employee_count_range`) — these are read but not heavily used yet; no schema change needed as they exist on the table.
-- `safeJson()` and `brief()` helpers add truncation safety throughout.
+### Technical Detail
+- The `Dialog` close button is built into `DialogContent` by default (the X icon at top-right)
+- The fullscreen sizing gives ~95% of viewport space vs the previous fixed 900px drawer
+- The source list and detail panel will have more horizontal room, improving readability of Full Text and Key Data tabs
 
