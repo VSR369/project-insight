@@ -1,37 +1,31 @@
 
 
-## Fix 3 — Extraction Wait + Digest After Extraction
+## Fix 5 — Sophisticated DigestPanel with Tabs, Preview, and Compare
 
-### Problem
-- `useAddContextUrl` awaits the edge function invoke but not the actual extraction completion (the edge function may return before text is fully extracted)
-- `useAcceptSuggestion` still fires extraction and digest as fire-and-forget
-- `useAcceptMultipleSuggestions` same issue
-- `useUploadContextFile` same issue — fire-and-forget extraction
+### What Changes
 
-### Changes — Single file: `src/hooks/cogniblend/useContextLibrary.ts`
+Upgrade the DigestPanel from basic edit/read modes to a tabbed editing experience:
 
-**1. Add `waitForExtraction` helper** (before mutations section, ~line 149)
-- Polls `challenge_attachments.extraction_status` every 2s, max 45s
-- Returns when status is `completed` or `failed`
+1. **Tabbed edit mode** — Replace plain textarea with `Tabs` component offering Edit / Preview / Compare views
+2. **Section coverage indicators** — Detect which of 7 standard digest sections are present and warn about missing ones
+3. **Compare view** — Side-by-side AI original vs curator version (only when `curator_edited` is true)
+4. **Preview tab** — Read-only preview of draft text while editing
+5. **Improved empty state** — Icon + CTA button instead of plain text
+6. **Key facts grid** — Replace raw JSON `<pre>` with a formatted 2-column grid
+7. **Refined word count** — Inline in tab header bar with color-coded thresholds (400/800)
 
-**2. Rewrite `useAcceptSuggestion`** (line 169)
-- After updating `discovery_status` to `accepted`: `await` extraction invoke
-- `await waitForExtraction(attachmentId)`
-- Then `await` digest regeneration
-- Toast: "Source accepted and indexed"
+### File: `src/components/cogniblend/curation/context-library/DigestPanel.tsx`
 
-**3. Rewrite `useAcceptMultipleSuggestions`** (line 210)
-- After bulk update: trigger all extractions in parallel with `Promise.allSettled`
-- `await Promise.allSettled` of `waitForExtraction` for each id
-- Then regenerate digest once
-- Toast: "Sources accepted and indexed"
+**Full rewrite** — consolidate `EditMode` and `ReadMode` sub-components back into the main component since the tabbed UI needs shared state. Key structural changes:
 
-**4. Update `useAddContextUrl`** (line 298)
-- Add `await waitForExtraction(att.id)` between extraction invoke and digest invoke (currently missing the poll)
+- Add imports: `Tabs, TabsContent, TabsList, TabsTrigger`, `Eye`, `SplitSquareHorizontal`, `AlertTriangle`
+- Add `view` state: `'edit' | 'preview' | 'compare'`
+- Add `sectionCoverage()` function with 7 standard section labels
+- Replace `WordIndicator` component with inline word count badge in tab bar
+- Empty state: centered layout with `BookOpen` icon + "Generate Digest" button
+- Edit mode: 3-tab layout (edit textarea, preview pane, compare side-by-side)
+- Read mode: digest text + formatted key facts grid + confirm row
+- Remove unused constants (`TARGET_WORDS`, `WORD_WARNING_LOW`, `WORD_WARNING_HIGH`)
 
-**5. Update `useUploadContextFile`** (line 255)
-- Same pattern: await extraction, wait for completion, then regenerate digest
-- Toast: "File uploaded and indexed"
-
-### No other files affected
+~200 lines total. No other files affected.
 
