@@ -1,25 +1,27 @@
 /**
  * ContextLibraryDrawer — Thin orchestrator importing sub-components.
- * Decomposed per plan Gap 6: < 120 lines.
+ * Bug 2 fix: Added file upload UI. Bug 7 fix: Passes acceptOne/rejectOne to SourceList.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Link, Sparkles, BookOpen, X } from 'lucide-react';
+import { Search, Link, Sparkles, BookOpen, X, Upload } from 'lucide-react';
 import {
   useContextSources, useContextDigest, useDiscoverSources,
   useAcceptSuggestion, useRejectSuggestion, useAcceptMultipleSuggestions,
   useRejectAllSuggestions, useAddContextUrl, useDeleteContextSource,
   useUpdateSourceSharing, useUpdateSourceSections, useRegenerateDigest,
-  useSaveDigest,
+  useSaveDigest, useUploadContextFile,
 } from '@/hooks/cogniblend/useContextLibrary';
 import { SourceList } from './context-library/SourceList';
 import { SourceDetail } from './context-library/SourceDetail';
 import { DigestPanel } from './context-library/DigestPanel';
 import { SECTION_LABELS } from './context-library/types';
+
+const ACCEPTED_FILE_TYPES = '.pdf,.docx,.xlsx,.csv,.txt,.md,.png,.jpg,.jpeg,.webp';
 
 interface ContextLibraryDrawerProps {
   challengeId: string;
@@ -36,6 +38,8 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState('');
   const [urlSection, setUrlSection] = useState('problem_statement');
+  const [fileSection, setFileSection] = useState('problem_statement');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: sources = [], isLoading } = useContextSources(challengeId);
   const { data: digest } = useContextDigest(challengeId);
@@ -45,6 +49,7 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
   const acceptMultiple = useAcceptMultipleSuggestions(challengeId);
   const rejectAll = useRejectAllSuggestions(challengeId);
   const addUrl = useAddContextUrl(challengeId);
+  const uploadFile = useUploadContextFile(challengeId);
   const deleteSource = useDeleteContextSource(challengeId);
   const updateSharing = useUpdateSourceSharing(challengeId);
   const updateSection = useUpdateSourceSections(challengeId);
@@ -58,6 +63,13 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
     addUrl.mutate({ url: urlValue.trim(), sectionKey: urlSection });
     setUrlValue('');
     setShowUrlInput(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadFile.mutate({ file, sectionKey: fileSection });
+    e.target.value = '';
   };
 
   return (
@@ -77,6 +89,22 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
             <Button size="sm" variant="outline" onClick={() => setShowUrlInput(!showUrlInput)}>
               <Link className="h-4 w-4 mr-1" />Add URL
             </Button>
+            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending}>
+              <Upload className="h-4 w-4 mr-1" />{uploadFile.isPending ? 'Uploading...' : 'Upload File'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_FILE_TYPES}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Select value={fileSection} onValueChange={setFileSection}>
+              <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(SECTION_LABELS).map(([k, v]) => (<SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>))}
+              </SelectContent>
+            </Select>
             <div className="flex-1" />
             <div className="relative">
               <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -92,7 +120,9 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
                   {Object.entries(SECTION_LABELS).map(([k, v]) => (<SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>))}
                 </SelectContent>
               </Select>
-              <Button size="sm" onClick={handleAddUrl} disabled={!urlValue.trim() || addUrl.isPending}>Add</Button>
+              <Button size="sm" onClick={handleAddUrl} disabled={!urlValue.trim() || addUrl.isPending}>
+                {addUrl.isPending ? 'Adding...' : 'Add'}
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => setShowUrlInput(false)}><X className="h-4 w-4" /></Button>
             </div>
           )}
@@ -104,6 +134,8 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
             onSelectSource={setSelectedId}
             onAcceptMultiple={(ids) => acceptMultiple.mutate(ids)}
             onRejectAll={() => rejectAll.mutate()}
+            onAcceptOne={(id) => acceptOne.mutate(id)}
+            onRejectOne={(id) => rejectOne.mutate(id)}
             isAcceptPending={acceptMultiple.isPending} isRejectPending={rejectAll.isPending}
             isLoading={isLoading}
           />

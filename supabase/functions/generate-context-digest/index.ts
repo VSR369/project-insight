@@ -1,7 +1,6 @@
 /**
  * generate-context-digest — Synthesizes accepted context sources into a 600-word grounded digest.
- * Fetches accepted attachments, compiles summaries + key data, calls AI to synthesize,
- * and upserts into challenge_context_digest.
+ * Bug 4 fix: Preserves curator-edited digest_text when curator_edited=true.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -69,18 +68,18 @@ serve(async (req) => {
     if (challenge?.organization_id) {
       const { data: org } = await adminClient
         .from("seeker_organizations")
-        .select("name, country, description")
+        .select("organization_name, hq_city, organization_description")
         .eq("id", challenge.organization_id)
         .single();
       if (org) {
-        orgContext = `Organization: ${org.name} (${org.country || "global"}). ${org.description || ""}`;
+        orgContext = `Organization: ${org.organization_name} (${org.hq_city || "global"}). ${org.organization_description || ""}`;
       }
     }
 
     // 3. Compile source material
-    const sourceBlocks = attachments.map((att: any, i: number) => {
+    const sourceBlocks = attachments.map((att: Record<string, unknown>, i: number) => {
       const name = att.file_name || att.url_title || att.source_url || `Source ${i + 1}`;
-      const summary = att.extracted_summary || (att.extracted_text?.substring(0, 3000)) || "[No content extracted]";
+      const summary = (att.extracted_summary as string) || ((att.extracted_text as string)?.substring(0, 3000)) || "[No content extracted]";
       const keyData = att.extracted_key_data ? JSON.stringify(att.extracted_key_data) : "";
       return `[SOURCE ${i + 1}: ${name}] [${att.resource_type || att.source_type}] [${att.section_key}]
 ${summary}
@@ -175,36 +174,61 @@ After the digest, output a JSON block with key facts:
       }
     }
 
-    // 6. Upsert into challenge_context_digest
-    const { error: upsertErr } = await adminClient
+    // 6. Bug 4 fix: Check if curator has edited the digest before upserting
+    const { data: existingDigest } = await adminClient
       .from("challenge_context_digest")
-      .upsert(
-        {
-          challenge_id,
-          digest_text: digestText.substring(0, 10000),
+      .select("curator_edited, digest_text")
+      .eq("challenge_id", challenge_id)
+      .maybeSingle();
+
+    const newDigestText = digestText.substring(0, 10000);
+
+    if (existingDigest?.curator_edited) {
+      // Curator has edited — preserve their version, store new AI text as original
+      const { error: updateErr } = await adminClient
+        .from("challenge_context_digest")
+        .update({
+          original_digest_text: newDigestText,
           key_facts: keyFacts,
           source_count: attachments.length,
           generated_at: new Date().toISOString(),
-        },
-        { onConflict: "challenge_id" },
-      );
-
-    if (upsertErr) throw new Error(upsertErr.message);
+        })
+        .eq("challenge_id", challenge_id);
+      if (updateErr) throw new Error(updateErr.message);
+    } else {
+      // No curator edits — safe to overwrite digest_text
+      const { error: upsertErr } = await adminClient
+        .from("challenge_context_digest")
+        .upsert(
+          {
+            challenge_id,
+            digest_text: newDigestText,
+            original_digest_text: newDigestText,
+            key_facts: keyFacts,
+            source_count: attachments.length,
+            generated_at: new Date().toISOString(),
+          },
+          { onConflict: "challenge_id" },
+        );
+      if (upsertErr) throw new Error(upsertErr.message);
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
-          digest_text: digestText.substring(0, 500) + (digestText.length > 500 ? "..." : ""),
+          digest_text: newDigestText.substring(0, 500) + (newDigestText.length > 500 ? "..." : ""),
           source_count: attachments.length,
+          curator_edit_preserved: !!existingDigest?.curator_edited,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("generate-context-digest error:", err);
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

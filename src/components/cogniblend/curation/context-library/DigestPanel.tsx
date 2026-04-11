@@ -1,15 +1,19 @@
 /**
  * DigestPanel — Editable context digest with Save + Confirm flow.
- * Curator can edit AI-generated text before it feeds into Pass 2 suggestions.
+ * Bug 5 fix: Added word/character count indicators.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RefreshCw, ChevronDown, BookOpen, Save, CheckCircle2, Pencil, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const TARGET_WORDS = 600;
+const WORD_WARNING_LOW = 300;
+const WORD_WARNING_HIGH = 900;
 
 interface DigestData {
   digest_text: string | null;
@@ -26,6 +30,28 @@ interface DigestPanelProps {
   onSave: (text: string) => void;
   isSaving: boolean;
   onConfirm: () => void;
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function WordIndicator({ text }: { text: string }) {
+  const words = countWords(text);
+  const chars = text.length;
+  const isLow = words < WORD_WARNING_LOW && words > 0;
+  const isHigh = words > WORD_WARNING_HIGH;
+  const color = isLow || isHigh ? 'text-amber-600' : 'text-muted-foreground';
+
+  return (
+    <div className={`flex items-center gap-2 text-[11px] ${color}`}>
+      <span>{words} / ~{TARGET_WORDS} words</span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-muted-foreground">{chars.toLocaleString()} chars</span>
+      {isLow && <span className="text-amber-600">(too short)</span>}
+      {isHigh && <span className="text-amber-600">(consider trimming)</span>}
+    </div>
+  );
 }
 
 export function DigestPanel({
@@ -137,7 +163,7 @@ export function DigestPanel({
   );
 }
 
-/* ── Sub-components to keep main component concise ── */
+/* ── Sub-components ── */
 
 interface EditModeProps {
   draft: string;
@@ -164,6 +190,7 @@ function EditMode({ draft, onDraftChange, onSave, onCancel, onRestore, canRestor
         placeholder="Digest text..."
         autoFocus
       />
+      <WordIndicator text={draft} />
       <div className="flex items-center justify-between gap-2">
         <div className="flex gap-1.5">
           {canRestore && (
@@ -201,6 +228,8 @@ function ReadMode({ digest, confirmed, onConfirm }: ReadModeProps) {
           {digest.digest_text}
         </p>
       </div>
+
+      {digest.digest_text && <WordIndicator text={digest.digest_text} />}
 
       {hasKeyFacts && (
         <div className="rounded-md border bg-muted/20 p-2">
