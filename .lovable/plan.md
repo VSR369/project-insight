@@ -1,40 +1,72 @@
 
+## Yes — this is a real UI issue
 
-## Fix: Curator Guide Modal Stability & Visibility
+I reviewed the current implementation and the reference sheet. Even without changing browser zoom, the modal is not fully viewport-safe, so at higher zoom levels it can look trimmed or cramped.
 
-### Problems Identified
+### What is causing it
+1. `CuratorGuideModal.tsx` uses `max-w-4xl max-h-[90vh]` but does not set a viewport-safe width like `w-full max-w-[90vw]`.
+2. The dialog primitive itself defaults to `w-full max-w-lg`; only `max-w-4xl` is being overridden, so the modal is not explicitly optimized for zoomed/narrower viewports.
+3. The “Time You Get Back” section is hard-coded as `grid-cols-3`, so it stays 3 columns even when browser zoom reduces usable width.
+4. The header/body/footer use fixed padding, which makes the content feel tighter sooner at high zoom.
+5. The tooltip trigger already exists in the header (`HelpCircle` + `TooltipContent`), so that part is present.
 
-1. **Modal disappears on overlay click** — `Dialog` passes `onOpenChange={setGuideOpen}` directly, so clicking outside the modal closes it immediately without the user clicking either CTA
-2. **ESC key closes without intent** — Same issue; ESC fires `onOpenChange(false)` bypassing the "Show again later" / "Got it" flow
-3. **No visible close button** — `hideCloseButton` is set to `true`, so there's no X button for explicit dismissal
-4. **Tooltip exists and works** — The HelpCircle button with `<TooltipContent>Curation Guide</TooltipContent>` is already in place (confirmed in CurationHeaderBar.tsx lines 144-152)
+### Important clarification
+A web app cannot control the browser’s zoom level. What we should fix is:
+- make the instruction sheet adapt better to the available viewport
+- prevent clipping/trimming at common zoom levels
+- make the content reflow cleanly
 
-### Fix (1 file: `CuratorGuideModal.tsx`)
+## Fix plan
 
-**Prevent accidental dismissal:**
-- Add `onPointerDownOutside={(e) => e.preventDefault()}` to `DialogContent` — prevents overlay click from closing
-- Add `onEscapeKeyDown={(e) => e.preventDefault()}` — prevents ESC from closing
-- Remove `hideCloseButton` — show the built-in X close button so users have an explicit way to dismiss (acts like "Show again later")
+### 1) Make the modal viewport-safe
+Update `CuratorGuideModal.tsx` so the dialog uses a width pattern like:
+- `w-[calc(100vw-2rem)]`
+- `max-w-5xl` or `max-w-[90vw]`
+- `max-h-[90vh]`
 
-**Improve layout visibility:**
-- Change `max-w-3xl` to `max-w-4xl` for more breathing room
-- Ensure the modal has proper z-index stacking by keeping the Dialog's built-in overlay
+This ensures the sheet respects the visible browser area instead of feeling cut off.
 
-### Changes
+### 2) Improve internal layout responsiveness
+Adjust section layouts so they collapse earlier and more gracefully:
+- review flow: keep `grid-cols-1 lg:grid-cols-3`
+- AI coverage: keep `grid-cols-1 lg:grid-cols-2`
+- time savings: change from `grid-cols-3` to `grid-cols-1 lg:grid-cols-3`
 
-```typescript
-// CuratorGuideModal.tsx — DialogContent update
-<DialogContent
-  className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0"
-  onPointerDownOutside={(e) => e.preventDefault()}
-  onEscapeKeyDown={(e) => e.preventDefault()}
->
-```
+This is the main reason the content feels trimmed at zoomed widths.
 
-Remove `hideCloseButton` so the X button appears (clicking X = "Show again later" behavior, just closes without setting localStorage flag).
+### 3) Reduce visual crowding
+Tighten the modal into a cleaner readable structure:
+- slightly reduce padding on smaller widths
+- keep header and footer fixed
+- keep body scrollable with `flex-1 min-h-0 overflow-y-auto`
+- add a little more right/left breathing room only on large screens
 
-### Files changed
+### 4) Make the close/help behavior clearer
+Keep the visible close button and retain the existing tooltip trigger in the header.
+I’ll also make sure the help trigger has a clearer accessible label/tooltip text such as:
+- “Open curation guide”
+- tooltip: “View guide”
+
+### 5) Align more closely with the reference design
+Refine the content block spacing so it feels more like a professional instruction sheet:
+- stronger header hierarchy
+- cleaner metric cards
+- simpler dependency callout
+- consistent text sizing and line lengths
+
+## Files to update
 | File | Change |
 |------|--------|
-| `CuratorGuideModal.tsx` | Prevent overlay/ESC dismissal, show X button, widen modal |
+| `src/components/cogniblend/curation/CuratorGuideModal.tsx` | Make width viewport-safe, improve responsive grids, spacing, and readability |
+| `src/components/cogniblend/curation/CurationHeaderBar.tsx` | Keep/possibly refine tooltip label and accessibility text |
 
+## Expected result
+After this fix, the instruction sheet should:
+- no longer appear trimmed at common zoom levels
+- adapt better to available screen width
+- remain readable without looking crowded
+- still open automatically on first challenge visit
+- still be re-openable anytime from the tooltip/help button
+
+## Note from review
+I could not fully verify the live modal in the preview because the browser session opened on the login screen, but the current code clearly shows the responsiveness issue and the tooltip is already implemented.
