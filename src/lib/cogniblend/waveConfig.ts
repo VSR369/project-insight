@@ -63,7 +63,12 @@ export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 3,
     name: 'Specification — Deliverables & Measures',
-    sectionIds: ['solution_type', 'deliverables', 'maturity_level', 'data_resources_provided', 'success_metrics_kpis'],
+    sectionIds: [
+      'solution_type', 'deliverables', 'maturity_level',
+      'data_resources_provided', 'success_metrics_kpis',
+      'creator_references',   // Creator reference docs inform deliverable review
+      'reference_urls',       // Creator reference URLs inform scope/deliverable review
+    ],
     prerequisiteSections: ['problem_statement', 'scope', 'expected_outcomes'],
   },
   {
@@ -83,7 +88,6 @@ export const EXECUTION_WAVES: WaveConfig[] = [
     name: 'Presentation & Compliance',
     sectionIds: [
       'hook', 'visibility', 'domain_tags',
-      'creator_references', 'reference_urls',
       'evaluation_config', 'solver_audience',
       'legal_docs', 'escrow_funding',
     ],
