@@ -37,6 +37,14 @@ interface PreFlightGateDialogProps {
   onProceed: () => void;
   /** Optional content integrity check result */
   integrityCheck?: IntegrityCheckResult | null;
+  /** Shared incomplete-sections data for unified validation */
+  groups?: GroupDef[];
+  sectionMap?: Map<string, SectionDef>;
+  groupProgress?: Record<string, { done: number; total: number }>;
+  challenge?: ChallengeData | null;
+  legalDocs?: LegalDocSummary[];
+  legalDetails?: LegalDocDetail[];
+  escrowRecord?: EscrowRecord | null;
 }
 
 function NavigableRow({
