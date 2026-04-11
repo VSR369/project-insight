@@ -80,7 +80,7 @@ export default function CurationReviewPage() {
 
   const isReadOnly =
     (o.challenge.current_phase ?? 0) > 2 ||
-    ((o.challenge as Record<string, unknown>).curation_lock_status as string) === 'FROZEN';
+    (o.challenge as unknown as Record<string, unknown>).curation_lock_status === 'FROZEN';
 
 
   return (
