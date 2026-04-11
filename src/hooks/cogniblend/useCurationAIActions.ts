@@ -159,11 +159,26 @@ export function useCurationAIActions({
     }
     setAiReviewLoading(true);
     setTriageTotalCount(0);
+
+    // Override initial progress to include Wave 7 (discovery)
+    pass1SetWaveProgress(createInitialWaveProgressWithDiscovery());
+
     try {
-      // Run Pass 1 analysis first
+      // Run Pass 1 analysis (waves 1-6)
       await executeWavesPass1();
 
-      // AFTER Pass 1 completes, run discovery sequentially
+      // Transition Wave 7 to running
+      pass1SetWaveProgress((prev) => ({
+        ...prev,
+        currentWave: DISCOVERY_WAVE_NUMBER,
+        overallStatus: 'running',
+        waves: prev.waves.map((w) =>
+          w.waveNumber === DISCOVERY_WAVE_NUMBER ? { ...w, status: 'running' } : w
+        ),
+      }));
+
+      // Run context discovery
+      let discoveryOk = true;
       try {
         await supabase.functions.invoke('discover-context-resources', {
           body: { challenge_id: challengeId },
@@ -172,13 +187,23 @@ export function useCurationAIActions({
         queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
       } catch {
-        // Discovery failure is non-blocking
+        discoveryOk = false;
       }
+
+      // Mark Wave 7 complete/error
+      pass1SetWaveProgress((prev) => ({
+        ...prev,
+        overallStatus: 'completed',
+        waves: prev.waves.map((w) =>
+          w.waveNumber === DISCOVERY_WAVE_NUMBER
+            ? { ...w, status: discoveryOk ? 'completed' : 'error' }
+            : w
+        ),
+      }));
 
       setTriageTotalCount(24);
       setPass1DoneSession(true);
       toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
-      // Auto-open Context Library so curator can review/accept discovered sources
       setContextLibraryOpen(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -186,7 +211,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen]);
+  }, [runPreFlight, executeWavesPass1, pass1SetWaveProgress, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen]);
 
   // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
   const handleGenerateSuggestions = useCallback(async () => {
