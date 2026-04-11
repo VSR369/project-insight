@@ -301,6 +301,11 @@ export default function CurationReviewPage() {
       </div>
 
       {/* ═══ MODALS & OVERLAYS ═══ */}
+      <CuratorGuideModal
+        challengeId={o.challengeId!}
+        open={guideOpen}
+        onOpenChange={setGuideOpen}
+      />
       <SendForModificationModal
         open={o.lockedSendState.open}
         onOpenChange={(open) => o.setLockedSendState(prev => ({ ...prev, open }))}
