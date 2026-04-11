@@ -1,9 +1,8 @@
 /**
  * SourceList — Left panel showing suggested + accepted sources grouped by section.
- * Bug 7 fix: Accepts onAcceptOne/onRejectOne and forwards to SuggestionCard.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -44,8 +43,6 @@ export function SourceList({
   onAcceptMultiple, onRejectAll, onAcceptOne, onRejectOne,
   isAcceptPending, isRejectPending, isLoading,
 }: SourceListProps) {
-  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<Set<string>>(new Set());
-
   const accepted = useMemo(() => sources.filter(s => s.discovery_status === 'accepted'), [sources]);
   const suggested = useMemo(() => sources.filter(s => s.discovery_status === 'suggested'), [sources]);
 
@@ -67,20 +64,9 @@ export function SourceList({
     return groups;
   }, [filtered.accepted]);
 
-  const toggleSuggestion = (id: string) => {
-    setSelectedSuggestionIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const handleAcceptSelected = () => {
-    const ids = Array.from(selectedSuggestionIds);
-    if (ids.length > 0) {
-      onAcceptMultiple(ids);
-      setSelectedSuggestionIds(new Set());
-    }
+  const handleAcceptAll = () => {
+    const ids = filtered.suggested.map(s => s.id);
+    if (ids.length > 0) onAcceptMultiple(ids);
   };
 
   return (
@@ -97,22 +83,22 @@ export function SourceList({
                 <SuggestionCard
                   key={s.id}
                   source={s}
-                  isSelected={selectedSuggestionIds.has(s.id)}
                   isActive={selectedId === s.id}
                   onSelect={() => onSelectSource(s.id)}
-                  onToggleCheck={() => toggleSuggestion(s.id)}
-                  onAccept={() => onAcceptOne(s.id)}
-                  onReject={() => onRejectOne(s.id)}
+                  onAccept={onAcceptOne}
+                  onReject={onRejectOne}
+                  isAcceptPending={isAcceptPending}
+                  isRejectPending={isRejectPending}
                 />
               ))}
             </div>
             <div className="flex gap-2 mt-2">
               <Button
                 size="sm" variant="default" className="text-xs h-7"
-                onClick={handleAcceptSelected}
-                disabled={selectedSuggestionIds.size === 0 || isAcceptPending}
+                onClick={handleAcceptAll}
+                disabled={filtered.suggested.length === 0 || isAcceptPending}
               >
-                Accept Selected ({selectedSuggestionIds.size})
+                Accept All ({filtered.suggested.length})
               </Button>
               <Button
                 size="sm" variant="outline" className="text-xs h-7"

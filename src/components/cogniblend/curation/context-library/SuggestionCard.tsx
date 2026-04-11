@@ -1,81 +1,101 @@
 /**
- * SuggestionCard — Single AI-suggested source item with checkbox + inline accept/reject.
- * Bug 7 fix: Added inline Accept/Reject icon buttons.
+ * SuggestionCard — AI-suggested source with inline accept/reject actions.
  */
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Sparkles, Check, X } from 'lucide-react';
+import { Sparkles, Check, X, ExternalLink } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
 
 interface SuggestionCardProps {
   source: ContextSource;
-  isSelected: boolean;
   isActive: boolean;
   onSelect: () => void;
-  onToggleCheck: () => void;
-  onAccept?: () => void;
-  onReject?: () => void;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+  isAcceptPending?: boolean;
+  isRejectPending?: boolean;
 }
 
 function ConfidenceBadge({ score }: { score: number | null }) {
   if (score == null) return null;
   const pct = Math.round(score * 100);
-  const color = pct >= 80 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-600' : 'text-muted-foreground';
-  return <span className={`text-xs font-medium ${color}`}>{pct}%</span>;
+  const color =
+    pct >= 85
+      ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      : pct >= 70
+        ? 'text-amber-600 bg-amber-50 border-amber-200'
+        : 'text-muted-foreground bg-muted border-border';
+  return (
+    <Badge variant="outline" className={cn('text-[10px] px-1 h-4 font-medium', color)}>
+      {pct}%
+    </Badge>
+  );
 }
 
-export function SuggestionCard({ source, isSelected, isActive, onSelect, onToggleCheck, onAccept, onReject }: SuggestionCardProps) {
+export function SuggestionCard({
+  source, isActive, onSelect, onAccept, onReject,
+  isAcceptPending, isRejectPending,
+}: SuggestionCardProps) {
   return (
     <div
-      className={`p-2 rounded-md cursor-pointer hover:bg-muted/50 border text-sm ${isActive ? 'bg-muted border-primary/30' : 'border-transparent'}`}
+      className={cn(
+        'p-2 rounded-md cursor-pointer hover:bg-muted/50 border text-sm',
+        isActive ? 'bg-muted border-primary/30' : 'border-transparent',
+      )}
       onClick={onSelect}
     >
       <div className="flex items-start gap-2">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={onToggleCheck}
-          onClick={e => e.stopPropagation()}
-          className="mt-0.5"
-        />
+        <Sparkles className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-primary shrink-0" />
             <span className="truncate font-medium text-xs">{displayName(source)}</span>
             <ConfidenceBadge score={source.confidence_score} />
           </div>
           {source.relevance_explanation && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{source.relevance_explanation}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+              {source.relevance_explanation}
+            </p>
           )}
           <div className="flex items-center gap-1 mt-1 flex-wrap">
-            <Badge variant="secondary" className="text-[10px] h-4">{SECTION_LABELS[source.section_key] || source.section_key}</Badge>
-            {source.resource_type && <Badge variant="outline" className="text-[10px] h-4">{source.resource_type}</Badge>}
+            <Badge variant="secondary" className="text-[10px] h-4">
+              {SECTION_LABELS[source.section_key] || source.section_key}
+            </Badge>
+            {source.resource_type && (
+              <Badge variant="outline" className="text-[10px] h-4">{source.resource_type}</Badge>
+            )}
           </div>
         </div>
-        {/* Inline accept/reject buttons */}
-        <div className="flex flex-col gap-0.5 shrink-0">
-          {onAccept && (
-            <Button
-              size="icon" variant="ghost"
-              className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-              onClick={(e) => { e.stopPropagation(); onAccept(); }}
-              title="Accept"
-            >
-              <Check className="h-3.5 w-3.5" />
+
+        {/* Inline action buttons */}
+        <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+          {source.source_url && (
+            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" asChild>
+              <a href={source.source_url} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </Button>
           )}
-          {onReject && (
-            <Button
-              size="icon" variant="ghost"
-              className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={(e) => { e.stopPropagation(); onReject(); }}
-              title="Reject"
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            size="icon" variant="ghost"
+            className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+            onClick={() => onAccept(source.id)}
+            disabled={isAcceptPending}
+            title="Accept source"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon" variant="ghost"
+            className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => onReject(source.id)}
+            disabled={isRejectPending}
+            title="Reject source"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
     </div>
