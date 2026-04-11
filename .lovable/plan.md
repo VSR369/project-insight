@@ -1,58 +1,41 @@
 
 
-## Root Cause: Curator Was Assigned to Wrong User
+## Root Cause: "Challenge Not Found" on Curation Review Page
 
-### What the DB shows
+### The Bug
 
-| Role | Assigned to | Email | Is demo user? |
-|------|------------|-------|---------------|
-| CR | 376d7eb8 | nh-cr@testsetup.dev | Yes |
-| CU | 58fa3afe | vsr@btbt.co.in | **No** — real user from old seeding |
+When Casey clicks a challenge in the Curation Queue, the page shows "Challenge not found." despite the challenge existing and Casey having the CU role.
 
-The demo curator **Casey Underwood** (`nh-cu@testsetup.dev`, user `5c67ff44`) has **zero** `user_challenge_roles` rows. The CU role was auto-assigned to **Srinivasa Rao Vegendla** (`vsr@btbt.co.in`) instead.
+**Root cause:** The `challenges` table has **two foreign keys** pointing to `seeker_organizations`:
+- `organization_id` → `seeker_organizations.id` (the intended one)
+- `tenant_id` → `seeker_organizations.id` (a second FK)
 
-### Why the wrong person was picked
+The curation review query uses this join:
+```
+seeker_organizations(organization_type_id, organization_types(name))
+```
 
-The auto-assignment function (`autoAssignChallengeRole`) queries `platform_provider_pool` for members with matching SLM role codes (e.g. `R5_MP` for CU). The pool contains **6 members** with CU-compatible codes. The function picks the one with the lowest `current_assignments`.
+PostgREST cannot resolve which FK to follow, so it returns **HTTP 300 (Multiple Choices)** instead of data. The `.single()` call throws an error, `challenge` becomes `undefined`, and the page renders "Challenge not found."
 
-At assignment time, `vsr@btbt.co.in` was likely at 0 assignments and was picked first (alphabetical or insertion-order tiebreak). The demo users Casey Underwood and Paul Curtis also have `R5_MP`/`R5_AGG` but lost the tiebreak.
+### The Fix (1 file, 1 line)
 
-Now `vsr` is at `current_assignments=2, fully_booked` — confirming they were assigned (and possibly assigned twice from prior test runs).
+**File: `src/hooks/cogniblend/useCurationPageData.ts` (line 41)**
 
-### Why it is invisible in the demo flow
+Change the ambiguous join to use an explicit FK hint:
 
-1. Demo CU user (`nh-cu@testsetup.dev`) logs in
-2. `get_user_all_challenge_roles` returns `[]` — because CU was assigned to a different user
-3. `user_challenge_roles` for this user filtered by `role_code=CU` returns `[]`
-4. Both My Challenges and Curation Queue show empty
+```
+// Before:
+"seeker_organizations(organization_type_id, organization_types(name))"
 
-The challenge IS visible in the Curation Queue org-filter path (same org), but the "Assigned to" badge shows `vsr@btbt.co.in`, not the demo curator.
+// After:
+"seeker_organizations!challenges_organization_id_fkey(organization_type_id, organization_types(name))"
+```
 
-### The fix: Two issues to address
+This tells PostgREST to use the `organization_id` FK, resolving the ambiguity. No migration needed — this is purely a client-side query fix.
 
-**Issue 1 — Stale pool member from real account**
-`vsr@btbt.co.in` is a real user in the pool who should not be auto-assigned in demo flows. The auto-assignment picked them because they had the matching role codes and lowest assignment count.
+### Scope Check
 
-**Issue 2 — No way to control which pool member gets assigned**
-The auto-assignment is purely workload-based with no org/tenant affinity. Any pool member with matching codes can be assigned to any challenge.
-
-### Fix Plan
-
-**Step 1 — Immediate data fix (SQL to run in Supabase)**
-Reassign the CU role from `vsr` to the demo curator `Casey Underwood`:
-- Update `user_challenge_roles`: deactivate vsr's CU row, insert/activate one for Casey
-- Update `challenge_role_assignments`: point pool_member_id to Casey's pool entry
-- Decrement vsr's `current_assignments`, increment Casey's
-
-**Step 2 — Deactivate non-demo pool members (SQL)**
-Set `is_active = false` on pool members that are not part of the demo user set (like `vsr@btbt.co.in`, `mark.thompson`, `anita.desai`, `priya.sharma`) so future auto-assignments only pick demo users.
-
-**Step 3 — Code fix: Add org affinity to auto-assignment (optional, future)**
-In `autoAssignChallengeRole`, prefer pool members from the same org as the challenge before falling back to cross-org pool members. This prevents the wrong-person scenario structurally.
-
-### Recommended immediate action
-
-Run the data fix SQL (Steps 1-2) to unblock testing. Step 3 is a structural improvement for later.
-
-I can generate the exact SQL statements for Steps 1 and 2 once approved.
+- No other changes needed
+- The DB function `has_active_challenge_role` correctly grants Casey SELECT access through RLS
+- The `seeker_organizations` RLS also passes because Casey is in `org_users` for the same org
 
