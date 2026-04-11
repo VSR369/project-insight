@@ -107,7 +107,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           challenge_visibility, creator_snapshot, governance_mode_override,
           organization_id,
           seeker_organizations!challenges_organization_id_fkey (
-            organization_name, trade_brand_name, website, description
+            organization_name, trade_brand_name, website_url, description
           ),
           industry_segments (name)
         `)
@@ -186,7 +186,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     deliverables: c.deliverables as Record<string, unknown> | null,
     ip_model: c.ip_model as string | null,
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
-    challenge_enrollment: c.challenge_enrollment as string | null,
+    challenge_enrollment: null,
     challenge_visibility: c.challenge_visibility as string | null,
     tenant_id: c.tenant_id as string,
     organization_id: c.organization_id as string | null,
@@ -210,7 +210,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     governance_mode_override: c.governance_mode_override as string | null,
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
-    organization_website: (org?.website as string) ?? null,
+    organization_website: (org?.website_url as string) ?? null,
     organization_description: (org?.description as string) ?? null,
     industry_name: (industry?.name as string) ?? null,
   };
