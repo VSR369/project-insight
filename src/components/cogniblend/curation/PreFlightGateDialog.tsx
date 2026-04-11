@@ -5,7 +5,7 @@
  * Gap 4: Quality prediction bar + quick-action scroll buttons.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,8 @@ import { Progress } from '@/components/ui/progress';
 import { XCircle, AlertTriangle, ChevronRight, Sparkles, PenLine } from 'lucide-react';
 import type { PreFlightResult, PreFlightItem } from '@/lib/cogniblend/preFlightCheck';
 import { SECTION_TO_TAB } from '@/lib/cogniblend/preFlightCheck';
+import { buildIncompleteGroups } from '@/lib/cogniblend/incompleteSectionsUtil';
+import type { GroupDef, SectionDef, ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord } from '@/lib/cogniblend/curationTypes';
 
 interface IntegrityCheckResult {
   valid: boolean;
