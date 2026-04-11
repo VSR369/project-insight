@@ -49,6 +49,21 @@ export default function CurationReviewPage() {
     } catch { /* errors handled by individual mutation onError */ }
   };
 
+  // Dirty-state guard for back navigation (must be before conditional returns)
+  const handleNavigateBack = useCallback(() => {
+    const store = o.curationStore;
+    if (store) {
+      const sections = store.getState().sections;
+      const hasUnsaved = Object.values(sections).some(
+        (s) => s?.lastEditedAt && s?.lastReviewedAt && s.lastEditedAt > s.lastReviewedAt,
+      );
+      if (hasUnsaved && !window.confirm('You have unsaved changes. Leave without saving?')) {
+        return;
+      }
+    }
+    o.navigate("/cogni/curation");
+  }, [o.curationStore, o.navigate]);
+
   // ── Loading / not-found ──
   if (o.isLoading) {
     return (
@@ -83,18 +98,6 @@ export default function CurationReviewPage() {
     (o.challenge.current_phase ?? 0) > 2 ||
     (o.challenge as unknown as Record<string, unknown>).curation_lock_status === 'FROZEN';
 
-  // Dirty-state guard for back navigation
-  const handleNavigateBack = useCallback(() => {
-    const store = o.curationStore;
-    if (store) {
-      const sections = store.getState().sections;
-      const hasDirty = Object.values(sections).some((s) => s?.isDirty);
-      if (hasDirty && !window.confirm('You have unsaved changes. Leave without saving?')) {
-        return;
-      }
-    }
-    o.navigate("/cogni/curation");
-  }, [o.curationStore, o.navigate]);
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
