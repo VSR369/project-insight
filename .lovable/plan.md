@@ -1,34 +1,41 @@
 
 
-## Fix: Right Rail Ordering Buries Primary Action
+## Verification Results and Remaining Fixes
 
-### Problem
-The current right rail ordering places Wave Progress, AI Quality, and Confidence Summary before the AI Review Summary and Budget Revision panels, burying important contextual information. The requested order prioritizes the workflow sequence: primary actions first, then progress, then analysis cards, then submission controls.
+### Status of Each Bug
 
-### Changes
+| Bug | Status | Evidence |
+|-----|--------|----------|
+| **Bug 1** | **PARTIAL — needs fix** | `autoSaveStatus` is destructured in `renderOrgSections.tsx` (line 40) and `renderCommercialSections.tsx` (line 34), but NOT in `renderProblemSections.tsx` or `renderOpsSections.tsx` |
+| **Bug 3** | **NOT FIXED** | `PreFlightGateDialog.tsx` does not import or use `buildIncompleteGroups` from `incompleteSectionsUtil`. It uses its own `PreFlightResult` data source with separate `missingMandatory`/`warnings` arrays |
+| **Bug 4** | **FIXED** | `useCurationPageOrchestrator.ts` lines 191-195 correctly set `contextLibraryReviewed` on drawer **close** (checks `prevContextLibraryOpenRef.current && !contextLibraryOpen && pass1DoneSession`) |
+| **Bug 5** | **FIXED** | `ComplexityAssessmentModule.tsx` lines 104-112 use value-aware gating (`hasAiValues`, `hasManualValues`, `hasQuickSelect`) |
+| **Bug 6** | **FIXED** | `rewardStructureResolver.ts` has `isTypeLocked` in interface (line 81), serializes to `_typeLocked` (lines 505-507), resolves with backward compat (line 421). `useRewardStructureState.ts` initializes from resolved (line 247) and includes in RewardData (line 539) |
+| **Bug 7** | **FIXED** | `useRewardStructureHandlers.ts` has `handleApplyAITiers` (line 213). `MonetaryRewardEditor.tsx` has AI Split banner (lines 80-101) |
+| **Bug 8** | **MOSTLY FIXED** | Right rail reordered. Minor deviation from spec: `WaveProgressPanel` is at position 4 (after ContextLibraryCard) instead of position 2. The spec wanted it before CompletenessChecklist |
 
-**File: `src/components/cogniblend/curation/CurationRightRail.tsx`**
+### Changes Required
 
-Reorder the JSX children in the return block to match the requested priority:
+**1. Bug 1 — Pass `autoSaveStatus` in Problem and Ops renderers**
 
-1. Primary AI workflow buttons (Analyse / Generate) — already first, add Tooltip wrapper around Generate Suggestions button
-2. Wave Progress panel — move up from position 6
-3. Completeness Checklist — stays in position 3
-4. Context Library card — stays in position 4
-5. AI Review Summary card — move up from position 8
-6. Budget Revision panel — stays roughly same
-7. Completion Banner — stays roughly same
-8. AI Quality card — move down from position 4
-9. AI Confidence Summary — move down from position 5
-10. Curation Actions (submission) — stays near bottom
-11. Legal Review panel — stays near bottom
-12. Modification Points Tracker — stays last
+- `renderProblemSections.tsx`: Add `autoSaveStatus` to destructured args (line 33) and pass it to `LineItemsSectionRenderer` where appropriate
+- `renderOpsSections.tsx`: Add `autoSaveStatus` to destructured args (line 26) and pass it to section renderers
 
-Also wrap the "Generate Suggestions" button in a proper `Tooltip`/`TooltipTrigger`/`TooltipContent` from shadcn (replacing the plain `title` attribute), and remove the separate helper text paragraph below it. Add `Tooltip, TooltipTrigger, TooltipContent` imports from `@/components/ui/tooltip`.
+**2. Bug 3 — Unify PreFlightGateDialog with incompleteSectionsUtil**
+
+- `PreFlightGateDialog.tsx`: Import `buildIncompleteGroups` and accept `groups`, `sectionMap`, `groupProgress`, `challenge` props to derive incomplete sections from the shared utility instead of relying solely on `PreFlightResult.missingMandatory`
+- This requires adding new props and using the utility alongside existing PreFlightResult data
+
+**3. Bug 8 — Move WaveProgressPanel before CompletenessChecklist**
+
+- `CurationRightRail.tsx`: Swap lines 154-158 so `WaveProgressPanel` comes before `CompletenessChecklistCard`
 
 ### Files changed
 
 | File | Action |
 |------|--------|
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | Reorder JSX children + add Tooltip wrapper |
+| `src/components/cogniblend/curation/renderers/renderProblemSections.tsx` | Destructure and use `autoSaveStatus` |
+| `src/components/cogniblend/curation/renderers/renderOpsSections.tsx` | Destructure and use `autoSaveStatus` |
+| `src/components/cogniblend/curation/PreFlightGateDialog.tsx` | Import and use `buildIncompleteGroups` from shared util |
+| `src/components/cogniblend/curation/CurationRightRail.tsx` | Move WaveProgressPanel above CompletenessChecklist |
 
