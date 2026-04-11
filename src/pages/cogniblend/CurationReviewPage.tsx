@@ -19,6 +19,7 @@ import { SendForModificationModal } from "@/components/cogniblend/curation/SendF
 import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
 import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
 import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
+import { CuratorGuideModal, hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
 import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
 import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +33,7 @@ export default function CurationReviewPage() {
   const freezeMut = useFreezeForLegalReview(o.challengeId ?? '');
   const assembleMut = useAssembleCpa(o.challengeId ?? '');
   const [pwaAccepted, setPwaAccepted] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(() => !hasSeenGuide(o.challengeId ?? ''));
 
   const opModel = (o.challenge as any)?.operating_model ?? 'IP';
   const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
@@ -121,6 +123,7 @@ export default function CurationReviewPage() {
         staleCountByGroup={o.staleCountByGroup}
         optimisticIndustrySegId={o.optimisticIndustrySegId}
         industrySegments={o.industrySegments}
+        onOpenGuide={() => setGuideOpen(true)}
       />
 
       {/* ═══ MAIN LAYOUT: Content + Right Rail ═══ */}
