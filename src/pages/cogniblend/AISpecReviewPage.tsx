@@ -1380,21 +1380,17 @@ export default function AISpecReviewPage() {
       }
     }
 
-    // Advance phase directly (bypass complete_phase RPC permission bug)
+    // Advance phase via proper RPC — handles SLA, CU assignment, audit trail, notifications
     if (challengeId && user?.id) {
       try {
-        const { error } = await supabase
-          .from('challenges')
-          .update({
-            current_phase: 2,
-            phase_status: 'ACTIVE',
-            updated_at: new Date().toISOString(),
-            updated_by: user.id,
-          })
-          .eq('id', challengeId);
-        if (error) throw new Error(error.message);
-      } catch (err: any) {
-        toast.error(`Failed to advance phase: ${err.message}`);
+        const { data: phaseResult, error: phaseError } = await supabase.rpc('complete_phase', {
+          p_challenge_id: challengeId,
+          p_user_id: user.id,
+        });
+        if (phaseError) throw new Error(phaseError.message);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`Failed to advance phase: ${msg}`);
         return;
       }
     }
@@ -1405,27 +1401,7 @@ export default function AISpecReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['cogni_user_roles'] });
     queryClient.invalidateQueries({ queryKey: ['challenge-detail'] });
     queryClient.invalidateQueries({ queryKey: ['whats-next-challenges'] });
-
-    // Auto-assign CU role using taxonomy
-    if (challengeId && user?.id) {
-      try {
-        await autoAssignChallengeRole({
-          challengeId,
-          roleCode: 'CU',
-          engagementModel: challenge?.operating_model === 'AGG' ? 'aggregator' : 'marketplace',
-          industrySegmentId: industrySegmentId || undefined,
-          proficiencyAreaIds: selectedProfAreaIds,
-          subDomainIds: selectedSubDomainIds,
-          specialityIds: selectedSpecialityIds,
-          assignedBy: user.id,
-        });
-      } catch (err) {
-        logWarning('Auto-assign CU failed', {
-          operation: 'auto_assign_challenge_role',
-          additionalData: { challengeId, error: String(err) },
-        });
-      }
-    }
+    queryClient.invalidateQueries({ queryKey: ['cogni-my-challenges'] });
 
     toast.success('Specification approved. Proceeding to legal document attachment.');
     navigate(`/cogni/challenges/${challengeId}/legal`);
