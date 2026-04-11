@@ -38,7 +38,7 @@ const CHALLENGE_CORE_SELECT = [
   "ai_section_reviews", "visibility",
   "evaluation_method", "evaluator_count", "solver_audience",
   // JOIN org type name inline to eliminate waterfall
-  "seeker_organizations(organization_type_id, organization_types(name))",
+  "seeker_organizations!challenges_organization_id_fkey(organization_type_id, organization_types(name))",
 ].join(", ");
 
 const CHALLENGE_DEFERRED_SELECT = [
