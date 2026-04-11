@@ -107,7 +107,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           challenge_visibility, creator_snapshot, governance_mode_override,
           organization_id,
           seeker_organizations!challenges_organization_id_fkey (
-            organization_name, trade_brand_name, website_url, description
+            organization_name, trade_brand_name, website_url
           ),
           industry_segments (name)
         `)
@@ -211,7 +211,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     organization_name: (org?.organization_name as string) ?? null,
     trade_brand_name: (org?.trade_brand_name as string) ?? null,
     organization_website: (org?.website_url as string) ?? null,
-    organization_description: (org?.description as string) ?? null,
+    organization_description: null,
     industry_name: (industry?.name as string) ?? null,
   };
 }
