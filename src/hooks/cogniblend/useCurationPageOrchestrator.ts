@@ -125,7 +125,7 @@ export function useCurationPageOrchestrator() {
   const complexityModuleRef = useRef<ComplexityModuleHandle>(null);
 
   // ── Effects ──
-  useCurationEffects({ challenge: challenge as Record<string, any> | null, aiReviewsLoaded, setAiReviews, setAiReviewsLoaded, saveSectionMutation });
+  useCurationEffects({ challenge: challenge as unknown as Record<string, unknown> | null, aiReviewsLoaded, setAiReviews, setAiReviewsLoaded, setPass1DoneSession, saveSectionMutation });
 
   // ── Section actions ──
   const sectionActionsHook = useCurationSectionActions({
