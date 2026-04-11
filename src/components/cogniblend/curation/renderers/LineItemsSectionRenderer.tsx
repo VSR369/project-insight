@@ -6,7 +6,9 @@
 import { DeliverablesEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import { DeliverableCardRenderer } from "./DeliverableCardRenderer";
 import { DeliverableCardEditor } from "./DeliverableCardEditor";
+import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
+import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
 
 interface LineItemsSectionRendererProps {
   items: string[];
@@ -21,6 +23,7 @@ interface LineItemsSectionRendererProps {
   onSaveStructured?: (items: DeliverableItem[]) => void;
   badgePrefix?: string;
   hideAcceptanceCriteria?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
 }
 
 export function LineItemsSectionRenderer({
@@ -35,6 +38,7 @@ export function LineItemsSectionRenderer({
   onSaveStructured,
   badgePrefix,
   hideAcceptanceCriteria,
+  autoSaveStatus,
 }: LineItemsSectionRendererProps) {
   const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
 
@@ -42,24 +46,30 @@ export function LineItemsSectionRenderer({
   if (editing && !readOnly) {
     if (useStructured) {
       return (
-        <DeliverableCardEditor
-          items={structuredItems}
-          onSave={onSaveStructured}
-          onCancel={onCancel}
-          saving={saving}
-          badgePrefix={badgePrefix}
-          hideAcceptanceCriteria={hideAcceptanceCriteria}
-        />
+        <div className="space-y-2">
+          <DeliverableCardEditor
+            items={structuredItems}
+            onSave={onSaveStructured}
+            onCancel={onCancel}
+            saving={saving}
+            badgePrefix={badgePrefix}
+            hideAcceptanceCriteria={hideAcceptanceCriteria}
+          />
+          <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
+        </div>
       );
     }
     return (
-      <DeliverablesEditor
-        items={items}
-        onSave={onSave}
-        onCancel={onCancel}
-        saving={saving}
-        itemLabel={itemLabel}
-      />
+      <div className="space-y-2">
+        <DeliverablesEditor
+          items={items}
+          onSave={onSave}
+          onCancel={onCancel}
+          saving={saving}
+          itemLabel={itemLabel}
+        />
+        <AutoSaveIndicator status={autoSaveStatus ?? (saving ? "saving" : "idle")} />
+      </div>
     );
   }
 

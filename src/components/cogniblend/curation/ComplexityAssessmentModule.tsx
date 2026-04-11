@@ -102,7 +102,8 @@ export const ComplexityAssessmentModule = forwardRef<ComplexityModuleHandle, Com
   );
   const hasExistingAssessment = currentScore != null || currentLevel != null;
   const hasAiValues = state.activeTab === 'ai_review' &&
-    Object.values(state.aiDraft).some(v => v !== 5);
+    Object.values(state.aiDraft).some(v => v !== 5) &&
+    Object.values(state.aiParamSources).some(s => s === 'ai' || s === 'curator');
   const hasManualValues = state.activeTab === 'manual_params' &&
     Object.values(state.manualDraft).some(v => v !== 5);
   const hasQuickSelect = state.activeTab === 'quick_select' && state.overrideLevel !== null;

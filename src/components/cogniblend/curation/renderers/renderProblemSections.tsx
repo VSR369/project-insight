@@ -35,6 +35,8 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
     saveSectionMutation, autoSaveStatus,
   } = args;
 
+  // autoSaveStatus is now destructured and forwarded to child renderers
+
   if (!PROBLEM_KEYS.has(section.key)) return null;
 
   switch (section.key) {
@@ -51,6 +53,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           structuredItems={getDeliverableObjects(challenge)}
           onSaveStructured={handleSaveStructuredDeliverables}
           badgePrefix="D"
+          autoSaveStatus={autoSaveStatus}
         />
       );
 
@@ -77,6 +80,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           }}
           badgePrefix="S"
           hideAcceptanceCriteria
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }
@@ -103,6 +107,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           }}
           badgePrefix="O"
           hideAcceptanceCriteria
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }
@@ -134,6 +139,7 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
             onCancel={cancelEdit}
             saving={savingSection}
             itemLabel={itemLabel}
+            autoSaveStatus={autoSaveStatus}
           />
         </>
       );
