@@ -1,98 +1,68 @@
 
 
-## Status: Universal Autosave is ~30% Complete
+## Fix: Make `creator_references` Section Editable by Curator
 
-### What was built (infrastructure only)
-- `useAutoSaveSection` hook -- exists, never imported by any consumer
-- `useAutoSaveExtendedBrief` hook -- exists, never imported by any consumer
-- `AutoSaveIndicator` component -- exists, imported by editors but never receives real status
-- Editor components (`TextSectionEditor`, `DeliverablesEditor`, `EvalCriteriaEditor`, `TableSectionEditor`, `CheckboxMultiSectionRenderer`) -- accept optional `autoSaveStatus` prop but no caller passes it
-- Orchestrator `saveSectionMutation` -- silenced (no toast, no setEditingSection on success)
+### Problem
+The `CreatorReferencesRenderer` is a read-only viewer. If the Creator uploads nothing, the Curator sees "No reference documents uploaded by Creator" with no way to add their own. This violates the principle that **every section must be editable by the Curator**.
 
-### What is NOT wired (the remaining 70%)
+### Root Cause
+1. `creator_references` is **not** in `SECTION_UPLOAD_CONFIG` -- so `SectionReferencePanel` returns `null` for it
+2. `CreatorReferencesRenderer` has no upload UI -- it only queries and displays existing attachments
+3. The `renderOpsSections` case for `creator_references` renders `CreatorReferencesRenderer` without passing `isReadOnly` -- it's always display-only
 
-**The hooks are dead code.** No renderer or section panel calls `useAutoSaveSection()` or `useAutoSaveExtendedBrief()`. All 50+ sections still use the old pattern:
+### Fix (2 files)
 
-1. Click "Edit" button to enter edit mode
-2. Make changes
-3. Changes call `onSave` which does `setSavingSection(true)` + `saveSectionMutation.mutate(...)` directly (no debounce, no status indicator)
-4. Edit mode stays open until explicitly closed
+**1. `src/lib/cogniblend/sectionUploadConfig.ts`** -- Add `creator_references` entry
 
-**Specific gaps across all 4 renderer groups:**
+Add a config entry so the existing `SectionReferencePanel` infrastructure works for this section:
 
-| Renderer Group | Sections | Gap |
-|---|---|---|
-| `renderOrgSections` | problem_statement, scope, hook, context_and_background, solver_expertise | Still uses `editButton` + `RichTextSectionRenderer` without autosave status; solver_expertise still calls `setEditingSection(null)` manually |
-| `renderProblemSections` | deliverables, submission_guidelines, expected_outcomes, root_causes, current_deficiencies, preferred_approach, affected_stakeholders | Still calls `setSavingSection(true)` + direct mutate; no debounce; edit button pattern |
-| `renderCommercialSections` | eligibility, visibility, evaluation_criteria, ip_model, maturity_level, solution_type | Same old pattern; CheckboxMulti/Single don't get autoSaveStatus; solution_type calls `setEditingSection(null)` |
-| `renderOpsSections` | phase_schedule, data_resources_provided, success_metrics_kpis | Same; TableSectionEditor accepts autoSaveStatus but never receives it |
+```typescript
+creator_references: {
+  enabled: true, maxFiles: 5, maxUrls: 3, maxFileSizeMB: 25,
+  acceptedFormats: DOC_IMG,
+  uploadPrompt: 'Upload reference documents, research papers, or supporting materials',
+  urlPrompt: 'Add link to external reference or resource',
+  sharingDefault: false, sharingRecommendation: 'optional',
+},
+```
 
-**`SectionPanelItem`**: Still renders the "Edit" button via `renderSectionContent`. Still manages `editingSection` state (only one section editable at a time). No "always editable" mode.
+Also add sharing guidance in `SHARING_GUIDANCE`:
+```typescript
+creator_references: 'Share reference documents that help solvers understand the challenge context. Remove confidential internal materials.',
+```
 
-**`RichTextSectionRenderer`**: Does not accept or pass `autoSaveStatus`. Still requires explicit `editing` boolean to show the editor vs read-only view.
+**2. `src/components/cogniblend/curation/renderers/CreatorReferencesRenderer.tsx`** -- Add Curator upload capability
 
----
+Change the empty state from a dead-end message to include the upload form. Accept `isReadOnly` prop. When `!isReadOnly` and no Creator attachments exist, show a helpful message + the upload infrastructure. When Creator attachments exist, show them (as today) plus the upload area below.
 
-### Implementation Plan: Wire Autosave Across All Sections
+The simplest approach: import and render `SectionReferencePanel` below the Creator attachments list (or in place of the empty message). This reuses all existing upload/URL/extraction infrastructure without duplication.
 
-The approach is to wire the existing hooks into the rendering pipeline without changing the hook or indicator code (they're correct).
+Updated component structure:
+- Props: add `isReadOnly?: boolean` (default `true` for backward compat)
+- Render: Creator attachments list (existing) + `SectionReferencePanel` when `!isReadOnly`
+- Empty state: "No reference documents uploaded by Creator." + upload form (when editable)
 
-**Phase 1: Make renderers "always editable" for non-locked sections (4 files)**
+**3. `src/components/cogniblend/curation/renderers/renderOpsSections.tsx`** -- Pass `isReadOnly`
 
-1. **`RichTextSectionRenderer.tsx`** -- Accept `autoSaveStatus` prop; pass to `TextSectionEditor`. When `!readOnly`, always show editor (remove `editing` gate for autosave sections).
+Change line 142 from:
+```typescript
+return <CreatorReferencesRenderer challengeId={args.challengeId} />;
+```
+To:
+```typescript
+return <CreatorReferencesRenderer challengeId={args.challengeId} isReadOnly={isReadOnly} />;
+```
 
-2. **`CheckboxSingleSectionRenderer.tsx`** -- Add `autoSaveStatus` prop; show `AutoSaveIndicator` after select.
+### What stays the same
+- All other sections' upload configs unchanged
+- `SectionReferencePanel` logic unchanged -- it already handles `creator_references` once the config exists
+- Creator-uploaded files still display with download buttons
+- No migration needed
 
-3. **`renderSectionContent.tsx`** -- Remove the `editButton` for sections that autosave. Pass `autoSaveStatus` through `RenderSectionContentArgs`.
-
-4. **`SectionPanelItem.tsx`** -- For non-locked, non-custom sections: set `isEditing = true` always (no edit button needed). This makes all standard sections always show their editor.
-
-**Phase 2: Wire hooks in the orchestrator layer (2 files)**
-
-5. **`useCurationSectionActions.ts`** (or wherever `handleSaveText` lives) -- Replace direct `saveSectionMutation.mutate` calls with `useAutoSaveSection.save()` for text fields (600ms debounce) and immediate save for selections (0ms).
-
-6. **`useCurationPageOrchestrator.ts`** -- Expose autosave status per-section so `SectionPanelItem` can pass it down. This requires a small state map: `Record<SectionKey, AutoSaveStatus>`.
-
-**Phase 3: Wire remaining renderer groups (4 files)**
-
-7. **`renderOrgSections.tsx`** -- Pass `autoSaveStatus` to `RichTextSectionRenderer` for problem_statement, scope, hook, context_and_background. Remove `setSavingSection(true)` from solver_expertise save.
-
-8. **`renderProblemSections.tsx`** -- Remove `setSavingSection(true)` from submission_guidelines, expected_outcomes. Pass status to `LineItemsSectionRenderer`.
-
-9. **`renderCommercialSections.tsx`** -- Pass `autoSaveStatus` to `CheckboxMultiSectionRenderer` for eligibility/visibility. Remove `setSavingSection(true)`.
-
-10. **`renderOpsSections.tsx`** -- Pass `autoSaveStatus` to `TableSectionEditor` for data_resources, success_metrics. Remove `setSavingSection(true)` from phase_schedule.
-
-**Phase 4: Extended brief subsections (1 file)**
-
-11. **`BriefSubsectionContent.tsx`** -- Wire `useAutoSaveExtendedBrief` for root_causes, current_deficiencies, preferred_approach, affected_stakeholders subsections.
-
-### What stays unchanged
-- Reward Structure -- own save + lock flow
-- Complexity Assessment -- own lock mechanism  
-- Legal Docs / Escrow -- locked, coordinator-driven
-- Domain Tags -- already immediate save
-- Industry Segment -- already immediate save
-- Creator References -- read-only display
-
-### Risk mitigation
-- `editingSection` state kept for backward compat but most sections will default to `isEditing = true`
-- `notifyStaleness` still fires on every save
-- `queryClient.invalidateQueries` still fires
-- Error toast on mutation failure preserved
-
-### Files summary
-| Action | File | Lines changed (est.) |
-|---|---|---|
-| Modify | `RichTextSectionRenderer.tsx` | ~10 |
-| Modify | `CheckboxSingleSectionRenderer.tsx` | ~15 |
-| Modify | `renderSectionContent.tsx` | ~20 |
-| Modify | `SectionPanelItem.tsx` | ~15 |
-| Modify | `useCurationSectionActions.ts` | ~30 |
-| Modify | `useCurationPageOrchestrator.ts` | ~25 |
-| Modify | `renderOrgSections.tsx` | ~20 |
-| Modify | `renderProblemSections.tsx` | ~25 |
-| Modify | `renderCommercialSections.tsx` | ~20 |
-| Modify | `renderOpsSections.tsx` | ~20 |
-| Modify | `BriefSubsectionContent.tsx` | ~15 |
+### Files changed
+| File | Change |
+|------|--------|
+| `sectionUploadConfig.ts` | Add `creator_references` config + sharing guidance |
+| `CreatorReferencesRenderer.tsx` | Add `isReadOnly` prop, render `SectionReferencePanel` for Curator |
+| `renderOpsSections.tsx` (line 142) | Pass `isReadOnly` to renderer |
 
