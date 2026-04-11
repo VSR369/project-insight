@@ -1,40 +1,35 @@
 
 
-## Fix: Add Checkboxes + Content Status Indicators to Source List
+## Full Rewrite: `discover-context-resources` Edge Function
 
-### Problem
-1. No checkboxes on suggested sources — users can't select specific sources for bulk accept
-2. No visibility into whether Summary, Full Text, or Key Data have been extracted for each source in the list — users must click into the detail panel to find out
+### What Changes
 
-### Changes
+Replace the entire edge function with a richer, full-context discovery approach. Key improvements over current version:
 
-**1. `SuggestionCard.tsx`** — Add checkbox for bulk selection
-- Add `Checkbox` import from `@/components/ui/checkbox`
-- Add props: `isSelected: boolean`, `onToggleSelect: (id: string) => void`
-- Place checkbox before the Sparkles icon, with `stopPropagation` on its click
-- Checkbox checked state bound to `isSelected`
-- Add content status indicators (3 small dots/icons) showing presence of `extracted_summary`, `extracted_text`, `extracted_key_data`
+1. **All 27 challenge fields fetched** — current version only reads ~10 fields. New version reads problem_statement, scope, deliverables, evaluation_criteria, reward_structure, success_metrics, solver_expertise, complexity, and more.
 
-**2. `SourceList.tsx`** — Manage selection state + wire checkboxes
-- Add `useState<Set<string>>` for `selectedIds`
-- Add "Select All" / "Deselect All" toggle in the suggested section header
-- Pass `isSelected` and `onToggleSelect` to each `SuggestionCard`
-- Change "Accept All" button to "Accept Selected (N)" when selections exist
-- Wire `onAcceptMultiple` to use `selectedIds` when selections exist, otherwise all suggested
-- Add content status indicators to accepted source rows too (Summary/Text/Data dots)
-- Clear selection set after accept/reject actions
+2. **Rich challenge context block** — `buildChallengeContext()` assembles all section content + extended_brief subsections into a structured text block injected into the AI prompt.
 
-**3. Accepted source rows in `SourceList.tsx`** — Add content indicators
-- Below each accepted source's extraction badge, add 3 small indicator badges: "S" (Summary), "T" (Text), "D" (Data)
-- Color-coded: present = emerald outline, missing = muted/dashed outline
-- This gives at-a-glance visibility into extraction completeness without clicking into detail
+3. **Existing sources as negative context** — `buildExistingSourcesContext()` reads accepted/extracted attachments and includes their summaries so the AI avoids suggesting duplicates.
 
-### No other files affected
-- `ContextLibraryDrawer.tsx` already passes all needed handlers
-- `SourceDetail.tsx` already shows the full tabs — no changes needed
+4. **Industry knowledge pack** — Fetches `common_kpis` and `technology_landscape` in addition to `preferred_analyst_sources` and `regulatory_landscape`.
 
-### Technical Detail
-- Selection state is local to `SourceList` since it's ephemeral UI state
-- Content indicators use the existing `extracted_summary`, `extracted_text`, `extracted_key_data` fields already fetched by `useContextSources`
-- Indicator component: ~15 lines, inline in SourceList or extracted as a tiny helper
+5. **Current section content in per-section specs** — Each section directive now includes the actual challenge content for that section, giving the AI precise context for what's already written.
+
+6. **Cleaner stale clearing** — Deletes ALL `ai_suggested` sources (not just `suggested` status), ensuring accepted AI suggestions from previous runs are also cleared for a fully fresh discovery.
+
+7. **Auto-extraction trigger** — Sources auto-accepted (confidence >= 0.85) immediately trigger `extract-attachment-text` asynchronously.
+
+8. **Tuned AI parameters** — max_tokens raised to 6000, temperature lowered to 0.2, max sources raised to 35.
+
+### Implementation
+
+Single file replacement + deploy:
+- **`supabase/functions/discover-context-resources/index.ts`** — Full rewrite with the provided code
+- Deploy via `supabase--deploy_edge_functions`
+
+### Risk Notes
+- Step 7 (clearing ALL `ai_suggested` including previously accepted) is intentional per the code comment — each run produces a clean slate. Previously accepted AI sources that the curator explicitly accepted will be re-discovered if still relevant.
+- The org query now fetches additional fields (`hq_country_id`, `annual_revenue_range`, `employee_count_range`) — these are read but not heavily used yet; no schema change needed as they exist on the table.
+- `safeJson()` and `brief()` helpers add truncation safety throughout.
 
