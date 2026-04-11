@@ -1,118 +1,98 @@
 
 
-## Universal Autosave for Curation Sections
+## Status: Universal Autosave is ~30% Complete
 
-### Current Architecture
+### What was built (infrastructure only)
+- `useAutoSaveSection` hook -- exists, never imported by any consumer
+- `useAutoSaveExtendedBrief` hook -- exists, never imported by any consumer
+- `AutoSaveIndicator` component -- exists, imported by editors but never receives real status
+- Editor components (`TextSectionEditor`, `DeliverablesEditor`, `EvalCriteriaEditor`, `TableSectionEditor`, `CheckboxMultiSectionRenderer`) -- accept optional `autoSaveStatus` prop but no caller passes it
+- Orchestrator `saveSectionMutation` -- silenced (no toast, no setEditingSection on success)
 
-The curation system uses an explicit **Edit -> Save/Cancel** pattern:
-- `editingSection` state tracks which section is in edit mode (only one at a time)
-- Every editor has Save + Cancel buttons
-- `saveSectionMutation.onSuccess` fires `toast.success('Section updated successfully')` + `setEditingSection(null)` + `setSavingSection(false)` on every save
-- This creates friction: 50+ sections each require click Edit, make changes, click Save
+### What is NOT wired (the remaining 70%)
 
-### Design: Incremental Autosave (Non-Breaking)
+**The hooks are dead code.** No renderer or section panel calls `useAutoSaveSection()` or `useAutoSaveExtendedBrief()`. All 50+ sections still use the old pattern:
 
-Rather than ripping out all Save buttons at once (high risk, touches 15+ renderer files), the approach is:
+1. Click "Edit" button to enter edit mode
+2. Make changes
+3. Changes call `onSave` which does `setSavingSection(true)` + `saveSectionMutation.mutate(...)` directly (no debounce, no status indicator)
+4. Edit mode stays open until explicitly closed
 
-1. **Create `useAutoSaveSection` hook** -- debounced save that calls `saveSectionMutation.mutate` silently
-2. **Create `useAutoSaveExtendedBrief` hook** -- same pattern but merges into the JSONB `extended_brief` column
-3. **Create `AutoSaveIndicator` component** -- replaces Save button feedback with `Saving...` / `Saved` / `Failed`
-4. **Make `saveSectionMutation` silent** -- remove toast.success and setEditingSection(null) from onSuccess
-5. **Wire autosave into editors** -- starting with the highest-impact ones (TextSectionEditor, DeliverablesEditor, EvalCriteriaEditor, TableSectionEditor)
-6. **Immediate-save sections stay as-is** -- CheckboxSingle, CheckboxMulti, TagInput, Radio, Select already save on value change; they just need the silent mutation + indicator
+**Specific gaps across all 4 renderer groups:**
 
-### Files to Create
+| Renderer Group | Sections | Gap |
+|---|---|---|
+| `renderOrgSections` | problem_statement, scope, hook, context_and_background, solver_expertise | Still uses `editButton` + `RichTextSectionRenderer` without autosave status; solver_expertise still calls `setEditingSection(null)` manually |
+| `renderProblemSections` | deliverables, submission_guidelines, expected_outcomes, root_causes, current_deficiencies, preferred_approach, affected_stakeholders | Still calls `setSavingSection(true)` + direct mutate; no debounce; edit button pattern |
+| `renderCommercialSections` | eligibility, visibility, evaluation_criteria, ip_model, maturity_level, solution_type | Same old pattern; CheckboxMulti/Single don't get autoSaveStatus; solution_type calls `setEditingSection(null)` |
+| `renderOpsSections` | phase_schedule, data_resources_provided, success_metrics_kpis | Same; TableSectionEditor accepts autoSaveStatus but never receives it |
 
-**1. `src/hooks/cogniblend/useAutoSaveSection.ts`** (~60 lines)
-- Accepts: `field` (DB column), `challengeId`, `saveSectionMutation`, `syncSectionToStore`, `sectionKey`, `debounceMs`
-- Returns: `{ save(value), status: 'idle' | 'saving' | 'saved' | 'error' }`
-- Uses `useRef` + `setTimeout` for debounce
-- On save: calls `syncSectionToStore` + `saveSectionMutation.mutate` silently
-- Status transitions: idle -> saving -> saved (2s) -> idle; or saving -> error (5s) -> idle
+**`SectionPanelItem`**: Still renders the "Edit" button via `renderSectionContent`. Still manages `editingSection` state (only one section editable at a time). No "always editable" mode.
 
-**2. `src/hooks/cogniblend/useAutoSaveExtendedBrief.ts`** (~70 lines)
-- Same as above but fetches current `extended_brief` JSONB, merges the subsection key, then writes back
-- Prevents subsections from overwriting each other
+**`RichTextSectionRenderer`**: Does not accept or pass `autoSaveStatus`. Still requires explicit `editing` boolean to show the editor vs read-only view.
 
-**3. `src/components/cogniblend/curation/AutoSaveIndicator.tsx`** (~40 lines)
-- Props: `status: 'idle' | 'saving' | 'saved' | 'error'`
-- Renders: nothing (idle), `Saving...` spinner (saving), `Saved` checkmark (saved, fades after 2s), `Save failed` warning (error)
-- Placed in section header area, not inside editor
+---
 
-### Files to Modify
+### Implementation Plan: Wire Autosave Across All Sections
 
-**4. `src/hooks/cogniblend/useCurationPageOrchestrator.ts`** (line 118)
-- Remove `toast.success('Section updated successfully')` from `saveSectionMutation.onSuccess`
-- Remove `setEditingSection(null)` from `saveSectionMutation.onSuccess`
-- Keep `setSavingSection(false)` and `queryClient.invalidateQueries`
-- Keep `onError` toast (errors should still alert)
+The approach is to wire the existing hooks into the rendering pipeline without changing the hook or indicator code (they're correct).
 
-**5. `src/components/cogniblend/curation/CurationSectionEditor.tsx`**
-- `TextSectionEditor`: Remove Save/Cancel buttons, call `onSave(draft)` on every `setDraft` (debounced via parent hook), add `AutoSaveIndicator`
-- `DeliverablesEditor`: Call `onSave` on every item change (debounced), remove Save/Cancel, add indicator
-- `EvalCriteriaEditor`: Call `onSave` on every row change (debounced), keep weight validation as inline warning (not save blocker), remove Save/Cancel, add indicator
+**Phase 1: Make renderers "always editable" for non-locked sections (4 files)**
 
-**6. `src/components/cogniblend/curation/renderers/TableSectionEditor.tsx`**
-- Call `onSave` on every cell change (debounced), remove Save/Cancel buttons, add indicator
+1. **`RichTextSectionRenderer.tsx`** -- Accept `autoSaveStatus` prop; pass to `TextSectionEditor`. When `!readOnly`, always show editor (remove `editing` gate for autosave sections).
 
-**7. `src/components/cogniblend/curation/renderers/RichTextSectionRenderer.tsx`**
-- Pass autosave status down for indicator display
+2. **`CheckboxSingleSectionRenderer.tsx`** -- Add `autoSaveStatus` prop; show `AutoSaveIndicator` after select.
 
-**8. `src/components/cogniblend/curation/renderers/CheckboxSingleSectionRenderer.tsx`**
-- Already saves immediately on `onValueChange` -- just remove the explicit Save button if present, add indicator
+3. **`renderSectionContent.tsx`** -- Remove the `editButton` for sections that autosave. Pass `autoSaveStatus` through `RenderSectionContentArgs`.
 
-**9. `src/components/cogniblend/curation/renderers/CheckboxMultiSectionRenderer.tsx`**
-- Remove Save/Cancel buttons, call `onSave(draft)` on every checkbox toggle (immediate), add indicator
+4. **`SectionPanelItem.tsx`** -- For non-locked, non-custom sections: set `isEditing = true` always (no edit button needed). This makes all standard sections always show their editor.
 
-**10. `src/components/cogniblend/curation/SectionPanelItem.tsx`**
-- Remove the `cancelEdit` / `setEditingSection(null)` pattern for autosaved sections
-- Sections become "always editable" when not readOnly (no explicit edit mode toggle needed)
+**Phase 2: Wire hooks in the orchestrator layer (2 files)**
 
-**11. `src/components/cogniblend/curation/BriefSubsectionContent.tsx`**
-- Wire autosave for extended_brief subsections (rich text, line items, stakeholder table)
+5. **`useCurationSectionActions.ts`** (or wherever `handleSaveText` lives) -- Replace direct `saveSectionMutation.mutate` calls with `useAutoSaveSection.save()` for text fields (600ms debounce) and immediate save for selections (0ms).
 
-### What Does NOT Change
+6. **`useCurationPageOrchestrator.ts`** -- Expose autosave status per-section so `SectionPanelItem` can pass it down. This requires a small state map: `Record<SectionKey, AutoSaveStatus>`.
 
-- **Reward Structure** -- keeps its own specialized save + lock flow
-- **Complexity Assessment** -- keeps lock mechanism
-- **Legal Docs / Escrow** -- locked sections, coordinator-driven
-- **AI Review accept/reject** -- these are deliberate actions, not autosave
-- **TagInputSectionRenderer** -- already saves immediately (onAdd/onRemove), no change needed
-- **Domain Tags** -- already immediate save via `handleAddDomainTag`/`handleRemoveDomainTag`
-- **Industry Segment** -- already immediate save via `handleIndustrySegmentChange`
+**Phase 3: Wire remaining renderer groups (4 files)**
 
-### Autosave Status Flow
+7. **`renderOrgSections.tsx`** -- Pass `autoSaveStatus` to `RichTextSectionRenderer` for problem_statement, scope, hook, context_and_background. Remove `setSavingSection(true)` from solver_expertise save.
 
-```text
-User types/changes value
-     |
-     v
-Debounce timer starts (600ms for text, 0ms for selections)
-     |
-     v (timer fires)
-status = 'saving' → indicator shows "Saving..."
-     |
-     v
-saveSectionMutation.mutate() called silently
-     |
-     ├── onSuccess → status = 'saved' → "Saved ✓" (2s) → idle
-     └── onError   → status = 'error' → "Save failed ⚠" (5s) → idle
-```
+8. **`renderProblemSections.tsx`** -- Remove `setSavingSection(true)` from submission_guidelines, expected_outcomes. Pass status to `LineItemsSectionRenderer`.
 
-### Implementation Order
+9. **`renderCommercialSections.tsx`** -- Pass `autoSaveStatus` to `CheckboxMultiSectionRenderer` for eligibility/visibility. Remove `setSavingSection(true)`.
 
-1. Create `useAutoSaveSection` + `useAutoSaveExtendedBrief` hooks
-2. Create `AutoSaveIndicator` component
-3. Silence `saveSectionMutation` in orchestrator
-4. Wire `TextSectionEditor` (highest impact -- problem_statement, scope, hook)
-5. Wire `DeliverablesEditor` + `EvalCriteriaEditor`
-6. Wire `CheckboxMultiSectionRenderer` (remove Save/Cancel)
-7. Wire `TableSectionEditor` + `BriefSubsectionContent`
+10. **`renderOpsSections.tsx`** -- Pass `autoSaveStatus` to `TableSectionEditor` for data_resources, success_metrics. Remove `setSavingSection(true)` from phase_schedule.
 
-### Risk Mitigation
+**Phase 4: Extended brief subsections (1 file)**
 
-- The `editingSection` state is kept but becomes less critical -- sections that autosave don't need the edit/view toggle
-- `notifyStaleness` still fires on every save (downstream staleness tracking preserved)
-- `queryClient.invalidateQueries` still fires (data consistency preserved)
-- Cancel button removed from autosave editors, but Ctrl+Z (undo) works in RichTextEditor natively
+11. **`BriefSubsectionContent.tsx`** -- Wire `useAutoSaveExtendedBrief` for root_causes, current_deficiencies, preferred_approach, affected_stakeholders subsections.
+
+### What stays unchanged
+- Reward Structure -- own save + lock flow
+- Complexity Assessment -- own lock mechanism  
+- Legal Docs / Escrow -- locked, coordinator-driven
+- Domain Tags -- already immediate save
+- Industry Segment -- already immediate save
+- Creator References -- read-only display
+
+### Risk mitigation
+- `editingSection` state kept for backward compat but most sections will default to `isEditing = true`
+- `notifyStaleness` still fires on every save
+- `queryClient.invalidateQueries` still fires
+- Error toast on mutation failure preserved
+
+### Files summary
+| Action | File | Lines changed (est.) |
+|---|---|---|
+| Modify | `RichTextSectionRenderer.tsx` | ~10 |
+| Modify | `CheckboxSingleSectionRenderer.tsx` | ~15 |
+| Modify | `renderSectionContent.tsx` | ~20 |
+| Modify | `SectionPanelItem.tsx` | ~15 |
+| Modify | `useCurationSectionActions.ts` | ~30 |
+| Modify | `useCurationPageOrchestrator.ts` | ~25 |
+| Modify | `renderOrgSections.tsx` | ~20 |
+| Modify | `renderProblemSections.tsx` | ~25 |
+| Modify | `renderCommercialSections.tsx` | ~20 |
+| Modify | `renderOpsSections.tsx` | ~20 |
+| Modify | `BriefSubsectionContent.tsx` | ~15 |
 
