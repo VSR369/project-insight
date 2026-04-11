@@ -69,7 +69,7 @@ export default function MyChallengesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { data: challengesData, isLoading } = useMyChallenges(user?.id);
+  const { data: challengesData, isLoading, error: challengesError } = useMyChallenges(user?.id);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -138,6 +138,19 @@ export default function MyChallengesPage() {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  /* ── Error ── */
+  if (challengesError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
+        <AlertCircle className="h-10 w-10 text-destructive/60" />
+        <p className="text-sm font-medium text-destructive">Could not load challenges</p>
+        <p className="text-xs text-muted-foreground max-w-sm text-center">
+          {(challengesError as Error).message}
+        </p>
       </div>
     );
   }

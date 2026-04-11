@@ -14291,6 +14291,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      has_active_challenge_role: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

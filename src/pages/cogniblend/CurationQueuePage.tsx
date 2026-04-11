@@ -32,7 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckSquare, Clock, Eye, FileCheck, User, Search } from "lucide-react";
+import { AlertCircle, CheckSquare, Clock, Eye, FileCheck, User, Search } from "lucide-react";
 import type { SlaStatus } from "@/hooks/cogniblend/useCogniDashboard";
 
 // ---------------------------------------------------------------------------
@@ -195,21 +195,50 @@ export default function CurationQueuePage() {
   const { canSeeCurationQueue } = useCogniPermissions();
 
   // ══════════════════════════════════════
-  // SECTION 3: Query — ALL org challenges in phases 1-3
+  // SECTION 3: Query — Assignment-based inbox for CU challenges
   // ══════════════════════════════════════
-  const { data: challenges = [], isLoading } = useQuery<EnrichedCurationChallenge[]>({
-    queryKey: ["curation-queue", organizationId],
+  const { data: challenges = [], isLoading, error: queryError } = useQuery<EnrichedCurationChallenge[]>({
+    queryKey: ["curation-queue", user?.id],
     queryFn: async (): Promise<EnrichedCurationChallenge[]> => {
-      if (!user?.id || !organizationId) return [];
+      if (!user?.id) return [];
 
-      // Step 1: Fetch all org challenges in phases 1-3
+      // Step 1: Get challenge IDs where this user has active CU assignment
+      const { data: myAssignments, error: assignErr } = await supabase
+        .from("user_challenge_roles")
+        .select("challenge_id")
+        .eq("user_id", user.id)
+        .eq("role_code", "CU")
+        .eq("is_active", true);
+
+      if (assignErr) throw new Error(assignErr.message);
+
+      const assignedIds = (myAssignments ?? []).map((r) => r.challenge_id);
+
+      // Step 2: Also include same-org challenges for preview (if org context exists)
+      let orgChallengeIds: string[] = [];
+      if (organizationId) {
+        const { data: orgRows } = await supabase
+          .from("challenges")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .eq("current_phase", 2)
+          .eq("is_deleted", false)
+          .eq("is_active", true);
+        orgChallengeIds = (orgRows ?? []).map((r) => r.id);
+      }
+
+      // Merge & dedupe
+      const allIds = [...new Set([...assignedIds, ...orgChallengeIds])];
+      if (allIds.length === 0) return [];
+
+      // Step 3: Fetch full challenge details for merged IDs
       const { data: rows, error } = await supabase
         .from("challenges")
         .select(
           "id, title, operating_model, maturity_level, created_at, current_phase, phase_status, organization_id"
         )
-        .eq("organization_id", organizationId)
-        .in("current_phase", [2])
+        .in("id", allIds.slice(0, 50))
+        .eq("current_phase", 2)
         .eq("is_deleted", false)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -217,7 +246,7 @@ export default function CurationQueuePage() {
       if (error) throw new Error(error.message);
       if (!rows || rows.length === 0) return [];
 
-      // Step 2: Fetch CU role assignments for these challenges to show assignment indicators
+      // Step 4: Fetch CU role assignments for these challenges to show assignment indicators
       const challengeIds = rows.map((r) => r.id);
       const { data: cuAssignments } = await supabase
         .from("user_challenge_roles")
@@ -226,7 +255,6 @@ export default function CurationQueuePage() {
         .eq("role_code", "CU")
         .eq("is_active", true);
 
-      // Build a map: challenge_id → CuAssignment[]
       const assignmentMap = new Map<string, CuAssignment[]>();
       if (cuAssignments) {
         for (const a of cuAssignments) {
@@ -236,10 +264,9 @@ export default function CurationQueuePage() {
         }
       }
 
-      // Step 3: Enrich with SLA status + assignment label
+      // Step 5: Enrich with SLA status + assignment label
       const enriched = await Promise.all(
         (rows as CurationChallenge[]).map(async (ch) => {
-          // SLA for Phase 2 (Curation)
           let sla: SlaStatus | null = null;
           if (ch.current_phase === 2) {
             const slaRes = await supabase.rpc("check_sla_status", {
@@ -253,7 +280,6 @@ export default function CurationQueuePage() {
                   : slaRes.data) as SlaStatus | null);
           }
 
-          // Assignment indicator
           const assignments = assignmentMap.get(ch.id) ?? [];
           let assignmentLabel: "mine" | "other" | "unassigned" = "unassigned";
           let assigneeName: string | null = null;
@@ -279,7 +305,7 @@ export default function CurationQueuePage() {
 
       return enriched;
     },
-    enabled: !!user?.id && !!organizationId,
+    enabled: !!user?.id,
     staleTime: 30_000,
   });
 
@@ -405,18 +431,25 @@ export default function CurationQueuePage() {
       </div>
 
       {/* Table or empty state */}
-      {filtered.length === 0 ? (
+      {/* Error state */}
+      {queryError ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+          <AlertCircle className="h-12 w-12 text-destructive/40" />
+          <p className="text-base font-medium text-destructive">
+            Could not load curation queue
+          </p>
+          <p className="text-sm text-muted-foreground/70 max-w-sm">
+            {(queryError as Error).message}
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <CheckSquare className="h-12 w-12 text-muted-foreground/40" />
           <p className="text-base font-medium text-muted-foreground">
-            {resolvedTab === "incoming"
-              ? "No incoming challenges"
-              : "No challenges awaiting curation"}
+            No challenges in your curation inbox
           </p>
           <p className="text-sm text-muted-foreground/70 max-w-sm">
-            {resolvedTab === "incoming"
-              ? "Challenges will appear here once they enter the curation pipeline."
-              : "Challenges submitted for review will appear here."}
+            Challenges assigned to you for curation review will appear here.
           </p>
         </div>
       ) : (
