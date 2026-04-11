@@ -104,6 +104,11 @@ function legacyToTierState(monetary?: MonetaryReward, srcDefault: FieldSource['s
       };
     }
   }
+  // Auto-populate Platinum from totalPool if Creator only set budget (no tier breakdown)
+  if (state.platinum.enabled && state.platinum.amount === 0 && monetary.totalPool && monetary.totalPool > 0) {
+    state.platinum.amount = monetary.totalPool;
+    state.platinum.amountSrc = { src: srcDefault };
+  }
   return state;
 }
 
