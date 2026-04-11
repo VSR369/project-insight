@@ -1,90 +1,98 @@
 
 
-## Curator Code Audit — Prioritized Fix Plan
+## Curator Fixes — Outstanding Issues Implementation Plan
 
-This is a large audit with 13 issues. I'll group them into actionable batches by priority, noting which are real bugs vs. enhancements, and what's already working.
+### Issue #8: Wire useAutoSaveSection to Rich Text Sections
 
-### Triage Summary
+**Current state:** `TextSectionEditor` calls `onSave(val)` on every keystroke, which calls `handleSaveText` — this immediately fires `saveSectionMutation.mutate()`. There is NO debounce. The `useAutoSaveSection` hook exists but has zero call-sites.
 
-| # | Issue | Verdict | Priority |
-|---|-------|---------|----------|
-| 1 | Master data live refresh | **Already working** — `useCurationMasterData` fetches from DB via React Query. Only IP models are static (intentional). No fix needed. | Skip |
-| 2 | Fixed notice board at top | Enhancement — not a bug. Current PrerequisiteBanner + CompletenessChecklist cover this. | Medium |
-| 3 | Notice board → navigate + highlight | **Already implemented** in last PR — `sectionNavigation.ts`, `SectionPanelItem` highlight, `useCurationCallbacks` dispatch. | Done |
-| 4 | PreFlight → navigate + highlight | **Already implemented** — `handlePreFlightGoToSection` dispatches nav event. | Done |
-| 5 | Unified sticky notice + popup | Enhancement — large effort, low ROI vs existing two systems. | Defer |
-| 6 | Context Library auto-open | **Already fixed** — `setContextLibraryOpen(true)` is called in `handleAnalyse` (line 177). | Done |
-| 7 | Context Library gate before Generate | Valid UX gap — no hard gate. | Low |
-| 8 | Universal autosave | Partially done — `useAutoSaveSection` exists. Extended brief/rewards use separate flows by design. | Low |
-| 9 | Re-review on reload (`pass1DoneSession`) | **Real bug** — resets to `false` on refresh. Should seed from `aiReviews.length > 0`. | High |
-| 10 | AI bounded to master data | Valid for structured fields only (maturity, IP, eligibility, visibility, complexity, solution_type). Free-text fields should not be bounded. | Medium |
-| 11 | Complexity section bugs | Multiple real issues — tab isolation, lock logic, score display. | High |
-| 12 | Rewards section bugs | Multiple real issues — lock mechanism, currency sync, type switching. | High |
-| 13 | Systemic UX: isReadOnly hardcoded, right rail order, dirty-state guard | `isReadOnly = false` is a **real bug**. Others are enhancements. | High (isReadOnly) |
+**Fix:** The autosave hook should be wired at the renderer level where rich text sections are used. Since `handleSaveText` is already called on every change in `TextSectionEditor` and immediately calls `saveSectionMutation.mutate()`, the simplest approach is to wrap `handleSaveText` calls through `useAutoSaveSection` in `SectionPanelItem`.
 
-### Batch 1 — Quick Critical Fixes (this implementation)
+However, `SectionPanelItem` is a pure function component and already passes `saveSectionMutation` down. The most targeted fix: create a thin wrapper hook `useAutoSaveField` in the renderer layer that debounces before calling `handleSaveText`.
 
-**Fix 9: `pass1DoneSession` not seeded on page load**
+**Actual approach:** Modify `RichTextSectionRenderer` to accept `saveSectionMutation` and `sectionDbField`, internally instantiate `useAutoSaveSection`, and route `onSave` through its `save()` method. This way only rich text sections (problem_statement, scope, hook, context_and_background) get debounced autosave. Structured sections (checkboxes, dropdowns) save immediately on selection — which is correct behavior.
 
-File: `src/hooks/cogniblend/useCurationEffects.ts`
-- After AI reviews are hydrated from DB (line 55), check if `aiReviews.length > 0`
-- If yes, call `setPass1DoneSession(true)` so the button shows "Re-analyse" on reload
-- Add `setPass1DoneSession` to the options interface
+**Files:**
+- `src/components/cogniblend/curation/renderers/RichTextSectionRenderer.tsx` — convert to a component that uses `useAutoSaveSection` internally
+- `src/components/cogniblend/curation/renderers/renderOrgSections.tsx` — pass `saveSectionMutation` + `section.dbField` to `RichTextSectionRenderer`
+- `src/components/cogniblend/curation/renderers/renderProblemSections.tsx` — same for extended brief text sections
 
-**Fix 13a: `isReadOnly` hardcoded to `false`**
+### Issue #1: Maturity Options from DB Instead of Constants
 
-File: `src/pages/cogniblend/CurationReviewPage.tsx` (line 83)
-- Replace `const isReadOnly = false;` with phase/status-based logic:
-  ```typescript
-  const isReadOnly = (o.challenge.current_phase ?? 0) > 2 ||
-    (o.challenge as any).curation_lock_status === 'FROZEN';
-  ```
-- This makes curation read-only after Phase 2 or when frozen for legal review
+**Current state:** `useCurationMasterData` builds maturity options from hardcoded `MATURITY_LABELS` constant. The DB table `md_solution_maturity` exists with live data (Blueprint, Demo, POC, Prototype). IP models have no DB table — keeping them as constants is intentional.
 
-**Fix 10: Pass master data options to AI review inline (structured fields only)**
+**Fix:** Add a query to `useCurationMasterData` to fetch from `md_solution_maturity` instead of using `MATURITY_LABELS`. IP models remain static (no DB table exists).
 
-File: `src/components/cogniblend/curation/SectionPanelItem.tsx` — already passes `sectionMasterDataOptions` to `CurationAIReviewInline` (lines 155-165, 182). This is **already implemented**. The edge function prompt side needs the constraint — that's a separate edge function change, not a frontend fix.
+**Files:**
+- `src/hooks/cogniblend/useCurationMasterData.ts` — replace maturity constant with DB query from `md_solution_maturity`
 
-### Batch 2 — Complexity Section Fixes
+### Issue #5: Unify Notice Systems
 
-File: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` (and sub-components)
-- **Tab data isolation**: Ensure `aiDraft` and `manualDraft` are fully independent state objects; switching tabs must not cross-contaminate values
-- **Save guard**: Before saving, warn if unsaved changes exist on the other tab
-- **Lock button visibility**: Only show Lock when the active tab has valid data
-- **Score fidelity**: Quick Select must carry the selected level's score, not hardcode 0
-- **Unlock confirmation**: Add a confirmation dialog before unlocking
+**Current state:** `IncompleteSectionsBanner` (sticky top) and `PreFlightGateDialog` (analyse popup) maintain separate logic for building incomplete section lists.
 
-### Batch 3 — Rewards Section Fixes
+**Fix:** Extract shared incomplete-sections logic into a utility function used by both components. Make `IncompleteSectionsBanner` items clickable with the same navigate-and-highlight behavior. Both components will derive from the same data source.
 
-Files: `RewardStructureDisplay.tsx`, `MonetaryRewardEditor.tsx`, `RewardTypeChooser.tsx`
-- **Lock mechanism**: Add `isLocked`/`onLock`/`onUnlock` to reward structure, similar to complexity
-- **Currency sync**: Sync `currency` state from `challengeCurrencyCode` prop on mount and when prop changes
-- **Type switching warning**: Show confirmation dialog when switching reward type if data exists
-- **Active type indication**: Visually distinguish the selected reward type card
+**Files:**
+- `src/lib/cogniblend/incompleteSectionsUtil.ts` — new shared utility
+- `src/components/cogniblend/curation/IncompleteSectionsBanner.tsx` — use shared util, add per-section navigate
+- `src/components/cogniblend/curation/PreFlightGateDialog.tsx` — use shared util for consistency
 
-### Batch 4 — Enhancements (lower priority)
+### Issue #7: Gate Generate Suggestions Behind Context Library
 
-- **Issue 2**: Sticky incomplete-sections banner above the main grid
-- **Issue 5**: Unified notice + popup system
-- **Issue 7**: Gate "Generate Suggestions" behind Context Library review
-- **Issue 8**: Wire `useAutoSaveSection` to remaining text fields
-- **Issue 13b**: Right rail card ordering, dirty-state guard on navigate back
+**Current state:** "Generate Suggestions" button is always clickable after pass1Done. No gate.
+
+**Fix:** Add `contextLibraryReviewed` boolean state to the orchestrator. Set it to `true` when the Context Library drawer is closed after being opened post-analysis. Pass it to `CurationRightRail` and disable the "Generate Suggestions" button when `!contextLibraryReviewed`.
+
+**Files:**
+- `src/hooks/cogniblend/useCurationPageOrchestrator.ts` — add `contextLibraryReviewed` state, set on drawer close
+- `src/components/cogniblend/curation/CurationRightRail.tsx` — accept `contextLibraryReviewed` prop, disable Generate button accordingly
+- `src/pages/cogniblend/CurationReviewPage.tsx` — pass prop through
+
+### Issue #11: Complexity Quick Select Score + Lock Logic
+
+**Bug 1 — Quick Select finalScore:** Already partially fixed in previous batch (displayScore uses midpoint). But `handleSave` in `ComplexityAssessmentModule.tsx` line 63-68 independently recalculates — this is correct and uses the same logic. Score is NOT 0 when a level is selected. Verified: `if (!state.overrideLevel) return 0` only fires when no level selected. The lock is what needs fixing.
+
+**Bug 2 — Lock button on Quick Select:** `canLock` at line 104-108 shows lock when `hasExistingAssessment && !showActions`. On Quick Select tab without a selection: `showActions = false` (because `overrideLevel === null`), but `hasExistingAssessment = true` if previous data exists, AND `activeTab === 'quick_select' && currentLevel != null` evaluates true if there's a prior level. Fix: add `state.overrideLevel !== null` to the quick_select condition.
+
+**Files:**
+- `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` — fix `canLock` condition for quick_select tab
+
+### Issue #12: Reward Lock Persistence + AI Budget Split
+
+**Bug 1 — isTypeLocked not persisted:** `getSerializedData()` does not include `isTypeLocked`. On page refresh, it resets to `false`.
+
+**Fix:** Include `isTypeLocked` in the serialized data and restore it from existing data on mount.
+
+**Bug 2 — AI auto-split:** When creator provides a total budget without tier breakdown, auto-split into Platinum/Gold/Silver using a standard ratio (50/30/20).
+
+**Files:**
+- `src/hooks/useRewardStructureState.ts` — include `isTypeLocked` in `getSerializedData()` output; restore from initial data in `useState`; add auto-split logic when budget_max exists without tier breakdown
+
+### Right Rail Reorder
+
+**Current order:** AIQualityCard → AIConfidenceSummary → CompletenessChecklist → ContextLibrary → Analyse/Generate → WaveProgress → Budget → Completion → AIReviewSummary → Actions → Legal → Modifications
+
+**New order:** Analyse/Generate (primary action first) → CompletenessChecklist → ContextLibrary → AIQualityCard → AIConfidenceSummary → (rest same)
+
+**Files:**
+- `src/components/cogniblend/curation/CurationRightRail.tsx` — reorder JSX
 
 ---
 
-### Implementation — Batch 1 (this round)
+### Summary of Files Changed
 
-#### Files to modify
-
-| File | Change |
+| File | Action |
 |------|--------|
-| `src/hooks/cogniblend/useCurationEffects.ts` | Add `setPass1DoneSession` param; seed from hydrated AI reviews |
-| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Pass `setPass1DoneSession` to `useCurationEffects` |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Replace hardcoded `isReadOnly = false` with phase/freeze logic |
-
-#### What stays unchanged
-- `sectionNavigation.ts` — Issues 3, 4, 6 already resolved
-- `useCurationMasterData.ts` — Issue 1 already fetches from DB
-- `useCurationAIActions.ts` — `handleAnalyse` already auto-opens Context Library
-- Edge function prompt changes (Issue 10) — separate backend task, not frontend
+| `src/components/cogniblend/curation/renderers/RichTextSectionRenderer.tsx` | Modify — add `useAutoSaveSection` |
+| `src/components/cogniblend/curation/renderers/renderOrgSections.tsx` | Modify — pass saveSectionMutation to renderer |
+| `src/components/cogniblend/curation/renderers/renderProblemSections.tsx` | Modify — same |
+| `src/hooks/cogniblend/useCurationMasterData.ts` | Modify — maturity from DB |
+| `src/lib/cogniblend/incompleteSectionsUtil.ts` | Create — shared incomplete sections logic |
+| `src/components/cogniblend/curation/IncompleteSectionsBanner.tsx` | Modify — use shared util |
+| `src/components/cogniblend/curation/PreFlightGateDialog.tsx` | Modify — use shared util |
+| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Modify — add contextLibraryReviewed |
+| `src/components/cogniblend/curation/CurationRightRail.tsx` | Modify — gate + reorder |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Modify — pass contextLibraryReviewed |
+| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Modify — fix canLock |
+| `src/hooks/useRewardStructureState.ts` | Modify — persist isTypeLocked + auto-split |
 
