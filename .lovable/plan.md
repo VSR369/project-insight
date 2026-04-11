@@ -1,61 +1,47 @@
 
 
-## Fix: IP Model & Maturity — DB-Driven Master Data
+## Fix: Banner Dismiss Resets + Per-Section Incomplete Chips
 
 ### Problem
-- `IP_MODEL_OPTIONS` is hardcoded — platform admins cannot manage IP models
-- Maturity options already fetch from DB but lack a fallback if the table is empty
-- No `md_ip_models` table exists in the database
+1. Dismissing the banner is permanent (`useState(false)`) — if new sections become incomplete, the banner stays hidden
+2. Expanded view only shows group-level chips, not individual incomplete sections
 
 ### Changes
 
-**1. Create `md_ip_models` table** (database migration)
+**1. `src/lib/cogniblend/incompleteSectionsUtil.ts`** — Add `incompleteSectionKeys` to `IncompleteGroup`
 
-```sql
-CREATE TABLE IF NOT EXISTS public.md_ip_models (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code TEXT NOT NULL UNIQUE,
-  label TEXT NOT NULL,
-  description TEXT,
-  display_order INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ,
-  created_by UUID,
-  updated_by UUID
-);
+Update `buildIncompleteGroups` to accept challenge data and call `isFilled()` per section to identify which specific sections are incomplete (not just all section keys in the group).
 
-ALTER TABLE public.md_ip_models ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can read active IP models"
-  ON public.md_ip_models FOR SELECT TO authenticated
-  USING (is_active = true);
-
-INSERT INTO public.md_ip_models (code, label, description, display_order) VALUES
-  ('IP-EA', 'Exclusive Assignment', 'All intellectual property transfers to the challenge seeker', 1),
-  ('IP-NEL', 'Non-Exclusive License', 'Solver retains ownership, grants license to seeker', 2),
-  ('IP-EL', 'Exclusive License', 'Solver grants exclusive license to seeker', 3),
-  ('IP-JO', 'Joint Ownership', 'Joint ownership between solver and seeker', 4),
-  ('IP-NONE', 'No IP Transfer', 'Solver retains full IP ownership', 5);
+```typescript
+export interface IncompleteGroup {
+  groupId: string;
+  label: string;
+  missing: number;
+  total: number;
+  sectionKeys: string[];          // all valid keys
+  incompleteSectionKeys: string[]; // only the incomplete ones
+}
 ```
 
-**2. Update `src/hooks/cogniblend/useCurationMasterData.ts`**
+Add `challenge`, `legalDocs`, `legalDetails`, `escrowRecord` parameters. For each group's section keys, call `sec.isFilled(challenge, ...)` to filter incomplete ones. Fall back to existing `groupProgress` math if `challenge` is null.
 
-- Add `useQuery` for `md_ip_models` with `CACHE_STABLE` — returns `null` on error/empty to signal fallback
-- Keep `FALLBACK_IP_OPTIONS` constant for graceful degradation
-- Add maturity fallback using `MATURITY_LABELS` / `MATURITY_DESCRIPTIONS` from `maturityLabels.ts` if DB returns empty
-- Wire `ipModelLoading` into the aggregate `isLoading`
-- Use `r.code` directly for maturity value (not `.toUpperCase()`) to match DB normalization
+**2. `src/components/cogniblend/curation/IncompleteSectionsBanner.tsx`** — Smart dismiss + per-section chips
+
+- Replace `dismissed: boolean` with `dismissedAt: number | null` + `prevMissingCount` ref
+- Add `useEffect` that re-shows banner when `totalMissing > prevMissingCount` after dismiss
+- Replace expanded chip rendering: group headers with individual section buttons underneath
+- Add `challenge`, `legalDocs`, `legalDetails`, `escrowRecord` to props interface
+- Pass these through to `buildIncompleteGroups`
+
+**3. `src/pages/cogniblend/CurationReviewPage.tsx`** — Pass challenge data to banner
+
+Add `challenge`, `legalDocs`, `legalDetails`, `escrowRecord` props to the `IncompleteSectionsBanner` call site (all available from orchestrator).
 
 ### Files changed
 
 | File | Action |
 |------|--------|
-| Migration SQL | Create `md_ip_models` table with seed data + RLS |
-| `src/hooks/cogniblend/useCurationMasterData.ts` | Add IP model query with fallback; add maturity fallback |
-
-### What stays unchanged
-- All downstream renderers — they consume `MasterDataOption[]` arrays, shape is identical
-- `maturityLabels.ts` — kept as fallback source
-- Complexity and solver eligibility queries — already working from DB
+| `src/lib/cogniblend/incompleteSectionsUtil.ts` | Add per-section filtering via `isFilled` |
+| `src/components/cogniblend/curation/IncompleteSectionsBanner.tsx` | Smart dismiss + per-section chips |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Pass challenge data to banner |
 
