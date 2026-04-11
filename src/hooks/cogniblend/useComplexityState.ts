@@ -190,11 +190,6 @@ export function useComplexityState({
   const aiLabelRef_ = aiScoreRef_ != null ? deriveComplexityLabel(aiScoreRef_) : null;
   const hasAiRatings = !!aiSuggestedRatings && Object.keys(aiSuggestedRatings).length > 0;
 
-  const quickSelectScore = useMemo(() => {
-    if (!overrideLevel) return 0;
-    const threshold = (await import('@/lib/cogniblend/complexityScoring')).COMPLEXITY_THRESHOLDS;
-    return 0; // placeholder
-  }, [overrideLevel]);
   // Quick select: derive a midpoint score from the selected level
   const displayScore = activeTab === 'quick_select'
     ? (() => {
