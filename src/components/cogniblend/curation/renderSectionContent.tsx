@@ -14,6 +14,8 @@ import { renderProblemSection } from "@/components/cogniblend/curation/renderers
 import { renderCommercialSection } from "@/components/cogniblend/curation/renderers/renderCommercialSections";
 import { renderOpsSection } from "@/components/cogniblend/curation/renderers/renderOpsSections";
 
+import { LOCKED_SECTIONS } from "@/lib/cogniblend/curationSectionDefs";
+
 import type { ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord, SectionDef } from "@/lib/cogniblend/curationTypes";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 import type { SectionStatus } from "@/components/cogniblend/curation/CuratorSectionPanel";
@@ -77,10 +79,17 @@ export interface RenderSectionContentArgs {
 
 /* ── Dispatcher ── */
 
+/** Sections that keep an explicit Edit button (locked or custom workflow) */
+const EDIT_BUTTON_SECTIONS = new Set([
+  ...LOCKED_SECTIONS,
+  "affected_stakeholders", // table needs explicit edit/view toggle
+]);
+
 export function renderSectionContent(args: RenderSectionContentArgs): React.ReactNode {
   const { section, canEdit, isEditing, setEditingSection } = args;
 
-  const editButton = canEdit && !isEditing ? (
+  // Only show Edit button for locked/special sections — standard sections autosave
+  const editButton = canEdit && !isEditing && EDIT_BUTTON_SECTIONS.has(section.key) ? (
     <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setEditingSection(section.key)}>
       <Pencil className="h-3 w-3 mr-1" />Edit
     </Button>

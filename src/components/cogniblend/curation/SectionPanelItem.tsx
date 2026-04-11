@@ -101,7 +101,8 @@ export interface SectionPanelItemProps {
 export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, editingSection, setEditingSection, savingSection, setSavingSection, aiReview, approvedSections, toggleSectionApproval, sectionAIFlags, highlightWarnings, aiSuggestedComplexity, staleKeySet, masterData, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap, handleSaveText, handleSaveDeliverables, handleSaveStructuredDeliverables, handleSaveEvalCriteria, handleSaveOrgPolicyField, handleSaveMaturityLevel, handleSaveSolutionTypes, handleSaveExtendedBrief, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity, handleAcceptRefinement, handleAcceptExtendedBriefRefinement, handleSingleSectionReview, handleMarkAddressed, handleComplexityReReview, handleApproveLockedSection, handleUndoApproval, handleAddDomainTag, handleRemoveDomainTag, handleIndustrySegmentChange, handleAcceptAllLegalDefaults, saveSectionMutation, challengeCtx, optimisticIndustrySegId, escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, legalDocs, legalDetails, escrowRecord, rewardStructureRef, complexityModuleRef, curationStore, staleSections, sectionReadiness, getSectionActions, setLockedSendState, setContextLibraryOpen, expandVersion }: SectionPanelItemProps) {
   const filled = section.isFilled(challenge, legalDocs, legalDetails, escrowRecord);
   const isLocked = LOCKED_SECTIONS.has(section.key);
-  const isEditing = editingSection === section.key;
+  // Standard (non-locked) sections are always in edit mode for autosave
+  const isEditing = isLocked ? editingSection === section.key : !isReadOnly;
   const canEdit = !isReadOnly && !isLocked && (!!section.dbField || section.key === "complexity");
   const isApproved = approvedSections[section.key] ?? false;
   const inlineFlags = sectionAIFlags[section.key];
