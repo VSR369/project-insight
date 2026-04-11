@@ -104,7 +104,6 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
             saving={savingSection}
             autoSaveStatus={autoSaveStatus}
           />
-          />
         );
       }
       return (
@@ -131,7 +130,6 @@ export function renderOpsSection(args: RenderSectionContentArgs, editButton: Rea
             onCancel={cancelEdit}
             saving={savingSection}
             autoSaveStatus={autoSaveStatus}
-          />
           />
         );
       }
