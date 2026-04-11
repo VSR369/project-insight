@@ -1,6 +1,7 @@
 /**
  * ContextLibraryDrawer — Thin orchestrator importing sub-components.
- * Bug 2 fix: Added file upload UI. Bug 7 fix: Passes acceptOne/rejectOne to SourceList.
+ * Bug 2 fix: Added file upload UI with dedicated panel.
+ * Bug 7 fix: Passes acceptOne/rejectOne to SourceList.
  */
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -8,7 +9,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Link, Sparkles, BookOpen, X, Upload } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Search, Link, Sparkles, BookOpen, X, Upload, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   useContextSources, useContextDigest, useDiscoverSources,
   useAcceptSuggestion, useRejectSuggestion, useAcceptMultipleSuggestions,
@@ -22,6 +25,8 @@ import { DigestPanel } from './context-library/DigestPanel';
 import { SECTION_LABELS } from './context-library/types';
 
 const ACCEPTED_FILE_TYPES = '.pdf,.docx,.xlsx,.csv,.txt,.md,.png,.jpg,.jpeg,.webp';
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_SIZE_LABEL = '20MB';
 
 interface ContextLibraryDrawerProps {
   challengeId: string;
@@ -31,11 +36,13 @@ interface ContextLibraryDrawerProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+type AddMode = 'url' | 'file' | null;
+
 export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClose, onOpenChange }: ContextLibraryDrawerProps) {
   const handleClose = () => { onClose?.(); onOpenChange?.(false); };
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [addMode, setAddMode] = useState<AddMode>(null);
   const [urlValue, setUrlValue] = useState('');
   const [urlSection, setUrlSection] = useState('problem_statement');
   const [fileSection, setFileSection] = useState('problem_statement');
@@ -58,62 +65,87 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
 
   const selectedSource = useMemo(() => sources.find(s => s.id === selectedId) || null, [sources, selectedId]);
 
+  const suggestedCount = useMemo(
+    () => sources.filter(s => s.discovery_status === 'suggested').length,
+    [sources]
+  );
+
   const handleAddUrl = () => {
     if (!urlValue.trim()) return;
+    try { new URL(urlValue.trim()); } catch {
+      alert('Please enter a valid URL starting with https://');
+      return;
+    }
     addUrl.mutate({ url: urlValue.trim(), sectionKey: urlSection });
     setUrlValue('');
-    setShowUrlInput(false);
+    setAddMode(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      alert(`File must be under ${MAX_FILE_SIZE_LABEL}`);
+      return;
+    }
     uploadFile.mutate({ file, sectionKey: fileSection });
-    e.target.value = '';
+    setAddMode(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <SheetContent side="right" className="flex flex-col overflow-hidden gap-0 sm:max-w-none" style={{ padding: 0, width: 900, maxWidth: 900 }}>
         <SheetHeader className="shrink-0 p-4 pb-3 border-b min-h-[4rem]">
+          {/* Title row */}
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2 text-lg">
-              <BookOpen className="h-5 w-5" />Context Library
+              <BookOpen className="h-5 w-5" />
+              Context Library
+              {suggestedCount > 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {suggestedCount} awaiting review
+                </Badge>
+              )}
             </SheetTitle>
           </div>
           <p className="text-sm text-muted-foreground truncate">{challengeTitle}</p>
+
+          {/* Action bar */}
           <div className="flex items-center gap-2 flex-wrap mt-2">
             <Button size="sm" variant="default" onClick={() => discover.mutate()} disabled={discover.isPending}>
               <Sparkles className="h-4 w-4 mr-1" />{discover.isPending ? 'Discovering...' : 'Re-discover Sources'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowUrlInput(!showUrlInput)}>
+            <Button size="sm" variant={addMode === 'url' ? 'secondary' : 'outline'} onClick={() => setAddMode(addMode === 'url' ? null : 'url')}>
               <Link className="h-4 w-4 mr-1" />Add URL
             </Button>
-            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending}>
-              <Upload className="h-4 w-4 mr-1" />{uploadFile.isPending ? 'Uploading...' : 'Upload File'}
+            <Button
+              size="sm"
+              variant={addMode === 'file' ? 'secondary' : 'outline'}
+              onClick={() => setAddMode(addMode === 'file' ? null : 'file')}
+              disabled={uploadFile.isPending}
+            >
+              <Upload className="h-4 w-4 mr-1" />
+              {uploadFile.isPending ? 'Uploading...' : 'Upload Document'}
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_FILE_TYPES}
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <Select value={fileSection} onValueChange={setFileSection}>
-              <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(SECTION_LABELS).map(([k, v]) => (<SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>))}
-              </SelectContent>
-            </Select>
             <div className="flex-1" />
             <div className="relative">
               <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search sources..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 h-8 w-48 text-sm" />
             </div>
           </div>
-          {showUrlInput && (
+
+          {/* URL input row */}
+          {addMode === 'url' && (
             <div className="flex items-center gap-2 mt-2">
-              <Input placeholder="https://..." value={urlValue} onChange={e => setUrlValue(e.target.value)} className="h-8 text-sm flex-1" onKeyDown={e => { if (e.key === 'Enter') handleAddUrl(); }} />
+              <Input
+                placeholder="https://..."
+                value={urlValue}
+                onChange={e => setUrlValue(e.target.value)}
+                className="h-8 text-sm flex-1"
+                onKeyDown={e => { if (e.key === 'Enter') handleAddUrl(); }}
+                autoFocus
+              />
               <Select value={urlSection} onValueChange={setUrlSection}>
                 <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -123,11 +155,35 @@ export function ContextLibraryDrawer({ challengeId, challengeTitle, open, onClos
               <Button size="sm" onClick={handleAddUrl} disabled={!urlValue.trim() || addUrl.isPending}>
                 {addUrl.isPending ? 'Adding...' : 'Add'}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowUrlInput(false)}><X className="h-4 w-4" /></Button>
+              <Button size="sm" variant="ghost" onClick={() => setAddMode(null)}><X className="h-4 w-4" /></Button>
+            </div>
+          )}
+
+          {/* File upload row */}
+          {addMode === 'file' && (
+            <div className="flex items-center gap-2 mt-2">
+              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending}>
+                  Choose File
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, DOCX, TXT, CSV, XLSX, PNG, JPG (max {MAX_FILE_SIZE_LABEL})
+                </p>
+              </div>
+              <input ref={fileInputRef} type="file" accept={ACCEPTED_FILE_TYPES} className="hidden" onChange={handleFileChange} />
+              <Select value={fileSection} onValueChange={setFileSection}>
+                <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SECTION_LABELS).map(([k, v]) => (<SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" variant="ghost" onClick={() => setAddMode(null)}><X className="h-4 w-4" /></Button>
             </div>
           )}
         </SheetHeader>
 
+        {/* Body */}
         <div className="flex-1 flex min-h-0">
           <SourceList
             sources={sources} searchTerm={searchTerm} selectedId={selectedId}
