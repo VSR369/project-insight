@@ -22,12 +22,10 @@ export default function LcChallengeQueuePage() {
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
 
-  // Filter to challenges where user holds LC role, sorted newest first
+  // Filter to challenges where user holds LC role
   const lcChallenges = useMemo(() => {
     if (!challengeRows) return [];
-    let list = challengeRows
-      .filter((row) => row.role_codes?.includes('LC') && row.current_phase >= 2)
-      .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
+    let list = challengeRows.filter((row) => row.role_codes?.includes('LC') && row.current_phase >= 2);
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
       list = list.filter((c) => (c.challenge_title ?? '').toLowerCase().includes(q));
@@ -106,12 +104,6 @@ export default function LcChallengeQueuePage() {
                     </span>
                     <span>·</span>
                     <span className="capitalize">{challenge.phase_status?.toLowerCase().replace(/_/g, ' ') ?? '—'}</span>
-                    {challenge.created_at && (
-                      <>
-                        <span>·</span>
-                        <span>{format(new Date(challenge.created_at), 'MMM d, yyyy · h:mm a')}</span>
-                      </>
-                    )}
                     {challenge.operating_model && (
                       <>
                         <span>·</span>
