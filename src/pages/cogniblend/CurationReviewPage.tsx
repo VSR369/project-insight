@@ -213,6 +213,7 @@ export default function CurationReviewPage() {
                 solutionTypesData={o.solutionTypesData}
                 solutionTypeMap={o.solutionTypeMap}
                 handleSaveText={o.handleSaveText}
+                handleSyncText={o.handleSyncText}
                 handleSaveDeliverables={o.handleSaveDeliverables}
                 handleSaveStructuredDeliverables={o.handleSaveStructuredDeliverables}
                 handleSaveEvalCriteria={o.handleSaveEvalCriteria}
