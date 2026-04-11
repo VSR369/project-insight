@@ -31,6 +31,7 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
     handleSaveEvalCriteria, handleSaveComplexity, handleLockComplexity, handleUnlockComplexity,
     saveSectionMutation, masterData, complexityParams, solutionTypeGroups,
     rewardStructureRef, complexityModuleRef, aiSuggestedComplexity,
+    autoSaveStatus,
   } = args;
 
   if (!COMMERCIAL_KEYS.has(section.key)) return null;
@@ -48,6 +49,7 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
           saving={savingSection}
           getLabel={(v) => masterData.ipModelOptions.find((o) => o.value === v)?.label ?? v}
           getDescription={(v) => masterData.ipModelOptions.find((o) => o.value === v)?.description}
+          autoSaveStatus={autoSaveStatus}
         />
       );
 
@@ -67,6 +69,7 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
           }}
           onCancel={cancelEdit}
           saving={savingSection}
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }
@@ -87,6 +90,7 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
           }}
           onCancel={cancelEdit}
           saving={savingSection}
+          autoSaveStatus={autoSaveStatus}
         />
       );
     }
@@ -187,6 +191,7 @@ export function renderCommercialSection(args: RenderSectionContentArgs, editButt
           saving={savingSection}
           getLabel={getMaturityLabel}
           getDescription={(val) => masterData.maturityOptions.find((o) => o.value.toLowerCase() === val.toLowerCase())?.description}
+          autoSaveStatus={autoSaveStatus}
         />
       );
 
