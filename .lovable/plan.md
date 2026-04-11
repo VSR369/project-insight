@@ -1,41 +1,30 @@
 
 
-## Fix: Complexity Lock Button Shows on Empty AI Tab
+## Fix: Formalize Reward Type Lock Persistence
 
-### Problem
-The "Lock Assessment" button appears when the AI review tab is active even if no AI values have been changed from the default (5). This lets curators lock an empty/default assessment.
+### Current State
+The lock **does** persist today — the hook writes `isTypeLocked` directly to the serialized object (line 549) and reads it back from the raw JSONB (line 250). However, this bypasses the formal `RewardData` interface and the `serializeRewardData`/`resolveRewardStructure` functions, making the data flow implicit.
 
-### Change
+### Changes
 
-**File: `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx`** (lines 104-108)
+**1. `src/services/rewardStructureResolver.ts`**
 
-Replace the current `canLock` logic with value-aware checks:
+- Add `isTypeLocked?: boolean` to the `RewardData` interface (line 82)
+- In `serializeRewardData`, add `_typeLocked` to the base object when `data.isTypeLocked` is true (before the return branches, ~line 498)
+- In `resolveRewardStructure`, set `resolved.isTypeLocked = raw?._typeLocked === true` so the resolver formally surfaces it
 
-```typescript
-// Before (lines 104-108):
-const canLock = hasExistingAssessment && !showActions && (
-  (state.activeTab === 'ai_review') ||
-  (state.activeTab === 'manual_params') ||
-  (state.activeTab === 'quick_select' && currentLevel != null && state.overrideLevel !== null)
-);
+**2. `src/hooks/useRewardStructureState.ts`**
 
-// After:
-const hasAiValues = state.activeTab === 'ai_review' &&
-  Object.values(state.aiDraft).some(v => v !== 5);
-const hasManualValues = state.activeTab === 'manual_params' &&
-  Object.values(state.manualDraft).some(v => v !== 5);
-const hasQuickSelect = state.activeTab === 'quick_select' && state.overrideLevel !== null;
+- Initialize `isTypeLocked` from `resolved.isTypeLocked` instead of reading raw JSONB directly (line 247-251)
+- Add `isTypeLocked` to the `RewardData` object in `getSerializedData` (line 536-544) so `serializeRewardData` handles it
+- Remove the post-serialization `serialized.isTypeLocked = isTypeLocked` line (549) since the serializer now handles it
 
-const canLock = hasExistingAssessment && !showActions && (
-  hasAiValues || hasManualValues || hasQuickSelect
-);
-```
-
-This ensures the lock button only appears when the active tab has meaningful (non-default) values.
+**Migration note:** The serializer will write `_typeLocked` going forward. For backward compatibility, the resolver will also check for the old `isTypeLocked` key in raw data.
 
 ### Files changed
 
 | File | Action |
 |------|--------|
-| `src/components/cogniblend/curation/ComplexityAssessmentModule.tsx` | Replace `canLock` with value-aware gating |
+| `src/services/rewardStructureResolver.ts` | Add `isTypeLocked` to interface, serialize/resolve it |
+| `src/hooks/useRewardStructureState.ts` | Use resolved value, add to RewardData, remove post-hoc write |
 
