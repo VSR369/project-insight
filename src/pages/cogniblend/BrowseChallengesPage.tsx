@@ -18,7 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useBrowseChallenges, type BrowseChallengeItem } from '@/hooks/cogniblend/useBrowseChallenges';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 /* ─── Status helpers ─────────────────────────────────────── */
 
@@ -49,7 +49,9 @@ function ChallengeCard({ challenge }: { challenge: BrowseChallengeItem }) {
   const status = statusBadge(challenge.master_status);
   const displayName = challenge.trade_brand_name || challenge.organization_name || 'Unknown Org';
   const summary = challenge.hook || challenge.problem_statement;
-  const timeAgo = formatDistanceToNow(new Date(challenge.created_at), { addSuffix: true });
+  const createdDate = new Date(challenge.created_at);
+  const fullTimestamp = format(createdDate, 'MMM d, yyyy · h:mm a');
+  const timeAgo = formatDistanceToNow(createdDate, { addSuffix: true });
 
   return (
     <Card
@@ -94,7 +96,7 @@ function ChallengeCard({ challenge }: { challenge: BrowseChallengeItem }) {
           )}
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            {timeAgo}
+            {fullTimestamp} ({timeAgo})
           </span>
         </div>
 

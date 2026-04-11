@@ -3,7 +3,7 @@
  * Filters: status, complexity. Empty state with CTA.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useOrgContext } from '@/contexts/OrgContext';
@@ -12,6 +12,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -29,6 +32,7 @@ export default function ChallengeListPage() {
   const { organizationId } = useOrgContext();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: challenges, isLoading } = useQuery({
     queryKey: ['org_challenges', organizationId],
@@ -47,9 +51,16 @@ export default function ChallengeListPage() {
     staleTime: 30_000,
   });
 
-  const filtered = challenges?.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const statusOptions = useMemo(() => {
+    if (!challenges) return [];
+    return [...new Set(challenges.map((c) => c.status))].sort();
+  }, [challenges]);
+
+  const filtered = challenges?.filter((c) => {
+    if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+    if (search.trim() && !c.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <>
@@ -69,6 +80,17 @@ export default function ChallengeListPage() {
               className="pl-9 text-base"
             />
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full lg:w-[160px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {statusOptions.map((s) => (
+                <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button onClick={() => navigate('/org/challenges/create')}>
             <PlusCircle className="h-4 w-4 mr-2" />
             Create Challenge
@@ -114,7 +136,7 @@ export default function ChallengeListPage() {
                         </TableCell>
                         <TableCell>{c.solutions_awarded}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(c.created_at), 'MMM d, yyyy')}
+                          {format(new Date(c.created_at), 'MMM d, yyyy · h:mm a')}
                         </TableCell>
                       </TableRow>
                     ))}
