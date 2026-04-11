@@ -109,12 +109,20 @@ function parseRewardStructureBudgetMax(
   try {
     const obj = typeof val === 'string' ? JSON.parse(val) : val;
     if (typeof obj === 'object' && obj !== null) {
-      const budgetMax = (obj as Record<string, unknown>).budget_max;
+      const record = obj as Record<string, unknown>;
+      // Primary: budget_max
+      const budgetMax = record.budget_max;
       if (typeof budgetMax === 'number' && budgetMax > 0) return budgetMax;
       if (typeof budgetMax === 'string') {
         const parsed = parseFloat(budgetMax);
         if (!isNaN(parsed) && parsed > 0) return parsed;
       }
+      // Fallback: totalPool (set by Creator/Curator migration)
+      const totalPool = record.totalPool;
+      if (typeof totalPool === 'number' && totalPool > 0) return totalPool;
+      // Fallback: platinum_award (Creator's top prize field)
+      const platAward = record.platinum_award;
+      if (typeof platAward === 'number' && platAward > 0) return platAward;
     }
   } catch {
     // Invalid JSON — treat as missing
