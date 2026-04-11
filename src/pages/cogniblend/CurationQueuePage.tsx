@@ -32,7 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckSquare, Clock, Eye, FileCheck, User, Search } from "lucide-react";
+import { AlertCircle, CheckSquare, Clock, Eye, FileCheck, User, Search } from "lucide-react";
 import type { SlaStatus } from "@/hooks/cogniblend/useCogniDashboard";
 
 // ---------------------------------------------------------------------------
