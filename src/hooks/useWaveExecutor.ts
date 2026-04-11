@@ -45,6 +45,7 @@ interface UseWaveExecutorReturn {
   reReviewStale: () => Promise<void>;
   cancelReview: () => void;
   waveProgress: WaveProgress;
+  updateWaveProgress: React.Dispatch<React.SetStateAction<WaveProgress>>;
   isRunning: boolean;
 }
 
@@ -239,6 +240,7 @@ export function useWaveExecutor({
     reReviewStale,
     cancelReview,
     waveProgress,
+    updateWaveProgress: setWaveProgress,
     isRunning: waveProgress.overallStatus === 'running',
   };
 }

@@ -3,7 +3,7 @@
  * Complexity re-review, accept-all, and warning navigation extracted to useCurationComplexityActions.
  */
 
-import { useCallback } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import { buildChallengeContext, type BuildChallengeContextOptions } from '@/lib/
 import { detectBudgetShortfall, type BudgetShortfallResult } from '@/lib/cogniblend/budgetShortfallDetection';
 import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import { resolveIndustrySegmentId, parseJson } from '@/lib/cogniblend/curationHelpers';
+import { DISCOVERY_WAVE_NUMBER, createInitialWaveProgressWithDiscovery, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
 import { parseJson as jsonParse } from '@/lib/cogniblend/jsonbUnwrap';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
@@ -32,6 +33,7 @@ interface UseCurationAIActionsOptions {
   executeWavesPass1: () => Promise<void>;
   executeWavesFull: () => Promise<void>;
   executeWavesPass2: () => Promise<void>;
+  pass1SetWaveProgress: Dispatch<SetStateAction<WaveProgress>>;
   saveSectionMutationRef: React.RefObject<any>;
   setPreFlightResult: (v: any) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
@@ -50,7 +52,7 @@ interface UseCurationAIActionsOptions {
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions, executeWaves,
-  executeWavesPass1, executeWavesFull, executeWavesPass2,
+  executeWavesPass1, executeWavesFull, executeWavesPass2, pass1SetWaveProgress,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
@@ -157,11 +159,26 @@ export function useCurationAIActions({
     }
     setAiReviewLoading(true);
     setTriageTotalCount(0);
+
+    // Override initial progress to include Wave 7 (discovery)
+    pass1SetWaveProgress(createInitialWaveProgressWithDiscovery());
+
     try {
-      // Run Pass 1 analysis first
+      // Run Pass 1 analysis (waves 1-6)
       await executeWavesPass1();
 
-      // AFTER Pass 1 completes, run discovery sequentially
+      // Transition Wave 7 to running
+      pass1SetWaveProgress((prev) => ({
+        ...prev,
+        currentWave: DISCOVERY_WAVE_NUMBER,
+        overallStatus: 'running',
+        waves: prev.waves.map((w) =>
+          w.waveNumber === DISCOVERY_WAVE_NUMBER ? { ...w, status: 'running' } : w
+        ),
+      }));
+
+      // Run context discovery
+      let discoveryOk = true;
       try {
         await supabase.functions.invoke('discover-context-resources', {
           body: { challenge_id: challengeId },
@@ -170,13 +187,23 @@ export function useCurationAIActions({
         queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
       } catch {
-        // Discovery failure is non-blocking
+        discoveryOk = false;
       }
+
+      // Mark Wave 7 complete/error
+      pass1SetWaveProgress((prev) => ({
+        ...prev,
+        overallStatus: 'completed',
+        waves: prev.waves.map((w) =>
+          w.waveNumber === DISCOVERY_WAVE_NUMBER
+            ? { ...w, status: discoveryOk ? 'completed' : 'error' }
+            : w
+        ),
+      }));
 
       setTriageTotalCount(24);
       setPass1DoneSession(true);
       toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
-      // Auto-open Context Library so curator can review/accept discovered sources
       setContextLibraryOpen(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -184,7 +211,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [runPreFlight, executeWavesPass1, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen]);
+  }, [runPreFlight, executeWavesPass1, pass1SetWaveProgress, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen]);
 
   // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
   const handleGenerateSuggestions = useCallback(async () => {

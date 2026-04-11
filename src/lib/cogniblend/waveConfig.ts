@@ -47,6 +47,8 @@ const LOCKED_SECTIONS: SectionKey[] = ['legal_docs', 'escrow_funding'];
 /** Sections backed by attachments/external data — always review, never generate */
 const ATTACHMENT_SECTIONS: SectionKey[] = ['creator_references', 'reference_urls'];
 
+export const DISCOVERY_WAVE_NUMBER = 7;
+
 export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 1,
@@ -139,5 +141,26 @@ export function createInitialWaveProgress(): WaveProgress {
       })),
     })),
     overallStatus: 'idle',
+  };
+}
+
+/**
+ * Creates wave progress with an extra Wave 7 for context discovery.
+ * Used only by the Analyse (Pass 1) flow.
+ */
+export function createInitialWaveProgressWithDiscovery(): WaveProgress {
+  const base = createInitialWaveProgress();
+  return {
+    ...base,
+    totalWaves: EXECUTION_WAVES.length + 1,
+    waves: [
+      ...base.waves,
+      {
+        waveNumber: DISCOVERY_WAVE_NUMBER,
+        name: 'Discover Contextual Sources',
+        status: 'pending',
+        sections: [],
+      },
+    ],
   };
 }
