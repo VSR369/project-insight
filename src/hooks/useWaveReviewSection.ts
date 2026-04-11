@@ -18,12 +18,14 @@ interface UseWaveReviewSectionOptions {
   challengeId: string;
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
   onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
+  pass1Only?: boolean;
 }
 
 export function useWaveReviewSection({
   challengeId,
   onSectionReviewed,
   onComplexitySuggestion,
+  pass1Only = false,
 }: UseWaveReviewSectionOptions) {
   return useCallback(async (
     sectionKey: SectionKey,
@@ -45,6 +47,7 @@ export function useWaveReviewSection({
           current_content: currentContent,
           context,
           wave_action: action,
+          ...(pass1Only ? { pass1_only: true } : {}),
         },
       });
 
@@ -117,5 +120,5 @@ export function useWaveReviewSection({
       store.getState().setReviewStatus(sectionKey, 'error');
       return 'error';
     }
-  }, [challengeId, onSectionReviewed, onComplexitySuggestion]);
+  }, [challengeId, onSectionReviewed, onComplexitySuggestion, pass1Only]);
 }
