@@ -35,6 +35,7 @@ interface UseWaveExecutorOptions {
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
   onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
   onProgress?: WaveProgressCallbacks;
+  pass1Only?: boolean;
 }
 
 interface UseWaveExecutorReturn {
@@ -51,6 +52,7 @@ export function useWaveExecutor({
   onSectionReviewed,
   onComplexitySuggestion,
   onProgress,
+  pass1Only = false,
 }: UseWaveExecutorOptions): UseWaveExecutorReturn {
   const [waveProgress, setWaveProgress] = useState<WaveProgress>(createInitialWaveProgress);
   const cancelRef = useRef(false);
@@ -60,6 +62,7 @@ export function useWaveExecutor({
     challengeId,
     onSectionReviewed,
     onComplexitySuggestion,
+    pass1Only,
   });
 
   const executeWaves = useCallback(async () => {
