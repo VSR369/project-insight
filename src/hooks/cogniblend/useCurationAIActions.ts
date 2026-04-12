@@ -266,13 +266,13 @@ export function useCurationAIActions({
 
   const handleSingleSectionReview = useCallback((sectionKey: string, freshReview: SectionReview) => {
     const normalized = normalizeSectionReview(freshReview);
+    let mergedResult: SectionReview[] = [];
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      const merged = [...filtered, { ...normalized, addressed: false }];
-      // Persist inside functional update to avoid stale closure
-      saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: merged });
-      return merged;
+      mergedResult = [...filtered, { ...normalized, addressed: false }];
+      return mergedResult;
     });
+    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: mergedResult });
   }, [setAiReviews, saveSectionMutationRef]);
 
   // ── Delegated: complexity re-review, accept-all, warnings ──
