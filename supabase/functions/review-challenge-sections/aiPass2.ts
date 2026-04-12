@@ -36,16 +36,8 @@ export async function callAIPass2Rewrite(
   contextDigestText?: string,
   useContextIntelligence?: boolean,
 ): Promise<Map<string, string>> {
-  // Filter to sections that need suggestions
-  const sectionsNeedingSuggestion = pass1Results.filter((r: any) => {
-    const hasActionableComments = r.comments.some(
-      (c: any) => c.type === 'error' || c.type === 'warning' || c.type === 'suggestion'
-    );
-    const aliasedField = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
-    const sectionContent = challengeData[aliasedField] ?? challengeData[r.section_key];
-    const isEmpty = !sectionContent || (typeof sectionContent === 'string' && sectionContent.trim().length === 0);
-    return hasActionableComments || r.status === 'generated' || r.status === 'needs_revision' || r.status === 'warning' || waveAction === 'generate' || (isEmpty && r.status !== 'pass');
-  });
+  // All sections get suggestions — the curator decides what to accept
+  const sectionsNeedingSuggestion = pass1Results;
 
   if (sectionsNeedingSuggestion.length === 0) {
     return new Map();
