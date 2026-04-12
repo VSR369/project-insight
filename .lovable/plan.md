@@ -1,76 +1,57 @@
 
-I checked the code path and can confirm this is a real bug: Pass 2 is wired to generate suggestions, but the current curation UI/persistence path can prevent those AI suggested sections from appearing.
 
-What I found
+## Fix: "Generate Suggestions" Button Permanently Disabled
 
-1. The section review panel does not render directly from `review.suggestion`.
-   - In `src/components/cogniblend/shared/AIReviewInline.tsx`, the panel passes:
-   - `suggested_version: refinedContent ?? undefined`
-   - So if local `refinedContent` is empty, the UI shows comments only.
+### Root Cause
 
-2. The only code that copies `review.suggestion` into `refinedContent` is inside the auto-refine effect.
-   - In `src/components/cogniblend/shared/useAIReviewInlineState.ts`, `review.suggestion` is seeded into local state only through the effect that is also controlled by `suppressAutoRefine`.
+`contextLibraryReviewed` is a `useState(false)` in `useCurationPageOrchestrator.ts` (line 188). It only becomes `true` when the Context Library drawer closes after being opened **in the current browser session**. It is never persisted to the database or localStorage.
 
-3. In curation, that auto-refine path is intentionally suppressed during the Analyse → Generate Suggestions workflow.
-   - `src/components/cogniblend/curation/SectionPanelItem.tsx`
-   - `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`
-   - both pass `suppressAutoRefine={reviewSessionActive}`
-   - Result: Pass 2 may return `suggestion`, but the UI still renders only the review comments.
+So after a page refresh (or if Pass 1 ran in a prior session), `pass1DoneSession` is `true` (hydrated from stored `ai_section_reviews`), but `contextLibraryReviewed` resets to `false` — permanently disabling the "Generate Suggestions" button until the user opens and closes the Context Library again.
 
-4. Suggestions are also not safely persisted.
-   - `src/hooks/useCurationStoreSync.ts` writes `ai_section_reviews` with:
-   - `section_key`, `comments`, `status`, `addressed`, `reviewed_at`
-   - It does not persist `suggestion`.
-   - So even when Pass 2 generates suggestions, they can be lost on sync/refresh.
+### Fix
 
-5. There is also a stale-merge risk while saving wave results.
-   - `src/hooks/cogniblend/useCurationWaveSetup.ts` saves using the current `aiReviews` closure, not guaranteed latest state.
-   - That can overwrite earlier Pass 2 updates from the same run.
+**File: `src/hooks/cogniblend/useCurationPageOrchestrator.ts`**
 
-Implementation plan
+Two changes:
 
-1. Fix display logic first
-   - Update `AIReviewInline.tsx` / `useAIReviewInlineState.ts` so the “AI Suggested Version” block renders from `review.suggestion` immediately.
-   - Keep `suppressAutoRefine` only for blocking automatic re-generation, not for hiding an already returned Pass 2 suggestion.
-   - Ensure sections with `warning`, `needs_revision`, or `generated` still show suggestions when present.
+1. **Hydrate from existing state**: If `pass1DoneSession` is hydrated as `true` on mount (meaning analysis was already done), auto-set `contextLibraryReviewed` to `true`. The gate's purpose is to ensure the curator reviews sources *once* after analysis — if they already did that in a previous session, re-gating on refresh is a UX bug, not a safety feature.
 
-2. Fix persistence
-   - Update `useCurationStoreSync.ts` to preserve full AI review payload, especially `suggestion`.
-   - Also keep related metadata like `guidelines`, `cross_section_issues`, `confidence`, `prompt_source`, `triage_status`, and `phase` where available.
+2. **Persist to sessionStorage**: Store `contextLibraryReviewed` in `sessionStorage` keyed by `challengeId` so it survives soft refreshes within the same tab session.
 
-3. Fix stale merge behavior
-   - Update `useCurationWaveSetup.ts` and the related single-section save path in `useCurationAIActions.ts` to merge against the latest review state via functional updates or a ref, not a stale array snapshot.
+```typescript
+// Replace lines 187-197 with:
 
-4. Verify end-to-end
-   - Run the exact flow:
-     - Analyse Challenge
-     - review/close Context Library
-     - Generate Suggestions
-   - Confirm each section with Pass 2 output shows its suggested content block.
-   - Refresh the page and confirm suggestions still remain visible.
+// ── Context Library reviewed gate ──
+const [contextLibraryReviewed, setContextLibraryReviewed] = useState(() => {
+  // Hydrate from sessionStorage for current tab persistence
+  if (challengeId) {
+    return sessionStorage.getItem(`ctx_reviewed_${challengeId}`) === 'true';
+  }
+  return false;
+});
 
-Files to update
-- `src/components/cogniblend/shared/AIReviewInline.tsx`
-- `src/components/cogniblend/shared/useAIReviewInlineState.ts`
-- `src/components/cogniblend/curation/SectionPanelItem.tsx`
-- `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`
-- `src/hooks/useCurationStoreSync.ts`
-- `src/hooks/cogniblend/useCurationWaveSetup.ts`
-- `src/hooks/cogniblend/useCurationAIActions.ts`
+// When Context Library drawer closes after being opened post-analysis, mark as reviewed
+const prevContextLibraryOpenRef = useRef(false);
+useEffect(() => {
+  if (prevContextLibraryOpenRef.current && !contextLibraryOpen && pass1DoneSession) {
+    setContextLibraryReviewed(true);
+    if (challengeId) {
+      sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
+    }
+  }
+  prevContextLibraryOpenRef.current = contextLibraryOpen;
+}, [contextLibraryOpen, pass1DoneSession, challengeId]);
 
-Technical detail
-```text
-Current behavior:
-Pass 2 returns review.suggestion
--> panel ignores review.suggestion
--> panel only renders local refinedContent
--> refinedContent is seeded only by auto-refine effect
--> auto-refine is suppressed in the Analyse/Generate flow
--> user sees comments only, no AI suggested content
-
-Persistence behavior:
-Pass 2 returns suggestion
--> local state may briefly hold it
--> store sync writes ai_section_reviews without suggestion
--> refresh/query sync strips it out
+// If pass1 was done in a prior session (hydrated from DB), auto-unlock
+useEffect(() => {
+  if (pass1DoneSession && !contextLibraryReviewed) {
+    setContextLibraryReviewed(true);
+    if (challengeId) {
+      sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
+    }
+  }
+}, [pass1DoneSession]);
 ```
+
+This is a single-file fix. No other files need changes — `CurationRightRail.tsx` already reads `contextLibraryReviewed` as a prop.
+
