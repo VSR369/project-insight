@@ -1,127 +1,89 @@
 
 
-## Fix Plan: 6 Changes Across Edge Function + Client
+## Context Library Redesign — 8 Changes
 
-### Fix 1 — Generate suggestions for every section (no filtering)
+### Overview
+Three edge function improvements for better content extraction and digest quality, plus five frontend changes to redesign the Context Library UX with inline actions, explicit digest generation, and rich text editing.
 
-**File:** `supabase/functions/review-challenge-sections/aiPass2.ts`
+### Change 1 — Smarter URL extraction (Edge Function)
+**File:** `supabase/functions/extract-attachment-text/index.ts`
 
-Lines 40-48: Replace the filter with `const sectionsNeedingSuggestion = pass1Results;` — remove the entire conditional filter block. All sections get a suggestion; the curator decides what to accept.
+After HTML stripping (line 83), when content is sparse (<500 chars but >100 chars — the existing <100 check catches truly empty pages), extract meta tags (og:title, og:description, meta description, h1 tags) before stripping. Build a structured meta-only output instead of a placeholder bracket message. Set `method = 'url_meta_only'`.
 
-### Fix 2 — Only skip Pass 1 when real comments exist
+Also: always extract meta tags from rawText before stripping, and store them even when HTML extraction succeeds (they provide clean titles/descriptions).
 
-**File:** `src/hooks/useWaveReviewSection.ts`
+### Change 2 — Extraction quality gate before digest
+**File:** `supabase/functions/generate-context-digest/index.ts`
 
-Lines 57-65: Wrap the `skip_analysis` body in an `if (existingComments?.length)` guard. When no stored comments exist, fall through to run full Pass 1 + Pass 2. Also fix the hardcoded `'warning'` status — derive it from actual comment types (`error`/`warning` → `'warning'`, else `'pass'`).
+After fetching accepted attachments (line 50), filter to only include sources with real content: `text.length > 100` and not starting with `[` (placeholder markers). If zero usable sources remain, return a clear error: `"No sources have extractable content yet"`.
 
-### Fix 3 — Attachment sections never receive content suggestions
+### Change 3 — Full text in digest, raise limits
+**File:** `supabase/functions/generate-context-digest/index.ts`
 
-**File:** `src/hooks/useWaveReviewSection.ts`
+Replace the source block builder (lines 80-87) to use `extracted_text.substring(0, 15000)` instead of `extracted_summary || extracted_text.substring(0, 3000)`. Include full text, summary, and key data per source. Raise `max_tokens` from 3000 to 6000 in the AI call (line 157).
 
-After the `if (action === 'skip')` guard (line 39), add:
+### Change 4 — Redesigned ContextLibraryDrawer
+**Files:** New components, refactored `ContextLibraryDrawer.tsx`
 
-```typescript
-const ATTACHMENT_ONLY_SECTIONS = new Set(['creator_references', 'reference_urls']);
-```
+Split the drawer into sub-components (each <200 lines):
 
-Inside the callback, before building the request body, add:
+| New/Changed File | Purpose |
+|---|---|
+| `ContextLibraryDrawer.tsx` | Thin orchestrator — state + layout only (~150 lines) |
+| `context-library/DrawerHeader.tsx` (NEW) | Title, action buttons, URL/file input rows (~120 lines) |
+| `context-library/DigestPanel.tsx` | Redesigned — always full-width below source panels, uses RichTextEditor, explicit "Generate Context" button |
 
-```typescript
-if (ATTACHMENT_ONLY_SECTIONS.has(sectionKey)) {
-  body.pass1_only = true;
-}
-```
+Layout change: DigestPanel moves from inside the right column to a full-width section below the source list + detail split. The "Generate Context from N sources" button replaces the auto-regeneration.
 
-### Fix 4 — Suggestions visible after Generate Suggestions completes
+### Change 5 — Decouple digest generation from accept
+**File:** `src/hooks/cogniblend/useContextLibrary.ts`
 
-**Fix 4a — Add `generateDoneSession` flag**
+- Remove `generate-context-digest` calls from `useAcceptSuggestion` (line 202-204), `useAcceptMultipleSuggestions` (line 252-254), `useAddContextUrl` (line 352-354), `useUploadContextFile` (line 315-317), and `useReExtractSource` (line 399).
+- Add a new `useGenerateContextDigest` mutation (dedicated, explicit) that calls `generate-context-digest` and is wired to the "Generate Context" button in DigestPanel.
+- The existing `useRegenerateDigest` can be renamed/reused for this purpose — it already does exactly this. The DigestPanel will expose a "Generate Context from N sources" button when `acceptedCount > 0` and no digest exists or curator wants to regenerate.
+- "Confirm & Close" on DigestPanel sets `contextLibraryReviewed = true` and closes the drawer.
 
-**File:** `src/hooks/cogniblend/useCurationPageData.ts`
+### Change 6 — Replace Textarea with RichTextEditor in DigestPanel
+**File:** `src/components/cogniblend/curation/context-library/DigestPanel.tsx`
 
-Add `const [generateDoneSession, setGenerateDoneSession] = useState(false);` alongside `pass1DoneSession`. Export both in the return object and the `CurationPageState` interface.
+Replace the `<Textarea>` (line 181) with the existing `<RichTextEditor>` component. The editor already exists at `@/components/ui/RichTextEditor` and is used throughout the curation module. Props: `value={draft}`, `onChange={setDraft}`. The Compare tab's plain `whitespace-pre-wrap` divs become `dangerouslySetInnerHTML` renders since content will now be HTML.
 
-**File:** `src/hooks/cogniblend/useCurationAIActions.ts`
+### Change 7 — Source detail empty state handling
+**File:** `src/components/cogniblend/curation/context-library/SourceDetail.tsx`
 
-Add `setGenerateDoneSession` to the options interface. In `handleGenerateSuggestions` (line 231): replace `setPass1DoneSession(false)` with `setGenerateDoneSession(true)` — do NOT reset `pass1DoneSession`.
+Add an extraction status banner at the top of the detail panel when `extraction_status !== 'completed'`:
+- `pending` → "Content extraction in progress..."
+- `processing` → "Extracting... (up to 30 seconds)"
+- `failed` → "Extraction failed: {error}" + Retry button
+- `url_html_sparse` (check `extraction_method`) → "Page requires JavaScript — only metadata captured. Consider adding key facts manually to the digest."
 
-**Fix 4b — Drive `reviewSessionActive` from both flags**
+Per-tab empty states:
+- **Summary tab**: "Content not yet extracted" + Extract Now button (if pending/failed)
+- **Full Text tab**: Show extraction status indicator. If `url_html_sparse`, show the meta content and explain why. If failed, show error.
+- **Key Data tab**: If null but extraction completed, show "No structured data found in this source" with neutral message.
 
-**File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
+### Change 8 — SourceList inline accept/reject already exists
+The current `SourceList.tsx` already delegates to `SuggestionCard.tsx` which has inline Accept (check) and Reject (X) buttons per row (lines 91-107 of SuggestionCard). This is already implemented. The only addition needed: add an inline "remove" button on accepted source rows to move them back to suggested status.
 
-Export `generateDoneSession` from pageData. In the return object, keep exposing `pass1DoneSession`.
+**File:** `src/components/cogniblend/curation/context-library/SourceList.tsx`
 
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+Add an `onUnaccept` prop and render a small X button on each accepted source row to revert its status to `suggested`.
 
-Line 144: Change `reviewSessionActive={o.pass1DoneSession}` to `reviewSessionActive={o.pass1DoneSession || o.generateDoneSession}`.
-Line 210: Same change for the `CurationSectionList` prop.
+**File:** `src/hooks/cogniblend/useContextLibrary.ts`
 
-**File:** `src/components/cogniblend/curation/CurationHeaderBar.tsx`
+Add `useUnacceptSource` mutation that updates `discovery_status` back to `suggested`.
 
-Line 176: The `reviewSessionActive` prop already gates the BulkActionBar — no change needed here since the page passes the corrected value.
-
-### Fix 5 — Persistent completion banner after Generate Suggestions
-
-**File:** `src/components/cogniblend/curation/CurationHeaderBar.tsx`
-
-Add a `GenerationCompleteBanner` rendered between the BulkActionBar and the read-only banner. Props needed:
-
-| Prop | Type |
-|------|------|
-| `generateDoneSession` | `boolean` |
-| `suggestionsCount` | `number` |
-| `waveCompleted` | `boolean` |
-| `onDismiss` | `() => void` |
-
-Show when `generateDoneSession && waveCompleted && suggestionsCount > 0`. Green info banner with checkmark icon, message: "AI Suggestions Ready — {suggestionsCount} sections have suggestions waiting for your review." Dismiss button calls `onDismiss` which sets `generateDoneSession = false`.
-
-Wire from `CurationReviewPage.tsx` → pass `generateDoneSession`, `onDismissCompletionBanner={() => o.setGenerateDoneSession(false)}`, and derive `waveCompleted` from `o.waveProgress.overallStatus === 'completed'`.
-
-### Fix 6a — Creator Approval Status Banner in Curation Right Rail
-
-**File:** `src/components/cogniblend/curation/CreatorApprovalStatusBanner.tsx` (NEW, ~60 lines)
-
-Reads `operatingModel` and `creatorApprovalRequired` as props. Renders one of three banners:
-
-- MP: "Marketplace: Creator mandatory approval after legal + financial review"
-- AGG + approval required: "Creator has requested approval sign-off"
-- AGG + no approval: "No Creator approval required — proceeds to publication"
-
-**File:** `src/components/cogniblend/curation/CurationRightRail.tsx`
-
-Add props: `creatorApprovalRequired: boolean | null`. Import and render `CreatorApprovalStatusBanner` below the `CompletionBanner` (line 168), before `CurationActions`.
-
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-
-Parse `creator_approval_required` from `challenge.extended_brief` and pass to `CurationRightRail`.
-
-### Fix 6b — Creator toggle for approval requirement post-creation (Aggregator)
-
-**File:** `src/components/cogniblend/manage/CreatorApprovalCard.tsx` (NEW, ~80 lines)
-
-A settings card with a Switch toggle for `creator_approval_required`. Visible only when `operatingModel === 'AGG'` and challenge is in Phase 1 or Phase 2. Saves via a mutation that reads current `extended_brief`, merges `creator_approval_required`, and writes back.
-
-**File:** `src/pages/cogniblend/ChallengeManagePage.tsx`
-
-Fetch `operating_model`, `extended_brief`, and `current_phase` from the existing `useManageChallenge` query (need to add these columns to the hook). Import and render `CreatorApprovalCard` between the AmendmentCard and QAManagementCard.
-
-**File:** `src/hooks/cogniblend/useManageChallenge.ts`
-
-Add `operating_model`, `extended_brief`, `current_phase` to the challenge SELECT and include in the return type.
-
-### Files Changed Summary
+### Files Summary
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `supabase/functions/.../aiPass2.ts` | Remove Pass 2 filter — all sections get suggestions |
-| 2 | `src/hooks/useWaveReviewSection.ts` | Guard `skip_analysis` on comment existence; derive status; add attachment guard |
-| 3 | `src/hooks/cogniblend/useCurationPageData.ts` | Add `generateDoneSession` state |
-| 4 | `src/hooks/cogniblend/useCurationAIActions.ts` | Use `setGenerateDoneSession(true)` instead of `setPass1DoneSession(false)` |
-| 5 | `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Expose `generateDoneSession` + `setGenerateDoneSession` |
-| 6 | `src/pages/cogniblend/CurationReviewPage.tsx` | Fix `reviewSessionActive`; pass banner props; pass `creatorApprovalRequired` |
-| 7 | `src/components/cogniblend/curation/CurationHeaderBar.tsx` | Add `GenerationCompleteBanner` + new props |
-| 8 | `src/components/cogniblend/curation/CreatorApprovalStatusBanner.tsx` | NEW — approval status banner |
-| 9 | `src/components/cogniblend/curation/CurationRightRail.tsx` | Render `CreatorApprovalStatusBanner` |
-| 10 | `src/components/cogniblend/manage/CreatorApprovalCard.tsx` | NEW — toggle card for AGG creators |
-| 11 | `src/pages/cogniblend/ChallengeManagePage.tsx` | Render `CreatorApprovalCard` |
-| 12 | `src/hooks/cogniblend/useManageChallenge.ts` | Add `operating_model`, `extended_brief`, `current_phase` to query |
+| 1 | `supabase/functions/extract-attachment-text/index.ts` | Meta tag extraction for sparse HTML |
+| 2 | `supabase/functions/generate-context-digest/index.ts` | Quality gate + full text (15K) + max_tokens 6000 |
+| 3 | `src/components/cogniblend/curation/context-library/DrawerHeader.tsx` | NEW — extracted header from ContextLibraryDrawer |
+| 4 | `src/components/cogniblend/curation/ContextLibraryDrawer.tsx` | Simplified orchestrator, full-width digest below panels |
+| 5 | `src/components/cogniblend/curation/context-library/DigestPanel.tsx` | RichTextEditor, explicit "Generate Context" button, full-width layout |
+| 6 | `src/components/cogniblend/curation/context-library/SourceDetail.tsx` | Extraction status banner, per-tab empty states |
+| 7 | `src/components/cogniblend/curation/context-library/SourceList.tsx` | Add unaccept button on accepted rows |
+| 8 | `src/hooks/cogniblend/useContextLibrary.ts` | Remove auto-digest from accept/upload mutations, add useUnacceptSource |
+| 9 | `src/components/cogniblend/curation/context-library/index.ts` | Export DrawerHeader |
 
