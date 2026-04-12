@@ -174,3 +174,5 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
         />
       )}
     </div>
+  );
+}
