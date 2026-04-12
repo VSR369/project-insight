@@ -453,7 +453,15 @@ export function useRegenerateDigest(challengeId: string) {
       invalidateAll(qc, challengeId);
       toast.success('Context digest generated');
     },
-    onError: (err: Error) => toast.error(`Digest generation failed: ${err.message}`),
+    onError: (err: Error) => {
+      const msg = err.message ?? '';
+      const isNoSources = msg.includes('NO_SOURCES') || msg.includes('No accepted sources') || msg.includes('NO_EXTRACTABLE_CONTENT');
+      if (isNoSources) {
+        toast.error('No accepted sources available. Accept some sources first, then generate the digest.');
+      } else {
+        toast.error(`Digest generation failed: ${msg}`);
+      }
+    },
   });
 }
 
@@ -486,13 +494,28 @@ export function useClearAllSources(challengeId: string) {
       if (delErr) throw new Error(delErr.message);
 
       // 4. Delete digest
-      const { error: digestErr } = await supabase
+      const { data: deletedRows, error: digestErr } = await supabase
         .from('challenge_context_digest')
         .delete()
-        .eq('challenge_id', challengeId);
+        .eq('challenge_id', challengeId)
+        .select('id');
       if (digestErr) throw new Error(digestErr.message);
+
+      // Verify deletion actually happened (RLS may silently block)
+      if (deletedRows && deletedRows.length === 0) {
+        // Check if row still exists
+        const { data: stillExists } = await supabase
+          .from('challenge_context_digest')
+          .select('id')
+          .eq('challenge_id', challengeId)
+          .maybeSingle();
+        if (stillExists) {
+          throw new Error('Digest deletion blocked — you may not have permission to clear the digest.');
+        }
+      }
     },
     onSuccess: () => {
+      qc.setQueryData(KEYS.digest(challengeId), null);
       invalidateAll(qc, challengeId);
       toast.success('All sources and digest cleared');
     },
