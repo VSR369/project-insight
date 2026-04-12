@@ -1,72 +1,101 @@
 
 
-## Discover Resources Module — Complete Fix Plan (6 Changes)
+## Context Library — 3-Column Layout Redesign
 
-### Summary
-Rewrite the discovery edge function to use real web search (Serper API) instead of LLM-invented URLs, fix extraction to always summarize sparse content, output HTML from digest generation, normalize content in DigestPanel, add `access_status` column, and show access badges in SourceDetail.
+### What the Claude mockup shows vs current implementation
 
-### Prerequisites
-- **SERPER_API_KEY** secret must be added to Supabase (user action required). Currently only `LOVABLE_API_KEY` and `RESEND_API_KEY` exist.
+The mockup proposes a **3-column side-by-side layout** instead of the current 2-column top + full-width digest bottom:
 
----
+```text
+Current layout:
+┌────────────────────────────────────────────────────┐
+│ DrawerHeader (buttons + search)                    │
+├──────────────────┬─────────────────────────────────┤
+│ SourceList (40%) │ SourceDetail (60%)              │
+│                  │                                 │
+├──────────────────┴─────────────────────────────────┤
+│ DigestPanel (full width, bottom)                   │
+└────────────────────────────────────────────────────┘
 
-### Change 1 — Full rewrite: `discover-context-resources/index.ts`
-
-Replace the entire file (~513 lines) with the 5-phase architecture. The function is large but it's an edge function (single file requirement). Key phases:
-
-1. **LLM generates 12-15 search queries** from challenge context + gaps
-2. **Serper API executes searches** → real URLs with real snippets (fallback: Gemini grounding if no SERPER_API_KEY)
-3. **HEAD accessibility pre-check** per URL — skip paywalled/blocked domains
-4. **LLM scores relevance** of accessible URLs against challenge sections (reads real snippets)
-5. **Insert ALL as `discovery_status = 'suggested'`** with search snippet as seed content, trigger async extraction
-
-Key differences from current:
-- No auto-accept (removes `>= 0.85` threshold)
-- Real URLs from search API, not LLM memory
-- Seed content stored immediately so tabs are never empty
-- `access_status` stored per source
-- Existing accepted URLs used as dedup set
-
-### Change 2 — DB Migration: Add `access_status` column
-
-```sql
-ALTER TABLE public.challenge_attachments
-  ADD COLUMN IF NOT EXISTS access_status TEXT
-    CHECK (access_status IN ('accessible', 'blocked', 'paywall', 'failed', 'unknown'))
-    DEFAULT 'unknown';
+Mockup layout:
+┌────────────────────────────────────────────────────┐
+│ DrawerHeader (badges + buttons + search)           │
+├────────────┬───────────────┬───────────────────────┤
+│ Sources    │ Source Detail  │ Context Digest        │
+│ (left col) │ (middle col)  │ (right col)           │
+│            │               │                       │
+│ Suggested  │ Title/URL     │ Generate btn          │
+│  rows      │ Badges        │ Digest content        │
+│ Accepted   │ Section       │ (scrollable)          │
+│  grouped   │ Share toggle  │                       │
+│            │ Summary tab   │ Word count            │
+│ ─────────  │ Full Text tab │ Re-extract/Remove     │
+│ Reject All │ Key Data tab  │ Save / Confirm&Close  │
+│ Accept All │               │                       │
+└────────────┴───────────────┴───────────────────────┘
 ```
 
-### Change 3 — `extract-attachment-text/index.ts`: Always run Tier 2
+### Key visual differences from mockup
 
-**Line 268**: Change `if (extractedText.length > 500)` to always run Tier 2 summarization. For sparse/meta-only content (`url_meta_only`, `url_html_sparse`, `url_error`), use a context-aware prompt that references `att.section_key` and `att.relevance_explanation` to generate a useful summary even from metadata. For normal content, keep existing prompt but increase input to 12K chars.
+1. **3-column layout**: Sources (~30%), Detail (~30%), Digest (~40%) — all side by side
+2. **Header badges**: Shows "5 awaiting review" and "12 accepted + extracted" as colored badges inline with title, plus challenge title on the right
+3. **Suggested sources**: Show access status badges (Paywall, Accessible) and extraction status (Extracting, Extracted) directly in the list row with checkboxes + accept/reject icons
+4. **Accepted sources header**: Shows extracted vs empty count: "ACCEPTED (12 EXTRACTED · 3 EMPTY)"
+5. **Bottom bar on sources**: "Reject all suggested" and "Accept all suggested" buttons pinned at bottom
+6. **Detail panel**: Summary/Full Text/Key Data shown with checkmark indicators, "AI-generated summary" label
+7. **Digest panel**: Shows source count + word count, "Generate Context from 12 sources" button, "3 sources skipped (empty extraction)" info, Save and Confirm & Close buttons at bottom, Re-extract and Remove buttons
 
-### Change 4 — `generate-context-digest/index.ts`: HTML output format
+### Implementation Plan (8 files, all under 200 lines)
 
-**Lines 145-170**: Change the prompt from requesting markdown (`**bold**`, `### heading`) to requesting clean HTML (`<h3>`, `<p>`, `<ul><li>`). After extracting `digestText`, add post-processing to convert any residual markdown to HTML tags.
+#### 1. `ContextLibraryDrawer.tsx` — Switch to 3-column layout
+- Change the flex layout from "2-col top + digest bottom" to "3-col side by side"
+- Sources panel: `w-[30%]`, Detail panel: `w-[30%]`, Digest panel: `w-[40%]`
+- Digest is now a right column, not a bottom panel
 
-### Change 5 — `DigestPanel.tsx`: Normalize content for editor
+#### 2. `DrawerHeader.tsx` — Add summary badges
+- Add colored badges: "{N} awaiting review" (amber) + "{N} accepted + extracted" (green)
+- Show challenge title right-aligned
+- Add `acceptedCount` and `extractedCount` props
+- Keep existing action buttons (Re-discover, Add URL, Upload Document, Search)
 
-**Line 62**: Wrap `digest?.digest_text` with `normalizeAiContentForEditor()` from `@/lib/aiContentFormatter` so the RichTextEditor always receives proper HTML regardless of what format the AI returned.
+#### 3. `SourceList.tsx` — Accepted count with extraction breakdown
+- Change accepted header from "✅ Accepted (N)" to "ACCEPTED (X EXTRACTED · Y EMPTY)"
+- Show access status badges (Paywall warning triangle, Accessible, etc.) on suggestion rows
+- Move "Reject all suggested" / "Accept all suggested" buttons to a sticky bottom bar
 
-### Change 6 — Frontend: `access_status` support
+#### 4. `SuggestionCard.tsx` — Show access status inline
+- Add access_status badge (Paywall/Blocked) next to the source name
+- Show extraction status badge (Extracting.../Extracted/Failed) inline
 
-| File | Change |
-|---|---|
-| `useContextLibrary.ts` | Add `access_status` to `ContextSource` interface and `SOURCE_COLUMNS` string |
-| `SourceDetail.tsx` | Add access status badges (Accessible/Blocked/Paywall) in metadata row after ExtractionBadge |
+#### 5. `SourceDetail.tsx` — Match mockup detail panel
+- Summary/Full Text/Key Data tabs with checkmark indicators (already implemented)
+- Show "AI-generated summary (3 key points):" label before summary content
+- No major structural changes needed — mostly styling alignment
+
+#### 6. `DigestPanel.tsx` — Vertical column layout instead of horizontal
+- Adapt from full-width bottom panel to tall right-column panel
+- Show "Generate Context from N sources" button prominently
+- Show "X sources skipped (empty extraction)" info line
+- Move word count and section count to a compact format
+- "Re-extract" and "Remove" buttons for individual management
+- Save and "Confirm & Close" buttons pinned at bottom
+- Keep RichTextEditor with min-h-[400px] for editing mode
+
+#### 7. `ContentIndicators.tsx` — No changes needed
+- Already shows S/T/D badges correctly
+
+#### 8. `types.ts` / `index.ts` — No changes needed
 
 ### Files Summary
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `supabase/functions/discover-context-resources/index.ts` | Full rewrite — 5-phase real search + score |
-| 2 | DB Migration | Add `access_status` column to `challenge_attachments` |
-| 3 | `supabase/functions/extract-attachment-text/index.ts` | Always run Tier 2, context-aware for sparse |
-| 4 | `supabase/functions/generate-context-digest/index.ts` | Prompt outputs HTML, post-process strips markdown |
-| 5 | `src/components/cogniblend/curation/context-library/DigestPanel.tsx` | `normalizeAiContentForEditor()` on digest text |
-| 6 | `src/hooks/cogniblend/useContextLibrary.ts` | Add `access_status` to type + query |
-| 7 | `src/components/cogniblend/curation/context-library/SourceDetail.tsx` | Access status badges |
+| 1 | `ContextLibraryDrawer.tsx` | 3-column layout, pass extracted count |
+| 2 | `DrawerHeader.tsx` | Summary badges (awaiting review, accepted+extracted) |
+| 3 | `SourceList.tsx` | Extraction breakdown in accepted header, sticky bottom bar |
+| 4 | `SuggestionCard.tsx` | Access status + extraction status badges inline |
+| 5 | `SourceDetail.tsx` | "AI-generated summary" label, minor styling |
+| 6 | `DigestPanel.tsx` | Vertical column layout, skip info, bottom action bar |
 
-### Secret Required
-User must add `SERPER_API_KEY` to Supabase edge function secrets (get from serper.dev — 2,500 free searches). The function includes a Gemini grounding fallback if the key is absent.
+All components remain under 200 lines. No hook/service/type changes needed — purely layout and presentation adjustments.
 
