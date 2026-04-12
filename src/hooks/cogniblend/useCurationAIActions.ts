@@ -47,6 +47,7 @@ interface UseCurationAIActionsOptions {
   setHighlightWarnings: (v: boolean) => void;
   setContextLibraryOpen: (v: boolean) => void;
   setPass1DoneSession: (v: boolean) => void;
+  setGenerateDoneSession: (v: boolean) => void;
 }
 
 export function useCurationAIActions({
@@ -58,6 +59,7 @@ export function useCurationAIActions({
   setAiQuality, setAiQualityLoading, setAiReviews,
   setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
   setPass1DoneSession,
+  setGenerateDoneSession,
 }: UseCurationAIActionsOptions) {
 
   const queryClient = useQueryClient();
@@ -228,14 +230,14 @@ export function useCurationAIActions({
       const shortfall = detectBudgetShortfall(ctx);
       setBudgetShortfall(shortfall);
       setTriageTotalCount(24);
-      setPass1DoneSession(false);
+      setGenerateDoneSession(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       toast.error(`Generation failed: ${msg}`);
     } finally {
       setAiReviewLoading(false);
     }
-  }, [executeWavesPass2, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setPass1DoneSession]);
+  }, [executeWavesPass2, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
