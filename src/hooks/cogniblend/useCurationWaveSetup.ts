@@ -58,12 +58,12 @@ export function useCurationWaveSetup({
     const normalized = normalizeSectionReview(review);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      return [...filtered, { ...normalized, addressed: false }];
+      const merged = [...filtered, { ...normalized, addressed: false }];
+      // Use the functional-update result for persistence (avoids stale closure)
+      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: merged });
+      return merged;
     });
-    const currentReviews = aiReviews.filter((r) => r.section_key !== sectionKey);
-    const merged = [...currentReviews, { ...normalized, addressed: false }];
-    saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: merged });
-  }, [aiReviews]);
+  }, [setAiReviews, saveSectionMutationRef]);
 
   const updateProgress = useUpdateCurationProgress();
 

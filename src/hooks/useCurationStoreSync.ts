@@ -119,7 +119,13 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
         }
 
         // Always save review state to ai_section_reviews
+        // Preserve full AI review payload including suggestion, guidelines, etc.
+        // Read existing review entry to preserve fields not tracked in the store
+        const existingReviewsRaw = storeState.sections[sectionKey] as any;
+        const existingAiReview = existingReviewsRaw?._rawReview ?? {};
+
         reviewEntries[sectionKey] = {
+          ...existingAiReview, // preserve suggestion, guidelines, cross_section_issues, confidence, etc.
           section_key: sectionKey,
           comments: entry.aiComments,
           status: entry.reviewStatus === 'reviewed'

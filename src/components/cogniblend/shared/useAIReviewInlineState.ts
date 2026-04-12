@@ -95,7 +95,24 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     }
   }, [comments.length]);
 
+  // Seed refinedContent from review.suggestion when available (even if suppressAutoRefine is true)
+  useEffect(() => {
+    if (
+      !autoRefineTriggered.current &&
+      review &&
+      !review.addressed &&
+      review.suggestion != null
+    ) {
+      const suggestionStr = typeof review.suggestion === 'string' ? review.suggestion : JSON.stringify(review.suggestion);
+      if (suggestionStr.trim().length > 0) {
+        setRefinedContent(suggestionStr);
+        autoRefineTriggered.current = true;
+      }
+    }
+  }, [review?.suggestion, review?.addressed]);
+
   // Auto-refine trigger — suppressed between Pass 1 and Generate Suggestions
+  // This only fires the AI call to *generate* a suggestion; it does NOT block showing an existing one
   useEffect(() => {
     if (suppressAutoRefine) return;
     if (
@@ -112,12 +129,10 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     ) {
       autoRefineTriggered.current = true;
 
+      // If review already has a suggestion from Pass 2, use it directly (handled above)
+      // Only fall through to AI call if no suggestion exists
       if (review.suggestion != null) {
-        const suggestionStr = typeof review.suggestion === 'string' ? review.suggestion : JSON.stringify(review.suggestion);
-        if (suggestionStr.trim().length > 0) {
-          setRefinedContent(suggestionStr);
-          return;
-        }
+        return; // Already seeded by the effect above
       }
 
       if (review.status === 'pass') {
