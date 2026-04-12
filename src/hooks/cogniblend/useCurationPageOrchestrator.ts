@@ -184,17 +184,35 @@ export function useCurationPageOrchestrator() {
   const blockingReason = blockingReasons.length > 0 ? `${blockingReasons.join(' and ')} must be accepted before submitting` : undefined;
   const phaseDescription = challenge?.current_phase === 1 ? 'Spec Creation (Phase 1)' : challenge?.current_phase === 2 ? 'Legal & Finance Review (Phase 2)' : '';
 
-  // ── Context Library reviewed gate (Issue #7) ──
-  const [contextLibraryReviewed, setContextLibraryReviewed] = useState(false);
+  // ── Context Library reviewed gate ──
+  const [contextLibraryReviewed, setContextLibraryReviewed] = useState(() => {
+    if (challengeId) {
+      return sessionStorage.getItem(`ctx_reviewed_${challengeId}`) === 'true';
+    }
+    return false;
+  });
 
   // When Context Library drawer closes after being opened post-analysis, mark as reviewed
   const prevContextLibraryOpenRef = useRef(false);
   useEffect(() => {
     if (prevContextLibraryOpenRef.current && !contextLibraryOpen && pass1DoneSession) {
       setContextLibraryReviewed(true);
+      if (challengeId) {
+        sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
+      }
     }
     prevContextLibraryOpenRef.current = contextLibraryOpen;
-  }, [contextLibraryOpen, pass1DoneSession]);
+  }, [contextLibraryOpen, pass1DoneSession, challengeId]);
+
+  // If pass1 was done in a prior session (hydrated from DB), auto-unlock
+  useEffect(() => {
+    if (pass1DoneSession && !contextLibraryReviewed) {
+      setContextLibraryReviewed(true);
+      if (challengeId) {
+        sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
+      }
+    }
+  }, [pass1DoneSession]);
 
   return {
     challengeId, navigate, user,
