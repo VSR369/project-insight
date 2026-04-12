@@ -40,7 +40,6 @@ export function useCommunicationPermission(
         .eq('to_role', recipientRole);
 
       if (error) {
-        console.error('Communication permission check failed:', error.message);
         return { allowed: true, reason: null }; // Fail-open for query errors
       }
 

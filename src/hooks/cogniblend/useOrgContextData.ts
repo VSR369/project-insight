@@ -208,7 +208,7 @@ export function useOrgContextData(challengeId: string, organizationId: string, i
           queryClient.invalidateQueries({ queryKey: ['org-context-panel', organizationId] });
         }
       } catch (err) {
-        console.error('[OrgContextPanel] Auto-save failed:', err);
+        handleMutationError(err as Error, { operation: 'org_context_auto_save', component: 'useOrgContextData' });
       }
     }, 800);
 

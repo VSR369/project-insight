@@ -119,7 +119,8 @@ export function SendForModificationModal({
           challenge_id: challengeId,
         });
       if (notifError) {
-        console.warn("Failed to create notification:", notifError.message);
+        const { logWarning } = await import('@/lib/errorHandler');
+        logWarning('Failed to create notification', { operation: 'send_modification_notification', additionalData: { error: notifError.message } });
       }
     },
     onSuccess: () => {

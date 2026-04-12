@@ -186,7 +186,7 @@ export function useCurationApprovalActions({
           }
         }
       } catch (err) {
-        console.error('[SolutionTypes] Failed to auto-populate solver expertise:', err);
+        handleMutationError(err as Error, { operation: 'auto_populate_solver_expertise', component: 'useCurationApprovalActions' });
       }
     }
   }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements, challenge?.solution_type, solutionTypesData, setSavingSection]);

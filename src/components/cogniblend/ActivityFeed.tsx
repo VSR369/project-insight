@@ -89,7 +89,7 @@ async function fetchActivity(
   // Query the view — since it's not in generated types, use rpc-style raw query
   let query = supabase
     .from('recent_activity_view' as never)
-    .select('*')
+    .select('audit_id, challenge_id, challenge_title, solution_id, user_id, user_name, action, method, details, phase_from, phase_to, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
 

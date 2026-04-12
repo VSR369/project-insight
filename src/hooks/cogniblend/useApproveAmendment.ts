@@ -75,7 +75,7 @@ export function useApproveAmendment() {
       // 4. Create new challenge_package_versions
       const { data: challenge } = await supabase
         .from('challenges')
-        .select('*')
+        .select('id, title, description, status, current_phase, phase_status, organization_id, tenant_id, governance_profile, governance_mode_override, reward_structure, evaluation_method, evaluator_count, solver_audience, submission_deadline, ip_model, operating_model, total_fee, currency_code, complexity_level, complexity_score, scope, eligibility, solution_type, max_solutions, challenge_visibility, visibility, created_at, updated_at')
         .eq('id', challengeId)
         .single();
 
