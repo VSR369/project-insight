@@ -1,89 +1,122 @@
 
 
-## Context Library Redesign — 8 Changes
+## Plan: Creator Challenge Preferences — 3 New Toggles
 
-### Overview
-Three edge function improvements for better content extraction and digest quality, plus five frontend changes to redesign the Context Library UX with inline actions, explicit digest generation, and rich text editing.
+### Summary
+Add three new creator-set preference toggles that persist in `extended_brief` JSONB, flow from Creator wizard to Curator's Organization tab, and are available for downstream use (publishing, solver visibility).
 
-### Change 1 — Smarter URL extraction (Edge Function)
-**File:** `supabase/functions/extract-attachment-text/index.ts`
+### New Fields
 
-After HTML stripping (line 83), when content is sparse (<500 chars but >100 chars — the existing <100 check catches truly empty pages), extract meta tags (og:title, og:description, meta description, h1 tags) before stripping. Build a structured meta-only output instead of a placeholder bracket message. Set `method = 'url_meta_only'`.
+| Field | Key in `extended_brief` | Default | Visibility |
+|---|---|---|---|
+| Creator Approval Required | `creator_approval_required` | `true` (STRUCTURED/CONTROLLED), forced `true` (MP), hidden (QUICK) | AGG only toggle; MP always mandatory |
+| Community Creation | `community_creation_allowed` | `false` | All models, all governance modes |
+| Anonymous Challenge | `is_anonymous` | `false` | All models, all governance modes |
 
-Also: always extract meta tags from rawText before stripping, and store them even when HTML extraction succeeds (they provide clean titles/descriptions).
+### Pre-existing Bug Fix
+`creator_approval_required` exists in the wizard form schema but is **never persisted to the DB** — neither `buildFieldsFromForm` (wizard) nor `useCreatorDraftSave` (simple form) writes it to `extended_brief`. This plan fixes that.
 
-### Change 2 — Extraction quality gate before digest
-**File:** `supabase/functions/generate-context-digest/index.ts`
+---
 
-After fetching accepted attachments (line 50), filter to only include sources with real content: `text.length > 100` and not starting with `[` (placeholder markers). If zero usable sources remain, return a clear error: `"No sources have extractable content yet"`.
+### Changes by File
 
-### Change 3 — Full text in digest, raise limits
-**File:** `supabase/functions/generate-context-digest/index.ts`
+#### 1. Creator Wizard Form Schema
+**File:** `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts`
+- Add `community_creation_allowed: z.boolean().default(false)` and `is_anonymous: z.boolean().default(false)` to the schema
+- Add defaults to `DEFAULT_FORM_VALUES`
 
-Replace the source block builder (lines 80-87) to use `extracted_text.substring(0, 15000)` instead of `extracted_summary || extracted_text.substring(0, 3000)`. Include full text, summary, and key data per source. Raise `max_tokens` from 3000 to 6000 in the AI call (line 157).
+#### 2. Creator Simple Form Schema
+**File:** `src/components/cogniblend/creator/creatorFormSchema.ts`
+- Add `community_creation_allowed` and `is_anonymous` boolean fields to schema and `CreatorFormValues` type
 
-### Change 4 — Redesigned ContextLibraryDrawer
-**Files:** New components, refactored `ContextLibraryDrawer.tsx`
+#### 3. StepModeSelection — UI Toggles
+**File:** `src/components/cogniblend/challenge-wizard/StepModeSelection.tsx`
+- Refactor Creator Approval section: hide entirely when `selectedMode === 'QUICK'`; show "Mandatory" badge (non-toggleable) for MP; show toggle for AGG only
+- Add "Community Creation" toggle: Allowed / Not Allowed, all modes
+- Add "Anonymous Challenge" toggle: YES / NO (default NO), all modes
+- Extract toggles into a new sub-component to keep file under 200 lines
 
-Split the drawer into sub-components (each <200 lines):
+#### 4. New: `ChallengePreferenceToggles.tsx`
+**File:** `src/components/cogniblend/challenge-wizard/ChallengePreferenceToggles.tsx` (NEW, ~120 lines)
+- Extracted component rendering the 3 toggle cards
+- Props: `form`, `selectedMode`, `selectedModel`
+- Creator Approval: hidden in QUICK, forced ON for MP (disabled switch), toggleable for AGG
+- Community Creation: toggle for all modes
+- Anonymous: toggle for all modes
 
-| New/Changed File | Purpose |
-|---|---|
-| `ContextLibraryDrawer.tsx` | Thin orchestrator — state + layout only (~150 lines) |
-| `context-library/DrawerHeader.tsx` (NEW) | Title, action buttons, URL/file input rows (~120 lines) |
-| `context-library/DigestPanel.tsx` | Redesigned — always full-width below source panels, uses RichTextEditor, explicit "Generate Context" button |
+#### 5. Wizard — Persist to DB
+**File:** `src/pages/cogniblend/ChallengeWizardPage.tsx`
+- In `buildFieldsFromForm`: add the 3 fields into the `deliverables` JSONB (which maps to `extended_brief`):
+  ```
+  creator_approval_required: values.creator_approval_required,
+  community_creation_allowed: values.community_creation_allowed,
+  is_anonymous: values.is_anonymous,
+  ```
 
-Layout change: DigestPanel moves from inside the right column to a full-width section below the source list + detail split. The "Generate Context from N sources" button replaces the auto-regeneration.
+#### 6. Simple Form — Persist to DB
+**File:** `src/hooks/cogniblend/useCreatorDraftSave.ts`
+- In the draft payload's extended_brief-bound fields, add the 3 new fields from `data`
 
-### Change 5 — Decouple digest generation from accept
-**File:** `src/hooks/cogniblend/useContextLibrary.ts`
+#### 7. Submit Mutation — Persist to extended_brief
+**File:** `src/hooks/cogniblend/useChallengeSubmit.ts`
+- In `useChallengeSubmit` (line 74-86): add the 3 fields to `rawExtendedBrief`
+- In snapshot brief (line 136-147): include the 3 fields
 
-- Remove `generate-context-digest` calls from `useAcceptSuggestion` (line 202-204), `useAcceptMultipleSuggestions` (line 252-254), `useAddContextUrl` (line 352-354), `useUploadContextFile` (line 315-317), and `useReExtractSource` (line 399).
-- Add a new `useGenerateContextDigest` mutation (dedicated, explicit) that calls `generate-context-digest` and is wired to the "Generate Context" button in DigestPanel.
-- The existing `useRegenerateDigest` can be renamed/reused for this purpose — it already does exactly this. The DigestPanel will expose a "Generate Context from N sources" button when `acceptedCount > 0` and no digest exists or curator wants to regenerate.
-- "Confirm & Close" on DigestPanel sets `contextLibraryReviewed = true` and closes the drawer.
+#### 8. Payload Types
+**File:** `src/lib/cogniblend/challengePayloads.ts`
+- Add `creatorApprovalRequired?: boolean`, `communityCreationAllowed?: boolean`, `isAnonymous?: boolean` to both `SubmitPayload` and `DraftPayload`
+- In `buildChallengeUpdatePayload`: merge these into `rawExtBrief`
 
-### Change 6 — Replace Textarea with RichTextEditor in DigestPanel
-**File:** `src/components/cogniblend/curation/context-library/DigestPanel.tsx`
+#### 9. Curator Organization Tab — Read-Only Info Cards
+**File:** `src/components/cogniblend/curation/OrgContextPanel.tsx`
+- Add `challengeExtendedBrief` prop
+- Below org info, render a "Challenge Preferences" card showing the 3 fields as read-only badges/labels
+- Extract into a new sub-component for cleanliness
 
-Replace the `<Textarea>` (line 181) with the existing `<RichTextEditor>` component. The editor already exists at `@/components/ui/RichTextEditor` and is used throughout the curation module. Props: `value={draft}`, `onChange={setDraft}`. The Compare tab's plain `whitespace-pre-wrap` divs become `dangerouslySetInnerHTML` renders since content will now be HTML.
+#### 10. New: `ChallengePreferencesInfo.tsx`
+**File:** `src/components/cogniblend/curation/ChallengePreferencesInfo.tsx` (NEW, ~80 lines)
+- Read-only display of the 3 creator preferences
+- Props: `operatingModel`, `creatorApprovalRequired`, `communityCreationAllowed`, `isAnonymous`
+- Uses Badge/info styling consistent with existing curation cards
 
-### Change 7 — Source detail empty state handling
-**File:** `src/components/cogniblend/curation/context-library/SourceDetail.tsx`
+#### 11. Wire to CurationSectionList
+**File:** `src/components/cogniblend/curation/CurationSectionList.tsx`
+- When rendering Organization tab (line 126-133): pass `challengeExtendedBrief` to `OrgContextPanel`
 
-Add an extraction status banner at the top of the detail panel when `extraction_status !== 'completed'`:
-- `pending` → "Content extraction in progress..."
-- `processing` → "Extracting... (up to 30 seconds)"
-- `failed` → "Extraction failed: {error}" + Retry button
-- `url_html_sparse` (check `extraction_method`) → "Page requires JavaScript — only metadata captured. Consider adding key facts manually to the digest."
+#### 12. Update CreatorApprovalStatusBanner
+**File:** `src/components/cogniblend/curation/CreatorApprovalStatusBanner.tsx`
+- Add `communityCreationAllowed` and `isAnonymous` props
+- Show additional info lines for community creation and anonymity status
 
-Per-tab empty states:
-- **Summary tab**: "Content not yet extracted" + Extract Now button (if pending/failed)
-- **Full Text tab**: Show extraction status indicator. If `url_html_sparse`, show the meta content and explain why. If failed, show error.
-- **Key Data tab**: If null but extraction completed, show "No structured data found in this source" with neutral message.
+#### 13. CurationRightRail — Pass new props
+**File:** `src/components/cogniblend/curation/CurationRightRail.tsx`
+- Parse `community_creation_allowed` and `is_anonymous` from extended_brief
+- Pass to `CreatorApprovalStatusBanner`
 
-### Change 8 — SourceList inline accept/reject already exists
-The current `SourceList.tsx` already delegates to `SuggestionCard.tsx` which has inline Accept (check) and Reject (X) buttons per row (lines 91-107 of SuggestionCard). This is already implemented. The only addition needed: add an inline "remove" button on accepted source rows to move them back to suggested status.
+#### 14. CurationReviewPage — Parse and pass
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Extract `community_creation_allowed` and `is_anonymous` from `extended_brief` alongside existing `creator_approval_required`
+- Pass down through right rail props
 
-**File:** `src/components/cogniblend/curation/context-library/SourceList.tsx`
-
-Add an `onUnaccept` prop and render a small X button on each accepted source row to revert its status to `suggested`.
-
-**File:** `src/hooks/cogniblend/useContextLibrary.ts`
-
-Add `useUnacceptSource` mutation that updates `discovery_status` back to `suggested`.
+### No DB Migration Needed
+All 3 fields are stored in the existing `extended_brief` JSONB column — no schema change required.
 
 ### Files Summary
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `supabase/functions/extract-attachment-text/index.ts` | Meta tag extraction for sparse HTML |
-| 2 | `supabase/functions/generate-context-digest/index.ts` | Quality gate + full text (15K) + max_tokens 6000 |
-| 3 | `src/components/cogniblend/curation/context-library/DrawerHeader.tsx` | NEW — extracted header from ContextLibraryDrawer |
-| 4 | `src/components/cogniblend/curation/ContextLibraryDrawer.tsx` | Simplified orchestrator, full-width digest below panels |
-| 5 | `src/components/cogniblend/curation/context-library/DigestPanel.tsx` | RichTextEditor, explicit "Generate Context" button, full-width layout |
-| 6 | `src/components/cogniblend/curation/context-library/SourceDetail.tsx` | Extraction status banner, per-tab empty states |
-| 7 | `src/components/cogniblend/curation/context-library/SourceList.tsx` | Add unaccept button on accepted rows |
-| 8 | `src/hooks/cogniblend/useContextLibrary.ts` | Remove auto-digest from accept/upload mutations, add useUnacceptSource |
-| 9 | `src/components/cogniblend/curation/context-library/index.ts` | Export DrawerHeader |
+| 1 | `challengeFormSchema.ts` (wizard) | Add 2 new boolean fields + defaults |
+| 2 | `creatorFormSchema.ts` (simple) | Add 2 new boolean fields + type |
+| 3 | `StepModeSelection.tsx` | Slim down, delegate to new component |
+| 4 | `ChallengePreferenceToggles.tsx` | NEW — 3 toggle cards |
+| 5 | `ChallengeWizardPage.tsx` | Persist 3 fields in buildFieldsFromForm |
+| 6 | `useCreatorDraftSave.ts` | Add 3 fields to draft payload |
+| 7 | `useChallengeSubmit.ts` | Add 3 fields to extended_brief + snapshot |
+| 8 | `challengePayloads.ts` | Add 3 fields to interfaces + builder |
+| 9 | `OrgContextPanel.tsx` | Accept + render challenge preferences |
+| 10 | `ChallengePreferencesInfo.tsx` | NEW — read-only info display |
+| 11 | `CurationSectionList.tsx` | Pass extended_brief to OrgContextPanel |
+| 12 | `CreatorApprovalStatusBanner.tsx` | Add community + anonymous info |
+| 13 | `CurationRightRail.tsx` | Parse + pass new fields |
+| 14 | `CurationReviewPage.tsx` | Extract + pass new fields |
 
