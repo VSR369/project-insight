@@ -148,8 +148,8 @@ export function DigestPanel({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="rounded-md bg-muted/30 p-3">
-                <SafeHtmlRenderer html={digest!.digest_text} />
+              <div className="rounded-md bg-muted/30 p-3 max-h-[500px] overflow-y-auto prose prose-sm">
+                <SafeHtmlRenderer html={normalizeAiContentForEditor(digest!.digest_text)} />
               </div>
               {digest?.curator_edited && (
                 <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Curator edited</Badge>

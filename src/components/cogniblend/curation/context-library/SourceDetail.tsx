@@ -3,6 +3,8 @@
  */
 
 import React, { useEffect } from 'react';
+import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
+import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -133,7 +135,7 @@ export function SourceDetail({
             {hasSummary ? (
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">AI-generated summary</p>
-                <p className="text-sm whitespace-pre-wrap">{source.extracted_summary}</p>
+                <AiContentRenderer content={source.extracted_summary} compact />
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">{isPending ? 'Extraction in progress...' : <>{`Not yet extracted.`}{extractBtn}</>}</div>
@@ -141,7 +143,9 @@ export function SourceDetail({
           </TabsContent>
           <TabsContent value="full_text" className="mt-2">
             {hasFullText ? (
-              <pre className="text-xs whitespace-pre-wrap bg-muted/50 p-3 rounded-md max-h-[300px] overflow-y-auto">{source.extracted_text}</pre>
+              <div className="bg-muted/50 p-3 rounded-md max-h-[300px] overflow-y-auto prose prose-sm max-w-none">
+                <AiContentRenderer content={source.extracted_text} compact />
+              </div>
             ) : (
               <div className="text-sm text-muted-foreground">{isPending ? 'Extraction in progress...' : <>{source.extraction_status === 'failed' ? source.extraction_error : 'No text extracted.'}{extractBtn}</>}</div>
             )}
