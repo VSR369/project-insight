@@ -1,6 +1,6 @@
 /**
- * SourceList — Left panel showing suggested + accepted sources grouped by section.
- * Includes inline accept/reject on suggestions and unaccept on accepted sources.
+ * SourceList — Left column showing suggested + accepted sources.
+ * Sticky bottom bar for bulk accept/reject actions.
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
@@ -61,6 +61,9 @@ export function SourceList({
     };
   }, [accepted, suggested, searchTerm]);
 
+  const extractedCount = useMemo(() => filtered.accepted.filter(s => s.extraction_status === 'completed').length, [filtered.accepted]);
+  const emptyCount = filtered.accepted.length - extractedCount;
+
   const groupedAccepted = useMemo(() => {
     const groups: Record<string, ContextSource[]> = {};
     for (const s of filtered.accepted) {
@@ -71,17 +74,12 @@ export function SourceList({
   }, [filtered.accepted]);
 
   const handleToggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }, []);
 
   const handleSelectAll = useCallback(() => {
     const allIds = filtered.suggested.map(s => s.id);
-    const allSelected = allIds.every(id => selectedIds.has(id));
-    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+    setSelectedIds(allIds.every(id => selectedIds.has(id)) ? new Set() : new Set(allIds));
   }, [filtered.suggested, selectedIds]);
 
   const allSelected = filtered.suggested.length > 0 && filtered.suggested.every(s => selectedIds.has(s.id));
@@ -92,13 +90,11 @@ export function SourceList({
   }, [selectedIds, filtered.suggested, onAcceptMultiple]);
 
   const handleAcceptOne = useCallback((id: string) => {
-    onAcceptOne(id);
-    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    onAcceptOne(id); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
   }, [onAcceptOne]);
 
   const handleRejectOne = useCallback((id: string) => {
-    onRejectOne(id);
-    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    onRejectOne(id); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
   }, [onRejectOne]);
 
   const acceptLabel = selectedIds.size > 0
@@ -106,91 +102,83 @@ export function SourceList({
     : `Accept All (${filtered.suggested.length})`;
 
   return (
-    <ScrollArea className="w-[40%] border-r">
-      <div className="p-3 space-y-4">
-        {/* Suggested sources */}
-        {filtered.suggested.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div onClick={e => e.stopPropagation()}>
-                  <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} />
-                </div>
-                <h4 className="text-sm font-semibold text-primary">
-                  AI Suggested ({filtered.suggested.length})
-                </h4>
+    <div className="w-[30%] border-r flex flex-col min-h-0">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-3 space-y-4">
+          {filtered.suggested.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} />
+                <h4 className="text-sm font-semibold text-primary">AI Suggested ({filtered.suggested.length})</h4>
+              </div>
+              <div className="space-y-1">
+                {filtered.suggested.map(s => (
+                  <SuggestionCard key={s.id} source={s} isActive={selectedId === s.id}
+                    isSelected={selectedIds.has(s.id)} onSelect={() => onSelectSource(s.id)}
+                    onToggleSelect={handleToggleSelect} onAccept={handleAcceptOne}
+                    onReject={handleRejectOne} isAcceptPending={isAcceptPending}
+                    isRejectPending={isRejectPending} />
+                ))}
+              </div>
+              <Separator className="mt-3" />
+            </div>
+          )}
+
+          {filtered.accepted.length > 0 && (
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Accepted ({extractedCount} extracted · {emptyCount} empty)
+            </h4>
+          )}
+          {Object.entries(groupedAccepted).map(([sectionKey, items]) => (
+            <div key={sectionKey}>
+              <h4 className="text-xs font-semibold text-muted-foreground mb-1">
+                {SECTION_LABELS[sectionKey] || sectionKey} ({items.length})
+              </h4>
+              <div className="space-y-1">
+                {items.map(s => (
+                  <div key={s.id}
+                    className={`p-2 rounded-md cursor-pointer hover:bg-muted/50 text-sm flex items-start gap-2 group ${selectedId === s.id ? 'bg-muted' : ''}`}
+                    onClick={() => onSelectSource(s.id)}>
+                    {s.source_type === 'url' ? <Globe className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" /> : <FileText className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{displayName(s)}</p>
+                      <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                        <ExtractionBadge status={s.extraction_status} />
+                        <ContentIndicators source={s} />
+                      </div>
+                    </div>
+                    <Button size="icon" variant="ghost"
+                      className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={e => { e.stopPropagation(); onUnaccept(s.id); }} title="Move back to suggested">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="space-y-1">
-              {filtered.suggested.map(s => (
-                <SuggestionCard key={s.id} source={s} isActive={selectedId === s.id}
-                  isSelected={selectedIds.has(s.id)} onSelect={() => onSelectSource(s.id)}
-                  onToggleSelect={handleToggleSelect} onAccept={handleAcceptOne}
-                  onReject={handleRejectOne} isAcceptPending={isAcceptPending}
-                  isRejectPending={isRejectPending} />
-              ))}
-            </div>
-            <div className="flex gap-2 mt-2">
-              <Button size="sm" variant="default" className="text-xs h-7"
-                onClick={handleAcceptAction} disabled={filtered.suggested.length === 0 || isAcceptPending}>
-                {acceptLabel}
-              </Button>
-              <Button size="sm" variant="outline" className="text-xs h-7"
-                onClick={() => { onRejectAll(); setSelectedIds(new Set()); }} disabled={isRejectPending}>
-                Reject All
-              </Button>
-            </div>
-            <Separator className="mt-3" />
-          </div>
-        )}
+          ))}
 
-        {/* Accepted sources grouped by section */}
-        {filtered.accepted.length > 0 && (
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            ✅ Accepted ({filtered.accepted.length})
-          </h4>
-        )}
-        {Object.entries(groupedAccepted).map(([sectionKey, items]) => (
-          <div key={sectionKey}>
-            <h4 className="text-xs font-semibold text-muted-foreground mb-1">
-              {SECTION_LABELS[sectionKey] || sectionKey} ({items.length})
-            </h4>
-            <div className="space-y-1">
-              {items.map(s => (
-                <div key={s.id}
-                  className={`p-2 rounded-md cursor-pointer hover:bg-muted/50 text-sm flex items-start gap-2 group ${selectedId === s.id ? 'bg-muted' : ''}`}
-                  onClick={() => onSelectSource(s.id)}>
-                  {s.source_type === 'url' ? (
-                    <Globe className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{displayName(s)}</p>
-                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                      <ExtractionBadge status={s.extraction_status} />
-                      {s.resource_type && <Badge variant="outline" className="text-[10px] h-4">{s.resource_type}</Badge>}
-                      <ContentIndicators source={s} />
-                    </div>
-                  </div>
-                  <Button size="icon" variant="ghost"
-                    className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={e => { e.stopPropagation(); onUnaccept(s.id); }}
-                    title="Move back to suggested">
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+          {filtered.accepted.length === 0 && filtered.suggested.length === 0 && !isLoading && (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              No sources yet. Click &quot;Re-discover Sources&quot; to find relevant context.
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+      </ScrollArea>
 
-        {filtered.accepted.length === 0 && filtered.suggested.length === 0 && !isLoading && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            No sources yet. Click "Discover Sources" to find relevant context.
-          </div>
-        )}
-      </div>
-    </ScrollArea>
+      {/* Sticky bottom bar */}
+      {filtered.suggested.length > 0 && (
+        <div className="shrink-0 border-t p-2 flex gap-2 bg-background">
+          <Button size="sm" variant="outline" className="text-xs h-7 flex-1"
+            onClick={() => { onRejectAll(); setSelectedIds(new Set()); }} disabled={isRejectPending}>
+            Reject All Suggested
+          </Button>
+          <Button size="sm" variant="default" className="text-xs h-7 flex-1"
+            onClick={handleAcceptAction} disabled={filtered.suggested.length === 0 || isAcceptPending}>
+            {acceptLabel}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

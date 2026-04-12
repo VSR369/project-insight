@@ -1,5 +1,5 @@
 /**
- * DrawerHeader — Title bar, action buttons, URL/file input rows for Context Library.
+ * DrawerHeader — Title bar with summary badges, action buttons, URL/file input rows.
  */
 
 import React, { useRef } from 'react';
@@ -12,7 +12,6 @@ import { Search, Link, Sparkles, BookOpen, X, Upload, FileText } from 'lucide-re
 import { SECTION_LABELS } from './types';
 
 const ACCEPTED_FILE_TYPES = '.pdf,.docx,.xlsx,.csv,.txt,.md,.png,.jpg,.jpeg,.webp';
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 const MAX_FILE_SIZE_LABEL = '20MB';
 
 type AddMode = 'url' | 'file' | null;
@@ -20,6 +19,8 @@ type AddMode = 'url' | 'file' | null;
 interface DrawerHeaderProps {
   challengeTitle?: string;
   suggestedCount: number;
+  acceptedCount: number;
+  extractedCount: number;
   searchTerm: string;
   onSearchChange: (term: string) => void;
   addMode: AddMode;
@@ -39,7 +40,8 @@ interface DrawerHeaderProps {
 }
 
 export function DrawerHeader({
-  challengeTitle, suggestedCount, searchTerm, onSearchChange,
+  challengeTitle, suggestedCount, acceptedCount, extractedCount,
+  searchTerm, onSearchChange,
   addMode, onSetAddMode, urlValue, onUrlValueChange,
   urlSection, onUrlSectionChange, fileSection, onFileSectionChange,
   onAddUrl, onFileChange, onDiscover,
@@ -54,13 +56,18 @@ export function DrawerHeader({
           <BookOpen className="h-5 w-5" />
           Context Library
           {suggestedCount > 0 && (
-            <Badge variant="secondary" className="ml-2 text-xs">
+            <Badge variant="outline" className="ml-1 text-xs text-amber-600 border-amber-300 bg-amber-50">
               {suggestedCount} awaiting review
             </Badge>
           )}
+          {acceptedCount > 0 && (
+            <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-300 bg-emerald-50">
+              {extractedCount} accepted + extracted
+            </Badge>
+          )}
         </DialogTitle>
+        <p className="text-sm text-muted-foreground truncate max-w-[40%]">{challengeTitle}</p>
       </div>
-      <p className="text-sm text-muted-foreground truncate">{challengeTitle}</p>
 
       {/* Action bar */}
       <div className="flex items-center gap-2 flex-wrap mt-2">

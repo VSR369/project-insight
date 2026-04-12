@@ -1,6 +1,5 @@
 /**
- * ContextLibraryDrawer — Thin orchestrator: state + layout only.
- * DigestPanel is full-width below the source list/detail split.
+ * ContextLibraryDrawer — 3-column layout: Sources | Detail | Digest.
  */
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -60,7 +59,10 @@ export function ContextLibraryDrawer({
 
   const selectedSource = useMemo(() => sources.find(s => s.id === selectedId) || null, [sources, selectedId]);
   const suggestedCount = useMemo(() => sources.filter(s => s.discovery_status === 'suggested').length, [sources]);
-  const acceptedCount = useMemo(() => sources.filter(s => s.discovery_status === 'accepted').length, [sources]);
+  const accepted = useMemo(() => sources.filter(s => s.discovery_status === 'accepted'), [sources]);
+  const acceptedCount = accepted.length;
+  const extractedCount = useMemo(() => accepted.filter(s => s.extraction_status === 'completed').length, [accepted]);
+  const emptyExtractionCount = acceptedCount - extractedCount;
 
   const handleAddUrl = () => {
     if (!urlValue.trim()) return;
@@ -90,6 +92,7 @@ export function ContextLibraryDrawer({
       <DialogContent className="w-[calc(100vw-80px)] max-w-none h-[calc(100vh-80px)] flex flex-col overflow-hidden p-0">
         <DrawerHeader
           challengeTitle={challengeTitle} suggestedCount={suggestedCount}
+          acceptedCount={acceptedCount} extractedCount={extractedCount}
           searchTerm={searchTerm} onSearchChange={setSearchTerm}
           addMode={addMode} onSetAddMode={setAddMode}
           urlValue={urlValue} onUrlValueChange={setUrlValue}
@@ -100,7 +103,7 @@ export function ContextLibraryDrawer({
           isAddingUrl={addUrl.isPending} isUploading={uploadFile.isPending}
         />
 
-        {/* Source list + detail split */}
+        {/* 3-column layout */}
         <div className="flex-1 flex min-h-0">
           <SourceList
             sources={sources} searchTerm={searchTerm} selectedId={selectedId}
@@ -113,7 +116,8 @@ export function ContextLibraryDrawer({
             isAcceptPending={acceptMultiple.isPending} isRejectPending={rejectAll.isPending}
             isLoading={isLoading}
           />
-          <div className="flex-1 flex flex-col min-h-0">
+
+          <div className="w-[30%] flex flex-col min-h-0 border-r">
             {selectedSource ? (
               <SourceDetail
                 source={selectedSource}
@@ -133,19 +137,20 @@ export function ContextLibraryDrawer({
               </div>
             )}
           </div>
-        </div>
 
-        {/* Full-width digest below the panels */}
-        <div className="shrink-0 border-t">
-          <DigestPanel
-            digest={digest}
-            acceptedCount={acceptedCount}
-            onGenerate={() => regenDigest.mutate()}
-            isGenerating={regenDigest.isPending}
-            onSave={(text) => saveDigest.mutate(text)}
-            isSaving={saveDigest.isPending}
-            onConfirm={handleClose}
-          />
+          <div className="w-[40%] flex flex-col min-h-0">
+            <DigestPanel
+              digest={digest}
+              acceptedCount={acceptedCount}
+              extractedCount={extractedCount}
+              emptyExtractionCount={emptyExtractionCount}
+              onGenerate={() => regenDigest.mutate()}
+              isGenerating={regenDigest.isPending}
+              onSave={(text) => saveDigest.mutate(text)}
+              isSaving={saveDigest.isPending}
+              onConfirm={handleClose}
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
