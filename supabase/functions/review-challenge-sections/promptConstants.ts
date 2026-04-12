@@ -149,7 +149,7 @@ OUT OF SCOPE:
 export const DEFAULT_QUALITY_CRITERIA: Record<string, any[]> = {
   problem_statement: [
     { name: 'Specificity', severity: 'error', description: 'Must state a concrete, bounded problem — not a general wish. Bad: "Improve customer experience". Good: "Reduce cart abandonment rate from 73% to below 40% on mobile checkout".' },
-    { name: 'Solver Comprehension', severity: 'warning', description: 'A solver with NO internal context should understand the problem after reading this section alone. No undefined acronyms, no assumed knowledge.' },
+    { name: 'Solution Provider Comprehension', severity: 'warning', description: 'A Solution Provider with NO internal context should understand the problem after reading this section alone. No undefined acronyms, no assumed knowledge.' },
     { name: 'Impact Quantification', severity: 'suggestion', description: 'Should include at least one quantified impact (cost, time, revenue, risk).' },
   ],
   deliverables: [
@@ -242,7 +242,7 @@ export const SECTION_DISPLAY_NAMES: Record<string, string> = {
   current_deficiencies: 'Current Deficiencies',
   preferred_approach: 'Preferred Approach',
   approaches_not_of_interest: 'Approaches NOT of Interest',
-  solver_expertise: 'Solver Expertise Requirements',
+  solver_expertise: 'Solution Provider Expertise Requirements',
   data_resources_provided: 'Data & Resources Provided',
   success_metrics_kpis: 'Success Metrics & KPIs',
   solution_type: 'Solution Type',

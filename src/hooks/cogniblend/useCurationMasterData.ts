@@ -33,10 +33,10 @@ export interface CurationMasterData {
 
 const FALLBACK_IP_OPTIONS: MasterDataOption[] = [
   { value: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
-  { value: "IP-NEL", label: "Non-Exclusive License", description: "Solver retains ownership, grants license to seeker" },
-  { value: "IP-EL", label: "Exclusive License", description: "Solver grants exclusive license to seeker" },
-  { value: "IP-JO", label: "Joint Ownership", description: "Joint ownership between solver and seeker" },
-  { value: "IP-NONE", label: "No IP Transfer", description: "Solver retains full IP ownership" },
+  { value: "IP-NEL", label: "Non-Exclusive License", description: "Solution Provider retains ownership, grants license to seeker" },
+  { value: "IP-EL", label: "Exclusive License", description: "Solution Provider grants exclusive license to seeker" },
+  { value: "IP-JO", label: "Joint Ownership", description: "Joint ownership between Solution Provider and seeker" },
+  { value: "IP-NONE", label: "No IP Transfer", description: "Solution Provider retains full IP ownership" },
 ];
 
 /* ── Hook ──────────────────────────────────────────────── */

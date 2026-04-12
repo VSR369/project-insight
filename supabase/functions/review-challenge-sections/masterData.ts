@@ -16,7 +16,7 @@ export const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[
     { code: "IP-NEL", label: "Non-Exclusive License" },
     { code: "IP-EL", label: "Exclusive License" },
     { code: "IP-JO", label: "Joint Ownership" },
-    { code: "IP-SR", label: "Solver Retains IP" },
+    { code: "IP-SR", label: "Solution Provider Retains IP" },
   ],
   maturity_level: [
     { code: "BLUEPRINT", label: "Blueprint / Concept" },

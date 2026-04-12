@@ -215,11 +215,11 @@ export function useWithdrawSolution() {
           challenge_id: challengeId,
           notification_type: notificationType,
           title: tier === 'PENALTY'
-            ? 'Solver withdrawal — Finance review required'
-            : 'Solver has withdrawn',
+            ? 'Solution Provider withdrawal — Finance review required'
+            : 'Solution Provider has withdrawn',
           message: tier === 'PENALTY'
-            ? `A shortlisted solver has withdrawn from "${challengeTitle}" after receiving partial payment. Finance Coordinator review required.`
-            : `A shortlisted solver has withdrawn from "${challengeTitle}".`,
+            ? `A shortlisted Solution Provider has withdrawn from "${challengeTitle}" after receiving partial payment. Finance Coordinator review required.`
+            : `A shortlisted Solution Provider has withdrawn from "${challengeTitle}".`,
         }));
 
         if (notifications.length > 0) {

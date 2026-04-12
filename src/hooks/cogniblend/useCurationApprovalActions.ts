@@ -182,7 +182,7 @@ export function useCurationApprovalActions({
             const updated = { ...existing, proficiency_areas: paIds };
             syncSectionToStore('solver_expertise' as SectionKey, updated);
             saveSectionMutation.mutate({ field: 'solver_expertise_requirements', value: updated });
-            toast.success(`Solver Expertise auto-updated for ${groupLabels.length} proficiency area(s)`);
+            toast.success(`Solution Provider Expertise auto-updated for ${groupLabels.length} proficiency area(s)`);
           }
         }
       } catch (err) {
