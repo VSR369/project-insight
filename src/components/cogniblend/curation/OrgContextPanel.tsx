@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrgContextData } from '@/hooks/cogniblend/useOrgContextData';
 import { OrgFormFields } from './OrgFormFields';
 import { OrgAttachmentList } from './OrgAttachmentList';
+import { ChallengePreferencesInfo } from './ChallengePreferencesInfo';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +24,8 @@ interface OrgContextPanelProps {
   challengeId: string;
   organizationId: string;
   isReadOnly?: boolean;
+  challengeExtendedBrief?: Record<string, unknown>;
+  operatingModel?: string | null;
 }
 
 interface OrgData {
@@ -50,7 +53,7 @@ export function isOrgTabComplete(orgData: OrgData | undefined, attachmentCount: 
 // Component
 // ---------------------------------------------------------------------------
 
-export function OrgContextPanel({ challengeId, organizationId, isReadOnly = false }: OrgContextPanelProps) {
+export function OrgContextPanel({ challengeId, organizationId, isReadOnly = false, challengeExtendedBrief, operatingModel }: OrgContextPanelProps) {
   const {
     orgData, orgLoading, attachments,
     websiteUrl, setWebsiteUrl,
@@ -160,6 +163,14 @@ export function OrgContextPanel({ challengeId, organizationId, isReadOnly = fals
         onUpload={handleFileUpload}
         onDelete={deleteAttachment}
       />
+
+      {/* Challenge Preferences (from Creator) */}
+      {challengeExtendedBrief && (
+        <ChallengePreferencesInfo
+          operatingModel={operatingModel ?? null}
+          creatorApprovalRequired={challengeExtendedBrief.creator_approval_required === true}
+          communityCreationAllowed={challengeExtendedBrief.community_creation_allowed === true}
+          isAnonymous={challengeExtendedBrief.is_anonymous === true}
+        />
+      )}
     </div>
-  );
-}
