@@ -1,6 +1,6 @@
 /**
  * generate-context-digest — Synthesizes accepted context sources into a 600-word grounded digest.
- * Bug 4 fix: Preserves curator-edited digest_text when curator_edited=true.
+ * Quality gate: filters out empty/placeholder sources. Uses full text (15K chars per source).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -13,6 +13,14 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+/** Quality gate — returns true only for sources with real extractable content */
+function hasRealContent(att: Record<string, unknown>): boolean {
+  const text = ((att.extracted_text as string) || (att.extracted_summary as string) || '').trim();
+  if (text.length < 100) return false;
+  if (text.startsWith('[')) return false; // placeholder markers like "[PDF content could not..."
+  return true;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,7 +53,7 @@ serve(async (req) => {
     // 1. Fetch accepted attachments
     const { data: attachments, error: attErr } = await adminClient
       .from("challenge_attachments")
-      .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type")
+      .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method")
       .eq("challenge_id", challenge_id)
       .eq("discovery_status", "accepted");
 
@@ -53,6 +61,21 @@ serve(async (req) => {
     if (!attachments || attachments.length === 0) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "NO_SOURCES", message: "No accepted sources to digest" } }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Quality gate: filter out empty/placeholder sources
+    const usableAttachments = attachments.filter(hasRealContent);
+    if (usableAttachments.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "NO_EXTRACTABLE_CONTENT",
+            message: `No sources have extractable content yet. ${attachments.length} source(s) accepted but none have sufficient text content for digest generation.`,
+          },
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -76,17 +99,22 @@ serve(async (req) => {
       }
     }
 
-    // 3. Compile source material
-    const sourceBlocks = attachments.map((att: Record<string, unknown>, i: number) => {
-      const name = att.file_name || att.url_title || att.source_url || `Source ${i + 1}`;
-      const summary = (att.extracted_summary as string) || ((att.extracted_text as string)?.substring(0, 3000)) || "[No content extracted]";
-      const keyData = att.extracted_key_data ? JSON.stringify(att.extracted_key_data) : "";
-      return `[SOURCE ${i + 1}: ${name}] [${att.resource_type || att.source_type}] [${att.section_key}]
-${summary}
-${keyData ? `KEY DATA: ${keyData}` : ""}`;
-    }).join("\n\n---\n\n");
+    // 3. Compile source material — full text up to 15K per source
+    const sourceBlocks = usableAttachments.map((att: Record<string, unknown>, i: number) => {
+      const name = (att.url_title || att.file_name || att.source_url || `Source ${i + 1}`) as string;
+      const fullText = ((att.extracted_text as string) ?? '').substring(0, 15000);
+      const summary = (att.extracted_summary as string) ?? '';
+      const keyData = att.extracted_key_data ? JSON.stringify(att.extracted_key_data, null, 2) : '';
 
-    // 3b. Build raw context block — full text + key data per section (for Pass 2 grounding)
+      return `[SOURCE ${i + 1}: ${name}] [${att.resource_type || att.source_type}] [Section: ${att.section_key}]
+URL: ${(att.source_url as string) ?? 'N/A'}
+
+${fullText ? `FULL CONTENT:\n${fullText}` : ''}
+${summary ? `\nAI SUMMARY:\n${summary}` : ''}
+${keyData ? `\nSTRUCTURED DATA:\n${keyData}` : ''}`;
+    }).join('\n\n═══════════════════════════════════\n\n');
+
+    // 3b. Build raw context block for Pass 2 grounding
     const rawContextBySection: Record<string, string[]> = {};
     for (const att of attachments) {
       const sKey = att.section_key as string;
@@ -152,9 +180,9 @@ After the digest, output a JSON block with key facts:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Synthesize these ${attachments.length} sources:\n\n${sourceBlocks}` },
+          { role: "user", content: `Synthesize these ${usableAttachments.length} sources:\n\n${sourceBlocks}` },
         ],
-        max_tokens: 3000,
+        max_tokens: 6000,
         temperature: 0.2,
       }),
     });
@@ -193,7 +221,7 @@ After the digest, output a JSON block with key facts:
       }
     }
 
-    // 6. Bug 4 fix: Check if curator has edited the digest before upserting
+    // 6. Check if curator has edited the digest before upserting
     const { data: existingDigest } = await adminClient
       .from("challenge_context_digest")
       .select("curator_edited, digest_text")
@@ -203,13 +231,12 @@ After the digest, output a JSON block with key facts:
     const newDigestText = digestText.substring(0, 10000);
 
     if (existingDigest?.curator_edited) {
-      // Curator has edited — preserve their version, store new AI text as original
       const { error: updateErr } = await adminClient
         .from("challenge_context_digest")
         .update({
           original_digest_text: newDigestText,
           key_facts: keyFacts,
-          source_count: attachments.length,
+          source_count: usableAttachments.length,
           generated_at: new Date().toISOString(),
           raw_context_block: rawContextBlock,
           raw_context_updated_at: new Date().toISOString(),
@@ -217,7 +244,6 @@ After the digest, output a JSON block with key facts:
         .eq("challenge_id", challenge_id);
       if (updateErr) throw new Error(updateErr.message);
     } else {
-      // No curator edits — safe to overwrite digest_text
       const { error: upsertErr } = await adminClient
         .from("challenge_context_digest")
         .upsert(
@@ -226,7 +252,7 @@ After the digest, output a JSON block with key facts:
             digest_text: newDigestText,
             original_digest_text: newDigestText,
             key_facts: keyFacts,
-            source_count: attachments.length,
+            source_count: usableAttachments.length,
             generated_at: new Date().toISOString(),
             raw_context_block: rawContextBlock,
             raw_context_updated_at: new Date().toISOString(),
@@ -241,7 +267,9 @@ After the digest, output a JSON block with key facts:
         success: true,
         data: {
           digest_text: newDigestText.substring(0, 500) + (newDigestText.length > 500 ? "..." : ""),
-          source_count: attachments.length,
+          source_count: usableAttachments.length,
+          total_accepted: attachments.length,
+          skipped_empty: attachments.length - usableAttachments.length,
           curator_edit_preserved: !!existingDigest?.curator_edited,
         },
       }),
