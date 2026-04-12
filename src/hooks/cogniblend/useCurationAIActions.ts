@@ -268,11 +268,12 @@ export function useCurationAIActions({
     const normalized = normalizeSectionReview(freshReview);
     setAiReviews((prev) => {
       const filtered = prev.filter((r) => r.section_key !== sectionKey);
-      return [...filtered, { ...normalized, addressed: false }];
+      const merged = [...filtered, { ...normalized, addressed: false }];
+      // Persist inside functional update to avoid stale closure
+      saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: merged });
+      return merged;
     });
-    const currentReviews = aiReviews.filter((r) => r.section_key !== sectionKey);
-    saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: [...currentReviews, { ...normalized, addressed: false }] });
-  }, [aiReviews, setAiReviews, saveSectionMutationRef]);
+  }, [setAiReviews, saveSectionMutationRef]);
 
   // ── Delegated: complexity re-review, accept-all, warnings ──
   const complexity = useCurationComplexityActions({
