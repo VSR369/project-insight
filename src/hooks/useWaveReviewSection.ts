@@ -56,14 +56,12 @@ export function useWaveReviewSection({
 
       if (skipAnalysis && providedCommentsBySectionKey) {
         const existingComments = providedCommentsBySectionKey[sectionKey];
-        if (existingComments?.length) {
-          body.skip_analysis = true;
-          body.provided_comments = [{
-            section_key: sectionKey,
-            status: 'warning',
-            comments: existingComments,
-          }];
-        }
+        body.skip_analysis = true;
+        body.provided_comments = [{
+          section_key: sectionKey,
+          status: existingComments?.length ? 'warning' : 'generated',
+          comments: existingComments ?? [],
+        }];
       }
 
       const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
