@@ -40,7 +40,7 @@ export const CPA_DEFAULT_TEMPLATES: Record<CpaGovernanceMode, string> = {
   QUICK: `# Challenge Participation Agreement (Quick Mode)
 
 ## 1. Parties
-This agreement is between the Challenge Seeker organization and the participating Solver.
+This agreement is between the Challenge Seeker organization and the participating Solution Provider.
 
 ## 2. Challenge Details
 - **Challenge:** {{challenge_title}}
@@ -59,7 +59,7 @@ By participating, the Solver agrees to these terms.`,
   STRUCTURED: `# Challenge Participation Agreement (Structured Mode)
 
 ## 1. Parties
-This agreement ("Agreement") is entered into between the Challenge Seeker organization ("Seeker") and the participating Solver ("Solver").
+This agreement ("Agreement") is entered into between the Challenge Seeker organization ("Seeker") and the participating Solution Provider ("Solution Provider").
 
 ## 2. Challenge Details
 - **Challenge:** {{challenge_title}}
@@ -90,7 +90,7 @@ This Agreement is governed by the laws of {{jurisdiction}} under {{governing_law
   CONTROLLED: `# Challenge Participation Agreement (Controlled Mode)
 
 ## 1. Definitions and Parties
-This Challenge Participation Agreement ("Agreement") is entered into by and between the Challenge Seeker organization ("Seeker") and the participating Solver ("Solver"), collectively the "Parties."
+This Challenge Participation Agreement ("Agreement") is entered into by and between the Challenge Seeker organization ("Seeker") and the participating Solution Provider ("Solution Provider"), collectively the "Parties."
 
 ## 2. Challenge Specification
 - **Challenge Title:** {{challenge_title}}
@@ -108,7 +108,7 @@ This Challenge Participation Agreement ("Agreement") is entered into by and betw
 {{ip_model}}
 
 ### 5.1 Pre-existing IP
-Solver retains all pre-existing intellectual property.
+Solution Provider retains all pre-existing intellectual property.
 
 ### 5.2 Challenge-Created IP
 IP created specifically for this challenge transfers per the model above.

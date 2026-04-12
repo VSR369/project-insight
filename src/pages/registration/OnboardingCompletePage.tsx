@@ -30,9 +30,9 @@ export default function OnboardingCompletePage() {
     },
     {
       icon: Search,
-      title: 'Explore the solver network',
-      description: 'Browse qualified solution providers across industries and domains.',
-      action: 'Browse Solvers',
+       title: 'Explore the Solution Provider network',
+       description: 'Browse qualified Solution Providers across industries and domains.',
+       action: 'Browse Solution Providers',
       route: '/org/solvers',
     },
   ];
