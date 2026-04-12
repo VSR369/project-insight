@@ -169,7 +169,6 @@ export function useCurationPageOrchestrator() {
     : '';
   const suggestionsCount = useMemo(() => {
     if (!curationStore) return 0;
-    const { countPendingSuggestions } = require('@/lib/cogniblend/bulkAcceptHelpers') as typeof import('@/lib/cogniblend/bulkAcceptHelpers');
     return countPendingSuggestions(curationStore.getState().sections);
   }, [curationStore, suggestionsFingerprint]);
 
