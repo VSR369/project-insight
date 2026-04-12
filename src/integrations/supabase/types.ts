@@ -414,6 +414,7 @@ export type Database = {
           batch_split_threshold: number
           critical_model: string | null
           default_model: string
+          fallback_model: string | null
           id: number
           updated_at: string
           updated_by: string | null
@@ -423,6 +424,7 @@ export type Database = {
           batch_split_threshold?: number
           critical_model?: string | null
           default_model?: string
+          fallback_model?: string | null
           id?: number
           updated_at?: string
           updated_by?: string | null
@@ -432,6 +434,7 @@ export type Database = {
           batch_split_threshold?: number
           critical_model?: string | null
           default_model?: string
+          fallback_model?: string | null
           id?: number
           updated_at?: string
           updated_by?: string | null
