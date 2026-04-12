@@ -79,8 +79,42 @@ serve(async (req) => {
         const meta = extractMetaTags(rawText);
 
         if (contentType.includes("application/pdf")) {
-          extractedText = "[PDF URL — content available at: " + att.source_url + "]";
-          method = "url_pdf";
+          // Download PDF binary and attempt text extraction
+          try {
+            const pdfResp = await fetch(att.source_url, {
+              headers: { "User-Agent": "CogniBlend-Curator/1.0" },
+              redirect: "follow",
+              signal: AbortSignal.timeout(20000),
+            });
+            const pdfBuffer = await pdfResp.arrayBuffer();
+            const pdfRaw = new TextDecoder().decode(new Uint8Array(pdfBuffer));
+            const cleaned = pdfRaw
+              .replace(/[^\x20-\x7E\n\r\t]/g, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .substring(0, 50000);
+            const printableRatio = cleaned.replace(/\s/g, "").length / Math.max(cleaned.length, 1);
+
+            if (printableRatio > 0.2 && cleaned.length > 100) {
+              extractedText = cleaned;
+              method = "url_pdf_text";
+            } else {
+              extractedText = [
+                meta.ogTitle ? `Title: ${meta.ogTitle}` : (meta.pageTitle ? `Title: ${meta.pageTitle}` : ""),
+                meta.ogDesc ? `Description: ${meta.ogDesc}` : "",
+                `URL: ${att.source_url}`,
+                `Note: PDF document — binary content, text could not be decoded`,
+              ].filter(Boolean).join("\n");
+              method = "url_pdf_binary";
+            }
+          } catch {
+            extractedText = [
+              meta.ogTitle ? `Title: ${meta.ogTitle}` : "",
+              `URL: ${att.source_url}`,
+              `Note: PDF URL — download failed`,
+            ].filter(Boolean).join("\n");
+            method = "url_pdf_failed";
+          }
         } else {
           extractedText = rawText
             .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -238,7 +272,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (LOVABLE_API_KEY) {
       try {
-        const isSparseOrFailed = method === "url_meta_only" || method === "url_html_sparse" || method === "url_error";
+        const isSparseOrFailed = ["url_meta_only", "url_html_sparse", "url_error",
+          "url_pdf_binary", "url_pdf_failed", "pdf_binary_fallback"].includes(method);
 
         const tier2Prompt = isSparseOrFailed
           ? `You are a research analyst. A web page could not be fully fetched (may require JavaScript or be access-restricted).

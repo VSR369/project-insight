@@ -225,10 +225,10 @@ serve(async (req) => {
     );
 
     // ── Clear stale AI suggestions ────────────────────────────────────────────
+    // Clear ALL ai_suggested sources (including previously auto-accepted from old runs)
     await adminClient.from("challenge_attachments").delete()
       .eq("challenge_id", challenge_id)
-      .eq("discovery_source", "ai_suggested")
-      .eq("discovery_status", "suggested");
+      .eq("discovery_source", "ai_suggested");
 
     // ════════════════════════════════════════════════════════════════════════
     // PHASE 1 — LLM generates targeted search queries
