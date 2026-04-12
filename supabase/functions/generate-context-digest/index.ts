@@ -1,6 +1,7 @@
 /**
  * generate-context-digest — Synthesizes accepted context sources into a 600-word grounded digest.
  * Quality gate: filters out empty/placeholder sources. Uses full text (15K chars per source).
+ * Outputs clean HTML (not markdown) for direct RichTextEditor consumption.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -14,22 +15,30 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-/** Quality gate — returns true only for sources with real extractable content */
 function hasRealContent(att: Record<string, unknown>): boolean {
   const text = ((att.extracted_text as string) || (att.extracted_summary as string) || '').trim();
   if (text.length < 100) return false;
-  if (text.startsWith('[')) return false; // placeholder markers like "[PDF content could not..."
+  if (text.startsWith('[')) return false;
   return true;
 }
 
+/** Post-process: convert residual markdown to HTML */
+function sanitizeToHtml(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+(.+)$/gm, (_: string, t: string) => `<h3>${t}</h3>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^\*\s+(.+)$/gm, '<li>$1</li>')
+    .replace(/^-\s+(.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>(?:\s*<li>[\s\S]*?<\/li>)*)/g, '<ul>$1</ul>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { challenge_id } = await req.json();
-
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
@@ -50,7 +59,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // 1. Fetch accepted attachments
     const { data: attachments, error: attErr } = await adminClient
       .from("challenge_attachments")
       .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method")
@@ -65,22 +73,17 @@ serve(async (req) => {
       );
     }
 
-    // Quality gate: filter out empty/placeholder sources
     const usableAttachments = attachments.filter(hasRealContent);
     if (usableAttachments.length === 0) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: {
-            code: "NO_EXTRACTABLE_CONTENT",
-            message: `No sources have extractable content yet. ${attachments.length} source(s) accepted but none have sufficient text content for digest generation.`,
-          },
+          error: { code: "NO_EXTRACTABLE_CONTENT", message: `${attachments.length} source(s) accepted but none have sufficient text.` },
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // 2. Fetch challenge + org context
     const { data: challenge } = await adminClient
       .from("challenges")
       .select("title, problem_statement, scope, organization_id, domain_tags, maturity_level, solution_type")
@@ -94,27 +97,22 @@ serve(async (req) => {
         .select("organization_name, hq_city, organization_description")
         .eq("id", challenge.organization_id)
         .single();
-      if (org) {
-        orgContext = `Organization: ${org.organization_name} (${org.hq_city || "global"}). ${org.organization_description || ""}`;
-      }
+      if (org) orgContext = `Organization: ${org.organization_name} (${org.hq_city || "global"}). ${org.organization_description || ""}`;
     }
 
-    // 3. Compile source material — full text up to 15K per source
     const sourceBlocks = usableAttachments.map((att: Record<string, unknown>, i: number) => {
       const name = (att.url_title || att.file_name || att.source_url || `Source ${i + 1}`) as string;
       const fullText = ((att.extracted_text as string) ?? '').substring(0, 15000);
       const summary = (att.extracted_summary as string) ?? '';
       const keyData = att.extracted_key_data ? JSON.stringify(att.extracted_key_data, null, 2) : '';
-
       return `[SOURCE ${i + 1}: ${name}] [${att.resource_type || att.source_type}] [Section: ${att.section_key}]
 URL: ${(att.source_url as string) ?? 'N/A'}
-
 ${fullText ? `FULL CONTENT:\n${fullText}` : ''}
 ${summary ? `\nAI SUMMARY:\n${summary}` : ''}
 ${keyData ? `\nSTRUCTURED DATA:\n${keyData}` : ''}`;
     }).join('\n\n═══════════════════════════════════\n\n');
 
-    // 3b. Build raw context block for Pass 2 grounding
+    // Raw context block for Pass 2 grounding
     const rawContextBySection: Record<string, string[]> = {};
     for (const att of attachments) {
       const sKey = att.section_key as string;
@@ -133,7 +131,6 @@ ${keyData ? `\nSTRUCTURED DATA:\n${keyData}` : ''}`;
       .join('\n\n')
       .substring(0, 150000);
 
-    // 4. Call AI to synthesize
     const systemPrompt = `You are an expert research analyst synthesizing verified external context for a business challenge curation team.
 
 CHALLENGE: "${challenge?.title || "Unknown"}"
@@ -142,14 +139,18 @@ ${orgContext}
 
 Synthesize the provided source materials into a comprehensive 600-word context digest.
 
-Structure your digest with these sections:
-1. **Organization Context** — Key facts about the organization and its position
-2. **Industry Landscape** — Market trends, size, growth relevant to the challenge
-3. **Regulatory Environment** — Applicable regulations, compliance requirements
-4. **Technology Context** — Relevant technology trends and maturity
-5. **Competitive Intelligence** — Competitor approaches, industry benchmarks
-6. **Key Numbers** — Critical statistics, KPIs, benchmarks (as bullet points)
-7. **Risks** — Key risks and considerations
+Structure your digest as valid HTML with these sections.
+Use <h3> for section headings, <p> for paragraphs, <ul><li> for bullet lists, <strong> for emphasis.
+Do NOT use markdown (**bold**, ### headings, - bullets). Output clean HTML only.
+
+Sections:
+<h3>Organization Context</h3> — Key facts about the organization
+<h3>Industry Landscape</h3> — Market trends, size, growth
+<h3>Regulatory Environment</h3> — Applicable regulations, compliance
+<h3>Technology Context</h3> — Technology trends and maturity
+<h3>Competitive Intelligence</h3> — Competitor approaches, benchmarks
+<h3>Key Numbers</h3> — Critical statistics as a <ul> list
+<h3>Risks</h3> — Key risks as a <ul> list
 
 Rules:
 - ONLY state facts that appear in the provided sources
@@ -172,10 +173,7 @@ After the digest, output a JSON block with key facts:
 
     const aiResp = await fetch(AI_GATEWAY_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
@@ -207,7 +205,6 @@ After the digest, output a JSON block with key facts:
     const aiResult = await aiResp.json();
     const rawContent = aiResult.choices?.[0]?.message?.content || "";
 
-    // 5. Extract digest text and key facts
     let digestText = rawContent;
     let keyFacts: Record<string, unknown> | null = null;
 
@@ -216,12 +213,12 @@ After the digest, output a JSON block with key facts:
       try {
         keyFacts = JSON.parse(jsonMatch[1].trim());
         digestText = rawContent.replace(/```json[\s\S]*?```/, "").trim();
-      } catch {
-        // Keep full text if JSON parsing fails
-      }
+      } catch { /* Keep full text */ }
     }
 
-    // 6. Check if curator has edited the digest before upserting
+    // Post-process: ensure clean HTML, strip residual markdown
+    digestText = sanitizeToHtml(digestText);
+
     const { data: existingDigest } = await adminClient
       .from("challenge_context_digest")
       .select("curator_edited, digest_text")
@@ -246,19 +243,16 @@ After the digest, output a JSON block with key facts:
     } else {
       const { error: upsertErr } = await adminClient
         .from("challenge_context_digest")
-        .upsert(
-          {
-            challenge_id,
-            digest_text: newDigestText,
-            original_digest_text: newDigestText,
-            key_facts: keyFacts,
-            source_count: usableAttachments.length,
-            generated_at: new Date().toISOString(),
-            raw_context_block: rawContextBlock,
-            raw_context_updated_at: new Date().toISOString(),
-          },
-          { onConflict: "challenge_id" },
-        );
+        .upsert({
+          challenge_id,
+          digest_text: newDigestText,
+          original_digest_text: newDigestText,
+          key_facts: keyFacts,
+          source_count: usableAttachments.length,
+          generated_at: new Date().toISOString(),
+          raw_context_block: rawContextBlock,
+          raw_context_updated_at: new Date().toISOString(),
+        }, { onConflict: "challenge_id" });
       if (upsertErr) throw new Error(upsertErr.message);
     }
 

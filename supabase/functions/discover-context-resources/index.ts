@@ -1,13 +1,11 @@
 /**
- * discover-context-resources — Challenge-contextual AI source discovery.
+ * discover-context-resources — 5-phase real web search + AI relevance scoring.
  *
- * FULL CONTEXT APPROACH:
- * - All 27 challenge section fields injected into prompt
- * - Extended brief subsections unpacked
- * - Existing accepted documents + URLs (with extracted text) read as context
- * - Pass 1 AI review comments (gaps) used to target search queries
- * - Stale AI suggestions cleared before each run
- * - Confidence threshold: ≥0.85 auto-accepted, lower = suggested for curator review
+ * PHASE 1: LLM generates targeted search queries from challenge context + gaps
+ * PHASE 2: Serper API executes searches → real URLs with real snippets
+ * PHASE 3: HEAD accessibility pre-check per URL — skip blocked/paywalled
+ * PHASE 4: LLM scores relevance of accessible URLs (reads real snippets)
+ * PHASE 5: Insert ALL as 'suggested' with search snippet as seed content
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -20,8 +18,18 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const SERPER_URL = "https://google.serper.dev/search";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const PAYWALL_DOMAINS = [
+  "gartner.com", "mckinsey.com", "hbr.org", "wsj.com", "ft.com",
+  "bloomberg.com", "reuters.com/plus", "statista.com", "forrester.com",
+  "idc.com", "bcg.com/publications", "bain.com/insights",
+];
+
+function isKnownPaywall(url: string): boolean {
+  const lower = url.toLowerCase();
+  return PAYWALL_DOMAINS.some(d => lower.includes(d));
+}
 
 function stripHtml(text: unknown): string {
   if (!text || typeof text !== "string") return "";
@@ -38,16 +46,13 @@ function brief(text: string, maxLen = 600): string {
   return text.trim().substring(0, maxLen);
 }
 
-/** Extract all actionable gaps from Pass 1 ai_section_reviews */
 function extractGapMap(aiReviews: unknown): Record<string, string[]> {
   const map: Record<string, string[]> = {};
   if (!Array.isArray(aiReviews)) return map;
   for (const r of aiReviews) {
     if (!r?.section_key) continue;
     const comments = (r.comments ?? [])
-      .filter((c: { type?: string }) =>
-        c.type === "error" || c.type === "warning" || c.type === "suggestion"
-      )
+      .filter((c: { type?: string }) => ["error", "warning", "suggestion"].includes(c.type ?? ""))
       .map((c: { text?: string }) => c.text)
       .filter(Boolean);
     if (comments.length > 0) map[r.section_key] = comments.slice(0, 3);
@@ -55,63 +60,68 @@ function extractGapMap(aiReviews: unknown): Record<string, string[]> {
   return map;
 }
 
-/** Build a rich context block from all challenge sections */
-function buildChallengeContext(
-  ch: Record<string, unknown>,
-  eb: Record<string, unknown>,
-): string {
+function buildChallengeContext(ch: Record<string, unknown>, eb: Record<string, unknown>): string {
   const lines: string[] = [];
-
-  if (ch.problem_statement) lines.push(`PROBLEM STATEMENT:\n${brief(stripHtml(ch.problem_statement), 800)}`);
-  if (ch.scope) lines.push(`SCOPE:\n${brief(stripHtml(ch.scope), 600)}`);
-  if (ch.expected_outcomes) lines.push(`EXPECTED OUTCOMES:\n${brief(stripHtml(ch.expected_outcomes), 500)}`);
-
-  if (eb.context_background) lines.push(`CONTEXT & BACKGROUND:\n${brief(stripHtml(eb.context_background), 500)}`);
-  if (eb.root_causes) lines.push(`ROOT CAUSES:\n${brief(safeJson(eb.root_causes), 400)}`);
-  if (eb.affected_stakeholders) lines.push(`AFFECTED STAKEHOLDERS:\n${brief(safeJson(eb.affected_stakeholders), 400)}`);
-  if (eb.current_deficiencies) lines.push(`CURRENT DEFICIENCIES:\n${brief(stripHtml(eb.current_deficiencies), 400)}`);
-  if (eb.preferred_approach) lines.push(`PREFERRED APPROACH:\n${brief(stripHtml(eb.preferred_approach), 400)}`);
-  if (eb.approaches_not_of_interest) lines.push(`APPROACHES TO AVOID:\n${brief(stripHtml(eb.approaches_not_of_interest), 300)}`);
-
-  if (ch.deliverables) lines.push(`DELIVERABLES:\n${brief(safeJson(ch.deliverables), 600)}`);
-  if (ch.success_metrics_kpis) lines.push(`SUCCESS METRICS / KPIs:\n${brief(safeJson(ch.success_metrics_kpis), 500)}`);
-  if (ch.data_resources_provided) lines.push(`DATA RESOURCES PROVIDED:\n${brief(safeJson(ch.data_resources_provided), 400)}`);
-
-  if (ch.complexity_level) lines.push(`COMPLEXITY: ${ch.complexity_level} (score: ${ch.complexity_score ?? "N/A"})`);
-  if (ch.solver_expertise_requirements) lines.push(`SOLVER EXPERTISE:\n${brief(safeJson(ch.solver_expertise_requirements), 400)}`);
-
-  if (ch.evaluation_criteria) lines.push(`EVALUATION CRITERIA:\n${brief(safeJson(ch.evaluation_criteria), 500)}`);
-  if (ch.reward_structure) lines.push(`REWARD STRUCTURE:\n${brief(safeJson(ch.reward_structure), 300)}`);
-  if (ch.submission_guidelines) lines.push(`SUBMISSION GUIDELINES:\n${brief(stripHtml(ch.submission_guidelines), 400)}`);
-  if (ch.ip_model) lines.push(`IP MODEL: ${ch.ip_model}`);
-
+  if (ch.problem_statement) lines.push(`PROBLEM:\n${brief(stripHtml(ch.problem_statement), 600)}`);
+  if (ch.scope) lines.push(`SCOPE:\n${brief(stripHtml(ch.scope), 400)}`);
+  if (ch.expected_outcomes) lines.push(`OUTCOMES:\n${brief(stripHtml(ch.expected_outcomes), 400)}`);
+  if (eb.context_background) lines.push(`CONTEXT:\n${brief(stripHtml(eb.context_background as string), 400)}`);
+  if (eb.root_causes) lines.push(`ROOT CAUSES:\n${brief(safeJson(eb.root_causes), 300)}`);
+  if (eb.current_deficiencies) lines.push(`DEFICIENCIES:\n${brief(stripHtml(eb.current_deficiencies as string), 300)}`);
+  if (eb.preferred_approach) lines.push(`APPROACH:\n${brief(stripHtml(eb.preferred_approach as string), 300)}`);
+  if (ch.deliverables) lines.push(`DELIVERABLES:\n${brief(safeJson(ch.deliverables), 400)}`);
+  if (ch.success_metrics_kpis) lines.push(`KPIs:\n${brief(safeJson(ch.success_metrics_kpis), 300)}`);
+  if (ch.solver_expertise_requirements) lines.push(`EXPERTISE:\n${brief(safeJson(ch.solver_expertise_requirements), 300)}`);
   return lines.join("\n\n");
 }
 
-/** Build context from existing accepted documents and URLs */
-function buildExistingSourcesContext(
-  attachments: Array<Record<string, unknown>>,
-): string {
-  if (!attachments.length) return "";
-  const blocks = attachments
-    .filter(a => a.extracted_summary || a.extracted_text)
-    .map((a, i) => {
-      const name = (a.url_title || a.file_name || a.source_url || `Source ${i + 1}`) as string;
-      const type = a.source_type === "url" ? "URL" : "DOCUMENT";
-      const content = (a.extracted_summary ||
-        (typeof a.extracted_text === "string" ? a.extracted_text.substring(0, 1000) : "")) as string;
-      return `[${type}] ${name} [${a.section_key}]:\n${content}`;
+// ─── PHASE 2: Serper API search ──────────────────────────────────────────────
+
+interface SerperResult { title: string; url: string; snippet: string; position: number; }
+
+async function runSerperSearch(query: string, apiKey: string): Promise<SerperResult[]> {
+  try {
+    const resp = await fetch(SERPER_URL, {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: 5, gl: "us", hl: "en" }),
+      signal: AbortSignal.timeout(8000),
     });
-  if (!blocks.length) return "";
-  return `\nEXISTING REFERENCE MATERIALS (already uploaded/accepted by curator):\n${blocks.join("\n\n---\n\n").substring(0, 6000)}\n\nIMPORTANT: Do NOT suggest sources that duplicate the above materials. Find COMPLEMENTARY sources that fill gaps these materials don't cover.`;
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return (data.organic ?? []).map((r: Record<string, unknown>) => ({
+      title: (r.title as string) ?? "",
+      url: (r.link as string) ?? "",
+      snippet: (r.snippet as string) ?? "",
+      position: (r.position as number) ?? 99,
+    }));
+  } catch { return []; }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── PHASE 3: Accessibility check ────────────────────────────────────────────
+
+type AccessStatus = "accessible" | "blocked" | "paywall" | "failed";
+
+async function checkAccessibility(url: string): Promise<AccessStatus> {
+  if (isKnownPaywall(url)) return "paywall";
+  try {
+    const resp = await fetch(url, {
+      method: "HEAD",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; CogniblendBot/1.0)" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(6000),
+    });
+    if (resp.status === 200 || resp.status === 301 || resp.status === 302) return "accessible";
+    if (resp.status === 401 || resp.status === 403 || resp.status === 407) return "blocked";
+    if (resp.status === 402) return "paywall";
+    return "failed";
+  } catch { return "failed"; }
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { challenge_id, scope } = await req.json();
@@ -123,6 +133,8 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
+
     if (!LOVABLE_API_KEY) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "CONFIG_ERROR", message: "AI gateway not configured" } }),
@@ -135,19 +147,15 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // ── 1. Fetch FULL challenge data ────────────────────────────────────────
+    // ── Fetch challenge + org + segment ──────────────────────────────────────
     const { data: challenge, error: chErr } = await adminClient
       .from("challenges")
       .select(`
-        title, problem_statement, scope, hook, description,
-        deliverables, expected_outcomes, submission_guidelines,
-        evaluation_criteria, reward_structure, ip_model,
-        maturity_level, solution_type, solution_types,
-        complexity_level, complexity_score, complexity_parameters,
-        solver_expertise_requirements, solver_eligibility_types,
-        success_metrics_kpis, data_resources_provided,
-        phase_schedule, domain_tags, currency_code,
-        operating_model, governance_profile,
+        title, problem_statement, scope, expected_outcomes,
+        deliverables, evaluation_criteria, reward_structure, ip_model,
+        maturity_level, solution_type, complexity_level, complexity_score,
+        solver_expertise_requirements, success_metrics_kpis,
+        data_resources_provided, domain_tags, currency_code,
         organization_id, industry_segment_id,
         ai_section_reviews, extended_brief
       `)
@@ -161,40 +169,20 @@ serve(async (req) => {
       );
     }
 
-    // ── 2. Fetch org context ────────────────────────────────────────────────
-    const [orgRes, segmentRes] = await Promise.all([
-      adminClient
-        .from("seeker_organizations")
-        .select("organization_name, industry_segment_id, hq_city, hq_country_id, website_url, organization_description, annual_revenue_range, employee_count_range")
-        .eq("id", challenge.organization_id)
-        .single(),
+    const [orgRes, segRes] = await Promise.all([
+      adminClient.from("seeker_organizations")
+        .select("organization_name, hq_city, hq_country_id, organization_description")
+        .eq("id", challenge.organization_id).single(),
       challenge.industry_segment_id
         ? adminClient.from("industry_segments").select("name, code").eq("id", challenge.industry_segment_id).single()
         : Promise.resolve({ data: null }),
     ]);
 
     const org = orgRes.data as Record<string, unknown> | null;
-    const segData = (segmentRes as Record<string, unknown>).data as Record<string, unknown> | null;
-    const industryName = (segData?.name as string) ?? "";
-    const industryCode = (segData?.code as string) ?? "";
-
-    // ── 3. Fetch discovery directives ───────────────────────────────────────
-    const { data: configs } = await adminClient
-      .from("ai_review_section_config")
-      .select("section_key, discovery_directives")
-      .eq("role_context", "curation")
-      .eq("is_active", true);
-
-    if (!configs?.length) {
-      return new Response(
-        JSON.stringify({ success: true, suggestions: [], count: 0, reason: "No discovery directives configured" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // ── 4. Extract Pass 1 gaps + challenge section content ──────────────────
-    const gapMap = extractGapMap(challenge.ai_section_reviews);
-    const hasGaps = Object.keys(gapMap).length > 0;
+    const seg = (segRes as Record<string, unknown>).data as Record<string, unknown> | null;
+    const industryName = (seg?.name as string) ?? "general business";
+    const orgName = (org?.organization_name as string) ?? "organization";
+    const city = (org?.hq_city as string) ?? "global";
 
     const eb: Record<string, unknown> = (() => {
       if (!challenge.extended_brief) return {};
@@ -203,302 +191,335 @@ serve(async (req) => {
     })();
 
     const challengeContextBlock = buildChallengeContext(challenge as unknown as Record<string, unknown>, eb);
+    const gapMap = extractGapMap(challenge.ai_section_reviews);
+    const gapLines = Object.entries(gapMap).map(([sec, gaps]) => `• ${sec}: ${gaps.join(" | ")}`).join("\n");
 
-    // ── 5. Fetch existing accepted attachments for context ──────────────────
-    const { data: existingAccepted } = await adminClient
-      .from("challenge_attachments")
-      .select("section_key, source_type, source_url, url_title, file_name, extracted_summary, extracted_text, resource_type")
-      .eq("challenge_id", challenge_id)
-      .eq("discovery_status", "accepted")
-      .eq("extraction_status", "completed")
-      .not("extracted_summary", "is", null);
-
-    const existingSourcesContext = buildExistingSourcesContext(
-      (existingAccepted ?? []) as Array<Record<string, unknown>>,
-    );
-
-    // ── 6. Fetch industry knowledge pack ────────────────────────────────────
-    let industryPack: Record<string, unknown> | null = null;
-    if (industryCode) {
-      const { data: pack } = await adminClient
-        .from("industry_knowledge_packs")
-        .select("preferred_analyst_sources, regulatory_landscape, common_kpis, technology_landscape")
-        .eq("industry_code", industryCode)
-        .eq("is_active", true)
-        .maybeSingle();
-      industryPack = pack as Record<string, unknown> | null;
-    }
-
-    // ── 7. Clear stale AI suggestions ───────────────────────────────────────
-    await adminClient
-      .from("challenge_attachments")
-      .delete()
-      .eq("challenge_id", challenge_id)
-      .eq("discovery_source", "ai_suggested");
-
-    // ── 8. Build variable map for directive templates ────────────────────────
     const domainTags = Array.isArray(challenge.domain_tags) ? challenge.domain_tags : [];
-    const primaryDomain = (domainTags[0] as Record<string, unknown>)?.name as string ||
-      (typeof domainTags[0] === "string" ? domainTags[0] : "technology");
+    const primaryDomain = (domainTags[0] as Record<string, unknown>)?.name as string
+      || (typeof domainTags[0] === "string" ? domainTags[0] : "technology");
 
-    const allGapLines = Object.entries(gapMap)
-      .map(([sec, comments]) => `• ${sec}: ${comments.join(" | ")}`)
-      .join("\n");
+    // ── Discovery directives ────────────────────────────────────────────────
+    const { data: configs } = await adminClient
+      .from("ai_review_section_config")
+      .select("section_key, discovery_directives")
+      .eq("role_context", "curation")
+      .eq("is_active", true);
 
-    const variableMap: Record<string, string> = {
-      "{{domain}}": primaryDomain,
-      "{{geography}}": (org?.hq_city as string) || "global",
-      "{{industry}}": industryName || "industry",
-      "{{maturityLevel}}": challenge.maturity_level || "proof_of_concept",
-      "{{solution_type}}": challenge.solution_type || "innovation",
-      "{{orgName}}": (org?.organization_name as string) || "organization",
-      "{{currency}}": challenge.currency_code || "USD",
-    };
-
-    function substituteVars(text: string): string {
-      return Object.entries(variableMap).reduce((r, [k, v]) => r.replaceAll(k, v), text);
-    }
-
-    // ── 9. Filter + sort directives ─────────────────────────────────────────
-    const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    const activeDirectives = (configs as Array<Record<string, unknown>>)
-      .filter(c => {
-        const d = c.discovery_directives as Record<string, unknown> | null;
-        if (!d || d.skip_discovery) return false;
-        if (scope && scope !== "all" && c.section_key !== scope) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const pa = PRIORITY_ORDER[(a.discovery_directives as Record<string, unknown>)?.priority as string] ?? 3;
-        const pb = PRIORITY_ORDER[(b.discovery_directives as Record<string, unknown>)?.priority as string] ?? 3;
-        return pa - pb;
-      });
-
-    if (!activeDirectives.length) {
-      return new Response(
-        JSON.stringify({ success: true, suggestions: [], count: 0 }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Inject industry preferred sources
-    if (industryPack?.preferred_analyst_sources) {
-      for (const d of activeDirectives) {
-        const dir = d.discovery_directives as Record<string, unknown>;
-        for (const rt of (dir?.resource_types as Array<Record<string, unknown>>) ?? []) {
-          rt.preferred_sources = [...new Set([
-            ...((rt.preferred_sources as string[]) ?? []),
-            ...(industryPack.preferred_analyst_sources as string[]),
-          ])];
-        }
-      }
-    }
-
-    // ── 10. Build per-section specs with CURRENT CONTENT ────────────────────
-    const sectionContentMap: Record<string, string> = {
-      problem_statement: brief(stripHtml(challenge.problem_statement), 400),
-      scope: brief(stripHtml(challenge.scope), 400),
-      expected_outcomes: brief(stripHtml(challenge.expected_outcomes), 400),
-      deliverables: brief(safeJson(challenge.deliverables), 400),
-      evaluation_criteria: brief(safeJson(challenge.evaluation_criteria), 400),
-      reward_structure: brief(safeJson(challenge.reward_structure), 300),
-      success_metrics_kpis: brief(safeJson(challenge.success_metrics_kpis), 400),
-      data_resources_provided: brief(safeJson(challenge.data_resources_provided), 300),
-      solver_expertise: brief(safeJson(challenge.solver_expertise_requirements), 300),
-      submission_guidelines: brief(stripHtml(challenge.submission_guidelines), 300),
-      context_and_background: brief(stripHtml(eb.context_background as string), 400),
-      root_causes: brief(safeJson(eb.root_causes), 400),
-      affected_stakeholders: brief(safeJson(eb.affected_stakeholders), 300),
-      current_deficiencies: brief(stripHtml(eb.current_deficiencies as string), 300),
-      preferred_approach: brief(stripHtml(eb.preferred_approach as string), 300),
-    };
-
-    const sectionSpecs = activeDirectives.map(c => {
-      const d = c.discovery_directives as Record<string, unknown>;
-      const sKey = c.section_key as string;
-      const sectionGaps = gapMap[sKey];
-      const currentContent = sectionContentMap[sKey];
-      const resourceTypes = ((d.resource_types as Array<Record<string, unknown>>) || []).map(rt => ({
-        type: rt.type,
-        description: rt.description,
-        search_queries: ((rt.search_queries as string[]) || []).map(substituteVars),
-        preferred_sources: rt.preferred_sources || [],
-        avoid_sources: rt.avoid_sources || [],
-      }));
-
-      return `
-SECTION: ${sKey} | Priority: ${d.priority} | Max: ${d.max_resources} sources
-${currentContent ? `CURRENT CONTENT IN THIS SECTION:\n"${currentContent}"` : "(section is empty)"}
-${sectionGaps ? `AI REVIEW GAPS TO ADDRESS:\n${sectionGaps.map(g => `  ⚠ ${g}`).join("\n")}` : ""}
-RESOURCE TYPES NEEDED:
-${resourceTypes.map(rt =>
-  `  • ${rt.type}: ${rt.description}
-    Search: ${(rt.search_queries as string[]).join(" | ")}
-    Prefer: ${(rt.preferred_sources as string[]).join(", ") || "any authoritative source"}
-    Avoid: ${(rt.avoid_sources as string[]).join(", ") || "none"}`
-).join("\n")}`;
-    }).join("\n\n---\n");
-
-    // ── 11. Build the AI prompt ─────────────────────────────────────────────
-    const industryKpiBlock = industryPack?.common_kpis
-      ? `\nINDUSTRY STANDARD KPIs: ${(industryPack.common_kpis as string[]).join(", ")}`
-      : "";
-
-    const systemPrompt = `You are a senior research analyst finding HIGHLY SPECIFIC, CONTEXTUAL external resources for an open innovation challenge.
-
-═══ CHALLENGE PROFILE ═══
-Title: "${challenge.title}"
-Organization: ${(org?.organization_name as string) || "Unknown"} | ${industryName} | ${(org?.hq_city as string) || "global"}
-Solution Type: ${challenge.solution_type || "Unknown"} | Maturity: ${challenge.maturity_level || "Unknown"} | Complexity: ${challenge.complexity_level || "Unknown"}
-Currency: ${challenge.currency_code || "USD"}${industryKpiBlock}
-
-═══ FULL CHALLENGE CONTENT ═══
-${challengeContextBlock}
-${existingSourcesContext}
-
-═══ PASS 1 AI REVIEW — GAPS TO FILL ═══
-${hasGaps
-  ? `These specific issues were flagged in the AI review. Your sources MUST directly address them:\n${allGapLines}`
-  : "No specific gaps yet — find best-practice resources relevant to the challenge content above."}
-
-═══ YOUR TASK ═══
-Find REAL, ACCESSIBLE, AUTHORITATIVE external URLs that:
-1. Are SPECIFIC to this challenge's actual content (not generic domain resources)
-2. Directly address the flagged gaps where they exist
-3. Come from credible sources (Gartner, McKinsey, IEEE, ISO, regulatory bodies, industry associations)
-4. Are recent (2022–2025 preferred)
-5. Are NOT paywalled or login-required
-6. Do NOT duplicate the existing reference materials listed above
-
-Return a JSON array. Each item:
-{
-  "title": "Exact page/report title",
-  "url": "https://full-url.com/page",
-  "section_key": "which section this helps",
-  "addresses_gap": "which specific gap this resolves (quote the gap text)",
-  "resource_type": "industry_report|benchmark_data|regulatory|case_study|framework_guide|technical_standard|market_data|api_documentation",
-  "relevance_explanation": "2-3 sentences explaining EXACTLY how this content helps THIS specific challenge",
-  "confidence_score": 0.0
-}
-
-CRITICAL RULES:
-- confidence_score = how confident you are this URL exists AND is relevant (0.0–1.0)
-- DO NOT invent URLs — only suggest real pages you know exist
-- If unsure about a URL, set confidence_score < 0.7
-- Maximum: ${Math.min(activeDirectives.length * 3, 35)} total sources`;
-
-    const userPrompt = `Find targeted sources for these ${activeDirectives.length} sections:\n\n${sectionSpecs}\n\nReturn ONLY valid JSON array. No markdown fences.`;
-
-    // ── 12. Call AI ─────────────────────────────────────────────────────────
-    const aiResp = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 6000,
-        temperature: 0.2,
-      }),
+    const activeDirectives = (configs ?? []).filter((c: Record<string, unknown>) => {
+      const d = c.discovery_directives as Record<string, unknown> | null;
+      if (!d || d.skip_discovery) return false;
+      if (scope && scope !== "all" && c.section_key !== scope) return false;
+      return true;
     });
 
-    if (!aiResp.ok) {
-      const status = aiResp.status;
-      if (status === 429) return new Response(JSON.stringify({ success: false, error: { code: "RATE_LIMITED" } }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED" } }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error(`AI gateway error: ${status}`);
-    }
-
-    const aiResult = await aiResp.json();
-    const rawContent = aiResult.choices?.[0]?.message?.content || "[]";
-
-    let suggestions: Array<Record<string, unknown>> = [];
-    try {
-      const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(cleaned);
-      suggestions = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      console.error("Failed to parse AI suggestions:", rawContent.substring(0, 500));
-    }
-
-    // ── 13. Fetch dedup set (only manual sources now) ───────────────────────
-    const { data: manualAtts } = await adminClient
+    // ── Fetch existing accepted URLs to deduplicate ──────────────────────────
+    const { data: existing } = await adminClient
       .from("challenge_attachments")
       .select("source_url")
       .eq("challenge_id", challenge_id)
       .not("source_url", "is", null);
     const existingUrls = new Set(
-      (manualAtts ?? []).map((a: Record<string, unknown>) =>
+      (existing ?? []).map((a: Record<string, unknown>) =>
         (a.source_url as string)?.toLowerCase().replace(/\/+$/, "")
-      ),
+      )
     );
 
-    // ── 14. Insert suggestions ──────────────────────────────────────────────
+    // ── Clear stale AI suggestions ────────────────────────────────────────────
+    await adminClient.from("challenge_attachments").delete()
+      .eq("challenge_id", challenge_id)
+      .eq("discovery_source", "ai_suggested")
+      .eq("discovery_status", "suggested");
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PHASE 1 — LLM generates targeted search queries
+    // ════════════════════════════════════════════════════════════════════════
+
+    const queryGenPrompt = `You are a senior research librarian building search queries for an innovation challenge.
+
+CHALLENGE: "${challenge.title}"
+ORGANIZATION: ${orgName} | ${industryName} | ${city}
+DOMAIN: ${primaryDomain}
+SOLUTION TYPE: ${challenge.solution_type || "innovation"} | MATURITY: ${challenge.maturity_level || "proof_of_concept"}
+
+CHALLENGE CONTENT:
+${challengeContextBlock}
+
+${gapLines ? `GAPS TO ADDRESS:\n${gapLines}\n` : ""}
+SECTIONS NEEDING SOURCES: ${activeDirectives.map((d: Record<string, unknown>) => d.section_key).join(", ")}
+
+Generate 12–15 highly targeted Google search queries to find FREE, ACCESSIBLE web pages relevant to this challenge.
+
+Focus on: .gov sites, academic repositories (arxiv, researchgate), industry associations (IEEE, ISO, NIST), open-access reports, Wikipedia, official documentation, news articles, official product websites.
+AVOID queries leading to: Gartner, McKinsey, HBR, Forrester, Statista (paywalled).
+
+Return ONLY a JSON array of strings. No other text.`;
+
+    const queryGenResp = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: queryGenPrompt }],
+        max_tokens: 1500,
+        temperature: 0.3,
+      }),
+    });
+
+    let searchQueries: string[] = [];
+    if (queryGenResp.ok) {
+      const qResult = await queryGenResp.json();
+      const rawQ = qResult.choices?.[0]?.message?.content ?? "[]";
+      try {
+        const cleaned = rawQ.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+        searchQueries = JSON.parse(cleaned);
+        if (!Array.isArray(searchQueries)) searchQueries = [];
+        searchQueries = searchQueries.filter((q: unknown) => typeof q === "string").slice(0, 15);
+      } catch { /* ignore */ }
+    }
+
+    if (searchQueries.length === 0) {
+      searchQueries = [
+        `${challenge.title} ${primaryDomain} implementation guide`,
+        `${primaryDomain} ${industryName} best practices ${new Date().getFullYear()}`,
+        `${primaryDomain} regulatory compliance ${city}`,
+        ...Object.keys(gapMap).slice(0, 3).map(sec => `${sec.replace(/_/g, " ")} ${primaryDomain} framework`),
+      ];
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PHASE 2 — Execute searches via Serper API (or Gemini grounding fallback)
+    // ════════════════════════════════════════════════════════════════════════
+
+    interface CandidateSource { title: string; url: string; snippet: string; query: string; }
+    const candidates: CandidateSource[] = [];
+    const seenUrls = new Set<string>();
+
+    if (SERPER_API_KEY) {
+      const searchPromises = searchQueries.map(q => runSerperSearch(q, SERPER_API_KEY));
+      const searchResults = await Promise.allSettled(searchPromises);
+
+      searchResults.forEach((result, i) => {
+        if (result.status !== "fulfilled") return;
+        for (const r of result.value) {
+          const norm = r.url.toLowerCase().replace(/\/+$/, "");
+          if (seenUrls.has(norm) || existingUrls.has(norm) || !r.url.startsWith("http")) continue;
+          seenUrls.add(norm);
+          candidates.push({ title: r.title, url: r.url, snippet: r.snippet, query: searchQueries[i] });
+        }
+      });
+    } else {
+      // Gemini grounding fallback
+      console.log("SERPER_API_KEY not configured — using Gemini grounding fallback");
+      const groundingResp = await fetch(AI_GATEWAY_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          tools: [{ "google_search": {} }],
+          messages: [{
+            role: "user",
+            content: `Search the web and find 15 real, freely accessible URLs about: ${challenge.title}.
+Focus on: ${searchQueries.slice(0, 5).join("; ")}.
+Return JSON array: [{"title":"...","url":"...","snippet":"..."}]. Only real URLs you found via search.`,
+          }],
+          max_tokens: 3000,
+          temperature: 0.1,
+        }),
+      });
+
+      if (groundingResp.ok) {
+        const gResult = await groundingResp.json();
+        const groundingMeta = gResult.candidates?.[0]?.groundingMetadata;
+        if (groundingMeta?.groundingChunks) {
+          for (const chunk of groundingMeta.groundingChunks) {
+            const url = chunk.web?.uri ?? "";
+            const title = chunk.web?.title ?? "";
+            const norm = url.toLowerCase().replace(/\/+$/, "");
+            if (!url || seenUrls.has(norm) || existingUrls.has(norm)) continue;
+            seenUrls.add(norm);
+            candidates.push({ title, url, snippet: title, query: "gemini_grounding" });
+          }
+        } else {
+          const rawContent = gResult.choices?.[0]?.message?.content ?? "[]";
+          try {
+            const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed)) {
+              for (const r of parsed) {
+                if (!r.url) continue;
+                const norm = r.url.toLowerCase().replace(/\/+$/, "");
+                if (seenUrls.has(norm) || existingUrls.has(norm)) continue;
+                seenUrls.add(norm);
+                candidates.push({ title: r.title ?? "", url: r.url, snippet: r.snippet ?? "", query: "gemini_grounding" });
+              }
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, suggestions: [], count: 0, reason: "No search results — check SERPER_API_KEY" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PHASE 3 — Accessibility pre-check
+    // ════════════════════════════════════════════════════════════════════════
+
+    interface CheckedCandidate extends CandidateSource { access_status: AccessStatus; }
+
+    const accessChecks = await Promise.allSettled(
+      candidates.slice(0, 30).map(async (c): Promise<CheckedCandidate> => ({
+        ...c,
+        access_status: await checkAccessibility(c.url),
+      }))
+    );
+
+    const allChecked = accessChecks
+      .filter((r): r is PromiseFulfilledResult<CheckedCandidate> => r.status === "fulfilled")
+      .map(r => r.value);
+
+    const accessible = allChecked.filter(c => c.access_status === "accessible");
+    const usable = accessible.length >= 8
+      ? accessible
+      : allChecked.filter(c => c.access_status !== "paywall").slice(0, 20);
+
+    if (usable.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, suggestions: [], count: 0, reason: "All candidates blocked or paywalled" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PHASE 4 — LLM relevance scoring
+    // ════════════════════════════════════════════════════════════════════════
+
+    const scoringPrompt = `You are a senior research analyst scoring real web sources for an innovation challenge.
+
+CHALLENGE: "${challenge.title}"
+ORGANIZATION: ${orgName} | ${industryName}
+DOMAIN: ${primaryDomain}
+
+CHALLENGE CONTEXT:
+${challengeContextBlock.substring(0, 2000)}
+
+${gapLines ? `GAPS TO FILL:\n${gapLines}\n` : ""}
+AVAILABLE SECTIONS: ${activeDirectives.map((d: Record<string, unknown>) => d.section_key).join(", ")}
+
+SOURCES TO SCORE:
+${usable.map((c, i) => `[${i + 1}] Title: ${c.title}\nURL: ${c.url}\nSnippet: ${c.snippet}`).join("\n\n")}
+
+Return a JSON array. Include ONLY sources with relevance_score >= 0.5.
+Each item:
+{
+  "index": <1-based>,
+  "section_key": "",
+  "resource_type": "regulatory|technical_standard|framework_guide|case_study|benchmark_data|research_paper|official_documentation|news_analysis",
+  "relevance_score": <0.0-1.0>,
+  "relevance_explanation": "<2 sentences>",
+  "addresses_gap": ""
+}
+
+Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
+
+    const scoringResp = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: scoringPrompt }],
+        max_tokens: 4000,
+        temperature: 0.1,
+      }),
+    });
+
+    interface ScoredSource {
+      index: number;
+      section_key: string;
+      resource_type: string;
+      relevance_score: number;
+      relevance_explanation: string;
+      addresses_gap: string;
+    }
+
+    let scored: ScoredSource[] = [];
+    if (scoringResp.ok) {
+      const sResult = await scoringResp.json();
+      const rawS = sResult.choices?.[0]?.message?.content ?? "[]";
+      try {
+        const cleaned = rawS.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+        scored = JSON.parse(cleaned);
+        if (!Array.isArray(scored)) scored = [];
+      } catch { /* ignore */ }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PHASE 5 — Insert ALL as 'suggested'
+    // ════════════════════════════════════════════════════════════════════════
+
     const inserted: Array<Record<string, unknown>> = [];
-    for (const s of suggestions) {
-      if (!s.url || !s.section_key) continue;
-      const normalizedUrl = (s.url as string).toLowerCase().replace(/\/+$/, "");
-      if (existingUrls.has(normalizedUrl)) continue;
-      existingUrls.add(normalizedUrl);
 
-      const gapNote = s.addresses_gap ? `[Gap: ${s.addresses_gap}] ` : "";
-      const explanation = `${gapNote}${s.relevance_explanation || ""}`.substring(0, 1000);
-      const score = typeof s.confidence_score === "number"
-        ? Math.min(Math.max(s.confidence_score, 0), 1)
-        : null;
+    for (const s of scored) {
+      const source = usable[s.index - 1];
+      if (!source) continue;
 
-      const { error: insertErr } = await adminClient
+      const seedContent = [
+        `Title: ${source.title}`,
+        `URL: ${source.url}`,
+        source.snippet ? `Search snippet: ${source.snippet}` : "",
+        `Found via query: ${source.query}`,
+        `Access status: ${source.access_status}`,
+      ].filter(Boolean).join("\n");
+
+      const { data: newAtt, error: insertErr } = await adminClient
         .from("challenge_attachments")
         .insert({
           challenge_id,
           section_key: s.section_key,
           source_type: "url",
-          source_url: s.url,
-          url_title: ((s.title as string) || "").substring(0, 500) || null,
+          source_url: source.url,
+          url_title: source.title.substring(0, 500) || null,
           discovery_source: "ai_suggested",
-          discovery_status: score !== null && score >= 0.85 ? "accepted" : "suggested",
+          discovery_status: "suggested",
           resource_type: s.resource_type || null,
-          relevance_explanation: explanation || null,
-          confidence_score: score,
+          relevance_explanation: `${s.addresses_gap ? `[Gap: ${s.addresses_gap}] ` : ""}${s.relevance_explanation}`.substring(0, 1000),
+          confidence_score: s.relevance_score,
           suggested_sections: [s.section_key],
           extraction_status: "pending",
-        });
+          extracted_text: seedContent,
+          access_status: source.access_status,
+        })
+        .select("id")
+        .single();
 
-      if (!insertErr) {
-        if (score !== null && score >= 0.85) {
-          adminClient.from("challenge_attachments")
-            .select("id").eq("challenge_id", challenge_id)
-            .eq("source_url", s.url as string).single()
-            .then(({ data: att }) => {
-              if (att?.id) {
-                fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({ attachment_id: att.id }),
-                }).catch(() => {});
-              }
-            }).catch(() => {});
-        }
+      if (!insertErr && newAtt?.id) {
+        // Trigger async extraction — non-blocking
+        fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ attachment_id: newAtt.id }),
+        }).catch(() => {});
+
         inserted.push({
-          title: s.title,
-          url: s.url,
-          section_key: s.section_key,
-          resource_type: s.resource_type,
-          confidence_score: s.confidence_score,
+          title: source.title, url: source.url,
+          section_key: s.section_key, resource_type: s.resource_type,
+          relevance_score: s.relevance_score, access_status: source.access_status,
         });
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, suggestions: inserted, count: inserted.length }),
+      JSON.stringify({
+        success: true, suggestions: inserted, count: inserted.length,
+        candidates_found: candidates.length, accessible_checked: accessible.length, scored_relevant: scored.length,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
 

@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { normalizeAiContentForEditor } from '@/lib/aiContentFormatter';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -59,7 +60,7 @@ export function DigestPanel({
   const [view, setView] = useState<'edit' | 'preview' | 'compare'>('edit');
 
   useEffect(() => {
-    setDraft(digest?.digest_text ?? '');
+    setDraft(normalizeAiContentForEditor(digest?.digest_text ?? ''));
     setConfirmed(false);
   }, [digest?.digest_text]);
 

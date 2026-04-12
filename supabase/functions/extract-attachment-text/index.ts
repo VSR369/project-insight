@@ -1,7 +1,7 @@
 /**
  * extract-attachment-text — Extracts text content from uploaded challenge attachments and URLs.
  * Supports: PDF (text decode), images (Gemini Vision), URLs (HTML strip + meta fallback).
- * Updates challenge_attachments with extracted text and status.
+ * Tier 2: Always runs AI summarization — context-aware for sparse/meta-only content.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -13,13 +13,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Extract meta tags from raw HTML before stripping */
 function extractMetaTags(rawHtml: string): {
-  ogTitle: string;
-  ogDesc: string;
-  metaDesc: string;
-  h1Tags: string[];
-  pageTitle: string;
+  ogTitle: string; ogDesc: string; metaDesc: string; h1Tags: string[]; pageTitle: string;
 } {
   const ogTitle = rawHtml.match(/property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1]
     ?? rawHtml.match(/content=["']([^"']+)["'][^>]*property=["']og:title["']/i)?.[1] ?? '';
@@ -34,13 +29,10 @@ function extractMetaTags(rawHtml: string): {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { attachment_id } = await req.json();
-
     if (!attachment_id || typeof attachment_id !== "string") {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "attachment_id is required" } }),
@@ -84,15 +76,12 @@ serve(async (req) => {
         if (!urlResp.ok) throw new Error(`HTTP ${urlResp.status}: ${urlResp.statusText}`);
         const contentType = urlResp.headers.get("content-type") || "";
         const rawText = await urlResp.text();
-
-        // Always extract meta tags for url_title population
         const meta = extractMetaTags(rawText);
 
         if (contentType.includes("application/pdf")) {
           extractedText = "[PDF URL — content available at: " + att.source_url + "]";
           method = "url_pdf";
         } else {
-          // HTML — strip tags, extract main content
           extractedText = rawText
             .replace(/<script[\s\S]*?<\/script>/gi, "")
             .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -104,7 +93,6 @@ serve(async (req) => {
             .replace(/\s+/g, " ").trim().substring(0, 50000);
           method = "url_html";
 
-          // Sparse content: build structured meta-only output instead of placeholder
           if (extractedText.trim().length < 500) {
             const metaParts = [
               meta.ogTitle ? `Title: ${meta.ogTitle}` : (meta.pageTitle ? `Title: ${meta.pageTitle}` : ''),
@@ -114,18 +102,15 @@ serve(async (req) => {
             ].filter(Boolean);
 
             if (extractedText.trim().length < 100) {
-              // Truly empty — JS-rendered or blocked page
               extractedText = [...metaParts, 'Note: Page requires JavaScript rendering — metadata extracted only'].join('\n');
               method = "url_meta_only";
             } else {
-              // Some content but sparse — prepend meta for context
               extractedText = [...metaParts, '', 'Extracted content:', extractedText.trim()].join('\n');
               method = "url_html_sparse";
             }
           }
         }
 
-        // Auto-populate url_title from meta tags or <title>
         if (!att.url_title) {
           const bestTitle = meta.ogTitle || meta.pageTitle;
           if (bestTitle) {
@@ -151,9 +136,8 @@ serve(async (req) => {
           extraction_error: dlErr?.message || "File not found in storage",
           updated_at: new Date().toISOString(),
         }).eq("id", attachment_id);
-
         return new Response(
-          JSON.stringify({ success: false, error: { code: "STORAGE_ERROR", message: "File not found in storage" } }),
+          JSON.stringify({ success: false, error: { code: "STORAGE_ERROR", message: "File not found" } }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
@@ -163,15 +147,10 @@ serve(async (req) => {
       if (att.mime_type === "application/pdf") {
         const textDecoder = new TextDecoder();
         const rawText = textDecoder.decode(buffer);
-        const cleaned = rawText
-          .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-          .substring(0, 50000);
-
+        const cleaned = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s+/g, " ").trim().substring(0, 50000);
         const printableRatio = cleaned.replace(/\s/g, '').length / Math.max(cleaned.length, 1);
         if (printableRatio < 0.2 || cleaned.length < 50) {
-          extractedText = `[PDF content could not be extracted as text. File: ${att.file_name || 'unnamed'}. This PDF may be image-based or encrypted. Consider uploading a text-based version or pasting key content directly into the section.]`;
+          extractedText = `[PDF content could not be extracted. File: ${att.file_name || 'unnamed'}.]`;
           method = "pdf_binary_fallback";
         } else {
           extractedText = cleaned;
@@ -186,7 +165,7 @@ serve(async (req) => {
         } else {
           const printableRatio = raw.replace(/[^\x20-\x7E]/g, '').length / Math.max(raw.length, 1);
           if (printableRatio < 0.3) {
-            extractedText = `[Excel file could not be extracted as text. File: ${att.file_name || 'unnamed'}. Consider exporting key data as CSV and uploading that instead.]`;
+            extractedText = `[Excel file could not be extracted. File: ${att.file_name || 'unnamed'}.]`;
             method = "xlsx_binary_fallback";
           } else {
             extractedText = raw.substring(0, 50000);
@@ -202,7 +181,7 @@ serve(async (req) => {
         } else {
           const printableRatio = raw.replace(/[^\x20-\x7E]/g, '').length / Math.max(raw.length, 1);
           if (printableRatio < 0.3) {
-            extractedText = `[Word document could not be extracted as text. File: ${att.file_name || 'unnamed'}. Consider pasting key content directly into the section or saving as PDF.]`;
+            extractedText = `[Word document could not be extracted. File: ${att.file_name || 'unnamed'}.]`;
             method = "docx_binary_fallback";
           } else {
             extractedText = raw.substring(0, 50000);
@@ -219,24 +198,15 @@ serve(async (req) => {
             const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
             const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
-              headers: {
-                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
                 model: "google/gemini-3-flash-preview",
                 max_tokens: 2000,
                 messages: [{
                   role: "user",
                   content: [
-                    {
-                      type: "image_url",
-                      image_url: { url: `data:${att.mime_type};base64,${base64}` },
-                    },
-                    {
-                      type: "text",
-                      text: "Describe this image in detail. Extract any text, data tables, diagrams, or process flows visible. This is an attachment to a business challenge specification.",
-                    },
+                    { type: "image_url", image_url: { url: `data:${att.mime_type};base64,${base64}` } },
+                    { type: "text", text: "Describe this image in detail. Extract any text, data tables, diagrams, or process flows visible." },
                   ],
                 }],
               }),
@@ -264,30 +234,23 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // ── TIER 2: AI Summarization (additive) ──
-    if (extractedText.length > 500) {
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (LOVABLE_API_KEY) {
-        try {
-          const tier2Resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-lite",
-              max_tokens: 1500,
-              temperature: 0.1,
-              messages: [{
-                role: "user",
-                content: `Analyze this document and provide:
+    // ── TIER 2: Always run AI Summarization ──
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (LOVABLE_API_KEY) {
+      try {
+        const isSparseOrFailed = method === "url_meta_only" || method === "url_html_sparse" || method === "url_error";
 
-1. SUMMARY: 3-5 bullet points of key information (max 500 chars total)
-2. KEY_DATA: Extract as JSON with these arrays: facts[], statistics[], names[], dates[], regulations[]
+        const tier2Prompt = isSparseOrFailed
+          ? `You are a research analyst. A web page could not be fully fetched (may require JavaScript or be access-restricted).
+Based ONLY on the information below, write:
+1. SUMMARY: 3-5 bullet points about what this source LIKELY contains and why it is relevant to the challenge section "${att.section_key}"
+2. KEY_DATA: JSON with arrays: facts[], statistics[], names[], dates[], regulations[]
 
-Document content:
-${extractedText.substring(0, 8000)}
+AVAILABLE INFORMATION:
+${extractedText}
+
+Challenge section needing this source: ${att.section_key}
+Source relevance note: ${att.relevance_explanation || "general reference"}
 
 Return in this exact format:
 SUMMARY:
@@ -295,30 +258,49 @@ SUMMARY:
 - bullet 2
 
 KEY_DATA:
-{"facts":[],"statistics":[],"names":[],"dates":[],"regulations":[]}`,
-              }],
-            }),
-          });
-          if (tier2Resp.ok) {
-            const tier2Result = await tier2Resp.json();
-            const tier2Content = tier2Result.choices?.[0]?.message?.content || "";
+{"facts":[],"statistics":[],"names":[],"dates":[],"regulations":[]}`
+          : `Analyze this document and provide:
+1. SUMMARY: 3-5 bullet points of key information (max 600 chars total)
+2. KEY_DATA: Extract as JSON with these arrays: facts[], statistics[], names[], dates[], regulations[]
 
-            const summaryMatch = tier2Content.match(/SUMMARY:\s*([\s\S]*?)(?=KEY_DATA:|$)/i);
-            if (summaryMatch?.[1]) {
-              updatePayload.extracted_summary = summaryMatch[1].trim().substring(0, 500);
-            }
+Document content:
+${extractedText.substring(0, 12000)}
 
-            const keyDataMatch = tier2Content.match(/KEY_DATA:\s*(\{[\s\S]*\})/i);
-            if (keyDataMatch?.[1]) {
-              try {
-                updatePayload.extracted_key_data = JSON.parse(keyDataMatch[1].trim());
-              } catch { /* skip if invalid JSON */ }
-            }
+Return in this exact format:
+SUMMARY:
+- bullet 1
+- bullet 2
+
+KEY_DATA:
+{"facts":[],"statistics":[],"names":[],"dates":[],"regulations":[]}`;
+
+        const tier2Resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            max_tokens: 1500,
+            temperature: 0.1,
+            messages: [{ role: "user", content: tier2Prompt }],
+          }),
+        });
+
+        if (tier2Resp.ok) {
+          const tier2Result = await tier2Resp.json();
+          const tier2Content = tier2Result.choices?.[0]?.message?.content || "";
+
+          const summaryMatch = tier2Content.match(/SUMMARY:\s*([\s\S]*?)(?=KEY_DATA:|$)/i);
+          if (summaryMatch?.[1]?.trim()) {
+            updatePayload.extracted_summary = summaryMatch[1].trim().substring(0, 600);
           }
-        } catch (tier2Err: unknown) {
-          const msg = tier2Err instanceof Error ? tier2Err.message : String(tier2Err);
-          console.error("Tier 2 summarization failed (non-blocking):", msg);
+
+          const keyDataMatch = tier2Content.match(/KEY_DATA:\s*(\{[\s\S]*\})/i);
+          if (keyDataMatch?.[1]) {
+            try { updatePayload.extracted_key_data = JSON.parse(keyDataMatch[1].trim()); } catch { /* skip */ }
+          }
         }
+      } catch (tier2Err: unknown) {
+        console.error("Tier 2 summarization failed (non-blocking):", tier2Err);
       }
     }
 
