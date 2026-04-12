@@ -32,9 +32,10 @@ export function useScoreAbstract() {
           submitted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await supabase
           .from('evaluation_records')
-          .update(withAudit as Record<string, unknown>)
+          .update(withAudit as any)
           .eq('id', existingEvalId)
           .select()
           .single();
@@ -47,9 +48,10 @@ export function useScoreAbstract() {
           individual_score: individualScore, conflict_declared: false,
           submitted_at: new Date().toISOString(),
         });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await supabase
           .from('evaluation_records')
-          .insert(withAudit as Record<string, unknown>)
+          .insert(withAudit as any)
           .select()
           .single();
         if (error) throw new Error(error.message);
