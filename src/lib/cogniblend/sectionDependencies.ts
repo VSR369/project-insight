@@ -121,7 +121,7 @@ const SECTION_DISPLAY_NAMES: Partial<Record<SectionKey, string>> = {
   current_deficiencies: 'Current Deficiencies',
   preferred_approach: 'Preferred Approach',
   approaches_not_of_interest: 'Approaches NOT of Interest',
-  solver_expertise: 'Solver Expertise Requirements',
+  solver_expertise: 'Solution Provider Expertise Requirements',
   data_resources_provided: 'Data & Resources Provided',
   success_metrics_kpis: 'Success Metrics & KPIs',
   solution_type: 'Solution Type',

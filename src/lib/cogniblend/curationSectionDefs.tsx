@@ -230,10 +230,10 @@ export const SECTIONS: SectionDef[] = [
       if (!ch.ip_model) return <p className="text-sm text-muted-foreground">Not set.</p>;
       const IP_LABELS: Record<string, { label: string; desc: string }> = {
         "IP-EA": { label: "Exclusive Assignment", desc: "All intellectual property transfers to the challenge seeker" },
-        "IP-NEL": { label: "Non-Exclusive License", desc: "Solver retains ownership, grants license to seeker" },
-        "IP-EL": { label: "Exclusive License", desc: "Solver grants exclusive license to seeker" },
-        "IP-JO": { label: "Joint Ownership", desc: "Joint ownership between solver and seeker" },
-        "IP-NONE": { label: "No IP Transfer", desc: "Solver retains full IP ownership" },
+        "IP-NEL": { label: "Non-Exclusive License", desc: "Solution Provider retains ownership, grants license to seeker" },
+        "IP-EL": { label: "Exclusive License", desc: "Solution Provider grants exclusive license to seeker" },
+        "IP-JO": { label: "Joint Ownership", desc: "Joint ownership between Solution Provider and seeker" },
+        "IP-NONE": { label: "No IP Transfer", desc: "Solution Provider retains full IP ownership" },
       };
       const ipInfo = IP_LABELS[ch.ip_model];
       return (
@@ -246,18 +246,18 @@ export const SECTIONS: SectionDef[] = [
   },
   {
     key: "solver_audience",
-    label: "Solver Audience",
+    label: "Solution Provider Audience",
     attribution: "by CR",
     dbField: "solver_audience",
     isFilled: (ch) => !!(ch as any).solver_audience,
     render: (ch) => {
       const audience = (ch as any).solver_audience ?? 'ALL';
       const model = (ch as any).operating_model ?? 'MP';
-      if (model !== 'AGG') return <p className="text-sm text-muted-foreground">Marketplace model — open to all solvers</p>;
+      if (model !== 'AGG') return <p className="text-sm text-muted-foreground">Marketplace model — open to all Solution Providers</p>;
       const labels: Record<string, string> = {
-        ALL: 'All Solvers — open to internal pool and external marketplace',
+        ALL: 'All Solution Providers — open to internal pool and external marketplace',
         INTERNAL: 'Internal Pool Only — restricted to organization members',
-        EXTERNAL: 'External Marketplace Only — restricted to outside solvers',
+        EXTERNAL: 'External Marketplace Only — restricted to outside Solution Providers',
       };
       return <p className="text-sm">{labels[audience] ?? audience}</p>;
     },
@@ -276,7 +276,7 @@ export const SECTIONS: SectionDef[] = [
       return (
         <div className="space-y-1">
           <p className="text-sm font-medium">{method === 'DELPHI' ? `Delphi Panel (${count} evaluators)` : 'Single Evaluator'}</p>
-          {blind && <p className="text-xs text-amber-700">Blinded evaluation — solver identities hidden from evaluators</p>}
+          {blind && <p className="text-xs text-amber-700">Blinded evaluation — Solution Provider identities hidden from evaluators</p>}
         </div>
       );
     },
@@ -513,7 +513,7 @@ export const SECTIONS: SectionDef[] = [
   },
   {
     key: "solver_expertise",
-    label: "Solver Expertise Requirements",
+    label: "Solution Provider Expertise Requirements",
     attribution: "by Curator / AI",
     dbField: "solver_expertise_requirements",
     isFilled: (ch) => {
