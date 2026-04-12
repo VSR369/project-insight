@@ -2,6 +2,7 @@
  * CreatorReferencesRenderer — Displays creator-uploaded reference documents
  * for the curation review panel. When not read-only, also renders the
  * SectionReferencePanel so the Curator can upload/add references.
+ * Download via useSignedUrl hook (R2 compliance).
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +13,7 @@ import { FileText, Download, Loader2 } from "lucide-react";
 import { CACHE_STANDARD } from "@/config/queryCache";
 import { handleQueryError } from "@/lib/errorHandler";
 import { SectionReferencePanel } from "@/components/cogniblend/curation/SectionReferencePanel";
+import { useSignedUrl } from "@/hooks/cogniblend/useSignedUrl";
 
 interface CreatorAttachment {
   id: string;
@@ -48,6 +50,8 @@ export function CreatorReferencesRenderer({
   challengeId,
   isReadOnly = true,
 }: CreatorReferencesRendererProps) {
+  const { openSignedUrl } = useSignedUrl();
+
   const { data: attachments = [], isLoading, error } = useQuery({
     queryKey: ["creator-attachments", challengeId],
     enabled: !!challengeId,
@@ -80,18 +84,8 @@ export function CreatorReferencesRenderer({
     return <p className="text-sm text-destructive">Failed to load reference documents.</p>;
   }
 
-  const handleDownload = async (att: CreatorAttachment) => {
-    if (!att.storage_path) return;
-    const { data, error: signError } = await supabase.storage
-      .from("challenge-attachments")
-      .createSignedUrl(att.storage_path, 3600);
-    if (signError || !data?.signedUrl) return;
-    window.open(data.signedUrl, "_blank");
-  };
-
   return (
     <div className="space-y-4">
-      {/* Creator-uploaded attachments */}
       {attachments.length > 0 && (
         <div className="space-y-2">
           {attachments.map((att) => (
@@ -117,7 +111,7 @@ export function CreatorReferencesRenderer({
                 variant="outline"
                 size="sm"
                 className="shrink-0 text-xs h-7"
-                onClick={() => handleDownload(att)}
+                onClick={() => openSignedUrl(att.storage_path)}
                 disabled={!att.storage_path}
               >
                 <Download className="h-3 w-3 mr-1" /> Download
@@ -131,7 +125,6 @@ export function CreatorReferencesRenderer({
         <p className="text-sm text-muted-foreground">No reference documents uploaded by Creator.</p>
       )}
 
-      {/* Curator upload/URL panel — shown when editable */}
       {!isReadOnly && (
         <SectionReferencePanel
           challengeId={challengeId}

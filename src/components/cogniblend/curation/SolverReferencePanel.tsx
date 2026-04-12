@@ -1,6 +1,7 @@
 /**
  * SolverReferencePanel — Read-only panel showing reference documents shared with solvers.
  * Groups by section, provides download buttons for files and external links for URLs.
+ * Download via useSignedUrl hook (R2 compliance).
  */
 
 import React from 'react';
@@ -9,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Globe, Download, ExternalLink, BookOpen } from 'lucide-react';
+import { useSignedUrl } from '@/hooks/cogniblend/useSignedUrl';
 
 interface SolverReferencePanelProps {
   challengeId: string;
@@ -28,7 +30,6 @@ interface SharedAttachment {
   storage_path: string | null;
 }
 
-/** Section key to human-readable label mapping */
 const SECTION_LABELS: Record<string, string> = {
   problem_statement: 'Problem Statement',
   context_and_background: 'Context & Background',
@@ -69,6 +70,8 @@ function getMimeLabel(mime: string | null): string {
 }
 
 export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps) {
+  const { openSignedUrl } = useSignedUrl();
+
   const { data: attachments = [], isLoading } = useQuery({
     queryKey: ['solver-references', challengeId],
     queryFn: async () => {
@@ -86,21 +89,11 @@ export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps)
 
   if (isLoading || attachments.length === 0) return null;
 
-  // Group by section
   const grouped: Record<string, SharedAttachment[]> = {};
   for (const att of attachments) {
     if (!grouped[att.section_key]) grouped[att.section_key] = [];
     grouped[att.section_key].push(att);
   }
-
-  const handleDownload = async (att: SharedAttachment) => {
-    if (!att.storage_path) return;
-    const { data, error } = await supabase.storage
-      .from('challenge-attachments')
-      .createSignedUrl(att.storage_path, 3600);
-    if (error || !data?.signedUrl) return;
-    window.open(data.signedUrl, '_blank');
-  };
 
   return (
     <Card>
@@ -140,7 +133,7 @@ export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps)
                         </a>
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" className="shrink-0 text-xs h-7" onClick={() => handleDownload(att)}>
+                      <Button variant="outline" size="sm" className="shrink-0 text-xs h-7" onClick={() => openSignedUrl(att.storage_path)}>
                         <Download className="h-3 w-3 mr-1" /> Download
                       </Button>
                     )}
