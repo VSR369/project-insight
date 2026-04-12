@@ -79,10 +79,10 @@ import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles'
 
 const IP_MODEL_LABELS: Record<string, string> = {
   'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
-  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
+  'IP-NEL': 'Non-Exclusive License — Solution Provider retains rights, seeker gets license',
   'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
-  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
-  'IP-NONE': 'No Transfer — Solver retains all IP rights',
+  'IP-JO': 'Joint Ownership — Shared IP between Solution Provider and seeker',
+  'IP-NONE': 'No Transfer — Solution Provider retains all IP rights',
 };
 
 function getIpModelLabel(code: string | null | undefined): string {
@@ -107,8 +107,8 @@ const SPEC_SECTIONS: SpecSection[] = [
   { key: 'description', label: 'Detailed Description', fieldKey: 'description', isAiDrafted: true },
   { key: 'deliverables', label: 'Deliverables', fieldKey: 'deliverables', isAiDrafted: true, renderer: 'deliverables' },
   { key: 'evaluation_criteria', label: 'Evaluation Criteria', fieldKey: 'evaluation_criteria', isAiDrafted: true, renderer: 'evaluation_criteria' },
-  { key: 'solver_eligibility', label: 'Eligible Solver Types (Can Submit)', fieldKey: 'solver_eligibility_types', isAiDrafted: true, renderer: 'solver_eligibility' },
-  { key: 'solver_visibility', label: 'Visible Solver Types (View Only)', fieldKey: 'solver_visibility_types', isAiDrafted: true, renderer: 'solver_visibility' },
+  { key: 'solver_eligibility', label: 'Eligible Solution Provider Types (Can Submit)', fieldKey: 'solver_eligibility_types', isAiDrafted: true, renderer: 'solver_eligibility' },
+  { key: 'solver_visibility', label: 'Visible Solution Provider Types (View Only)', fieldKey: 'solver_visibility_types', isAiDrafted: true, renderer: 'solver_visibility' },
   { key: 'hook', label: 'Challenge Hook', fieldKey: 'hook', isAiDrafted: true },
   { key: 'ip_model', label: 'IP Model', fieldKey: 'ip_model', isAiDrafted: true },
 ];
@@ -448,7 +448,7 @@ function SolverTypeEditor({
           {selectedCategories.map((cat) => renderCategoryCard(cat, true))}
         </div>
         {selectedCategories.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No solver types selected — add from below</p>
+          <p className="text-sm text-muted-foreground italic">No Solution Provider types selected — add from below</p>
         )}
       </div>
 
@@ -504,7 +504,7 @@ function SolverTypeReadOnly({ typesData, label }: { typesData: unknown; label: s
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
+        <p className="text-sm text-muted-foreground italic">No Solution Provider categories selected</p>
       )}
     </div>
   );

@@ -212,7 +212,7 @@ export default function PublicationReadinessPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  {solverMatch.totalMatched} Qualified Solver{solverMatch.totalMatched !== 1 ? 's' : ''} Matched
+                  {solverMatch.totalMatched} Qualified Solution Provider{solverMatch.totalMatched !== 1 ? 's' : ''} Matched
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Based on certification tier and challenge complexity

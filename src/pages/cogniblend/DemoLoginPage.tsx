@@ -122,7 +122,7 @@ function buildDemoUsers(_engagementModel: string, mode: GovernanceMode = 'STRUCT
         email: 'nh-er1@testsetup.dev',
         displayName: 'Evelyn Rhodes',
         roles: ['ER'],
-        description: 'Dual blind evaluation — first reviewer. Solver identities hidden.',
+        description: 'Dual blind evaluation — first reviewer. Solution Provider identities hidden.',
         destination: '/cogni/review',
         stepLabel: 'Phase 6a',
       },
@@ -354,8 +354,8 @@ export default function DemoLoginPage() {
                 <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground">
                   {engagementModel === 'AGG'
-                    ? 'Aggregator: solvers are curated and invited by the platform.'
-                    : 'Marketplace: solvers discover and apply openly.'}
+                     ? 'Aggregator: Solution Providers are curated and invited by the platform.'
+                     : 'Marketplace: Solution Providers discover and apply openly.'}
                 </p>
               </div>
             </div>
