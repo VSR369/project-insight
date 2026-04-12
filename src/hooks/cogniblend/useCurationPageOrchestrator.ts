@@ -27,6 +27,7 @@ import { getCurationFormStore, selectStaleSections } from '@/store/curationFormS
 import { getSectionDisplayName } from '@/lib/cogniblend/sectionDependencies';
 import { GROUPS } from '@/lib/cogniblend/curationSectionDefs';
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
+import { countPendingSuggestions, partitionSuggestionsForBulkAccept } from '@/lib/cogniblend/bulkAcceptHelpers';
 import { toast } from 'sonner';
 import type { SectionKey } from '@/types/sections';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
