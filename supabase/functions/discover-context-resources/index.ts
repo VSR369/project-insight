@@ -10,6 +10,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -254,15 +255,10 @@ AVOID queries leading to: Gartner, McKinsey, HBR, Forrester, Statista (paywalled
 
 Return ONLY a JSON array of strings. No other text.`;
 
-    const queryGenResp = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: queryGenPrompt }],
-        max_tokens: 1500,
-        temperature: 0.3,
-      }),
+    const queryGenResp = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [{ role: "user", content: queryGenPrompt }],
+      max_tokens: 1500,
+      temperature: 0.3,
     });
 
     let searchQueries: string[] = [];
@@ -310,21 +306,16 @@ Return ONLY a JSON array of strings. No other text.`;
     } else {
       // Gemini grounding fallback
       console.log("SERPER_API_KEY not configured — using Gemini grounding fallback");
-      const groundingResp = await fetch(AI_GATEWAY_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          tools: [{ "google_search": {} }],
-          messages: [{
-            role: "user",
-            content: `Search the web and find 15 real, freely accessible URLs about: ${challenge.title}.
+      const groundingResp = await callAIWithFallback(LOVABLE_API_KEY, {
+        tools: [{ "google_search": {} }],
+        messages: [{
+          role: "user",
+          content: `Search the web and find 15 real, freely accessible URLs about: ${challenge.title}.
 Focus on: ${searchQueries.slice(0, 5).join("; ")}.
 Return JSON array: [{"title":"...","url":"...","snippet":"..."}]. Only real URLs you found via search.`,
-          }],
-          max_tokens: 3000,
-          temperature: 0.1,
-        }),
+        }],
+        max_tokens: 3000,
+        temperature: 0.1,
       });
 
       if (groundingResp.ok) {
@@ -426,15 +417,10 @@ Each item:
 
 Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
 
-    const scoringResp = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: scoringPrompt }],
-        max_tokens: 4000,
-        temperature: 0.1,
-      }),
+    const scoringResp = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [{ role: "user", content: scoringPrompt }],
+      max_tokens: 4000,
+      temperature: 0.1,
     });
 
     interface ScoredSource {

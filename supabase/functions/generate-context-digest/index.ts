@@ -6,6 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,18 +172,13 @@ After the digest, output a JSON block with key facts:
 }
 \`\`\``;
 
-    const aiResp = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Synthesize these ${usableAttachments.length} sources:\n\n${sourceBlocks}` },
-        ],
-        max_tokens: 6000,
-        temperature: 0.2,
-      }),
+    const aiResp = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Synthesize these ${usableAttachments.length} sources:\n\n${sourceBlocks}` },
+      ],
+      max_tokens: 6000,
+      temperature: 0.2,
     });
 
     if (!aiResp.ok) {
