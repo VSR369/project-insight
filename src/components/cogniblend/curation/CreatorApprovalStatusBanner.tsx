@@ -8,11 +8,15 @@ import { ClipboardList, Info } from "lucide-react";
 interface CreatorApprovalStatusBannerProps {
   operatingModel: string | null;
   creatorApprovalRequired: boolean | null;
+  communityCreationAllowed?: boolean;
+  isAnonymous?: boolean;
 }
 
 export function CreatorApprovalStatusBanner({
   operatingModel,
   creatorApprovalRequired,
+  communityCreationAllowed,
+  isAnonymous,
 }: CreatorApprovalStatusBannerProps) {
   if (operatingModel === 'MP') {
     return (
@@ -50,5 +54,32 @@ export function CreatorApprovalStatusBanner({
     );
   }
 
-  return null;
+  const prefBadges = (
+    <div className="flex flex-wrap gap-2 mt-2">
+      {communityCreationAllowed && (
+        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+          Community Creation: Allowed
+        </span>
+      )}
+      {isAnonymous && (
+        <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+          Anonymous Challenge
+        </span>
+      )}
+    </div>
+  );
+
+  if (!communityCreationAllowed && !isAnonymous) return null;
+
+  return (
+    <div className="flex flex-col rounded-lg border border-border bg-muted/40 p-3">
+      <div className="flex items-start gap-2.5">
+        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Creator Preferences</p>
+          {prefBadges}
+        </div>
+      </div>
+    </div>
+  );
 }

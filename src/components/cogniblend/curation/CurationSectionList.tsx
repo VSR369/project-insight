@@ -124,11 +124,17 @@ export function CurationSectionList(props: CurationSectionListProps) {
 
   /* ── Organization tab ── */
   if (activeGroup === "organization" && challenge.organization_id) {
+    const eb = typeof challenge.extended_brief === 'string'
+      ? (() => { try { return JSON.parse(challenge.extended_brief as string); } catch { return {}; } })()
+      : (challenge.extended_brief as Record<string, unknown>) ?? {};
+
     return (
       <OrgContextPanel
         challengeId={challenge.id}
         organizationId={challenge.organization_id}
         isReadOnly={isReadOnly}
+        challengeExtendedBrief={eb}
+        operatingModel={challenge.operating_model}
       />
     );
   }
