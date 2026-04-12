@@ -409,7 +409,7 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     setRefinedContent(null); setEditedComments([]); setSelectedItems(new Set());
     setEditedSuggestedContent(null); setEditedDeliverableItems(null);
     setIsAddressed(true); setIsOpen(false); onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects, complexityRatings]);
+  }, [refinedContent, review, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects, complexityRatings]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null); setSelectedItems(new Set());
