@@ -13,7 +13,7 @@ interface DimensionScoreBadgesProps {
 const DIMENSION_LABELS: { key: keyof DimensionScores; label: string }[] = [
   { key: 'completeness', label: 'Complete' },
   { key: 'clarity', label: 'Clarity' },
-  { key: 'solverReadiness', label: 'Solver Ready' },
+  { key: 'solverReadiness', label: 'SP Ready' },
   { key: 'governanceAlignment', label: 'Governance' },
 ];
 

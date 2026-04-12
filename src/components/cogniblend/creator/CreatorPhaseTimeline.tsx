@@ -37,7 +37,7 @@ const TIMELINE_OPTIONS = [
 ] as const;
 
 const CREATOR_PHASES = [
-  { phase_number: 5, label: 'Solver Submission Period', description: 'How long solvers have to submit solutions' },
+  { phase_number: 5, label: 'Solution Provider Submission Period', description: 'How long Solution Providers have to submit solutions' },
   { phase_number: 6, label: 'Abstract/Proposal Review', description: 'Evaluation of submitted abstracts' },
   { phase_number: 8, label: 'Full Solution Review', description: 'Detailed evaluation of complete solutions' },
   { phase_number: 9, label: 'Award Decision', description: 'Winner selection and announcement' },
@@ -191,7 +191,7 @@ export function CreatorPhaseTimeline({ governanceMode, value, onChange }: Creato
       </div>
       <p className="text-xs text-muted-foreground -mt-2">
         {showPhases
-          ? 'Set target dates for each solver-facing phase. The Curator may adjust if needed.'
+          ? 'Set target dates for each Solution Provider-facing phase. The Curator may adjust if needed.'
           : 'The Curator will distribute your total timeline across challenge phases.'}
       </p>
 

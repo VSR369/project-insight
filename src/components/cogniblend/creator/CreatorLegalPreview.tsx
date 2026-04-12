@@ -31,7 +31,7 @@ const MODE_CONFIG: Record<GovernanceMode, { color: string; badge: string; badgeC
 };
 
 const CPA_DESCRIPTIONS: Record<GovernanceMode, string> = {
-  QUICK: 'Assembled automatically from your org\'s CPA-Quick template with this challenge\'s details (IP model, prize, jurisdiction). Solvers auto-accept at enrollment. No manual review.',
+  QUICK: 'Assembled automatically from your org\'s CPA-Quick template with this challenge\'s details (IP model, prize, jurisdiction). Solution Providers auto-accept at enrollment. No manual review.',
   STRUCTURED: 'Assembled after curation freeze from your org\'s CPA-Structured template. The Curator reviews, can edit legal terms, and optionally add addenda before publishing.',
   CONTROLLED: 'Assembled after curation freeze from your org\'s CPA-Controlled template. The Legal Coordinator reviews with AI assistance, can edit terms, add addenda, and must approve.',
 };
@@ -69,9 +69,9 @@ export function CreatorLegalPreview({ governanceMode, organizationId }: CreatorL
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Shield className="h-4 w-4 text-muted-foreground" />
-            Solver Legal Agreements (Preview)
+            Solution Provider Legal Agreements (Preview)
           </h3>
-          <p className="text-xs text-muted-foreground">Preview of legal agreements solvers will accept when enrolling. These are assembled automatically — no action needed from you.</p>
+          <p className="text-xs text-muted-foreground">Preview of legal agreements Solution Providers will accept when enrolling. These are assembled automatically — no action needed from you.</p>
         </div>
 
         {/* CPA Card */}
@@ -129,7 +129,7 @@ export function CreatorLegalPreview({ governanceMode, organizationId }: CreatorL
               className="min-h-[80px] text-sm"
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>Shown to the {governanceMode === 'STRUCTURED' ? 'Curator' : 'LC'} as guidance — not included in the CPA shown to solvers.</span>
+              <span>Shown to the {governanceMode === 'STRUCTURED' ? 'Curator' : 'LC'} as guidance — not included in the CPA shown to Solution Providers.</span>
               <span>{instructions.length}/2000</span>
             </div>
           </div>
@@ -141,9 +141,9 @@ export function CreatorLegalPreview({ governanceMode, organizationId }: CreatorL
         {/* SPA footnote */}
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Shield className="h-3 w-3 shrink-0" />
-          <span>Solvers also accept the Solver Platform Agreement (SPA) at registration, covering platform usage and data privacy.</span>
+          <span>Solution Providers also accept the Solution Provider Platform Agreement (SPA) at registration, covering platform usage and data privacy.</span>
           {spaTemplate?.content && (
-            <button type="button" className="text-primary hover:underline" onClick={() => setViewingDoc({ name: 'Solver Platform Agreement', content: spaTemplate.content ?? '' })}>View</button>
+            <button type="button" className="text-primary hover:underline" onClick={() => setViewingDoc({ name: 'Solution Provider Platform Agreement', content: spaTemplate.content ?? '' })}>View</button>
           )}
         </div>
       </div>

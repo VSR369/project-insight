@@ -21,8 +21,8 @@ const CURRENCY_OPTIONS = [
 
 const IP_OPTIONS = [
   { value: 'IP-EA', label: 'We own everything', desc: 'Full IP transfer' },
-  { value: 'IP-EL', label: 'Exclusive license', desc: 'Solver licenses exclusively' },
-  { value: 'IP-NEL', label: 'Solver licenses to us', desc: 'Non-exclusive license' },
+  { value: 'IP-EL', label: 'Exclusive license', desc: 'Solution Provider licenses exclusively' },
+  { value: 'IP-NEL', label: 'Solution Provider licenses to us', desc: 'Non-exclusive license' },
   { value: 'IP-JO', label: 'Joint ownership', desc: 'Both parties co-own' },
   { value: 'IP-NONE', label: 'No transfer (advisory)', desc: 'Consulting only' },
 ] as const;
