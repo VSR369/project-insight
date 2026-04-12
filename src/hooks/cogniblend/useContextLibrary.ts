@@ -1,6 +1,6 @@
 /**
  * useContextLibrary — Central hook for all Context Library data operations.
- * Bug 3 fix: URL extraction is now awaited before digest regeneration.
+ * Digest generation is decoupled from accept/upload — explicit via useRegenerateDigest.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -28,6 +28,7 @@ export interface ContextSource {
   extracted_key_data: Record<string, unknown> | null;
   extraction_status: string | null;
   extraction_error: string | null;
+  extraction_method?: string | null;
   shared_with_solver: boolean;
   discovery_source: string;
   discovery_status: string;
@@ -151,7 +152,6 @@ export function usePendingSuggestionCount(challengeId: string | null) {
 const EXTRACTION_POLL_INTERVAL_MS = 2000;
 const EXTRACTION_MAX_WAIT_MS = 45000;
 
-/** Poll until extraction_status is 'completed' or 'failed' (max 45s). */
 async function waitForExtraction(attachmentId: string): Promise<void> {
   const maxAttempts = Math.ceil(EXTRACTION_MAX_WAIT_MS / EXTRACTION_POLL_INTERVAL_MS);
   for (let i = 0; i < maxAttempts; i++) {
@@ -195,13 +195,11 @@ export function useAcceptSuggestion(challengeId: string) {
         .eq('id', attachmentId);
       if (error) throw new Error(error.message);
 
+      // Fire extraction but don't auto-regenerate digest
       await supabase.functions.invoke('extract-attachment-text', {
         body: { attachment_id: attachmentId },
       });
       await waitForExtraction(attachmentId);
-      await supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      });
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
@@ -221,9 +219,7 @@ export function useRejectSuggestion(challengeId: string) {
         .eq('id', attachmentId);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => {
-      invalidateAll(qc, challengeId);
-    },
+    onSuccess: () => invalidateAll(qc, challengeId),
     onError: (err: Error) => toast.error(`Reject failed: ${err.message}`),
   });
 }
@@ -238,7 +234,6 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
         .in('id', ids);
       if (error) throw new Error(error.message);
 
-      // Trigger all extractions in parallel
       await Promise.allSettled(
         ids.map(id =>
           supabase.functions.invoke('extract-attachment-text', {
@@ -246,12 +241,7 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
           })
         )
       );
-      // Wait for all extractions to finish
       await Promise.allSettled(ids.map(id => waitForExtraction(id)));
-
-      await supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      });
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
@@ -277,6 +267,25 @@ export function useRejectAllSuggestions(challengeId: string) {
       toast.success('All suggestions rejected');
     },
     onError: (err: Error) => toast.error(`Reject all failed: ${err.message}`),
+  });
+}
+
+/** Revert an accepted source back to suggested status */
+export function useUnacceptSource(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const { error } = await supabase
+        .from('challenge_attachments')
+        .update({ discovery_status: 'suggested', updated_at: new Date().toISOString() })
+        .eq('id', attachmentId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      invalidateAll(qc, challengeId);
+      toast.success('Source moved back to suggested');
+    },
+    onError: (err: Error) => toast.error(`Unaccept failed: ${err.message}`),
   });
 }
 
@@ -312,9 +321,6 @@ export function useUploadContextFile(challengeId: string) {
         body: { attachment_id: att.id },
       });
       await waitForExtraction(att.id);
-      await supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      });
 
       return att;
     },
@@ -349,15 +355,12 @@ export function useAddContextUrl(challengeId: string) {
         body: { attachment_id: att.id },
       });
       await waitForExtraction(att.id);
-      await supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      });
 
       return att;
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('URL added and indexed — digest updated');
+      toast.success('URL added and indexed');
     },
     onError: (err: Error) => toast.error(`Add URL failed: ${err.message}`),
   });
@@ -396,9 +399,11 @@ export function useReExtractSource(challengeId: string) {
         .eq('id', attachmentId);
       await supabase.functions.invoke('extract-attachment-text', { body: { attachment_id: attachmentId } });
       await waitForExtraction(attachmentId);
-      await supabase.functions.invoke('generate-context-digest', { body: { challenge_id: challengeId } });
     },
-    onSuccess: () => { invalidateAll(qc, challengeId); toast.success('Content extracted and digest updated'); },
+    onSuccess: () => {
+      invalidateAll(qc, challengeId);
+      toast.success('Content re-extracted');
+    },
     onError: (err: Error) => toast.error(`Extraction failed: ${err.message}`),
   });
 }
@@ -445,13 +450,11 @@ export function useRegenerateDigest(challengeId: string) {
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
-      toast.success('Context digest regenerated');
+      toast.success('Context digest generated');
     },
     onError: (err: Error) => toast.error(`Digest generation failed: ${err.message}`),
   });
 }
-
-/* ── Save curator-edited digest ── */
 
 export function useSaveDigest(challengeId: string) {
   const qc = useQueryClient();
