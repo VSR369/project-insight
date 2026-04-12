@@ -185,11 +185,6 @@ export function useCurationPageOrchestrator() {
 
       // 2. Extended brief subsections — batched single write
       if (partition.extendedBrief.length > 0) {
-        const currentBrief = parseJson<Record<string, unknown>>(
-          (challenge as Record<string, unknown>)?.extended_brief ?? null
-        ) ?? {};
-        const merged = { ...currentBrief };
-
         for (const item of partition.extendedBrief) {
           await sectionActionsHook.handleAcceptExtendedBriefRefinement(item.key, item.suggestion);
           await new Promise(resolve => setTimeout(resolve, 50));
@@ -289,6 +284,7 @@ export function useCurationPageOrchestrator() {
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
     ...sectionActionsHook, ...aiActionsHook, handleAcceptAllPassing,
+    handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting,
     ...waveSetup, executeWavesWithBudgetCheck: aiActionsHook.executeWavesWithBudgetCheck,
     ...callbacks, handleExpandCollapseAll, handleApproveLockedSection, handleUndoApproval,
     getSectionActions: getSectionActionsForKey,
