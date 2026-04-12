@@ -1,49 +1,79 @@
 
 
-## Fix: Digest Delete RLS + Regenerate Error Handling
+## Impact Analysis: "Solver" → "Solution Provider" Rename
 
-### Problem Summary
+### Risk Assessment: LOW — with one important addition
 
-1. **DELETE RLS policy is wrong** — current policy allows only `created_by` (challenge creator), but creators don't use the Context Library. Only **curators** and **platform admins** should have delete access.
-2. **Regenerate shows cryptic error** — when "Generate Context" is clicked with no accepted sources, the edge function returns `NO_SOURCES` / `NO_EXTRACTABLE_CONTENT`, but the frontend displays the raw error message instead of a user-friendly toast.
+The Claude proposal is well-structured and follows the correct two-layer separation principle. **All proposed changes are UI-visible string replacements only** — no variable names, table names, column names, function signatures, or route paths change. This means zero risk of breaking queries, type safety, or API contracts.
 
-### Changes
+However, the proposal **missed one critical item**: the `assemble_cpa` database function (in `supabase/migrations/20260409173639_...sql`) contains hardcoded "Solver" strings in legal text that get rendered to users in CPA documents:
 
-**1. Migration: Replace DELETE policy on `challenge_context_digest`**
+- `'EXCLUSIVE ASSIGNMENT: Solver assigns all rights...'`
+- `'NON-EXCLUSIVE LICENSE: Solver retains ownership...'`
+- `'Solver agrees to participate in good faith...'`
+- `'Solver maintains confidentiality...'`
+- `'before solver enrollment...'`
+- `'Solver agrees not to engage directly...'`
 
-Drop the wrong `creator_can_delete_digest` policy. Create a new `curator_can_delete_digest` policy matching the same pattern as the existing `curator_can_update_digest` — checking `challenge_role_assignments` via `platform_provider_pool` for curator/admin roles:
+These appear in generated legal agreements shown to users and must also be updated.
 
-```sql
-DROP POLICY IF EXISTS "creator_can_delete_digest" ON public.challenge_context_digest;
+### What stays as "Solver" (confirmed safe to leave)
 
-CREATE POLICY "curator_can_delete_digest"
-ON public.challenge_context_digest
-FOR DELETE TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.challenge_role_assignments cra
-    WHERE cra.challenge_id = challenge_context_digest.challenge_id
-      AND cra.pool_member_id IN (
-        SELECT pp.id FROM public.platform_provider_pool pp WHERE pp.user_id = auth.uid()
-      )
-      AND cra.role_code IN ('CU', 'SA', 'PA')
-      AND cra.status = 'active'
-  )
-);
-```
+- All DB tables, columns, function names, variable names, hook names, type names, route paths
+- Anonymous review IDs (`Solver-A`, `Solver-B`)
+- Internal enum values (`solver_action`)
+- DB column references in queries (`solver_audience`, `solver_eligibility_id`, etc.)
 
-**2. `useRegenerateDigest` — friendly error messages for no-source cases**
+### Implementation Plan
 
-Update the `onError` handler to detect `NO_SOURCES` and `NO_EXTRACTABLE_CONTENT` error codes from the edge function response and show a helpful message like "No accepted sources available. Accept some sources first, then generate the digest." instead of the raw error string.
+The work touches ~40 files across 10 batches. Each batch is independent — pure text replacement with no cross-file dependencies. I will implement them sequentially.
 
-**3. `useClearAllSources` — verify digest was actually deleted**
+**Batch 1 — Challenge Wizard (5 files)**
+`StepProviderEligibility.tsx`, `StepRequirements.tsx`, `StepReviewSubmit.tsx`, `StepRewards.tsx`, `requirementsConstants.ts`
+Replace user-facing labels: "Solver Tier" → "Solution Provider Tier", IP option descriptions, etc.
 
-Add a post-delete check: after the `.delete()` call, query for the row. If it still exists, throw an explicit error so the user sees the failure instead of a false success toast. Also explicitly set the digest query cache to `null` on success.
+**Batch 2 — Creator Module (8 files)**
+`creatorSeedContent.ts`, `EssentialFieldRenderers.tsx`, `EvaluationMethodSection.tsx`, `QuickPublishSuccessScreen.tsx`, `DimensionScoreBadges.tsx`, `ChallengeCreatorForm.tsx`, `CreatorLegalPreview.tsx`, `CreatorPhaseTimeline.tsx`
 
-### Files
+**Batch 3 — Curation Module (5 files)**
+`context-library/types.ts`, `AttachmentCard.tsx`, `curationSectionDefs.tsx`, `sectionDependencies.ts`, `preFlightCheck.ts`
 
-| # | File | Change |
-|---|------|--------|
-| 1 | New migration `.sql` | Drop creator policy, add curator/admin DELETE policy |
-| 2 | `src/hooks/cogniblend/useContextLibrary.ts` | Friendly error in `useRegenerateDigest.onError`; verify delete in `useClearAllSources` |
+**Batch 4 — Cogniblend Pages (8 files)**
+`AISpecReviewPage.tsx`, `ChallengeManagePage.tsx`, `LcLegalWorkspacePage.tsx`, `PublicChallengeDetailPage.tsx`, `PublicationReadinessPage.tsx`, `ScreeningReviewPage.tsx`, `SolutionSubmitConstants.ts`, `DemoLoginPage.tsx`
+
+**Batch 5 — Shared Components (8 files)**
+`AccessModelSummary.tsx`, `WorkflowProgressBanner.tsx`, `ChallengeConfigSummary.tsx`, `RequestJourneySection.tsx`, `DemoWorkflowSteps.tsx`, `TargetingFiltersSection.tsx`, `EscrowDepositSection.tsx`, `ExtendDeadlineModal.tsx`
+
+**Batch 6 — Admin Pages (5 files)**
+`LegalDocConfigSidebar.tsx`, `LegalDocTriggerForm.tsx`, `PlatformAgreementCard.tsx`, `LifecyclePhaseRow.tsx`, `AIQualityDashboardPage.tsx`, `IncentivesPage.tsx`
+
+**Batch 7 — Legal Constants & Types (3 files)**
+`cpaDefaults.constants.ts`, `legal.types.ts`, `OnboardingCompletePage.tsx`
+
+**Batch 8 — ELIGIBILITY_MODELS descriptions (1 file)**
+`challengeOptions.constants.ts` — update description strings like "Entry-level certified solvers" → "Entry-level certified Solution Providers"
+
+**Batch 9 — DB: `assemble_cpa` function update (1 migration)**
+New migration with `CREATE OR REPLACE FUNCTION public.assemble_cpa(...)` replacing all "Solver" in the legal text output (IP clauses, escrow terms, anti-disintermediation, fallback CPA content). Internal variable names and column references stay unchanged.
+
+**Batch 10 — DB: `lifecycle_phase_config` seed data (data update)**
+UPDATE statements to change description text in the `lifecycle_phase_config` table rows from "Solvers submit..." → "Solution Providers submit..."
+
+### Risk Summary
+
+| Area | Risk | Reason |
+|------|------|--------|
+| UI text in ~40 TSX/TS files | None | Pure string literals, no logic change |
+| `cpaDefaults.constants.ts` templates | None | Template text only, no variable names change |
+| `legal.types.ts` display labels | None | Values in label map, keys/codes unchanged |
+| `assemble_cpa` DB function | Low | `CREATE OR REPLACE` with text changes only; all variable names, column refs, logic unchanged |
+| `lifecycle_phase_config` update | None | Display text in description column |
+| Overall | **Low** | No structural, type, or API changes anywhere |
+
+### Estimated scope
+- ~40 frontend files (text-only edits)
+- 2 database operations (1 migration for function, 1 data update for seed rows)
+- Zero type/interface changes
+- Zero route changes
+- Zero hook/service refactoring
 
