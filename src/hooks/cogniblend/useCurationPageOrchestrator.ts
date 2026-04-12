@@ -160,16 +160,21 @@ export function useCurationPageOrchestrator() {
   // ── Bulk accept all AI suggestions ──
   const [isBulkAccepting, setIsBulkAccepting] = useState(false);
 
+  // Use a reactive selector from the store for suggestionsCount
+  const suggestionsFingerprint = curationStore
+    ? curationStore((s) => Object.entries(s.sections)
+        .filter(([, v]) => v?.aiSuggestion && !v.addressed)
+        .map(([k]) => k).sort().join(','))
+    : '';
   const suggestionsCount = useMemo(() => {
     if (!curationStore) return 0;
-    const { countPendingSuggestions } = require('@/lib/cogniblend/bulkAcceptHelpers');
+    const { countPendingSuggestions } = require('@/lib/cogniblend/bulkAcceptHelpers') as typeof import('@/lib/cogniblend/bulkAcceptHelpers');
     return countPendingSuggestions(curationStore.getState().sections);
-  }, [curationStore, staleFingerprint]); // staleFingerprint changes on store changes
+  }, [curationStore, suggestionsFingerprint]);
 
   const handleAcceptAllSuggestions = useCallback(async () => {
     if (!curationStore || !challenge) return;
     const { partitionSuggestionsForBulkAccept } = await import('@/lib/cogniblend/bulkAcceptHelpers');
-    const { parseJson } = await import('@/lib/cogniblend/curationHelpers');
 
     const partition = partitionSuggestionsForBulkAccept(curationStore.getState().sections);
     const totalCount = partition.regular.length + partition.extendedBrief.length;
