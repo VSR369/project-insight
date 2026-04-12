@@ -192,6 +192,26 @@ export function CurationHeaderBar({
         />
       )}
 
+      {/* Generation complete banner — persistent until dismissed */}
+      {generateDoneSession && waveCompleted && suggestionsCount > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50/60 dark:bg-emerald-900/20 dark:border-emerald-700/40 p-4">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              AI Suggestions Ready — {suggestionsCount} section{suggestionsCount !== 1 ? 's have' : ' has'} suggestions waiting for your review.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Use "Accept All AI Suggestions" above to save them all, or expand each section to review individually.
+            </p>
+          </div>
+          {onDismissCompletionBanner && (
+            <Button variant="ghost" size="sm" className="shrink-0 text-xs h-7" onClick={onDismissCompletionBanner}>
+              Dismiss
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Read-only banner */}
       {isReadOnly && phaseDescription && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-400/40 bg-blue-50/60 dark:bg-blue-900/20 dark:border-blue-700/40 p-4">
