@@ -37,6 +37,9 @@ export interface ManageChallengeData {
   title: string;
   masterStatus: string;
   governanceProfile: string;
+  operatingModel: string | null;
+  currentPhase: number | null;
+  extendedBrief: Record<string, unknown> | null;
   submissionDeadline: string | null;
   submissionCount: number;
   submissions: ManagedSubmission[];
@@ -67,7 +70,7 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
       // 1. Challenge metadata
       const { data: challenge, error: cErr } = await supabase
         .from('challenges')
-        .select('id, title, master_status, governance_profile, submission_deadline')
+        .select('id, title, master_status, governance_profile, submission_deadline, operating_model, extended_brief, current_phase')
         .eq('id', challengeId)
         .eq('is_deleted', false)
         .single();
@@ -139,11 +142,24 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
         canExtendDeadline = perm === true;
       }
 
+      // Parse extended_brief
+      let parsedBrief: Record<string, unknown> | null = null;
+      if (challenge.extended_brief) {
+        try {
+          parsedBrief = typeof challenge.extended_brief === 'string'
+            ? JSON.parse(challenge.extended_brief)
+            : (challenge.extended_brief as Record<string, unknown>);
+        } catch { parsedBrief = null; }
+      }
+
       return {
         challengeId: challenge.id,
         title: challenge.title,
         masterStatus: challenge.master_status ?? 'ACTIVE',
         governanceProfile: challenge.governance_profile ?? 'STRUCTURED',
+        operatingModel: (challenge as Record<string, unknown>).operating_model as string | null ?? null,
+        currentPhase: (challenge as Record<string, unknown>).current_phase as number | null ?? null,
+        extendedBrief: parsedBrief,
         submissionDeadline: challenge.submission_deadline,
         submissionCount: submissions.length,
         submissions,
