@@ -304,6 +304,7 @@ export const EXTENDED_BRIEF_FIELD_MAP: Record<string, string> = {
   current_deficiencies: 'current_deficiencies',
   preferred_approach: 'preferred_approach',
   approaches_not_of_interest: 'approaches_not_of_interest',
+  reference_urls: 'reference_urls',
 };
 
 /** Get format config for a section, with safe fallback */

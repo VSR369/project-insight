@@ -182,7 +182,7 @@ export function AIReviewResultPanel({
           <Button variant="outline" size="sm" className="h-10 text-sm border-border text-foreground hover:bg-muted rounded-lg px-5" onClick={onDiscard} disabled={isRefining}>
             Keep original
           </Button>
-          <Button size="sm" className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5" onClick={onAccept} disabled={isRefining || state.suggestedFormat === "table_fallback"}>
+          <Button size="sm" className="h-10 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5" onClick={onAccept} disabled={isRefining}>
             <Check className="h-4 w-4 mr-1.5" />
             {complexityRatings && Object.keys(complexityRatings).length > 0
               ? "Accept complexity ratings"
