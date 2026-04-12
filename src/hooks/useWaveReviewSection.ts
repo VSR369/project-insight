@@ -58,7 +58,11 @@ export function useWaveReviewSection({
         const existingComments = providedCommentsBySectionKey[sectionKey];
         if (existingComments?.length) {
           body.skip_analysis = true;
-          body.provided_comments = existingComments;
+          body.provided_comments = [{
+            section_key: sectionKey,
+            status: 'warning',
+            comments: existingComments,
+          }];
         }
       }
 
