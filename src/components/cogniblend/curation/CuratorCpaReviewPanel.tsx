@@ -1,11 +1,11 @@
 /**
  * CuratorCpaReviewPanel — STRUCTURED mode: curator reviews assembled CPA,
  * uploads addenda, and approves legal for publication.
+ * Data layer in useCuratorCpaActions hook.
  */
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,28 +14,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
-import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { Scale, ChevronDown, ChevronRight, Save, Loader2, Unlock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnfreezeForRecuration } from '@/hooks/cogniblend/useFreezeActions';
-import { handleMutationError, handleQueryError } from '@/lib/errorHandler';
-import { withCreatedBy } from '@/lib/auditFields';
-import { CACHE_STANDARD } from '@/config/queryCache';
+import { handleMutationError } from '@/lib/errorHandler';
+import { useAssembledCpa, saveCpaContent, approveLegalAndPublish } from '@/hooks/cogniblend/useCuratorCpaActions';
 import { LcAddendumUpload } from '@/components/cogniblend/lc/LcAddendumUpload';
 
 interface CuratorCpaReviewPanelProps {
   challengeId: string;
   userId: string;
-}
-
-interface AssembledDoc {
-  id: string;
-  document_type: string;
-  document_name: string | null;
-  content: string | null;
-  assembly_variables: Record<string, string> | null;
-  status: string | null;
 }
 
 export function CuratorCpaReviewPanel({ challengeId, userId }: CuratorCpaReviewPanelProps) {
@@ -51,23 +40,9 @@ export function CuratorCpaReviewPanel({ challengeId, userId }: CuratorCpaReviewP
   const [returnReason, setReturnReason] = useState('');
   const [approving, setApproving] = useState(false);
 
-  const { data: docs = [], isLoading } = useQuery<AssembledDoc[]>({
-    queryKey: ['assembled-cpa', challengeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, document_type, document_name, content, assembly_variables, status')
-        .eq('challenge_id', challengeId)
-        .eq('is_assembled', true)
-        .order('created_at', { ascending: false });
-      if (error) { handleQueryError(error, { operation: 'fetch_assembled_cpa' }); throw error; }
-      return (data ?? []) as AssembledDoc[];
-    },
-    enabled: !!challengeId,
-    ...CACHE_STANDARD,
-  });
+  const { data: docs = [], isLoading } = useAssembledCpa(challengeId);
 
-  const handleStartEdit = (doc: AssembledDoc) => {
+  const handleStartEdit = (doc: { id: string; content: string | null }) => {
     setEditContent(doc.content ?? '');
     setEditingDocId(doc.id);
     setEditing(true);
@@ -77,33 +52,31 @@ export function CuratorCpaReviewPanel({ challengeId, userId }: CuratorCpaReviewP
     if (!editingDocId || !user?.id) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('challenge_legal_docs')
-        .update({ content: editContent, reviewed_by: user.id, reviewed_at: new Date().toISOString(), updated_by: user.id, updated_at: new Date().toISOString() } as Record<string, unknown>)
-        .eq('id', editingDocId);
-      if (error) throw error;
+      await saveCpaContent(editingDocId, editContent, user.id, challengeId);
       qc.invalidateQueries({ queryKey: ['assembled-cpa', challengeId] });
       toast.success('CPA content saved');
       setEditing(false);
       setEditingDocId(null);
-    } catch (e) { handleMutationError(e as Error, { operation: 'save_curator_cpa' }); }
-    finally { setSaving(false); }
+    } catch (e) {
+      handleMutationError(e as Error, { operation: 'save_curator_cpa' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleApprove = async () => {
     if (!user?.id) return;
     setApproving(true);
     try {
-      const { error } = await supabase.from('challenge_legal_docs')
-        .update({ status: 'curator_reviewed', lc_status: 'approved', reviewed_by: user.id, reviewed_at: new Date().toISOString(), updated_by: user.id } as Record<string, unknown>)
-        .eq('challenge_id', challengeId);
-      if (error) throw error;
-      const { error: rpcErr } = await supabase.rpc('complete_phase', { p_challenge_id: challengeId, p_user_id: user.id });
-      if (rpcErr) throw rpcErr;
+      await approveLegalAndPublish(challengeId, user.id);
       qc.invalidateQueries({ queryKey: ['curation-challenge', challengeId] });
       qc.invalidateQueries({ queryKey: ['challenge-lc-detail', challengeId] });
       toast.success('Legal approved. Challenge publishing…');
-    } catch (e) { handleMutationError(e as Error, { operation: 'approve_legal_publish' }); }
-    finally { setApproving(false); }
+    } catch (e) {
+      handleMutationError(e as Error, { operation: 'approve_legal_publish' });
+    } finally {
+      setApproving(false);
+    }
   };
 
   const handleReturn = () => {

@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Send, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Json } from '@/integrations/supabase/types';
-import { supabase } from '@/integrations/supabase/client';
 
 interface StaleSectionInfo { key: string; name: string; causes: string[]; staleAt: string; }
 interface UnreviewedSectionInfo { key: string; name: string; }
@@ -79,44 +78,46 @@ export default function CurationActions({
       return;
     }
 
-    supabase.rpc('log_audit', {
-      p_user_id: user.id, p_challenge_id: challengeId, p_solution_id: '',
-      p_action: 'CURATION_SUBMITTED', p_method: 'UI', p_phase_from: 2, p_phase_to: 3,
-      p_details: { checklist: checklistSummary, completed_count: completedCount, total_count: totalCount, amendment_cycle: amendmentCount } as unknown as Json,
-    }).then(() => {
-      completePhase.mutate(
-        { challengeId, userId: user.id },
-        {
-          onSuccess: async () => {
-            toast.success('Challenge approved and submitted for compliance review.');
-            try { computeQualityScore([]); } catch { /* non-critical */ }
+    const auditDetails = {
+      checklist: checklistSummary,
+      completed_count: completedCount,
+      total_count: totalCount,
+      amendment_cycle: amendmentCount,
+    } as unknown as Json;
 
-            // For CONTROLLED: auto-assign LC and FC from pool after curation approval
-            try {
-              const { data: challenge } = await supabase
-                .from('challenges')
-                .select('governance_mode_override, governance_profile')
-                .eq('id', challengeId)
-                .single();
-              const govMode = (challenge?.governance_mode_override ?? challenge?.governance_profile ?? 'STRUCTURED').toUpperCase();
-              if (govMode === 'CONTROLLED') {
-                const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
-                await autoAssignChallengeRole({ challengeId, roleCode: 'LC', assignedBy: user.id });
-                await autoAssignChallengeRole({ challengeId, roleCode: 'FC', assignedBy: user.id });
-              }
-            } catch (assignErr) {
-              const { logWarning } = await import('@/lib/errorHandler');
-              logWarning('LC/FC auto-assign after curation failed', {
-                operation: 'auto_assign_lc_fc_controlled',
-                additionalData: { challengeId, error: String(assignErr) },
-              });
+    completePhase.mutate(
+      { challengeId, userId: user.id },
+      {
+        onSuccess: async () => {
+          toast.success('Challenge approved and submitted for compliance review.');
+          try { computeQualityScore([]); } catch { /* non-critical */ }
+
+          // For CONTROLLED: auto-assign LC and FC from pool after curation approval
+          try {
+            const { autoAssignChallengeRole } = await import('@/hooks/cogniblend/useAutoAssignChallengeRoles');
+            const { supabase: sb } = await import('@/integrations/supabase/client');
+            const { data: challenge } = await sb
+              .from('challenges')
+              .select('governance_mode_override, governance_profile')
+              .eq('id', challengeId)
+              .single();
+            const govMode = (challenge?.governance_mode_override ?? challenge?.governance_profile ?? 'STRUCTURED').toUpperCase();
+            if (govMode === 'CONTROLLED') {
+              await autoAssignChallengeRole({ challengeId, roleCode: 'LC', assignedBy: user.id });
+              await autoAssignChallengeRole({ challengeId, roleCode: 'FC', assignedBy: user.id });
             }
+          } catch (assignErr) {
+            const { logWarning } = await import('@/lib/errorHandler');
+            logWarning('LC/FC auto-assign after curation failed', {
+              operation: 'auto_assign_lc_fc_controlled',
+              additionalData: { challengeId, error: String(assignErr) },
+            });
+          }
 
-            setTimeout(() => { navigate('/cogni/curation'); }, 1500);
-          },
+          setTimeout(() => { navigate('/cogni/curation'); }, 1500);
         },
-      );
-    });
+      },
+    );
   }, [staleSections, legalEscrowBlocked, blockingReason, hasOutstandingRequired, allComplete, user, isAmDeclined, crApprovalRequired, crApprovalMutation, challengeId, checklistSummary, completedCount, totalCount, amendmentCount, completePhase, navigate]);
 
   const handleReturnSubmit = useCallback(() => {

@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 interface OrgData {
   organization_name: string;
@@ -208,7 +209,7 @@ export function useOrgContextData(challengeId: string, organizationId: string, i
           queryClient.invalidateQueries({ queryKey: ['org-context-panel', organizationId] });
         }
       } catch (err) {
-        console.error('[OrgContextPanel] Auto-save failed:', err);
+        handleMutationError(err as Error, { operation: 'org_context_auto_save', component: 'useOrgContextData' });
       }
     }, 800);
 

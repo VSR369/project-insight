@@ -1,7 +1,7 @@
 /**
  * GovernanceModeSwitcher — Inline governance mode change for Curators during Phase 2.
  * Shows current mode badge + "Change" button → inline select dropdown.
- * Logs changes to audit_trail.
+ * Logs changes to audit_trail via useGovernanceModeMutation hook.
  */
 
 import React, { useState } from "react";
@@ -14,9 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Pencil, Loader2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { GovernanceProfileBadge } from "@/components/cogniblend/GovernanceProfileBadge";
 import {
   resolveGovernanceMode,
@@ -24,6 +21,7 @@ import {
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from "@/lib/governanceMode";
+import { useGovernanceModeMutation } from "@/hooks/cogniblend/useGovernanceModeMutation";
 
 interface GovernanceModeSwitcherProps {
   challengeId: string;
@@ -44,50 +42,12 @@ export function GovernanceModeSwitcher({
   userId,
 }: GovernanceModeSwitcherProps) {
   const [editing, setEditing] = useState(false);
-  const queryClient = useQueryClient();
   const currentMode = resolveGovernanceMode(currentProfile);
   const availableModes = getAvailableGovernanceModes(orgTierCode ?? "premium");
   const isPhase2 = currentPhase === 2;
   const canEdit = isPhase2 && availableModes.length > 1;
 
-  const mutation = useMutation({
-    mutationFn: async (newMode: GovernanceMode) => {
-      const oldMode = currentMode;
-
-      // Update challenge
-      const { error } = await supabase
-        .from("challenges")
-        .update({
-          governance_mode_override: newMode,
-          updated_by: userId ?? null,
-        } as any)
-        .eq("id", challengeId);
-      if (error) throw new Error(error.message);
-
-      // Audit trail
-      await supabase.from("audit_trail").insert({
-        action: "governance_mode_changed",
-        challenge_id: challengeId,
-        user_id: userId!,
-        method: "curator_manual",
-        details: {
-          old_mode: oldMode,
-          new_mode: newMode,
-          changed_by: userId,
-        },
-      } as any);
-    },
-    onSuccess: (_data, newMode) => {
-      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
-      queryClient.invalidateQueries({ queryKey: ["curation-legal-summary", challengeId] });
-      queryClient.invalidateQueries({ queryKey: ["curation-escrow", challengeId] });
-      toast.success(`Governance changed to ${newMode}. Validation rules updated.`);
-      setEditing(false);
-    },
-    onError: (err: Error) => {
-      toast.error(`Failed to change governance: ${err.message}`);
-    },
-  });
+  const mutation = useGovernanceModeMutation({ challengeId, currentMode, userId });
 
   const handleChange = (value: string) => {
     const newMode = value as GovernanceMode;
@@ -95,7 +55,7 @@ export function GovernanceModeSwitcher({
       setEditing(false);
       return;
     }
-    mutation.mutate(newMode);
+    mutation.mutate(newMode, { onSuccess: () => setEditing(false) });
   };
 
   return (

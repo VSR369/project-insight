@@ -32,10 +32,10 @@ export function useCurationProgress(challengeId: string | undefined) {
     queryFn: async () => {
       if (!challengeId) return null;
       const { data, error } = await (supabase
-        .from('curation_progress' as any)
-        .select('*')
+        .from('curation_progress' as never)
+        .select('challenge_id, status, sections_reviewed, sections_total, current_wave, context_sources_count, digest_generated, ai_review_started_at, ai_review_completed_at, curator_editing_started_at, last_section_saved_at, estimated_minutes_remaining, updated_at')
         .eq('challenge_id', challengeId)
-        .maybeSingle() as any);
+        .maybeSingle() as unknown as Promise<{ data: CurationProgress | null; error: { message: string } | null }>);
       if (error) throw error;
       return (data as CurationProgress) ?? null;
     },

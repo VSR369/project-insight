@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 import { useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import { parseJson } from '@/lib/cogniblend/curationHelpers';
 import { derivePrimaryGroup, getSelectedGroups } from '@/hooks/queries/useSolutionTypeMap';
 import { getCurationFormStore } from '@/store/curationFormStore';
@@ -186,7 +187,7 @@ export function useCurationApprovalActions({
           }
         }
       } catch (err) {
-        console.error('[SolutionTypes] Failed to auto-populate solver expertise:', err);
+        handleMutationError(err as Error, { operation: 'auto_populate_solver_expertise', component: 'useCurationApprovalActions' });
       }
     }
   }, [saveSectionMutation, syncSectionToStore, notifyStaleness, challengeId, challenge?.solver_expertise_requirements, challenge?.solution_type, solutionTypesData, setSavingSection]);
