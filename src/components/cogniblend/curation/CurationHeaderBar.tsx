@@ -56,8 +56,10 @@ export interface CurationHeaderBarProps {
     needsRevision: number;
     hasReviews: boolean;
   };
-  onAcceptAllPassing: () => void;
+  onAcceptAllSuggestions: () => void;
   onReviewWarnings: () => void;
+  suggestionsCount: number;
+  isBulkAccepting?: boolean;
   reviewSessionActive?: boolean;
 
   phaseDescription: string;
@@ -96,8 +98,10 @@ export function CurationHeaderBar({
   userId,
   userRoleCodes,
   aiReviewCounts,
-  onAcceptAllPassing,
+  onAcceptAllSuggestions,
   onReviewWarnings,
+  suggestionsCount,
+  isBulkAccepting,
   reviewSessionActive,
   phaseDescription,
   legalEscrowBlocked,
@@ -175,8 +179,10 @@ export function CurationHeaderBar({
           passCount={aiReviewCounts.pass}
           inferredCount={aiReviewCounts.inferred}
           totalCount={aiReviewCounts.pass + aiReviewCounts.warning + aiReviewCounts.inferred}
-          onAcceptAllPassing={onAcceptAllPassing}
+          suggestionsCount={suggestionsCount}
+          onAcceptAllSuggestions={onAcceptAllSuggestions}
           onReviewWarnings={onReviewWarnings}
+          isBulkAccepting={isBulkAccepting}
         />
       )}
 
