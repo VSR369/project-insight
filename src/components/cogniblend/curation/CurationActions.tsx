@@ -78,7 +78,6 @@ export default function CurationActions({
       return;
     }
 
-    // Log audit via the hook's logAudit helper (delegated to useCurationActionData)
     const auditDetails = {
       checklist: checklistSummary,
       completed_count: completedCount,
@@ -87,7 +86,7 @@ export default function CurationActions({
     } as unknown as Json;
 
     completePhase.mutate(
-      { challengeId, userId: user.id, auditDetails },
+      { challengeId, userId: user.id },
       {
         onSuccess: async () => {
           toast.success('Challenge approved and submitted for compliance review.');
