@@ -1,122 +1,72 @@
 
 
-## Plan: Creator Challenge Preferences — 3 New Toggles
+## Discover Resources Module — Complete Fix Plan (6 Changes)
 
 ### Summary
-Add three new creator-set preference toggles that persist in `extended_brief` JSONB, flow from Creator wizard to Curator's Organization tab, and are available for downstream use (publishing, solver visibility).
+Rewrite the discovery edge function to use real web search (Serper API) instead of LLM-invented URLs, fix extraction to always summarize sparse content, output HTML from digest generation, normalize content in DigestPanel, add `access_status` column, and show access badges in SourceDetail.
 
-### New Fields
-
-| Field | Key in `extended_brief` | Default | Visibility |
-|---|---|---|---|
-| Creator Approval Required | `creator_approval_required` | `true` (STRUCTURED/CONTROLLED), forced `true` (MP), hidden (QUICK) | AGG only toggle; MP always mandatory |
-| Community Creation | `community_creation_allowed` | `false` | All models, all governance modes |
-| Anonymous Challenge | `is_anonymous` | `false` | All models, all governance modes |
-
-### Pre-existing Bug Fix
-`creator_approval_required` exists in the wizard form schema but is **never persisted to the DB** — neither `buildFieldsFromForm` (wizard) nor `useCreatorDraftSave` (simple form) writes it to `extended_brief`. This plan fixes that.
+### Prerequisites
+- **SERPER_API_KEY** secret must be added to Supabase (user action required). Currently only `LOVABLE_API_KEY` and `RESEND_API_KEY` exist.
 
 ---
 
-### Changes by File
+### Change 1 — Full rewrite: `discover-context-resources/index.ts`
 
-#### 1. Creator Wizard Form Schema
-**File:** `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts`
-- Add `community_creation_allowed: z.boolean().default(false)` and `is_anonymous: z.boolean().default(false)` to the schema
-- Add defaults to `DEFAULT_FORM_VALUES`
+Replace the entire file (~513 lines) with the 5-phase architecture. The function is large but it's an edge function (single file requirement). Key phases:
 
-#### 2. Creator Simple Form Schema
-**File:** `src/components/cogniblend/creator/creatorFormSchema.ts`
-- Add `community_creation_allowed` and `is_anonymous` boolean fields to schema and `CreatorFormValues` type
+1. **LLM generates 12-15 search queries** from challenge context + gaps
+2. **Serper API executes searches** → real URLs with real snippets (fallback: Gemini grounding if no SERPER_API_KEY)
+3. **HEAD accessibility pre-check** per URL — skip paywalled/blocked domains
+4. **LLM scores relevance** of accessible URLs against challenge sections (reads real snippets)
+5. **Insert ALL as `discovery_status = 'suggested'`** with search snippet as seed content, trigger async extraction
 
-#### 3. StepModeSelection — UI Toggles
-**File:** `src/components/cogniblend/challenge-wizard/StepModeSelection.tsx`
-- Refactor Creator Approval section: hide entirely when `selectedMode === 'QUICK'`; show "Mandatory" badge (non-toggleable) for MP; show toggle for AGG only
-- Add "Community Creation" toggle: Allowed / Not Allowed, all modes
-- Add "Anonymous Challenge" toggle: YES / NO (default NO), all modes
-- Extract toggles into a new sub-component to keep file under 200 lines
+Key differences from current:
+- No auto-accept (removes `>= 0.85` threshold)
+- Real URLs from search API, not LLM memory
+- Seed content stored immediately so tabs are never empty
+- `access_status` stored per source
+- Existing accepted URLs used as dedup set
 
-#### 4. New: `ChallengePreferenceToggles.tsx`
-**File:** `src/components/cogniblend/challenge-wizard/ChallengePreferenceToggles.tsx` (NEW, ~120 lines)
-- Extracted component rendering the 3 toggle cards
-- Props: `form`, `selectedMode`, `selectedModel`
-- Creator Approval: hidden in QUICK, forced ON for MP (disabled switch), toggleable for AGG
-- Community Creation: toggle for all modes
-- Anonymous: toggle for all modes
+### Change 2 — DB Migration: Add `access_status` column
 
-#### 5. Wizard — Persist to DB
-**File:** `src/pages/cogniblend/ChallengeWizardPage.tsx`
-- In `buildFieldsFromForm`: add the 3 fields into the `deliverables` JSONB (which maps to `extended_brief`):
-  ```
-  creator_approval_required: values.creator_approval_required,
-  community_creation_allowed: values.community_creation_allowed,
-  is_anonymous: values.is_anonymous,
-  ```
+```sql
+ALTER TABLE public.challenge_attachments
+  ADD COLUMN IF NOT EXISTS access_status TEXT
+    CHECK (access_status IN ('accessible', 'blocked', 'paywall', 'failed', 'unknown'))
+    DEFAULT 'unknown';
+```
 
-#### 6. Simple Form — Persist to DB
-**File:** `src/hooks/cogniblend/useCreatorDraftSave.ts`
-- In the draft payload's extended_brief-bound fields, add the 3 new fields from `data`
+### Change 3 — `extract-attachment-text/index.ts`: Always run Tier 2
 
-#### 7. Submit Mutation — Persist to extended_brief
-**File:** `src/hooks/cogniblend/useChallengeSubmit.ts`
-- In `useChallengeSubmit` (line 74-86): add the 3 fields to `rawExtendedBrief`
-- In snapshot brief (line 136-147): include the 3 fields
+**Line 268**: Change `if (extractedText.length > 500)` to always run Tier 2 summarization. For sparse/meta-only content (`url_meta_only`, `url_html_sparse`, `url_error`), use a context-aware prompt that references `att.section_key` and `att.relevance_explanation` to generate a useful summary even from metadata. For normal content, keep existing prompt but increase input to 12K chars.
 
-#### 8. Payload Types
-**File:** `src/lib/cogniblend/challengePayloads.ts`
-- Add `creatorApprovalRequired?: boolean`, `communityCreationAllowed?: boolean`, `isAnonymous?: boolean` to both `SubmitPayload` and `DraftPayload`
-- In `buildChallengeUpdatePayload`: merge these into `rawExtBrief`
+### Change 4 — `generate-context-digest/index.ts`: HTML output format
 
-#### 9. Curator Organization Tab — Read-Only Info Cards
-**File:** `src/components/cogniblend/curation/OrgContextPanel.tsx`
-- Add `challengeExtendedBrief` prop
-- Below org info, render a "Challenge Preferences" card showing the 3 fields as read-only badges/labels
-- Extract into a new sub-component for cleanliness
+**Lines 145-170**: Change the prompt from requesting markdown (`**bold**`, `### heading`) to requesting clean HTML (`<h3>`, `<p>`, `<ul><li>`). After extracting `digestText`, add post-processing to convert any residual markdown to HTML tags.
 
-#### 10. New: `ChallengePreferencesInfo.tsx`
-**File:** `src/components/cogniblend/curation/ChallengePreferencesInfo.tsx` (NEW, ~80 lines)
-- Read-only display of the 3 creator preferences
-- Props: `operatingModel`, `creatorApprovalRequired`, `communityCreationAllowed`, `isAnonymous`
-- Uses Badge/info styling consistent with existing curation cards
+### Change 5 — `DigestPanel.tsx`: Normalize content for editor
 
-#### 11. Wire to CurationSectionList
-**File:** `src/components/cogniblend/curation/CurationSectionList.tsx`
-- When rendering Organization tab (line 126-133): pass `challengeExtendedBrief` to `OrgContextPanel`
+**Line 62**: Wrap `digest?.digest_text` with `normalizeAiContentForEditor()` from `@/lib/aiContentFormatter` so the RichTextEditor always receives proper HTML regardless of what format the AI returned.
 
-#### 12. Update CreatorApprovalStatusBanner
-**File:** `src/components/cogniblend/curation/CreatorApprovalStatusBanner.tsx`
-- Add `communityCreationAllowed` and `isAnonymous` props
-- Show additional info lines for community creation and anonymity status
+### Change 6 — Frontend: `access_status` support
 
-#### 13. CurationRightRail — Pass new props
-**File:** `src/components/cogniblend/curation/CurationRightRail.tsx`
-- Parse `community_creation_allowed` and `is_anonymous` from extended_brief
-- Pass to `CreatorApprovalStatusBanner`
-
-#### 14. CurationReviewPage — Parse and pass
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
-- Extract `community_creation_allowed` and `is_anonymous` from `extended_brief` alongside existing `creator_approval_required`
-- Pass down through right rail props
-
-### No DB Migration Needed
-All 3 fields are stored in the existing `extended_brief` JSONB column — no schema change required.
+| File | Change |
+|---|---|
+| `useContextLibrary.ts` | Add `access_status` to `ContextSource` interface and `SOURCE_COLUMNS` string |
+| `SourceDetail.tsx` | Add access status badges (Accessible/Blocked/Paywall) in metadata row after ExtractionBadge |
 
 ### Files Summary
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `challengeFormSchema.ts` (wizard) | Add 2 new boolean fields + defaults |
-| 2 | `creatorFormSchema.ts` (simple) | Add 2 new boolean fields + type |
-| 3 | `StepModeSelection.tsx` | Slim down, delegate to new component |
-| 4 | `ChallengePreferenceToggles.tsx` | NEW — 3 toggle cards |
-| 5 | `ChallengeWizardPage.tsx` | Persist 3 fields in buildFieldsFromForm |
-| 6 | `useCreatorDraftSave.ts` | Add 3 fields to draft payload |
-| 7 | `useChallengeSubmit.ts` | Add 3 fields to extended_brief + snapshot |
-| 8 | `challengePayloads.ts` | Add 3 fields to interfaces + builder |
-| 9 | `OrgContextPanel.tsx` | Accept + render challenge preferences |
-| 10 | `ChallengePreferencesInfo.tsx` | NEW — read-only info display |
-| 11 | `CurationSectionList.tsx` | Pass extended_brief to OrgContextPanel |
-| 12 | `CreatorApprovalStatusBanner.tsx` | Add community + anonymous info |
-| 13 | `CurationRightRail.tsx` | Parse + pass new fields |
-| 14 | `CurationReviewPage.tsx` | Extract + pass new fields |
+| 1 | `supabase/functions/discover-context-resources/index.ts` | Full rewrite — 5-phase real search + score |
+| 2 | DB Migration | Add `access_status` column to `challenge_attachments` |
+| 3 | `supabase/functions/extract-attachment-text/index.ts` | Always run Tier 2, context-aware for sparse |
+| 4 | `supabase/functions/generate-context-digest/index.ts` | Prompt outputs HTML, post-process strips markdown |
+| 5 | `src/components/cogniblend/curation/context-library/DigestPanel.tsx` | `normalizeAiContentForEditor()` on digest text |
+| 6 | `src/hooks/cogniblend/useContextLibrary.ts` | Add `access_status` to type + query |
+| 7 | `src/components/cogniblend/curation/context-library/SourceDetail.tsx` | Access status badges |
+
+### Secret Required
+User must add `SERPER_API_KEY` to Supabase edge function secrets (get from serper.dev — 2,500 free searches). The function includes a Gemini grounding fallback if the key is absent.
 
