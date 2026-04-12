@@ -331,6 +331,22 @@ export default function CurationReviewPage() {
               return eb?.creator_approval_required === true;
             } catch { return null; }
           })()}
+          communityCreationAllowed={(() => {
+            try {
+              const eb = typeof o.challenge?.extended_brief === 'string'
+                ? JSON.parse(o.challenge.extended_brief)
+                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+              return eb?.community_creation_allowed === true;
+            } catch { return false; }
+          })()}
+          isAnonymous={(() => {
+            try {
+              const eb = typeof o.challenge?.extended_brief === 'string'
+                ? JSON.parse(o.challenge.extended_brief)
+                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+              return eb?.is_anonymous === true;
+            } catch { return false; }
+          })()}
         />
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}
