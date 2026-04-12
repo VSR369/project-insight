@@ -320,7 +320,7 @@ export function useChallengeSubmit() {
     onSuccess: (result) => {
       const isQuick = result.governanceMode === 'QUICK';
       toast.success(isQuick
-        ? 'Challenge published! Solvers can now discover and apply.'
+        ? 'Challenge published! Solution Providers can now discover and apply.'
         : 'Challenge submitted — sent to Curator for review');
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });

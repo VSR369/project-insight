@@ -380,7 +380,7 @@ export function useApproveShortlist() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['screening-review'] });
-      toast.success(`Shortlist approved: ${result.shortlistedCount} shortlisted, ${result.rejectedCount} rejected. Solvers notified.`);
+      toast.success(`Shortlist approved: ${result.shortlistedCount} shortlisted, ${result.rejectedCount} rejected. Solution Providers notified.`);
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'approve_shortlist' });
