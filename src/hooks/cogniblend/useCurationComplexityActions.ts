@@ -64,12 +64,6 @@ export function useCurationComplexityActions({
     toast.success(hasIssues ? "Re-review complete — see updated complexity assessment." : "Complexity looks good — no issues found.");
   }, [challengeId, aiReviews, setAiReviews, setAiSuggestedComplexity, saveSectionMutationRef]);
 
-  const handleAcceptAllPassing = useCallback((handleMarkAddressed: (key: string) => void) => {
-    const passingSections = aiReviews.filter((r) => r.status === "pass" && !r.addressed);
-    if (passingSections.length === 0) return;
-    passingSections.forEach((r) => handleMarkAddressed(r.section_key));
-    toast.success(`${passingSections.length} section${passingSections.length !== 1 ? "s" : ""} updated automatically`);
-  }, [aiReviews]);
 
   const handleReviewWarnings = useCallback(() => {
     setHighlightWarnings(true);
@@ -85,7 +79,6 @@ export function useCurationComplexityActions({
 
   return {
     handleComplexityReReview,
-    handleAcceptAllPassing,
     handleReviewWarnings,
   };
 }
