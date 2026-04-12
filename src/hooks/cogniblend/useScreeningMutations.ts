@@ -1,0 +1,194 @@
+/**
+ * useScreeningMutations — Write mutation hooks for screening & shortlisting.
+ * Extracted from useScreeningReview.ts for R1 compliance.
+ */
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
+import { withCreatedBy, withUpdatedBy } from '@/lib/auditFields';
+
+/* ─── useScoreAbstract ───────────────────────────────────── */
+
+export function useScoreAbstract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      existingEvalId, solutionId, reviewerId, rubricScores, commentary, individualScore,
+    }: {
+      existingEvalId: string | null;
+      solutionId: string;
+      reviewerId: string;
+      rubricScores: Record<string, number>;
+      commentary: string;
+      individualScore: number;
+    }) => {
+      if (existingEvalId) {
+        const withAudit = await withUpdatedBy({
+          rubric_scores: rubricScores, commentary,
+          individual_score: individualScore,
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        const { data, error } = await supabase
+          .from('evaluation_records')
+          .update(withAudit as Record<string, unknown>)
+          .eq('id', existingEvalId)
+          .select()
+          .single();
+        if (error) throw new Error(error.message);
+        return data;
+      } else {
+        const withAudit = await withCreatedBy({
+          solution_id: solutionId, reviewer_id: reviewerId,
+          review_round: 1, rubric_scores: rubricScores, commentary,
+          individual_score: individualScore, conflict_declared: false,
+          submitted_at: new Date().toISOString(),
+        });
+        const { data, error } = await supabase
+          .from('evaluation_records')
+          .insert(withAudit as Record<string, unknown>)
+          .select()
+          .single();
+        if (error) throw new Error(error.message);
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['screening-review'] });
+      toast.success('Scores saved successfully');
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'score_abstract' });
+    },
+  });
+}
+
+/* ─── useShortlistAbstract ───────────────────────────────── */
+
+export function useShortlistAbstract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ solutionId }: { solutionId: string }) => {
+      const withAudit = await withUpdatedBy({
+        selection_status: 'SHORTLISTED',
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('solutions')
+        .update(withAudit as Record<string, unknown>)
+        .eq('id', solutionId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['screening-review'] });
+      toast.success('Abstract shortlisted');
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'shortlist_abstract' });
+    },
+  });
+}
+
+/* ─── useRejectAbstract ──────────────────────────────────── */
+
+export function useRejectAbstract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ solutionId }: { solutionId: string }) => {
+      const withAudit = await withUpdatedBy({
+        selection_status: 'REJECTED',
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('solutions')
+        .update(withAudit as Record<string, unknown>)
+        .eq('id', solutionId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['screening-review'] });
+      toast.success('Abstract rejected');
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'reject_abstract' });
+    },
+  });
+}
+
+/* ─── useApproveShortlist ────────────────────────────────── */
+
+export function useApproveShortlist() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ challengeId }: { challengeId: string }) => {
+      const { data: solutions, error: sErr } = await supabase
+        .from('solutions')
+        .select('id, provider_id, selection_status')
+        .eq('challenge_id', challengeId)
+        .not('submitted_at', 'is', null);
+
+      if (sErr) throw new Error(sErr.message);
+
+      const shortlisted = (solutions ?? []).filter(s => s.selection_status === 'SHORTLISTED');
+      const rejected = (solutions ?? []).filter(s => s.selection_status === 'REJECTED');
+
+      if (shortlisted.length === 0) {
+        throw new Error('No abstracts have been shortlisted. Please shortlist at least one abstract.');
+      }
+
+      const { data: challenge } = await supabase
+        .from('challenges')
+        .select('title')
+        .eq('id', challengeId)
+        .single();
+
+      const challengeTitle = challenge?.title ?? 'Challenge';
+
+      const shortlistNotifications = shortlisted.map(s => ({
+        user_id: s.provider_id, challenge_id: challengeId,
+        notification_type: 'SHORTLISTED',
+        title: 'Congratulations! Your abstract has been shortlisted.',
+        message: `Your abstract for "${challengeTitle}" has been shortlisted. You may now upload your full solution.`,
+      }));
+
+      const rejectNotifications = rejected.map(s => ({
+        user_id: s.provider_id, challenge_id: challengeId,
+        notification_type: 'ABSTRACT_REJECTED',
+        title: 'Abstract not selected',
+        message: `Your abstract for "${challengeTitle}" was not selected for the shortlist. Thank you for your submission.`,
+      }));
+
+      const allNotifications = [...shortlistNotifications, ...rejectNotifications];
+      if (allNotifications.length > 0) {
+        const { error: nErr } = await supabase.from('cogni_notifications').insert(allNotifications);
+        if (nErr) throw new Error(nErr.message);
+      }
+
+      const allIds = (solutions ?? []).map(s => s.id);
+      if (allIds.length > 0) {
+        const withAudit = await withUpdatedBy({ updated_at: new Date().toISOString() });
+        for (const s of shortlisted) {
+          await supabase
+            .from('solutions')
+            .update({ ...withAudit, selection_status: 'APPROVED_SHORTLIST' } as Record<string, unknown>)
+            .eq('id', s.id);
+        }
+      }
+
+      return { shortlistedCount: shortlisted.length, rejectedCount: rejected.length };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['screening-review'] });
+      toast.success(`Shortlist approved: ${result.shortlistedCount} shortlisted, ${result.rejectedCount} rejected. Solution Providers notified.`);
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'approve_shortlist' });
+    },
+  });
+}
