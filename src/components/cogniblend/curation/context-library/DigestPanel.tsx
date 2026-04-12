@@ -1,6 +1,5 @@
 /**
- * DigestPanel — Full-width context digest with RichTextEditor,
- * explicit "Generate Context" button, word count, section coverage.
+ * DigestPanel — Right column: generate digest, edit, save, confirm & close.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -15,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface DigestData {
   digest_text: string | null;
@@ -27,6 +27,8 @@ interface DigestData {
 interface DigestPanelProps {
   digest: DigestData | null | undefined;
   acceptedCount: number;
+  extractedCount: number;
+  emptyExtractionCount: number;
   onGenerate: () => void;
   isGenerating: boolean;
   onSave: (text: string) => void;
@@ -35,29 +37,17 @@ interface DigestPanelProps {
 }
 
 function wordCount(text: string): number {
-  const stripped = text.replace(/<[^>]+>/g, ' ').trim();
-  return stripped.split(/\s+/).filter(Boolean).length;
-}
-
-const DIGEST_SECTIONS = [
-  'Organization Context', 'Industry Landscape', 'Regulatory Environment',
-  'Technology Context', 'Competitive Intelligence', 'Key Numbers', 'Risks',
-];
-
-function sectionCoverage(text: string): { present: string[]; missing: string[] } {
-  const lower = text.replace(/<[^>]+>/g, ' ').toLowerCase();
-  const present = DIGEST_SECTIONS.filter(s => lower.includes(s.toLowerCase()));
-  const missing = DIGEST_SECTIONS.filter(s => !lower.includes(s.toLowerCase()));
-  return { present, missing };
+  return text.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
 }
 
 export function DigestPanel({
-  digest, acceptedCount, onGenerate, isGenerating, onSave, isSaving, onConfirm,
+  digest, acceptedCount, extractedCount, emptyExtractionCount,
+  onGenerate, isGenerating, onSave, isSaving, onConfirm,
 }: DigestPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-  const [view, setView] = useState<'edit' | 'preview' | 'compare'>('edit');
+  const [view, setView] = useState<'edit' | 'preview'>('edit');
 
   useEffect(() => {
     setDraft(normalizeAiContentForEditor(digest?.digest_text ?? ''));
@@ -67,7 +57,6 @@ export function DigestPanel({
   const isDirty = draft !== (digest?.digest_text ?? '');
   const hasDigest = !!digest?.digest_text;
   const wc = useMemo(() => wordCount(draft), [draft]);
-  const coverage = useMemo(() => sectionCoverage(draft), [draft]);
   const hasOriginal = !!digest?.curator_edited && !!digest.original_digest_text;
 
   const handleSave = useCallback(() => {
@@ -76,237 +65,121 @@ export function DigestPanel({
     setIsEditing(false);
   }, [draft, isDirty, onSave]);
 
-  const handleConfirm = useCallback(() => {
-    setConfirmed(true);
-    onConfirm();
-  }, [onConfirm]);
+  const handleConfirm = useCallback(() => { setConfirmed(true); onConfirm(); }, [onConfirm]);
 
   return (
-    <div className="px-4 py-3 space-y-2">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="shrink-0 p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Context Digest</span>
           {digest?.source_count != null && (
             <Badge variant="secondary" className="text-[10px] h-5">{digest.source_count} sources</Badge>
           )}
-          {digest?.curator_edited && (
-            <Badge variant="outline" className="text-[10px] h-5 text-amber-600 border-amber-300">
-              Curator edited
-            </Badge>
-          )}
-          {confirmed && (
-            <Badge className="text-[10px] h-5 bg-emerald-100 text-emerald-700 border-emerald-300">
-              Confirmed
-            </Badge>
-          )}
         </div>
         <div className="flex items-center gap-1.5">
           {!isEditing && hasDigest && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs"
-              onClick={() => { setIsEditing(true); setView('edit'); }}>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setIsEditing(true); setView('edit'); }}>
               <Pencil className="h-3 w-3 mr-1" />Edit
             </Button>
           )}
           {hasDigest && (
             <Button size="sm" variant="outline" className="h-7 text-xs"
               onClick={() => { onGenerate(); setConfirmed(false); }} disabled={isGenerating}>
-              <RefreshCw className={cn('h-3 w-3 mr-1', isGenerating && 'animate-spin')} />
-              Regenerate
+              <RefreshCw className={cn('h-3 w-3 mr-1', isGenerating && 'animate-spin')} />Regenerate
             </Button>
           )}
         </div>
       </div>
 
-      {/* Content area */}
-      {!hasDigest ? (
-        <EmptyState
-          acceptedCount={acceptedCount}
-          onGenerate={onGenerate}
-          isGenerating={isGenerating}
-        />
-      ) : isEditing ? (
-        <EditMode
-          draft={draft} setDraft={setDraft} view={view} setView={setView}
-          wc={wc} coverage={coverage} hasOriginal={hasOriginal}
-          originalText={digest?.original_digest_text ?? ''}
-          onSave={handleSave}
-          onCancel={() => { setDraft(digest?.digest_text ?? ''); setIsEditing(false); }}
-          isSaving={isSaving} isDirty={isDirty}
-        />
-      ) : (
-        <ReadMode digest={digest!} confirmed={confirmed} onConfirm={handleConfirm} />
-      )}
-    </div>
-  );
-}
-
-/* ---------- Sub-components ---------- */
-
-interface EmptyStateProps {
-  acceptedCount: number;
-  onGenerate: () => void;
-  isGenerating: boolean;
-}
-
-function EmptyState({ acceptedCount, onGenerate, isGenerating }: EmptyStateProps) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-2 text-center py-4">
-      <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-      {acceptedCount > 0 ? (
-        <>
-          <p className="text-xs text-muted-foreground">
-            {acceptedCount} accepted source{acceptedCount !== 1 ? 's' : ''} ready for digest generation.
-          </p>
-          <Button size="sm" onClick={onGenerate} disabled={isGenerating}>
-            <Sparkles className="h-3.5 w-3.5 mr-1" />
-            {isGenerating ? 'Generating...' : `Generate Context from ${acceptedCount} sources`}
-          </Button>
-        </>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Accept sources above, then generate context digest.
-        </p>
-      )}
-    </div>
-  );
-}
-
-interface EditModeProps {
-  draft: string; setDraft: (v: string) => void;
-  view: 'edit' | 'preview' | 'compare'; setView: (v: 'edit' | 'preview' | 'compare') => void;
-  wc: number; coverage: { missing: string[] }; hasOriginal: boolean; originalText: string;
-  onSave: () => void; onCancel: () => void; isSaving: boolean; isDirty: boolean;
-}
-
-function EditMode({
-  draft, setDraft, view, setView, wc, coverage,
-  hasOriginal, originalText, onSave, onCancel, isSaving, isDirty,
-}: EditModeProps) {
-  return (
-    <div className="space-y-2">
-      <Tabs value={view} onValueChange={v => setView(v as 'edit' | 'preview' | 'compare')}>
-        <div className="flex items-center justify-between">
-          <TabsList className="h-7">
-            <TabsTrigger value="edit" className="text-[11px] h-6 px-2">
-              <Pencil className="h-3 w-3 mr-1" />Edit
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="text-[11px] h-6 px-2">
-              <Eye className="h-3 w-3 mr-1" />Preview
-            </TabsTrigger>
-            {hasOriginal && (
-              <TabsTrigger value="compare" className="text-[11px] h-6 px-2">
-                <SplitSquareHorizontal className="h-3 w-3 mr-1" />Compare
-              </TabsTrigger>
-            )}
-          </TabsList>
-          <span className={cn('text-[10px] font-medium',
-            wc < 400 || wc > 800 ? 'text-amber-600' : 'text-emerald-600')}>
-            {wc} words {wc < 400 ? '(too short)' : wc > 800 ? '(too long)' : '(good)'}
-          </span>
-        </div>
-
-        <TabsContent value="edit" className="mt-2 space-y-1.5">
-          <RichTextEditor value={draft} onChange={setDraft} className="min-h-[400px]" storagePath="context-digest-media" />
-          {coverage.missing.length > 0 && (
-            <div className="flex items-start gap-1.5 text-[10px] text-amber-600">
-              <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-              <span>Missing sections: {coverage.missing.join(' · ')}</span>
+      {/* Content */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-3 space-y-3">
+          {!hasDigest ? (
+            <div className="flex flex-col items-center justify-center gap-3 text-center py-12">
+              <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+              {acceptedCount > 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {extractedCount} extracted source{extractedCount !== 1 ? 's' : ''} ready.
+                  </p>
+                  {emptyExtractionCount > 0 && (
+                    <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      {emptyExtractionCount} source{emptyExtractionCount !== 1 ? 's' : ''} skipped (empty extraction)
+                    </p>
+                  )}
+                  <Button size="sm" onClick={onGenerate} disabled={isGenerating}>
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    {isGenerating ? 'Generating...' : `Generate Context from ${extractedCount} sources`}
+                  </Button>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Accept sources first, then generate digest.</p>
+              )}
+            </div>
+          ) : isEditing ? (
+            <div className="space-y-2">
+              <Tabs value={view} onValueChange={v => setView(v as 'edit' | 'preview')}>
+                <div className="flex items-center justify-between">
+                  <TabsList className="h-7">
+                    <TabsTrigger value="edit" className="text-[11px] h-6 px-2"><Pencil className="h-3 w-3 mr-1" />Edit</TabsTrigger>
+                    <TabsTrigger value="preview" className="text-[11px] h-6 px-2"><Eye className="h-3 w-3 mr-1" />Preview</TabsTrigger>
+                  </TabsList>
+                  <span className={cn('text-[10px] font-medium', wc < 400 || wc > 800 ? 'text-amber-600' : 'text-emerald-600')}>
+                    {wc} words
+                  </span>
+                </div>
+                <TabsContent value="edit" className="mt-2">
+                  <RichTextEditor value={draft} onChange={setDraft} className="min-h-[400px]" storagePath="context-digest-media" />
+                </TabsContent>
+                <TabsContent value="preview" className="mt-2">
+                  <div className="rounded-md border p-3 bg-muted/20">
+                    <SafeHtmlRenderer html={draft} fallback="Nothing to preview" />
+                  </div>
+                </TabsContent>
+              </Tabs>
+              {hasOriginal && (
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setDraft(digest?.original_digest_text ?? '')}>
+                  <RotateCcw className="h-3 w-3 mr-1" />Restore AI original
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-md bg-muted/30 p-3">
+                <SafeHtmlRenderer html={digest!.digest_text} />
+              </div>
+              {digest?.curator_edited && (
+                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Curator edited</Badge>
+              )}
             </div>
           )}
-        </TabsContent>
+        </div>
+      </ScrollArea>
 
-        <TabsContent value="preview" className="mt-2">
-          <div className="max-h-[280px] overflow-y-auto rounded-md border p-3 bg-muted/20">
-            <SafeHtmlRenderer html={draft} fallback="Nothing to preview" />
-          </div>
-        </TabsContent>
-
-        {hasOriginal && (
-          <TabsContent value="compare" className="mt-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground mb-1">AI Original</p>
-                <div className="max-h-[260px] overflow-y-auto rounded-md border p-2 bg-muted/10">
-                  <SafeHtmlRenderer html={originalText} />
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold text-primary mb-1">Your Version</p>
-                <div className="max-h-[260px] overflow-y-auto rounded-md border border-primary/30 p-2 bg-primary/5">
-                  <SafeHtmlRenderer html={draft} />
-                </div>
-              </div>
-            </div>
-          </TabsContent>
+      {/* Bottom action bar */}
+      <div className="shrink-0 border-t p-3 flex items-center justify-between gap-2 bg-background">
+        {isEditing ? (
+          <>
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setDraft(digest?.digest_text ?? ''); setIsEditing(false); }}>Cancel</Button>
+            <Button size="sm" className="h-8 text-xs" onClick={handleSave} disabled={isSaving || !isDirty}>
+              <Save className="h-3 w-3 mr-1" />{isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-[11px] text-muted-foreground leading-tight flex-1">
+              {confirmed ? '✅ Digest confirmed.' : 'Review digest, then confirm to proceed.'}
+            </p>
+            <Button size="sm" variant={confirmed ? 'outline' : 'default'}
+              className={cn('h-8 text-xs shrink-0', confirmed && 'text-emerald-600 border-emerald-300')}
+              onClick={handleConfirm} disabled={confirmed || !hasDigest}>
+              <CheckCircle2 className="h-3 w-3 mr-1" />{confirmed ? 'Confirmed' : 'Confirm & Close'}
+            </Button>
+          </>
         )}
-      </Tabs>
-
-      <div className="flex items-center justify-between gap-2 pt-1 border-t">
-        <div>
-          {hasOriginal && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
-              onClick={() => setDraft(originalText)}>
-              <RotateCcw className="h-3 w-3 mr-1" />Restore AI original
-            </Button>
-          )}
-        </div>
-        <div className="flex gap-1.5">
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onCancel}>Cancel</Button>
-          <Button size="sm" className="h-7 text-xs" onClick={onSave} disabled={isSaving || !isDirty}>
-            <Save className="h-3 w-3 mr-1" />{isSaving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReadMode({
-  digest, confirmed, onConfirm,
-}: { digest: DigestData; confirmed: boolean; onConfirm: () => void }) {
-  const keyFacts = digest.key_facts as Record<string, unknown> | null | undefined;
-  const hasKeyFacts = keyFacts && typeof keyFacts === 'object' && Object.keys(keyFacts).length > 0;
-
-  return (
-    <div className="space-y-2">
-      <div className="max-h-[200px] overflow-y-auto rounded-md bg-muted/30 p-2.5">
-        <SafeHtmlRenderer html={digest.digest_text} />
-      </div>
-
-      {hasKeyFacts && (
-        <div className="rounded-md border bg-primary/5 p-2 space-y-1">
-          <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Verified Key Facts</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-            {Object.entries(keyFacts)
-              .filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : true))
-              .map(([k, v]) => (
-                <div key={k} className="text-[10px]">
-                  <span className="font-medium text-muted-foreground capitalize">
-                    {k.replace(/_/g, ' ')}:{' '}
-                  </span>
-                  <span className="text-foreground">
-                    {Array.isArray(v) ? v.slice(0, 2).join(', ') : String(v)}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-3 pt-1.5 border-t">
-        <p className="text-[11px] text-muted-foreground leading-tight">
-          {confirmed
-            ? '✅ Digest confirmed — Generate Suggestions is enabled.'
-            : 'Review the digest above, edit if needed, then confirm to unlock suggestions.'}
-        </p>
-        <Button size="sm" variant={confirmed ? 'outline' : 'default'}
-          className={cn('h-7 text-xs shrink-0', confirmed && 'text-emerald-600 border-emerald-300')}
-          onClick={onConfirm} disabled={confirmed}>
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          {confirmed ? 'Confirmed' : 'Confirm & Close'}
-        </Button>
       </div>
     </div>
   );

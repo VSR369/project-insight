@@ -1,12 +1,12 @@
 /**
- * SuggestionCard — AI-suggested source with checkbox, inline accept/reject, and content indicators.
+ * SuggestionCard — AI-suggested source with checkbox, access status, inline accept/reject.
  */
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Sparkles, Check, X, ExternalLink } from 'lucide-react';
+import { Sparkles, Check, X, ExternalLink, Lock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
 import { ContentIndicators } from './ContentIndicators';
@@ -39,6 +39,24 @@ function ConfidenceBadge({ score }: { score: number | null }) {
   );
 }
 
+function AccessBadge({ status }: { status: string | null | undefined }) {
+  if (status === 'paywall') {
+    return (
+      <Badge variant="outline" className="text-[10px] h-4 px-1 text-amber-600 border-amber-300 bg-amber-50 gap-0.5">
+        <Lock className="h-2.5 w-2.5" />Paywall
+      </Badge>
+    );
+  }
+  if (status === 'blocked') {
+    return (
+      <Badge variant="outline" className="text-[10px] h-4 px-1 text-destructive gap-0.5">
+        <AlertTriangle className="h-2.5 w-2.5" />Blocked
+      </Badge>
+    );
+  }
+  return null;
+}
+
 export function SuggestionCard({
   source, isActive, isSelected, onSelect, onToggleSelect,
   onAccept, onReject, isAcceptPending, isRejectPending,
@@ -53,16 +71,14 @@ export function SuggestionCard({
     >
       <div className="flex items-start gap-2">
         <div className="shrink-0 mt-0.5" onClick={e => e.stopPropagation()}>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => onToggleSelect(source.id)}
-          />
+          <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(source.id)} />
         </div>
         <Sparkles className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <span className="truncate font-medium text-xs">{displayName(source)}</span>
             <ConfidenceBadge score={source.confidence_score} />
+            <AccessBadge status={source.access_status} />
           </div>
           {source.relevance_explanation && (
             <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
@@ -80,7 +96,6 @@ export function SuggestionCard({
           </div>
         </div>
 
-        {/* Inline action buttons */}
         <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
           {source.source_url && (
             <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" asChild>
@@ -89,22 +104,14 @@ export function SuggestionCard({
               </a>
             </Button>
           )}
-          <Button
-            size="icon" variant="ghost"
+          <Button size="icon" variant="ghost"
             className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-            onClick={() => onAccept(source.id)}
-            disabled={isAcceptPending}
-            title="Accept source"
-          >
+            onClick={() => onAccept(source.id)} disabled={isAcceptPending} title="Accept source">
             <Check className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            size="icon" variant="ghost"
+          <Button size="icon" variant="ghost"
             className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onReject(source.id)}
-            disabled={isRejectPending}
-            title="Reject source"
-          >
+            onClick={() => onReject(source.id)} disabled={isRejectPending} title="Reject source">
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
