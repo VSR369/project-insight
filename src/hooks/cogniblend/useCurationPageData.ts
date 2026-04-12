@@ -106,6 +106,8 @@ export interface CurationPageState {
   setContextLibraryOpen: React.Dispatch<React.SetStateAction<boolean>>;
   pass1DoneSession: boolean;
   setPass1DoneSession: React.Dispatch<React.SetStateAction<boolean>>;
+  generateDoneSession: boolean;
+  setGenerateDoneSession: React.Dispatch<React.SetStateAction<boolean>>;
   aiQuality: AIQualitySummary | null;
   setAiQuality: React.Dispatch<React.SetStateAction<AIQualitySummary | null>>;
   aiQualityLoading: boolean;
@@ -174,6 +176,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
   const [budgetShortfall, setBudgetShortfall] = useState<BudgetShortfallResult | null>(null);
   const [contextLibraryOpen, setContextLibraryOpen] = useState(false);
   const [pass1DoneSession, setPass1DoneSession] = useState(false);
+  const [generateDoneSession, setGenerateDoneSession] = useState(false);
   const [aiQuality, setAiQuality] = useState<AIQualitySummary | null>(null);
   const [aiQualityLoading, setAiQualityLoading] = useState(false);
   const [lockedSendState, setLockedSendState] = useState<{
@@ -308,6 +311,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
     preFlightResult, setPreFlightResult, preFlightDialogOpen, setPreFlightDialogOpen,
     budgetShortfall, setBudgetShortfall, contextLibraryOpen, setContextLibraryOpen,
     pass1DoneSession, setPass1DoneSession,
+    generateDoneSession, setGenerateDoneSession,
     aiQuality, setAiQuality, aiQualityLoading, setAiQualityLoading,
     lockedSendState, setLockedSendState,
     challenge, isLoading, orgTypeName,

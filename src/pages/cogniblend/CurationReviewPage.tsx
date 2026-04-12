@@ -141,7 +141,10 @@ export default function CurationReviewPage() {
         onReviewWarnings={o.handleReviewWarnings}
         suggestionsCount={o.suggestionsCount}
         isBulkAccepting={o.isBulkAccepting}
-        reviewSessionActive={o.pass1DoneSession}
+        reviewSessionActive={o.pass1DoneSession || o.generateDoneSession}
+        generateDoneSession={o.generateDoneSession}
+        waveCompleted={o.waveProgress?.overallStatus === 'completed'}
+        onDismissCompletionBanner={() => o.setGenerateDoneSession(false)}
         phaseDescription={o.phaseDescription}
         legalEscrowBlocked={o.legalEscrowBlocked}
         blockingReason={o.blockingReason}
@@ -207,7 +210,7 @@ export default function CurationReviewPage() {
                 sectionAIFlags={o.sectionAIFlags}
                 highlightWarnings={o.highlightWarnings}
                 aiSuggestedComplexity={o.aiSuggestedComplexity}
-                reviewSessionActive={o.pass1DoneSession}
+                reviewSessionActive={o.pass1DoneSession || o.generateDoneSession}
                 groupReadiness={o.groupReadiness}
                 sectionReadiness={o.sectionReadiness}
                 dismissedPrereqBanner={o.dismissedPrereqBanner}
@@ -320,6 +323,14 @@ export default function CurationReviewPage() {
           currentPhase={o.challenge.current_phase}
           onFreezeForLegal={handleFreezeForLegal}
           contextLibraryReviewed={o.contextLibraryReviewed}
+          creatorApprovalRequired={(() => {
+            try {
+              const eb = typeof o.challenge?.extended_brief === 'string'
+                ? JSON.parse(o.challenge.extended_brief)
+                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+              return eb?.creator_approval_required === true;
+            } catch { return null; }
+          })()}
         />
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}

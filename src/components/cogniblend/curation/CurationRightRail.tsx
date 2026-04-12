@@ -10,6 +10,7 @@ import { Bot, Loader2, Sparkles, BookOpen } from "lucide-react";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
+import { CreatorApprovalStatusBanner } from "@/components/cogniblend/curation/CreatorApprovalStatusBanner";
 import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
 import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
@@ -72,6 +73,7 @@ export interface CurationRightRailProps {
   currentPhase?: number | null;
   onFreezeForLegal?: () => void;
   contextLibraryReviewed?: boolean;
+  creatorApprovalRequired?: boolean | null;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -166,6 +168,11 @@ export function CurationRightRail(props: CurationRightRailProps) {
       )}
 
       <CompletionBanner phase2Status={phase2Status} triageTotalCount={triageTotalCount} aiReviews={aiReviews} />
+
+      <CreatorApprovalStatusBanner
+        operatingModel={operatingModel}
+        creatorApprovalRequired={props.creatorApprovalRequired ?? null}
+      />
 
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
         checklistSummary={checklistSummary} completedCount={completedCount} totalCount={checklistSummary.length}

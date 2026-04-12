@@ -29,6 +29,7 @@ import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgress
 import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { QAManagementCard } from '@/components/cogniblend/manage/QAManagementCard';
 import { DuplicateReviewPanel } from '@/components/cogniblend/DuplicateReviewPanel';
+import { CreatorApprovalCard } from '@/components/cogniblend/manage/CreatorApprovalCard';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
@@ -336,6 +337,15 @@ export default function ChallengeManagePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ──────────────── Creator Approval Toggle (AGG only) ──────────────── */}
+      <CreatorApprovalCard
+        challengeId={data.challengeId}
+        operatingModel={data.operatingModel}
+        currentPhase={data.currentPhase}
+        extendedBrief={data.extendedBrief as import('@/integrations/supabase/types').Json | null}
+        userId={user?.id ?? ''}
+      />
 
       {/* ──────────────── CARD 3 — Amendments ──────────────── */}
       <AmendmentCard

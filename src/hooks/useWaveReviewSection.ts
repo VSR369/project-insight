@@ -38,6 +38,9 @@ export function useWaveReviewSection({
   ): Promise<'success' | 'error' | 'skipped'> => {
     if (action === 'skip') return 'skipped';
 
+    // Attachment-only sections: review only, never generate suggestions
+    const ATTACHMENT_ONLY_SECTIONS = new Set(['creator_references', 'reference_urls']);
+
     const store = getCurationFormStore(challengeId);
     store.getState().setReviewStatus(sectionKey, 'pending');
 
@@ -52,16 +55,23 @@ export function useWaveReviewSection({
         wave_action: action,
       };
 
-      if (pass1Only) body.pass1_only = true;
+      if (pass1Only || ATTACHMENT_ONLY_SECTIONS.has(sectionKey)) body.pass1_only = true;
 
+      // Only skip Pass 1 when real stored comments exist; otherwise run full Pass 1 + Pass 2
       if (skipAnalysis && providedCommentsBySectionKey) {
-        const existingComments = providedCommentsBySectionKey[sectionKey];
-        body.skip_analysis = true;
-        body.provided_comments = [{
-          section_key: sectionKey,
-          status: existingComments?.length ? 'warning' : 'generated',
-          comments: existingComments ?? [],
-        }];
+        const existingComments = providedCommentsBySectionKey[sectionKey] as Array<{ type?: string }> | undefined;
+        if (existingComments?.length) {
+          const hasWarningOrError = existingComments.some(
+            (c) => c.type === 'error' || c.type === 'warning',
+          );
+          body.skip_analysis = true;
+          body.provided_comments = [{
+            section_key: sectionKey,
+            status: hasWarningOrError ? 'warning' : 'pass',
+            comments: existingComments,
+          }];
+        }
+        // If no stored comments, fall through — run full Pass 1 + Pass 2
       }
 
       const { data, error } = await supabase.functions.invoke('review-challenge-sections', {

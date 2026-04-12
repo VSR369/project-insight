@@ -66,6 +66,7 @@ export function useCurationPageOrchestrator() {
     preFlightResult, setPreFlightResult, preFlightDialogOpen, setPreFlightDialogOpen,
     budgetShortfall, setBudgetShortfall, contextLibraryOpen, setContextLibraryOpen,
     pass1DoneSession, setPass1DoneSession,
+    generateDoneSession,
     aiQuality, setAiQuality, aiQualityLoading, setAiQualityLoading,
     lockedSendState, setLockedSendState,
     challenge, isLoading, orgTypeName,
@@ -154,6 +155,7 @@ export function useCurationPageOrchestrator() {
     setTriageTotalCount, setBudgetShortfall, setAiQuality, setAiQualityLoading,
     setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
     setPass1DoneSession,
+    setGenerateDoneSession: pageData.setGenerateDoneSession,
   });
 
   // ── Bulk accept all AI suggestions ──
@@ -279,6 +281,7 @@ export function useCurationPageOrchestrator() {
     escrowEnabled, setEscrowEnabled, isAcceptingAllLegal, preFlightResult,
     preFlightDialogOpen, setPreFlightDialogOpen, budgetShortfall, setBudgetShortfall,
     contextLibraryOpen, setContextLibraryOpen, pass1DoneSession,
+    generateDoneSession, setGenerateDoneSession: pageData.setGenerateDoneSession,
     contextLibraryReviewed,
     aiQuality, aiQualityLoading,
     lockedSendState, setLockedSendState, expandVersion, staleSections, curationStore, sectionActions,
