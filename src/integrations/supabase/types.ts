@@ -913,6 +913,7 @@ export type Database = {
       }
       challenge_attachments: {
         Row: {
+          access_status: string | null
           challenge_id: string
           confidence_score: number | null
           created_at: string | null
@@ -944,6 +945,7 @@ export type Database = {
           url_title: string | null
         }
         Insert: {
+          access_status?: string | null
           challenge_id: string
           confidence_score?: number | null
           created_at?: string | null
@@ -975,6 +977,7 @@ export type Database = {
           url_title?: string | null
         }
         Update: {
+          access_status?: string | null
           challenge_id?: string
           confidence_score?: number | null
           created_at?: string | null
