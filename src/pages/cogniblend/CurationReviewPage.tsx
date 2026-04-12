@@ -323,6 +323,14 @@ export default function CurationReviewPage() {
           currentPhase={o.challenge.current_phase}
           onFreezeForLegal={handleFreezeForLegal}
           contextLibraryReviewed={o.contextLibraryReviewed}
+          creatorApprovalRequired={(() => {
+            try {
+              const eb = typeof o.challenge?.extended_brief === 'string'
+                ? JSON.parse(o.challenge.extended_brief)
+                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+              return eb?.creator_approval_required === true;
+            } catch { return null; }
+          })()}
         />
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}
