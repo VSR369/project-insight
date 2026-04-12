@@ -135,14 +135,12 @@ export function useCurationApprovalActions({
   }, [challengeId, queryClient, setIsAcceptingAllLegal]);
 
   const handleMarkAddressed = useCallback((sectionKey: string) => {
+    // Only update local state — preserve comments for audit history.
+    // Store sync (useCurationStoreSync) will persist the addressed flag via debounced save.
     setAiReviews((prev) => prev.map((r) =>
-      r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
+      r.section_key === sectionKey ? { ...r, addressed: true } : r
     ));
-    const updated = aiReviews.map((r) =>
-      r.section_key === sectionKey ? { ...r, addressed: true, comments: [] } : r
-    );
-    saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: updated });
-  }, [aiReviews, setAiReviews, saveSectionMutationRef]);
+  }, [setAiReviews]);
 
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));

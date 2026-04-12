@@ -150,21 +150,25 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     }
   }, [review, refinedContent, isRefining, isLockedSection, selectedComments.size, sectionKey, suppressAutoRefine]);
 
-  // Reset auto-refine on review change
+  // Reset auto-refine on review change — preserve refinedContent if new review has a suggestion
   useEffect(() => {
-    const commentHash = (review?.comments ?? []).map((c: any) =>
-      typeof c === 'string' ? c : c.text ?? JSON.stringify(c)
+    const commentHash = (review?.comments ?? []).map((c: unknown) =>
+      typeof c === 'string' ? c : (c as Record<string, unknown>)?.text ?? JSON.stringify(c)
     ).join('\x1f');
     const sig = `${review?.reviewed_at}|${review?.status}|${commentHash}`;
     if (prevReviewSignature.current !== null && prevReviewSignature.current !== sig) {
       autoRefineTriggered.current = false;
-      setRefinedContent(null);
+      // Only clear refinedContent if the incoming review has no suggestion;
+      // otherwise let the seeding effect (line 99) handle it on the next tick
+      if (review?.suggestion == null) {
+        setRefinedContent(null);
+      }
       setEditedSuggestedContent(null);
       setEditedDeliverableItems(null);
       setSelectedItems(new Set());
     }
     prevReviewSignature.current = sig;
-  }, [review?.reviewed_at, review?.status, review?.comments]);
+  }, [review?.reviewed_at, review?.status, review?.comments, review?.suggestion]);
 
   // Parsed items
   const structuredItems = useMemo(() => {
@@ -340,6 +344,16 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     }
 
     if (!refinedContent) {
+      // Fallback: use review.suggestion directly if refinedContent was cleared by race condition
+      if (review?.suggestion != null) {
+        const fallback = typeof review.suggestion === 'string' ? review.suggestion : JSON.stringify(review.suggestion);
+        if (fallback.trim().length > 0) {
+          setRefinedContent(fallback);
+          // Re-invoke accept on next tick with the seeded content
+          setTimeout(() => handleAccept(), 0);
+          return;
+        }
+      }
       if (review?.status === 'pass') { setIsAddressed(true); setIsOpen(false); onMarkAddressed?.(sectionKey); return; }
       toast.error("No AI suggestion available to accept. Try re-reviewing the section first.");
       return;
@@ -395,7 +409,7 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     setRefinedContent(null); setEditedComments([]); setSelectedItems(new Set());
     setEditedSuggestedContent(null); setEditedDeliverableItems(null);
     setIsAddressed(true); setIsOpen(false); onMarkAddressed?.(sectionKey);
-  }, [refinedContent, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects, complexityRatings]);
+  }, [refinedContent, review, onAcceptRefinement, sectionKey, onMarkAddressed, isStructured, structuredItems, selectedItems, isMasterData, suggestedCodes, masterDataOptions, editedSuggestedContent, isDeliverableLike, editedDeliverableItems, parsedDeliverableObjects, complexityRatings]);
 
   const handleDiscard = useCallback(() => {
     setRefinedContent(null); setSelectedItems(new Set());
