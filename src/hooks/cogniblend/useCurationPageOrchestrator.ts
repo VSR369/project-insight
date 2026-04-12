@@ -156,8 +156,6 @@ export function useCurationPageOrchestrator() {
     setPass1DoneSession,
   });
 
-  const handleAcceptAllPassing = useCallback(() => aiActionsHook.handleAcceptAllPassing(sectionActionsHook.handleMarkAddressed), [aiActionsHook, sectionActionsHook.handleMarkAddressed]);
-
   // ── Bulk accept all AI suggestions ──
   const [isBulkAccepting, setIsBulkAccepting] = useState(false);
 
@@ -287,7 +285,7 @@ export function useCurationPageOrchestrator() {
     ...computedValues,
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
-    ...sectionActionsHook, ...aiActionsHook, handleAcceptAllPassing,
+    ...sectionActionsHook, ...aiActionsHook,
     handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting,
     ...waveSetup, executeWavesWithBudgetCheck: aiActionsHook.executeWavesWithBudgetCheck,
     ...callbacks, handleExpandCollapseAll, handleApproveLockedSection, handleUndoApproval,

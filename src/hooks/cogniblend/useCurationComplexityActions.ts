@@ -85,7 +85,6 @@ export function useCurationComplexityActions({
 
   return {
     handleComplexityReReview,
-    handleAcceptAllPassing,
     handleReviewWarnings,
   };
 }
