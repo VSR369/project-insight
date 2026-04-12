@@ -122,8 +122,8 @@ export function SourceDetail({
   isReExtractPending = false,
 }: SourceDetailProps) {
   const isPending = source.extraction_status === 'pending' || source.extraction_status === 'processing';
-  const isSparse = (source as Record<string, unknown>).extraction_method === 'url_meta_only'
-    || (source as Record<string, unknown>).extraction_method === 'url_html_sparse';
+  const extractionMethod = (source as unknown as Record<string, string | null>).extraction_method ?? '';
+  const isSparse = extractionMethod === 'url_meta_only' || extractionMethod === 'url_html_sparse';
 
   useEffect(() => {
     if (!isPending) return;

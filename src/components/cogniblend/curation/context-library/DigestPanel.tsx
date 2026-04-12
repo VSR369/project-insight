@@ -207,7 +207,7 @@ function EditMode({
         </div>
 
         <TabsContent value="edit" className="mt-2 space-y-1.5">
-          <RichTextEditor value={draft} onChange={setDraft} minHeight="200px" />
+          <RichTextEditor value={draft} onChange={setDraft} />
           {coverage.missing.length > 0 && (
             <div className="flex items-start gap-1.5 text-[10px] text-amber-600">
               <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
