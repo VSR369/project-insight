@@ -231,8 +231,11 @@ export function useCurationComputedValues({
     challenge?.solution_type, challenge?.operating_model,
   ]);
 
+  const suggestionsCount = 0; // Computed externally via Zustand store in orchestrator
+
   return {
     aiReviewCounts,
+    suggestionsCount,
     autoChecks,
     checklistItems,
     completedCount,

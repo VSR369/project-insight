@@ -137,8 +137,10 @@ export default function CurationReviewPage() {
         userId={o.user?.id}
         userRoleCodes={o.userRoleCodes}
         aiReviewCounts={o.aiReviewCounts}
-        onAcceptAllPassing={o.handleAcceptAllPassing}
+        onAcceptAllSuggestions={o.handleAcceptAllSuggestions}
         onReviewWarnings={o.handleReviewWarnings}
+        suggestionsCount={o.suggestionsCount}
+        isBulkAccepting={o.isBulkAccepting}
         reviewSessionActive={o.pass1DoneSession}
         phaseDescription={o.phaseDescription}
         legalEscrowBlocked={o.legalEscrowBlocked}

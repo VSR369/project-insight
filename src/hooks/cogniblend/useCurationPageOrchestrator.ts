@@ -157,6 +157,63 @@ export function useCurationPageOrchestrator() {
 
   const handleAcceptAllPassing = useCallback(() => aiActionsHook.handleAcceptAllPassing(sectionActionsHook.handleMarkAddressed), [aiActionsHook, sectionActionsHook.handleMarkAddressed]);
 
+  // ── Bulk accept all AI suggestions ──
+  const [isBulkAccepting, setIsBulkAccepting] = useState(false);
+
+  // Use a reactive selector from the store for suggestionsCount
+  const suggestionsFingerprint = curationStore
+    ? curationStore((s) => Object.entries(s.sections)
+        .filter(([, v]) => v?.aiSuggestion && !v.addressed)
+        .map(([k]) => k).sort().join(','))
+    : '';
+  const suggestionsCount = useMemo(() => {
+    if (!curationStore) return 0;
+    const { countPendingSuggestions } = require('@/lib/cogniblend/bulkAcceptHelpers') as typeof import('@/lib/cogniblend/bulkAcceptHelpers');
+    return countPendingSuggestions(curationStore.getState().sections);
+  }, [curationStore, suggestionsFingerprint]);
+
+  const handleAcceptAllSuggestions = useCallback(async () => {
+    if (!curationStore || !challenge) return;
+    const { partitionSuggestionsForBulkAccept } = await import('@/lib/cogniblend/bulkAcceptHelpers');
+
+    const partition = partitionSuggestionsForBulkAccept(curationStore.getState().sections);
+    const totalCount = partition.regular.length + partition.extendedBrief.length;
+    if (totalCount === 0) { toast.info('No pending AI suggestions to accept.'); return; }
+
+    setIsBulkAccepting(true);
+    try {
+      // 1. Regular sections — staggered 100ms
+      for (const item of partition.regular) {
+        await sectionActionsHook.handleAcceptRefinement(item.key, item.suggestion);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // 2. Extended brief subsections — batched single write
+      if (partition.extendedBrief.length > 0) {
+        for (const item of partition.extendedBrief) {
+          await sectionActionsHook.handleAcceptExtendedBriefRefinement(item.key, item.suggestion);
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+
+      // 3. Mark all as addressed in store
+      const allKeys = [
+        ...partition.regular.map(i => i.key),
+        ...partition.extendedBrief.map(i => i.key),
+      ];
+      for (const key of allKeys) {
+        curationStore.getState().setAddressedOnly(key);
+      }
+
+      toast.success(`Accepted AI suggestions for ${totalCount} section${totalCount !== 1 ? 's' : ''}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Bulk accept failed: ${message}`);
+    } finally {
+      setIsBulkAccepting(false);
+    }
+  }, [curationStore, challenge, sectionActionsHook]);
+
   // ── Computed values ──
   const computedValues = useCurationComputedValues({
     challenge: challenge as ChallengeData | null, legalDocs, legalDetails, escrowRecord, aiQuality, aiReviews, staleSections, manualOverrides,
@@ -232,6 +289,7 @@ export function useCurationPageOrchestrator() {
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
     ...sectionActionsHook, ...aiActionsHook, handleAcceptAllPassing,
+    handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting,
     ...waveSetup, executeWavesWithBudgetCheck: aiActionsHook.executeWavesWithBudgetCheck,
     ...callbacks, handleExpandCollapseAll, handleApproveLockedSection, handleUndoApproval,
     getSectionActions: getSectionActionsForKey,
