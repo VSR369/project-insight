@@ -174,7 +174,6 @@ export function useCurationPageOrchestrator() {
 
   const handleAcceptAllSuggestions = useCallback(async () => {
     if (!curationStore || !challenge) return;
-    const { partitionSuggestionsForBulkAccept } = await import('@/lib/cogniblend/bulkAcceptHelpers');
 
     const partition = partitionSuggestionsForBulkAccept(curationStore.getState().sections);
     const totalCount = partition.regular.length + partition.extendedBrief.length;
