@@ -671,8 +671,6 @@ export default function AIReviewConfigPage() {
                     {globalSaving ? 'Saving...' : 'Save Global Settings'}
                   </Button>
                 </div>
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
