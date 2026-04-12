@@ -46,7 +46,7 @@ const ROLE_OPTIONS = [
   { value: 'ER', label: 'Evaluator/Reviewer' },
   { value: 'LC', label: 'Legal Coordinator' },
   { value: 'FC', label: 'Finance Coordinator' },
-  { value: 'SOLVER', label: 'Solver' },
+  { value: 'SOLVER', label: 'Solution Provider' },
 ] as const;
 
 export function LegalDocTriggerForm({ open, onOpenChange, trigger, onSubmit, isLoading }: LegalDocTriggerFormProps) {

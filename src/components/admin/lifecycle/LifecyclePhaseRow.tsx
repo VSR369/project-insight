@@ -23,7 +23,7 @@ const ROLE_OPTIONS = [
 const PHASE_TYPE_OPTIONS = [
   { value: 'seeker_manual', label: 'Manual' },
   { value: 'seeker_auto', label: 'Auto' },
-  { value: 'solver_action', label: 'Solver' },
+  { value: 'solver_action', label: 'Solution Provider' },
   { value: 'system_auto', label: 'System' },
   { value: 'parallel_compliance', label: 'Compliance' },
 ];

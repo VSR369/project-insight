@@ -121,7 +121,7 @@ export default function AIQualityDashboardPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">AI Quality Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Track AI accuracy, curator edits, and solver feedback</p>
+        <p className="text-sm text-muted-foreground">Track AI accuracy, curator edits, and Solution Provider feedback</p>
       </div>
 
       {/* Filters */}
@@ -212,7 +212,7 @@ export default function AIQualityDashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Star className="h-4 w-4" /> Solver Clarity
+              <Star className="h-4 w-4" /> Solution Provider Clarity
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -232,7 +232,7 @@ export default function AIQualityDashboardPage() {
           <TabsTrigger value="grades">Grade Distribution</TabsTrigger>
           <TabsTrigger value="heatmap">Section Heatmap</TabsTrigger>
           <TabsTrigger value="recent">Recent Challenges</TabsTrigger>
-          <TabsTrigger value="feedback">Solver Feedback</TabsTrigger>
+          <TabsTrigger value="feedback">Solution Provider Feedback</TabsTrigger>
         </TabsList>
 
         <TabsContent value="grades">
@@ -376,7 +376,7 @@ export default function AIQualityDashboardPage() {
                     {(!solverFeedback || solverFeedback.length === 0) && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-muted-foreground">
-                          No solver feedback yet.
+                          No Solution Provider feedback yet.
                         </td>
                       </tr>
                     )}

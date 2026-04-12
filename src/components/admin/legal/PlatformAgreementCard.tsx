@@ -17,7 +17,7 @@ interface PlatformAgreementCardProps {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  solver: 'Solvers',
+  solver: 'Solution Providers',
   seeker: 'Seekers',
 };
 

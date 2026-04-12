@@ -61,7 +61,7 @@ export default function IncentivesPage() {
     { name: "minimum_complexity", label: "Minimum Complexity", type: "select", options: COMPLEXITY_OPTIONS, required: true },
     { name: "seeker_requirement", label: "Seeker Requirement", type: "textarea", required: true },
     { name: "credibility_note", label: "Credibility Note", type: "textarea", required: true },
-    { name: "solver_appeal", label: "Solver Appeal", type: "select", options: SOLVER_APPEAL_OPTIONS, required: true },
+    { name: "solver_appeal", label: "Solution Provider Appeal", type: "select", options: SOLVER_APPEAL_OPTIONS, required: true },
     { name: "display_order", label: "Display Order", type: "number", min: 0 },
     { name: "is_active", label: "Active", type: "switch" },
   ];
@@ -110,7 +110,7 @@ export default function IncentivesPage() {
     { label: "Minimum Complexity", value: selected.minimum_complexity },
     { label: "Seeker Requirement", value: selected.seeker_requirement },
     { label: "Credibility Note", value: selected.credibility_note },
-    { label: "Solver Appeal", value: selected.solver_appeal.replace(/_/g, " ") },
+    { label: "Solution Provider Appeal", value: selected.solver_appeal.replace(/_/g, " ") },
     { label: "Status", value: selected.is_active, type: "boolean" },
     { label: "Created At", value: selected.created_at, type: "date" },
   ] : [];
