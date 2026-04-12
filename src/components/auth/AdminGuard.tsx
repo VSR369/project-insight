@@ -57,7 +57,15 @@ function AdminRoleCheck({ children }: { children: ReactNode }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      {children}
+    </Suspense>
+  );
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
