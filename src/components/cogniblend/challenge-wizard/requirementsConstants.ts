@@ -42,13 +42,13 @@ export const IP_OPTIONS = [
     value: 'IP-JO',
     label: 'Joint Ownership',
     short: 'Both parties co-own',
-    tooltip: 'Both you and the solver share ownership of the intellectual property. Either party may use or license it, subject to the agreement terms.',
+    tooltip: 'Both you and the Solution Provider share ownership of the intellectual property. Either party may use or license it, subject to the agreement terms.',
   },
   {
     value: 'IP-NONE',
     label: 'No Transfer',
     short: 'Advisory only',
-    tooltip: 'No intellectual property transfer occurs. The engagement is advisory in nature — the solver provides guidance, recommendations, or consulting only.',
+    tooltip: 'No intellectual property transfer occurs. The engagement is advisory in nature — the Solution Provider provides guidance, recommendations, or consulting only.',
   },
 ] as const;
 
