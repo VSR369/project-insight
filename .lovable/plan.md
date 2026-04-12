@@ -1,96 +1,132 @@
 
 
-## Fix: Accept Suggestion Not Updating Section Content
+## Audit & Fix: Generate Suggestions + Accept Flow
 
-### Root Cause Analysis
+### Issues Found
 
-Two interrelated bugs prevent Accept from working:
+**Bug 1: `handleMarkAddressed` doesn't persist `addressed: true` to DB**
 
-**Bug 1 — Effect Race Condition (refinedContent cleared after seeding)**
+The previous fix removed `saveSectionMutation.mutate()` from `handleMarkAddressed` (to prevent a double-mutation crash), but nothing replaced it. The function now only calls `setAiReviews` (React state), which is never synced to the database. On page refresh, all sections revert to `addressed: false`.
 
-In `useAIReviewInlineState.ts`, two effects fire in the same render when a Pass 2 review arrives:
+The Zustand store has a `markAddressed(key)` method that would trigger `useCurationStoreSync` → DB persistence, but it's never called. Additionally, `markAddressed` clears `aiComments: null`, destroying audit history.
 
-```text
-Effect 1 (line 99): Seeds refinedContent from review.suggestion
-Effect 2 (line 154): Detects review signature change → clears refinedContent = null
+**Bug 2: Suggestions missing for "pass" sections with no actionable comments**
 
-React runs them in declaration order. Effect 2 overwrites Effect 1.
-Result: refinedContent is null. User either sees no suggestion at all,
-or if it briefly appears, handleAccept hits "No AI suggestion available" guard.
-```
+When Pass 2 runs via `skipAnalysis`, sections that Pass 1 marked as "pass" with only strength/best_practice comments still have `comments.length > 0`, so they enter `pass2CommentMap` and get `provided_comments` with `status: 'warning'`. However, if a section had `status: 'pass'` with ZERO comments, it's excluded from `pass2CommentMap`, causing the edge function to run a full fresh two-pass. This works but is inefficient. The real gap: sections with `status: 'pass'` and only strength comments get through to Pass 2 with `status: 'warning'`, but the AI may choose not to generate a substantial suggestion because the comments are all positive. The edge function returns `suggestion: null` for these.
 
-The auto-refine fallback (line 116) that would re-seed is blocked by `suppressAutoRefine={reviewSessionActive}` in the curation workflow. And even when not suppressed, it short-circuits on line 134 (`if (review.suggestion != null) return;`) assuming the seeding effect already handled it — but it didn't, because the reset effect cleared it.
+**Bug 3: `handleAccept` → `onAcceptRefinement` saves content, but `onMarkAddressed` fails silently**
 
-**Bug 2 — Double-mutation on same useMutation instance**
-
-`handleAccept` calls both:
-1. `onAcceptRefinement(sectionKey, content)` → `saveSectionMutation.mutate({ field: dbField, value })` 
-2. `onMarkAddressed(sectionKey)` → `saveSectionMutation.mutate({ field: 'ai_section_reviews', value })`
-
-TanStack Query's `useMutation.mutate()` called twice in the same tick discards `onSuccess` for the first call. If the section data mutation is first and its `onSuccess` (which invalidates the query) is discarded, the UI may not refetch at all — it only refetches if the second mutation's `onSuccess` fires.
+In `useAIReviewInlineState.ts` line 411, after `onAcceptRefinement` saves the content, `onMarkAddressed` is called synchronously. With the current broken `handleMarkAddressed`, the addressed flag is lost.
 
 ### Fix Plan
 
-**File 1: `src/components/cogniblend/shared/useAIReviewInlineState.ts`**
+#### File 1: `src/hooks/cogniblend/useCurationApprovalActions.ts`
 
-1. **Fix the effect race**: Move the reset logic to run BEFORE the seeding logic, or merge them into a single effect. The safest approach: in the reset effect (line 154-167), do NOT clear `refinedContent` if the new review has a `suggestion`. Instead, let the seeding effect handle it on the next tick.
+**Fix `handleMarkAddressed` to persist via Zustand store:**
 
-   Concrete change: In the reset effect, skip clearing `refinedContent` when the incoming review has a non-null `suggestion`:
-   ```typescript
-   // Reset effect — only clear refinedContent if the new review has no suggestion
-   if (prevReviewSignature.current !== null && prevReviewSignature.current !== sig) {
-     autoRefineTriggered.current = false;
-     if (review?.suggestion == null) {
-       setRefinedContent(null);
-     }
-     setEditedSuggestedContent(null);
-     setEditedDeliverableItems(null);
-     setSelectedItems(new Set());
-   }
-   ```
-
-   Also add `review?.suggestion` to the reset effect's deps so it re-evaluates when suggestion appears.
-
-2. **Add fallback in handleAccept**: If `refinedContent` is null but `review.suggestion` exists, use `review.suggestion` directly as a last-resort fallback before showing the error toast.
-
-**File 2: `src/hooks/cogniblend/useCurationApprovalActions.ts`**
-
-3. **Decouple handleMarkAddressed from saveSectionMutation**: `handleMarkAddressed` should NOT call `saveSectionMutation.mutate()` for `ai_section_reviews`. Instead, it should only update local state (`setAiReviews`). The Zustand store sync will persist the addressed state via its debounced save. This eliminates the double-mutation problem.
-
-   ```typescript
-   const handleMarkAddressed = useCallback((sectionKey: string) => {
-     setAiReviews((prev) => prev.map((r) =>
-       r.section_key === sectionKey ? { ...r, addressed: true } : r
-     ));
-     // No saveSectionMutation.mutate here — store sync handles persistence
-   }, [setAiReviews]);
-   ```
-
-   Also: stop clearing `comments: []` — addressed doesn't mean comments should be deleted. Comments should remain for audit/history.
-
-### Files to Change
-
-| File | Change |
-|------|--------|
-| `src/components/cogniblend/shared/useAIReviewInlineState.ts` | Fix effect race, add fallback in handleAccept |
-| `src/hooks/cogniblend/useCurationApprovalActions.ts` | Decouple handleMarkAddressed from mutation |
-
-### Technical Detail
-
-```text
-Current broken flow:
-Pass 2 arrives → seed effect sets refinedContent → reset effect clears it
-→ refinedContent = null → Accept hits guard → "No AI suggestion" error
-
-OR:
-refinedContent is set → Accept calls two mutations on same useMutation
-→ first mutation's onSuccess (query invalidation) discarded
-→ DB saves but UI doesn't refetch
-
-Fixed flow:
-Pass 2 arrives → reset effect skips clearing (suggestion exists)
-→ seed effect sets refinedContent → user sees suggestion
-→ Accept calls onAcceptRefinement → single mutation fires → onSuccess invalidates
-→ handleMarkAddressed only updates local state → store sync persists later
+```typescript
+const handleMarkAddressed = useCallback((sectionKey: string) => {
+  // Update React state for immediate UI feedback
+  setAiReviews((prev) => prev.map((r) =>
+    r.section_key === sectionKey ? { ...r, addressed: true } : r
+  ));
+  
+  // Also update Zustand store → triggers useCurationStoreSync → DB persistence
+  // Use a dedicated method that preserves comments (unlike markAddressed which clears them)
+  const store = getCurationFormStore(challengeId);
+  const entry = store.getState().getSectionEntry(sectionKey as SectionKey);
+  store.getState().setAiReview(
+    sectionKey as SectionKey,
+    entry.aiComments ?? [],
+    entry.aiSuggestion,
+  );
+  // Set addressed flag directly on the store entry
+  store.setState((state) => ({
+    sections: {
+      ...state.sections,
+      [sectionKey]: {
+        ...(state.sections[sectionKey as SectionKey] ?? createEmptySectionEntry()),
+        addressed: true,
+      },
+    },
+  }));
+}, [setAiReviews, challengeId]);
 ```
+
+Wait — `store.setState` isn't exposed on the zustand store created with `persist`. I need to use an existing store method or add one.
+
+**Better approach:** Add a new `setAddressedOnly` method to the Zustand store that sets `addressed: true` WITHOUT clearing comments.
+
+#### File 2: `src/store/curationFormStore.ts`
+
+Add `setAddressedOnly` method:
+
+```typescript
+setAddressedOnly: (key: SectionKey) =>
+  set((state) => ({
+    sections: {
+      ...state.sections,
+      [key]: {
+        ...(state.sections[key] ?? createEmptySectionEntry()),
+        addressed: true,
+        // DO NOT clear aiComments — preserve for audit history
+      },
+    },
+  })),
+```
+
+#### File 1 (revised): `src/hooks/cogniblend/useCurationApprovalActions.ts`
+
+```typescript
+const handleMarkAddressed = useCallback((sectionKey: string) => {
+  // React state for immediate UI
+  setAiReviews((prev) => prev.map((r) =>
+    r.section_key === sectionKey ? { ...r, addressed: true } : r
+  ));
+  // Zustand store → triggers store sync → DB persistence
+  const store = getCurationFormStore(challengeId);
+  store.getState().setAddressedOnly(sectionKey as SectionKey);
+}, [setAiReviews, challengeId]);
+```
+
+Add import for `getCurationFormStore` and `SectionKey`.
+
+#### File 3: `src/hooks/useCurationStoreSync.ts` (lines 127-136)
+
+The store sync builds `reviewEntries` from the Zustand store. Currently it always overwrites `comments` and `status` from the store entry. When `setAddressedOnly` fires, the store sync must correctly emit `addressed: true` while preserving existing review data.
+
+Current code already reads `entry.addressed` (line 134), so once the Zustand store is updated, the sync will pick it up correctly. No changes needed here.
+
+#### File 4: `src/hooks/useWaveReviewSection.ts` (lines 57-66)
+
+For sections with NO comments in `pass2CommentMap`, `skip_analysis` is not set, causing a full re-analysis. This is wasteful and can produce different Pass 1 results than the original analysis. Fix: when `skipAnalysis` is true but no comments exist for a section, still set `skip_analysis` with an empty provided_comments that has status 'pass' — this tells the edge function to skip Pass 1 but still run Pass 2 for content generation:
+
+```typescript
+if (skipAnalysis && providedCommentsBySectionKey) {
+  const existingComments = providedCommentsBySectionKey[sectionKey];
+  body.skip_analysis = true;
+  body.provided_comments = [{
+    section_key: sectionKey,
+    status: existingComments?.length ? 'warning' : 'generated',
+    comments: existingComments ?? [],
+  }];
+}
+```
+
+This ensures ALL sections get Pass 2 suggestions during Generate Suggestions, regardless of whether they had Pass 1 comments.
+
+#### File 5: `supabase/functions/review-challenge-sections/aiPass2.ts` (line 40-48)
+
+The filter `sectionsNeedingSuggestion` currently skips sections with `status: 'pass'` and no actionable comments. Add `status === 'generated'` is already there. But with the client fix above, all sections come through with either 'warning' or 'generated' status. However, as a safety net, also include sections where `waveAction` is not 'review':
+
+No changes needed — the client fix ensures correct status values reach here.
+
+### Summary of Changes
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `src/store/curationFormStore.ts` | Add `setAddressedOnly(key)` method that preserves comments |
+| 2 | `src/hooks/cogniblend/useCurationApprovalActions.ts` | Call `setAddressedOnly` on Zustand store for DB persistence |
+| 3 | `src/hooks/useWaveReviewSection.ts` | Always set `skip_analysis` during Pass 2, even for commentless sections |
+| 4 | Deploy edge function | No code changes, just redeploy with existing code |
 
