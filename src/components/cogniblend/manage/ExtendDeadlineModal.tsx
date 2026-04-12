@@ -199,7 +199,7 @@ export function ExtendDeadlineModal({
               onCheckedChange={(checked) => setNotifySolvers(checked === true)}
             />
             <Label htmlFor="notify-solvers" className="text-xs text-foreground cursor-pointer">
-              Notify all enrolled solvers
+              Notify all enrolled Solution Providers
             </Label>
           </div>
         </div>

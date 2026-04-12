@@ -45,17 +45,17 @@ const WORKFLOW_STEPS: Record<number, WorkflowStep> = {
   4: {
     step: 4,
     label: 'Published',
-    nextLabel: 'Solver Flow',
-    nextRole: 'Solvers',
-    description: 'Challenge is live and accepting submissions from solvers.',
-  },
-  5: {
-    step: 5,
-    label: 'Solver Flow',
-    nextLabel: 'Award & Close',
-    nextRole: 'Expert Reviewer (ER)',
-    description: 'Solvers submit abstracts and solutions; expert reviewers evaluate them.',
-  },
+     nextLabel: 'Solution Provider Flow',
+     nextRole: 'Solution Providers',
+     description: 'Challenge is live and accepting submissions from Solution Providers.',
+   },
+   5: {
+     step: 5,
+     label: 'Solution Provider Flow',
+     nextLabel: 'Award & Close',
+     nextRole: 'Expert Reviewer (ER)',
+     description: 'Solution Providers submit abstracts and solutions; expert reviewers evaluate them.',
+   },
   6: {
     step: 6,
     label: 'Award & Close',

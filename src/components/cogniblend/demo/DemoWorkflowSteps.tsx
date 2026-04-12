@@ -19,7 +19,7 @@ function buildSteps(mode: GovernanceMode): Step[] {
     return [
       { label: 'Create', role: 'CR', description: 'Creator submits problem brief with 5 fields' },
       { label: 'Auto-Complete', role: 'System', description: 'Curation + Legal + Publication handled automatically' },
-      { label: 'Solver Submit', role: 'Solver', description: 'Solvers submit abstracts' },
+      { label: 'SP Submit', role: 'Solution Provider', description: 'Solution Providers submit abstracts' },
     ];
   }
 
@@ -29,7 +29,7 @@ function buildSteps(mode: GovernanceMode): Step[] {
       { label: 'Curation', role: 'CU', description: '14-point checklist + AI review + dual curation' },
       { label: 'Compliance', role: 'LC + FC', description: 'AI-powered legal review + mandatory escrow deposit (parallel)' },
       { label: 'Publication', role: 'System', description: 'Challenge published with full audit snapshot' },
-      { label: 'Solver Submit', role: 'Solver', description: 'Solvers submit proposals' },
+       { label: 'SP Submit', role: 'Solution Provider', description: 'Solution Providers submit proposals' },
     ];
   }
 
@@ -39,7 +39,7 @@ function buildSteps(mode: GovernanceMode): Step[] {
     { label: 'Curation', role: 'CU', description: 'Curator reviews with 14-point quality checklist' },
     { label: 'Compliance', role: 'LC', description: 'Legal review on curated version. Optional escrow.' },
     { label: 'Publication', role: 'System', description: 'Challenge goes live' },
-    { label: 'Solver Submit', role: 'Solver', description: 'Solvers submit proposals' },
+    { label: 'SP Submit', role: 'Solution Provider', description: 'Solution Providers submit proposals' },
   ];
 }
 

@@ -83,11 +83,11 @@ export function ChallengeConfigSummary({
         <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 flex items-start gap-2.5">
           <Zap className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-emerald-800">Express Mode — Direct to Solvers</p>
-            <p className="text-xs text-emerald-700 mt-0.5">
-              {operatingModel === 'AGG'
-                ? 'This challenge was published directly to matching solvers in your organization\'s network. No separate Curator or legal review — platform defaults applied automatically.'
-                : 'This challenge was published on the open marketplace. All qualified solvers can discover, enroll, and submit solutions. The platform team manages solver engagement.'}
+             <p className="text-sm font-medium text-emerald-800">Express Mode — Direct to Solution Providers</p>
+             <p className="text-xs text-emerald-700 mt-0.5">
+               {operatingModel === 'AGG'
+                 ? 'This challenge was published directly to matching Solution Providers in your organization\'s network. No separate Curator or legal review — platform defaults applied automatically.'
+                 : 'This challenge was published on the open marketplace. All qualified Solution Providers can discover, enroll, and submit solutions. The platform team manages Solution Provider engagement.'}
             </p>
           </div>
         </div>
@@ -102,8 +102,8 @@ export function ChallengeConfigSummary({
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {effectiveGovernance === 'CONTROLLED'
-                ? 'Your challenge goes through: Curator review (advisory AI review) → Legal Coordinator review → Financial Coordinator escrow deposit → Publication to solvers.'
-                : 'Your challenge goes through: Curator review (includes legal & fee verification) → Publication to solvers.'}
+                 ? 'Your challenge goes through: Curator review (advisory AI review) → Legal Coordinator review → Financial Coordinator escrow deposit → Publication to Solution Providers.'
+                 : 'Your challenge goes through: Curator review (includes legal & fee verification) → Publication to Solution Providers.'}
             </p>
           </div>
         </div>

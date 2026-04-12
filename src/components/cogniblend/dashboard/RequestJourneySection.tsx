@@ -37,7 +37,7 @@ const PHASE_LABELS: Record<number, string> = {
 
 const PHASE_OWNER: Record<number, string> = {
   1: 'Challenge Creator (CR)', 2: 'Challenge Creator (CR)', 3: 'Legal Coordinator (LC)', 4: 'Curator (CU)',
-  5: 'Curator (CU)', 6: 'Curator (CU)', 7: 'Solvers (Open)',
+  5: 'Curator (CU)', 6: 'Curator (CU)', 7: 'Solution Providers (Open)',
   8: 'Evaluation Reviewer (ER)', 9: 'Curator (CU)', 10: 'Finance Controller (FC)',
   11: 'Legal Coordinator (LC)', 12: 'Finance Controller (FC)', 13: 'Challenge Creator (CR)',
 };
