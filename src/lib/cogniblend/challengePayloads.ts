@@ -59,6 +59,9 @@ export interface SubmitPayload {
   evaluatorCount?: number;
   creatorLegalInstructions?: string;
   phaseDurations?: Array<{ phase_number: number; label: string; target_date: string; duration_days: number }>;
+  creatorApprovalRequired?: boolean;
+  communityCreationAllowed?: boolean;
+  isAnonymous?: boolean;
 }
 
 export interface DraftPayload {
@@ -107,6 +110,9 @@ export interface DraftPayload {
   evaluatorCount?: number;
   creatorLegalInstructions?: string;
   phaseDurations?: Array<{ phase_number: number; label: string; target_date: string; duration_days: number }>;
+  creatorApprovalRequired?: boolean;
+  communityCreationAllowed?: boolean;
+  isAnonymous?: boolean;
 }
 
 export interface SubmitResult {
@@ -160,6 +166,10 @@ export function buildChallengeUpdatePayload(
       ? { current_deficiencies: fp.currentDeficiencies.filter(Boolean) }
       : {}),
     ...(fp.referenceUrls?.length ? { reference_urls: fp.referenceUrls } : {}),
+    // Challenge preferences
+    creator_approval_required: fp.creatorApprovalRequired ?? true,
+    community_creation_allowed: fp.communityCreationAllowed ?? false,
+    is_anonymous: fp.isAnonymous ?? false,
   };
 
   const rawResult = {

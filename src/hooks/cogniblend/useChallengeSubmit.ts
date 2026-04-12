@@ -83,6 +83,10 @@ export function useChallengeSubmit() {
         ...(filteredPayload.solutionExpectations ? { solution_expectations: filteredPayload.solutionExpectations } : {}),
         ...(filteredPayload.currentDeficiencies?.filter(Boolean).length ? { current_deficiencies: filteredPayload.currentDeficiencies.filter(Boolean) } : {}),
         ...(filteredPayload.referenceUrls?.length ? { reference_urls: filteredPayload.referenceUrls } : {}),
+        // Challenge preferences
+        creator_approval_required: payload.creatorApprovalRequired ?? true,
+        community_creation_allowed: payload.communityCreationAllowed ?? false,
+        is_anonymous: payload.isAnonymous ?? false,
       };
       const filteredExtendedBrief = stripHiddenExtendedBriefFields(rawExtendedBrief, governanceRules);
 
@@ -144,6 +148,10 @@ export function useChallengeSubmit() {
         ...(filteredPayload.currentDeficiencies ? { current_deficiencies: filteredPayload.currentDeficiencies } : {}),
         ...(filteredPayload.beneficiariesMapping ? { beneficiaries_mapping: filteredPayload.beneficiariesMapping } : {}),
         ...(filteredPayload.referenceUrls?.length ? { reference_urls: filteredPayload.referenceUrls } : {}),
+        // Challenge preferences in snapshot
+        creator_approval_required: payload.creatorApprovalRequired ?? true,
+        community_creation_allowed: payload.communityCreationAllowed ?? false,
+        is_anonymous: payload.isAnonymous ?? false,
       };
       const filteredSnapshotBrief = stripHiddenExtendedBriefFields(rawSnapshotBrief, governanceRules);
 
