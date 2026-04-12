@@ -1,52 +1,49 @@
 
 
-## Fix: Digest Not Cleared on "Clear All"
+## Fix: Digest Delete RLS + Regenerate Error Handling
 
-### Root Cause
+### Problem Summary
 
-The `challenge_context_digest` table has RLS enabled but **no DELETE policy** for authenticated users. Current policies:
-- `auth_read_context_digest` — SELECT only
-- `curator_can_update_digest` — UPDATE only  
-- `svc_manage_context_digest` — ALL (likely service_role only)
+1. **DELETE RLS policy is wrong** — current policy allows only `created_by` (challenge creator), but creators don't use the Context Library. Only **curators** and **platform admins** should have delete access.
+2. **Regenerate shows cryptic error** — when "Generate Context" is clicked with no accepted sources, the edge function returns `NO_SOURCES` / `NO_EXTRACTABLE_CONTENT`, but the frontend displays the raw error message instead of a user-friendly toast.
 
-When `useClearAllSources` calls `.delete().eq('challenge_id', challengeId)`, Supabase silently returns 0 rows affected (no error thrown) because RLS blocks the delete. The attachments table likely has a DELETE policy, which is why sources clear but the digest doesn't.
+### Changes
 
-### Fix
+**1. Migration: Replace DELETE policy on `challenge_context_digest`**
 
-**1. Migration: Add DELETE policy on `challenge_context_digest`**
-
-Add a policy allowing authenticated users who are curators/creators of the challenge to delete the digest:
+Drop the wrong `creator_can_delete_digest` policy. Create a new `curator_can_delete_digest` policy matching the same pattern as the existing `curator_can_update_digest` — checking `challenge_role_assignments` via `platform_provider_pool` for curator/admin roles:
 
 ```sql
+DROP POLICY IF EXISTS "creator_can_delete_digest" ON public.challenge_context_digest;
+
 CREATE POLICY "curator_can_delete_digest"
 ON public.challenge_context_digest
-FOR DELETE
-TO authenticated
+FOR DELETE TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM challenges c
-    WHERE c.id = challenge_context_digest.challenge_id
-    AND (c.created_by = auth.uid() OR c.curator_id = auth.uid())
+    SELECT 1 FROM public.challenge_role_assignments cra
+    WHERE cra.challenge_id = challenge_context_digest.challenge_id
+      AND cra.pool_member_id IN (
+        SELECT pp.id FROM public.platform_provider_pool pp WHERE pp.user_id = auth.uid()
+      )
+      AND cra.role_code IN ('CU', 'SA', 'PA')
+      AND cra.status = 'active'
   )
 );
 ```
 
-**2. `useClearAllSources` — throw on digest delete failure**
+**2. `useRegenerateDigest` — friendly error messages for no-source cases**
 
-Currently the digest delete has no error check (line 489-492). Add error handling so failures are visible:
+Update the `onError` handler to detect `NO_SOURCES` and `NO_EXTRACTABLE_CONTENT` error codes from the edge function response and show a helpful message like "No accepted sources available. Accept some sources first, then generate the digest." instead of the raw error string.
 
-```typescript
-const { error: digestErr } = await supabase
-  .from('challenge_context_digest')
-  .delete()
-  .eq('challenge_id', challengeId);
-if (digestErr) throw new Error(digestErr.message);
-```
+**3. `useClearAllSources` — verify digest was actually deleted**
+
+Add a post-delete check: after the `.delete()` call, query for the row. If it still exists, throw an explicit error so the user sees the failure instead of a false success toast. Also explicitly set the digest query cache to `null` on success.
 
 ### Files
 
 | # | File | Change |
 |---|------|--------|
-| 1 | New migration | Add DELETE RLS policy on `challenge_context_digest` |
-| 2 | `useContextLibrary.ts` | Add error check on digest delete (1 line) |
+| 1 | New migration `.sql` | Drop creator policy, add curator/admin DELETE policy |
+| 2 | `src/hooks/cogniblend/useContextLibrary.ts` | Friendly error in `useRegenerateDigest.onError`; verify delete in `useClearAllSources` |
 
