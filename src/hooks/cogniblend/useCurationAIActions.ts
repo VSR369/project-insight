@@ -221,9 +221,30 @@ export function useCurationAIActions({
     setTriageTotalCount(0);
     try {
       // Regenerate digest so Pass 2 has enriched context from accepted sources
-      await supabase.functions.invoke('generate-context-digest', {
+      const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
         body: { challenge_id: challengeId },
       });
+
+      if (digestError || !digestResult?.success) {
+        const errorCode = digestResult?.error?.code ?? '';
+        const errorMsg = digestResult?.error?.message ?? digestError?.message ?? '';
+
+        if (errorCode === 'NO_SOURCES' || errorMsg.includes('No accepted sources')) {
+          toast.error(
+            'No accepted sources found. Open the Context Library, run "Re-discover Sources", accept at least one source, then try again.',
+            { duration: 8000 }
+          );
+        } else if (errorCode === 'NO_EXTRACTABLE_CONTENT' || errorMsg.includes('none have sufficient text')) {
+          toast.error(
+            'Accepted sources have no extractable text. Try adding URLs or uploading documents with readable content in the Context Library.',
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(`Digest generation failed: ${errorMsg || 'Unknown error'}`, { duration: 8000 });
+        }
+        setAiReviewLoading(false);
+        return;
+      }
       // Run Pass 2 only — reuses stored Pass 1 comments, skips re-analysis
       await executeWavesPass2();
       const ctx = buildChallengeContext(buildContextOptions());
