@@ -11,6 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -498,19 +499,11 @@ Return ONLY the JSON object. No markdown, no explanation.`,
     // Load section config from DB for enriched prompts (Change 5)
     const dbConfig = await loadSectionConfig(supabaseClient, section_key, resolvedRoleContext);
 
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined, dbConfig) },
-          { role: "user", content: userPrompt },
-        ],
-      }),
+    const response = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: getSystemPrompt(resolvedRoleContext, hasPhase1Issues ? issues : undefined, dbConfig) },
+        { role: "user", content: userPrompt },
+      ],
     });
 
     if (!response.ok) {
