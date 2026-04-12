@@ -465,35 +465,14 @@ export function useRegenerateDigest(challengeId: string) {
   });
 }
 
-/** Clear ALL sources and digest for a challenge — fresh start */
+/** Clear ALL sources and digest for a challenge — fresh start.
+ *  Digest is deleted FIRST so a policy failure cannot leave a partial state
+ *  (sources gone but digest still present). */
 export function useClearAllSources(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      // 1. Get file-type sources to clean up storage
-      const { data: fileSources } = await supabase
-        .from('challenge_attachments')
-        .select('storage_path')
-        .eq('challenge_id', challengeId)
-        .eq('source_type', 'file')
-        .not('storage_path', 'is', null);
-
-      // 2. Remove storage files
-      const paths = (fileSources ?? [])
-        .map(s => s.storage_path)
-        .filter((p): p is string => !!p);
-      if (paths.length > 0) {
-        await supabase.storage.from('challenge-attachments').remove(paths);
-      }
-
-      // 3. Delete all attachments
-      const { error: delErr } = await supabase
-        .from('challenge_attachments')
-        .delete()
-        .eq('challenge_id', challengeId);
-      if (delErr) throw new Error(delErr.message);
-
-      // 4. Delete digest
+      // 1. Delete digest FIRST — fail fast if RLS blocks
       const { data: deletedRows, error: digestErr } = await supabase
         .from('challenge_context_digest')
         .delete()
@@ -503,16 +482,38 @@ export function useClearAllSources(challengeId: string) {
 
       // Verify deletion actually happened (RLS may silently block)
       if (deletedRows && deletedRows.length === 0) {
-        // Check if row still exists
         const { data: stillExists } = await supabase
           .from('challenge_context_digest')
           .select('id')
           .eq('challenge_id', challengeId)
           .maybeSingle();
         if (stillExists) {
-          throw new Error('Digest deletion blocked — you may not have permission to clear the digest.');
+          throw new Error('Access denied — your role does not have permission to clear the digest. Contact a Curator or Admin.');
         }
       }
+
+      // 2. Get file-type sources to clean up storage
+      const { data: fileSources } = await supabase
+        .from('challenge_attachments')
+        .select('storage_path')
+        .eq('challenge_id', challengeId)
+        .eq('source_type', 'file')
+        .not('storage_path', 'is', null);
+
+      // 3. Remove storage files
+      const paths = (fileSources ?? [])
+        .map(s => s.storage_path)
+        .filter((p): p is string => !!p);
+      if (paths.length > 0) {
+        await supabase.storage.from('challenge-attachments').remove(paths);
+      }
+
+      // 4. Delete all attachments
+      const { error: delErr } = await supabase
+        .from('challenge_attachments')
+        .delete()
+        .eq('challenge_id', challengeId);
+      if (delErr) throw new Error(delErr.message);
     },
     onSuccess: () => {
       qc.setQueryData(KEYS.digest(challengeId), null);
