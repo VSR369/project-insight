@@ -24,7 +24,7 @@ export function getDeliverableBadgePrefix(sectionKey: string): string {
 export function isStructuredSection(sectionKey: string): boolean {
   const fmt = SECTION_FORMAT_CONFIG[sectionKey];
   if (!fmt) return false;
-  return fmt.format === 'line_items';
+  return ['line_items', 'table', 'schedule_table'].includes(fmt.format);
 }
 
 /** Determine the format type of a section */

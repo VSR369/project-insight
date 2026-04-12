@@ -121,6 +121,19 @@ export function getSectionContent(ch: ChallengeData, sectionKey: string): string
       const items = Array.isArray(eo) ? eo : (eo?.items ?? []);
       return items.length > 0 ? JSON.stringify(items) : null;
     }
+    case "solver_audience": return ch.solver_audience ?? null;
+    case "evaluation_config": {
+      return JSON.stringify({
+        evaluation_method: ch.evaluation_method,
+        evaluator_count: ch.evaluator_count,
+      });
+    }
+    case "reference_urls": {
+      const eb = parseJson<any>(ch.extended_brief);
+      const urls = eb?.reference_urls;
+      if (!urls) return null;
+      return typeof urls === 'string' ? urls : JSON.stringify(urls);
+    }
     default: return null;
   }
 }

@@ -112,9 +112,18 @@ export function normalizeDataResources(dbField: string, value: any): any {
   }));
 }
 
-export function normalizeDomainTags(dbField: string, value: any): any | null {
-  if (dbField !== 'domain_tags' || !Array.isArray(value)) return value;
-  const filtered = value.filter((t: any) => typeof t === 'string' && t.trim().length > 0);
+export function normalizeDomainTags(dbField: string, value: unknown): unknown | null {
+  if (dbField !== 'domain_tags') return value;
+
+  // Unwrap common wrapper shapes: { tags: [...] }, { items: [...] }, { domain_tags: [...] }
+  let arr = value;
+  if (arr && typeof arr === 'object' && !Array.isArray(arr)) {
+    const obj = arr as Record<string, unknown>;
+    arr = obj.tags ?? obj.items ?? obj.domain_tags ?? arr;
+  }
+
+  if (!Array.isArray(arr)) return value;
+  const filtered = arr.filter((t: unknown) => typeof t === 'string' && (t as string).trim().length > 0);
   if (filtered.length === 0) {
     toast.error('AI suggested no valid domain tags. Please add tags manually.');
     return null;
