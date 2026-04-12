@@ -1,52 +1,76 @@
 
+I checked the code path and can confirm this is a real bug: Pass 2 is wired to generate suggestions, but the current curation UI/persistence path can prevent those AI suggested sections from appearing.
 
-## Fix: AI Suggestions Not Generated During "Generate Suggestions" (Pass 2)
+What I found
 
-### Root Cause
+1. The section review panel does not render directly from `review.suggestion`.
+   - In `src/components/cogniblend/shared/AIReviewInline.tsx`, the panel passes:
+   - `suggested_version: refinedContent ?? undefined`
+   - So if local `refinedContent` is empty, the UI shows comments only.
 
-The Pass 2 executor sends `provided_comments` in the wrong shape, causing Pass 2 to silently produce zero suggestions.
+2. The only code that copies `review.suggestion` into `refinedContent` is inside the auto-refine effect.
+   - In `src/components/cogniblend/shared/useAIReviewInlineState.ts`, `review.suggestion` is seeded into local state only through the effect that is also controlled by `suppressAutoRefine`.
 
-**Client side** (`useWaveReviewSection.ts`, line 61): sends `body.provided_comments = existingComments` — a flat array of comment objects for a **single section**: `[{text: "...", type: "warning"}]`
+3. In curation, that auto-refine path is intentionally suppressed during the Analyse → Generate Suggestions workflow.
+   - `src/components/cogniblend/curation/SectionPanelItem.tsx`
+   - `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`
+   - both pass `suppressAutoRefine={reviewSessionActive}`
+   - Result: Pass 2 may return `suggestion`, but the UI still renders only the review comments.
 
-**Edge function** (`aiCalls.ts`, line 174-175): expects `providedComments` to be an array of **section review objects** with `section_key` and `comments` fields: `[{section_key: "hook", status: "warning", comments: [...]}]`
+4. Suggestions are also not safely persisted.
+   - `src/hooks/useCurationStoreSync.ts` writes `ai_section_reviews` with:
+   - `section_key`, `comments`, `status`, `addressed`, `reviewed_at`
+   - It does not persist `suggestion`.
+   - So even when Pass 2 generates suggestions, they can be lost on sync/refresh.
 
-When `skipAnalysis=true`, the function does `pass1Results = providedComments`, then Pass 2 tries `pass1Results.filter(r => r.comments.some(...))` — but each element is a raw comment (`{text, type}`), not a section review. `r.comments` is `undefined`, `r.section_key` is `undefined`, so the filter returns zero sections, and Pass 2 returns an empty suggestion map.
+5. There is also a stale-merge risk while saving wave results.
+   - `src/hooks/cogniblend/useCurationWaveSetup.ts` saves using the current `aiReviews` closure, not guaranteed latest state.
+   - That can overwrite earlier Pass 2 updates from the same run.
 
-Result: all 29 sections get their Pass 1 comments preserved but `suggestion: null`.
+Implementation plan
 
-### Fix
+1. Fix display logic first
+   - Update `AIReviewInline.tsx` / `useAIReviewInlineState.ts` so the “AI Suggested Version” block renders from `review.suggestion` immediately.
+   - Keep `suppressAutoRefine` only for blocking automatic re-generation, not for hiding an already returned Pass 2 suggestion.
+   - Ensure sections with `warning`, `needs_revision`, or `generated` still show suggestions when present.
 
-**File: `src/hooks/useWaveReviewSection.ts`** (lines 57-63)
+2. Fix persistence
+   - Update `useCurationStoreSync.ts` to preserve full AI review payload, especially `suggestion`.
+   - Also keep related metadata like `guidelines`, `cross_section_issues`, `confidence`, `prompt_source`, `triage_status`, and `phase` where available.
 
-Wrap the provided comments into the section-review-object shape that the edge function expects:
+3. Fix stale merge behavior
+   - Update `useCurationWaveSetup.ts` and the related single-section save path in `useCurationAIActions.ts` to merge against the latest review state via functional updates or a ref, not a stale array snapshot.
 
-```typescript
-if (skipAnalysis && providedCommentsBySectionKey) {
-  const existingComments = providedCommentsBySectionKey[sectionKey];
-  if (existingComments?.length) {
-    body.skip_analysis = true;
-    // Edge function expects array of section review objects, not raw comments
-    body.provided_comments = [{
-      section_key: sectionKey,
-      status: 'warning',
-      comments: existingComments,
-    }];
-  }
-}
+4. Verify end-to-end
+   - Run the exact flow:
+     - Analyse Challenge
+     - review/close Context Library
+     - Generate Suggestions
+   - Confirm each section with Pass 2 output shows its suggested content block.
+   - Refresh the page and confirm suggestions still remain visible.
+
+Files to update
+- `src/components/cogniblend/shared/AIReviewInline.tsx`
+- `src/components/cogniblend/shared/useAIReviewInlineState.ts`
+- `src/components/cogniblend/curation/SectionPanelItem.tsx`
+- `src/components/cogniblend/curation/ExtendedBriefDisplay.tsx`
+- `src/hooks/useCurationStoreSync.ts`
+- `src/hooks/cogniblend/useCurationWaveSetup.ts`
+- `src/hooks/cogniblend/useCurationAIActions.ts`
+
+Technical detail
+```text
+Current behavior:
+Pass 2 returns review.suggestion
+-> panel ignores review.suggestion
+-> panel only renders local refinedContent
+-> refinedContent is seeded only by auto-refine effect
+-> auto-refine is suppressed in the Analyse/Generate flow
+-> user sees comments only, no AI suggested content
+
+Persistence behavior:
+Pass 2 returns suggestion
+-> local state may briefly hold it
+-> store sync writes ai_section_reviews without suggestion
+-> refresh/query sync strips it out
 ```
-
-This is a 3-line change in one file. The edge function code is correct — it just needs the right input shape.
-
-### Why This Is the Complete Fix
-
-1. `callAIBatchTwoPass` line 175: `pass1Results = providedComments` — now receives `[{section_key, status, comments}]`
-2. `callAIPass2Rewrite` line 40: `pass1Results.filter(r => r.comments.some(...))` — now finds comments correctly
-3. Line 44: `r.section_key` — now defined, so content lookup works
-4. Pass 2 generates the suggestion and returns it in `suggestionMap`
-
-### No Other Files Change
-
-- Edge function logic is correct
-- `useCurationWaveSetup.ts` pass2CommentMap is correct (it builds `Record<string, unknown[]>`)
-- `useCurationAIActions.ts` handleGenerateSuggestions flow is correct
-
