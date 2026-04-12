@@ -15,6 +15,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -211,19 +212,12 @@ Generate a complete challenge specification including all extended brief fields.
 
     const systemPrompt = buildSystemPrompt(categories);
 
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
+    const response = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
           {
             type: "function",
             function: {
@@ -354,9 +348,8 @@ Generate a complete challenge specification including all extended brief fields.
               },
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "suggest_challenge_spec" } },
-      }),
+      ],
+      tool_choice: { type: "function", function: { name: "suggest_challenge_spec" } },
     });
 
     if (!response.ok) {

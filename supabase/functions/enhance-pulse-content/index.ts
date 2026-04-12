@@ -4,6 +4,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,42 +76,34 @@ Return a JSON object with:
 2. extracted_statistics: Array of statistics/data points found or suggested
 3. suggestions: Array of 2-3 alternative phrasings`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "enhanced_content",
-            schema: {
-              type: "object",
-              properties: {
-                enhanced_text: { type: "string" },
-                extracted_statistics: {
-                  type: "array",
-                  items: { type: "string" }
-                },
-                suggestions: {
-                  type: "array",
-                  items: { type: "string" }
-                }
+    const response = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.7,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "enhanced_content",
+          schema: {
+            type: "object",
+            properties: {
+              enhanced_text: { type: "string" },
+              extracted_statistics: {
+                type: "array",
+                items: { type: "string" }
               },
-              required: ["enhanced_text", "extracted_statistics", "suggestions"],
-              additionalProperties: false
-            }
+              suggestions: {
+                type: "array",
+                items: { type: "string" }
+              }
+            },
+            required: ["enhanced_text", "extracted_statistics", "suggestions"],
+            additionalProperties: false
           }
         }
-      }),
+      }
     });
 
     if (!response.ok) {

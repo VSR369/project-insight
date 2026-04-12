@@ -87,6 +87,7 @@ interface GlobalConfig {
   default_model: string;
   batch_split_threshold: number;
   critical_model?: string | null;
+  fallback_model?: string | null;
   use_context_intelligence?: boolean;
   updated_at: string;
   updated_by: string | null;
@@ -518,6 +519,7 @@ export default function AIReviewConfigPage() {
 
   const [globalModel, setGlobalModel] = useState('');
   const [criticalModel, setCriticalModel] = useState('');
+  const [fallbackModel, setFallbackModel] = useState('');
   const [batchThreshold, setBatchThreshold] = useState(15);
   const [useContextIntelligence, setUseContextIntelligence] = useState(false);
   const [globalSaving, setGlobalSaving] = useState(false);
@@ -526,6 +528,7 @@ export default function AIReviewConfigPage() {
     if (globalConfig) {
       setGlobalModel(globalConfig.default_model);
       setCriticalModel(globalConfig.critical_model ?? '');
+      setFallbackModel(globalConfig.fallback_model ?? '');
       setBatchThreshold(globalConfig.batch_split_threshold);
       setUseContextIntelligence(globalConfig.use_context_intelligence ?? false);
     }
@@ -540,6 +543,7 @@ export default function AIReviewConfigPage() {
         .update({
           default_model: globalModel,
           critical_model: criticalModel.trim() || null,
+          fallback_model: fallbackModel.trim() || null,
           batch_split_threshold: batchThreshold,
           use_context_intelligence: useContextIntelligence,
           updated_at: new Date().toISOString(),
@@ -588,29 +592,56 @@ export default function AIReviewConfigPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
                   <div className="space-y-2">
                     <Label>Default AI Model</Label>
-                    <Input
-                      value={globalModel}
-                      onChange={e => setGlobalModel(e.target.value)}
-                      placeholder="google/gemini-3-flash-preview"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Model for standard sections
-                    </p>
+                    <Select value={globalModel} onValueChange={setGlobalModel}>
+                      <SelectTrigger><SelectValue placeholder="Select model" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google/gemini-3-flash-preview">Gemini 3 Flash (Fast)</SelectItem>
+                        <SelectItem value="google/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                        <SelectItem value="google/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                        <SelectItem value="google/gemini-3.1-pro-preview">Gemini 3.1 Pro</SelectItem>
+                        <SelectItem value="openai/gpt-5">GPT-5</SelectItem>
+                        <SelectItem value="openai/gpt-5-mini">GPT-5 Mini</SelectItem>
+                        <SelectItem value="openai/gpt-5-nano">GPT-5 Nano</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Primary model for all AI functions</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Critical Section Model</Label>
-                    <Input
-                      value={criticalModel}
-                      onChange={e => setCriticalModel(e.target.value)}
-                      placeholder="e.g. anthropic/claude-sonnet-4"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Model for critical sections (problem, deliverables, etc.)
-                    </p>
+                    <Select value={criticalModel || '__default__'} onValueChange={v => setCriticalModel(v === '__default__' ? '' : v)}>
+                      <SelectTrigger><SelectValue placeholder="Same as default" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">Same as Default</SelectItem>
+                        <SelectItem value="google/gemini-3-flash-preview">Gemini 3 Flash</SelectItem>
+                        <SelectItem value="google/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                        <SelectItem value="google/gemini-3.1-pro-preview">Gemini 3.1 Pro</SelectItem>
+                        <SelectItem value="openai/gpt-5">GPT-5</SelectItem>
+                        <SelectItem value="openai/gpt-5-mini">GPT-5 Mini</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Model for critical sections (problem, deliverables, etc.)</p>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Fallback Model</Label>
+                    <Select value={fallbackModel || 'openai/gpt-5-mini'} onValueChange={setFallbackModel}>
+                      <SelectTrigger><SelectValue placeholder="Select fallback" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google/gemini-3-flash-preview">Gemini 3 Flash</SelectItem>
+                        <SelectItem value="google/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                        <SelectItem value="google/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                        <SelectItem value="google/gemini-3.1-pro-preview">Gemini 3.1 Pro</SelectItem>
+                        <SelectItem value="openai/gpt-5">GPT-5</SelectItem>
+                        <SelectItem value="openai/gpt-5-mini">GPT-5 Mini</SelectItem>
+                        <SelectItem value="openai/gpt-5-nano">GPT-5 Nano</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Used when primary model returns 502/503 errors</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end mt-4">
                   <div className="space-y-2">
                     <Label>Batch Split Threshold</Label>
                     <Input
@@ -620,9 +651,7 @@ export default function AIReviewConfigPage() {
                       min={5}
                       max={30}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Max sections per batch
-                    </p>
+                    <p className="text-xs text-muted-foreground">Max sections per batch</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Context Intelligence</Label>
@@ -635,9 +664,7 @@ export default function AIReviewConfigPage() {
                         {useContextIntelligence ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Enable digest, grounding rules, and tiered attachments in AI reviews
-                    </p>
+                    <p className="text-xs text-muted-foreground">Enable digest, grounding rules, and tiered attachments</p>
                   </div>
                   <Button onClick={handleSaveGlobal} disabled={globalSaving} className="w-fit">
                     <Save className="h-4 w-4 mr-1" />

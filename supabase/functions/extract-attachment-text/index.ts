@@ -6,6 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAIWithFallback, getAIModelConfig } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -230,20 +231,15 @@ serve(async (req) => {
         } else {
           try {
             const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-            const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
-                max_tokens: 2000,
-                messages: [{
-                  role: "user",
-                  content: [
-                    { type: "image_url", image_url: { url: `data:${att.mime_type};base64,${base64}` } },
-                    { type: "text", text: "Describe this image in detail. Extract any text, data tables, diagrams, or process flows visible." },
-                  ],
-                }],
-              }),
+            const resp = await callAIWithFallback(LOVABLE_API_KEY, {
+              max_tokens: 2000,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "image_url", image_url: { url: `data:${att.mime_type};base64,${base64}` } },
+                  { type: "text", text: "Describe this image in detail. Extract any text, data tables, diagrams, or process flows visible." },
+                ],
+              }],
             });
             const result = await resp.json();
             extractedText = result.choices?.[0]?.message?.content || "[Image description failed]";
@@ -309,16 +305,12 @@ SUMMARY:
 KEY_DATA:
 {"facts":[],"statistics":[],"names":[],"dates":[],"regulations":[]}`;
 
-        const tier2Resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            max_tokens: 1500,
-            temperature: 0.1,
-            messages: [{ role: "user", content: tier2Prompt }],
-          }),
-        });
+        const aiConfig = await getAIModelConfig();
+        const tier2Resp = await callAIWithFallback(LOVABLE_API_KEY, {
+          max_tokens: 1500,
+          temperature: 0.1,
+          messages: [{ role: "user", content: tier2Prompt }],
+        }, aiConfig.fallbackModel);
 
         if (tier2Resp.ok) {
           const tier2Result = await tier2Resp.json();

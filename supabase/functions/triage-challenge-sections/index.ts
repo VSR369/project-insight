@@ -338,7 +338,7 @@ serve(async (req) => {
     // Fetch model from global config
     const { data: globalConfig } = await adminClient
       .from("ai_review_global_config")
-      .select("default_model")
+      .select("default_model, fallback_model")
       .eq("id", 1)
       .single();
     const modelToUse = globalConfig?.default_model || "google/gemini-3-flash-preview";

@@ -61,6 +61,11 @@ function getModelForRequest(sectionKeys: string[], globalConfig: any): string {
   return globalConfig?.default_model || 'google/gemini-3-flash-preview';
 }
 
+/** Get fallback model from global config */
+function getFallbackModel(globalConfig: any): string {
+  return globalConfig?.fallback_model || 'openai/gpt-5-mini';
+}
+
 
 /* ── FIX 3: Helper functions for curated prompts ── */
 

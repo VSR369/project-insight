@@ -7,6 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,19 +187,12 @@ ${JSON.stringify(existingDocs ?? [], null, 2)}
 
 Based on the maturity level, IP model, governance profile, and scope, recommend which legal documents should be prepared. Do NOT recommend documents that are already attached. For each document, generate the COMPLETE legal document text — not a summary, not bullet points, but full clauses ready for legal review.`;
 
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
+    const response = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
           {
             type: "function",
             function: {
@@ -253,9 +247,8 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
               },
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "suggest_legal_documents" } },
-      }),
+      ],
+      tool_choice: { type: "function", function: { name: "suggest_legal_documents" } },
     });
 
     if (!response.ok) {
