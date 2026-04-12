@@ -193,8 +193,6 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
         { role: "user", content: userPrompt },
       ],
       tools: [
-        ],
-        tools: [
           {
             type: "function",
             function: {
@@ -249,9 +247,8 @@ Based on the maturity level, IP model, governance profile, and scope, recommend 
               },
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "suggest_legal_documents" } },
-      }),
+      ],
+      tool_choice: { type: "function", function: { name: "suggest_legal_documents" } },
     });
 
     if (!response.ok) {

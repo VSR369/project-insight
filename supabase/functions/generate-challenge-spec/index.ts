@@ -218,10 +218,6 @@ Generate a complete challenge specification including all extended brief fields.
         { role: "user", content: userPrompt },
       ],
       tools: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
           {
             type: "function",
             function: {
@@ -352,9 +348,8 @@ Generate a complete challenge specification including all extended brief fields.
               },
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "suggest_challenge_spec" } },
-      }),
+      ],
+      tool_choice: { type: "function", function: { name: "suggest_challenge_spec" } },
     });
 
     if (!response.ok) {
