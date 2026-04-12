@@ -238,6 +238,8 @@ export const AGG_SEED: SeedContent = {
   evaluator_count: 1,
   creator_legal_instructions: '',
   phase_durations: [],
+  community_creation_allowed: false,
+  is_anonymous: false,
 };
 
 /**
