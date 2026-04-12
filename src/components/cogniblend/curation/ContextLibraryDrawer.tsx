@@ -102,7 +102,7 @@ export function ContextLibraryDrawer({
           fileSection={fileSection} onFileSectionChange={setFileSection}
           onAddUrl={handleAddUrl} onFileChange={handleFileChange}
           onDiscover={() => discover.mutate()} isDiscovering={discover.isPending}
-          onClearAll={() => clearAll.mutate()} isClearing={clearAll.isPending}
+          onClearAll={() => clearAll.mutate(undefined, { onSuccess: () => setSelectedId(null) })} isClearing={clearAll.isPending}
           isAddingUrl={addUrl.isPending} isUploading={uploadFile.isPending}
         />
 
