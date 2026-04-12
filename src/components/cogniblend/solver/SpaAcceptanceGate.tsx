@@ -41,7 +41,7 @@ export function SpaAcceptanceGate({ userId, onAccepted }: SpaAcceptanceGateProps
     if (!spaTemplate) return;
     recordAcceptance.mutate(
       { userId, challengeId: '', documentType: 'SPA', documentName: spaTemplate.document_name, documentVersion: spaTemplate.version, scrollConfirmed: true },
-      { onSuccess: () => { toast.success('Solver Platform Agreement accepted'); onAccepted(); } },
+      { onSuccess: () => { toast.success('Solution Provider Platform Agreement accepted'); onAccepted(); } },
     );
   };
 
@@ -69,7 +69,7 @@ export function SpaAcceptanceGate({ userId, onAccepted }: SpaAcceptanceGateProps
         <div className="flex items-center gap-2">
           <Checkbox id="spa-accept" checked={accepted} onCheckedChange={(v) => setAccepted(v === true)} />
           <label htmlFor="spa-accept" className="text-sm cursor-pointer">
-            I have read and agree to the Solver Platform Agreement
+            I have read and agree to the Solution Provider Platform Agreement
           </label>
         </div>
         <Button onClick={handleAccept} disabled={!accepted || recordAcceptance.isPending} className="w-full">

@@ -30,7 +30,7 @@ const TOOL_SCHEMA = {
         overall_score: { type: "number", description: "Overall quality score 0-100" },
         completeness_score: { type: "number", description: "Completeness score 0-100" },
         clarity_score: { type: "number", description: "Clarity score 0-100" },
-        solver_readiness_score: { type: "number", description: "Solver readiness score 0-100" },
+        solver_readiness_score: { type: "number", description: "Solution Provider readiness score 0-100" },
         legal_compliance_score: { type: "number", description: "Legal compliance score 0-100 (non-creator reviews only)" },
         governance_alignment_score: { type: "number", description: "Governance mode alignment score 0-100" },
         content_quality_score: { type: "number", description: "Content quality score 0-100 (creator reviews)" },

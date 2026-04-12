@@ -35,7 +35,7 @@ export function SolverAudiencePreview({ engagementModel }: SolverAudiencePreview
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold text-foreground">Solver Audience</span>
+        <span className="text-sm font-semibold text-foreground">Solution Provider Audience</span>
       </div>
 
       {isLoading ? (
@@ -44,11 +44,11 @@ export function SolverAudiencePreview({ engagementModel }: SolverAudiencePreview
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-xs text-foreground">
             <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-            <span>Certified solvers notified immediately</span>
+            <span>Certified Solution Providers notified immediately</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5 shrink-0" />
-            <span>Standard solvers notified with 48h delay</span>
+            <span>Standard Solution Providers notified with 48h delay</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {isMarketplace

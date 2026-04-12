@@ -95,7 +95,7 @@ function buildLightweightChecks(c: Record<string, unknown>, legalDocs: any[], so
     { id: 'complexity', label: 'Complexity level selected', detail: c.complexity_level ? String(c.complexity_level) : 'Not selected', passed: complexitySelected },
     { id: 'access', label: 'Access toggle set', detail: accessSet ? `Visibility: ${c.visibility}, Eligibility: ${c.eligibility}` : 'Not configured', passed: accessSet },
     { id: 'schedule', label: 'Phase schedule confirmed', detail: scheduleConfirmed ? 'Schedule defined' : 'Not defined', passed: scheduleConfirmed },
-    { id: 'solver_match', label: 'Solver match exists', detail: `${solverMatchCount} solver(s) matched`, passed: solverMatchCount > 0 },
+    { id: 'solver_match', label: 'Solution Provider match exists', detail: `${solverMatchCount} Solution Provider(s) matched`, passed: solverMatchCount > 0 },
   ];
 }
 

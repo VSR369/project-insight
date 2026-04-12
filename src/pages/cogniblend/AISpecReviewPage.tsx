@@ -1733,8 +1733,8 @@ export default function AISpecReviewPage() {
                   selectedTierIds={selectedEligibleTierIds}
                   onTierIdsChange={setSelectedEligibleTierIds}
                   solverCategories={solverCategories}
-                  typeLabel="Eligible Solver Types"
-                  typeDescription="These solver types can view AND submit solutions to this challenge."
+                  typeLabel="Eligible Solution Provider Types"
+                   typeDescription="These Solution Provider types can view AND submit solutions to this challenge."
                 />
               ) : section.renderer === 'solver_visibility' ? (
                 <SolverTypeEditor
@@ -1742,8 +1742,8 @@ export default function AISpecReviewPage() {
                   selectedTierIds={selectedVisibleTierIds}
                   onTierIdsChange={setSelectedVisibleTierIds}
                   solverCategories={solverCategories}
-                  typeLabel="Visible Solver Types"
-                  typeDescription="These solver types can discover and view this challenge but cannot submit solutions."
+                  typeLabel="Visible Solution Provider Types"
+                   typeDescription="These Solution Provider types can discover and view this challenge but cannot submit solutions."
                 />
               ) : undefined
             }

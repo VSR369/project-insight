@@ -220,8 +220,8 @@ export function useWithdrawSolution() {
       await supabase.from('cogni_notifications').insert({
         user_id: userId, // placeholder — ideally notify ID role holder
         notification_type: 'SOLVER_WITHDRAWN',
-        title: 'Solver Withdrawn',
-        message: `A solver has withdrawn from "${challengeTitle}" during the material amendment withdrawal window.`,
+        title: 'Solution Provider Withdrawn',
+        message: `A Solution Provider has withdrawn from "${challengeTitle}" during the material amendment withdrawal window.`,
         challenge_id: challengeId,
         is_read: false,
       });

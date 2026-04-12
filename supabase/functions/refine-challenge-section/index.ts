@@ -217,10 +217,10 @@ async function fetchMasterDataCodes(
   const STATIC_OPTIONS: Record<string, { code: string; label: string; description: string | null }[]> = {
     ip_model: [
       { code: "IP-EA", label: "Exclusive Assignment", description: "All intellectual property transfers to the challenge seeker" },
-      { code: "IP-NEL", label: "Non-Exclusive License", description: "Solver retains ownership, grants license to seeker" },
-      { code: "IP-EL", label: "Exclusive License", description: "Solver grants exclusive license to seeker" },
-      { code: "IP-JO", label: "Joint Ownership", description: "Joint ownership between solver and seeker" },
-      { code: "IP-NONE", label: "No IP Transfer", description: "Solver retains full IP ownership" },
+      { code: "IP-NEL", label: "Non-Exclusive License", description: "Solution Provider retains ownership, grants license to seeker" },
+      { code: "IP-EL", label: "Exclusive License", description: "Solution Provider grants exclusive license to seeker" },
+      { code: "IP-JO", label: "Joint Ownership", description: "Joint ownership between Solution Provider and seeker" },
+      { code: "IP-NONE", label: "No IP Transfer", description: "Solution Provider retains full IP ownership" },
     ],
     maturity_level: [
       { code: "BLUEPRINT", label: "Blueprint", description: null },

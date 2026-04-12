@@ -109,13 +109,13 @@ const CURATION_SECTIONS = [
   { key: "reward_structure", desc: "What we offer — monetary prize tiers and non-monetary incentives for solvers" },
   { key: "ip_model", desc: "How intellectual property ownership transfers between solver and our organization" },
   // Wave 6: Presentation & Compliance
-  { key: "hook", desc: "Our challenge headline — the first thing solvers see, must compel them to read further" },
-  { key: "visibility", desc: "Whether solver identities are visible or anonymous during evaluation" },
-  { key: "domain_tags", desc: "Tags that help the right solvers discover our challenge on the platform" },
-  { key: "creator_references", desc: "Reference documents provided by the challenge creator — verify relevance to scope and accessibility for solvers" },
+  { key: "hook", desc: "Our challenge headline — the first thing Solution Providers see, must compel them to read further" },
+  { key: "visibility", desc: "Whether Solution Provider identities are visible or anonymous during evaluation" },
+  { key: "domain_tags", desc: "Tags that help the right Solution Providers discover our challenge on the platform" },
+  { key: "creator_references", desc: "Reference documents provided by the challenge creator — verify relevance to scope and accessibility for Solution Providers" },
   { key: "reference_urls", desc: "Reference URLs provided by the creator — verify they are active, relevant, and appropriately scoped" },
   { key: "evaluation_config", desc: "Evaluation method (single vs Delphi panel) and blind review setting — must match complexity level and eligibility" },
-  { key: "solver_audience", desc: "Solver audience targeting (internal/external/all) — verify consistency with operating model and expertise requirements" },
+  { key: "solver_audience", desc: "Solution Provider audience targeting (internal/external/all) — verify consistency with operating model and expertise requirements" },
   { key: "legal_docs", desc: "Required legal agreements — NDA, Terms, IP assignment documents" },
   { key: "escrow_funding", desc: "Prize fund escrow status and funding confirmation" },
 ];

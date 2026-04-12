@@ -1,7 +1,7 @@
 /**
  * AuthGuard — Protects routes requiring authentication.
  * Also triggers PMA (Platform Master Agreement) acceptance check on first login.
- * Then checks SPA (Solver Platform Agreement) acceptance.
+ * Then checks SPA (Solution Provider Platform Agreement) acceptance.
  * Fail-open: If the legal gate RPC errors, the user is not trapped.
  *
  * PERF: Legal gate result cached in sessionStorage to avoid RPC on every navigation.

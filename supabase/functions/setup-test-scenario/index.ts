@@ -260,7 +260,7 @@ serve(async (req) => {
       phase_schedule: {
         expected_timeline: "16w", source: "creator",
         phase_durations: [
-          { phase_number: 5, label: "Solver Submission Period", target_date: "2026-07-15", duration_days: 45 },
+          { phase_number: 5, label: "Solution Provider Submission Period", target_date: "2026-07-15", duration_days: 45 },
           { phase_number: 6, label: "Abstract/Proposal Review", target_date: "2026-08-01", duration_days: 17 },
           { phase_number: 8, label: "Full Solution Review", target_date: "2026-09-01", duration_days: 31 },
           { phase_number: 9, label: "Award Decision", target_date: "2026-09-15", duration_days: 14 },
@@ -296,7 +296,7 @@ serve(async (req) => {
       phase_schedule: {
         expected_timeline: "16w", source: "creator",
         phase_durations: [
-          { phase_number: 5, label: "Solver Submission Period", target_date: "2026-08-01", duration_days: 60 },
+          { phase_number: 5, label: "Solution Provider Submission Period", target_date: "2026-08-01", duration_days: 60 },
           { phase_number: 6, label: "Abstract/Proposal Review", target_date: "2026-08-20", duration_days: 19 },
           { phase_number: 8, label: "Full Solution Review", target_date: "2026-09-20", duration_days: 31 },
           { phase_number: 9, label: "Award Decision", target_date: "2026-10-05", duration_days: 15 },
