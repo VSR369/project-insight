@@ -87,6 +87,7 @@ interface GlobalConfig {
   default_model: string;
   batch_split_threshold: number;
   critical_model?: string | null;
+  fallback_model?: string | null;
   use_context_intelligence?: boolean;
   updated_at: string;
   updated_by: string | null;
@@ -518,6 +519,7 @@ export default function AIReviewConfigPage() {
 
   const [globalModel, setGlobalModel] = useState('');
   const [criticalModel, setCriticalModel] = useState('');
+  const [fallbackModel, setFallbackModel] = useState('');
   const [batchThreshold, setBatchThreshold] = useState(15);
   const [useContextIntelligence, setUseContextIntelligence] = useState(false);
   const [globalSaving, setGlobalSaving] = useState(false);
@@ -526,6 +528,7 @@ export default function AIReviewConfigPage() {
     if (globalConfig) {
       setGlobalModel(globalConfig.default_model);
       setCriticalModel(globalConfig.critical_model ?? '');
+      setFallbackModel(globalConfig.fallback_model ?? '');
       setBatchThreshold(globalConfig.batch_split_threshold);
       setUseContextIntelligence(globalConfig.use_context_intelligence ?? false);
     }
@@ -540,6 +543,7 @@ export default function AIReviewConfigPage() {
         .update({
           default_model: globalModel,
           critical_model: criticalModel.trim() || null,
+          fallback_model: fallbackModel.trim() || null,
           batch_split_threshold: batchThreshold,
           use_context_intelligence: useContextIntelligence,
           updated_at: new Date().toISOString(),
