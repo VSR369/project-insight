@@ -486,10 +486,11 @@ export function useClearAllSources(challengeId: string) {
       if (delErr) throw new Error(delErr.message);
 
       // 4. Delete digest
-      await supabase
+      const { error: digestErr } = await supabase
         .from('challenge_context_digest')
         .delete()
         .eq('challenge_id', challengeId);
+      if (digestErr) throw new Error(digestErr.message);
     },
     onSuccess: () => {
       invalidateAll(qc, challengeId);
