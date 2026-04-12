@@ -30,6 +30,7 @@ interface CurationFormState {
   acceptAiSuggestion: (key: SectionKey) => void;
   rejectAiSuggestion: (key: SectionKey) => void;
   markAddressed: (key: SectionKey) => void;
+  setAddressedOnly: (key: SectionKey) => void;
   markSectionSaved: (key: SectionKey) => SectionKey[];
   clearStaleness: (key: SectionKey) => void;
   setValidationResult: (key: SectionKey, result: ValidationResult | null) => void;
@@ -139,6 +140,18 @@ export function createCurationFormStore(challengeId: string) {
                 ...(state.sections[key] ?? createEmptySectionEntry()),
                 addressed: true,
                 aiComments: null,
+              },
+            },
+          })),
+
+        /** Set addressed=true WITHOUT clearing aiComments — preserves audit history */
+        setAddressedOnly: (key) =>
+          set((state) => ({
+            sections: {
+              ...state.sections,
+              [key]: {
+                ...(state.sections[key] ?? createEmptySectionEntry()),
+                addressed: true,
               },
             },
           })),

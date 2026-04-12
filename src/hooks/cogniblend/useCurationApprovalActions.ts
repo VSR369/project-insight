@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { parseJson } from '@/lib/cogniblend/curationHelpers';
 import { derivePrimaryGroup, getSelectedGroups } from '@/hooks/queries/useSolutionTypeMap';
+import { getCurationFormStore } from '@/store/curationFormStore';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 
@@ -135,12 +136,14 @@ export function useCurationApprovalActions({
   }, [challengeId, queryClient, setIsAcceptingAllLegal]);
 
   const handleMarkAddressed = useCallback((sectionKey: string) => {
-    // Only update local state — preserve comments for audit history.
-    // Store sync (useCurationStoreSync) will persist the addressed flag via debounced save.
+    // Update React state for immediate UI feedback
     setAiReviews((prev) => prev.map((r) =>
       r.section_key === sectionKey ? { ...r, addressed: true } : r
     ));
-  }, [setAiReviews]);
+    // Persist via Zustand store → useCurationStoreSync → DB (preserves comments)
+    const store = getCurationFormStore(challengeId);
+    store.getState().setAddressedOnly(sectionKey as SectionKey);
+  }, [setAiReviews, challengeId]);
 
   const toggleSectionApproval = useCallback((key: string) => {
     setApprovedSections((prev) => ({ ...prev, [key]: !prev[key] }));
