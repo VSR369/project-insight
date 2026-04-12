@@ -138,6 +138,6 @@ In team submissions, individual members may withdraw their contribution. The rem
 A withdrawn solution may be re-submitted if the challenge deadline has not passed and the submission limit has not been reached.
 
 6. NOTIFICATION
-Withdrawal notifications are sent to the challenge owner and any assigned evaluators. The solver's identity in connection with the withdrawal remains confidential.`,
+Withdrawal notifications are sent to the challenge owner and any assigned evaluators. The Solution Provider's identity in connection with the withdrawal remains confidential.`,
   },
 ];
