@@ -75,6 +75,9 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         evaluatorCount: data.evaluator_count ?? 1,
         creatorLegalInstructions: data.creator_legal_instructions || undefined,
         phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined,
+        creatorApprovalRequired: (data as Record<string, unknown>).creator_approval_required as boolean ?? true,
+        communityCreationAllowed: data.community_creation_allowed ?? false,
+        isAnonymous: data.is_anonymous ?? false,
       };
       if (draftChallengeId) {
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });

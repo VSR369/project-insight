@@ -398,6 +398,10 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         preferred_approach: values.preferred_approach || null,
         approaches_not_of_interest: values.approaches_not_of_interest || null,
         submission_guidelines: values.submission_guidelines || null,
+        // Challenge preferences — persisted to extended_brief via deliverables JSONB
+        creator_approval_required: values.creator_approval_required ?? true,
+        community_creation_allowed: values.community_creation_allowed ?? false,
+        is_anonymous: values.is_anonymous ?? false,
       },
       evaluation_criteria: criteria.length ? { criteria } : null,
       reward_structure: isQuick

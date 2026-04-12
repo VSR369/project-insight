@@ -74,6 +74,8 @@ export interface CurationRightRailProps {
   onFreezeForLegal?: () => void;
   contextLibraryReviewed?: boolean;
   creatorApprovalRequired?: boolean | null;
+  communityCreationAllowed?: boolean;
+  isAnonymous?: boolean;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -172,6 +174,8 @@ export function CurationRightRail(props: CurationRightRailProps) {
       <CreatorApprovalStatusBanner
         operatingModel={operatingModel}
         creatorApprovalRequired={props.creatorApprovalRequired ?? null}
+        communityCreationAllowed={props.communityCreationAllowed}
+        isAnonymous={props.isAnonymous}
       />
 
       <CurationActions challengeId={challengeId} phaseStatus={phaseStatus} allComplete={allComplete}
