@@ -4,6 +4,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,47 +64,39 @@ ${context ? `Additional context: ${context}` : ''}`;
 
     const userPrompt = `Generate 3 different Knowledge Spark suggestions for ${industry} professionals. Each should have a unique angle: one trend-focused, one tip-focused, and one stat-focused.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "spark_suggestions",
-            schema: {
-              type: "object",
-              properties: {
-                suggestions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      headline: { type: "string" },
-                      key_insight: { type: "string" },
-                      suggested_source: { type: "string" },
-                      statistic: { type: "string" }
-                    },
-                    required: ["headline", "key_insight"],
-                    additionalProperties: false
-                  }
+    const response = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.8,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "spark_suggestions",
+          schema: {
+            type: "object",
+            properties: {
+              suggestions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    headline: { type: "string" },
+                    key_insight: { type: "string" },
+                    suggested_source: { type: "string" },
+                    statistic: { type: "string" }
+                  },
+                  required: ["headline", "key_insight"],
+                  additionalProperties: false
                 }
-              },
-              required: ["suggestions"],
-              additionalProperties: false
-            }
+              }
+            },
+            required: ["suggestions"],
+            additionalProperties: false
           }
         }
-      }),
+      }
     });
 
     if (!response.ok) {

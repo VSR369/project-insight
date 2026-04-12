@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.90.1";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,21 +124,13 @@ OUTPUT:`;
       );
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "You are a professional technical editor. Output only the synthesized text, nothing else." },
-          { role: "user", content: synthesisPrompt }
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-      }),
+    const aiResponse = await callAIWithFallback(LOVABLE_API_KEY, {
+      messages: [
+        { role: "system", content: "You are a professional technical editor. Output only the synthesized text, nothing else." },
+        { role: "user", content: synthesisPrompt }
+      ],
+      max_tokens: 500,
+      temperature: 0.3,
     });
 
     if (!aiResponse.ok) {
