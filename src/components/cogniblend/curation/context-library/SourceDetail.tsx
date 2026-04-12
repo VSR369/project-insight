@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import {
   Trash2, CheckCircle, Clock, XCircle, RefreshCw, Download,
-  AlertTriangle, Info,
+  AlertTriangle, Info, Lock, Globe,
 } from 'lucide-react';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
 
@@ -157,6 +157,21 @@ export function SourceDetail({
           )}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <ExtractionBadge status={source.extraction_status} />
+            {source.access_status === 'paywall' && (
+              <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300">
+                <Lock className="h-3 w-3" /> Paywall
+              </Badge>
+            )}
+            {source.access_status === 'blocked' && (
+              <Badge variant="outline" className="text-xs gap-1 text-destructive">
+                <XCircle className="h-3 w-3" /> Blocked
+              </Badge>
+            )}
+            {source.access_status === 'accessible' && (
+              <Badge variant="outline" className="text-xs gap-1 text-emerald-600 border-emerald-300">
+                <Globe className="h-3 w-3" /> Accessible
+              </Badge>
+            )}
             {source.resource_type && <Badge variant="outline" className="text-xs">{source.resource_type}</Badge>}
             <Badge variant="secondary" className="text-xs">
               {source.discovery_source === 'ai_suggested' ? '🤖 AI Discovered' : '📎 Manual'}

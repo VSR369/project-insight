@@ -36,6 +36,7 @@ export interface ContextSource {
   relevance_explanation: string | null;
   confidence_score: number | null;
   suggested_sections: string[] | null;
+  access_status: string | null;
   created_at: string | null;
 }
 
@@ -70,7 +71,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>, challengeId: strin
 
 /* ── Queries ── */
 
-const SOURCE_COLUMNS = 'id, challenge_id, section_key, source_type, source_url, display_name, file_name, url_title, description, mime_type, file_size, storage_path, extracted_text, extracted_summary, extracted_key_data, extraction_status, extraction_error, shared_with_solver, discovery_source, discovery_status, resource_type, relevance_explanation, confidence_score, suggested_sections, created_at';
+const SOURCE_COLUMNS = 'id, challenge_id, section_key, source_type, source_url, display_name, file_name, url_title, description, mime_type, file_size, storage_path, extracted_text, extracted_summary, extracted_key_data, extraction_status, extraction_error, shared_with_solver, discovery_source, discovery_status, resource_type, relevance_explanation, confidence_score, suggested_sections, access_status, created_at';
 
 export function useContextSources(challengeId: string | null) {
   return useQuery({
