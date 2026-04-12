@@ -10,6 +10,7 @@ import {
   useRejectAllSuggestions, useAddContextUrl, useDeleteContextSource,
   useUpdateSourceSharing, useUpdateSourceSections, useRegenerateDigest,
   useSaveDigest, useUploadContextFile, useReExtractSource, useUnacceptSource,
+  useClearAllSources,
 } from '@/hooks/cogniblend/useContextLibrary';
 import { DrawerHeader } from './context-library/DrawerHeader';
 import { SourceList } from './context-library/SourceList';
@@ -56,6 +57,7 @@ export function ContextLibraryDrawer({
   const updateSection = useUpdateSourceSections(challengeId);
   const regenDigest = useRegenerateDigest(challengeId);
   const saveDigest = useSaveDigest(challengeId);
+  const clearAll = useClearAllSources(challengeId);
 
   const selectedSource = useMemo(() => sources.find(s => s.id === selectedId) || null, [sources, selectedId]);
   const suggestedCount = useMemo(() => sources.filter(s => s.discovery_status === 'suggested').length, [sources]);
@@ -100,6 +102,7 @@ export function ContextLibraryDrawer({
           fileSection={fileSection} onFileSectionChange={setFileSection}
           onAddUrl={handleAddUrl} onFileChange={handleFileChange}
           onDiscover={() => discover.mutate()} isDiscovering={discover.isPending}
+          onClearAll={() => clearAll.mutate()} isClearing={clearAll.isPending}
           isAddingUrl={addUrl.isPending} isUploading={uploadFile.isPending}
         />
 

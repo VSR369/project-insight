@@ -311,7 +311,7 @@ export function useUploadContextFile(challengeId: string) {
           file_size: file.size,
           storage_path: storagePath,
           discovery_source: 'manual',
-          discovery_status: 'accepted',
+          discovery_status: 'suggested',
           extraction_status: 'pending',
         })
         .select('id')
@@ -345,7 +345,7 @@ export function useAddContextUrl(challengeId: string) {
           source_type: 'url',
           source_url: url,
           discovery_source: 'manual',
-          discovery_status: 'accepted',
+          discovery_status: 'suggested',
           extraction_status: 'pending',
         })
         .select('id')
@@ -454,6 +454,48 @@ export function useRegenerateDigest(challengeId: string) {
       toast.success('Context digest generated');
     },
     onError: (err: Error) => toast.error(`Digest generation failed: ${err.message}`),
+  });
+}
+
+/** Clear ALL sources and digest for a challenge — fresh start */
+export function useClearAllSources(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      // 1. Get file-type sources to clean up storage
+      const { data: fileSources } = await supabase
+        .from('challenge_attachments')
+        .select('storage_path')
+        .eq('challenge_id', challengeId)
+        .eq('source_type', 'file')
+        .not('storage_path', 'is', null);
+
+      // 2. Remove storage files
+      const paths = (fileSources ?? [])
+        .map(s => s.storage_path)
+        .filter((p): p is string => !!p);
+      if (paths.length > 0) {
+        await supabase.storage.from('challenge-attachments').remove(paths);
+      }
+
+      // 3. Delete all attachments
+      const { error: delErr } = await supabase
+        .from('challenge_attachments')
+        .delete()
+        .eq('challenge_id', challengeId);
+      if (delErr) throw new Error(delErr.message);
+
+      // 4. Delete digest
+      await supabase
+        .from('challenge_context_digest')
+        .delete()
+        .eq('challenge_id', challengeId);
+    },
+    onSuccess: () => {
+      invalidateAll(qc, challengeId);
+      toast.success('All sources and digest cleared');
+    },
+    onError: (err: Error) => toast.error(`Clear failed: ${err.message}`),
   });
 }
 
