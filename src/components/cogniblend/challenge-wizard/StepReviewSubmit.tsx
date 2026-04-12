@@ -130,7 +130,7 @@ export function StepReviewSubmit({ form, isQuick, onNavigateToStep }: StepReview
       step: 5,
       fields: [
         { label: 'Eligible Participation Modes', value: (v.eligible_participation_modes?.length ?? 0) > 0 ? `${v.eligible_participation_modes.length} selected` : 'All Categories', isValid: true },
-        { label: 'Solver Tiers', value: (v.solver_eligibility_ids?.length ?? 0) > 0 ? `${v.solver_eligibility_ids.length} selected` : 'All (no restriction)', isValid: true },
+        { label: 'Solution Provider Tiers', value: (v.solver_eligibility_ids?.length ?? 0) > 0 ? `${v.solver_eligibility_ids.length} selected` : 'All (no restriction)', isValid: true },
         { label: 'Required Expertise Level', value: v.required_expertise_level_id ?? '', isValid: true },
         { label: 'Required Expertise Level', value: v.required_expertise_level_id ?? '', isValid: true },
         { label: 'Required Proficiencies', value: v.required_proficiencies?.length ? `${v.required_proficiencies.length} selected` : '', isValid: true },

@@ -73,9 +73,9 @@ const TRIGGER_OPTIONS = [
 ] as const;
 
 const IP_OPTIONS = [
-  { value: 'IP-EA', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solver transfers all IP rights to you upon acceptance.' },
-  { value: 'IP-NEL', label: 'Non-Exclusive License', short: 'Solver keeps IP, you get license', tooltip: 'Solver retains ownership; grants you a perpetual non-exclusive license.' },
-  { value: 'IP-EL', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solver retains ownership; grants you an exclusive license.' },
+  { value: 'IP-EA', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solution Provider transfers all IP rights to you upon acceptance.' },
+  { value: 'IP-NEL', label: 'Non-Exclusive License', short: 'Solution Provider keeps IP, you get license', tooltip: 'Solution Provider retains ownership; grants you a perpetual non-exclusive license.' },
+  { value: 'IP-EL', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solution Provider retains ownership; grants you an exclusive license.' },
   { value: 'IP-JO', label: 'Joint Ownership', short: 'Both parties co-own', tooltip: 'Both parties share IP ownership.' },
   { value: 'IP-NONE', label: 'No Transfer', short: 'Advisory only', tooltip: 'No IP transfer; advisory engagement only.' },
 ] as const;
@@ -354,7 +354,7 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
           {!isQuick && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Mode</Label>
-              <p className="text-xs text-muted-foreground">How award payments are disbursed to winning solvers.</p>
+              <p className="text-xs text-muted-foreground">How award payments are disbursed to winning Solution Providers.</p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <button type="button"
                   onClick={() => setValue('payment_mode', 'escrow', { shouldDirty: true })}
@@ -385,7 +385,7 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
           {!isQuick && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Schedule (Milestone-based)</Label>
-              <p className="text-xs text-muted-foreground">Define when portions of the award are released to solvers.</p>
+              <p className="text-xs text-muted-foreground">Define when portions of the award are released to Solution Providers.</p>
 
               <div className="relative w-full overflow-auto">
                 <Table>
@@ -514,13 +514,13 @@ export function StepRewards({ form, isQuick }: StepRewardsProps) {
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-xs text-xs">
                   The rejection fee is the percentage of the award released to shortlisted
-                  solvers if all submitted solutions are ultimately rejected.
+                  Solution Providers if all submitted solutions are ultimately rejected.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
           <p className="text-xs text-muted-foreground">
-            Percentage of award released to shortlisted solvers if all solutions are rejected.
+            Percentage of award released to shortlisted Solution Providers if all solutions are rejected.
           </p>
           <div className="space-y-2">
             <div className="flex items-center justify-between">

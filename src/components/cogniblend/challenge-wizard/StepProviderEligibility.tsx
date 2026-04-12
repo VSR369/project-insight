@@ -393,15 +393,15 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
       {/* ═══ SECTION 1B: Solver Tier (Layer 2) — Checkboxes ═══ */}
       <div className="space-y-4">
         <div className="space-y-1">
-          <h4 className="text-sm font-bold text-foreground">Solver Tier</h4>
+          <h4 className="text-sm font-bold text-foreground">Solution Provider Tier</h4>
           <p className="text-xs text-muted-foreground">
-            What level of solver can participate? Select one or more tiers.
+            What level of Solution Provider can participate? Select one or more tiers.
           </p>
         </div>
 
         {loadingCategories ? (
           <div className="rounded-lg border border-border bg-muted/30 p-6 text-center">
-            <p className="text-sm text-muted-foreground">Loading solver tiers…</p>
+            <p className="text-sm text-muted-foreground">Loading Solution Provider tiers…</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -420,7 +420,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
                   <span className="text-sm font-semibold text-foreground">All (no restriction)</span>
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">ALL</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Any solver on the platform can participate</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Any Solution Provider on the platform can participate</p>
               </div>
             </label>
 
@@ -482,7 +482,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
           <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
             <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground">
-              Visibility is auto-configured based on the selected solver tier(s).
+              Visibility is auto-configured based on the selected Solution Provider tier(s).
             </p>
           </div>
         )}
@@ -515,7 +515,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
               ))}
             </div>
             <p className="text-[11px] text-muted-foreground italic">
-              Solvers from these countries will be prioritized in matchmaking.
+              Solution Providers from these countries will be prioritized in matchmaking.
             </p>
           </div>
         )}
@@ -665,7 +665,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
           <span className="text-xs text-muted-foreground ml-1">(optional)</span>
         </Label>
         <Textarea
-          placeholder="Describe any additional eligibility requirements for solvers..."
+          placeholder="Describe any additional eligibility requirements for Solution Providers..."
           rows={3}
           className="text-base resize-none"
           {...form.register('eligibility')}
