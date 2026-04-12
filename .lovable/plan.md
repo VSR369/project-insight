@@ -1,63 +1,65 @@
 
 
-## Fix: 6 Confirmed Bugs in Curation AI Review Accept Flow
+## Revised: Accept All AI Suggestions — Correct Skip List
 
-### Bug 1 — `table_fallback` blocks Accept button
+### What Changed From Previous Plan
 
-**File:** `src/components/cogniblend/curation/AIReviewResultPanel.tsx` (line 185)
+The previous plan over-skipped. The correct approach: **iterate all sections with a non-null `aiSuggestion` in the Zustand store, and skip only sections where acceptance is structurally impossible.**
 
-The Accept button is disabled when `suggestedFormat === "table_fallback"`. This means if `parseTableRows()` fails on valid-but-slightly-malformed JSON, the curator is locked out.
+### Actual Skip List (Only 2 Categories)
 
-**Fix:** Remove the `table_fallback` disable condition. When format is `table_fallback`, the raw `suggested_version` string is still available and can be accepted as rich text fallback. Change the disabled condition to only check `isRefining`.
+**Hard-locked (never receive suggestions, `aiReviewEnabled: false`):**
+- `legal_docs`, `escrow_funding`
 
-### Bug 2 — `reference_urls` overwrites entire `extended_brief`
+**No AI suggestions generated (`aiCanDraft: false`, so `aiSuggestion` will always be null):**
+- `creator_references`, `reference_urls`, `solver_audience`, `evaluation_config`, `creator_legal_instructions`
 
-**File:** `src/components/cogniblend/curation/SectionPanelItem.tsx` (line 195) and `src/lib/cogniblend/curationSectionFormats.ts`
+These don't need an explicit skip list — they simply won't have `aiSuggestion` in the store. The bulk handler just needs: **"for every section where `aiSuggestion != null && !addressed`, call accept."**
 
-`reference_urls` has `dbField: 'extended_brief'` in section defs but is NOT in `EXTENDED_BRIEF_FIELD_MAP`. So `SectionPanelItem` routes it to `handleAcceptRefinement` instead of `handleAcceptExtendedBriefRefinement`, which then saves raw content directly to the `extended_brief` column — wiping all other subsections.
+### Sections That MUST Be Included (Previously Wrong)
 
-**Fix:** Add `reference_urls: 'reference_urls'` to `EXTENDED_BRIEF_FIELD_MAP` in `curationSectionFormats.ts`. Also add a `reference_urls` case in `getSectionContent` in `curationParsers.ts`.
+| Section | `aiCanDraft` | Accept Handler Path |
+|---------|-------------|-------------------|
+| `complexity` | true | `handleAcceptRefinement` → line 73 → `complexityModuleRef.current?.saveAiDraft()` |
+| `reward_structure` | true | `handleAcceptRefinement` → line 103 → `normalizeRewardStructure` → `rewardStructureRef` |
 
-### Bug 3 — `solver_audience` and `evaluation_config` missing from `getSectionContent`
+**Problem:** Both use component refs (`complexityModuleRef`, `rewardStructureRef`). During bulk accept, these refs are only valid if the component is mounted (i.e., the section panel is rendered). However, `handleAcceptRefinement` already handles these — it will work as long as the ref is available. If the ref is null (component not visible), the save silently fails for complexity and `normalizeRewardStructure` returns null for reward_structure.
 
-**File:** `src/lib/cogniblend/curationParsers.ts`
+**Fix:** For bulk accept, these two sections need a direct DB save path that bypasses the refs:
+- `complexity`: extract the code from the suggestion, match against `complexityOptions`, save via `saveSectionMutation({ field: 'complexity_level', value: matchedCode })`
+- `reward_structure`: parse the JSON suggestion, save via `saveSectionMutation({ field: 'reward_structure', value: parsed })`
 
-These sections exist in `SECTION_FORMAT_CONFIG` but have no case in `getSectionContent`, so the AI review receives `null` content and treats them as empty.
+### Extended Brief Subsections — Batched Write
 
-**Fix:** Add cases:
-- `solver_audience`: return `ch.solver_audience`
-- `evaluation_config`: return a JSON string of `{ evaluation_method, evaluator_count, is_blind_review }` from `ChallengeData`
+These 6 subsections all map to the same `extended_brief` JSONB column. Individual writes would cause race conditions (each read-modify-write could overwrite the previous). Batch them:
 
-### Bug 4 — `success_metrics_kpis` and `data_resources_provided` already handled
+1. Read current `challenge.extended_brief` once
+2. Merge all subsection suggestions into the object
+3. Single `saveSectionMutation({ field: 'extended_brief', value: merged })`
 
-Looking at lines 116-117 of `curationParsers.ts`, these ARE already in `getSectionContent`. **This bug is already fixed.** No change needed.
-
-### Bug 5 — `isStructuredSection` only checks `line_items`
-
-**File:** `src/components/cogniblend/shared/aiReviewInlineHelpers.ts` (line 27)
-
-`isStructuredSection` returns `true` only for `line_items`, missing `table` and `schedule_table`. This means checkbox selection and "Accept N items" count don't work for table sections.
-
-**Fix:** Expand the check: `return ['line_items', 'table', 'schedule_table'].includes(fmt.format)`
-
-### Bug 6 — `normalizeDomainTags` doesn't unwrap `{tags: [...]}`
-
-**File:** `src/lib/cogniblend/normalizeAIContent.ts` (line 115-122)
-
-If AI returns `{"tags": ["a","b"]}`, `parseJsonSafe` produces an object. `normalizeDomainTags` checks `!Array.isArray(value)` and returns the object unchanged — saving wrong shape to DB.
-
-**Fix:** Before the array check, unwrap common wrapper keys: if `value` is an object with a `tags`, `items`, or `domain_tags` array property, extract that array.
-
----
-
-### Summary of Changes
+### Implementation Plan
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `AIReviewResultPanel.tsx` | Remove `table_fallback` disable on Accept |
-| 2 | `curationSectionFormats.ts` | Add `reference_urls` to `EXTENDED_BRIEF_FIELD_MAP` |
-| 3 | `curationParsers.ts` | Add `solver_audience`, `evaluation_config`, `reference_urls` to `getSectionContent` |
-| 4 | — | Already fixed, no change |
-| 5 | `aiReviewInlineHelpers.ts` | Expand `isStructuredSection` to include `table`/`schedule_table` |
-| 6 | `normalizeAIContent.ts` | Unwrap `{tags:[...]}` wrapper in `normalizeDomainTags` |
+| 1 | `src/hooks/cogniblend/useCurationComputedValues.ts` | Add `suggestionsCount`: count store entries with `aiSuggestion != null && !addressed` |
+| 2 | `src/hooks/cogniblend/useCurationAcceptRefinement.ts` | Add `handleBulkAcceptAll` that: (a) collects all sections with suggestions, (b) partitions into regular/extended_brief, (c) for complexity: direct code-match save bypassing ref, (d) for reward_structure: direct JSON save bypassing ref, (e) for extended_brief: batched merge, (f) staggered 100ms saves for all others, (g) marks all addressed |
+| 3 | `src/components/cogniblend/curation/BulkActionBar.tsx` | Replace "Accept all passing" button with "Accept All AI Suggestions (N)" + AlertDialog confirmation |
+| 4 | `src/components/cogniblend/curation/CurationHeaderBar.tsx` | Pass new props to BulkActionBar |
+| 5 | `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Wire `handleBulkAcceptAll` and `suggestionsCount` |
+| 6 | Cleanup: remove old `handleAcceptAllPassing` if it still exists |
+
+### Bulk Accept Flow
+
+```text
+1. Scan Zustand store → collect sections where aiSuggestion != null && !addressed
+2. Show AlertDialog: "Accept AI suggestions for N sections?"
+3. On confirm:
+   a. Group into: regular[], extendedBrief[], complexity?, rewardStructure?
+   b. complexity → match code against masterData.complexityOptions → direct save
+   c. rewardStructure → parse JSON → direct save  
+   d. extendedBrief[] → read current brief → merge all → single save
+   e. regular[] → staggered handleAcceptRefinement (100ms apart)
+   f. Mark all as addressed via setAddressedOnly
+   g. Toast: "Accepted AI suggestions for N sections"
+```
 
