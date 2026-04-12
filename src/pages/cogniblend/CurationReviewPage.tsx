@@ -141,7 +141,10 @@ export default function CurationReviewPage() {
         onReviewWarnings={o.handleReviewWarnings}
         suggestionsCount={o.suggestionsCount}
         isBulkAccepting={o.isBulkAccepting}
-        reviewSessionActive={o.pass1DoneSession}
+        reviewSessionActive={o.pass1DoneSession || o.generateDoneSession}
+        generateDoneSession={o.generateDoneSession}
+        waveCompleted={o.waveProgress?.overallStatus === 'completed'}
+        onDismissCompletionBanner={() => o.setGenerateDoneSession(false)}
         phaseDescription={o.phaseDescription}
         legalEscrowBlocked={o.legalEscrowBlocked}
         blockingReason={o.blockingReason}
@@ -207,7 +210,7 @@ export default function CurationReviewPage() {
                 sectionAIFlags={o.sectionAIFlags}
                 highlightWarnings={o.highlightWarnings}
                 aiSuggestedComplexity={o.aiSuggestedComplexity}
-                reviewSessionActive={o.pass1DoneSession}
+                reviewSessionActive={o.pass1DoneSession || o.generateDoneSession}
                 groupReadiness={o.groupReadiness}
                 sectionReadiness={o.sectionReadiness}
                 dismissedPrereqBanner={o.dismissedPrereqBanner}
