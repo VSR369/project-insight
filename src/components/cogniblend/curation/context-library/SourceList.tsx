@@ -1,5 +1,6 @@
 /**
  * SourceList — Left panel showing suggested + accepted sources grouped by section.
+ * Includes inline accept/reject on suggestions and unaccept on accepted sources.
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Globe, FileText, CheckCircle, Clock, XCircle, X } from 'lucide-react';
 import { SuggestionCard } from './SuggestionCard';
 import { ContentIndicators } from './ContentIndicators';
 import { SECTION_LABELS, displayName, matchSource, type ContextSource } from './types';
@@ -22,6 +23,7 @@ interface SourceListProps {
   onRejectAll: () => void;
   onAcceptOne: (id: string) => void;
   onRejectOne: (id: string) => void;
+  onUnaccept: (id: string) => void;
   isAcceptPending: boolean;
   isRejectPending: boolean;
   isLoading: boolean;
@@ -42,7 +44,7 @@ function ExtractionBadge({ status }: { status: string | null }) {
 
 export function SourceList({
   sources, searchTerm, selectedId, onSelectSource,
-  onAcceptMultiple, onRejectAll, onAcceptOne, onRejectOne,
+  onAcceptMultiple, onRejectAll, onAcceptOne, onRejectOne, onUnaccept,
   isAcceptPending, isRejectPending, isLoading,
 }: SourceListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -71,8 +73,7 @@ export function SourceList({
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }, []);
@@ -83,17 +84,11 @@ export function SourceList({
     setSelectedIds(allSelected ? new Set() : new Set(allIds));
   }, [filtered.suggested, selectedIds]);
 
-  const allSelected = filtered.suggested.length > 0 &&
-    filtered.suggested.every(s => selectedIds.has(s.id));
+  const allSelected = filtered.suggested.length > 0 && filtered.suggested.every(s => selectedIds.has(s.id));
 
   const handleAcceptAction = useCallback(() => {
-    const ids = selectedIds.size > 0
-      ? Array.from(selectedIds)
-      : filtered.suggested.map(s => s.id);
-    if (ids.length > 0) {
-      onAcceptMultiple(ids);
-      setSelectedIds(new Set());
-    }
+    const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filtered.suggested.map(s => s.id);
+    if (ids.length > 0) { onAcceptMultiple(ids); setSelectedIds(new Set()); }
   }, [selectedIds, filtered.suggested, onAcceptMultiple]);
 
   const handleAcceptOne = useCallback((id: string) => {
@@ -128,33 +123,20 @@ export function SourceList({
             </div>
             <div className="space-y-1">
               {filtered.suggested.map(s => (
-                <SuggestionCard
-                  key={s.id}
-                  source={s}
-                  isActive={selectedId === s.id}
-                  isSelected={selectedIds.has(s.id)}
-                  onSelect={() => onSelectSource(s.id)}
-                  onToggleSelect={handleToggleSelect}
-                  onAccept={handleAcceptOne}
-                  onReject={handleRejectOne}
-                  isAcceptPending={isAcceptPending}
-                  isRejectPending={isRejectPending}
-                />
+                <SuggestionCard key={s.id} source={s} isActive={selectedId === s.id}
+                  isSelected={selectedIds.has(s.id)} onSelect={() => onSelectSource(s.id)}
+                  onToggleSelect={handleToggleSelect} onAccept={handleAcceptOne}
+                  onReject={handleRejectOne} isAcceptPending={isAcceptPending}
+                  isRejectPending={isRejectPending} />
               ))}
             </div>
             <div className="flex gap-2 mt-2">
-              <Button
-                size="sm" variant="default" className="text-xs h-7"
-                onClick={handleAcceptAction}
-                disabled={filtered.suggested.length === 0 || isAcceptPending}
-              >
+              <Button size="sm" variant="default" className="text-xs h-7"
+                onClick={handleAcceptAction} disabled={filtered.suggested.length === 0 || isAcceptPending}>
                 {acceptLabel}
               </Button>
-              <Button
-                size="sm" variant="outline" className="text-xs h-7"
-                onClick={() => { onRejectAll(); setSelectedIds(new Set()); }}
-                disabled={isRejectPending}
-              >
+              <Button size="sm" variant="outline" className="text-xs h-7"
+                onClick={() => { onRejectAll(); setSelectedIds(new Set()); }} disabled={isRejectPending}>
                 Reject All
               </Button>
             </div>
@@ -163,6 +145,11 @@ export function SourceList({
         )}
 
         {/* Accepted sources grouped by section */}
+        {filtered.accepted.length > 0 && (
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            ✅ Accepted ({filtered.accepted.length})
+          </h4>
+        )}
         {Object.entries(groupedAccepted).map(([sectionKey, items]) => (
           <div key={sectionKey}>
             <h4 className="text-xs font-semibold text-muted-foreground mb-1">
@@ -170,11 +157,9 @@ export function SourceList({
             </h4>
             <div className="space-y-1">
               {items.map(s => (
-                <div
-                  key={s.id}
-                  className={`p-2 rounded-md cursor-pointer hover:bg-muted/50 text-sm flex items-start gap-2 ${selectedId === s.id ? 'bg-muted' : ''}`}
-                  onClick={() => onSelectSource(s.id)}
-                >
+                <div key={s.id}
+                  className={`p-2 rounded-md cursor-pointer hover:bg-muted/50 text-sm flex items-start gap-2 group ${selectedId === s.id ? 'bg-muted' : ''}`}
+                  onClick={() => onSelectSource(s.id)}>
                   {s.source_type === 'url' ? (
                     <Globe className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                   ) : (
@@ -188,6 +173,12 @@ export function SourceList({
                       <ContentIndicators source={s} />
                     </div>
                   </div>
+                  <Button size="icon" variant="ghost"
+                    className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={e => { e.stopPropagation(); onUnaccept(s.id); }}
+                    title="Move back to suggested">
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
               ))}
             </div>
