@@ -54,7 +54,7 @@ This agreement is between the Challenge Seeker organization and the participatin
 {{ip_model}}
 
 ## 5. Acceptance
-By participating, the Solver agrees to these terms.`,
+By participating, the Solution Provider agrees to these terms.`,
 
   STRUCTURED: `# Challenge Participation Agreement (Structured Mode)
 
