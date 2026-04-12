@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Link, Sparkles, BookOpen, X, Upload, FileText } from 'lucide-react';
+import { Search, Link, Sparkles, BookOpen, X, Upload, FileText, Trash2 } from 'lucide-react';
 import { SECTION_LABELS } from './types';
 
 const ACCEPTED_FILE_TYPES = '.pdf,.docx,.xlsx,.csv,.txt,.md,.png,.jpg,.jpeg,.webp';
@@ -34,9 +34,11 @@ interface DrawerHeaderProps {
   onAddUrl: () => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDiscover: () => void;
+  onClearAll: () => void;
   isDiscovering: boolean;
   isAddingUrl: boolean;
   isUploading: boolean;
+  isClearing: boolean;
 }
 
 export function DrawerHeader({
@@ -44,8 +46,8 @@ export function DrawerHeader({
   searchTerm, onSearchChange,
   addMode, onSetAddMode, urlValue, onUrlValueChange,
   urlSection, onUrlSectionChange, fileSection, onFileSectionChange,
-  onAddUrl, onFileChange, onDiscover,
-  isDiscovering, isAddingUrl, isUploading,
+  onAddUrl, onFileChange, onDiscover, onClearAll,
+  isDiscovering, isAddingUrl, isUploading, isClearing,
 }: DrawerHeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,8 +73,12 @@ export function DrawerHeader({
 
       {/* Action bar */}
       <div className="flex items-center gap-2 flex-wrap mt-2">
-        <Button size="sm" variant="default" onClick={onDiscover} disabled={isDiscovering}>
+        <Button size="sm" variant="default" onClick={onDiscover} disabled={isDiscovering || isClearing}>
           <Sparkles className="h-4 w-4 mr-1" />{isDiscovering ? 'Discovering...' : 'Re-discover Sources'}
+        </Button>
+        <Button size="sm" variant="destructive" disabled={isClearing || isDiscovering}
+          onClick={() => { if (window.confirm('Clear ALL sources and digest? This cannot be undone.')) onClearAll(); }}>
+          <Trash2 className="h-4 w-4 mr-1" />{isClearing ? 'Clearing...' : 'Clear All'}
         </Button>
         <Button size="sm" variant={addMode === 'url' ? 'secondary' : 'outline'}
           onClick={() => onSetAddMode(addMode === 'url' ? null : 'url')}>
