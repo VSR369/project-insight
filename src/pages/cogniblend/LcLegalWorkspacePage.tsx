@@ -29,10 +29,10 @@ import { sanitizeFileName } from '@/lib/sanitizeFileName';
 
 const IP_MODEL_LABELS: Record<string, string> = {
   'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
-  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
+  'IP-NEL': 'Non-Exclusive License — Solution Provider retains rights, seeker gets license',
   'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
-  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
-  'IP-NONE': 'No Transfer — Solver retains all IP rights',
+  'IP-JO': 'Joint Ownership — Shared IP between Solution Provider and seeker',
+  'IP-NONE': 'No Transfer — Solution Provider retains all IP rights',
 };
 
 const DOCUMENT_TYPES = [
@@ -853,7 +853,7 @@ export default function LcLegalWorkspacePage() {
 
             {/* Solver Eligibility */}
             <AccordionItem value="solver">
-              <AccordionTrigger className="text-sm font-semibold">Solver Eligibility & Visibility</AccordionTrigger>
+              <AccordionTrigger className="text-sm font-semibold">Solution Provider Eligibility & Visibility</AccordionTrigger>
               <AccordionContent className="space-y-3">
                 {challenge?.eligibility && (
                   <div>
@@ -863,7 +863,7 @@ export default function LcLegalWorkspacePage() {
                 )}
                 {solverTypes.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Eligible Solver Types</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Eligible Solution Provider Types</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {solverTypes.map((t, i) => (
                         <Badge key={i} variant="secondary" className="text-xs">{t}</Badge>
@@ -873,7 +873,7 @@ export default function LcLegalWorkspacePage() {
                 )}
                 {solverVisible.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Visible Solver Types</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Visible Solution Provider Types</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {solverVisible.map((t, i) => (
                         <Badge key={i} variant="outline" className="text-xs">{t}</Badge>

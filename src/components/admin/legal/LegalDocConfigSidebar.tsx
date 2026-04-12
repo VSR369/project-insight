@@ -21,7 +21,7 @@ const ROLE_OPTIONS = [
   { value: 'ER', label: 'Evaluator/Reviewer (ER)' },
   { value: 'LC', label: 'Legal Coordinator (LC)' },
   { value: 'FC', label: 'Finance Coordinator (FC)' },
-  { value: 'SOLVER', label: 'Solver' },
+  { value: 'SOLVER', label: 'Solution Provider' },
 ] as const;
 
 const DOC_CODES = Object.keys(DOCUMENT_CODE_LABELS) as DocumentCode[];

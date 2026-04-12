@@ -38,7 +38,7 @@ export function AccessModelSummary({ visibility, eligibleSolverLabels = [], clas
         <div className="flex items-start gap-2">
           <Users className="h-4 w-4 mt-0.5 text-primary shrink-0" />
           <span>
-            <span className="text-muted-foreground">Eligible Solvers (can view & submit): </span>
+            <span className="text-muted-foreground">Eligible Solution Providers (can view & submit): </span>
             {eligibleSolverLabels.length > 0 ? (
               <span className="flex flex-wrap gap-1 mt-0.5">
                 {eligibleSolverLabels.map((label) => (
@@ -46,7 +46,7 @@ export function AccessModelSummary({ visibility, eligibleSolverLabels = [], clas
                 ))}
               </span>
             ) : (
-              <Badge variant="secondary" className="text-[11px] ml-1">All Solver Types</Badge>
+              <Badge variant="secondary" className="text-[11px] ml-1">All Solution Provider Types</Badge>
             )}
           </span>
         </div>

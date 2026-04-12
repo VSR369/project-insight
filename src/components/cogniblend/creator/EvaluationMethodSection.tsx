@@ -100,13 +100,13 @@ export function EvaluationMethodSection({ governanceMode }: EvaluationMethodSect
         <div className="flex items-center gap-2 rounded-md bg-accent/50 px-3 py-2">
           <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <Badge variant="secondary" className="text-xs font-normal">
-            Blinded evaluation: Solver identities hidden from evaluators
+            Blinded evaluation: Solution Provider identities hidden from evaluators
           </Badge>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Info className="h-3 w-3 shrink-0" />
-          Evaluators can see solver identities
+          Evaluators can see Solution Provider identities
         </p>
       )}
     </div>

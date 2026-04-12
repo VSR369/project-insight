@@ -52,7 +52,7 @@ By submitting a solution abstract to this challenge, you consent to the followin
 Your submitted abstract and supporting materials will be reviewed by qualified evaluators selected by the platform. Evaluation criteria include originality, feasibility, methodology, and alignment with the challenge requirements.
 
 2. CONFIDENTIALITY OF EVALUATION
-Evaluator identities remain anonymous to solvers. Evaluation scores and commentary are confidential until officially released by the challenge owner.
+Evaluator identities remain anonymous to Solution Providers. Evaluation scores and commentary are confidential until officially released by the challenge owner.
 
 3. MULTI-ROUND REVIEW
 Solutions may undergo multiple rounds of evaluation including automated screening, peer review, and expert panel assessment. You consent to your submission being evaluated across all applicable rounds.
@@ -74,7 +74,7 @@ Your submission data will be retained for the duration of the challenge lifecycl
 This policy governs the use of artificial intelligence tools in preparing and submitting solutions.
 
 1. DISCLOSURE REQUIREMENT
-All solvers MUST declare any AI tools used in the preparation of their solution. This includes but is not limited to: large language models (ChatGPT, Claude, Gemini), code generation tools (GitHub Copilot), image generators, and research assistants.
+All Solution Providers MUST declare any AI tools used in the preparation of their solution. This includes but is not limited to: large language models (ChatGPT, Claude, Gemini), code generation tools (GitHub Copilot), image generators, and research assistants.
 
 2. PERMITTED USES
 AI tools may be used for: research assistance, grammar and writing refinement, code scaffolding (where applicable), data analysis support, and visualization generation.
@@ -123,13 +123,13 @@ Each party bears their own costs. Platform mediation is provided at no charge. A
 These terms govern the process and implications of withdrawing a submitted solution.
 
 1. WITHDRAWAL WINDOW
-Solvers may withdraw their submission without penalty during the Screening phase (Phase 7). Once the submission advances to Evaluation (Phase 8), withdrawal restrictions apply.
+Solution Providers may withdraw their submission without penalty during the Screening phase (Phase 7). Once the submission advances to Evaluation (Phase 8), withdrawal restrictions apply.
 
 2. POST-EVALUATION WITHDRAWAL
-Withdrawing after evaluation begins may result in: forfeiture of any evaluation feedback, notation on the solver's platform record, and temporary cooldown period before submitting to new challenges.
+Withdrawing after evaluation begins may result in: forfeiture of any evaluation feedback, notation on the Solution Provider's platform record, and temporary cooldown period before submitting to new challenges.
 
 3. IP IMPLICATIONS
-Upon withdrawal: all IP rights revert to the solver, the platform retains no license to the withdrawn submission, and all copies in the evaluation system are purged within 30 days.
+Upon withdrawal: all IP rights revert to the Solution Provider, the platform retains no license to the withdrawn submission, and all copies in the evaluation system are purged within 30 days.
 
 4. PARTIAL WITHDRAWAL
 In team submissions, individual members may withdraw their contribution. The remaining team must confirm they can proceed without the withdrawn contribution.
@@ -138,6 +138,6 @@ In team submissions, individual members may withdraw their contribution. The rem
 A withdrawn solution may be re-submitted if the challenge deadline has not passed and the submission limit has not been reached.
 
 6. NOTIFICATION
-Withdrawal notifications are sent to the challenge owner and any assigned evaluators. The solver's identity in connection with the withdrawal remains confidential.`,
+Withdrawal notifications are sent to the challenge owner and any assigned evaluators. The Solution Provider's identity in connection with the withdrawal remains confidential.`,
   },
 ];

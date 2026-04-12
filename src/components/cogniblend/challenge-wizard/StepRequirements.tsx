@@ -109,7 +109,7 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
           Deliverables <span className="text-destructive">*</span>
         </Label>
         <p className="text-xs text-muted-foreground">
-          List the expected outputs from solvers. Drag to reorder.
+          List the expected outputs from Solution Providers. Drag to reorder.
         </p>
 
         <div className="space-y-2">
@@ -173,18 +173,18 @@ export function StepRequirements({ form, mandatoryFields, isQuick }: StepRequire
           {!isQuick && isRequired('submission_guidelines') && <span className="text-destructive">*</span>}
           {isQuick && <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
         </Label>
-        <Textarea id="submission_guidelines" placeholder="Any specific instructions for solvers about how to prepare and submit their solutions." rows={4} className="text-base resize-none" {...register('submission_guidelines')} />
+        <Textarea id="submission_guidelines" placeholder="Any specific instructions for Solution Providers about how to prepare and submit their solutions." rows={4} className="text-base resize-none" {...register('submission_guidelines')} />
         {errors.submission_guidelines && <p className="text-xs text-destructive">{errors.submission_guidelines.message}</p>}
       </div>
 
       {/* ── 3b. Upload Submission Template ── */}
       <SubmissionTemplateUpload form={form} />
 
-      {/* ── 4. Solver Eligibility note ── */}
+      {/* ── 4. Solution Provider Eligibility note ── */}
       <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
         <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
-          Solver eligibility is configured in <strong>Step 5 — Provider Eligibility & Matchmaking</strong>.
+          Solution Provider eligibility is configured in <strong>Step 5 — Provider Eligibility & Matchmaking</strong>.
         </p>
       </div>
 

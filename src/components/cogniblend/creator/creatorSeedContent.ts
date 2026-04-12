@@ -288,7 +288,7 @@ export function getSeedForCombination(
       evaluation_method: 'SINGLE',
       evaluator_count: 1,
       creator_legal_instructions: engagementModel === 'MP'
-        ? 'Smart grid operational data is NERC CIP regulated. Please ensure the CPA includes critical infrastructure data handling clauses and solver background check requirements.'
+        ? 'Smart grid operational data is NERC CIP regulated. Please ensure the CPA includes critical infrastructure data handling clauses and Solution Provider background check requirements.'
         : 'Predictive analytics models must remain compatible with client SAP QM data formats. Please add Siemens MindSphere IP licensing acknowledgment clause.',
     };
   }
@@ -305,7 +305,7 @@ export function getSeedForCombination(
     evaluation_method: 'DELPHI',
     evaluator_count: 3,
     phase_durations: [
-      { phase_number: 5, label: 'Solver Submission Period', target_date: d(45), duration_days: 45 },
+      { phase_number: 5, label: 'Solution Provider Submission Period', target_date: d(45), duration_days: 45 },
       { phase_number: 6, label: 'Abstract/Proposal Review', target_date: d(62), duration_days: 17 },
       { phase_number: 8, label: 'Full Solution Review', target_date: d(93), duration_days: 31 },
       { phase_number: 9, label: 'Award Decision', target_date: d(107), duration_days: 14 },

@@ -230,7 +230,7 @@ export default function PublicChallengeDetailPage() {
           )}
           {data.escrowFunded && (
             <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
-              <ShieldCheck className="h-3 w-3 mr-1" /> Solver Protected
+              <ShieldCheck className="h-3 w-3 mr-1" /> Solution Provider Protected
             </Badge>
           )}
         </div>

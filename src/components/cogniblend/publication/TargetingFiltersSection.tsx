@@ -268,8 +268,8 @@ export function TargetingFiltersSection({
         </h4>
         <p className="text-xs text-muted-foreground">
           {isQuick
-            ? 'Set industry and geography preferences for solver targeting.'
-            : 'Configure all 8 targeting dimensions to narrow solver eligibility.'}
+             ? 'Set industry and geography preferences for Solution Provider targeting.'
+             : 'Configure all 8 targeting dimensions to narrow Solution Provider eligibility.'}
         </p>
       </div>
 
@@ -330,7 +330,7 @@ export function TargetingFiltersSection({
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center gap-1.5">
               <Star className="h-4 w-4" />
-              Minimum Solver Rating
+               Minimum Solution Provider Rating
             </Label>
             <Select
               value={value.min_solver_rating}
@@ -378,7 +378,7 @@ export function TargetingFiltersSection({
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center gap-1.5">
               <Users className="h-4 w-4" />
-              Solver Cluster
+               Solution Provider Cluster
             </Label>
             <Select
               value={value.solver_cluster}

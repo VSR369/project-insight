@@ -96,7 +96,7 @@ export function EscrowDepositSection({ challengeId, userId }: EscrowDepositSecti
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
                     <ShieldCheck className="h-3 w-3 mr-1" />
-                    Solver Protected
+                    Solution Provider Protected
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     This badge will be displayed on the published challenge.

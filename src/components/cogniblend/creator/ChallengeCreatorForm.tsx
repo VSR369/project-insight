@@ -256,7 +256,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           <div className="rounded-lg border border-border p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Users className="h-4 w-4 text-muted-foreground" />
-              Solver Audience
+              Solution Provider Audience
             </div>
             <RadioGroup
               value={form.watch('solver_audience')}
@@ -265,7 +265,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             >
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="ALL" id="sa-all" />
-                <Label htmlFor="sa-all" className="text-sm font-normal cursor-pointer">All Solvers</Label>
+                <Label htmlFor="sa-all" className="text-sm font-normal cursor-pointer">All Solution Providers</Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="INTERNAL" id="sa-internal" />

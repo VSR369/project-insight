@@ -194,14 +194,14 @@ export default function ChallengeManagePage() {
           {/* Submission list */}
           {data.submissions.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-2">
-              No submissions yet. Solvers can submit until the deadline.
+              No submissions yet. Solution Providers can submit until the deadline.
             </p>
           ) : (
             <div className="relative w-full overflow-auto">
               <table className="w-full text-left text-xs lg:text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="pb-2 pr-4 font-semibold text-muted-foreground">Solver</th>
+                    <th className="pb-2 pr-4 font-semibold text-muted-foreground">Solution Provider</th>
                     <th className="pb-2 pr-4 font-semibold text-muted-foreground">Date</th>
                     <th className="pb-2 font-semibold text-muted-foreground">Status</th>
                   </tr>
@@ -243,7 +243,7 @@ export default function ChallengeManagePage() {
           {data.governanceProfile !== 'QUICK' && data.submissions.length > 0 && (
             <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
               <ShieldCheck className="h-3 w-3" />
-              Solver identities anonymised until evaluation phase.
+              Solution Provider identities anonymised until evaluation phase.
             </p>
           )}
         </CardContent>

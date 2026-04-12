@@ -370,7 +370,7 @@ function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerId, shor
           <AlertDialogHeader>
             <AlertDialogTitle>Reject this abstract?</AlertDialogTitle>
             <AlertDialogDescription>
-              This abstract will be marked as rejected. The solver will be notified when the shortlist is approved.
+              This abstract will be marked as rejected. The Solution Provider will be notified when the shortlist is approved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -510,7 +510,7 @@ export default function ScreeningReviewPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">Ready to approve shortlist</p>
               <p className="text-xs text-muted-foreground">
-                All abstracts have been reviewed. Approve to lock the shortlist and notify solvers.
+                All abstracts have been reviewed. Approve to lock the shortlist and notify Solution Providers.
               </p>
             </div>
             <Button
@@ -529,7 +529,7 @@ export default function ScreeningReviewPage() {
         <Card className="border-muted-foreground/20">
           <CardContent className="p-4 flex items-center gap-3">
             <Lock className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Shortlist has been approved and locked. Solvers have been notified.</p>
+            <p className="text-sm text-muted-foreground">Shortlist has been approved and locked. Solution Providers have been notified.</p>
           </CardContent>
         </Card>
       )}
@@ -608,9 +608,9 @@ export default function ScreeningReviewPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve final shortlist?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will lock the shortlist and notify all solvers of their status.
-              {shortlistedCount > 0 && ` ${shortlistedCount} solver(s) will be shortlisted.`}
-              {rejectedCount > 0 && ` ${rejectedCount} solver(s) will be rejected.`}
+               This will lock the shortlist and notify all Solution Providers of their status.
+               {shortlistedCount > 0 && ` ${shortlistedCount} Solution Provider(s) will be shortlisted.`}
+               {rejectedCount > 0 && ` ${rejectedCount} Solution Provider(s) will be rejected.`}
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

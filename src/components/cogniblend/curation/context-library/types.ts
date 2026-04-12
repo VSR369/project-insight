@@ -18,7 +18,7 @@ export const SECTION_LABELS: Record<string, string> = {
   expected_outcomes: 'Expected Outcomes',
   phase_schedule: 'Timeline',
   reward_structure: 'Reward Structure',
-  solver_expertise: 'Solver Expertise',
+  solver_expertise: 'Solution Provider Expertise',
   submission_guidelines: 'Submission Guidelines',
   ip_model: 'IP & Licensing',
   current_deficiencies: 'Deficiencies',

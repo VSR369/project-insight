@@ -94,7 +94,7 @@ export function AttachmentCard({ att, sectionKey, disabled, sharingGuidance, onU
         ) : (
           <EyeOff className="h-3 w-3 text-muted-foreground" />
         )}
-        <span className="text-[10px]">Share with solvers</span>
+        <span className="text-[10px]">Share with Solution Providers</span>
         <Switch
           checked={att.shared_with_solver}
           onCheckedChange={(checked) => onUpdate(att.id, { shared_with_solver: checked })}
@@ -107,7 +107,7 @@ export function AttachmentCard({ att, sectionKey, disabled, sharingGuidance, onU
       {att.shared_with_solver && (
         <div className="space-y-1.5 pl-5">
           <Input
-            placeholder="Display name for solvers"
+            placeholder="Display name for Solution Providers"
             value={att.display_name || ''}
             onChange={(e) => onUpdate(att.id, { display_name: e.target.value || null })}
             className="h-7 text-xs"
@@ -132,7 +132,7 @@ export function AttachmentCard({ att, sectionKey, disabled, sharingGuidance, onU
       {/* Not shared notice */}
       {!att.shared_with_solver && (
         <p className="text-[10px] text-muted-foreground pl-5">
-          AI uses this to inform review. Solvers will not see this.
+          AI uses this to inform review. Solution Providers will not see this.
         </p>
       )}
 

@@ -60,14 +60,14 @@ export function QuickPublishSuccessScreen({
       <div className="w-full rounded-lg border border-border bg-muted/30 p-4 space-y-2">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Solver Notifications</p>
+          <p className="text-sm font-semibold text-foreground">Solution Provider Notifications</p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Registered solvers have been notified. Certified solvers receive immediate alerts; standard solvers are notified with a 48-hour delay.
+          Registered Solution Providers have been notified. Certified Solution Providers receive immediate alerts; standard Solution Providers are notified with a 48-hour delay.
         </p>
         <p className="text-xs text-muted-foreground">
           {isMarketplace
-            ? 'Marketplace mode — solvers can contact you directly.'
+            ? 'Marketplace mode — Solution Providers can contact you directly.'
             : 'Aggregator mode — platform manages all communication.'}
         </p>
       </div>
