@@ -61,6 +61,9 @@ export interface CurationHeaderBarProps {
   suggestionsCount: number;
   isBulkAccepting?: boolean;
   reviewSessionActive?: boolean;
+  generateDoneSession?: boolean;
+  waveCompleted?: boolean;
+  onDismissCompletionBanner?: () => void;
 
   phaseDescription: string;
   legalEscrowBlocked: boolean;
@@ -103,6 +106,9 @@ export function CurationHeaderBar({
   suggestionsCount,
   isBulkAccepting,
   reviewSessionActive,
+  generateDoneSession,
+  waveCompleted,
+  onDismissCompletionBanner,
   phaseDescription,
   legalEscrowBlocked,
   blockingReason,
