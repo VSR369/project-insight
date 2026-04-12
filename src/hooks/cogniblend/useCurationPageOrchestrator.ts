@@ -27,6 +27,7 @@ import { getCurationFormStore, selectStaleSections } from '@/store/curationFormS
 import { getSectionDisplayName } from '@/lib/cogniblend/sectionDependencies';
 import { GROUPS } from '@/lib/cogniblend/curationSectionDefs';
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
+import { countPendingSuggestions, partitionSuggestionsForBulkAccept } from '@/lib/cogniblend/bulkAcceptHelpers';
 import { toast } from 'sonner';
 import type { SectionKey } from '@/types/sections';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
@@ -168,13 +169,11 @@ export function useCurationPageOrchestrator() {
     : '';
   const suggestionsCount = useMemo(() => {
     if (!curationStore) return 0;
-    const { countPendingSuggestions } = require('@/lib/cogniblend/bulkAcceptHelpers') as typeof import('@/lib/cogniblend/bulkAcceptHelpers');
     return countPendingSuggestions(curationStore.getState().sections);
   }, [curationStore, suggestionsFingerprint]);
 
   const handleAcceptAllSuggestions = useCallback(async () => {
     if (!curationStore || !challenge) return;
-    const { partitionSuggestionsForBulkAccept } = await import('@/lib/cogniblend/bulkAcceptHelpers');
 
     const partition = partitionSuggestionsForBulkAccept(curationStore.getState().sections);
     const totalCount = partition.regular.length + partition.extendedBrief.length;
