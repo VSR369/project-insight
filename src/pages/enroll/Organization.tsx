@@ -300,7 +300,7 @@ function OrganizationContent() {
                       <FormItem>
                         <FormLabel>Your Designation (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Senior Consultant" {...field} disabled={isTerminal} />
+                          <Input placeholder="e.g. Innovation Lead" {...field} disabled={isTerminal} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
