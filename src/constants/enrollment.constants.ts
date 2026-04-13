@@ -60,26 +60,36 @@ export const CERTIFICATION_PATHS = [
 
 export type CertificationPath = typeof CERTIFICATION_PATHS[number]['value'];
 
-/** Performance score dimensions */
+/** Spec-aligned performance score dimensions */
 export const PERFORMANCE_DIMENSIONS = [
-  'quality',
-  'consistency',
-  'engagement',
-  'responsiveness',
-  'expertise_depth',
-  'community_impact',
+  'community_engagement',
+  'abstracts_submitted',
+  'solution_quality',
+  'complexity_handled',
+  'win_achievement',
+  'knowledge_contrib',
 ] as const;
 
 export type PerformanceDimension = typeof PERFORMANCE_DIMENSIONS[number];
 
 /** Performance dimension display labels */
 export const PERFORMANCE_DIMENSION_LABELS: Record<PerformanceDimension, string> = {
-  quality: 'Quality',
-  consistency: 'Consistency',
-  engagement: 'Engagement',
-  responsiveness: 'Responsiveness',
-  expertise_depth: 'Expertise Depth',
-  community_impact: 'Community Impact',
+  community_engagement: 'Community Engagement',
+  abstracts_submitted: 'Abstracts Submitted',
+  solution_quality: 'Solution Quality',
+  complexity_handled: 'Complexity Handled',
+  win_achievement: 'Win Achievement',
+  knowledge_contrib: 'Knowledge Contribution',
+};
+
+/** Default weights per spec */
+export const PERFORMANCE_DEFAULT_WEIGHTS: Record<PerformanceDimension, number> = {
+  community_engagement: 0.10,
+  abstracts_submitted: 0.15,
+  solution_quality: 0.25,
+  complexity_handled: 0.20,
+  win_achievement: 0.20,
+  knowledge_contrib: 0.10,
 };
 
 /** Auto-certification thresholds for performance track */
