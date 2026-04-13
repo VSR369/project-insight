@@ -239,7 +239,7 @@ export function VipProviderInvitationsPage() {
             setDeletingInvitation(null);
           }
         }}
-        isDeleting={deleteMutation.isPending}
+        isLoading={deleteMutation.isPending}
         title="Delete VIP Invitation"
         description={`Are you sure you want to delete the invitation for ${deletingInvitation?.email}?`}
       />
