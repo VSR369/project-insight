@@ -175,3 +175,12 @@ verify_jwt = false
 
 [functions.review-challenge-sections]
 verify_jwt = false
+
+[functions.accept-vip-invitation]
+verify_jwt = false
+
+[functions.send-vip-invitation]
+verify_jwt = false
+
+[functions.grant-certification]
+verify_jwt = false
