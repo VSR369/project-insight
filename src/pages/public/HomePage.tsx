@@ -4,6 +4,7 @@
 
 import { HeroSection } from '@/components/public/HeroSection';
 import { LiveChallengeSidebar } from '@/components/public/LiveChallengeSidebar';
+import { DevEnvironmentModal } from '@/components/cogniblend/shell/DevEnvironmentModal';
 
 export default function HomePage() {
   return (
@@ -38,6 +39,8 @@ export default function HomePage() {
           </aside>
         </div>
       </div>
+
+      <DevEnvironmentModal />
     </div>
   );
 }
