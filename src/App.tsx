@@ -265,6 +265,10 @@ const FcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/FcChallengeQu
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
 const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallengesPage"));
 
+// Public Pages (P4)
+const HomePage = lazy(() => import("@/pages/public/HomePage"));
+const ChallengeDetailPublicPage = lazy(() => import("@/pages/public/ChallengeDetailPublic"));
+
 // AI Quality Dashboard (Phase 10)
 const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
 const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
