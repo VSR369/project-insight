@@ -26,25 +26,20 @@ interface PublicChallenge {
   industry_segment: { name: string } | null;
 }
 
-const FEED_COLS = [
-  'id', 'hook', 'reward_amount', 'currency_code',
-  'access_type', 'complexity_level', 'min_star_tier', 'published_at',
-].join(', ');
-
 export function ChallengeFeed({ limit = 6, className }: ChallengeFeedProps) {
   const { data: challenges, isLoading, isError } = useQuery({
     queryKey: ['public-challenge-feed', limit],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenges')
-        .select(`${FEED_COLS}, industry_segment:industry_segments!challenges_industry_segment_id_fkey(name)`)
+        .select('id, hook, reward_amount, currency_code, access_type, complexity_level, min_star_tier, published_at, industry_segment:industry_segments(name)')
         .eq('is_active', true)
         .eq('is_deleted', false)
         .order('published_at', { ascending: false })
         .limit(limit);
 
       if (error) throw new Error(error.message);
-      return (data ?? []) as PublicChallenge[];
+      return (data ?? []) as unknown as PublicChallenge[];
     },
     staleTime: 5 * 60_000,
   });
