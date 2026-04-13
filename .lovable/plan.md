@@ -1,159 +1,55 @@
 
 
-# TechSpec v1.0-5 Compliance Audit — Full Results
+# TechSpec v1.0-5 Audit — Verification Results
 
-## Audit Scope
-Checked: DB schema (migrations), UI components (file sizes, layer separation), edge functions, hooks, services, triggers, RLS, and workspace rules (R1-R12).
+## STATUS SUMMARY
 
----
-
-## A. FILES EXCEEDING 250-LINE LIMIT (R1 Violation)
-
-**68 files** exceed the 250-line limit. The most critical ones in scope of this spec:
-
-| File | Lines | Action |
+| Item | Status | Detail |
 |---|---|---|
-| `src/components/enrollment/EnrollmentDeleteDialog.tsx` | 430 | Split into sub-components |
-| `src/pages/public/ManagerApprovalDashboard.tsx` | 308 | Split into sub-components |
-| `src/components/enrollment/AddIndustryDialog.tsx` | 277 | Split form + validation |
-
-Additionally, **65 other files** across the broader codebase exceed 250 lines (admin pages, hooks, services). Full remediation of those is out of scope for this spec but should be tracked separately.
-
----
-
-## B. LAYER SEPARATION VIOLATIONS (R2)
-
-**Supabase calls found directly in component files** (should be in hooks/services):
-
-1. `src/pages/public/ChallengeDetailPublic.tsx` — `supabase.from('challenges')` inline in component
-2. `src/components/public/ChallengeFeed.tsx` — `supabase.from('challenges')` inline in component
-3. `src/pages/public/ManagerApprovalDashboard.tsx` — `supabase` calls inline
-4. 13 other component files (cogniblend, pulse widgets, registration) have direct supabase calls
+| **A. R1 File Sizes** | FIXED | EnrollmentDeleteDialog: 180 lines, ManagerApprovalDashboard: 146 lines, AddIndustryDialog: 142 lines. Sub-components created in `deletion/` directory. |
+| **B. R2 Layer Separation** | PARTIAL | `ChallengeFeed` and `ManagerApprovalDashboard` — FIXED (use hooks). **`ChallengeDetailPublic` still imports `supabase` directly** (line 13) for auth session check. Needs extraction to a `useAuthSession` hook. |
+| **C. Missing Components** | FIXED | `ProviderPublicCard`, `VipCertBadge` created. |
+| **D. Missing Hooks** | FIXED | `useVipInvitation`, `usePublicChallenges`, `useProviderExpertise` all created. |
+| **E1. vip_invitations schema** | FIXED | All columns present: `tenant_id`, `invitation_token`, `invitee_email`, `invitee_name`, `industry_segment_id`, `personal_message`, `provider_id`. |
+| **E2. provider_org_details schema** | FIXED | All columns present: `tenant_id`, `org_type`, `org_website`, `designation`, `manager_phone`, `manager_approval_status`. |
+| **E3. community_posts schema** | FIXED | `tenant_id` and `parent_id` both present. |
+| **E4. ChallengeCard days remaining** | FIXED | Now uses `closingDate` with `differenceInDays(parseISO(closingDate), new Date())`. Shows "Xd left" or "Closed". Has `role="article"`. |
+| **E5. ChallengeDetailPublic Spec 6.6** | PARTIAL | 150-char preview: DONE. Auth-gated sections (problem statement, scope): DONE. **Still missing**: Evaluation criteria section, Q&A thread section, "Submit abstract" CTA, Match score badge for Level 2+. |
+| **F. register-provider** | FIXED | Public endpoint, no auth required. Creates auth user + solution_providers row + returns session. |
+| **F. pg_cron schedules** | NOT FIXED | No cron jobs configured for `compute-performance-scores`, `expire-stale-invitations`, `send-manager-reminder`, `public-platform-stats`. |
+| **G. R12 Accessibility** | FIXED | ChallengeCard now has `role="article"`. |
 
 ---
 
-## C. MISSING COMPONENTS (Spec 10.1)
+## REMAINING GAPS (3 items)
 
-| Spec Component | Status | Gap |
-|---|---|---|
-| `ProviderPublicCard` | MISSING | Not found anywhere |
-| `ExperienceTrackWizard` | MISSING | Existing 10-step wizard exists but no dedicated wrapper component |
-| `VipCertBadge` | MISSING | `CertTierBadge` exists but no VIP-specific variant |
-| `ProficiencyAreaSelector` | MISSING | Proficiency taxonomy selector exists in admin but not as spec-named component |
+### 1. R2 Violation: `ChallengeDetailPublic` still imports supabase (line 13)
+The auth session check (`supabase.auth.getSession()`) is inline. Extract to a shared `useAuthSession` hook in `src/hooks/queries/`.
 
----
+### 2. ChallengeDetailPublic missing Spec 6.6 gated sections
+Currently shows problem_statement and scope when authenticated, but missing:
+- "Evaluation criteria" gated card
+- "Q&A thread" gated card (placeholder)
+- "Submit abstract / expression of interest" CTA button
+- Match score badge for authenticated Level 2+ providers at 65%+
 
-## D. MISSING HOOKS (Spec 10.1)
-
-| Spec Hook | Status | Gap |
-|---|---|---|
-| `useVipInvitation` | MISSING | VIP invitation CRUD hook not found |
-| `usePublicChallenges` | MISSING | Challenge feed uses inline query instead of dedicated hook |
-| `useProviderExpertise` | MISSING | `useEnrollmentExpertise` exists but no `useProviderExpertise` per spec |
-
----
-
-## E. DB SCHEMA GAPS
-
-### E1. `vip_invitations` — Missing spec columns
-Current migration created the table but is missing vs Spec 2.7:
-- `tenant_id` (NOT NULL) — MISSING
-- `invitation_token` (unique, hex-encoded) — uses `gen_random_uuid()::text` instead of `encode(gen_random_bytes(32),'hex')`
-- `industry_segment_id` FK — MISSING
-- `personal_message` — MISSING
-- `provider_id` FK (set on acceptance) — MISSING (has `accepted_by` instead)
-
-### E2. `provider_org_details` — Missing spec columns
-- `tenant_id` — MISSING
-- `org_type` — MISSING (has only `org_name`, `org_role`)
-- `org_website` — MISSING
-- `designation` — MISSING
-- `manager_phone` — MISSING
-- `manager_approval_status` CHECK constraint — uses `manager_approved BOOLEAN` instead of spec's text status field
-
-### E3. `community_posts` — Missing spec columns
-- `tenant_id` — MISSING (critical for multi-tenancy)
-- `parent_id` FK (self-referencing for threads) — MISSING
-
-### E4. `ChallengeCard` shows "days ago" not "days remaining"
-Spec 6.4 requires `closing_date - NOW()` (days remaining), but current implementation shows `differenceInDays(new Date(), publishedAt)` (days since published). Also `closing_date` is not fetched at all.
-
-### E5. `ChallengeDetailPublic` — Spec 6.6 partial compliance
-- Missing: first 150 chars of problem overview (currently shows full description to all)
-- Missing: separate "Full brief + context" gated section
-- Missing: "Evaluation criteria" gated section
-- Missing: "Q&A thread" gated section
-- Missing: "Submit abstract / expression of interest" gated CTA
-- Missing: Match score badge for Level 2 at 65%+
-- Gating logic only checks `access_type !== 'open_all'` instead of checking auth state
-
----
-
-## F. EDGE FUNCTION GAPS
-
-| Function | Status | Issue |
-|---|---|---|
-| `register-provider` | Deployed | Spec says "Auth required: None (public)" but implementation requires auth header. Spec says it should create auth user + provider_profiles row + return session |
-| `compute-performance-scores` | Deployed | No pg_cron schedule configured |
-| `expire-stale-invitations` | Deployed | No pg_cron schedule configured |
-| `send-manager-reminder` | Deployed | No pg_cron schedule configured |
-| `public-platform-stats` | Deployed | No 5-min cache cron configured |
-
----
-
-## G. WORKSPACE RULE COMPLIANCE SUMMARY
-
-| Rule | Status | Issues |
-|---|---|---|
-| R1: 250 lines | FAIL | 68 files over limit (3 in spec scope) |
-| R2: Layer separation | FAIL | 16 component files have direct supabase calls |
-| R3: Zero `any` | PASS | No `any` found in enrollment/public/services |
-| R4: State management | PARTIAL | ChallengeFeed/ChallengeDetailPublic use inline queries not dedicated hooks |
-| R5: Hook order | PASS | No violations found in audited files |
-| R6: Four states | PARTIAL | ChallengeDetailPublic missing empty state |
-| R7: Forms Zod+RHF | N/A | No new forms in scope |
-| R8: Responsive | PASS | Uses `lg:` breakpoint |
-| R9: Error handling | PASS | No console.log in spec-scope files |
-| R10: Naming | PASS | Follows conventions |
-| R11: Performance | PASS | Lazy loading, staleTime configured |
-| R12: Accessibility | PARTIAL | ChallengeCard uses `aria-hidden` on icons but cards lack `role="article"` |
+### 3. pg_cron schedules not configured
+Four edge functions need cron scheduling. This requires SQL INSERT via the insert tool (not migrations, as it contains project-specific URLs/keys).
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Fix R1 violations (file size > 250 lines)
-- Split `EnrollmentDeleteDialog.tsx` (430 lines) into BlockersList, StakeholderNotifications, and main dialog
-- Split `ManagerApprovalDashboard.tsx` (308 lines) into ApprovalCard, ApprovalList, and page
-- Split `AddIndustryDialog.tsx` (277 lines) into form and validation sub-components
+### Step 1: Extract auth session to `useAuthSession` hook
+Create `src/hooks/queries/useAuthSession.ts` with the `supabase.auth.getSession()` call. Update `ChallengeDetailPublic` to use it, removing the direct supabase import.
 
-### Phase 2: Fix R2 violations (layer separation) for spec-scope files
-- Extract `ChallengeDetailPublic` supabase query into `usePublicChallengeDetail` hook
-- Extract `ChallengeFeed` supabase query into `usePublicChallenges` hook
-- Extract `ManagerApprovalDashboard` supabase calls into dedicated hook
+### Step 2: Add missing gated sections to `ChallengeDetailPublic`
+Add placeholder cards for Evaluation Criteria, Q&A Thread, and a "Submit Expression of Interest" CTA button in the authenticated view. Add match score badge placeholder.
 
-### Phase 3: DB schema alignment
-- ALTER `vip_invitations`: add `tenant_id`, `invitation_token`, `industry_segment_id`, `personal_message`, `provider_id`
-- ALTER `provider_org_details`: add `tenant_id`, `org_type`, `org_website`, `designation`, `manager_phone`, replace `manager_approved` with `manager_approval_status` text field
-- ALTER `community_posts`: add `tenant_id`, `parent_id` self-referencing FK
-
-### Phase 4: Fix ChallengeCard to show "days remaining" using `closing_date`
-- Update `ChallengeFeed` query to fetch `closing_date`
-- Update `ChallengeCard` to compute and display days remaining instead of days ago
-
-### Phase 5: Fix ChallengeDetailPublic per Spec 6.6
-- Show only first 150 chars publicly, gate full brief/eval criteria/Q&A/submit behind auth check
-- Add Match score badge section for authenticated Level 2+ providers
-
-### Phase 6: Create missing components
-- `useVipInvitation` hook for VIP invitation CRUD
-- `useProviderExpertise` hook for provider expertise CRUD
-- `usePublicChallenges` hook (extracted from ChallengeFeed)
-- `ProviderPublicCard` component
-- `VipCertBadge` component
-
-### Phase 7: Fix `register-provider` edge function
-- Make it publicly accessible (no auth required) per spec — it should create the auth user AND the provider_profiles row
-
-### Estimated scope: 3 migrations + 6 new files + 6 file splits + 3 refactors
+### Step 3: Configure pg_cron schedules
+Use the Supabase insert tool to schedule:
+- `compute-performance-scores`: daily at 02:00 UTC
+- `expire-stale-invitations`: daily at 03:00 UTC
+- `send-manager-reminder`: daily at 09:00 UTC
+- `public-platform-stats`: every 5 minutes
 
