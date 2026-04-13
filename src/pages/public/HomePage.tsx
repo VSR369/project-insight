@@ -5,12 +5,20 @@
 import { HeroSection } from '@/components/public/HeroSection';
 import { ChallengeFeed } from '@/components/public/ChallengeFeed';
 import { LiveChallengeSidebar } from '@/components/public/LiveChallengeSidebar';
+import { PlatformStatsBar } from '@/components/public/PlatformStatsBar';
 import { DevEnvironmentModal } from '@/components/cogniblend/shell/DevEnvironmentModal';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <HeroSection />
+
+      {/* Platform Stats */}
+      <div className="border-y bg-muted/30">
+        <div className="mx-auto max-w-7xl px-4">
+          <PlatformStatsBar />
+        </div>
+      </div>
 
       <div className="mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
