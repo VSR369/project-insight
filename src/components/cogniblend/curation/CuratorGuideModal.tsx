@@ -162,7 +162,7 @@ function AICoverageSection() {
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-foreground">
-        AI Review — Principal Consultant Grade
+        AI Review — Maestro Grade
       </h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* What AI covers */}
@@ -182,7 +182,7 @@ function AICoverageSection() {
         {/* Quality justification */}
         <div className="rounded-lg border bg-card p-4 space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Why Principal Consultant Level
+            Why Maestro Level
           </h4>
           <ul className="space-y-1.5 text-xs text-muted-foreground">
             <CoverageItem text="Simultaneous review of 20+ interdependent sections" />

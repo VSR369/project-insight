@@ -5,7 +5,7 @@
  */
 
 /** Certification levels awarded based on composite score */
-export type CertificationLevel = 'basic' | 'competent' | 'expert';
+export type CertificationLevel = 'proven' | 'acclaimed' | 'eminent';
 
 /** Registration mode for solution providers */
 export type RegistrationMode = 'self_registered' | 'invitation';
@@ -22,25 +22,25 @@ export const CERTIFICATION_LEVEL_DISPLAY: Record<CertificationLevel, {
   bgClass: string;
   textClass: string;
 }> = {
-  basic: {
-    label: 'Basic',
-    description: 'Certified Basic Level',
+  proven: {
+    label: 'Proven',
+    description: 'Certified Proven',
     stars: 1,
     colorClass: 'text-amber-600',
     bgClass: 'bg-amber-50',
     textClass: 'text-amber-700',
   },
-  competent: {
-    label: 'Competent',
-    description: 'Certified Competent Level',
+  acclaimed: {
+    label: 'Acclaimed',
+    description: 'Certified Acclaimed',
     stars: 2,
     colorClass: 'text-blue-600',
     bgClass: 'bg-blue-50',
     textClass: 'text-blue-700',
   },
-  expert: {
-    label: 'Expert',
-    description: 'Certified Expert Level',
+  eminent: {
+    label: 'Eminent',
+    description: 'Certified Eminent',
     stars: 3,
     colorClass: 'text-green-600',
     bgClass: 'bg-green-50',
@@ -53,9 +53,9 @@ export const CERTIFICATION_LEVEL_DISPLAY: Record<CertificationLevel, {
  */
 export function starRatingToLevel(starRating: number | null): CertificationLevel | null {
   if (starRating === null || starRating === 0) return null;
-  if (starRating === 1) return 'basic';
-  if (starRating === 2) return 'competent';
-  return 'expert';
+  if (starRating === 1) return 'proven';
+  if (starRating === 2) return 'acclaimed';
+  return 'eminent';
 }
 
 /**

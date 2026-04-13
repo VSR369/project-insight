@@ -582,7 +582,7 @@ export function QuestionBankPage() {
         "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"
       ],
       [
-        "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+        "Manufacturing (Auto Components)", "Catalyst", 
         "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
         "What is the primary purpose of data stewardship?",
         "Data backup", "Data governance", "Data deletion", "Data encryption",
@@ -590,7 +590,7 @@ export function QuestionBankPage() {
         "Data stewardship focuses on governance and quality, not just backup."
       ],
       [
-        "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+        "Manufacturing (Auto Components)", "Catalyst", 
         "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
         "Which stakeholder typically owns business data?",
         "IT Department", "Business Unit Head", "External Vendor", "Database Admin",
