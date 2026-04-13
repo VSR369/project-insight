@@ -47,6 +47,9 @@ export interface ProviderIndustryEnrollment {
   updated_at: string | null;
   created_by: string | null;
   updated_by: string | null;
+  // Extended fields
+  geographies_served: string[];
+  outcomes_delivered: string[];
 }
 
 export interface EnrollmentWithDetails extends ProviderIndustryEnrollment {
