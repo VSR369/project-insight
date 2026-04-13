@@ -112,3 +112,34 @@ export function checkOrgApprovalStatus(organization: any): {
     canContinue: status === 'approved' || status === 'withdrawn',
   };
 }
+
+interface ManagerDecisionParams {
+  orgId: string;
+  approvalToken: string;
+  decision: 'approve' | 'decline';
+  declineReason?: string;
+}
+
+export function useManagerDecision() {
+  return useMutation({
+    mutationFn: async (params: ManagerDecisionParams) => {
+      const { data: result, error: fnError } = await supabase.functions.invoke(
+        'process-manager-decision',
+        {
+          body: {
+            orgId: params.orgId,
+            approvalToken: params.approvalToken,
+            decision: params.decision,
+            declineReason: params.decision === 'decline' ? params.declineReason : undefined,
+          },
+        },
+      );
+      if (fnError) throw new Error(fnError.message);
+      if (!result?.success) throw new Error(result?.error || 'Failed to process decision');
+      return { success: true };
+    },
+    onError: (error) => {
+      handleMutationError(error, { operation: 'process_manager_decision' });
+    },
+  });
+}

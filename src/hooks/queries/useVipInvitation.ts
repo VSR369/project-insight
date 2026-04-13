@@ -22,23 +22,16 @@ interface VipInvitation {
   provider_id: string | null;
 }
 
-const VIP_SELECT = [
-  'id', 'invitee_email', 'invitee_name', 'status', 'invitation_token',
-  'industry_segment_id', 'personal_message', 'expires_at', 'created_at',
-  'accepted_at', 'provider_id',
-].join(', ');
-
 export function useVipInvitations(tenantId: string | undefined) {
-  return useQuery({
+  return useQuery<VipInvitation[]>({
     queryKey: ['vip-invitations', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vip_invitations')
-        .select(VIP_SELECT)
-        .eq('tenant_id', tenantId!)
-        .order('created_at', { ascending: false });
+        .select('id, invitee_email, invitee_name, status, invitation_token, industry_segment_id, personal_message, expires_at, created_at, accepted_at, provider_id')
+        .eq('tenant_id', tenantId!);
       if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as VipInvitation[];
+      return (data ?? []) as VipInvitation[];
     },
     enabled: !!tenantId,
     staleTime: 30_000,
@@ -46,17 +39,17 @@ export function useVipInvitations(tenantId: string | undefined) {
 }
 
 export function useVipInvitationByToken(token: string | undefined) {
-  return useQuery({
+  return useQuery<VipInvitation>({
     queryKey: ['vip-invitation-token', token],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vip_invitations')
-        .select(VIP_SELECT)
+        .select('id, invitee_email, invitee_name, status, invitation_token, industry_segment_id, personal_message, expires_at, created_at, accepted_at, provider_id')
         .eq('invitation_token', token!)
         .eq('status', 'pending')
         .single();
       if (error) throw new Error(error.message);
-      return data as unknown as VipInvitation;
+      return data as VipInvitation;
     },
     enabled: !!token,
   });
@@ -72,7 +65,7 @@ export function useAcceptVipInvitation() {
           status: 'accepted',
           accepted_at: new Date().toISOString(),
           provider_id: providerId,
-        })
+        } as Record<string, unknown>)
         .eq('id', invitationId)
         .eq('status', 'pending');
       if (error) throw new Error(error.message);
