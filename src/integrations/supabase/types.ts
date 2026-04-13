@@ -601,6 +601,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "amendment_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       assessment_attempt_responses: {
@@ -700,11 +707,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "assessment_attempts_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "assessment_attempts_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_attempts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "assessment_attempts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "assessment_attempts_provider_id_fkey"
@@ -807,6 +835,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_trail_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "audit_trail_solution_id_fkey"
@@ -1074,6 +1109,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "challenge_attachments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       challenge_context_digest: {
@@ -1124,6 +1166,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "challenge_context_digest_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       challenge_incentive_selections: {
@@ -1158,6 +1207,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_incentive_selections_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "challenge_incentive_selections_incentive_id_fkey"
@@ -1270,6 +1326,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "challenge_legal_docs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       challenge_package_versions: {
@@ -1310,6 +1373,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_package_versions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -1369,6 +1439,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_prize_tiers_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -1440,6 +1517,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_qa_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -1560,6 +1644,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "challenge_section_approvals_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       challenge_submissions: {
@@ -1654,6 +1745,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_submissions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "challenge_submissions_tenant_id_fkey"
@@ -2038,6 +2136,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cogni_notifications_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       communication_log: {
@@ -2093,6 +2198,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -2396,6 +2508,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "curation_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       curation_quality_metrics: {
@@ -2476,6 +2595,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "curation_quality_metrics_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       curator_section_actions: {
@@ -2537,6 +2663,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_section_actions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -2645,6 +2778,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "dispute_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
             foreignKeyName: "dispute_records_solution_id_fkey"
             columns: ["solution_id"]
             isOneToOne: false
@@ -2705,11 +2845,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "duplicate_reviews_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
             foreignKeyName: "duplicate_reviews_matched_challenge_id_fkey"
             columns: ["matched_challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_reviews_matched_challenge_id_fkey"
+            columns: ["matched_challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -2967,6 +3121,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -3328,11 +3489,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interview_bookings_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "interview_bookings_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_bookings_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "interview_bookings_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "interview_bookings_provider_id_fkey"
@@ -3795,6 +3977,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ip_transfer_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
             foreignKeyName: "ip_transfer_records_solution_id_fkey"
             columns: ["solution_id"]
             isOneToOne: false
@@ -3857,6 +4046,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "legal_acceptance_ledger_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       legal_acceptance_log: {
@@ -3912,6 +4108,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_acceptance_log_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "legal_acceptance_log_template_id_fkey"
@@ -4123,6 +4326,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "legal_reacceptance_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       legal_review_requests: {
@@ -4181,6 +4391,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_review_requests_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "legal_review_requests_document_id_fkey"
@@ -7662,6 +7879,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pending_challenge_refs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       performance_score_weights: {
@@ -8474,6 +8698,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proof_points_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "proof_points_industry_segment_id_fkey"
             columns: ["industry_segment_id"]
             isOneToOne: false
@@ -8486,6 +8717,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proof_points_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "proof_points_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "proof_points_provider_id_fkey"
@@ -8566,11 +8811,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "provider_certifications_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "provider_certifications_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_certifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_certifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_certifications_provider_id_fkey"
@@ -8595,6 +8861,7 @@ export type Database = {
           expertise_reviewed_at: string | null
           expertise_reviewed_by: string | null
           expertise_reviewer_notes: string | null
+          geographies_served: string[] | null
           id: string
           industry_segment_id: string
           interview_attempt_count: number
@@ -8605,6 +8872,7 @@ export type Database = {
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status: string | null
           organization: Json | null
+          outcomes_delivered: string[] | null
           participation_mode_id: string | null
           previous_expertise_level_id: string | null
           proof_points_final_score: number | null
@@ -8632,6 +8900,7 @@ export type Database = {
           expertise_reviewed_at?: string | null
           expertise_reviewed_by?: string | null
           expertise_reviewer_notes?: string | null
+          geographies_served?: string[] | null
           id?: string
           industry_segment_id: string
           interview_attempt_count?: number
@@ -8642,6 +8911,7 @@ export type Database = {
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status?: string | null
           organization?: Json | null
+          outcomes_delivered?: string[] | null
           participation_mode_id?: string | null
           previous_expertise_level_id?: string | null
           proof_points_final_score?: number | null
@@ -8669,6 +8939,7 @@ export type Database = {
           expertise_reviewed_at?: string | null
           expertise_reviewed_by?: string | null
           expertise_reviewer_notes?: string | null
+          geographies_served?: string[] | null
           id?: string
           industry_segment_id?: string
           interview_attempt_count?: number
@@ -8679,6 +8950,7 @@ export type Database = {
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status?: string | null
           organization?: Json | null
+          outcomes_delivered?: string[] | null
           participation_mode_id?: string | null
           previous_expertise_level_id?: string | null
           proof_points_final_score?: number | null
@@ -8728,6 +9000,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_industry_enrollments_provider_id_fkey"
@@ -8787,11 +9073,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "provider_notifications_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "provider_notifications_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_notifications_provider_id_fkey"
@@ -8860,6 +9167,20 @@ export type Database = {
             foreignKeyName: "provider_performance_scores_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: true
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_performance_scores_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_performance_scores_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -8905,6 +9226,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "provider_proficiency_areas_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "provider_proficiency_areas_proficiency_area_id_fkey"
             columns: ["proficiency_area_id"]
             isOneToOne: false
@@ -8917,6 +9245,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_proficiency_areas_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_proficiency_areas_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_proficiency_areas_provider_id_fkey"
@@ -8956,6 +9298,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_solution_types_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_solution_types_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_solution_types_provider_id_fkey"
@@ -9004,11 +9360,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "provider_specialities_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "provider_specialities_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_specialities_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_specialities_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_specialities_provider_id_fkey"
@@ -9073,6 +9450,20 @@ export type Database = {
             foreignKeyName: "pulse_card_engagements_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_card_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_card_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -9125,6 +9516,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_flags_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_card_flags_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_card_flags_reporter_id_fkey"
@@ -9213,6 +9618,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_layers_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_card_layers_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_card_layers_creator_id_fkey"
@@ -9333,6 +9752,20 @@ export type Database = {
             foreignKeyName: "pulse_card_votes_voter_id_fkey"
             columns: ["voter_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_card_votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_card_votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -9427,6 +9860,20 @@ export type Database = {
             foreignKeyName: "pulse_cards_seed_creator_id_fkey"
             columns: ["seed_creator_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_seed_creator_id_fkey"
+            columns: ["seed_creator_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_seed_creator_id_fkey"
+            columns: ["seed_creator_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -9477,6 +9924,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_reputation_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_reputation_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_cards_reputation_log_provider_id_fkey"
@@ -9550,6 +10011,20 @@ export type Database = {
             foreignKeyName: "pulse_comments_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_comments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_comments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -9586,6 +10061,20 @@ export type Database = {
             foreignKeyName: "pulse_connections_follower_id_fkey"
             columns: ["follower_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_connections_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_connections_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -9595,6 +10084,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_connections_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_connections_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_connections_following_id_fkey"
@@ -9717,6 +10220,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pulse_content_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
             foreignKeyName: "pulse_content_industry_segment_id_fkey"
             columns: ["industry_segment_id"]
             isOneToOne: false
@@ -9729,6 +10239,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_content_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_content_provider_id_fkey"
@@ -9775,6 +10299,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_impressions_viewer_id_fkey"
+            columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_content_impressions_viewer_id_fkey"
+            columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_content_impressions_viewer_id_fkey"
@@ -9836,6 +10374,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_content_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_content_reports_reporter_id_fkey"
@@ -9928,6 +10480,20 @@ export type Database = {
             foreignKeyName: "pulse_daily_standups_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_daily_standups_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_daily_standups_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -9975,6 +10541,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_engagements_provider_id_fkey"
@@ -10029,6 +10609,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_loot_boxes_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_loot_boxes_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_loot_boxes_provider_id_fkey"
@@ -10138,6 +10732,20 @@ export type Database = {
             foreignKeyName: "pulse_notifications_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -10154,6 +10762,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_related_provider_id_fkey"
+            columns: ["related_provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_related_provider_id_fkey"
+            columns: ["related_provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_notifications_related_provider_id_fkey"
@@ -10276,6 +10898,20 @@ export type Database = {
             foreignKeyName: "pulse_provider_stats_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: true
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_provider_stats_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_provider_stats_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -10362,6 +10998,20 @@ export type Database = {
             foreignKeyName: "pulse_skills_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_skills_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_skills_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -10371,6 +11021,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "provider_industry_enrollments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_skills_verification_enrollment_id_fkey"
+            columns: ["verification_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["enrollment_id"]
           },
         ]
       }
@@ -10444,6 +11101,20 @@ export type Database = {
             foreignKeyName: "pulse_trust_council_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_trust_council_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_trust_council_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -10501,6 +11172,20 @@ export type Database = {
             foreignKeyName: "pulse_xp_audit_log_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_xp_audit_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_xp_audit_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -10544,6 +11229,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_xp_snapshots_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "pulse_xp_snapshots_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_xp_snapshots_provider_id_fkey"
@@ -10696,6 +11395,20 @@ export type Database = {
             foreignKeyName: "question_exposure_log_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "question_exposure_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "question_exposure_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -10811,6 +11524,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rating_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -11514,6 +12234,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "section_example_library_source_challenge_id_fkey"
+            columns: ["source_challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       seeker_billing_info: {
@@ -11990,6 +12717,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_invoice_line_items_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "seeker_invoice_line_items_invoice_id_fkey"
@@ -13090,6 +13824,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sla_timers_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       solution_access_log: {
@@ -13290,6 +14031,20 @@ export type Database = {
             foreignKeyName: "solution_provider_organizations_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: true
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "solution_provider_organizations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "solution_provider_organizations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
             referencedRelation: "vw_provider_resolved_cert"
             referencedColumns: ["provider_id"]
           },
@@ -13308,8 +14063,10 @@ export type Database = {
           first_name: string
           id: string
           industry_segment_id: string | null
+          invitation_code: string | null
           invitation_id: string | null
           is_student: boolean
+          is_vip: boolean
           last_name: string
           lifecycle_rank: number
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
@@ -13343,8 +14100,10 @@ export type Database = {
           first_name: string
           id?: string
           industry_segment_id?: string | null
+          invitation_code?: string | null
           invitation_id?: string | null
           is_student?: boolean
+          is_vip?: boolean
           last_name: string
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
@@ -13378,8 +14137,10 @@ export type Database = {
           first_name?: string
           id?: string
           industry_segment_id?: string | null
+          invitation_code?: string | null
           invitation_id?: string | null
           is_student?: boolean
+          is_vip?: boolean
           last_name?: string
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
@@ -13523,6 +14284,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "solutions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
         ]
       }
       solver_challenge_feedback: {
@@ -13569,6 +14337,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solver_challenge_feedback_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -13651,6 +14426,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solver_enrollments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
             foreignKeyName: "solver_enrollments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -13701,6 +14483,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solver_profile_views_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "solver_profile_views_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "solver_profile_views_provider_id_fkey"
@@ -13867,6 +14663,20 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_profiles_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "student_profiles_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "student_profiles_provider_id_fkey"
@@ -14137,6 +14947,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenges"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_challenge_roles_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
           {
             foreignKeyName: "user_challenge_roles_role_code_fkey"
@@ -14441,6 +15258,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "audit_trail_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
             foreignKeyName: "audit_trail_solution_id_fkey"
             columns: ["solution_id"]
             isOneToOne: false
@@ -14487,6 +15311,131 @@ export type Database = {
           workload_status?: never
         }
         Relationships: []
+      }
+      v_cert_leaderboard: {
+        Row: {
+          avatar_url: string | null
+          certification_level: string | null
+          certified_at: string | null
+          composite_score: number | null
+          first_name: string | null
+          industry_name: string | null
+          industry_segment_id: string | null
+          is_vip: boolean | null
+          last_name: string | null
+          provider_id: string | null
+          resolved_cert_label: string | null
+          resolved_star_tier: number | null
+          star_rating: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_industry_enrollments_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_challenge_match: {
+        Row: {
+          challenge_id: string | null
+          challenge_status: string | null
+          complexity_level: string | null
+          currency_code: string | null
+          domain_tags: Json | null
+          industry_name: string | null
+          industry_segment_id: string | null
+          min_star_tier: number | null
+          organization_id: string | null
+          organization_name: string | null
+          reward_amount: number | null
+          solver_audience: string | null
+          solver_eligibility_id: string | null
+          submission_deadline: string | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_solver_eligibility_id_fkey"
+            columns: ["solver_eligibility_id"]
+            isOneToOne: false
+            referencedRelation: "md_solver_eligibility"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_provider_dashboard: {
+        Row: {
+          avatar_url: string | null
+          bio_tagline: string | null
+          cert_path: string | null
+          cert_star_tier: number | null
+          cert_status: string | null
+          certification_level: string | null
+          community_impact_score: number | null
+          composite_score: number | null
+          consistency_score: number | null
+          engagement_score: number | null
+          enrollment_id: string | null
+          enrollment_status:
+            | Database["public"]["Enums"]["lifecycle_status"]
+            | null
+          expertise_depth_score: number | null
+          expertise_level_id: string | null
+          expertise_level_name: string | null
+          expertise_level_number: number | null
+          first_name: string | null
+          geographies_served: string[] | null
+          industry_name: string | null
+          industry_segment_id: string | null
+          is_primary: boolean | null
+          is_vip: boolean | null
+          last_name: string | null
+          outcomes_delivered: string[] | null
+          perf_composite_score: number | null
+          profile_strength: number | null
+          provider_id: string | null
+          provider_level: number | null
+          provider_status:
+            | Database["public"]["Enums"]["lifecycle_status"]
+            | null
+          quality_score: number | null
+          responsiveness_score: number | null
+          star_rating: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_industry_enrollments_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_provider_resolved_cert: {
         Row: {
