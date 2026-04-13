@@ -9,3 +9,5 @@ export { ExpertiseLevelCards } from './ExpertiseLevelCards';
 export { SolutionTypesSelector } from './SolutionTypesSelector';
 export { Tab1Profile } from './Tab1Profile';
 export { Tab2Expertise } from './Tab2Expertise';
+export { ProfileCompletionBar } from './ProfileCompletionBar';
+export { CertificationBadgeBar } from './CertificationBadgeBar';
