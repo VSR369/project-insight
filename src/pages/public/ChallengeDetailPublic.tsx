@@ -27,6 +27,7 @@ interface ChallengeDetail {
   is_active: boolean;
 }
 
+const CHALLENGE_COLS = [
   'id', 'hook', 'description', 'problem_statement', 'reward_amount',
   'currency_code', 'access_type', 'min_star_tier', 'complexity_level',
   'published_at', 'scope', 'is_active',
