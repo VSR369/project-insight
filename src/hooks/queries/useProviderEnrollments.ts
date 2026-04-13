@@ -176,6 +176,28 @@ export function useHasActiveAssessment(providerId?: string, excludeEnrollmentId?
 }
 
 /**
+ * Update enrollment details (geographies, outcomes)
+ */
+export function useUpdateEnrollmentDetails() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ enrollmentId, updates }: {
+      enrollmentId: string;
+      updates: { geographies_served?: string[]; outcomes_delivered?: string[] };
+    }) => updateEnrollmentDetails(enrollmentId, updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment', variables.enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
+    },
+    onError: (error) => {
+      handleMutationError(error, { operation: 'updateEnrollmentDetails' }, true);
+    },
+  });
+}
+
+/**
  * Delete an enrollment
  */
 export function useDeleteEnrollment() {
