@@ -26,9 +26,11 @@ export interface ProviderProfileExtended {
   profile_strength: number;
   phone: string | null;
   is_student: boolean;
+  is_vip: boolean;
   lifecycle_status: string;
   expertise_level_id: string | null;
   industry_segment_id: string | null;
+  invitation_code: string | null;
 }
 
 export interface UpdateProfileInput {
