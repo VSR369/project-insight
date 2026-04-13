@@ -1,12 +1,11 @@
 /**
  * ChallengeFeed — Public challenge feed per Spec 6.4
- * Fetches and displays active public challenges as cards
+ * Uses usePublicChallenges hook (R2 compliance)
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChallengeCard } from './ChallengeCard';
+import { usePublicChallenges } from '@/hooks/queries/usePublicChallenges';
 import { cn } from '@/lib/utils';
 
 interface ChallengeFeedProps {
@@ -14,35 +13,8 @@ interface ChallengeFeedProps {
   className?: string;
 }
 
-interface PublicChallenge {
-  id: string;
-  hook: string | null;
-  reward_amount: number | null;
-  currency_code: string | null;
-  access_type: string;
-  complexity_level: string | null;
-  min_star_tier: number;
-  published_at: string | null;
-  industry_segment: { name: string } | null;
-}
-
 export function ChallengeFeed({ limit = 6, className }: ChallengeFeedProps) {
-  const { data: challenges, isLoading, isError } = useQuery({
-    queryKey: ['public-challenge-feed', limit],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenges')
-        .select('id, hook, reward_amount, currency_code, access_type, complexity_level, min_star_tier, published_at, industry_segment:industry_segments(name)')
-        .eq('is_active', true)
-        .eq('is_deleted', false)
-        .order('published_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as PublicChallenge[];
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data: challenges, isLoading, isError } = usePublicChallenges(limit);
 
   if (isLoading) {
     return (
@@ -74,6 +46,7 @@ export function ChallengeFeed({ limit = 6, className }: ChallengeFeedProps) {
           accessType={c.access_type}
           complexityLevel={c.complexity_level}
           publishedAt={c.published_at}
+          closingDate={c.closing_date}
           industryName={c.industry_segment?.name ?? null}
           minStarTier={c.min_star_tier}
         />

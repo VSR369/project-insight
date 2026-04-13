@@ -26,11 +26,11 @@ export function useVipInvitations(tenantId: string | undefined) {
   return useQuery<VipInvitation[]>({
     queryKey: ['vip-invitations', tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vip_invitations')
+      const { data, error } = await (supabase
+        .from('vip_invitations') as unknown as { select: (cols: string) => { eq: (col: string, val: string) => { data: unknown; error: unknown } } })
         .select('id, invitee_email, invitee_name, status, invitation_token, industry_segment_id, personal_message, expires_at, created_at, accepted_at, provider_id')
         .eq('tenant_id', tenantId!);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(String(error));
       return (data ?? []) as VipInvitation[];
     },
     enabled: !!tenantId,
@@ -42,13 +42,13 @@ export function useVipInvitationByToken(token: string | undefined) {
   return useQuery<VipInvitation>({
     queryKey: ['vip-invitation-token', token],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vip_invitations')
+      const { data, error } = await (supabase
+        .from('vip_invitations') as unknown as { select: (cols: string) => { eq: (col: string, val: string) => { eq: (col: string, val: string) => { single: () => { data: unknown; error: unknown } } } } })
         .select('id, invitee_email, invitee_name, status, invitation_token, industry_segment_id, personal_message, expires_at, created_at, accepted_at, provider_id')
         .eq('invitation_token', token!)
         .eq('status', 'pending')
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(String(error));
       return data as VipInvitation;
     },
     enabled: !!token,
@@ -59,16 +59,16 @@ export function useAcceptVipInvitation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ invitationId, providerId }: { invitationId: string; providerId: string }) => {
-      const { error } = await supabase
-        .from('vip_invitations')
+      const { error } = await (supabase
+        .from('vip_invitations') as unknown as { update: (vals: Record<string, unknown>) => { eq: (col: string, val: string) => { eq: (col: string, val: string) => { error: unknown } } } })
         .update({
           status: 'accepted',
           accepted_at: new Date().toISOString(),
           provider_id: providerId,
-        } as Record<string, unknown>)
+        })
         .eq('id', invitationId)
         .eq('status', 'pending');
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(String(error));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vip-invitations'] });
