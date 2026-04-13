@@ -49,7 +49,7 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   one_star: {
     label: 'Certified',
     stars: 1,
-    level: 'basic',
+    level: 'proven',
     colorClass: 'text-amber-600',
     bgClass: 'bg-amber-50',
     textClass: 'text-amber-700',
@@ -57,7 +57,7 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   two_star: {
     label: 'Certified',
     stars: 2,
-    level: 'competent',
+    level: 'acclaimed',
     colorClass: 'text-blue-600',
     bgClass: 'bg-blue-50',
     textClass: 'text-blue-700',
@@ -65,7 +65,7 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   three_star: {
     label: 'Certified',
     stars: 3,
-    level: 'expert',
+    level: 'eminent',
     colorClass: 'text-green-600',
     bgClass: 'bg-green-50',
     textClass: 'text-green-700',
@@ -80,23 +80,23 @@ export const CERTIFICATION_LEVELS: Record<CertificationLevel, {
   minScore: number;
   maxScore: number;
 }> = {
-  basic: {
-    label: 'Basic',
-    description: 'Entry-level certification',
+  proven: {
+    label: 'Proven',
+    description: 'Verified capability — platform assessed and confirmed',
     stars: 1,
     minScore: 51.0,
     maxScore: 65.9,
   },
-  competent: {
-    label: 'Competent',
-    description: 'Professional-level certification',
+  acclaimed: {
+    label: 'Acclaimed',
+    description: 'Track record recognised by platform and peers',
     stars: 2,
     minScore: 66.0,
     maxScore: 85.9,
   },
-  expert: {
-    label: 'Expert',
-    description: 'Expert-level certification',
+  eminent: {
+    label: 'Eminent',
+    description: 'Eminent standing in field — highest certification tier',
     stars: 3,
     minScore: 86.0,
     maxScore: 100.0,
