@@ -19,13 +19,14 @@ export interface ChallengeDetail {
   published_at: string | null;
   closing_date: string | null;
   scope: string | null;
+  evaluation_criteria: unknown;
   is_active: boolean;
 }
 
 const DETAIL_COLS = [
   'id', 'hook', 'description', 'problem_statement', 'reward_amount',
   'currency_code', 'access_type', 'min_star_tier', 'complexity_level',
-  'published_at', 'closing_date', 'scope', 'is_active',
+  'published_at', 'closing_date', 'scope', 'evaluation_criteria', 'is_active',
 ].join(', ');
 
 export function usePublicChallengeDetail(id: string | undefined) {
