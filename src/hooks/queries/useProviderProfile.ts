@@ -26,9 +26,11 @@ export interface ProviderProfileExtended {
   profile_strength: number;
   phone: string | null;
   is_student: boolean;
+  is_vip: boolean;
   lifecycle_status: string;
   expertise_level_id: string | null;
   industry_segment_id: string | null;
+  invitation_code: string | null;
 }
 
 export interface UpdateProfileInput {
@@ -46,7 +48,8 @@ const PROFILE_COLUMNS = [
   'id', 'user_id', 'first_name', 'last_name',
   'bio_tagline', 'linkedin_url', 'portfolio_url', 'avatar_url',
   'availability', 'provider_level', 'profile_strength', 'phone',
-  'is_student', 'lifecycle_status', 'expertise_level_id', 'industry_segment_id',
+  'is_student', 'is_vip', 'lifecycle_status', 'expertise_level_id',
+  'industry_segment_id', 'invitation_code',
 ].join(', ');
 
 /**

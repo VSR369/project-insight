@@ -14,6 +14,7 @@ import {
   createEnrollment,
   updateEnrollmentExpertise,
   updateEnrollmentLifecycle,
+  updateEnrollmentDetails,
   setPrimaryEnrollment,
   hasActiveAssessmentInAnyEnrollment,
   getEnrollmentByIndustry,
@@ -171,6 +172,28 @@ export function useHasActiveAssessment(providerId?: string, excludeEnrollmentId?
     queryFn: () => hasActiveAssessmentInAnyEnrollment(providerId!, excludeEnrollmentId),
     enabled: !!providerId,
     staleTime: 10000, // 10 seconds - check frequently during assessment
+  });
+}
+
+/**
+ * Update enrollment details (geographies, outcomes)
+ */
+export function useUpdateEnrollmentDetails() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ enrollmentId, updates }: {
+      enrollmentId: string;
+      updates: { geographies_served?: string[]; outcomes_delivered?: string[] };
+    }) => updateEnrollmentDetails(enrollmentId, updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment', variables.enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
+    },
+    onError: (error) => {
+      handleMutationError(error, { operation: 'updateEnrollmentDetails' }, true);
+    },
   });
 }
 

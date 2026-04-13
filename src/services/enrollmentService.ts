@@ -47,6 +47,9 @@ export interface ProviderIndustryEnrollment {
   updated_at: string | null;
   created_by: string | null;
   updated_by: string | null;
+  // Extended fields
+  geographies_served: string[];
+  outcomes_delivered: string[];
 }
 
 export interface EnrollmentWithDetails extends ProviderIndustryEnrollment {
@@ -237,6 +240,30 @@ export async function updateEnrollmentExpertise(
       lifecycle_rank: 50,
       updated_by: userId,
     })
+    .eq('id', enrollmentId);
+
+  if (error) throw error;
+}
+
+/**
+ * Update enrollment geographies served and outcomes delivered
+ */
+export async function updateEnrollmentDetails(
+  enrollmentId: string,
+  updates: {
+    geographies_served?: string[];
+    outcomes_delivered?: string[];
+  }
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('provider_industry_enrollments')
+    .update({
+      ...updates,
+      updated_by: userId,
+    } as Record<string, unknown>)
     .eq('id', enrollmentId);
 
   if (error) throw error;

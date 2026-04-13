@@ -1,8 +1,8 @@
 /**
  * Tab 2: Your Expertise
  * 
- * Expertise level selector, industry segment, and solution types.
- * Reads from existing enrollment data and new provider_solution_types.
+ * Expertise level selector, industry segment, solution types,
+ * geographies served, and outcomes delivered.
  */
 
 import { useState, useEffect } from 'react';
@@ -10,13 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, Sparkles, Target } from 'lucide-react';
+import { Loader2, Save, Sparkles, Target, Globe, Trophy } from 'lucide-react';
 import { ExpertiseLevelCards } from '@/components/enrollment/ExpertiseLevelCards';
 import { SolutionTypesSelector } from '@/components/enrollment/SolutionTypesSelector';
+import { GeographyTagSelector } from '@/components/registration/GeographyTagSelector';
+import { OutcomesTagSelector } from '@/components/enrollment/OutcomesTagSelector';
 import { useProviderProfileExtended, useUpdateProviderProfile } from '@/hooks/queries/useProviderProfile';
 import { useProviderSolutionTypes, useSetProviderSolutionTypes } from '@/hooks/queries/useProviderSolutionTypes';
+import { useActiveEnrollment, useUpdateEnrollmentDetails } from '@/hooks/queries/useProviderEnrollments';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 interface Tab2ExpertiseProps {
   providerId: string;
@@ -26,11 +28,15 @@ interface Tab2ExpertiseProps {
 export function Tab2Expertise({ providerId, className }: Tab2ExpertiseProps) {
   const { data: profile, isLoading: profileLoading } = useProviderProfileExtended(providerId);
   const { data: solutionTypes, isLoading: stLoading } = useProviderSolutionTypes(providerId);
+  const { data: activeEnrollment, isLoading: enrollmentLoading } = useActiveEnrollment(providerId);
   const updateProfile = useUpdateProviderProfile();
   const setSolutionTypes = useSetProviderSolutionTypes();
+  const updateEnrollmentDetails = useUpdateEnrollmentDetails();
 
   const [selectedExpertiseId, setSelectedExpertiseId] = useState<string | null>(null);
   const [selectedSolutionTypeIds, setSelectedSolutionTypeIds] = useState<string[]>([]);
+  const [selectedGeographies, setSelectedGeographies] = useState<string[]>([]);
+  const [selectedOutcomes, setSelectedOutcomes] = useState<string[]>([]);
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
@@ -45,8 +51,18 @@ export function Tab2Expertise({ providerId, className }: Tab2ExpertiseProps) {
     }
   }, [solutionTypes]);
 
-  const isLoading = profileLoading || stLoading;
-  const isSaving = updateProfile.isPending || setSolutionTypes.isPending;
+  useEffect(() => {
+    if (activeEnrollment) {
+      const enrollment = activeEnrollment as unknown as Record<string, unknown>;
+      const geos = enrollment.geographies_served;
+      const outcomes = enrollment.outcomes_delivered;
+      if (Array.isArray(geos)) setSelectedGeographies(geos as string[]);
+      if (Array.isArray(outcomes)) setSelectedOutcomes(outcomes as string[]);
+    }
+  }, [activeEnrollment]);
+
+  const isLoading = profileLoading || stLoading || enrollmentLoading;
+  const isSaving = updateProfile.isPending || setSolutionTypes.isPending || updateEnrollmentDetails.isPending;
 
   const handleExpertiseChange = (id: string) => {
     setSelectedExpertiseId(id);
@@ -58,21 +74,39 @@ export function Tab2Expertise({ providerId, className }: Tab2ExpertiseProps) {
     setIsDirty(true);
   };
 
+  const handleGeographiesChange = (ids: string[]) => {
+    setSelectedGeographies(ids);
+    setIsDirty(true);
+  };
+
+  const handleOutcomesChange = (tags: string[]) => {
+    setSelectedOutcomes(tags);
+    setIsDirty(true);
+  };
+
   const handleSave = async () => {
     try {
       if (selectedExpertiseId && selectedExpertiseId !== profile?.expertise_level_id) {
         await updateProfile.mutateAsync({
           providerId,
-          updates: { },
+          updates: {},
         });
-        // Expertise level update goes through enrollment, not direct profile update
-        // This is handled by the existing enrollment wizard
       }
 
       await setSolutionTypes.mutateAsync({
         providerId,
         solutionTypeIds: selectedSolutionTypeIds,
       });
+
+      if (activeEnrollment?.id) {
+        await updateEnrollmentDetails.mutateAsync({
+          enrollmentId: activeEnrollment.id,
+          updates: {
+            geographies_served: selectedGeographies,
+            outcomes_delivered: selectedOutcomes,
+          },
+        });
+      }
 
       setIsDirty(false);
     } catch {
@@ -128,6 +162,49 @@ export function Tab2Expertise({ providerId, className }: Tab2ExpertiseProps) {
             selectedIds={selectedSolutionTypeIds}
             onChange={handleSolutionTypesChange}
             maxSelections={10}
+          />
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Geographies Served */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            Geographies Served
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Select the countries where you can deliver solutions
+          </p>
+        </CardHeader>
+        <CardContent>
+          <GeographyTagSelector
+            value={selectedGeographies}
+            onChange={handleGeographiesChange}
+          />
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Outcomes Delivered */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-primary" />
+            Outcomes I Deliver
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            What outcomes can clients expect from your work? (max 10)
+          </p>
+        </CardHeader>
+        <CardContent>
+          <OutcomesTagSelector
+            value={selectedOutcomes}
+            onChange={handleOutcomesChange}
+            maxTags={10}
           />
         </CardContent>
       </Card>

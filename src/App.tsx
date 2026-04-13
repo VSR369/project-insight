@@ -122,6 +122,7 @@ const CapabilityTagsPage = lazy(() => import("@/pages/admin/capability-tags").th
 const LevelSpecialityMapPage = lazy(() => import("@/pages/admin/level-speciality-map").then(m => ({ default: m.LevelSpecialityMapPage })));
 const InvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.InvitationsPage })));
 const PanelReviewerInvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.PanelReviewerInvitationsPage })));
+const VipProviderInvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.VipProviderInvitationsPage })));
 const AdminSettingsPage = lazy(() => import("@/pages/admin/MasterDataPlaceholder").then(m => ({ default: m.AdminSettingsPage })));
 const SmokeTestPage = lazy(() => import("@/pages/admin/SmokeTestPage"));
 const TestSetupPage = lazy(() => import("@/pages/admin/TestSetupPage"));
@@ -738,6 +739,7 @@ const App = () => (
               {/* Invitations — permission: invitations.view */}
               <Route path="invitations" element={<PermissionGuard permissionKey="invitations.view"><InvitationsPage /></PermissionGuard>} />
               <Route path="invitations/panel-reviewers" element={<PermissionGuard permissionKey="invitations.view"><PanelReviewerInvitationsPage /></PermissionGuard>} />
+              <Route path="invitations/vip-experts" element={<PermissionGuard permissionKey="invitations.view"><VipProviderInvitationsPage /></PermissionGuard>} />
               {/* Dev Tools — permission: supervisor.configure_system */}
               <Route path="smoke-test" element={<PermissionGuard permissionKey="supervisor.configure_system"><SmokeTestPage /></PermissionGuard>} />
               <Route path="test-setup" element={<PermissionGuard permissionKey="supervisor.configure_system"><TestSetupPage /></PermissionGuard>} />
