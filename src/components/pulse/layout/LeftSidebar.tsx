@@ -57,6 +57,14 @@ export function LeftSidebar({ providerId, userId, isFirstTime, className }: Left
         <ProfileMiniCard providerId={providerId} userId={userId} />
       )}
 
+      {/* Profile Completion + Certification */}
+      {providerId && (
+        <>
+          <ProfileCompletionBar providerId={providerId} />
+          <CertificationBadgeBar providerId={providerId} />
+        </>
+      )}
+
       {/* Galaxy Leaderboard */}
       <LeaderboardMiniWidget currentProviderId={providerId} isFirstTime={isFirstTime} />
 
