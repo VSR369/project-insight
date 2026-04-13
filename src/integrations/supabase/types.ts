@@ -1509,7 +1509,9 @@ export type Database = {
       }
       challenge_submissions: {
         Row: {
+          award_tier: string | null
           challenge_id: string
+          complexity_level_at_submission: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -1525,6 +1527,7 @@ export type Database = {
           status: string
           submission_files: Json | null
           submission_text: string | null
+          submission_type: string
           submitter_email: string
           submitter_name: string
           submitter_phone: string | null
@@ -1534,7 +1537,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          award_tier?: string | null
           challenge_id: string
+          complexity_level_at_submission?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -1550,6 +1555,7 @@ export type Database = {
           status?: string
           submission_files?: Json | null
           submission_text?: string | null
+          submission_type?: string
           submitter_email: string
           submitter_name: string
           submitter_phone?: string | null
@@ -1559,7 +1565,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          award_tier?: string | null
           challenge_id?: string
+          complexity_level_at_submission?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -1575,6 +1583,7 @@ export type Database = {
           status?: string
           submission_files?: Json | null
           submission_text?: string | null
+          submission_type?: string
           submitter_email?: string
           submitter_name?: string
           submitter_phone?: string | null
@@ -1602,6 +1611,7 @@ export type Database = {
       }
       challenges: {
         Row: {
+          access_type: string
           ai_section_reviews: Json | null
           challenge_model_is_agg: boolean
           challenge_visibility: string | null
@@ -1657,6 +1667,7 @@ export type Database = {
           master_status: string | null
           maturity_level: string | null
           max_solutions: number | null
+          min_star_tier: number
           operating_model: string | null
           organization_id: string
           payment_status: string | null
@@ -1665,6 +1676,7 @@ export type Database = {
           problem_statement: string | null
           published_at: string | null
           rejection_fee_percentage: number | null
+          reward_amount: number | null
           reward_structure: Json | null
           scope: string | null
           shadow_fee_amount: number | null
@@ -1693,6 +1705,7 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
+          access_type?: string
           ai_section_reviews?: Json | null
           challenge_model_is_agg?: boolean
           challenge_visibility?: string | null
@@ -1748,6 +1761,7 @@ export type Database = {
           master_status?: string | null
           maturity_level?: string | null
           max_solutions?: number | null
+          min_star_tier?: number
           operating_model?: string | null
           organization_id: string
           payment_status?: string | null
@@ -1756,6 +1770,7 @@ export type Database = {
           problem_statement?: string | null
           published_at?: string | null
           rejection_fee_percentage?: number | null
+          reward_amount?: number | null
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
@@ -1784,6 +1799,7 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
+          access_type?: string
           ai_section_reviews?: Json | null
           challenge_model_is_agg?: boolean
           challenge_visibility?: string | null
@@ -1839,6 +1855,7 @@ export type Database = {
           master_status?: string | null
           maturity_level?: string | null
           max_solutions?: number | null
+          min_star_tier?: number
           operating_model?: string | null
           organization_id?: string
           payment_status?: string | null
@@ -1847,6 +1864,7 @@ export type Database = {
           problem_statement?: string | null
           published_at?: string | null
           rejection_fee_percentage?: number | null
+          reward_amount?: number | null
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
@@ -12623,6 +12641,7 @@ export type Database = {
           invited_by: string | null
           last_name: string | null
           message: string | null
+          status: string
           token: string
           updated_at: string | null
         }
@@ -12639,6 +12658,7 @@ export type Database = {
           invited_by?: string | null
           last_name?: string | null
           message?: string | null
+          status?: string
           token: string
           updated_at?: string | null
         }
@@ -12655,6 +12675,7 @@ export type Database = {
           invited_by?: string | null
           last_name?: string | null
           message?: string | null
+          status?: string
           token?: string
           updated_at?: string | null
         }
@@ -12761,6 +12782,9 @@ export type Database = {
       solution_providers: {
         Row: {
           address: string | null
+          availability: string | null
+          avatar_url: string | null
+          bio_tagline: string | null
           country_id: string | null
           created_at: string
           created_by: string | null
@@ -12773,10 +12797,15 @@ export type Database = {
           last_name: string
           lifecycle_rank: number
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
+          linkedin_url: string | null
           onboarding_status: Database["public"]["Enums"]["onboarding_status"]
           participation_mode_id: string | null
+          phone: string | null
           pin_code: string | null
+          portfolio_url: string | null
           profile_completion_percentage: number | null
+          profile_strength: number
+          provider_level: number
           registration_mode: Database["public"]["Enums"]["registration_mode"]
           timezone: string | null
           updated_at: string | null
@@ -12788,6 +12817,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          availability?: string | null
+          avatar_url?: string | null
+          bio_tagline?: string | null
           country_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -12800,10 +12832,15 @@ export type Database = {
           last_name: string
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
+          linkedin_url?: string | null
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           participation_mode_id?: string | null
+          phone?: string | null
           pin_code?: string | null
+          portfolio_url?: string | null
           profile_completion_percentage?: number | null
+          profile_strength?: number
+          provider_level?: number
           registration_mode?: Database["public"]["Enums"]["registration_mode"]
           timezone?: string | null
           updated_at?: string | null
@@ -12815,6 +12852,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          availability?: string | null
+          avatar_url?: string | null
+          bio_tagline?: string | null
           country_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -12827,10 +12867,15 @@ export type Database = {
           last_name?: string
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
+          linkedin_url?: string | null
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           participation_mode_id?: string | null
+          phone?: string | null
           pin_code?: string | null
+          portfolio_url?: string | null
           profile_completion_percentage?: number | null
+          profile_strength?: number
+          provider_level?: number
           registration_mode?: Database["public"]["Enums"]["registration_mode"]
           timezone?: string | null
           updated_at?: string | null
