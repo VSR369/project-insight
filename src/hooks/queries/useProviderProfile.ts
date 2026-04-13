@@ -62,7 +62,7 @@ export function useProviderProfileExtended(providerId?: string) {
         .eq('id', providerId!)
         .single();
       if (error) throw new Error(error.message);
-      return data as ProviderProfileExtended;
+      return data as unknown as ProviderProfileExtended;
     },
     enabled: !!providerId,
     staleTime: 30_000,
@@ -84,7 +84,7 @@ export function useUpdateProviderProfile() {
         .select(PROFILE_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
-      return data as ProviderProfileExtended;
+      return data as unknown as ProviderProfileExtended;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [PROFILE_QUERY_KEY, data.id] });
