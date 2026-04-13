@@ -2,7 +2,7 @@
  * VIP Provider Invitations Page
  * 
  * Admin page for managing VIP expert provider invitations.
- * Filters the existing invitations infrastructure to show only vip_expert type.
+ * Filters existing invitations to show only vip_expert type.
  */
 
 import * as React from 'react';
@@ -125,7 +125,7 @@ export function VipProviderInvitationsPage() {
       label: 'Resend Invitation',
       icon: <RefreshCw className="h-4 w-4" />,
       onClick: (row) => resendMutation.mutate(row.id),
-      hidden: (row) => getInvitationStatus(row) !== 'pending',
+      show: (row) => getInvitationStatus(row) === 'pending',
     },
     {
       label: 'Delete',
@@ -135,7 +135,7 @@ export function VipProviderInvitationsPage() {
         setDeletingInvitation(row);
         setDeleteOpen(true);
       },
-      hidden: (row) => getInvitationStatus(row) === 'accepted',
+      show: (row) => getInvitationStatus(row) !== 'accepted',
     },
   ];
 
@@ -161,7 +161,7 @@ export function VipProviderInvitationsPage() {
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Crown className="h-6 w-6 text-amber-500" />
+          <Crown className="h-6 w-6 text-primary" />
           VIP Expert Invitations
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -212,13 +212,12 @@ export function VipProviderInvitationsPage() {
         </CardContent>
       </Card>
 
-      {/* Create Dialog — forces vip_expert type */}
+      {/* Create Dialog */}
       <InvitationForm
         open={formOpen}
         onOpenChange={setFormOpen}
         onSubmit={handleCreate}
-        isSubmitting={createMutation.isPending}
-        defaultType="vip_expert"
+        isLoading={createMutation.isPending}
       />
 
       {/* View Dialog */}
@@ -233,9 +232,9 @@ export function VipProviderInvitationsPage() {
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletingInvitation) {
-            deleteMutation.mutate(deletingInvitation.id);
+            await deleteMutation.mutateAsync(deletingInvitation.id);
             setDeleteOpen(false);
             setDeletingInvitation(null);
           }
