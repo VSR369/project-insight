@@ -1,0 +1,1 @@
+UPDATE public.expertise_levels SET name = 'Learner', updated_at = now() WHERE level_number = 0;
