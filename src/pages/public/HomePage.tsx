@@ -1,8 +1,9 @@
 /**
- * HomePage — Public landing page with hero, stats, and live challenges.
+ * HomePage — Public landing page with hero, challenge feed, and live sidebar.
  */
 
 import { HeroSection } from '@/components/public/HeroSection';
+import { ChallengeFeed } from '@/components/public/ChallengeFeed';
 import { LiveChallengeSidebar } from '@/components/public/LiveChallengeSidebar';
 import { DevEnvironmentModal } from '@/components/cogniblend/shell/DevEnvironmentModal';
 
@@ -14,6 +15,7 @@ export default function HomePage() {
       <div className="mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
+            {/* How It Works */}
             <section>
               <h2 className="text-2xl font-bold mb-4">How It Works</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -31,6 +33,12 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+            </section>
+
+            {/* Public Challenge Feed */}
+            <section>
+              <h2 className="text-2xl font-bold mb-4">Active Challenges</h2>
+              <ChallengeFeed limit={6} />
             </section>
           </div>
 
