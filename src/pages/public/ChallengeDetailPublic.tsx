@@ -12,7 +12,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Lock, Trophy, Calendar, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const CHALLENGE_COLS = [
+interface ChallengeDetail {
+  id: string;
+  hook: string | null;
+  description: string | null;
+  problem_statement: string | null;
+  reward_amount: number | null;
+  currency_code: string | null;
+  access_type: string;
+  min_star_tier: number;
+  complexity_level: string | null;
+  published_at: string | null;
+  scope: string | null;
+  is_active: boolean;
+}
+
   'id', 'hook', 'description', 'problem_statement', 'reward_amount',
   'currency_code', 'access_type', 'min_star_tier', 'complexity_level',
   'published_at', 'scope', 'is_active',
@@ -33,7 +47,7 @@ export default function ChallengeDetailPublic() {
         .eq('is_deleted', false)
         .single();
       if (error) throw new Error(error.message);
-      return data;
+      return (data as unknown) as ChallengeDetail;
     },
     enabled: !!id,
   });
