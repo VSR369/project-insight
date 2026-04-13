@@ -14,6 +14,7 @@ import {
   createEnrollment,
   updateEnrollmentExpertise,
   updateEnrollmentLifecycle,
+  updateEnrollmentDetails,
   setPrimaryEnrollment,
   hasActiveAssessmentInAnyEnrollment,
   getEnrollmentByIndustry,
