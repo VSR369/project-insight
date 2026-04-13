@@ -706,6 +706,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "assessment_attempts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       assessment_results_rollup: {
@@ -809,6 +816,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      background_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          job_type: string
+          last_error: string | null
+          max_attempts: number
+          payload: Json | null
+          priority: number
+          scheduled_at: string
+          started_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_type: string
+          last_error?: string | null
+          max_attempts?: number
+          payload?: Json | null
+          priority?: number
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          max_attempts?: number
+          payload?: Json | null
+          priority?: number
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       booking_reviewers: {
         Row: {
@@ -3278,6 +3333,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_bookings_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -7602,6 +7664,33 @@ export type Database = {
           },
         ]
       }
+      performance_score_weights: {
+        Row: {
+          description: string | null
+          dimension: string
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+          weight: number
+        }
+        Insert: {
+          description?: string | null
+          dimension: string
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          weight: number
+        }
+        Update: {
+          description?: string | null
+          dimension?: string
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
       phase_templates: {
         Row: {
           created_at: string
@@ -7935,6 +8024,36 @@ export type Database = {
           role_name?: string
           updated_at?: string | null
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      platform_stats_cache: {
+        Row: {
+          computed_at: string
+          display_order: number | null
+          id: string
+          stat_key: string
+          stat_label: string | null
+          stat_value: number
+          updated_at: string | null
+        }
+        Insert: {
+          computed_at?: string
+          display_order?: number | null
+          id?: string
+          stat_key: string
+          stat_label?: string | null
+          stat_value?: number
+          updated_at?: string | null
+        }
+        Update: {
+          computed_at?: string
+          display_order?: number | null
+          id?: string
+          stat_key?: string
+          stat_label?: string | null
+          stat_value?: number
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -8368,6 +8487,98 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proof_points_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
+      provider_certifications: {
+        Row: {
+          awarded_at: string
+          awarded_by: string | null
+          cert_label: string
+          cert_path: string
+          composite_score: number | null
+          created_at: string
+          created_by: string | null
+          enrollment_id: string | null
+          id: string
+          metadata: Json | null
+          provider_id: string
+          revocation_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          star_tier: number
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_by?: string | null
+          cert_label: string
+          cert_path: string
+          composite_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          enrollment_id?: string | null
+          id?: string
+          metadata?: Json | null
+          provider_id: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          star_tier: number
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          awarded_at?: string
+          awarded_by?: string | null
+          cert_label?: string
+          cert_path?: string
+          composite_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          enrollment_id?: string | null
+          id?: string
+          metadata?: Json | null
+          provider_id?: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          star_tier?: number
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_certifications_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_certifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_certifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       provider_industry_enrollments: {
@@ -8518,6 +8729,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "provider_industry_enrollments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       provider_notifications: {
@@ -8575,6 +8793,76 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "provider_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
+      provider_performance_scores: {
+        Row: {
+          community_impact_score: number
+          composite_score: number
+          computation_metadata: Json | null
+          computed_at: string
+          consistency_score: number
+          created_at: string
+          engagement_score: number
+          expertise_depth_score: number
+          id: string
+          provider_id: string
+          quality_score: number
+          responsiveness_score: number
+          updated_at: string | null
+        }
+        Insert: {
+          community_impact_score?: number
+          composite_score?: number
+          computation_metadata?: Json | null
+          computed_at?: string
+          consistency_score?: number
+          created_at?: string
+          engagement_score?: number
+          expertise_depth_score?: number
+          id?: string
+          provider_id: string
+          quality_score?: number
+          responsiveness_score?: number
+          updated_at?: string | null
+        }
+        Update: {
+          community_impact_score?: number
+          composite_score?: number
+          computation_metadata?: Json | null
+          computed_at?: string
+          consistency_score?: number
+          created_at?: string
+          engagement_score?: number
+          expertise_depth_score?: number
+          id?: string
+          provider_id?: string
+          quality_score?: number
+          responsiveness_score?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_performance_scores_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_performance_scores_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       provider_proficiency_areas: {
@@ -8630,6 +8918,59 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "provider_proficiency_areas_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
+      provider_solution_types: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          provider_id: string
+          solution_type_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          provider_id: string
+          solution_type_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          provider_id?: string
+          solution_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_solution_types_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_solution_types_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_solution_types_solution_type_id_fkey"
+            columns: ["solution_type_id"]
+            isOneToOne: false
+            referencedRelation: "md_solution_types"
+            referencedColumns: ["id"]
+          },
         ]
       }
       provider_specialities: {
@@ -8668,6 +9009,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_specialities_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "provider_specialities_speciality_id_fkey"
@@ -8721,6 +9069,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_card_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_card_flags: {
@@ -8770,6 +9125,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_flags_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -8851,6 +9213,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_layers_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "pulse_card_layers_parent_layer_id_fkey"
@@ -8960,6 +9329,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_card_votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_cards: {
@@ -9048,6 +9424,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pulse_cards_seed_creator_id_fkey"
+            columns: ["seed_creator_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+          {
             foreignKeyName: "pulse_cards_topic_id_fkey"
             columns: ["topic_id"]
             isOneToOne: false
@@ -9094,6 +9477,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_reputation_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9156,6 +9546,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_comments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_connections: {
@@ -9186,11 +9583,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pulse_connections_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+          {
             foreignKeyName: "pulse_connections_following_id_fkey"
             columns: ["following_id"]
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_connections_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9319,6 +9730,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_content_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_content_impressions: {
@@ -9357,6 +9775,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_impressions_viewer_id_fkey"
+            columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9411,6 +9836,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9492,6 +9924,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_daily_standups_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_engagements: {
@@ -9536,6 +9975,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9583,6 +10029,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_loot_boxes_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9682,6 +10135,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pulse_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+          {
             foreignKeyName: "pulse_notifications_related_content_id_fkey"
             columns: ["related_content_id"]
             isOneToOne: false
@@ -9694,6 +10154,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_related_provider_id_fkey"
+            columns: ["related_provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -9805,6 +10272,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_provider_stats_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_skills: {
@@ -9885,6 +10359,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pulse_skills_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+          {
             foreignKeyName: "pulse_skills_verification_enrollment_id_fkey"
             columns: ["verification_enrollment_id"]
             isOneToOne: false
@@ -9959,6 +10440,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_trust_council_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_xp_audit_log: {
@@ -10009,6 +10497,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pulse_xp_audit_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       pulse_xp_snapshots: {
@@ -10049,6 +10544,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_xp_snapshots_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
         ]
       }
@@ -10189,6 +10691,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_exposure_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "question_exposure_log_question_id_fkey"
@@ -12777,6 +13286,13 @@ export type Database = {
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "solution_provider_organizations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
         ]
       }
       solution_providers: {
@@ -13187,6 +13703,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solver_profile_views_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+          {
             foreignKeyName: "solver_profile_views_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -13344,6 +13867,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "solution_providers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_profiles_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
           },
           {
             foreignKeyName: "student_profiles_stream_id_fkey"
@@ -13955,6 +14485,19 @@ export type Database = {
           load_bucket?: never
           name?: string | null
           workload_status?: never
+        }
+        Relationships: []
+      }
+      vw_provider_resolved_cert: {
+        Row: {
+          active_paths: string[] | null
+          first_name: string | null
+          highest_composite: number | null
+          last_name: string | null
+          provider_id: string | null
+          resolved_cert_label: string | null
+          resolved_star_tier: number | null
+          user_id: string | null
         }
         Relationships: []
       }
