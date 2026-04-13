@@ -432,6 +432,14 @@ const App = () => (
               }
             />
             <Route
+              path="/provider-dashboard"
+              element={
+                <AuthGuard>
+                  <LazyRoute><ProviderDashboard /></LazyRoute>
+                </AuthGuard>
+              }
+            />
+            <Route
               path="/welcome"
               element={
                 <AuthGuard>
