@@ -1,32 +1,24 @@
 /**
  * Performance Score Service
  * 
- * Business logic for computing weighted composite scores from 6 dimensions.
- * Used by the nightly compute-performance-scores edge function.
+ * Business logic for computing weighted composite scores from 6 spec-aligned dimensions.
  */
 
 import type { PerformanceDimension } from '@/constants/enrollment.constants';
-import { PERFORMANCE_DIMENSIONS } from '@/constants/enrollment.constants';
+import { PERFORMANCE_DIMENSIONS, PERFORMANCE_DEFAULT_WEIGHTS } from '@/constants/enrollment.constants';
 
 /** Raw dimension scores (0-100 each) */
 export interface DimensionScores {
-  quality: number;
-  consistency: number;
-  engagement: number;
-  responsiveness: number;
-  expertise_depth: number;
-  community_impact: number;
+  community_engagement: number;
+  abstracts_submitted: number;
+  solution_quality: number;
+  complexity_handled: number;
+  win_achievement: number;
+  knowledge_contrib: number;
 }
 
 /** Weight configuration from performance_score_weights table */
-export interface DimensionWeights {
-  quality: number;
-  consistency: number;
-  engagement: number;
-  responsiveness: number;
-  expertise_depth: number;
-  community_impact: number;
-}
+export type DimensionWeights = Record<PerformanceDimension, number>;
 
 /** Computed score result */
 export interface ComputedPerformanceScore {
@@ -36,18 +28,10 @@ export interface ComputedPerformanceScore {
 }
 
 /** Default weights (must sum to 1.0) */
-export const DEFAULT_WEIGHTS: DimensionWeights = {
-  quality: 0.25,
-  consistency: 0.15,
-  engagement: 0.20,
-  responsiveness: 0.10,
-  expertise_depth: 0.20,
-  community_impact: 0.10,
-};
+export const DEFAULT_WEIGHTS: DimensionWeights = { ...PERFORMANCE_DEFAULT_WEIGHTS };
 
 /**
  * Compute weighted composite score from dimension scores and weights.
- * Returns composite rounded to 2 decimal places.
  */
 export function computeCompositeScore(
   scores: DimensionScores,
@@ -79,9 +63,6 @@ export function validateWeights(weights: DimensionWeights): boolean {
   return Math.abs(sum - 1.0) < 0.01;
 }
 
-/**
- * Clamp a score between 0 and 100.
- */
 function clampScore(score: number): number {
   return Math.max(0, Math.min(100, score));
 }

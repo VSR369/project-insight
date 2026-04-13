@@ -65,10 +65,26 @@ serve(async (req) => {
 
     const expiredRoleCount = expiredRoles?.length ?? 0;
 
-    // 4. Log results
+    // 4. Expire stale VIP provider invitations
+    const { data: expiredVip, error: vipError } = await supabaseAdmin
+      .from("solution_provider_invitations")
+      .update({ status: "expired" })
+      .eq("status", "pending")
+      .eq("invitation_type", "vip_expert")
+      .lt("expires_at", now)
+      .select("id, email");
+
+    if (vipError) {
+      console.error("Failed to expire VIP invitations:", vipError.message);
+    }
+
+    const expiredVipCount = expiredVip?.length ?? 0;
+
+    // 5. Log results
     const expiredCount = expiredAdmins?.length ?? 0;
     console.log(`Expired ${expiredCount} stale delegated admin invitation(s)`);
     console.log(`Expired ${expiredRoleCount} stale role assignment invitation(s)`);
+    console.log(`Expired ${expiredVipCount} stale VIP provider invitation(s)`);
 
     // 4. Write audit records for expired admins
     if (expiredAdmins && expiredAdmins.length > 0) {
@@ -89,6 +105,7 @@ serve(async (req) => {
         data: {
           expired_admin_invitations: expiredCount,
           expired_role_assignments: expiredRoleCount,
+          expired_vip_invitations: expiredVipCount,
           timestamp: now,
         },
       }),

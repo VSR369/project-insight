@@ -265,6 +265,10 @@ const FcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/FcChallengeQu
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
 const BrowseChallengesPage = lazy(() => import("@/pages/cogniblend/BrowseChallengesPage"));
 
+// Public Pages (P4)
+const HomePage = lazy(() => import("@/pages/public/HomePage"));
+const ChallengeDetailPublicPage = lazy(() => import("@/pages/public/ChallengeDetailPublic"));
+
 // AI Quality Dashboard (Phase 10)
 const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
 const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
@@ -1069,6 +1073,10 @@ const App = () => (
             {/* SaasAgreementPage moved to nested /admin route above */}
 
             {/* Solution Request Routes — removed (role architecture v2) */}
+
+            {/* Public pages */}
+            <Route path="/home" element={<LazyRoute><HomePage /></LazyRoute>} />
+            <Route path="/challenges/:id" element={<LazyRoute><ChallengeDetailPublicPage /></LazyRoute>} />
 
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />
