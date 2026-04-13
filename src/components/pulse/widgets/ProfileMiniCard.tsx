@@ -241,6 +241,9 @@ export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCa
               )}
             </div>
 
+            {/* Certification Badge */}
+            {providerId && <CertTierBadge providerId={providerId} />}
+
             {/* View Profile Link */}
             <Button
               variant="outline"
