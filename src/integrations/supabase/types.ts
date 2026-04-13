@@ -2241,6 +2241,86 @@ export type Database = {
         }
         Relationships: []
       }
+      community_posts: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          helpful_votes: number
+          id: string
+          is_deleted: boolean
+          is_published: boolean
+          post_type: string
+          provider_id: string
+          title: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          helpful_votes?: number
+          id?: string
+          is_deleted?: boolean
+          is_published?: boolean
+          post_type?: string
+          provider_id: string
+          title?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          helpful_votes?: number
+          id?: string
+          is_deleted?: boolean
+          is_published?: boolean
+          post_type?: string
+          provider_id?: string
+          title?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_posts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "community_posts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "community_posts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
       completeness_checks: {
         Row: {
           check_sections: Json
@@ -8847,6 +8927,88 @@ export type Database = {
           },
         ]
       }
+      provider_expertise: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expertise_level_id: string | null
+          geographies_served: string[] | null
+          id: string
+          industry_segment_id: string | null
+          outcomes_delivered: string[] | null
+          provider_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expertise_level_id?: string | null
+          geographies_served?: string[] | null
+          id?: string
+          industry_segment_id?: string | null
+          outcomes_delivered?: string[] | null
+          provider_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expertise_level_id?: string | null
+          geographies_served?: string[] | null
+          id?: string
+          industry_segment_id?: string | null
+          outcomes_delivered?: string[] | null
+          provider_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_expertise_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_expertise_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_expertise_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_expertise_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_expertise_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_expertise_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
       provider_industry_enrollments: {
         Row: {
           certification_level: string | null
@@ -9109,9 +9271,91 @@ export type Database = {
           },
         ]
       }
+      provider_org_details: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          manager_approved: boolean | null
+          manager_approved_at: string | null
+          manager_email: string | null
+          manager_name: string | null
+          org_name: string | null
+          org_role: string | null
+          participation_mode: string
+          provider_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          manager_approved?: boolean | null
+          manager_approved_at?: string | null
+          manager_email?: string | null
+          manager_name?: string | null
+          org_name?: string | null
+          org_role?: string | null
+          participation_mode?: string
+          provider_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          manager_approved?: boolean | null
+          manager_approved_at?: string | null
+          manager_email?: string | null
+          manager_name?: string | null
+          org_name?: string | null
+          org_role?: string | null
+          participation_mode?: string
+          provider_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_org_details_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_org_details_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_org_details_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "provider_org_details_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
       provider_performance_scores: {
         Row: {
+          abstracts_submitted: number | null
+          articles_written: number | null
+          avg_challenge_complexity: number | null
+          community_helpful_votes: number | null
           community_impact_score: number
+          community_posts_count: number | null
           composite_score: number
           computation_metadata: Json | null
           computed_at: string
@@ -9119,14 +9363,32 @@ export type Database = {
           created_at: string
           engagement_score: number
           expertise_depth_score: number
+          full_solutions_submitted: number | null
           id: string
+          peer_reviews_given: number | null
           provider_id: string
           quality_score: number
           responsiveness_score: number
+          score_abstracts_submitted: number | null
+          score_community_engagement: number | null
+          score_complexity_handled: number | null
+          score_date: string | null
+          score_knowledge_contrib: number | null
+          score_solution_quality: number | null
+          score_win_achievement: number | null
+          solutions_accepted: number | null
           updated_at: string | null
+          wins_gold: number | null
+          wins_platinum: number | null
+          wins_silver: number | null
         }
         Insert: {
+          abstracts_submitted?: number | null
+          articles_written?: number | null
+          avg_challenge_complexity?: number | null
+          community_helpful_votes?: number | null
           community_impact_score?: number
+          community_posts_count?: number | null
           composite_score?: number
           computation_metadata?: Json | null
           computed_at?: string
@@ -9134,14 +9396,32 @@ export type Database = {
           created_at?: string
           engagement_score?: number
           expertise_depth_score?: number
+          full_solutions_submitted?: number | null
           id?: string
+          peer_reviews_given?: number | null
           provider_id: string
           quality_score?: number
           responsiveness_score?: number
+          score_abstracts_submitted?: number | null
+          score_community_engagement?: number | null
+          score_complexity_handled?: number | null
+          score_date?: string | null
+          score_knowledge_contrib?: number | null
+          score_solution_quality?: number | null
+          score_win_achievement?: number | null
+          solutions_accepted?: number | null
           updated_at?: string | null
+          wins_gold?: number | null
+          wins_platinum?: number | null
+          wins_silver?: number | null
         }
         Update: {
+          abstracts_submitted?: number | null
+          articles_written?: number | null
+          avg_challenge_complexity?: number | null
+          community_helpful_votes?: number | null
           community_impact_score?: number
+          community_posts_count?: number | null
           composite_score?: number
           computation_metadata?: Json | null
           computed_at?: string
@@ -9149,11 +9429,24 @@ export type Database = {
           created_at?: string
           engagement_score?: number
           expertise_depth_score?: number
+          full_solutions_submitted?: number | null
           id?: string
+          peer_reviews_given?: number | null
           provider_id?: string
           quality_score?: number
           responsiveness_score?: number
+          score_abstracts_submitted?: number | null
+          score_community_engagement?: number | null
+          score_complexity_handled?: number | null
+          score_date?: string | null
+          score_knowledge_contrib?: number | null
+          score_solution_quality?: number | null
+          score_win_achievement?: number | null
+          solutions_accepted?: number | null
           updated_at?: string | null
+          wins_gold?: number | null
+          wins_platinum?: number | null
+          wins_silver?: number | null
         }
         Relationships: [
           {
@@ -15201,6 +15494,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vip_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          invited_name: string | null
+          star_tier: number
+          status: string
+          token: string
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_name?: string | null
+          star_tier?: number
+          status?: string
+          token?: string
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_name?: string | null
+          star_tier?: number
+          status?: string
+          token?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
