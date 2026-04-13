@@ -69,6 +69,7 @@ const OrganizationDeclined = lazy(() => import("@/pages/enroll/OrganizationDecli
 const InterviewScheduling = lazy(() => import("@/pages/enroll/InterviewScheduling"));
 const PanelDiscussion = lazy(() => import("@/pages/enroll/PanelDiscussion"));
 const Certification = lazy(() => import("@/pages/enroll/Certification"));
+const ProviderDashboard = lazy(() => import("@/pages/ProviderDashboard"));
 
 // Manager Portal (public pages - instant load)
 import ManagerPortal from "@/pages/public/ManagerPortal";
