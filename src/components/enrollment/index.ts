@@ -13,3 +13,4 @@ export { ProfileCompletionBar } from './ProfileCompletionBar';
 export { CertificationBadgeBar } from './CertificationBadgeBar';
 export { PerformanceRadar } from './PerformanceRadar';
 export { CertTierBadge } from './CertTierBadge';
+export { VipCertBadge } from './VipCertBadge';
