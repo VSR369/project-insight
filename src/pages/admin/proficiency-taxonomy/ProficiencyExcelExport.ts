@@ -46,7 +46,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
     },
     {
       "Industry Segment": "Manufacturing",
-      "Expertise Level": "Partner",
+      "Expertise Level": "Pioneer",
       "Proficiency Area": "Executive Strategy",
       "Sub-Domain": "M&A Advisory",
       "Speciality": "Due Diligence",
