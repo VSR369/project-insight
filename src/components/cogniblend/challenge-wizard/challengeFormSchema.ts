@@ -210,6 +210,8 @@ export function createChallengeFormSchema(
     complexity_params: z.record(z.string(), z.number().min(0).max(10)).optional(),
 
     // Step 5 — Provider Eligibility
+    access_type: z.enum(['open_all', 'certified_only', 'star_gated', 'invite_only']).default('open_all'),
+    min_star_tier: z.number().int().min(0).max(3).default(0),
     eligible_participation_modes: z.array(z.string()).default([]),
     solver_eligibility_id: z.string().optional().or(z.literal('')),
     solver_eligibility_ids: z.array(z.string()).default([]),
@@ -315,6 +317,8 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   complexity_params: undefined,
 
   // Provider Eligibility
+  access_type: 'open_all' as const,
+  min_star_tier: 0,
   eligible_participation_modes: [],
   solver_eligibility_id: '',
   solver_eligibility_ids: [],

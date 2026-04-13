@@ -12,3 +12,4 @@ export { Tab2Expertise } from './Tab2Expertise';
 export { ProfileCompletionBar } from './ProfileCompletionBar';
 export { CertificationBadgeBar } from './CertificationBadgeBar';
 export { PerformanceRadar } from './PerformanceRadar';
+export { CertTierBadge } from './CertTierBadge';
