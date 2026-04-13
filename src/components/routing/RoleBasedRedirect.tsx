@@ -31,7 +31,7 @@ export function RoleBasedRedirect() {
 
       // Not logged in - go to login
       if (!user) {
-        navigate('/login', { replace: true });
+        navigate('/home', { replace: true });
         return;
       }
 

@@ -38,6 +38,9 @@ export function HeroSection() {
           <Button size="lg" variant="outline" onClick={() => navigate('/browse-challenges')}>
             Browse Challenges
           </Button>
+          <Button size="lg" variant="secondary" onClick={() => navigate('/login')}>
+            Sign In
+          </Button>
         </div>
 
         <PlatformStatsBar className="pt-8 border-t mt-8" />
