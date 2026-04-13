@@ -53,7 +53,7 @@ export function Tab2Expertise({ providerId, className }: Tab2ExpertiseProps) {
 
   useEffect(() => {
     if (activeEnrollment) {
-      const enrollment = activeEnrollment as Record<string, unknown>;
+      const enrollment = activeEnrollment as unknown as Record<string, unknown>;
       const geos = enrollment.geographies_served;
       const outcomes = enrollment.outcomes_delivered;
       if (Array.isArray(geos)) setSelectedGeographies(geos as string[]);
