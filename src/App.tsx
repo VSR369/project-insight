@@ -122,6 +122,7 @@ const CapabilityTagsPage = lazy(() => import("@/pages/admin/capability-tags").th
 const LevelSpecialityMapPage = lazy(() => import("@/pages/admin/level-speciality-map").then(m => ({ default: m.LevelSpecialityMapPage })));
 const InvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.InvitationsPage })));
 const PanelReviewerInvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.PanelReviewerInvitationsPage })));
+const VipProviderInvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.VipProviderInvitationsPage })));
 const AdminSettingsPage = lazy(() => import("@/pages/admin/MasterDataPlaceholder").then(m => ({ default: m.AdminSettingsPage })));
 const SmokeTestPage = lazy(() => import("@/pages/admin/SmokeTestPage"));
 const TestSetupPage = lazy(() => import("@/pages/admin/TestSetupPage"));
