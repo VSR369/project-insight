@@ -1074,6 +1074,10 @@ const App = () => (
 
             {/* Solution Request Routes — removed (role architecture v2) */}
 
+            {/* Public pages */}
+            <Route path="/home" element={<LazyRoute><HomePage /></LazyRoute>} />
+            <Route path="/challenges/:id" element={<LazyRoute><ChallengeDetailPublicPage /></LazyRoute>} />
+
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />
 
