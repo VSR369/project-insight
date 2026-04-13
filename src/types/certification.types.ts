@@ -5,7 +5,7 @@
  */
 
 /** Certification levels awarded based on composite score */
-export type CertificationLevel = 'basic' | 'competent' | 'expert';
+export type CertificationLevel = 'proven' | 'acclaimed' | 'eminent';
 
 /** Registration mode for solution providers */
 export type RegistrationMode = 'self_registered' | 'invitation';
@@ -53,9 +53,9 @@ export const CERTIFICATION_LEVEL_DISPLAY: Record<CertificationLevel, {
  */
 export function starRatingToLevel(starRating: number | null): CertificationLevel | null {
   if (starRating === null || starRating === 0) return null;
-  if (starRating === 1) return 'basic';
-  if (starRating === 2) return 'competent';
-  return 'expert';
+  if (starRating === 1) return 'proven';
+  if (starRating === 2) return 'acclaimed';
+  return 'eminent';
 }
 
 /**

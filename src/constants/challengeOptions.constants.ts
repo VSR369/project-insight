@@ -34,9 +34,9 @@ export const VISIBILITY_OPTIONS: readonly TierOption[] = [
 /* ─── Eligibility Models ─────────────────────────────── */
 
 export const ELIGIBILITY_MODELS: readonly EligibilityModelOption[] = [
-  { code: 'certified_basic', label: 'Certified Basic', description: 'Entry-level certified Solution Providers. Minimum verified competency.' },
-  { code: 'certified_competent', label: 'Certified Competent', description: 'Mid-level certified Solution Providers with demonstrated domain expertise.' },
-  { code: 'certified_expert', label: 'Certified Expert', description: 'Top-tier certified experts. For complex, IP-sensitive challenges.' },
+  { code: 'certified_basic', label: 'Certified Proven', description: 'Entry-level certified Solution Providers. Minimum verified competency.' },
+  { code: 'certified_competent', label: 'Certified Acclaimed', description: 'Mid-level certified Solution Providers with demonstrated domain expertise.' },
+  { code: 'certified_expert', label: 'Certified Eminent', description: 'Top-tier certified Solution Providers. For complex, IP-sensitive challenges.' },
   { code: 'registered', label: 'Registered', description: 'Registered platform members with identity verification. Standard eligibility.' },
   { code: 'expert_invitee', label: 'Expert (Invitee)', description: 'Experts specifically invited by the challenge creator or platform.' },
   { code: 'signed_in', label: 'Signed In', description: 'Any authenticated user on the platform can participate.' },

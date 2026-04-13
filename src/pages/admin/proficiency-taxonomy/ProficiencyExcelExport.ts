@@ -22,7 +22,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
   const templateData: TaxonomyExportRow[] = [
     {
       "Industry Segment": "Manufacturing",
-      "Expertise Level": "Associate Consultant",
+      "Expertise Level": "Explorer",
       "Proficiency Area": "Data Analytics",
       "Sub-Domain": "Business Intelligence",
       "Speciality": "Power BI Development",
@@ -34,7 +34,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
     },
     {
       "Industry Segment": "Manufacturing",
-      "Expertise Level": "Associate Consultant",
+      "Expertise Level": "Explorer",
       "Proficiency Area": "Data Analytics",
       "Sub-Domain": "Business Intelligence",
       "Speciality": "Tableau Visualization",

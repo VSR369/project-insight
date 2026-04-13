@@ -37,7 +37,7 @@ export default function Certification() {
   const certifiedAt = activeEnrollment?.certified_at;
   
   // Get certification level display info
-  const levelDisplay = getCertificationLevelDisplay(certificationLevel as 'basic' | 'competent' | 'expert' | null);
+  const levelDisplay = getCertificationLevelDisplay(certificationLevel as 'proven' | 'acclaimed' | 'eminent' | null);
   
   const getStatusConfig = (): StatusConfig => {
     switch (lifecycleStatus) {

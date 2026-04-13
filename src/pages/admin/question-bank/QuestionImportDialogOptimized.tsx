@@ -141,7 +141,7 @@ const EXCEL_TEMPLATE_DATA = [
     "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"
   ],
   [
-    "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+    "Manufacturing (Auto Components)", "Catalyst", 
     "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
     "What is the primary purpose of data stewardship?",
     "Data backup", "Data governance", "Data deletion", "Data encryption",

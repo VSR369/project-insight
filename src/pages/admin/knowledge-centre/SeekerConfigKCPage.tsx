@@ -118,7 +118,7 @@ Fees can be flat-rate or tiered based on challenge complexity and engagement mod
 • **Eligible Expertise Levels** — Which levels can be assigned as shadows (typically Level 1–2).
 • **Maximum Shadows Per Challenge** — How many shadow slots are allowed (usually 1).
 
-🏢 **Real-life example:** A Level 4 Principal consultant is assigned to a complex challenge at $10,000. A Level 1 provider is assigned as a shadow at 30% = $3,000. The organisation pays the total ($13,000) but gets both expertise and knowledge transfer.`,
+🏢 **Real-life example:** A Level 4 Pioneer is assigned to a complex challenge at $10,000. A Level 1 provider is assigned as a shadow at 30% = $3,000. The organisation pays the total ($13,000) but gets both expertise and knowledge transfer.`,
       },
     ],
   },
