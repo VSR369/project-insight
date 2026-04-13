@@ -61,7 +61,7 @@ export function useProviderPerformanceScore(providerId?: string) {
         .limit(1)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      return data as ProviderPerformanceScore | null;
+      return (data as unknown) as ProviderPerformanceScore | null;
     },
     enabled: !!providerId,
     staleTime: 5 * 60_000,
