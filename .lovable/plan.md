@@ -1,82 +1,121 @@
 
 
-# Gap Analysis: What's Already Done vs. What Remains
+# Pending Items: TechSpec v1.0 vs Current Implementation
 
-## Already Implemented (Chunks 1-10)
-
-| Gap Item | Status |
-|----------|--------|
-| A1: Add columns to solution_providers (bio_tagline, linkedin_url, etc.) | DONE — migration exists, 8/9 columns added. Missing: `is_vip`, `invitation_code` |
-| A2: cert_path on enrollments | DONE differently — separate `provider_certifications` table with cert_path column |
-| B1: provider_solution_types junction | DONE — table + RLS + hooks + SolutionTypesSelector UI |
-| provider_certifications table | DONE — full table with 3-path support, star_tier, composite_score |
-| provider_performance_scores table | DONE — 6 dimensions + composite |
-| performance_score_weights table | DONE — admin-configurable weights |
-| vw_provider_resolved_cert view | DONE — MAX star tier across paths |
-| VIP auto-certification trigger | DONE — fn_auto_certify_vip trigger on solution_providers |
-| Edge: compute-performance-scores | DONE — deployed |
-| Edge: auto-certify-performance | DONE — deployed |
-| Edge: update-profile-strength | DONE — deployed |
-| Edge: public-platform-stats | DONE — deployed |
-| profileStrengthService.ts | DONE |
-| performanceScoreService.ts | DONE |
-| PerformanceRadar component | DONE |
-| CertificationBadgeBar (sidebar) | DONE — in LeftSidebar |
-| ProfileCompletionBar (sidebar) | DONE — in LeftSidebar |
-| CertTierBadge | DONE — in ProfileMiniCard |
-| AccessGatingSection (challenge wizard) | DONE |
-| useSubmissionEligibility hook | DONE |
-| ExpertiseLevelCards component | DONE |
-| Tab2Expertise component | DONE |
-| ProviderDashboard integration | DONE |
-
-## Remaining Gaps (7 items)
-
-### 1. ALTER TABLE: Add `is_vip` + `invitation_code` to solution_providers
-The gap analysis calls for these 2 columns. VIP logic already works via `solution_provider_invitations.invitation_type = 'vip_expert'` and the `handle_new_user` trigger, but explicit columns on solution_providers would allow faster queries.
-
-**Action:** 1 migration — `ALTER TABLE solution_providers ADD COLUMN IF NOT EXISTS is_vip BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS invitation_code TEXT UNIQUE;`
-Update `handle_new_user` trigger to set `is_vip = TRUE` for vip_expert invitations.
-
-### 2. ALTER TABLE: Add `geographies_served[]` + `outcomes_delivered[]` to provider_industry_enrollments
-These array columns are missing from the enrollments table. `GeographyTagSelector` component already exists for reuse.
-
-**Action:** 1 migration adding both columns. Wire into Tab2Expertise with GeographyTagSelector (reuse) and a new OutcomesTagSelector (simple tag input, same pattern).
-
-### 3. Outcomes Delivered tag selector UI
-No component exists for selecting outcomes. Needs a simple multi-tag input on the expertise tab.
-
-**Action:** Create `OutcomesTagSelector.tsx` (reuse GeographyTagSelector pattern — free-text tag input). Add to Tab2Expertise below Solution Types.
-
-### 4. Geographies Served selector on expertise tab
-`GeographyTagSelector` exists but isn't wired into the enrollment/expertise flow — only used in org registration.
-
-**Action:** Import GeographyTagSelector into Tab2Expertise. Wire to new `geographies_served` column via a hook update to read/write the enrollment record.
-
-### 5. DB Views: `v_provider_dashboard`, `v_challenge_match`, `v_cert_leaderboard`
-Only `vw_provider_resolved_cert` exists. The 3 spec views are missing.
-
-**Action:** 1 migration creating all 3 views from existing tables (solution_providers + provider_industry_enrollments + provider_certifications + challenges).
-
-### 6. pg_cron scheduling for nightly edge functions
-Edge functions exist but no cron schedule is set up to invoke them nightly.
-
-**Action:** Use the insert tool to create 2 cron jobs via `cron.schedule()` calling `compute-performance-scores` and `auto-certify-performance` (e.g., daily at 2:00 AM and 2:30 AM UTC).
-
-### 7. VIP invitation admin page (provider-specific)
-Panel reviewer invitations exist (`InvitePanelMembersTab`). A VIP provider invitation admin page is missing. The `solution_provider_invitations` table already supports `invitation_type = 'vip_expert'` and the acceptance flow works via `handle_new_user`.
-
-**Action:** Create `VipProviderInvitationsPage.tsx` reusing `InvitePanelMembersTab` pattern, filtered to `invitation_type = 'vip_expert'`. Add route under admin.
+## What's Done (not repeated here)
+All items from the previous gap analysis (Chunks 1-10 + 7 remaining items) are complete: schema extensions, views, edge functions for scoring/certification/profile-strength/platform-stats, enrollment UI (Tab2 with geographies/outcomes/solution types), VIP admin page, background_jobs table, challenge access gating columns, submission classification columns.
 
 ---
 
-## Implementation Order
+## Remaining Gaps — Grouped by Priority
 
-1. **Migration:** Add `is_vip`, `invitation_code` to solution_providers + `geographies_served[]`, `outcomes_delivered[]` to provider_industry_enrollments
-2. **Migration:** Create 3 DB views
-3. **UI:** Add GeographyTagSelector + OutcomesTagSelector to Tab2Expertise
-4. **pg_cron:** Schedule nightly edge function invocations
-5. **Admin:** VIP provider invitations page
+### P1: DB Schema Gaps (ALTER TABLE on existing tables)
 
-**Total:** 2 migrations, 1 new component (OutcomesTagSelector), 2 component edits (Tab2Expertise + hook), 1 new page (VIP invitations), 2 cron jobs via insert tool.
+**1. community_posts — add post_type + helpful_votes (Spec 3.3)**
+The `community_posts` table exists but is missing two columns the spec requires for the performance scoring engine:
+```sql
+ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS
+  post_type TEXT DEFAULT 'post' CHECK (post_type IN ('post','article','peer_review','qa_answer'));
+ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS
+  helpful_votes INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_cp_provider_type ON community_posts(provider_id, post_type);
+```
+Without these, Path 2 performance scoring (community_engagement + knowledge_contribution dimensions) cannot read real data.
+
+**2. provider_performance_scores — mismatch with spec dimensions (Spec 2.6)**
+Current table has 6 generic dimensions (quality, consistency, engagement, responsiveness, expertise_depth, community_impact). The spec defines 6 *different* dimensions with raw count columns:
+- `community_posts`, `community_helpful_votes`, `articles_written`, `peer_reviews_given`
+- `abstracts_submitted`, `full_solutions_submitted`, `solutions_accepted`
+- `wins_platinum`, `wins_gold`, `wins_silver`, `avg_challenge_complexity`
+- `score_community_engagement`, `score_abstracts_submitted`, `score_solution_quality`, `score_complexity_handled`, `score_win_achievement`, `score_knowledge_contrib`
+- Plus `score_date DATE` for daily snapshots
+
+This is a significant structural difference. The current table stores one row per provider (upsert on provider_id). The spec wants daily snapshots (unique on provider_id + score_date) with raw counts alongside weighted scores.
+
+**Action:** ALTER TABLE to add the missing raw count columns + score_date + the 6 spec-named score columns. Update compute-performance-scores edge function to populate these.
+
+---
+
+### P2: Edge Functions Missing
+
+**3. accept-vip-invitation (Spec 11)**
+No edge function exists. The spec requires: validate invitation token, create provider profile, fire auto-certify trigger, return session. Currently VIP acceptance works via the generic `accept-provider-invitation` function but doesn't create a full provider_profiles row with VIP auto-cert flow.
+
+**4. send-vip-invitation (Spec 11)**
+No edge function for sending branded VIP invitation emails. The VIP admin page exists but has no email dispatch.
+
+**5. grant-certification (Spec 11)**
+No edge function for admin-granting Path 1 certification. Currently certification finalization exists in the enrollment wizard but not as a standalone callable edge function.
+
+**6. Expire VIP invitations cron job (Spec 15)**
+The spec requires a daily job at 06:00 UTC: `UPDATE vip_invitations SET status='expired' WHERE expires_at < NOW()`. The existing `expire-stale-invitations` function handles role invitations and delegated admin invitations but NOT VIP provider invitations from `solution_provider_invitations`.
+
+---
+
+### P3: Missing Components & Services
+
+**7. matchScoreService.ts (Spec 10.1)**
+No match score service exists. The spec requires per-provider match scoring against challenge tags (expertise, proficiency, geographies). This drives the MatchScoreBadge on challenge cards for Level 2+ providers at 65%+ profile strength.
+
+**8. MatchScoreBadge component (Spec 10.1)**
+No component exists. Should display a match percentage on each challenge card for logged-in providers with 65%+ profile.
+
+**9. CertificationPathSelector component (Spec 10.1)**
+No component exists for providers at 100% profile to choose between the 3 certification paths. Currently the experience track wizard exists but there's no entry point showing all 3 paths.
+
+**10. PerformanceTrackDashboard component (Spec 10.1)**
+No dashboard showing a provider's 6 performance dimensions, composite score, and progress toward auto-certification thresholds.
+
+**11. DevEnvironmentModal (Spec 6.2)**
+No dev-only quick-login modal with role buttons, demo provider dropdown, screen navigator, and DB state controls. Feature-flagged behind `VITE_SHOW_DEV_ENV=true`.
+
+**12. VipWelcomeScreen (Spec 10.1)**
+No crown welcome screen for VIP providers clicking their invitation link.
+
+---
+
+### P4: Level 0 Public Pages (Low Priority for MVP)
+
+**13. Public HomePage + HeroSection with live stats (Spec 6.1-6.3)**
+No public landing page exists. The `public-platform-stats` edge function exists and `platform_stats_cache` is populated, but no homepage consumes these stats.
+
+**14. LiveChallengeSidebar (Spec 6.5)**
+Right sidebar showing top 5 challenges by reward with realtime subscription. Not built.
+
+**15. ChallengeDetailPublic page (Spec 6.6)**
+Public challenge detail at `/challenges/[id]` with gated sections. Currently `BrowseChallengesPage` exists but no full public detail page.
+
+**16. PlatformStatsBar (Spec 10.1)**
+Homepage stats bar component. Not built (no homepage to consume it).
+
+---
+
+### P5: compute-performance-scores Edge Function Alignment
+
+**17. Update scoring dimensions to match spec**
+Current edge function uses generic dimensions (quality from assessments, engagement from submission count). The spec defines precise formulas:
+- Community Engagement (10%): posts + articles + peer reviews + helpful votes
+- Abstracts Submitted (15%): COUNT of abstract submissions
+- Solution Quality (25%): full solutions × acceptance ratio
+- Complexity Handled (20%): AVG challenge complexity level
+- Win Achievement (20%): platinum×3 + gold×2 + silver×1
+- Knowledge Contribution (10%): articles + peer reviews
+
+The current `performance_score_weights` table also has the wrong dimension names (quality, consistency, engagement, responsiveness, expertise_depth, community_impact vs the spec's community_engagement, abstracts_submitted, solution_quality, complexity_handled, win_achievement, knowledge_contrib).
+
+---
+
+## Implementation Priority Recommendation
+
+| Priority | Items | Effort |
+|----------|-------|--------|
+| P1 | community_posts columns + performance_scores schema alignment | 2 migrations |
+| P2 | 4 edge functions (accept-vip, send-vip, grant-cert, expire-vip) | 4 edge functions |
+| P3 | 6 components/services (matchScore, CertPathSelector, PerfDashboard, DevModal, VipWelcome, MatchBadge) | 6 new files |
+| P4 | Public pages (HomePage, HeroSection, LiveSidebar, ChallengeDetail) | 4-5 new pages |
+| P5 | Realign compute-performance-scores + weights to spec dimensions | 1 edge function update + 1 migration |
+
+**Total remaining: 3-4 migrations, 4-5 edge functions, 10-11 new components/pages**
+
+Would you like to proceed with all items, or focus on a specific priority group?
 
