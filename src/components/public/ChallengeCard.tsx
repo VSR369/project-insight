@@ -18,6 +18,7 @@ interface ChallengeCardProps {
   accessType: string;
   complexityLevel: string | null;
   publishedAt: string | null;
+  closingDate: string | null;
   industryName: string | null;
   minStarTier: number;
   className?: string;
@@ -30,72 +31,45 @@ const COMPLEXITY_COLORS: Record<string, string> = {
 };
 
 export function ChallengeCard({
-  id,
-  hook,
-  rewardAmount,
-  currencyCode,
-  accessType,
-  complexityLevel,
-  publishedAt,
-  industryName,
-  minStarTier,
-  className,
+  id, hook, rewardAmount, currencyCode, accessType, complexityLevel,
+  publishedAt, closingDate, industryName, minStarTier, className,
 }: ChallengeCardProps) {
   const navigate = useNavigate();
 
-  const daysAgo = publishedAt
-    ? differenceInDays(new Date(), parseISO(publishedAt))
+  // Spec 6.4: Show days remaining using closing_date
+  const daysRemaining = closingDate
+    ? differenceInDays(parseISO(closingDate), new Date())
     : null;
 
   const formattedReward = rewardAmount
-    ? `${(currencyCode || 'USD')} ${rewardAmount.toLocaleString()}`
+    ? `${currencyCode || 'USD'} ${rewardAmount.toLocaleString()}`
     : null;
 
   return (
     <Card
-      className={cn(
-        'cursor-pointer hover:shadow-md transition-shadow border',
-        className,
-      )}
+      className={cn('cursor-pointer hover:shadow-md transition-shadow border', className)}
       onClick={() => navigate(`/challenges/${id}`)}
+      role="article"
     >
       <CardContent className="p-4 space-y-3">
-        {/* Title */}
         <h3 className="font-semibold text-sm leading-snug line-clamp-2">
           {hook || 'Untitled Challenge'}
         </h3>
 
-        {/* Domain / Industry */}
         {industryName && (
           <p className="text-xs text-muted-foreground">{industryName}</p>
         )}
 
-        {/* Badges row */}
         <div className="flex flex-wrap gap-1.5">
-          {/* Complexity */}
           {complexityLevel && (
-            <Badge
-              variant="outline"
-              className={cn(
-                'text-[10px] px-1.5 py-0 capitalize',
-                COMPLEXITY_COLORS[complexityLevel] || '',
-              )}
-            >
+            <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 capitalize', COMPLEXITY_COLORS[complexityLevel] || '')}>
               {complexityLevel}
             </Badge>
           )}
-
-          {/* Access type */}
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-            {accessType === 'open' ? (
-              <Globe className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" />
-            ) : (
-              <Lock className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" />
-            )}
+            {accessType === 'open' ? <Globe className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" /> : <Lock className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" />}
             {accessType === 'open' ? 'Open' : 'Restricted'}
           </Badge>
-
-          {/* Min star tier */}
           {minStarTier > 0 && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
               {'⭐'.repeat(minStarTier)} min
@@ -103,7 +77,6 @@ export function ChallengeCard({
           )}
         </div>
 
-        {/* Footer: reward + time */}
         <div className="flex items-center justify-between pt-1 border-t">
           {formattedReward ? (
             <span className="flex items-center gap-1 text-xs font-medium text-primary">
@@ -114,10 +87,10 @@ export function ChallengeCard({
             <span className="text-xs text-muted-foreground">No prize listed</span>
           )}
 
-          {daysAgo !== null && (
+          {daysRemaining !== null && (
             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
               <Clock className="h-2.5 w-2.5" aria-hidden="true" />
-              {daysAgo === 0 ? 'Today' : `${daysAgo}d ago`}
+              {daysRemaining <= 0 ? 'Closed' : `${daysRemaining}d left`}
             </span>
           )}
         </div>

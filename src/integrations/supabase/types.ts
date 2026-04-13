@@ -2252,8 +2252,10 @@ export type Database = {
           id: string
           is_deleted: boolean
           is_published: boolean
+          parent_id: string | null
           post_type: string
           provider_id: string
+          tenant_id: string | null
           title: string | null
           updated_at: string | null
           updated_by: string | null
@@ -2268,8 +2270,10 @@ export type Database = {
           id?: string
           is_deleted?: boolean
           is_published?: boolean
+          parent_id?: string | null
           post_type?: string
           provider_id: string
+          tenant_id?: string | null
           title?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -2284,13 +2288,22 @@ export type Database = {
           id?: string
           is_deleted?: boolean
           is_published?: boolean
+          parent_id?: string | null
           post_type?: string
           provider_id?: string
+          tenant_id?: string | null
           title?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "community_posts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "community_posts_provider_id_fkey"
             columns: ["provider_id"]
@@ -9275,45 +9288,63 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          designation: string | null
           id: string
+          manager_approval_status: string
           manager_approved: boolean | null
           manager_approved_at: string | null
           manager_email: string | null
           manager_name: string | null
+          manager_phone: string | null
           org_name: string | null
           org_role: string | null
+          org_type: string | null
+          org_website: string | null
           participation_mode: string
           provider_id: string
+          tenant_id: string | null
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          designation?: string | null
           id?: string
+          manager_approval_status?: string
           manager_approved?: boolean | null
           manager_approved_at?: string | null
           manager_email?: string | null
           manager_name?: string | null
+          manager_phone?: string | null
           org_name?: string | null
           org_role?: string | null
+          org_type?: string | null
+          org_website?: string | null
           participation_mode?: string
           provider_id: string
+          tenant_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          designation?: string | null
           id?: string
+          manager_approval_status?: string
           manager_approved?: boolean | null
           manager_approved_at?: string | null
           manager_email?: string | null
           manager_name?: string | null
+          manager_phone?: string | null
           org_name?: string | null
           org_role?: string | null
+          org_type?: string | null
+          org_website?: string | null
           participation_mode?: string
           provider_id?: string
+          tenant_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -15503,10 +15534,17 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          industry_segment_id: string | null
+          invitation_token: string | null
           invited_by: string | null
           invited_name: string | null
+          invitee_email: string | null
+          invitee_name: string | null
+          personal_message: string | null
+          provider_id: string | null
           star_tier: number
           status: string
+          tenant_id: string | null
           token: string
           updated_at: string | null
         }
@@ -15517,10 +15555,17 @@ export type Database = {
           email: string
           expires_at?: string
           id?: string
+          industry_segment_id?: string | null
+          invitation_token?: string | null
           invited_by?: string | null
           invited_name?: string | null
+          invitee_email?: string | null
+          invitee_name?: string | null
+          personal_message?: string | null
+          provider_id?: string | null
           star_tier?: number
           status?: string
+          tenant_id?: string | null
           token?: string
           updated_at?: string | null
         }
@@ -15531,14 +15576,57 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          industry_segment_id?: string | null
+          invitation_token?: string | null
           invited_by?: string | null
           invited_name?: string | null
+          invitee_email?: string | null
+          invitee_name?: string | null
+          personal_message?: string | null
+          provider_id?: string | null
           star_tier?: number
           status?: string
+          tenant_id?: string | null
           token?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vip_invitations_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vip_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vip_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "vip_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "vip_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
       }
     }
     Views: {

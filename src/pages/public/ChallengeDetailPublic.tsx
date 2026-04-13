@@ -1,57 +1,35 @@
 /**
- * ChallengeDetailPublic — Public challenge detail at /challenges/[id] with gated sections.
+ * ChallengeDetailPublic — Public challenge detail at /challenges/[id].
+ * Spec 6.6: 150-char preview publicly, full content gated behind auth.
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { usePublicChallengeDetail } from '@/hooks/queries/usePublicChallengeDetail';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Lock, Trophy, Calendar, Building2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-interface ChallengeDetail {
-  id: string;
-  hook: string | null;
-  description: string | null;
-  problem_statement: string | null;
-  reward_amount: number | null;
-  currency_code: string | null;
-  access_type: string;
-  min_star_tier: number;
-  complexity_level: string | null;
-  published_at: string | null;
-  scope: string | null;
-  is_active: boolean;
-}
-
-const CHALLENGE_COLS = [
-  'id', 'hook', 'description', 'problem_statement', 'reward_amount',
-  'currency_code', 'access_type', 'min_star_tier', 'complexity_level',
-  'published_at', 'scope', 'is_active',
-].join(', ');
+import { ArrowLeft, Lock, Trophy, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 export default function ChallengeDetailPublic() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: challenge, isLoading, error } = useQuery({
-    queryKey: ['public-challenge-detail', id],
+  const { data: challenge, isLoading, error } = usePublicChallengeDetail(id);
+
+  // Check auth state for gating
+  const { data: session } = useQuery({
+    queryKey: ['auth-session-check'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenges')
-        .select(CHALLENGE_COLS)
-        .eq('id', id!)
-        .eq('is_active', true)
-        .eq('is_deleted', false)
-        .single();
-      if (error) throw new Error(error.message);
-      return (data as unknown) as ChallengeDetail;
+      const { data } = await supabase.auth.getSession();
+      return data.session;
     },
-    enabled: !!id,
+    staleTime: 30_000,
   });
+
+  const isAuthenticated = !!session?.user;
 
   if (isLoading) {
     return (
@@ -74,7 +52,10 @@ export default function ChallengeDetailPublic() {
     );
   }
 
-  const isGated = challenge.access_type !== 'open_all';
+  // Spec 6.6: first 150 chars of description publicly
+  const descriptionPreview = challenge.description
+    ? challenge.description.slice(0, 150) + (challenge.description.length > 150 ? '…' : '')
+    : 'No description available.';
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
@@ -100,43 +81,51 @@ export default function ChallengeDetailPublic() {
         </div>
       </div>
 
-      {/* Public sections */}
+      {/* Public preview section */}
       <Card>
         <CardHeader><CardTitle>Description</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {challenge.description || 'No description available.'}
+            {isAuthenticated ? (challenge.description || 'No description available.') : descriptionPreview}
           </p>
         </CardContent>
       </Card>
 
-      {challenge.problem_statement && (
-        <Card>
-          <CardHeader><CardTitle>Problem Statement</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {challenge.problem_statement}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Gated section */}
-      {isGated && (
+      {/* Gated sections — auth required */}
+      {!isAuthenticated ? (
         <Card className="border-dashed">
           <CardContent className="py-8 text-center space-y-3">
             <Lock className="h-8 w-8 mx-auto text-muted-foreground" />
-            <h3 className="font-semibold">Additional Details Locked</h3>
+            <h3 className="font-semibold">Full Details Locked</h3>
             <p className="text-sm text-muted-foreground">
               {challenge.min_star_tier > 0
                 ? `Requires ${challenge.min_star_tier}-star certification to view full details.`
-                : 'Sign in as a registered provider to access full challenge details.'}
+                : 'Sign in as a registered provider to access full challenge details, evaluation criteria, Q&A, and submit your proposal.'}
             </p>
-            <Button onClick={() => navigate('/login')}>
-              Sign In to Access
-            </Button>
+            <Button onClick={() => navigate('/login')}>Sign In to Access</Button>
           </CardContent>
         </Card>
+      ) : (
+        <>
+          {challenge.problem_statement && (
+            <Card>
+              <CardHeader><CardTitle>Problem Statement</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {challenge.problem_statement}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {challenge.scope && (
+            <Card>
+              <CardHeader><CardTitle>Scope</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{challenge.scope}</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Meta info */}
