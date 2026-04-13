@@ -19,6 +19,7 @@ import { validateFile } from '@/lib/validations/media';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logWarning } from '@/lib/errorHandler';
+import { CertTierBadge } from '@/components/enrollment/CertTierBadge';
 
 interface ProfileMiniCardProps {
   providerId?: string;
