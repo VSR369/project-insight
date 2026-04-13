@@ -61,7 +61,7 @@ interface ProfileStrengthResult {
  */
 export function computeProfileStrength(fields: ProfileFields): ProfileStrengthResult {
   const missing: string[] = [];
-  let strength = PROFILE_STRENGTH_MILESTONES.REGISTRATION; // Always start at 20
+  let strength: number = PROFILE_STRENGTH_MILESTONES.REGISTRATION; // Always start at 20
 
   // Basic profile checks (20 → 60)
   const basicComplete = fields.hasName && fields.hasBio && fields.hasPhone
