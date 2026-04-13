@@ -243,6 +243,30 @@ export async function updateEnrollmentExpertise(
 }
 
 /**
+ * Update enrollment geographies served and outcomes delivered
+ */
+export async function updateEnrollmentDetails(
+  enrollmentId: string,
+  updates: {
+    geographies_served?: string[];
+    outcomes_delivered?: string[];
+  }
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('provider_industry_enrollments')
+    .update({
+      ...updates,
+      updated_by: userId,
+    } as Record<string, unknown>)
+    .eq('id', enrollmentId);
+
+  if (error) throw error;
+}
+
+/**
  * Update enrollment lifecycle status and rank
  */
 export async function updateEnrollmentLifecycle(
