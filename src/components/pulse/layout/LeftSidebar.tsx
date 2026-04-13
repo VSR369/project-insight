@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { LeaderboardMiniWidget, ProfileMiniCard } from '@/components/pulse/widgets';
+import { ProfileCompletionBar } from '@/components/enrollment/ProfileCompletionBar';
+import { CertificationBadgeBar } from '@/components/enrollment/CertificationBadgeBar';
 import { useProviderStats, usePulseMetrics } from '@/hooks/queries/usePulseStats';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
