@@ -5,3 +5,7 @@ export { IndustryEnrollmentSelector } from './IndustryEnrollmentSelector';
 export { AddIndustryDialog } from './AddIndustryDialog';
 export { IndustryChangeBlockedDialog } from './IndustryChangeBlockedDialog';
 export { EnrollmentDeleteDialog } from './EnrollmentDeleteDialog';
+export { ExpertiseLevelCards } from './ExpertiseLevelCards';
+export { SolutionTypesSelector } from './SolutionTypesSelector';
+export { Tab1Profile } from './Tab1Profile';
+export { Tab2Expertise } from './Tab2Expertise';
