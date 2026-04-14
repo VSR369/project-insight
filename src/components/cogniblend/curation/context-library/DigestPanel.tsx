@@ -1,5 +1,6 @@
 /**
  * DigestPanel — Right column: generate digest, edit, save, confirm & close.
+ * Confirm & Close is the real handoff step — marks context as reviewed.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   RefreshCw, BookOpen, Save, CheckCircle2,
-  Pencil, RotateCcw, Eye, SplitSquareHorizontal, AlertTriangle, Sparkles,
+  Pencil, RotateCcw, Eye, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
@@ -22,6 +23,7 @@ interface DigestData {
   key_facts?: unknown;
   curator_edited?: boolean;
   original_digest_text?: string | null;
+  generated_at?: string;
 }
 
 interface DigestPanelProps {
@@ -93,6 +95,27 @@ export function DigestPanel({
         </div>
       </div>
 
+      {/* Provenance bar — shows digest basis */}
+      {hasDigest && (
+        <div className="shrink-0 px-3 py-1.5 border-b bg-muted/20 flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+          <span>Based on <strong className="text-foreground">{digest!.source_count}</strong> sources</span>
+          <span>·</span>
+          <span>{extractedCount} extracted</span>
+          {emptyExtractionCount > 0 && (
+            <span className="text-amber-600">· {emptyExtractionCount} empty</span>
+          )}
+          {digest?.generated_at && (
+            <>
+              <span>·</span>
+              <span>Generated {new Date(digest.generated_at).toLocaleDateString()}</span>
+            </>
+          )}
+          {digest?.curator_edited && (
+            <Badge variant="outline" className="text-[9px] h-4 text-amber-600 border-amber-300">Edited</Badge>
+          )}
+        </div>
+      )}
+
       {/* Content */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-3">
@@ -151,9 +174,6 @@ export function DigestPanel({
               <div className="rounded-md bg-muted/30 p-3 max-h-[500px] overflow-y-auto prose prose-sm">
                 <SafeHtmlRenderer html={normalizeAiContentForEditor(digest!.digest_text)} />
               </div>
-              {digest?.curator_edited && (
-                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Curator edited</Badge>
-              )}
             </div>
           )}
         </div>
@@ -171,7 +191,7 @@ export function DigestPanel({
         ) : (
           <>
             <p className="text-[11px] text-muted-foreground leading-tight flex-1">
-              {confirmed ? '✅ Digest confirmed.' : 'Review digest, then confirm to proceed.'}
+              {confirmed ? '✅ Digest confirmed — Generate Suggestions is now enabled.' : 'Review digest, then confirm to enable Generate Suggestions.'}
             </p>
             <Button size="sm" variant={confirmed ? 'outline' : 'default'}
               className={cn('h-8 text-xs shrink-0', confirmed && 'text-emerald-600 border-emerald-300')}

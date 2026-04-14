@@ -1,5 +1,6 @@
 /**
  * SourceDetail — Middle column: source metadata, extraction banner, content tabs.
+ * Explicit curator actions: Accept, Reject, Unaccept, Re-extract, Delete.
  */
 
 import React, { useEffect } from 'react';
@@ -12,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, CheckCircle, Clock, XCircle, RefreshCw, Download, AlertTriangle, Info, Lock, Globe } from 'lucide-react';
+import { Trash2, CheckCircle, Clock, XCircle, RefreshCw, Download, AlertTriangle, Info, Lock, Globe, Undo2 } from 'lucide-react';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
 import { ConfidenceBadge } from './ConfidenceBadge';
 
@@ -22,6 +23,7 @@ interface SourceDetailProps {
   source: ContextSource;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onUnaccept?: (id: string) => void;
   onDelete: (source: ContextSource) => void;
   onUpdateSection: (id: string, sectionKey: string) => void;
   onUpdateSharing: (id: string, shared: boolean) => void;
@@ -37,6 +39,7 @@ function StatusBadge({ status }: { status: string | null }) {
   switch (status) {
     case 'completed': return <Badge variant="outline" className="text-xs gap-1"><CheckCircle className="h-3 w-3 text-emerald-500" />Extracted</Badge>;
     case 'processing': return <Badge variant="outline" className="text-xs gap-1 text-amber-600"><Clock className="h-3 w-3 animate-spin" />Extracting...</Badge>;
+    case 'partial': return <Badge variant="outline" className="text-xs gap-1 text-amber-600"><AlertTriangle className="h-3 w-3" />Partial</Badge>;
     case 'failed': return <Badge variant="outline" className="text-xs gap-1 text-destructive"><XCircle className="h-3 w-3" />Failed</Badge>;
     default: return <Badge variant="outline" className="text-xs text-muted-foreground">Pending</Badge>;
   }
@@ -62,6 +65,15 @@ function ExtractionBanner({ source, onReExtract, isPending }: { source: ContextS
       </Button>
     </div>
   );
+  if (s === 'partial') return (
+    <div className="flex items-center gap-2 p-2 rounded-md bg-amber-50 text-xs text-amber-700 border border-amber-200">
+      <AlertTriangle className="h-4 w-4 shrink-0" />
+      <span className="flex-1">Partial extraction — content may be incomplete ({method})</span>
+      <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onReExtract(source.id)} disabled={isPending}>
+        <RefreshCw className="h-3 w-3 mr-1" />Retry
+      </Button>
+    </div>
+  );
   if (isSparse) return (
     <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 text-xs text-amber-700 border border-amber-200">
       <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -76,7 +88,7 @@ function tabLabel(label: string, has: boolean): React.ReactNode {
 }
 
 export function SourceDetail({
-  source, onAccept, onReject, onDelete, onUpdateSection, onUpdateSharing,
+  source, onAccept, onReject, onUnaccept, onDelete, onUpdateSection, onUpdateSharing,
   onReExtract, onRefresh, isAcceptPending, isRejectPending, isDeletePending, isReExtractPending = false,
 }: SourceDetailProps) {
   const isPending = source.extraction_status === 'pending' || source.extraction_status === 'processing';
@@ -90,6 +102,8 @@ export function SourceDetail({
   const hasSummary = !!source.extracted_summary;
   const hasFullText = !!source.extracted_text;
   const hasKeyData = !!source.extracted_key_data;
+  const isAccepted = source.discovery_status === 'accepted';
+  const isSuggested = source.discovery_status === 'suggested';
 
   const extractBtn = (
     <Button size="sm" variant="outline" className="mt-2" onClick={() => onReExtract(source.id)} disabled={isReExtractPending || isPending}>
@@ -115,17 +129,33 @@ export function SourceDetail({
             {source.access_status === 'accessible' && <Badge variant="outline" className="text-xs gap-1 text-emerald-600 border-emerald-300"><Globe className="h-3 w-3" />Accessible</Badge>}
             {source.resource_type && <Badge variant="outline" className="text-xs">{source.resource_type}</Badge>}
             <Badge variant="secondary" className="text-xs">{source.discovery_source === 'ai_suggested' ? '🤖 AI' : '📎 Manual'}</Badge>
+            <Badge variant={isAccepted ? 'default' : 'outline'} className="text-xs">{isAccepted ? '✓ Accepted' : 'Suggested'}</Badge>
           </div>
         </div>
 
         <ExtractionBanner source={source} onReExtract={onReExtract} isPending={isReExtractPending} />
 
-        {source.discovery_status === 'suggested' && (
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => onAccept(source.id)} disabled={isAcceptPending}>Accept</Button>
-            <Button size="sm" variant="outline" onClick={() => onReject(source.id)} disabled={isRejectPending}>Reject</Button>
-          </div>
-        )}
+        {/* Explicit action buttons — visible for both suggested AND accepted */}
+        <div className="flex gap-2 flex-wrap">
+          {isSuggested && (
+            <>
+              <Button size="sm" onClick={() => onAccept(source.id)} disabled={isAcceptPending}>
+                <CheckCircle className="h-3 w-3 mr-1" />Accept
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => onReject(source.id)} disabled={isRejectPending}>
+                <XCircle className="h-3 w-3 mr-1" />Reject
+              </Button>
+            </>
+          )}
+          {isAccepted && onUnaccept && (
+            <Button size="sm" variant="outline" onClick={() => onUnaccept(source.id)}>
+              <Undo2 className="h-3 w-3 mr-1" />Move to Suggested
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => onReExtract(source.id)} disabled={isReExtractPending || isPending}>
+            <RefreshCw className="h-3 w-3 mr-1" />Re-extract
+          </Button>
+        </div>
 
         <Separator />
 

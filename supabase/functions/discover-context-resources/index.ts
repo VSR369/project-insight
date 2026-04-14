@@ -112,15 +112,35 @@ type AccessStatus = "accessible" | "blocked" | "paywall" | "failed";
 async function checkAccessibility(url: string): Promise<AccessStatus> {
   if (isKnownPaywall(url)) return "paywall";
   try {
-    const resp = await fetch(url, {
+    // Try HEAD first
+    const headResp = await fetch(url, {
       method: "HEAD",
       headers: { "User-Agent": "Mozilla/5.0 (compatible; CogniblendBot/1.0)" },
       redirect: "follow",
       signal: AbortSignal.timeout(6000),
     });
-    if (resp.status === 200 || resp.status === 301 || resp.status === 302) return "accessible";
-    if (resp.status === 401 || resp.status === 403 || resp.status === 407) return "blocked";
-    if (resp.status === 402) return "paywall";
+    if (headResp.status === 200 || headResp.status === 301 || headResp.status === 302) return "accessible";
+    if (headResp.status === 402) return "paywall";
+
+    // HEAD returned 403/405/other — fallback to GET
+    if (headResp.status === 403 || headResp.status === 405 || headResp.status === 406) {
+      try {
+        const getResp = await fetch(url, {
+          method: "GET",
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; CogniblendBot/1.0)" },
+          redirect: "follow",
+          signal: AbortSignal.timeout(8000),
+        });
+        // Consume body to prevent resource leak
+        await getResp.text();
+        if (getResp.status === 200) return "accessible";
+        if (getResp.status === 401 || getResp.status === 403) return "blocked";
+        if (getResp.status === 402) return "paywall";
+        return "failed";
+      } catch { return "failed"; }
+    }
+
+    if (headResp.status === 401 || headResp.status === 407) return "blocked";
     return "failed";
   } catch { return "failed"; }
 }
