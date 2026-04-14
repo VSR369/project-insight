@@ -1,34 +1,34 @@
 
 
-# Analysis Report: Context Library Fix Status
+# Fix: "Generate Suggestions" Spinner During Re-analyse (Race Condition)
 
-## Verdict: All 7 Core Defects (D1–D7) Are Fully Fixed
+## Root Cause
 
-The code trace confirms every defect from the plan is correctly implemented and the fixes work together end-to-end.
+The previous fix correctly calls `setPass1DoneSession(false)` at the start of `handleAnalyse` (line 165). However, there's a **race condition** in `useCurationEffects.ts`:
 
-## Gap Status Update (from the 3 "minor gaps" reported)
+Line 60 runs `setPass1DoneSession(true)` inside a hydration effect that triggers whenever `challenge.ai_section_reviews` changes. During re-analysis, waves save section reviews to the database, which causes the challenge query to refetch, which re-triggers this effect, which **immediately flips `pass1DoneSession` back to `true`** — undoing the fix.
 
-| Gap | Status | Evidence |
-|-----|--------|----------|
-| Gap 1: Re-discovery diversity instruction | **ALREADY FIXED** | Line 262 of `discover-context-resources/index.ts` injects `RE-DISCOVERY RUN: N URLs already exist...` into the query prompt when `existingUrls.size > 0` |
-| Gap 2: Baseline summary from relevance_explanation | **ALREADY FIXED** | Lines 81-91 of `useContextLibraryMutations.ts` fetch `relevance_explanation` and set `[AI Relevance]` prefixed summary before extraction |
-| Gap 3: Headerless AI output fallback | **ALREADY FIXED** | Lines 69-73 of `safeJsonParse.ts` handle plain-text AI output without `SUMMARY:` header |
+With `pass1Done = true` and `aiReviewLoading = true`, the "Generate Suggestions" button becomes visible AND shows a spinner (line 139 in CurationRightRail.tsx).
 
-**All 3 gaps were already implemented in the previous round.** The analysis report you shared was based on an earlier snapshot.
+```text
+Timeline:
+  handleAnalyse → setPass1DoneSession(false) ✓ (button hidden)
+  Wave 1 saves reviews → challenge refetches → ai_section_reviews changes
+  hydration effect → setPass1DoneSession(true) ✗ (button reappears with spinner!)
+```
 
-## One Remaining UX Gap: Confidence Score Not Shown for Accepted Sources
+## Fix (2 files, ~10 lines)
 
-`ConfidenceBadge` is defined and used in `SuggestionCard.tsx` (for pending suggestions), but accepted sources in `SourceList.tsx` / `SourceDetail.tsx` do NOT display the confidence score. Users cannot see WHY a source was auto-accepted.
+### File 1: `src/hooks/cogniblend/useCurationEffects.ts`
+- Guard the hydration effect so it only runs **once** on mount, not on every `ai_section_reviews` change
+- Use a ref (`hydrationDoneRef`) to ensure `setPass1DoneSession(true)` cannot fire after `handleAnalyse` resets it
 
-### Fix: Add confidence score display to accepted source cards
+### File 2: `src/components/cogniblend/curation/CurationRightRail.tsx`
+- Add a defensive check: the "Generate Suggestions" button should show its spinner ONLY when `aiReviewLoading` is true **AND** `pass1Done` was already true before loading started
+- Change line 139 from `{aiReviewLoading ? <Loader2 .../>` to `{aiReviewLoading && props.pass1Done ? <Loader2 .../>`
+- This is a belt-and-suspenders fix — the effect guard is the primary fix, this prevents any future regression
 
-**File:** `src/components/cogniblend/curation/context-library/SourceList.tsx`
-- Import and reuse the `ConfidenceBadge` component (or extract it to a shared file)
-- Display it next to the source name for accepted sources, so users see the confidence percentage
-
-This is a small UX polish (~10 lines), not a functional bug. The workflow is fully operational without it.
-
-## Recommendation
-
-No code changes needed for the 7 defects or 3 gaps — all are implemented. The only actionable item is the optional confidence badge on accepted sources. If you want that added, approve and I will implement it.
+### Result
+- During Re-analyse: "Generate Suggestions" stays hidden throughout the entire analysis
+- After analysis completes: it appears correctly when `setPass1DoneSession(true)` is called at line 212
 
