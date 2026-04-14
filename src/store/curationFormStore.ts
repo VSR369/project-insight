@@ -35,6 +35,7 @@ interface CurationFormState {
   clearStaleness: (key: SectionKey) => void;
   setValidationResult: (key: SectionKey, result: ValidationResult | null) => void;
   setAiAction: (key: SectionKey, action: AiActionType) => void;
+  clearAllSuggestions: () => void;
   hydrate: (sectionsData: Partial<Record<SectionKey, SectionStoreEntry['data']>>) => void;
   reset: () => void;
 }
@@ -223,6 +224,25 @@ export function createCurationFormStore(challengeId: string) {
               },
             },
           })),
+
+        clearAllSuggestions: () =>
+          set((state) => {
+            const cleared: Partial<Record<SectionKey, SectionStoreEntry>> = {};
+            for (const [key, entry] of Object.entries(state.sections)) {
+              if (entry) {
+                cleared[key as SectionKey] = {
+                  ...entry,
+                  aiSuggestion: null,
+                  aiComments: null,
+                  reviewStatus: 'idle',
+                  addressed: false,
+                  validationResult: null,
+                  aiAction: null,
+                };
+              }
+            }
+            return { sections: { ...state.sections, ...cleared } };
+          }),
 
         hydrate: (sectionsData) =>
           set((state) => {

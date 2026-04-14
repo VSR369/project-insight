@@ -162,6 +162,9 @@ export function useCurationAIActions({
     setAiReviewLoading(true);
     setTriageTotalCount(0);
 
+    // Clear stale Pass 2 suggestions before running Pass 1
+    curationStore.getState().clearAllSuggestions();
+
     // Override initial progress to include Wave 7 (discovery)
     pass1SetWaveProgress(createInitialWaveProgressWithDiscovery());
 
