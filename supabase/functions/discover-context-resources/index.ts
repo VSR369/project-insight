@@ -259,7 +259,7 @@ Aim for DIVERSE sources — vary domains, perspectives, and resource types acros
 
 Focus on: .gov sites, academic repositories (arxiv, researchgate), industry associations (IEEE, ISO, NIST), open-access reports, Wikipedia, official documentation, news articles, official product websites.
 AVOID queries leading to: Gartner, McKinsey, HBR, Forrester, Statista (paywalled).
-
+${existingUrls.size > 0 ? `\nRE-DISCOVERY RUN: ${existingUrls.size} URLs already exist. Generate DIFFERENT queries — explore alternative terminology, adjacent disciplines, regional sources, and newer publications. Do NOT repeat previous search patterns.\n` : ''}
 Return ONLY a JSON array of strings. No other text.`;
 
     const queryGenResp = await callAIWithFallback(LOVABLE_API_KEY, {
