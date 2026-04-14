@@ -288,6 +288,20 @@ Return ONLY a JSON array of strings. No other text.`;
       temperature: 0.3,
     });
 
+    // V2: Surface credit exhaustion / rate limits
+    if (queryGenResp.status === 402) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "AI credits exhausted. Please check your plan or try again later." } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    if (queryGenResp.status === 429) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "AI_RATE_LIMITED", message: "AI rate limit reached. Please wait a moment and try again." } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     let searchQueries: string[] = [];
     if (queryGenResp.ok) {
       const qResult = await queryGenResp.json();
@@ -445,6 +459,20 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
       max_tokens: 4000,
       temperature: 0.1,
     });
+
+    // V2: Surface credit/rate errors from scoring
+    if (scoringResp.status === 402) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "AI credits exhausted during source scoring." } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    if (scoringResp.status === 429) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "AI_RATE_LIMITED", message: "AI rate limited during source scoring. Try again shortly." } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     interface ScoredSource {
       index: number;

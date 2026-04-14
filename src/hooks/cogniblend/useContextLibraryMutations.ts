@@ -56,7 +56,16 @@ export function useDiscoverSources(challengeId: string) {
         toast.success(`Discovered ${total} potential sources`);
       }
     },
-    onError: (err: Error) => toast.error(`Discovery failed: ${err.message}`),
+    onError: (err: Error) => {
+      const msg = err.message ?? '';
+      if (msg.includes('AI_CREDITS_EXHAUSTED')) {
+        toast.error('AI credits exhausted — discovery cannot run. Check your plan or contact support.', { duration: 8000 });
+      } else if (msg.includes('AI_RATE_LIMITED')) {
+        toast.error('AI rate limit reached — please wait a moment and retry discovery.', { duration: 5000 });
+      } else {
+        toast.error(`Discovery failed: ${msg}`);
+      }
+    },
   });
 }
 
@@ -301,7 +310,16 @@ export function useReExtractSource(challengeId: string) {
       invalidateAllContextKeys(qc, challengeId);
       toast.success('Content re-extracted');
     },
-    onError: (err: Error) => toast.error(`Extraction failed: ${err.message}`),
+    onError: (err: Error) => {
+      const msg = err.message ?? '';
+      if (msg.includes('AI_CREDITS_EXHAUSTED') || msg.includes('credits_exhausted')) {
+        toast.error('AI credits exhausted — extraction cannot complete. Check your plan.', { duration: 8000 });
+      } else if (msg.includes('AI_RATE_LIMITED') || msg.includes('rate_limited')) {
+        toast.error('AI rate limit reached — please wait and retry.', { duration: 5000 });
+      } else {
+        toast.error(`Extraction failed: ${msg}`);
+      }
+    },
   });
 }
 
