@@ -105,7 +105,7 @@ export function WaveProgressPanel({ progress, onCancel }: WaveProgressPanelProps
                     <p className="text-[10px] text-muted-foreground">
                       {reviewedCount > 0 && `${reviewedCount} reviewed`}
                       {reviewedCount > 0 && generatedCount > 0 && ', '}
-                      {generatedCount > 0 && `${generatedCount} generated`}
+                      {generatedCount > 0 && `${generatedCount} drafted`}
                     </p>
                   )}
                   {wave.status === 'running' && (
