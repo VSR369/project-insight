@@ -5,12 +5,17 @@
  * PHASE 2: Serper API executes searches → real URLs with real snippets
  * PHASE 3: HEAD accessibility pre-check per URL — skip blocked/paywalled
  * PHASE 4: LLM scores relevance of accessible URLs (reads real snippets)
- * PHASE 5: Insert ALL as 'suggested' with search snippet as seed content
+ * PHASE 5: Insert sources — auto-accept high-confidence, suggest the rest
+ *
+ * D1 FIX: Auto-accept sources with confidence >= 0.85 and accessible status
+ * D2 FIX: Only delete stale 'suggested' AI sources, preserve accepted ones
+ * D5 FIX: Mark seed content with [SEED_CONTENT] prefix
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
+import { safeJsonParse } from "../_shared/safeJsonParse.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +25,7 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const SERPER_URL = "https://google.serper.dev/search";
+const AUTO_ACCEPT_CONFIDENCE = 0.85;
 
 const PAYWALL_DOMAINS = [
   "gartner.com", "mckinsey.com", "hbr.org", "wsj.com", "ft.com",
@@ -225,11 +231,11 @@ serve(async (req) => {
       )
     );
 
-    // ── Clear stale AI suggestions ────────────────────────────────────────────
-    // Clear ALL ai_suggested sources (including previously auto-accepted from old runs)
+    // ── D2 FIX: Only clear stale SUGGESTED AI sources, preserve accepted ones ──
     await adminClient.from("challenge_attachments").delete()
       .eq("challenge_id", challenge_id)
-      .eq("discovery_source", "ai_suggested");
+      .eq("discovery_source", "ai_suggested")
+      .eq("discovery_status", "suggested");
 
     // ════════════════════════════════════════════════════════════════════════
     // PHASE 1 — LLM generates targeted search queries
@@ -249,6 +255,7 @@ ${gapLines ? `GAPS TO ADDRESS:\n${gapLines}\n` : ""}
 SECTIONS NEEDING SOURCES: ${activeDirectives.map((d: Record<string, unknown>) => d.section_key).join(", ")}
 
 Generate 12–15 highly targeted Google search queries to find FREE, ACCESSIBLE web pages relevant to this challenge.
+Aim for DIVERSE sources — vary domains, perspectives, and resource types across queries.
 
 Focus on: .gov sites, academic repositories (arxiv, researchgate), industry associations (IEEE, ISO, NIST), open-access reports, Wikipedia, official documentation, news articles, official product websites.
 AVOID queries leading to: Gartner, McKinsey, HBR, Forrester, Statista (paywalled).
@@ -265,12 +272,10 @@ Return ONLY a JSON array of strings. No other text.`;
     if (queryGenResp.ok) {
       const qResult = await queryGenResp.json();
       const rawQ = qResult.choices?.[0]?.message?.content ?? "[]";
-      try {
-        const cleaned = rawQ.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-        searchQueries = JSON.parse(cleaned);
-        if (!Array.isArray(searchQueries)) searchQueries = [];
-        searchQueries = searchQueries.filter((q: unknown) => typeof q === "string").slice(0, 15);
-      } catch { /* ignore */ }
+      const parsed = safeJsonParse<unknown>(rawQ, []);
+      if (Array.isArray(parsed)) {
+        searchQueries = parsed.filter((q: unknown) => typeof q === "string").slice(0, 15);
+      }
     }
 
     if (searchQueries.length === 0) {
@@ -332,26 +337,24 @@ Return JSON array: [{"title":"...","url":"...","snippet":"..."}]. Only real URLs
           }
         } else {
           const rawContent = gResult.choices?.[0]?.message?.content ?? "[]";
-          try {
-            const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-            const parsed = JSON.parse(cleaned);
-            if (Array.isArray(parsed)) {
-              for (const r of parsed) {
-                if (!r.url) continue;
-                const norm = r.url.toLowerCase().replace(/\/+$/, "");
-                if (seenUrls.has(norm) || existingUrls.has(norm)) continue;
-                seenUrls.add(norm);
-                candidates.push({ title: r.title ?? "", url: r.url, snippet: r.snippet ?? "", query: "gemini_grounding" });
-              }
+          const parsed = safeJsonParse<unknown[]>(rawContent, []);
+          if (Array.isArray(parsed)) {
+            for (const r of parsed) {
+              const item = r as Record<string, unknown>;
+              if (!item.url) continue;
+              const norm = (item.url as string).toLowerCase().replace(/\/+$/, "");
+              if (seenUrls.has(norm) || existingUrls.has(norm)) continue;
+              seenUrls.add(norm);
+              candidates.push({ title: (item.title as string) ?? "", url: item.url as string, snippet: (item.snippet as string) ?? "", query: "gemini_grounding" });
             }
-          } catch { /* ignore */ }
+          }
         }
       }
     }
 
     if (candidates.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, suggestions: [], count: 0, reason: "No search results — check SERPER_API_KEY" }),
+        JSON.stringify({ success: true, suggestions: [], count: 0, auto_accepted: 0, reason: "No search results — check SERPER_API_KEY" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -380,7 +383,7 @@ Return JSON array: [{"title":"...","url":"...","snippet":"..."}]. Only real URLs
 
     if (usable.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, suggestions: [], count: 0, reason: "All candidates blocked or paywalled" }),
+        JSON.stringify({ success: true, suggestions: [], count: 0, auto_accepted: 0, reason: "All candidates blocked or paywalled" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -436,24 +439,34 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
     if (scoringResp.ok) {
       const sResult = await scoringResp.json();
       const rawS = sResult.choices?.[0]?.message?.content ?? "[]";
-      try {
-        const cleaned = rawS.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-        scored = JSON.parse(cleaned);
-        if (!Array.isArray(scored)) scored = [];
-      } catch { /* ignore */ }
+      const parsed = safeJsonParse<unknown>(rawS, []);
+      if (Array.isArray(parsed)) {
+        scored = parsed as ScoredSource[];
+      }
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // PHASE 5 — Insert ALL as 'suggested'
+    // PHASE 5 — D1 FIX: Auto-accept high confidence, suggest the rest
     // ════════════════════════════════════════════════════════════════════════
 
     const inserted: Array<Record<string, unknown>> = [];
+    let autoAcceptedCount = 0;
 
     for (const s of scored) {
       const source = usable[s.index - 1];
       if (!source) continue;
 
+      // D1: Auto-accept if high confidence AND accessible
+      const shouldAutoAccept =
+        s.relevance_score >= AUTO_ACCEPT_CONFIDENCE &&
+        source.access_status === "accessible";
+
+      const discoveryStatus = shouldAutoAccept ? "accepted" : "suggested";
+      if (shouldAutoAccept) autoAcceptedCount++;
+
+      // D5 FIX: Mark seed content clearly so digest generation can filter it
       const seedContent = [
+        `[SEED_CONTENT - PENDING EXTRACTION]`,
         `Title: ${source.title}`,
         `URL: ${source.url}`,
         source.snippet ? `Search snippet: ${source.snippet}` : "",
@@ -470,7 +483,7 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
           source_url: source.url,
           url_title: source.title.substring(0, 500) || null,
           discovery_source: "ai_suggested",
-          discovery_status: "suggested",
+          discovery_status: discoveryStatus,
           resource_type: s.resource_type || null,
           relevance_explanation: `${s.addresses_gap ? `[Gap: ${s.addresses_gap}] ` : ""}${s.relevance_explanation}`.substring(0, 1000),
           confidence_score: s.relevance_score,
@@ -483,20 +496,23 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
         .single();
 
       if (!insertErr && newAtt?.id) {
-        // Trigger async extraction — non-blocking
-        fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ attachment_id: newAtt.id }),
-        }).catch(() => {});
+        // D1: Trigger extraction only for auto-accepted sources (non-blocking)
+        if (shouldAutoAccept) {
+          fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ attachment_id: newAtt.id }),
+          }).catch(() => {});
+        }
 
         inserted.push({
           title: source.title, url: source.url,
           section_key: s.section_key, resource_type: s.resource_type,
           relevance_score: s.relevance_score, access_status: source.access_status,
+          auto_accepted: shouldAutoAccept,
         });
       }
     }
@@ -504,6 +520,8 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
     return new Response(
       JSON.stringify({
         success: true, suggestions: inserted, count: inserted.length,
+        auto_accepted: autoAcceptedCount,
+        suggested: inserted.length - autoAcceptedCount,
         candidates_found: candidates.length, accessible_checked: accessible.length, scored_relevant: scored.length,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },

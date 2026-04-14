@@ -576,12 +576,13 @@ serve(async (req) => {
     }
 
     // ── Phase 7: Fetch context digest (gated by feature flag) ──────────────
+    // D6 FIX: Use original_digest_text when curator_edited for freshest AI grounding
     let contextDigestText = '';
     if (resolvedContext === "curation" && useContextIntelligence) {
       try {
         const { data: digest } = await adminClient
           .from('challenge_context_digest')
-          .select('digest_text, source_count, key_facts, raw_context_block, curator_edited')
+          .select('digest_text, original_digest_text, source_count, key_facts, raw_context_block, curator_edited')
           .eq('challenge_id', challenge_id)
           .maybeSingle();
         if (digest?.digest_text || digest?.raw_context_block) {
@@ -590,8 +591,14 @@ VERIFIED CONTEXT FROM ${digest.source_count} ACCEPTED SOURCES
 All suggestions MUST be grounded in this material
 ${'═'.repeat(60)}\n`;
 
-          if (digest.digest_text) {
-            contextDigestText += `\n## SYNTHESIZED DIGEST${digest.curator_edited ? ' (Curator-Reviewed)' : ''}:\n${digest.digest_text}\n`;
+          // D6 FIX: When curator has edited, use original_digest_text (freshest AI output)
+          // for grounding, since digest_text contains curator edits
+          const groundingDigest = digest.curator_edited && digest.original_digest_text
+            ? digest.original_digest_text
+            : digest.digest_text;
+
+          if (groundingDigest) {
+            contextDigestText += `\n## SYNTHESIZED DIGEST${digest.curator_edited ? ' (Curator-Reviewed)' : ''}:\n${groundingDigest}\n`;
           }
           if (digest.key_facts) {
             contextDigestText += `\n## VERIFIED KEY FACTS:\n${JSON.stringify(digest.key_facts, null, 2)}\n`;
