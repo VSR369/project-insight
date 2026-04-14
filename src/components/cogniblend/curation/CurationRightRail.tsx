@@ -108,7 +108,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
             disabled={aiReviewLoading}
             className="w-full"
           >
-            {aiReviewLoading && !props.pass1Done ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
+            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
             {props.pass1Done ? 'Re-analyse Challenge' : 'Analyse Challenge'}
           </Button>
           {props.pass1Done && (
