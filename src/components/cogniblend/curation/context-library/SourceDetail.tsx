@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, CheckCircle, Clock, XCircle, RefreshCw, Download, AlertTriangle, Info, Lock, Globe } from 'lucide-react';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
+import { ConfidenceBadge } from './ConfidenceBadge';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -100,7 +101,10 @@ export function SourceDetail({
     <ScrollArea className="flex-1 min-h-0">
       <div className="p-4 space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">{displayName(source)}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">{displayName(source)}</h3>
+            <ConfidenceBadge score={source.confidence_score} />
+          </div>
           {source.source_url && (
             <a href={source.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate block">{source.source_url}</a>
           )}

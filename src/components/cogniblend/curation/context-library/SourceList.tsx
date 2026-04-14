@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Globe, FileText, CheckCircle, Clock, XCircle, X } from 'lucide-react';
 import { SuggestionCard } from './SuggestionCard';
 import { ContentIndicators } from './ContentIndicators';
+import { ConfidenceBadge } from './ConfidenceBadge';
 import { SECTION_LABELS, displayName, matchSource, type ContextSource } from './types';
 
 interface SourceListProps {
@@ -141,7 +142,10 @@ export function SourceList({
                     onClick={() => onSelectSource(s.id)}>
                     {s.source_type === 'url' ? <Globe className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" /> : <FileText className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{displayName(s)}</p>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <p className="text-xs font-medium truncate">{displayName(s)}</p>
+                        <ConfidenceBadge score={s.confidence_score} />
+                      </div>
                       <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                         <ExtractionBadge status={s.extraction_status} />
                         <ContentIndicators source={s} />

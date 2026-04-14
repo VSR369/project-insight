@@ -10,6 +10,7 @@ import { Sparkles, Check, X, ExternalLink, Lock, AlertTriangle } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
 import { ContentIndicators } from './ContentIndicators';
+import { ConfidenceBadge } from './ConfidenceBadge';
 
 interface SuggestionCardProps {
   source: ContextSource;
