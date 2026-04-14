@@ -138,6 +138,14 @@ export function useCurationPageOrchestrator() {
     rewardStructureRef, complexityModuleRef, aiSuggestedComplexity,
   });
 
+  // ── Context Library reviewed gate (declared early so AI actions can reset it) ──
+  const [contextLibraryReviewed, setContextLibraryReviewed] = useState(() => {
+    if (challengeId) {
+      return sessionStorage.getItem(`ctx_reviewed_${challengeId}`) === 'true';
+    }
+    return false;
+  });
+
   // ── Wave executor + completeness ──
   const waveSetup = useCurationWaveSetup({
     challengeId, challenge: challenge as Record<string, any> | null,
@@ -241,13 +249,7 @@ export function useCurationPageOrchestrator() {
   const blockingReason = blockingReasons.length > 0 ? `${blockingReasons.join(' and ')} must be accepted before submitting` : undefined;
   const phaseDescription = challenge?.current_phase === 1 ? 'Spec Creation (Phase 1)' : challenge?.current_phase === 2 ? 'Legal & Finance Review (Phase 2)' : '';
 
-  // ── Context Library reviewed gate ──
-  const [contextLibraryReviewed, setContextLibraryReviewed] = useState(() => {
-    if (challengeId) {
-      return sessionStorage.getItem(`ctx_reviewed_${challengeId}`) === 'true';
-    }
-    return false;
-  });
+  // (contextLibraryReviewed state is declared earlier, before useCurationAIActions)
 
   // When Context Library drawer closes after being opened post-analysis, mark as reviewed
   const prevContextLibraryOpenRef = useRef(false);
