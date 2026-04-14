@@ -220,7 +220,7 @@ export function useCurationPageOrchestrator() {
     } finally {
       setIsBulkAccepting(false);
     }
-  }, [curationStore, challenge, sectionActionsHook]);
+  }, [curationStore, challenge, sectionActionsHook, setAiReviews]);
 
   // ── Computed values ──
   const computedValues = useCurationComputedValues({
