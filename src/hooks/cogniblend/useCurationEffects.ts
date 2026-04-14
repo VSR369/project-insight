@@ -29,9 +29,12 @@ export function useCurationEffects({
   const saveSectionMutationRef = useRef(saveSectionMutation);
   saveSectionMutationRef.current = saveSectionMutation;
 
-  // ── AI review hydration effect ──
+  // ── AI review hydration effect (runs ONCE on mount, not on every refetch) ──
+  const hydrationDoneRef = useRef(false);
   useEffect(() => {
+    if (hydrationDoneRef.current) return;
     if (challenge?.ai_section_reviews && !aiReviewsLoaded) {
+      hydrationDoneRef.current = true;
       let stored: SectionReview[] = [];
       if (Array.isArray(challenge.ai_section_reviews)) {
         stored = normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[]);
