@@ -204,7 +204,7 @@ export function useCurationPageOrchestrator() {
         }
       }
 
-      // 3. Mark all as addressed in store
+      // 3. Mark all as addressed in store + sync aiReviews state
       const allKeys = [
         ...partition.regular.map(i => i.key),
         ...partition.extendedBrief.map(i => i.key),
@@ -212,6 +212,16 @@ export function useCurationPageOrchestrator() {
       for (const key of allKeys) {
         curationStore.getState().setAddressedOnly(key);
       }
+
+      // Bug fix: Update aiReviews React state so AIReviewInline components
+      // receive addressed=true via props and collapse their panels
+      setAiReviews((prev) =>
+        prev.map((r) =>
+          allKeys.includes(r.section_key as SectionKey)
+            ? { ...r, addressed: true }
+            : r
+        )
+      );
 
       toast.success(`Accepted AI suggestions for ${totalCount} section${totalCount !== 1 ? 's' : ''}`);
     } catch (err: unknown) {
