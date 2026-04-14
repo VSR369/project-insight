@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sendEmail } from "../_shared/sendEmail.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@4.0.0";
+;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -136,9 +137,8 @@ serve(async (req) => {
       });
     }
 
-    const resend = new Resend(resendApiKey);
     const loginUrl = "https://schema-whisperer-72.lovable.app/login";
-    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "CogniBlend <noreply@cogniblend.com>";
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "CogniBlend <noreply@btbt.co.in>";
 
     let emailContent: { subject: string; html: string };
     switch (mode) {

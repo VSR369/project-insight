@@ -1,4 +1,5 @@
 /**
+import { sendEmail } from "../_shared/sendEmail.ts";
  * send-registration-otp Edge Function
  * 
  * Generates a 6-digit OTP, hashes it, stores in email_otp_verifications,
@@ -12,7 +13,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,7 +50,6 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -122,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // ── Send email via Resend ──
     const { error: emailError } = await resend.emails.send({
-      from: "Registration <noreply@updates.docbay.co>",
+      from: "Registration <noreply@btbt.co.in>",
       to: [email],
       subject: "Your Verification Code",
       html: `

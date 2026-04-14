@@ -1,4 +1,5 @@
 /**
+import { sendEmail } from "../_shared/sendEmail.ts";
  * Send Streak Reminder Edge Function
  * Notifies users before their streak breaks (daily at 9 PM)
  * Per Phase E specification - STK-006

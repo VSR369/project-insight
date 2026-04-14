@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { sendEmail } from "../_shared/sendEmail.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +69,6 @@ const handler = async (req: Request): Promise<Response> => {
     if (wasAccepted) {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
-        const resend = new Resend(resendApiKey);
         try {
           await resend.emails.send({
             from: "CogniBlend <onboarding@resend.dev>",

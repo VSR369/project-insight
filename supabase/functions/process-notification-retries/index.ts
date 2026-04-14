@@ -1,4 +1,5 @@
 /**
+import { sendEmail } from "../_shared/sendEmail.ts";
  * process-notification-retries — MOD-04 Edge Function
  * BR-MPA-046: Automated retry processor for failed email notifications.
  * Called by pg_cron every 15 minutes.

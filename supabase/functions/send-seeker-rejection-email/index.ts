@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "npm:resend@4.0.0";
+import { sendEmail } from "../_shared/sendEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,7 +39,6 @@ serve(async (req) => {
       );
     }
 
-    const resend = new Resend(resendKey);
 
     const rejectionRows = rejections.map((r) =>
       `<tr>
@@ -72,7 +71,7 @@ serve(async (req) => {
     `;
 
     const { error: sendError } = await resend.emails.send({
-      from: "CogniBlend <noreply@cogniblend.com>",
+      from: "CogniBlend <noreply@btbt.co.in>",
       to: [recipientEmail],
       subject: `Registration Review: ${orgName} — Action Required`,
       html,

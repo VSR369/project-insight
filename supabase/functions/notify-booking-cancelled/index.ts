@@ -1,4 +1,5 @@
 /**
+import { sendEmail } from "../_shared/sendEmail.ts";
  * Notify Booking Cancelled Edge Function
  * 
  * Sends email notification to provider when their interview booking
@@ -6,7 +7,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "https://esm.sh/resend@4.0.0";
+;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,7 +96,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const resend = new Resend(resendApiKey);
 
     // Send email
     const { data: emailData, error: emailError } = await resend.emails.send({

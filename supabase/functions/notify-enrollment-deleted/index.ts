@@ -1,13 +1,13 @@
 /**
+import { sendEmail } from "../_shared/sendEmail.ts";
  * Notify Enrollment Deleted Edge Function
  * 
  * Sends email notifications to all stakeholders when an enrollment
  * is force deleted (reviewers, managers, admins).
  */
 
-import { Resend } from "https://esm.sh/resend@4.0.0";
+;
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
