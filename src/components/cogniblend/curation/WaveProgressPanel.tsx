@@ -105,7 +105,7 @@ export function WaveProgressPanel({ progress, onCancel }: WaveProgressPanelProps
                     <p className="text-[10px] text-muted-foreground">
                       {reviewedCount > 0 && `${reviewedCount} reviewed`}
                       {reviewedCount > 0 && generatedCount > 0 && ', '}
-                      {generatedCount > 0 && `${generatedCount} generated`}
+                      {generatedCount > 0 && `${generatedCount} drafted`}
                     </p>
                   )}
                   {wave.status === 'running' && (
@@ -127,7 +127,7 @@ export function WaveProgressPanel({ progress, onCancel }: WaveProgressPanelProps
             )}
             {totals.generated > 0 && (
               <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px]">
-                {totals.generated} Generated
+                {totals.generated} Drafted
               </Badge>
             )}
             {totals.skipped > 0 && (
