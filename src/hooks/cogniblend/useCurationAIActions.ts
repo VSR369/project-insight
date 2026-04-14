@@ -162,13 +162,22 @@ export function useCurationAIActions({
       return;
     }
     // ═══ RESET ALL STATE from previous analysis run ═══
+    // 1. Hide Generate button until THIS analysis completes
     setPass1DoneSession(false);
+    // 2. Clear completion banner from previous Generate
     setGenerateDoneSession(false);
+    // 3. Clear old Pass 1 review results (stale badges)
     setAiReviews([]);
+    // 4. Reset context library gate so user must re-confirm
     setContextLibraryReviewed?.(false);
     if (challengeId) {
       sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
     }
+    // 5. Invalidate stale digest + source queries from React Query cache
+    queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
     // ═══ END RESETS ═══
 
     setAiReviewLoading(true);

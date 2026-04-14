@@ -251,27 +251,14 @@ export function useCurationPageOrchestrator() {
 
   // (contextLibraryReviewed state is declared earlier, before useCurationAIActions)
 
-  // When Context Library drawer closes after being opened post-analysis, mark as reviewed
-  const prevContextLibraryOpenRef = useRef(false);
-  useEffect(() => {
-    if (prevContextLibraryOpenRef.current && !contextLibraryOpen && pass1DoneSession) {
-      setContextLibraryReviewed(true);
-      if (challengeId) {
-        sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
-      }
+  // Context Library confirmed gate — ONLY set via explicit "Confirm & Close" action
+  // Do NOT auto-unlock on drawer close or pass1 hydration
+  const handleContextLibraryConfirm = useCallback(() => {
+    setContextLibraryReviewed(true);
+    if (challengeId) {
+      sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
     }
-    prevContextLibraryOpenRef.current = contextLibraryOpen;
-  }, [contextLibraryOpen, pass1DoneSession, challengeId]);
-
-  // If pass1 was done in a prior session (hydrated from DB), auto-unlock
-  useEffect(() => {
-    if (pass1DoneSession && !contextLibraryReviewed) {
-      setContextLibraryReviewed(true);
-      if (challengeId) {
-        sessionStorage.setItem(`ctx_reviewed_${challengeId}`, 'true');
-      }
-    }
-  }, [pass1DoneSession]);
+  }, [challengeId, setContextLibraryReviewed]);
 
   return {
     challengeId, navigate, user,
@@ -285,7 +272,7 @@ export function useCurationPageOrchestrator() {
     preFlightDialogOpen, setPreFlightDialogOpen, budgetShortfall, setBudgetShortfall,
     contextLibraryOpen, setContextLibraryOpen, pass1DoneSession,
     generateDoneSession, setGenerateDoneSession: pageData.setGenerateDoneSession,
-    contextLibraryReviewed,
+    contextLibraryReviewed, handleContextLibraryConfirm,
     aiQuality, aiQualityLoading,
     lockedSendState, setLockedSendState, expandVersion, staleSections, curationStore, sectionActions,
     ...computedValues,

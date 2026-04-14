@@ -1,5 +1,6 @@
 /**
  * ContextLibraryDrawer — 3-column layout: Sources | Detail | Digest.
+ * Confirm & Close triggers the real handoff callback.
  */
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -25,12 +26,13 @@ interface ContextLibraryDrawerProps {
   open: boolean;
   onClose?: () => void;
   onOpenChange?: (open: boolean) => void;
+  onConfirmReview?: () => void;
 }
 
 type AddMode = 'url' | 'file' | null;
 
 export function ContextLibraryDrawer({
-  challengeId, challengeTitle, open, onClose, onOpenChange,
+  challengeId, challengeTitle, open, onClose, onOpenChange, onConfirmReview,
 }: ContextLibraryDrawerProps) {
   const handleClose = () => { onClose?.(); onOpenChange?.(false); };
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -89,6 +91,12 @@ export function ContextLibraryDrawer({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Confirm & Close — real handoff: marks context as reviewed, then closes
+  const handleConfirmAndClose = () => {
+    onConfirmReview?.();
+    handleClose();
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="w-[calc(100vw-80px)] max-w-none h-[calc(100vh-80px)] flex flex-col overflow-hidden p-0">
@@ -126,6 +134,7 @@ export function ContextLibraryDrawer({
                 source={selectedSource}
                 onAccept={(id) => acceptOne.mutate(id)}
                 onReject={(id) => rejectOne.mutate(id)}
+                onUnaccept={(id) => unacceptSource.mutate(id)}
                 onDelete={(s) => { deleteSource.mutate(s); setSelectedId(null); }}
                 onUpdateSection={(id, sk) => updateSection.mutate({ id, sectionKey: sk })}
                 onUpdateSharing={(id, v) => updateSharing.mutate({ id, shared: v })}
@@ -151,7 +160,7 @@ export function ContextLibraryDrawer({
               isGenerating={regenDigest.isPending}
               onSave={(text) => saveDigest.mutate(text)}
               isSaving={saveDigest.isPending}
-              onConfirm={handleClose}
+              onConfirm={handleConfirmAndClose}
             />
           </div>
         </div>
