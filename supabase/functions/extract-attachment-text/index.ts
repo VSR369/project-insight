@@ -2,17 +2,27 @@
  * extract-attachment-text — Extracts text content from uploaded challenge attachments and URLs.
  * Supports: PDF (text decode), images (Gemini Vision), URLs (HTML strip + meta fallback).
  * Tier 2: Always runs AI summarization — context-aware for sparse/meta-only content.
+ *
+ * D4 FIX: Uses parseSummaryAndKeyData for robust Tier 2 parsing with fallback summary.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithFallback, getAIModelConfig } from "../_shared/aiModelConfig.ts";
+import { parseSummaryAndKeyData } from "../_shared/safeJsonParse.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+/** Methods that indicate placeholder/failed extraction — not real content */
+const PLACEHOLDER_METHODS = new Set([
+  "url_error", "url_pdf_failed", "url_pdf_binary", "url_meta_only",
+  "pdf_binary_fallback", "xlsx_binary_fallback", "docx_binary_fallback",
+  "image_skipped", "image_error", "unsupported",
+]);
 
 function extractMetaTags(rawHtml: string): {
   ogTitle: string; ogDesc: string; metaDesc: string; h1Tags: string[]; pageTitle: string;
@@ -80,7 +90,6 @@ serve(async (req) => {
         const meta = extractMetaTags(rawText);
 
         if (contentType.includes("application/pdf")) {
-          // Download PDF binary and attempt text extraction
           try {
             const pdfResp = await fetch(att.source_url, {
               headers: { "User-Agent": "CogniBlend-Curator/1.0" },
@@ -256,11 +265,15 @@ serve(async (req) => {
       }
     }
 
+    // D4 FIX: Determine extraction quality — placeholder-only = "partial", not "completed"
+    const isPlaceholder = PLACEHOLDER_METHODS.has(method) || extractedText.startsWith('[');
+    const extractionStatus = isPlaceholder ? "partial" : "completed";
+
     // Save extracted text
     const updatePayload: Record<string, unknown> = {
       extracted_text: extractedText.substring(0, 100000),
       extraction_method: method,
-      extraction_status: "completed",
+      extraction_status: extractionStatus,
       updated_at: new Date().toISOString(),
     };
 
@@ -316,25 +329,26 @@ KEY_DATA:
           const tier2Result = await tier2Resp.json();
           const tier2Content = tier2Result.choices?.[0]?.message?.content || "";
 
-          const summaryMatch = tier2Content.match(/SUMMARY:\s*([\s\S]*?)(?=KEY_DATA:|$)/i);
-          if (summaryMatch?.[1]?.trim()) {
-            updatePayload.extracted_summary = summaryMatch[1].trim().substring(0, 600);
-          }
-
-          const keyDataMatch = tier2Content.match(/KEY_DATA:\s*(\{[\s\S]*\})/i);
-          if (keyDataMatch?.[1]) {
-            try { updatePayload.extracted_key_data = JSON.parse(keyDataMatch[1].trim()); } catch { /* skip */ }
-          }
+          // D4 FIX: Use robust parser instead of brittle regex
+          const { summary, keyData } = parseSummaryAndKeyData(tier2Content);
+          if (summary) updatePayload.extracted_summary = summary;
+          if (keyData) updatePayload.extracted_key_data = keyData;
         }
       } catch (tier2Err: unknown) {
         console.error("Tier 2 summarization failed (non-blocking):", tier2Err);
       }
     }
 
+    // D4 FIX: Fallback summary from extracted text when AI parsing fails
+    if (!updatePayload.extracted_summary && extractedText.length >= 100 && !isPlaceholder) {
+      const cleanText = extractedText.replace(/\s+/g, ' ').trim();
+      updatePayload.extracted_summary = cleanText.substring(0, 300) + (cleanText.length > 300 ? '...' : '');
+    }
+
     await adminClient.from("challenge_attachments").update(updatePayload).eq("id", attachment_id);
 
     return new Response(
-      JSON.stringify({ success: true, data: { method, length: extractedText.length, hasSummary: !!updatePayload.extracted_summary } }),
+      JSON.stringify({ success: true, data: { method, length: extractedText.length, hasSummary: !!updatePayload.extracted_summary, extraction_status: extractionStatus } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {

@@ -2,11 +2,15 @@
  * generate-context-digest — Synthesizes accepted context sources into a 600-word grounded digest.
  * Quality gate: filters out empty/placeholder sources. Uses full text (15K chars per source).
  * Outputs clean HTML (not markdown) for direct RichTextEditor consumption.
+ *
+ * D5 FIX: Smarter hasRealContent — rejects seed content, accepts good summaries
+ * D6 FIX: When user explicitly regenerates, update digest_text AND reset curator_edited
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
+import { safeJsonParse } from "../_shared/safeJsonParse.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,11 +20,24 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+/** D5 FIX: Smarter content quality check */
 function hasRealContent(att: Record<string, unknown>): boolean {
-  const text = ((att.extracted_text as string) || (att.extracted_summary as string) || '').trim();
-  if (text.length < 100) return false;
-  if (text.startsWith('[')) return false;
-  return true;
+  const text = ((att.extracted_text as string) || '').trim();
+  const summary = ((att.extracted_summary as string) || '').trim();
+
+  // Reject seed content markers
+  if (text.startsWith('[SEED_CONTENT')) return false;
+  // Reject old-style seed content (search snippets masquerading as content)
+  if (text.startsWith('Title:') && text.includes('Search snippet:') && text.length < 500) return false;
+  // Reject placeholder/failed content
+  if (text.startsWith('[') && text.length < 200) return false;
+
+  // Accept if extracted text has real substance
+  if (text.length >= 200) return true;
+  // Accept if summary is substantial enough (even if text is sparse)
+  if (summary.length >= 50) return true;
+
+  return false;
 }
 
 /** Post-process: convert residual markdown to HTML */
@@ -60,11 +77,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
+    // D5 FIX: Filter by extraction_status to exclude pending/failed sources
     const { data: attachments, error: attErr } = await adminClient
       .from("challenge_attachments")
-      .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method")
+      .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method, extraction_status")
       .eq("challenge_id", challenge_id)
-      .eq("discovery_status", "accepted");
+      .eq("discovery_status", "accepted")
+      .in("extraction_status", ["completed", "partial"]);
 
     if (attErr) throw new Error(attErr.message);
     if (!attachments || attachments.length === 0) {
@@ -79,7 +98,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: { code: "NO_EXTRACTABLE_CONTENT", message: `${attachments.length} source(s) accepted but none have sufficient text.` },
+          error: { code: "NO_EXTRACTABLE_CONTENT", message: `${attachments.length} source(s) accepted but none have sufficient text. Try re-extracting sources or adding URLs with richer content.` },
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -113,9 +132,9 @@ ${summary ? `\nAI SUMMARY:\n${summary}` : ''}
 ${keyData ? `\nSTRUCTURED DATA:\n${keyData}` : ''}`;
     }).join('\n\n═══════════════════════════════════\n\n');
 
-    // Raw context block for Pass 2 grounding
+    // Raw context block for Pass 2 grounding — only usable attachments
     const rawContextBySection: Record<string, string[]> = {};
-    for (const att of attachments) {
+    for (const att of usableAttachments) {
       const sKey = att.section_key as string;
       if (!rawContextBySection[sKey]) rawContextBySection[sKey] = [];
       const name = (att.url_title || att.file_name || att.source_url || 'Unnamed') as string;
@@ -204,12 +223,14 @@ After the digest, output a JSON block with key facts:
     let digestText = rawContent;
     let keyFacts: Record<string, unknown> | null = null;
 
+    // Use safeJsonParse for key facts extraction
     const jsonMatch = rawContent.match(/```json\s*([\s\S]*?)```/);
     if (jsonMatch?.[1]) {
-      try {
-        keyFacts = JSON.parse(jsonMatch[1].trim());
+      const parsed = safeJsonParse<Record<string, unknown> | null>(jsonMatch[1].trim(), null);
+      if (parsed) {
+        keyFacts = parsed;
         digestText = rawContent.replace(/```json[\s\S]*?```/, "").trim();
-      } catch { /* Keep full text */ }
+      }
     }
 
     // Post-process: ensure clean HTML, strip residual markdown
@@ -223,16 +244,21 @@ After the digest, output a JSON block with key facts:
 
     const newDigestText = digestText.substring(0, 10000);
 
-    if (existingDigest?.curator_edited) {
+    // D6 FIX: When user explicitly regenerates, ALWAYS update digest_text
+    // and reset curator_edited so Pass 2 reads fresh content
+    if (existingDigest) {
       const { error: updateErr } = await adminClient
         .from("challenge_context_digest")
         .update({
+          digest_text: newDigestText,
           original_digest_text: newDigestText,
           key_facts: keyFacts,
           source_count: usableAttachments.length,
           generated_at: new Date().toISOString(),
           raw_context_block: rawContextBlock,
           raw_context_updated_at: new Date().toISOString(),
+          curator_edited: false,
+          curator_edited_at: null,
         })
         .eq("challenge_id", challenge_id);
       if (updateErr) throw new Error(updateErr.message);
@@ -260,7 +286,7 @@ After the digest, output a JSON block with key facts:
           source_count: usableAttachments.length,
           total_accepted: attachments.length,
           skipped_empty: attachments.length - usableAttachments.length,
-          curator_edit_preserved: !!existingDigest?.curator_edited,
+          curator_edit_reset: !!existingDigest?.curator_edited,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },

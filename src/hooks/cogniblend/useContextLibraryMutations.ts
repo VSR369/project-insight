@@ -1,6 +1,9 @@
 /**
  * useContextLibraryMutations — Write mutation hooks for Context Library.
  * Split from useContextLibrary.ts for R1 compliance.
+ *
+ * D3 FIX: Reset extraction_status on accept to force fresh extraction
+ * D7 FIX: Await cache invalidation before showing toasts
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,7 +26,7 @@ async function waitForExtraction(attachmentId: string): Promise<void> {
       .select('extraction_status')
       .eq('id', attachmentId)
       .single();
-    if (data?.extraction_status === 'completed' || data?.extraction_status === 'failed') return;
+    if (data?.extraction_status === 'completed' || data?.extraction_status === 'failed' || data?.extraction_status === 'partial') return;
   }
 }
 
@@ -39,9 +42,19 @@ export function useDiscoverSources(challengeId: string) {
       if (error) throw new Error(error.message);
       return data;
     },
-    onSuccess: (data) => {
-      invalidateAllContextKeys(qc, challengeId);
-      toast.success(`Discovered ${data?.count ?? 0} potential sources`);
+    onSuccess: async (data) => {
+      // D7 FIX: Await refetch so UI reflects new data before toast
+      await qc.refetchQueries({ queryKey: CONTEXT_KEYS.sources(challengeId) });
+      await qc.refetchQueries({ queryKey: CONTEXT_KEYS.pendingCount(challengeId) });
+      await qc.refetchQueries({ queryKey: CONTEXT_KEYS.sourceCount(challengeId) });
+      const autoCount = data?.auto_accepted ?? 0;
+      const sugCount = data?.suggested ?? 0;
+      const total = data?.count ?? 0;
+      if (autoCount > 0) {
+        toast.success(`Discovered ${total} sources: ${autoCount} auto-accepted (high confidence), ${sugCount} pending review`);
+      } else {
+        toast.success(`Discovered ${total} potential sources`);
+      }
     },
     onError: (err: Error) => toast.error(`Discovery failed: ${err.message}`),
   });
@@ -53,9 +66,16 @@ export function useAcceptSuggestion(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (attachmentId: string) => {
+      // D3 FIX: Reset extraction state to force fresh extraction
       const { error } = await supabase
         .from('challenge_attachments')
-        .update({ discovery_status: 'accepted', updated_at: new Date().toISOString() })
+        .update({
+          discovery_status: 'accepted',
+          extraction_status: 'pending',
+          extracted_summary: null,
+          extracted_key_data: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', attachmentId);
       if (error) throw new Error(error.message);
       await supabase.functions.invoke('extract-attachment-text', {
@@ -63,8 +83,13 @@ export function useAcceptSuggestion(challengeId: string) {
       });
       await waitForExtraction(attachmentId);
     },
-    onSuccess: () => {
-      invalidateAllContextKeys(qc, challengeId);
+    onSuccess: async () => {
+      // D7 FIX: Await invalidation
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: CONTEXT_KEYS.sources(challengeId) }),
+        qc.invalidateQueries({ queryKey: CONTEXT_KEYS.sourceCount(challengeId) }),
+        qc.invalidateQueries({ queryKey: CONTEXT_KEYS.pendingCount(challengeId) }),
+      ]);
       toast.success('Source accepted and indexed');
     },
     onError: (err: Error) => toast.error(`Accept failed: ${err.message}`),
@@ -90,9 +115,16 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ids: string[]) => {
+      // D3 FIX: Reset extraction state for all accepted sources
       const { error } = await supabase
         .from('challenge_attachments')
-        .update({ discovery_status: 'accepted', updated_at: new Date().toISOString() })
+        .update({
+          discovery_status: 'accepted',
+          extraction_status: 'pending',
+          extracted_summary: null,
+          extracted_key_data: null,
+          updated_at: new Date().toISOString(),
+        })
         .in('id', ids);
       if (error) throw new Error(error.message);
       await Promise.allSettled(
@@ -100,8 +132,13 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
       );
       await Promise.allSettled(ids.map(id => waitForExtraction(id)));
     },
-    onSuccess: () => {
-      invalidateAllContextKeys(qc, challengeId);
+    onSuccess: async () => {
+      // D7 FIX: Await invalidation
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: CONTEXT_KEYS.sources(challengeId) }),
+        qc.invalidateQueries({ queryKey: CONTEXT_KEYS.sourceCount(challengeId) }),
+        qc.invalidateQueries({ queryKey: CONTEXT_KEYS.pendingCount(challengeId) }),
+      ]);
       toast.success('Sources accepted and indexed');
     },
     onError: (err: Error) => toast.error(`Batch accept failed: ${err.message}`),
@@ -299,7 +336,9 @@ export function useRegenerateDigest(challengeId: string) {
       if (error) throw new Error(error.message);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // D7 FIX: Await refetch before toast
+      await qc.refetchQueries({ queryKey: CONTEXT_KEYS.digest(challengeId) });
       invalidateAllContextKeys(qc, challengeId);
       toast.success('Context digest generated');
     },
