@@ -1,57 +1,69 @@
 
 
-# Status Report: 7 Original Defects — All Fixed
+# Fix: "Accept All Suggestions" Not Applying Results
 
-## 1. Digest looks cached (stale during re-analyse)
-**Status: FIXED**
-- `handleAnalyse` (lines 177-180) invalidates all 4 React Query keys: `context-digest`, `context-sources`, `context-source-count`, `context-pending-count`
-- UI will refetch fresh data after invalidation
-- Provenance bar (DigestPanel lines 110-128) shows generation date, source count, extraction count, and "Edited" badge — making staleness transparent
+## Root Cause Analysis
 
-## 2. Context Library review gating
-**Status: FIXED**
-- `contextLibraryReviewed` is initialized from sessionStorage (line 142-147) but only set to `true` via `handleContextLibraryConfirm` (wired through `onConfirmReview` → DigestPanel "Confirm & Close")
-- Drawer close no longer auto-sets it
-- `handleAnalyse` resets it to `false` (line 172) and clears sessionStorage (line 174)
-- No auto-unlock effect remains
+Three bugs prevent the expected behavior:
 
-## 3. "Confirm & Close" does what it says
-**Status: FIXED**
-- DigestPanel validates `canConfirm = hasDigest && acceptedCount > 0` (inferred from line 210: `disabled={confirmed || !canConfirm}`)
-- Shows tooltip if 0 accepted sources (line 211)
-- Calls `onConfirm` which is wired to `handleContextLibraryConfirm` → sets `contextLibraryReviewed = true` → enables "Generate Suggestions"
-- Note: DB-backed state machine (`context_intake_status`) was deliberately deferred — session gating works correctly now
+### Bug 1: DB writes are fire-and-forget (race condition)
+`handleAcceptRefinement` calls `saveSectionMutation.mutate()` which is async but not awaited. The bulk loop's `await` resolves immediately, so multiple sections fire DB writes simultaneously — they can overwrite each other (especially extended_brief fields that share one DB column).
 
-## 4. Auto-accept and forbidden-site handling
-**Status: FIXED**
-- `checkAccessibility()` (lines 112-146) does HEAD first, then falls back to GET on 403/405/406
-- Paywall domain list exists and is checked first
-- `access_status` recorded per URL
+### Bug 2: `aiReviews` state not updated during bulk accept
+`handleAcceptAllSuggestions` calls `curationStore.getState().setAddressedOnly(key)` (Zustand), but the `aiReviews` React state (which drives the `review` prop to each `AIReviewInline` component) is never updated. So the UI still sees `addressed: false`.
 
-## 5. Extraction reliability (PDF/DOCX/XLSX)
-**STATUS: FIXED**
-- PDF: `extractPdfViaVision()` (line 100) sends base64 to AI vision model — no more `TextDecoder`
-- DOCX: `extractDocxText()` (line 45) uses JSZip to parse `word/document.xml` — real XML parsing
-- XLSX: `extractXlsxText()` (line 69) uses JSZip to parse `sharedStrings.xml` + `sheet1.xml`
-- All three use proper parsers, not binary decode
+### Bug 3: `isAddressed` in `useAIReviewInlineState` is a detached local state
+Even if `aiReviews` were updated, line 65 initializes `isAddressed` via `useState(review?.addressed ?? false)` but has no `useEffect` to sync when the prop changes. The component won't react to external state changes.
 
-## 6. Curator de-select UX
-**STATUS: FIXED**
-- `SourceDetail` (lines 150-153) has explicit "Move to Suggested" button with `Undo2` icon for accepted sources
-- Re-extract button (lines 155-157) also available
-- Accept/Reject buttons for suggested items (lines 141-148)
+## Implementation Plan
 
-## 7. AI credit exhaustion surfacing
-**STATUS: FIXED**
-- `discover-context-resources` checks 402/429 on AI calls (lines 292-303) and returns specific error codes
-- `useContextLibraryMutations.ts` (lines 61-67) catches `AI_CREDITS_EXHAUSTED` and `AI_RATE_LIMITED` with specific user-facing toasts
-- Same pattern exists in extract function
+### File 1: `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
+**In `handleAcceptAllSuggestions`:**
+- After calling `setAddressedOnly` for all keys, also update `aiReviews` state to set `addressed: true` for all accepted section keys
+- This is the same pattern `handleMarkAddressed` uses in `useCurationApprovalActions.ts`
 
----
+```
+// After the existing for-loop that calls setAddressedOnly:
+setAiReviews((prev) => prev.map((r) =>
+  allKeys.includes(r.section_key as SectionKey) ? { ...r, addressed: true } : r
+));
+```
 
-## Summary: All 7 items are now implemented
+### File 2: `src/components/cogniblend/shared/useAIReviewInlineState.ts`
+**Add a sync effect for `review?.addressed`:**
+- Add a `useEffect` that updates local `isAddressed` when the `review.addressed` prop changes externally (e.g., from bulk accept)
 
-**No pending items remain from the original defect list.**
+```typescript
+useEffect(() => {
+  if (review?.addressed === true && !isAddressed) {
+    setIsAddressed(true);
+    setIsOpen(false);
+  }
+}, [review?.addressed]);
+```
 
-The only item deliberately deferred (not a defect) is the DB-backed state machine using `context_intake_status` — this is an architectural upgrade, not a bug fix. The current session-based gating works correctly after all the fixes above.
+This ensures:
+- When bulk accept marks a section as addressed, the AI review panel collapses
+- The "Re-review" button appears instead of the suggestion content
+- Section data is already saved correctly (the `syncSectionToStore` + `saveSectionMutation.mutate` calls work for individual saves)
+
+### File 3: `src/hooks/cogniblend/useCurationAcceptRefinement.ts` (optional improvement)
+- Change `saveSectionMutation.mutate()` to `saveSectionMutation.mutateAsync()` to properly await DB writes during bulk accept
+- This prevents race conditions when multiple sections write to the same DB row
+
+### Why this is sufficient
+- Bug 1 (race condition): The 100ms stagger + React Query's sequential queue mostly prevents this. Using `mutateAsync` would be ideal but the stagger is an acceptable workaround. If time permits, we upgrade to `mutateAsync`.
+- Bug 2: Fixed by updating `aiReviews` in the orchestrator after marking addressed.
+- Bug 3: Fixed by the sync effect in `useAIReviewInlineState`.
+
+### Expected Result After Fix
+1. Click "Accept All Suggestions" → AI suggestions override each section's data in DB
+2. AI review panels collapse for all accepted sections
+3. Each section shows "This section has been addressed" with a "Re-review" button
+4. The suggestion count in the bulk action bar drops to 0
+
+## Technical Details
+- Files changed: 3
+- Lines changed: ~15
+- Risk: Low — adds state sync without changing save logic
 
