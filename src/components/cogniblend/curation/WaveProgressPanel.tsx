@@ -127,7 +127,7 @@ export function WaveProgressPanel({ progress, onCancel }: WaveProgressPanelProps
             )}
             {totals.generated > 0 && (
               <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px]">
-                {totals.generated} Generated
+                {totals.generated} Drafted
               </Badge>
             )}
             {totals.skipped > 0 && (

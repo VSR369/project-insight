@@ -161,6 +161,8 @@ export function useCurationAIActions({
     }
     setAiReviewLoading(true);
     setTriageTotalCount(0);
+    // Hide Generate Suggestions button while re-analysis runs (D-UX1)
+    setPass1DoneSession(false);
 
     // Clear stale Pass 2 suggestions before running Pass 1
     curationStore.getState().clearAllSuggestions();
