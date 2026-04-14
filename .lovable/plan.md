@@ -1,55 +1,61 @@
 
 
-# TechSpec v1.0-5 Audit — Verification Results
+# Findings: Re-analyse Flow, Review/Re-review Behavior
 
-## STATUS SUMMARY
+## 1. Re-analyse Button — Sequence is Correct in Code
 
-| Item | Status | Detail |
-|---|---|---|
-| **A. R1 File Sizes** | FIXED | EnrollmentDeleteDialog: 180 lines, ManagerApprovalDashboard: 146 lines, AddIndustryDialog: 142 lines. Sub-components created in `deletion/` directory. |
-| **B. R2 Layer Separation** | PARTIAL | `ChallengeFeed` and `ManagerApprovalDashboard` — FIXED (use hooks). **`ChallengeDetailPublic` still imports `supabase` directly** (line 13) for auth session check. Needs extraction to a `useAuthSession` hook. |
-| **C. Missing Components** | FIXED | `ProviderPublicCard`, `VipCertBadge` created. |
-| **D. Missing Hooks** | FIXED | `useVipInvitation`, `usePublicChallenges`, `useProviderExpertise` all created. |
-| **E1. vip_invitations schema** | FIXED | All columns present: `tenant_id`, `invitation_token`, `invitee_email`, `invitee_name`, `industry_segment_id`, `personal_message`, `provider_id`. |
-| **E2. provider_org_details schema** | FIXED | All columns present: `tenant_id`, `org_type`, `org_website`, `designation`, `manager_phone`, `manager_approval_status`. |
-| **E3. community_posts schema** | FIXED | `tenant_id` and `parent_id` both present. |
-| **E4. ChallengeCard days remaining** | FIXED | Now uses `closingDate` with `differenceInDays(parseISO(closingDate), new Date())`. Shows "Xd left" or "Closed". Has `role="article"`. |
-| **E5. ChallengeDetailPublic Spec 6.6** | PARTIAL | 150-char preview: DONE. Auth-gated sections (problem statement, scope): DONE. **Still missing**: Evaluation criteria section, Q&A thread section, "Submit abstract" CTA, Match score badge for Level 2+. |
-| **F. register-provider** | FIXED | Public endpoint, no auth required. Creates auth user + solution_providers row + returns session. |
-| **F. pg_cron schedules** | NOT FIXED | No cron jobs configured for `compute-performance-scores`, `expire-stale-invitations`, `send-manager-reminder`, `public-platform-stats`. |
-| **G. R12 Accessibility** | FIXED | ChallengeCard now has `role="article"`. |
+The "Re-analyse Challenge" button (`CurationRightRail.tsx` line 107) correctly calls `handleAnalyse`, which follows this exact sequence:
 
----
+```text
+Re-analyse Challenge (handleAnalyse)
+  ├── Pre-flight check
+  ├── Pass 1 analysis (waves 1-6) — comments only, NO suggestions
+  ├── Wave 7: Context Discovery (discover-context-resources)
+  ├── Set pass1DoneSession = true
+  ├── Toast: "Review discovered sources in the Context Library"
+  └── Auto-open Context Library panel
 
-## REMAINING GAPS (3 items)
+Generate Suggestions (handleGenerateSuggestions) — separate button
+  ├── Regenerate context digest from accepted sources
+  ├── Pass 2 only — generates suggestions grounded in digest
+  └── Set generateDoneSession = true
+```
 
-### 1. R2 Violation: `ChallengeDetailPublic` still imports supabase (line 13)
-The auth session check (`supabase.auth.getSession()`) is inline. Extract to a shared `useAuthSession` hook in `src/hooks/queries/`.
+**The sequence Analyse → Context Library → Generate is enforced.** "Generate Suggestions" is disabled until `contextLibraryReviewed` is true. If you saw suggestions appearing after clicking Re-analyse, that is likely residual suggestions from a previous Generate run still displayed in the UI — not new ones being produced. **Pass 1 explicitly does NOT produce suggestions** (the prompt says: "Do NOT include a suggestion field").
 
-### 2. ChallengeDetailPublic missing Spec 6.6 gated sections
-Currently shows problem_statement and scope when authenticated, but missing:
-- "Evaluation criteria" gated card
-- "Q&A thread" gated card (placeholder)
-- "Submit abstract / expression of interest" CTA button
-- Match score badge for authenticated Level 2+ providers at 65%+
-
-### 3. pg_cron schedules not configured
-Four edge functions need cron scheduling. This requires SQL INSERT via the insert tool (not migrations, as it contains project-specific URLs/keys).
+**If suggestions ARE appearing fresh after Re-analyse**, that would be a bug. I can add a step to `handleAnalyse` that clears all existing suggestions from the store before running Pass 1, so stale Pass 2 data doesn't persist.
 
 ---
 
-## IMPLEMENTATION PLAN
+## 2. Individual Section Review vs Re-review — What They Do Today
 
-### Step 1: Extract auth session to `useAuthSession` hook
-Create `src/hooks/queries/useAuthSession.ts` with the `supabase.auth.getSession()` call. Update `ChallengeDetailPublic` to use it, removing the direct supabase import.
+Both `review()` and `reReview()` in `useAiSectionReview.ts` call the **same** `reviewSingle()` function. They are functionally identical — there is no difference between them.
 
-### Step 2: Add missing gated sections to `ChallengeDetailPublic`
-Add placeholder cards for Evaluation Criteria, Q&A Thread, and a "Submit Expression of Interest" CTA button in the authenticated view. Add match score badge placeholder.
+What `reviewSingle` does:
+- Calls the edge function with `wave_action: 'review'`
+- The edge function returns **both** `comments` (analysis) AND `suggestion` (rewritten content)
+- The hook stores both in the Zustand store via `setAiReview(sectionKey, comments, suggestion)`
 
-### Step 3: Configure pg_cron schedules
-Use the Supabase insert tool to schedule:
-- `compute-performance-scores`: daily at 02:00 UTC
-- `expire-stale-invitations`: daily at 03:00 UTC
-- `send-manager-reminder`: daily at 09:00 UTC
-- `public-platform-stats`: every 5 minutes
+**This is different from the global Analyse flow.** The global Analyse (Pass 1) explicitly blocks suggestions. But individual section review/re-review runs a combined pass that returns both comments AND a suggestion in one call.
+
+---
+
+## 3. Confirmation: Review/Re-review Produce Suggestions, Not Just Comments
+
+**Confirmed.** Individual section review and re-review produce:
+- **Comments** — analysis observations (errors, warnings, suggestions, best practices, strengths)
+- **Suggestion** — AI-recommended replacement content for that section
+
+This is by design. The two-pass separation (Analyse-only → Generate-only) applies only to the **global** workflow. Individual per-section reviews combine both passes into a single call for convenience.
+
+---
+
+## Proposed Fix (if approved)
+
+If Re-analyse is incorrectly showing stale suggestions, I will:
+
+1. **Clear existing suggestions from Zustand store** at the start of `handleAnalyse` — so stale Pass 2 data is wiped before Pass 1 runs
+2. **No other changes needed** — the button wiring and sequence gating are correct
+
+This is a 1-file change in `useCurationAIActions.ts` (~3 lines added to `handleAnalyse`).
 
