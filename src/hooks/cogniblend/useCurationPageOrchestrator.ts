@@ -156,6 +156,7 @@ export function useCurationPageOrchestrator() {
     setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
     setPass1DoneSession,
     setGenerateDoneSession: pageData.setGenerateDoneSession,
+    setContextLibraryReviewed,
   });
 
   // ── Bulk accept all AI suggestions ──

@@ -48,6 +48,7 @@ interface UseCurationAIActionsOptions {
   setContextLibraryOpen: (v: boolean) => void;
   setPass1DoneSession: (v: boolean) => void;
   setGenerateDoneSession: (v: boolean) => void;
+  setContextLibraryReviewed?: (v: boolean) => void;
 }
 
 export function useCurationAIActions({
@@ -60,6 +61,7 @@ export function useCurationAIActions({
   setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
   setPass1DoneSession,
   setGenerateDoneSession,
+  setContextLibraryReviewed,
 }: UseCurationAIActionsOptions) {
 
   const queryClient = useQueryClient();
@@ -159,10 +161,18 @@ export function useCurationAIActions({
       setPreFlightDialogOpen(true);
       return;
     }
+    // ═══ RESET ALL STATE from previous analysis run ═══
+    setPass1DoneSession(false);
+    setGenerateDoneSession(false);
+    setAiReviews([]);
+    setContextLibraryReviewed?.(false);
+    if (challengeId) {
+      sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
+    }
+    // ═══ END RESETS ═══
+
     setAiReviewLoading(true);
     setTriageTotalCount(0);
-    // Hide Generate Suggestions button while re-analysis runs (D-UX1)
-    setPass1DoneSession(false);
 
     // Clear stale Pass 2 suggestions before running Pass 1
     curationStore.getState().clearAllSuggestions();
@@ -218,7 +228,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [runPreFlight, executeWavesPass1, pass1SetWaveProgress, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen]);
+  }, [runPreFlight, executeWavesPass1, pass1SetWaveProgress, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed]);
 
   // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
   const handleGenerateSuggestions = useCallback(async () => {
