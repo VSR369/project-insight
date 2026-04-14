@@ -1,29 +1,34 @@
 
 
-# Fix: "Generate Suggestions" Appearing Active During Re-analyse
+# Analysis Report: Context Library Fix Status
 
-## Root Cause
+## Verdict: All 7 Core Defects (D1–D7) Are Fully Fixed
 
-Two UX bugs, both in the right rail UI — no backend issues.
+The code trace confirms every defect from the plan is correctly implemented and the fixes work together end-to-end.
 
-**Bug 1 — Generate Suggestions button shows spinner during Analyse:**
-`handleAnalyse` sets `aiReviewLoading = true`. The "Generate Suggestions" button is visible (because `pass1Done` is already `true` from a prior run) and uses the same `aiReviewLoading` flag for its spinner. Result: it looks like Generate Suggestions is executing when only Analyse is running.
+## Gap Status Update (from the 3 "minor gaps" reported)
 
-**Bug 2 — WaveProgressPanel shows "N Generated" during Pass 1:**
-`determineSectionAction()` returns `'generate'` for empty sections regardless of which pass is running. The WaveProgressPanel displays a blue "Generated" badge for these. During Pass 1, this confuses the user into thinking suggestions are being produced.
+| Gap | Status | Evidence |
+|-----|--------|----------|
+| Gap 1: Re-discovery diversity instruction | **ALREADY FIXED** | Line 262 of `discover-context-resources/index.ts` injects `RE-DISCOVERY RUN: N URLs already exist...` into the query prompt when `existingUrls.size > 0` |
+| Gap 2: Baseline summary from relevance_explanation | **ALREADY FIXED** | Lines 81-91 of `useContextLibraryMutations.ts` fetch `relevance_explanation` and set `[AI Relevance]` prefixed summary before extraction |
+| Gap 3: Headerless AI output fallback | **ALREADY FIXED** | Lines 69-73 of `safeJsonParse.ts` handle plain-text AI output without `SUMMARY:` header |
 
-## Fix (2 files)
+**All 3 gaps were already implemented in the previous round.** The analysis report you shared was based on an earlier snapshot.
 
-### File 1: `src/hooks/cogniblend/useCurationAIActions.ts`
-- At the start of `handleAnalyse`, call `setPass1DoneSession(false)` immediately — this hides the Generate Suggestions button and Context Library prompt while re-analysis runs
-- After Pass 1 completes, `setPass1DoneSession(true)` re-shows them (already exists at line 210)
+## One Remaining UX Gap: Confidence Score Not Shown for Accepted Sources
 
-### File 2: `src/components/cogniblend/curation/WaveProgressPanel.tsx`
-- Change the "Generated" badge label to "Drafted" to avoid confusion with the "Generate Suggestions" workflow step
-- Alternatively, when the parent is running Pass 1, show "Analysed" instead — but since WaveProgressPanel doesn't know which pass is active, the simplest fix is to relabel to a neutral term like "Drafted" or "Content created"
+`ConfidenceBadge` is defined and used in `SuggestionCard.tsx` (for pending suggestions), but accepted sources in `SourceList.tsx` / `SourceDetail.tsx` do NOT display the confidence score. Users cannot see WHY a source was auto-accepted.
 
-### Result
-- During Re-analyse: Generate Suggestions button is hidden, only the Analyse button shows a spinner
-- Wave progress shows "Reviewed" and "Drafted" (not "Generated")
-- After analysis completes: pass1Done flips back to true, showing the Context Library prompt and Generate Suggestions button in correct sequence
+### Fix: Add confidence score display to accepted source cards
+
+**File:** `src/components/cogniblend/curation/context-library/SourceList.tsx`
+- Import and reuse the `ConfidenceBadge` component (or extract it to a shared file)
+- Display it next to the source name for accepted sources, so users see the confidence percentage
+
+This is a small UX polish (~10 lines), not a functional bug. The workflow is fully operational without it.
+
+## Recommendation
+
+No code changes needed for the 7 defects or 3 gaps — all are implemented. The only actionable item is the optional confidence badge on accepted sources. If you want that added, approve and I will implement it.
 
