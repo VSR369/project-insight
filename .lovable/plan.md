@@ -1,61 +1,63 @@
 
 
-# Findings: Re-analyse Flow, Review/Re-review Behavior
+# Context Library — 7-Defect Fix Plan
 
-## 1. Re-analyse Button — Sequence is Correct in Code
+## Confirmed Defects
 
-The "Re-analyse Challenge" button (`CurationRightRail.tsx` line 107) correctly calls `handleAnalyse`, which follows this exact sequence:
+| # | Defect | Impact |
+|---|--------|--------|
+| D1 | No auto-accept based on confidence score | High-confidence sources sit as "suggested" requiring manual review |
+| D2 | Re-discover deletes previously accepted AI sources | Accepted work lost on re-discovery |
+| D3 | Race condition: extraction_status not reset on accept → stale data persists | Summaries missing after accept |
+| D4 | Tier 2 summary parsing is brittle — regex fails, no fallback | extracted_summary stays null |
+| D5 | Seed content (search snippets) passes hasRealContent → digest uses snippets not real content | Digest ignores real sources, uses search snippets |
+| D6 | Digest regeneration updates original_digest_text but Pass 2 reads digest_text → stale grounding | Digest/suggestions unchanged regardless of source selection |
+| D7 | Cache not awaited after mutations → stale UI | UI doesn't reflect changes immediately |
 
-```text
-Re-analyse Challenge (handleAnalyse)
-  ├── Pre-flight check
-  ├── Pass 1 analysis (waves 1-6) — comments only, NO suggestions
-  ├── Wave 7: Context Discovery (discover-context-resources)
-  ├── Set pass1DoneSession = true
-  ├── Toast: "Review discovered sources in the Context Library"
-  └── Auto-open Context Library panel
+## Implementation Phases (6 files + 1 new)
 
-Generate Suggestions (handleGenerateSuggestions) — separate button
-  ├── Regenerate context digest from accepted sources
-  ├── Pass 2 only — generates suggestions grounded in digest
-  └── Set generateDoneSession = true
-```
+### Phase 1: Create `supabase/functions/_shared/safeJsonParse.ts` (NEW)
+- `safeJsonParse<T>()` — handles fenced JSON, trailing commas, truncation, nesting
+- `parseSummaryAndKeyData()` — robust SUMMARY + KEY_DATA extraction for Tier 2
 
-**The sequence Analyse → Context Library → Generate is enforced.** "Generate Suggestions" is disabled until `contextLibraryReviewed` is true. If you saw suggestions appearing after clicking Re-analyse, that is likely residual suggestions from a previous Generate run still displayed in the UI — not new ones being produced. **Pass 1 explicitly does NOT produce suggestions** (the prompt says: "Do NOT include a suggestion field").
+### Phase 2: Fix `discover-context-resources/index.ts` (D1, D2, D3, D5)
+- Add `AUTO_ACCEPT_CONFIDENCE = 0.85` threshold
+- Replace destructive delete: add `.eq("discovery_status", "suggested")` to preserve accepted AI sources
+- Mark seed content with `[SEED_CONTENT - PENDING EXTRACTION]` prefix
+- Auto-accept only high-confidence + accessible sources; trigger extraction only for those
+- Add re-discovery diversity note to query generation prompt
+- Replace all `JSON.parse` calls with `safeJsonParse`
 
-**If suggestions ARE appearing fresh after Re-analyse**, that would be a bug. I can add a step to `handleAnalyse` that clears all existing suggestions from the store before running Pass 1, so stale Pass 2 data doesn't persist.
+### Phase 3: Fix `extract-attachment-text/index.ts` (D4)
+- Import and use `parseSummaryAndKeyData` for Tier 2 parsing
+- Add fallback summary (first 300 chars of extracted text) when Tier 2 AI fails
+- Mark placeholder-only extraction as `partial` or `failed` instead of `completed`
+
+### Phase 4: Fix `generate-context-digest/index.ts` (D5, D6)
+- Replace `hasRealContent()` with smarter version: accept `extracted_summary >= 50 chars`, reject `[SEED_CONTENT` markers, reject old-format seed content
+- Filter query: add `.in("extraction_status", ["completed", "partial"])` to exclude pending/failed
+- Fix curator_edited branch: when user explicitly regenerates, update `digest_text` AND reset `curator_edited` flag
+
+### Phase 5: Fix `review-challenge-sections/index.ts` (D6)
+- Add `original_digest_text` to the select query
+- Use freshest digest for Pass 2 grounding: prefer `original_digest_text` when `curator_edited` is true
+
+### Phase 6: Fix `useContextLibraryMutations.ts` (D3, D7)
+- `useAcceptSuggestion`: reset `extraction_status`, clear stale `extracted_summary`/`extracted_key_data` before triggering fresh extraction
+- `useAcceptMultipleSuggestions`: same reset pattern
+- `useDiscoverSources`: `await qc.refetchQueries()` in onSuccess before showing toast with auto-accept/suggested counts
+- `useRegenerateDigest`: `await qc.refetchQueries()` in onSuccess before toast
+
+### Phase 7: Deploy + Verify
+Deploy all 4 edge functions and verify against the document's 17-point checklist.
 
 ---
 
-## 2. Individual Section Review vs Re-review — What They Do Today
+## Technical Details
 
-Both `review()` and `reReview()` in `useAiSectionReview.ts` call the **same** `reviewSingle()` function. They are functionally identical — there is no difference between them.
-
-What `reviewSingle` does:
-- Calls the edge function with `wave_action: 'review'`
-- The edge function returns **both** `comments` (analysis) AND `suggestion` (rewritten content)
-- The hook stores both in the Zustand store via `setAiReview(sectionKey, comments, suggestion)`
-
-**This is different from the global Analyse flow.** The global Analyse (Pass 1) explicitly blocks suggestions. But individual section review/re-review runs a combined pass that returns both comments AND a suggestion in one call.
-
----
-
-## 3. Confirmation: Review/Re-review Produce Suggestions, Not Just Comments
-
-**Confirmed.** Individual section review and re-review produce:
-- **Comments** — analysis observations (errors, warnings, suggestions, best practices, strengths)
-- **Suggestion** — AI-recommended replacement content for that section
-
-This is by design. The two-pass separation (Analyse-only → Generate-only) applies only to the **global** workflow. Individual per-section reviews combine both passes into a single call for convenience.
-
----
-
-## Proposed Fix (if approved)
-
-If Re-analyse is incorrectly showing stale suggestions, I will:
-
-1. **Clear existing suggestions from Zustand store** at the start of `handleAnalyse` — so stale Pass 2 data is wiped before Pass 1 runs
-2. **No other changes needed** — the button wiring and sequence gating are correct
-
-This is a 1-file change in `useCurationAIActions.ts` (~3 lines added to `handleAnalyse`).
+- All changes follow the uploaded fix document line-by-line
+- `safeJsonParse` is imported in discover, extract, and digest functions
+- `waitForExtraction` already exists and handles polling — the accept hooks just need the reset step added before invocation
+- The `extraction_status` filter in digest generation ensures seed-only content (still "pending") is excluded
+- Total: ~120 lines of meaningful changes across 7 files
 
