@@ -78,6 +78,17 @@ export function useAcceptSuggestion(challengeId: string) {
         })
         .eq('id', attachmentId);
       if (error) throw new Error(error.message);
+      // Gap 2 FIX: Seed baseline summary from relevance_explanation before extraction
+      const { data: sourceRow } = await supabase
+        .from('challenge_attachments')
+        .select('relevance_explanation')
+        .eq('id', attachmentId)
+        .single();
+      if (sourceRow?.relevance_explanation) {
+        await supabase.from('challenge_attachments')
+          .update({ extracted_summary: `[AI Relevance] ${sourceRow.relevance_explanation}` })
+          .eq('id', attachmentId);
+      }
       await supabase.functions.invoke('extract-attachment-text', {
         body: { attachment_id: attachmentId },
       });

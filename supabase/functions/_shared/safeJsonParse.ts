@@ -66,6 +66,12 @@ export function parseSummaryAndKeyData(content: string): {
     summary = raw.length >= 20 ? raw.substring(0, 600) : null;
   }
 
+  // Gap 3 FIX: Fallback for headerless AI output (plain bullets without SUMMARY: header)
+  if (!summary && content.trim().length >= 50) {
+    const textOnly = content.replace(/```[\s\S]*?```/g, '').replace(/\{[\s\S]*\}/g, '').trim();
+    if (textOnly.length >= 50) summary = textOnly.substring(0, 600);
+  }
+
   // Extract KEY_DATA block — try multiple patterns
   const keyDataPatterns = [
     /KEY_DATA:\s*(\{[\s\S]*\})/i,
