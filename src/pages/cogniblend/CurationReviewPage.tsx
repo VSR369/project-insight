@@ -406,6 +406,7 @@ export default function CurationReviewPage() {
           challengeTitle={o.challenge?.title}
           open={o.contextLibraryOpen}
           onOpenChange={o.setContextLibraryOpen}
+          onConfirmReview={o.handleContextLibraryConfirm}
         />
       )}
     </div>
