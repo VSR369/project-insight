@@ -67,7 +67,19 @@ export function DigestPanel({
     setIsEditing(false);
   }, [draft, isDirty, onSave]);
 
-  const handleConfirm = useCallback(() => { setConfirmed(true); onConfirm(); }, [onConfirm]);
+  const canConfirm = hasDigest && acceptedCount > 0;
+
+  const handleConfirm = useCallback(() => {
+    if (acceptedCount === 0) {
+      return; // blocked
+    }
+    if (extractedCount === 0) {
+      // Warn but allow
+      console.warn('Confirming digest with 0 extracted sources');
+    }
+    setConfirmed(true);
+    onConfirm();
+  }, [onConfirm, acceptedCount, extractedCount]);
 
   return (
     <div className="flex flex-col h-full">
@@ -195,7 +207,8 @@ export function DigestPanel({
             </p>
             <Button size="sm" variant={confirmed ? 'outline' : 'default'}
               className={cn('h-8 text-xs shrink-0', confirmed && 'text-emerald-600 border-emerald-300')}
-              onClick={handleConfirm} disabled={confirmed || !hasDigest}>
+              onClick={handleConfirm} disabled={confirmed || !canConfirm}
+              title={!canConfirm ? (acceptedCount === 0 ? 'Accept at least one source first' : 'Generate digest first') : undefined}>
               <CheckCircle2 className="h-3 w-3 mr-1" />{confirmed ? 'Confirmed' : 'Confirm & Close'}
             </Button>
           </>

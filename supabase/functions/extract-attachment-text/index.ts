@@ -1,15 +1,17 @@
 /**
  * extract-attachment-text — Extracts text content from uploaded challenge attachments and URLs.
- * Supports: PDF (text decode), images (Gemini Vision), URLs (HTML strip + meta fallback).
+ * Supports: PDF (AI vision), DOCX (XML parse), images (Gemini Vision), URLs (HTML strip + meta fallback).
  * Tier 2: Always runs AI summarization — context-aware for sparse/meta-only content.
  *
- * D4 FIX: Uses parseSummaryAndKeyData for robust Tier 2 parsing with fallback summary.
+ * V2 FIX: PDF uses AI vision instead of TextDecoder. DOCX parses XML from ZIP.
+ * V2 FIX: Surfaces 402/429 errors with specific codes.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithFallback, getAIModelConfig } from "../_shared/aiModelConfig.ts";
 import { parseSummaryAndKeyData } from "../_shared/safeJsonParse.ts";
+import { JSZip } from "https://esm.sh/jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +39,124 @@ function extractMetaTags(rawHtml: string): {
   const h1Tags = h1Matches.map(m => m.replace(/<[^>]+>/g, '').trim()).filter(Boolean).slice(0, 3);
   const pageTitle = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? '';
   return { ogTitle, ogDesc, metaDesc, h1Tags, pageTitle };
+}
+
+/** Extract text from DOCX ZIP by parsing word/document.xml */
+async function extractDocxText(buffer: ArrayBuffer): Promise<string> {
+  try {
+    const zip = new JSZip();
+    await zip.loadAsync(buffer);
+    const docXml = await zip.file("word/document.xml")?.async("text");
+    if (!docXml) return "";
+    // Strip XML tags, keep text content
+    const text = docXml
+      .replace(/<w:p[^>]*>/gi, "\n") // paragraph breaks
+      .replace(/<w:tab[^/]*\/>/gi, "\t") // tabs
+      .replace(/<w:br[^/]*\/>/gi, "\n") // breaks
+      .replace(/<[^>]+>/g, "") // all other tags
+      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&apos;/g, "'").replace(/&quot;/g, '"')
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    return text.substring(0, 50000);
+  } catch (e) {
+    console.error("DOCX parse error:", e);
+    return "";
+  }
+}
+
+/** Extract text from XLSX ZIP by parsing shared strings + sheet XML */
+async function extractXlsxText(buffer: ArrayBuffer): Promise<string> {
+  try {
+    const zip = new JSZip();
+    await zip.loadAsync(buffer);
+    // Try shared strings first
+    const ssXml = await zip.file("xl/sharedStrings.xml")?.async("text");
+    const lines: string[] = [];
+    if (ssXml) {
+      const matches = ssXml.match(/<t[^>]*>([^<]+)<\/t>/gi) ?? [];
+      for (const m of matches) {
+        const val = m.replace(/<[^>]+>/g, "").trim();
+        if (val) lines.push(val);
+      }
+    }
+    // Also try sheet1 for inline values
+    const sheetXml = await zip.file("xl/worksheets/sheet1.xml")?.async("text");
+    if (sheetXml) {
+      const cellValues = sheetXml.match(/<v>([^<]+)<\/v>/gi) ?? [];
+      for (const m of cellValues) {
+        const val = m.replace(/<[^>]+>/g, "").trim();
+        if (val && !lines.includes(val)) lines.push(val);
+      }
+    }
+    return lines.join(" | ").substring(0, 50000);
+  } catch (e) {
+    console.error("XLSX parse error:", e);
+    return "";
+  }
+}
+
+/** Use AI vision to read PDF pages as images (base64) */
+async function extractPdfViaVision(
+  buffer: ArrayBuffer,
+  apiKey: string,
+  fileName: string,
+): Promise<{ text: string; method: string }> {
+  // Convert entire PDF buffer to base64 for vision model
+  const uint8 = new Uint8Array(buffer);
+  const base64 = btoa(String.fromCharCode(...uint8));
+
+  try {
+    const resp = await callAIWithFallback(apiKey, {
+      max_tokens: 4000,
+      temperature: 0.1,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: `data:application/pdf;base64,${base64}` },
+          },
+          {
+            type: "text",
+            text: `Extract ALL text content from this PDF document "${fileName}". Include headings, paragraphs, tables, bullet points, and any data. Preserve structure with line breaks. Return ONLY the extracted text, no commentary.`,
+          },
+        ],
+      }],
+    });
+
+    if (resp.status === 402) {
+      return { text: `[AI credits exhausted — PDF cannot be processed. File: ${fileName}]`, method: "pdf_credits_exhausted" };
+    }
+    if (resp.status === 429) {
+      return { text: `[Rate limited — PDF processing delayed. File: ${fileName}]`, method: "pdf_rate_limited" };
+    }
+    if (!resp.ok) {
+      // Fallback to TextDecoder for non-AI errors
+      return extractPdfTextDecoder(buffer, fileName);
+    }
+
+    const result = await resp.json();
+    const content = result.choices?.[0]?.message?.content || "";
+    if (content && content.length > 50) {
+      return { text: content.substring(0, 50000), method: "pdf_ai_vision" };
+    }
+    // AI returned empty — fallback
+    return extractPdfTextDecoder(buffer, fileName);
+  } catch {
+    return extractPdfTextDecoder(buffer, fileName);
+  }
+}
+
+/** Legacy TextDecoder fallback for PDFs when AI vision unavailable */
+function extractPdfTextDecoder(buffer: ArrayBuffer, fileName: string): { text: string; method: string } {
+  const rawText = new TextDecoder().decode(new Uint8Array(buffer));
+  const cleaned = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s+/g, " ").trim().substring(0, 50000);
+  const printableRatio = cleaned.replace(/\s/g, '').length / Math.max(cleaned.length, 1);
+  if (printableRatio < 0.2 || cleaned.length < 50) {
+    return { text: `[PDF content could not be extracted. File: ${fileName || 'unnamed'}.]`, method: "pdf_binary_fallback" };
+  }
+  return { text: cleaned, method: "pdf_text_legacy" };
 }
 
 serve(async (req) => {
@@ -77,6 +197,8 @@ serve(async (req) => {
     let extractedText = "";
     let method = "unknown";
 
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
     if (att.source_type === "url" && att.source_url) {
       try {
         const urlResp = await fetch(att.source_url, {
@@ -90,40 +212,46 @@ serve(async (req) => {
         const meta = extractMetaTags(rawText);
 
         if (contentType.includes("application/pdf")) {
-          try {
-            const pdfResp = await fetch(att.source_url, {
-              headers: { "User-Agent": "CogniBlend-Curator/1.0" },
-              redirect: "follow",
-              signal: AbortSignal.timeout(20000),
-            });
-            const pdfBuffer = await pdfResp.arrayBuffer();
-            const pdfRaw = new TextDecoder().decode(new Uint8Array(pdfBuffer));
-            const cleaned = pdfRaw
-              .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-              .replace(/\s+/g, " ")
-              .trim()
-              .substring(0, 50000);
-            const printableRatio = cleaned.replace(/\s/g, "").length / Math.max(cleaned.length, 1);
-
-            if (printableRatio > 0.2 && cleaned.length > 100) {
-              extractedText = cleaned;
-              method = "url_pdf_text";
-            } else {
+          // URL PDF — re-fetch as binary and use AI vision
+          if (LOVABLE_API_KEY) {
+            try {
+              const pdfResp = await fetch(att.source_url, {
+                headers: { "User-Agent": "CogniBlend-Curator/1.0" },
+                redirect: "follow",
+                signal: AbortSignal.timeout(20000),
+              });
+              const pdfBuffer = await pdfResp.arrayBuffer();
+              const result = await extractPdfViaVision(pdfBuffer, LOVABLE_API_KEY, att.file_name || att.source_url);
+              extractedText = result.text;
+              method = result.method;
+            } catch {
               extractedText = [
-                meta.ogTitle ? `Title: ${meta.ogTitle}` : (meta.pageTitle ? `Title: ${meta.pageTitle}` : ""),
-                meta.ogDesc ? `Description: ${meta.ogDesc}` : "",
+                meta.ogTitle ? `Title: ${meta.ogTitle}` : "",
                 `URL: ${att.source_url}`,
-                `Note: PDF document — binary content, text could not be decoded`,
+                `Note: PDF URL — download failed`,
               ].filter(Boolean).join("\n");
-              method = "url_pdf_binary";
+              method = "url_pdf_failed";
             }
-          } catch {
-            extractedText = [
-              meta.ogTitle ? `Title: ${meta.ogTitle}` : "",
-              `URL: ${att.source_url}`,
-              `Note: PDF URL — download failed`,
-            ].filter(Boolean).join("\n");
-            method = "url_pdf_failed";
+          } else {
+            // No API key — TextDecoder fallback for URL PDFs
+            try {
+              const pdfResp = await fetch(att.source_url, {
+                headers: { "User-Agent": "CogniBlend-Curator/1.0" },
+                redirect: "follow",
+                signal: AbortSignal.timeout(20000),
+              });
+              const pdfBuffer = await pdfResp.arrayBuffer();
+              const result = extractPdfTextDecoder(pdfBuffer, att.file_name || "url_pdf");
+              extractedText = result.text;
+              method = result.method;
+            } catch {
+              extractedText = [
+                meta.ogTitle ? `Title: ${meta.ogTitle}` : "",
+                `URL: ${att.source_url}`,
+                `Note: PDF URL — download failed`,
+              ].filter(Boolean).join("\n");
+              method = "url_pdf_failed";
+            }
           }
         } else {
           extractedText = rawText
@@ -189,51 +317,47 @@ serve(async (req) => {
       const buffer = await fileData.arrayBuffer();
 
       if (att.mime_type === "application/pdf") {
-        const textDecoder = new TextDecoder();
-        const rawText = textDecoder.decode(buffer);
-        const cleaned = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s+/g, " ").trim().substring(0, 50000);
-        const printableRatio = cleaned.replace(/\s/g, '').length / Math.max(cleaned.length, 1);
-        if (printableRatio < 0.2 || cleaned.length < 50) {
-          extractedText = `[PDF content could not be extracted. File: ${att.file_name || 'unnamed'}.]`;
-          method = "pdf_binary_fallback";
+        // V2: Use AI vision for PDFs
+        if (LOVABLE_API_KEY) {
+          const result = await extractPdfViaVision(buffer, LOVABLE_API_KEY, att.file_name || "document.pdf");
+          extractedText = result.text;
+          method = result.method;
         } else {
-          extractedText = cleaned;
-          method = "pdf_text";
+          const result = extractPdfTextDecoder(buffer, att.file_name || "document.pdf");
+          extractedText = result.text;
+          method = result.method;
         }
       } else if (att.mime_type?.includes("spreadsheet") || att.mime_type?.includes("excel") || att.mime_type?.includes("csv")) {
-        const textDecoder = new TextDecoder();
-        const raw = textDecoder.decode(buffer);
         if (att.mime_type?.includes("csv") || att.file_name?.endsWith('.csv')) {
-          extractedText = raw.substring(0, 50000);
+          extractedText = new TextDecoder().decode(new Uint8Array(buffer)).substring(0, 50000);
           method = "csv_text";
         } else {
-          const printableRatio = raw.replace(/[^\x20-\x7E]/g, '').length / Math.max(raw.length, 1);
-          if (printableRatio < 0.3) {
+          // V2: Parse XLSX ZIP structure
+          const xlsxText = await extractXlsxText(buffer);
+          if (xlsxText && xlsxText.length > 20) {
+            extractedText = xlsxText;
+            method = "xlsx_xml_parsed";
+          } else {
             extractedText = `[Excel file could not be extracted. File: ${att.file_name || 'unnamed'}.]`;
             method = "xlsx_binary_fallback";
-          } else {
-            extractedText = raw.substring(0, 50000);
-            method = "tabular_text";
           }
         }
       } else if (att.mime_type?.includes("wordprocessing") || att.mime_type?.includes("document") || att.mime_type === "text/plain") {
-        const textDecoder = new TextDecoder();
-        const raw = textDecoder.decode(buffer);
         if (att.mime_type === "text/plain") {
-          extractedText = raw.substring(0, 50000);
+          extractedText = new TextDecoder().decode(new Uint8Array(buffer)).substring(0, 50000);
           method = "plain_text";
         } else {
-          const printableRatio = raw.replace(/[^\x20-\x7E]/g, '').length / Math.max(raw.length, 1);
-          if (printableRatio < 0.3) {
+          // V2: Parse DOCX ZIP structure
+          const docxText = await extractDocxText(buffer);
+          if (docxText && docxText.length > 20) {
+            extractedText = docxText;
+            method = "docx_xml_parsed";
+          } else {
             extractedText = `[Word document could not be extracted. File: ${att.file_name || 'unnamed'}.]`;
             method = "docx_binary_fallback";
-          } else {
-            extractedText = raw.substring(0, 50000);
-            method = "docx_text";
           }
         }
       } else if (att.mime_type?.startsWith("image/")) {
-        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
         if (!LOVABLE_API_KEY) {
           extractedText = "[Image description unavailable — no API key configured]";
           method = "image_skipped";
@@ -250,9 +374,17 @@ serve(async (req) => {
                 ],
               }],
             });
-            const result = await resp.json();
-            extractedText = result.choices?.[0]?.message?.content || "[Image description failed]";
-            method = "image_description";
+            if (resp.status === 402) {
+              extractedText = "[AI credits exhausted — image cannot be processed]";
+              method = "image_credits_exhausted";
+            } else if (resp.status === 429) {
+              extractedText = "[Rate limited — image processing delayed]";
+              method = "image_rate_limited";
+            } else {
+              const result = await resp.json();
+              extractedText = result.choices?.[0]?.message?.content || "[Image description failed]";
+              method = "image_description";
+            }
           } catch (imgErr: unknown) {
             const msg = imgErr instanceof Error ? imgErr.message : String(imgErr);
             extractedText = `[Image extraction failed: ${msg}]`;
@@ -265,9 +397,10 @@ serve(async (req) => {
       }
     }
 
-    // D4 FIX: Determine extraction quality — placeholder-only = "partial", not "completed"
+    // Determine extraction quality
     const isPlaceholder = PLACEHOLDER_METHODS.has(method) || extractedText.startsWith('[');
-    const extractionStatus = isPlaceholder ? "partial" : "completed";
+    const isCreditError = method.includes("credits_exhausted") || method.includes("rate_limited");
+    const extractionStatus = isCreditError ? "failed" : (isPlaceholder ? "partial" : "completed");
 
     // Save extracted text
     const updatePayload: Record<string, unknown> = {
@@ -277,9 +410,15 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // ── TIER 2: Always run AI Summarization ──
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (LOVABLE_API_KEY) {
+    // Set specific extraction error for credit/rate issues
+    if (isCreditError) {
+      updatePayload.extraction_error = method.includes("credits_exhausted")
+        ? "AI_CREDITS_EXHAUSTED"
+        : "AI_RATE_LIMITED";
+    }
+
+    // ── TIER 2: Always run AI Summarization (skip if credits exhausted) ──
+    if (LOVABLE_API_KEY && !isCreditError) {
       try {
         const isSparseOrFailed = ["url_meta_only", "url_html_sparse", "url_error",
           "url_pdf_binary", "url_pdf_failed", "pdf_binary_fallback"].includes(method);
@@ -325,11 +464,15 @@ KEY_DATA:
           messages: [{ role: "user", content: tier2Prompt }],
         }, aiConfig.fallbackModel);
 
-        if (tier2Resp.ok) {
+        if (tier2Resp.status === 402) {
+          updatePayload.extraction_error = "AI_CREDITS_EXHAUSTED";
+          console.warn("Tier 2 summarization skipped — AI credits exhausted");
+        } else if (tier2Resp.status === 429) {
+          updatePayload.extraction_error = "AI_RATE_LIMITED";
+          console.warn("Tier 2 summarization skipped — rate limited");
+        } else if (tier2Resp.ok) {
           const tier2Result = await tier2Resp.json();
           const tier2Content = tier2Result.choices?.[0]?.message?.content || "";
-
-          // D4 FIX: Use robust parser instead of brittle regex
           const { summary, keyData } = parseSummaryAndKeyData(tier2Content);
           if (summary) updatePayload.extracted_summary = summary;
           if (keyData) updatePayload.extracted_key_data = keyData;
@@ -339,7 +482,7 @@ KEY_DATA:
       }
     }
 
-    // D4 FIX: Fallback summary from extracted text when AI parsing fails
+    // Fallback summary from extracted text when AI parsing fails
     if (!updatePayload.extracted_summary && extractedText.length >= 100 && !isPlaceholder) {
       const cleanText = extractedText.replace(/\s+/g, ' ').trim();
       updatePayload.extracted_summary = cleanText.substring(0, 300) + (cleanText.length > 300 ? '...' : '');
@@ -347,8 +490,18 @@ KEY_DATA:
 
     await adminClient.from("challenge_attachments").update(updatePayload).eq("id", attachment_id);
 
+    // Return specific error codes so frontend can show targeted messages
+    const responseData: Record<string, unknown> = {
+      method, length: extractedText.length,
+      hasSummary: !!updatePayload.extracted_summary,
+      extraction_status: extractionStatus,
+    };
+    if (isCreditError) {
+      responseData.error_code = method.includes("credits_exhausted") ? "AI_CREDITS_EXHAUSTED" : "AI_RATE_LIMITED";
+    }
+
     return new Response(
-      JSON.stringify({ success: true, data: { method, length: extractedText.length, hasSummary: !!updatePayload.extracted_summary, extraction_status: extractionStatus } }),
+      JSON.stringify({ success: true, data: responseData }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
