@@ -10,6 +10,7 @@ import { Sparkles, Check, X, ExternalLink, Lock, AlertTriangle } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { SECTION_LABELS, displayName, type ContextSource } from './types';
 import { ContentIndicators } from './ContentIndicators';
+import { ConfidenceBadge } from './ConfidenceBadge';
 
 interface SuggestionCardProps {
   source: ContextSource;
@@ -23,21 +24,6 @@ interface SuggestionCardProps {
   isRejectPending?: boolean;
 }
 
-function ConfidenceBadge({ score }: { score: number | null }) {
-  if (score == null) return null;
-  const pct = Math.round(score * 100);
-  const color =
-    pct >= 85
-      ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-      : pct >= 70
-        ? 'text-amber-600 bg-amber-50 border-amber-200'
-        : 'text-muted-foreground bg-muted border-border';
-  return (
-    <Badge variant="outline" className={cn('text-[10px] px-1 h-4 font-medium', color)}>
-      {pct}%
-    </Badge>
-  );
-}
 
 function AccessBadge({ status }: { status: string | null | undefined }) {
   if (status === 'paywall') {
