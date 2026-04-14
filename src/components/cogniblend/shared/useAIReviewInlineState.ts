@@ -82,6 +82,14 @@ export function useAIReviewInlineState(params: UseAIReviewInlineStateParams) {
     if (defaultOpen && !isAddressed) setIsOpen(true);
   }, [defaultOpen, isAddressed]);
 
+  // Sync isAddressed from external state changes (e.g., bulk accept)
+  useEffect(() => {
+    if (review?.addressed === true && !isAddressed) {
+      setIsAddressed(true);
+      setIsOpen(false);
+    }
+  }, [review?.addressed]);
+
   useEffect(() => {
     if (initialRefinedContent != null) {
       setRefinedContent(initialRefinedContent);
