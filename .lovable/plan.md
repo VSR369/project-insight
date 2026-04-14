@@ -1,153 +1,127 @@
-<final-text>Diagnosis
 
-I went through the actual code path. The module is not “just cached in localStorage,” but it is behaving stale because several state and backend rules are fighting each other.
 
-What is actually wrong
+# Verification Report: 7 Defects — What's Fixed, What's Not
 
-1. Digest is DB-backed, but it looks cached
-- `useContextDigest()` reads from `challenge_context_digest`, not localStorage.
-- The stale feeling comes from old digest rows remaining in DB and React Query cache during re-analyse.
-- `handleAnalyse()` resets some UI flags, but it does not clear or stale-mark the existing digest row.
+## Summary: 4 of 7 items are genuinely fixed. 3 remain partially or fully broken.
 
-2. Context Library review gating is logically broken
-- In `useCurationPageOrchestrator.ts`, closing the drawer marks `contextLibraryReviewed = true` even if the curator did not really review/confirm anything.
-- A second effect auto-unlocks review whenever `pass1DoneSession` is true, including hydrated old analysis.
-- This is why Generate can appear enabled from previous state.
+---
 
-3. “Confirm & Close” does not do what the label implies
-- In `ContextLibraryDrawer.tsx`, `onConfirm={handleClose}`.
-- In `DigestPanel.tsx`, the confirm button only closes the drawer.
-- It does not explicitly mark digest as confirmed in backend, does not validate freshness, and does not trigger Pass 2.
+## 1. Digest looks cached (stale during re-analyse)
 
-4. Auto-select is fragile by design
-- In `discover-context-resources/index.ts`, auto-accept only happens if:
-  - score >= `0.85`
-  - and `HEAD` accessibility check returns accessible
-- Many sites return `403` to `HEAD` even when `GET` works, so relevant sources never auto-accept.
-- The “forbidden/paywalled” enforcement is only a small hardcoded list, not a robust exclusion system.
+**Status: FIXED**
 
-5. Extraction is the biggest backend weakness
-- `extract-attachment-text/index.ts` is decoding PDF/DOCX/XLSX binaries with `TextDecoder`, which is not reliable parsing.
-- JS-heavy URLs fall back to metadata-only.
-- This directly explains missing summary, full text, and key data for many accepted URLs/PDFs.
+`handleAnalyse` (line 177) now invalidates `context-digest`, `context-sources`, `context-source-count`, `context-pending-count` queries. React Query cache is cleared. The old digest row still exists in DB (not deleted), but the UI will refetch it, so the "stale feeling" is resolved.
 
-6. Curator de-select exists, but UX is too weak
-- Accepted items can be moved back only through a small hover `X` in `SourceList`.
-- `SourceDetail` does not expose a clear “Move back to suggested / Reject” action for accepted items.
-- So the capability exists, but it is effectively hidden.
+However: the old digest row is NOT deleted or marked stale in the database. If no new digest is generated before the user sees the drawer, they see the old one. This is a minor gap — the provenance bar (DigestPanel line 99-117) now shows when it was generated, so it is at least transparent.
 
-7. AI credit exhaustion is not clearly surfaced
-- `generate-context-digest` handles `402` explicitly.
-- Discovery and extraction do not clearly surface credit exhaustion the same way.
-- So yes, exhausted credits are possible, but the current UX would hide that behind generic failure/no-result behavior.
+## 2. Context Library review gating
 
-Implementation plan
+**Status: FIXED**
 
-1. Replace session-based gating with a DB-backed workflow
-- Use the existing `context_intake_status` field as the source of truth.
-- States:
-  - `not_started`
-  - `analysed`
-  - `reviewing`
-  - `confirmed`
-  - `generating`
-  - `generated`
-- Stop using drawer close / hydrated pass1 state as proof of review.
+- Drawer close no longer auto-sets `contextLibraryReviewed = true`. The old auto-unlock effect was removed.
+- `contextLibraryReviewed` is only set via `handleContextLibraryConfirm` (orchestrator line 256-261), which is wired through `onConfirmReview` on ContextLibraryDrawer → DigestPanel "Confirm & Close" button.
+- `handleAnalyse` resets it to `false` (line 172) and clears sessionStorage (line 174).
+- Hydration in `useCurationEffects` uses `hydrationDoneRef` guard — won't re-trigger on refetch.
 
-2. Fix re-analyse so it truly starts fresh
-- On Analyse:
-  - reset pass-1 UI state
-  - reset generate completion state
-  - clear stale AI reviews
-  - clear Context Library reviewed/confirmed state
-  - invalidate digest/source queries
-  - mark existing digest stale or remove it
-- Preserve manual sources, but invalidate all AI-discovered context from the previous run unless explicitly retained.
+## 3. "Confirm & Close" does what it says
 
-3. Make Confirm & Close the real handoff step
-- Change `Confirm & Close` from “close dialog only” to:
-  - validate accepted/extracted source set
-  - regenerate digest if stale
-  - persist `context_intake_status = confirmed`
-  - then either:
-    - enable Generate Suggestions, or
-    - directly trigger Pass 2 (matching your requested behavior)
-- If automatic Pass 2 is desired, this becomes a true chained workflow.
+**Status: PARTIALLY FIXED**
 
-4. Fix auto-accept and forbidden-site handling
-- Replace `HEAD`-only accessibility check with:
-  - `HEAD`
-  - then fallback `GET` when `403/405` occurs
-- Add a real forbidden-domain exclusion layer before scoring/inserting.
-- Record exact access reason per URL: `forbidden`, `paywall`, `head_403_get_ok`, `blocked`, `failed`.
+What works:
+- Clicking "Confirm & Close" calls `onConfirmReview` → `handleContextLibraryConfirm` → sets `contextLibraryReviewed = true` → enables "Generate Suggestions" button.
+- Then closes the drawer.
 
-5. Rebuild extraction reliability
-- URLs:
-  - use rendered extraction for JS-heavy pages
-  - keep metadata-only as last fallback, not normal success
-- PDFs:
-  - use proper PDF text extraction
-  - OCR fallback for scanned PDFs
-- DOCX/XLSX:
-  - use real parsers instead of binary decode
-- Keep `extraction_status` honest: `completed`, `partial`, `failed` with visible reason.
+What's still missing (from the plan):
+- Does NOT validate accepted/extracted source set (no check for "do you have at least 1 accepted source?")
+- Does NOT regenerate digest if stale
+- Does NOT persist `context_intake_status = confirmed` to DB
+- Does NOT trigger Pass 2 automatically
 
-6. Make digest provenance explicit
-- Show:
-  - how many accepted sources were used
-  - how many had real extracted content
-  - when the digest was generated
-  - whether it is stale
-- Add visible source chips/list behind the digest so the curator knows its basis.
-- Mark digest stale whenever accepted sources change or re-analyse runs.
+The plan said to make this "the real handoff step" with DB-backed state machine (`not_started → analysed → reviewing → confirmed → generating → generated`). **None of the DB-backed workflow states were implemented.** It's still session-only gating.
 
-7. Improve curator controls
-- Add explicit accepted-source actions in `SourceDetail`:
-  - Move back to Suggested
-  - Reject
-  - Re-extract
-- Keep list controls, but do not rely on hover-only affordances.
+## 4. Auto-accept and forbidden-site handling
 
-8. Add diagnostics so failures are explainable
-- Surface separate error states for:
-  - AI credits exhausted (`402`)
-  - rate limits (`429`)
-  - blocked URL / `403`
-  - parser failure
-  - no extractable content
-- Add richer toast + inline status messages from discovery, extraction, and digest generation.
+**Status: FIXED**
 
-Files to update
+- `checkAccessibility()` (discover-context-resources line 112-146) now does HEAD first, then falls back to GET on 403/405/406.
+- Paywall domain list exists (line 30-34).
+- Auto-accept threshold is 0.85 with accessible check (line 480-482).
+- `access_status` is recorded per URL (line 513).
 
-Frontend
-- `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
-- `src/hooks/cogniblend/useCurationAIActions.ts`
-- `src/components/cogniblend/curation/ContextLibraryDrawer.tsx`
-- `src/components/cogniblend/curation/context-library/DigestPanel.tsx`
-- `src/components/cogniblend/curation/context-library/SourceDetail.tsx`
-- `src/components/cogniblend/curation/context-library/SourceList.tsx`
-- `src/hooks/cogniblend/useContextLibraryMutations.ts`
-- `src/hooks/cogniblend/useContextLibraryQueries.ts`
+Missing from plan: no `head_403_get_ok` access reason recorded — it just returns `accessible` on GET success. Minor.
 
-Edge functions
-- `supabase/functions/discover-context-resources/index.ts`
-- `supabase/functions/extract-attachment-text/index.ts`
-- `supabase/functions/generate-context-digest/index.ts`
+## 5. Extraction reliability (PDF/DOCX/XLSX)
 
-Lovable-aligned technical approach
+**Status: NOT FIXED — Still uses TextDecoder**
 
-- Reuse existing query/mutation hooks instead of adding component-level Supabase calls.
-- Reuse the existing `useIntakeStatus()` path instead of session-only gating.
-- Keep changes split across hooks/components/functions to stay within the project’s R1/R2 structure.
-- Preserve the current two-pass architecture, but make the handoff explicit and deterministic.
+`extract-attachment-text/index.ts`:
+- PDF file extraction (line 192-202): still `new TextDecoder().decode(buffer)` → regex strip non-printable → printable ratio check. This is NOT real PDF parsing. Most PDFs will fail.
+- DOCX (line 219-234): same `TextDecoder` approach. DOCX is a ZIP of XML files — `TextDecoder` will produce garbage.
+- XLSX (line 203-218): same pattern.
+- URL PDFs (line 92-127): same `TextDecoder` approach.
 
-Expected result
+The plan explicitly called for "real PDF text extraction", "real parsers instead of binary decode", and "OCR fallback for scanned PDFs". **None of these were implemented.** This is the biggest remaining gap — it directly explains missing summary/text/key data for most file-based sources.
 
-After this fix set:
-- Re-analyse will truly reset stale context state
-- Auto-accept will work for genuinely reachable sources
-- Forbidden sites will be excluded before they pollute the library
-- Curators will be able to clearly unaccept/deselect sources
-- Digest basis will be transparent
-- Confirm & Close will become the real bridge into Pass 2
-- AI credit exhaustion and extraction failures will be visible instead of mysterious</final-text>
+Note: The Deno edge function runtime limits available libraries. A proper fix would use pdf-parse, mammoth.js, or external API calls.
+
+## 6. Curator de-select UX
+
+**Status: FIXED**
+
+- `SourceDetail` (line 150-154) now has explicit "Move to Suggested" button with `Undo2` icon for accepted sources.
+- `SourceDetail` also has Re-extract button (line 155-157).
+- `SourceList` still has the inline unaccept via `onUnaccept` prop.
+- Both accept/reject/unaccept are wired through the drawer.
+
+## 7. AI credit exhaustion surfacing
+
+**Status: NOT FIXED**
+
+- `generate-context-digest` handles 402 (confirmed from prior analysis).
+- `discover-context-resources` does NOT check for 402 from AI calls. Lines 285-298 (query generation) and 443-466 (scoring) catch errors generically — no specific 402/429 handling or user-facing message.
+- `extract-attachment-text` does NOT surface 402/429 from AI summarization calls (line 337-339: just `console.error`).
+- No toast or inline error message for credit exhaustion anywhere in discovery or extraction.
+
+---
+
+## Remaining Work (3 items)
+
+### Item A: DB-backed workflow state machine (NOT started)
+The plan called for using `context_intake_status` with states `not_started/analysed/reviewing/confirmed/generating/generated`. Currently still using sessionStorage + useState. This is a design-level gap.
+
+**Recommendation:** Skip for now — the session-based gating works correctly after the fixes. DB-backed states are an upgrade, not a bug fix.
+
+### Item B: Real PDF/DOCX/XLSX extraction (NOT started)
+This is the biggest functional gap. Options for Deno edge functions:
+1. Use `pdf-parse` via esm.sh import (may work in Deno)
+2. Call an external extraction API
+3. Use Gemini/GPT-4 vision to "read" PDF pages as images
+4. Accept the limitation and mark binary files as `partial` (already done via `PLACEHOLDER_METHODS`)
+
+**Recommendation:** Use AI vision for PDFs (already works for images at line 236-261) — send PDF pages as base64 images to the AI. For DOCX, parse the XML inside the ZIP.
+
+### Item C: Credit exhaustion diagnostics (NOT started)
+Add 402/429 detection in discover and extract functions, surface via toast.
+
+**Recommendation:** Quick fix — check response status codes from AI calls, return specific error codes, and handle them in the frontend mutation `onError`.
+
+---
+
+## Implementation Plan (if approved)
+
+### File 1: `supabase/functions/extract-attachment-text/index.ts`
+- For PDF files: use AI vision (send base64 of first ~5 pages as images) instead of TextDecoder
+- For DOCX: attempt to extract XML content from the ZIP structure using Deno's built-in capabilities
+- Add 402/429 detection on AI calls → set `extraction_error` with specific message
+
+### File 2: `supabase/functions/discover-context-resources/index.ts`
+- Add 402/429 checks on `callAIWithFallback` responses (lines 285, 443)
+- Return specific error codes (`AI_CREDITS_EXHAUSTED`, `AI_RATE_LIMITED`)
+
+### File 3: `src/hooks/cogniblend/useContextLibraryMutations.ts`
+- In discover mutation `onError`: parse error code, show specific toast for credit exhaustion vs rate limit
+- In re-extract mutation: same pattern
+
+### File 4: `src/components/cogniblend/curation/context-library/DigestPanel.tsx`
+- Add minimum source validation before allowing "Confirm & Close" (warn if 0 accepted sources or 0 extracted)
+
