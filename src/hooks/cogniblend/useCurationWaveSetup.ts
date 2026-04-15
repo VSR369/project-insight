@@ -49,7 +49,7 @@ export function useCurationWaveSetup({
     return {
       challengeId: challengeId!,
       challengeTitle: challenge?.title ?? '',
-      solutionType: (challenge?.solution_type as unknown as string) ?? null,
+      solutionType: (challenge?.solution_type as BuildChallengeContextOptions['solutionType']) ?? null,
       solutionTypes: Array.isArray(challenge?.solution_types) ? (challenge.solution_types as string[]) : [],
       seekerSegment: org?.industry_segments?.name ?? null,
       organizationTypeId: org?.organization_type_id ?? null,
