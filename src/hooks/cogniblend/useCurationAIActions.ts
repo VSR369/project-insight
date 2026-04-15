@@ -245,8 +245,7 @@ export function useCurationAIActions({
         body: { challenge_id: challengeId },
       });
       if (error) {
-        let msg = error.message;
-        try { msg = (error as Record<string, Record<string, () => Promise<Record<string, string>>>>)?.context?.json?.()?.then?.((b: Record<string, string>) => b?.error?.message) as unknown as string ?? msg; } catch { /* ignore */ }
+        const msg = error.message ?? 'Unknown error';
         throw new Error(msg);
       }
       if (data?.success && data?.data) {
