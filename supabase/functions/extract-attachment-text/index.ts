@@ -11,7 +11,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithFallback, getAIModelConfig } from "../_shared/aiModelConfig.ts";
 import { parseSummaryAndKeyData } from "../_shared/safeJsonParse.ts";
-import { JSZip } from "https://esm.sh/jszip@3.10.1";
+import JSZip from "https://esm.sh/jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
