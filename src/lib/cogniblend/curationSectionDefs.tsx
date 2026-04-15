@@ -791,7 +791,7 @@ export const GROUPS: GroupDef[] = [
     colorDone: "bg-purple-100 text-purple-800 border-purple-300",
     colorActive: "bg-purple-50 border-purple-400",
     colorBorder: "border-purple-200",
-    sectionKeys: [],
+    sectionKeys: ["organization_context"],
     prerequisiteGroups: [],
   },
   {

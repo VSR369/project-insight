@@ -7,10 +7,7 @@ import { EXTENDED_BRIEF_FIELD_MAP, SECTION_FORMAT_CONFIG } from '@/lib/cogniblen
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
 /** Sections that are structurally impossible to bulk-accept */
-const BULK_SKIP_SECTIONS = new Set([
-  'legal_docs',
-  'escrow_funding',
-]);
+const BULK_SKIP_SECTIONS = new Set<string>([]);
 
 export interface BulkAcceptPartition {
   regular: Array<{ key: SectionKey; suggestion: string }>;

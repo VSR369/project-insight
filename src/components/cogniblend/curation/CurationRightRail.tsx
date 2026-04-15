@@ -14,7 +14,6 @@ import ModificationPointsTracker from "@/components/cogniblend/ModificationPoint
 import { CreatorApprovalStatusBanner } from "@/components/cogniblend/curation/CreatorApprovalStatusBanner";
 import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
-import { AnalyseProgressPanel, type AnalyseProgressState } from "@/components/cogniblend/curation/AnalyseProgressPanel";
 import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
@@ -78,7 +77,6 @@ export interface CurationRightRailProps {
   creatorApprovalRequired?: boolean | null;
   communityCreationAllowed?: boolean;
   isAnonymous?: boolean;
-  analyseProgress?: AnalyseProgressState;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -170,12 +168,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
         </Button>
       )}
 
-      {/* Stage-based progress for unified analyse/generate flow */}
-      {props.analyseProgress && props.analyseProgress.phase !== 'idle' ? (
-        <AnalyseProgressPanel progress={props.analyseProgress} />
-      ) : (
-        <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
-      )}
+      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
 
       <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
 

@@ -468,20 +468,13 @@ export function useClearAllSources(challengeId: string) {
   });
 }
 
+/** @deprecated curation-intelligence edge function has been removed in favor of wave-based architecture */
 export function useCurationIntelligence(challengeId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (stages?: string[]) => {
-      const { data, error } = await supabase.functions.invoke('curation-intelligence', {
-        body: { challenge_id: challengeId, stages },
-      });
-      if (error) throw new Error(error.message);
-      return data;
+    mutationFn: async (_stages?: string[]) => {
+      throw new Error('curation-intelligence has been replaced by wave-based review. Use Analyse + Generate Suggestions instead.');
     },
-    onSuccess: () => {
-      invalidateAllContextKeys(qc, challengeId);
-      toast.success('Intelligence pipeline complete');
-    },
-    onError: (err: Error) => toast.error(`Intelligence pipeline failed: ${err.message}`),
+    onError: (err: Error) => toast.error(err.message),
   });
 }

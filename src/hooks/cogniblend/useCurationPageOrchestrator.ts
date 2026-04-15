@@ -4,8 +4,6 @@
  */
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import type { AnalyseProgressState } from '@/components/cogniblend/curation/AnalyseProgressPanel';
-import { IDLE_PROGRESS } from '@/components/cogniblend/curation/AnalyseProgressPanel';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -156,22 +154,20 @@ export function useCurationPageOrchestrator() {
     aiReviews, setAiReviews, setAiSuggestedComplexity, saveSectionMutationRef,
   });
 
-  // ── Analyse progress state ──
-  const [analyseProgress, setAnalyseProgress] = useState<AnalyseProgressState>(IDLE_PROGRESS);
-
   // ── AI actions ──
   const aiActionsHook = useCurationAIActions({
     challengeId, challenge: challenge as Record<string, any> | null, curationStore,
     optimisticIndustrySegId, isWaveRunning: waveSetup.isWaveRunning, aiReviews,
     buildContextOptions: waveSetup.buildContextOptions,
     pass1SetWaveProgress: waveSetup.pass1SetWaveProgress,
+    executeWavesPass1: waveSetup.executeWavesPass1,
+    executeWavesPass2: waveSetup.executeWavesPass2,
     saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading,
     setTriageTotalCount, setBudgetShortfall, setAiQuality, setAiQualityLoading,
     setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
     setPass1DoneSession,
     setGenerateDoneSession: pageData.setGenerateDoneSession,
     setContextLibraryReviewed,
-    setAnalyseProgress,
   });
 
   // ── Bulk accept all AI suggestions ──
@@ -320,7 +316,7 @@ export function useCurationPageOrchestrator() {
   }, [challengeId, setContextLibraryReviewed]);
 
   return {
-    challengeId, navigate, user, analyseProgress,
+    challengeId, navigate, user,
     challenge, isLoading, orgTypeName, legalDocs, legalDetails, escrowRecord, masterData,
     userRoleCodes, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap,
     activeGroup, activeGroupDef, editingSection, setEditingSection, savingSection, setSavingSection,
