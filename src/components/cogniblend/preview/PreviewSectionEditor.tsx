@@ -71,7 +71,7 @@ function EditorByFormat({ format, initialValue, onSave, onCancel, saving }: Edit
     return (
       <div className="space-y-2">
         <RichTextEditor
-          content={normalizeAiContentForEditor(value)}
+          value={normalizeAiContentForEditor(value)}
           onChange={(html) => setValue(html)}
         />
         <ActionButtons onSave={handleSave} onCancel={onCancel} saving={saving} />
