@@ -14,6 +14,7 @@ interface PreviewSectionProps {
   isLocked: boolean;
   isEditing: boolean;
   onStartEdit: () => void;
+  onCancelEdit?: () => void;
   children: ReactNode;
   editContent?: ReactNode;
 }
@@ -26,6 +27,7 @@ export function PreviewSection({
   isLocked,
   isEditing,
   onStartEdit,
+  onCancelEdit,
   children,
   editContent,
 }: PreviewSectionProps) {
