@@ -5,6 +5,7 @@
  * Extracted from CurationReviewPage.tsx (Phase D3.3).
  */
 
+import { useNavigate } from 'react-router-dom';
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   Eye,
   HelpCircle,
+  FileText,
 } from "lucide-react";
 import { GovernanceModeSwitcher } from "@/components/cogniblend/curation/GovernanceModeSwitcher";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
