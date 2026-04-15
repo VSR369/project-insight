@@ -83,6 +83,8 @@ export interface CurationRightRailProps {
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+
   const {
     challengeId, challengeCurrencyCode, phaseStatus, operatingModel, isReadOnly,
     aiQuality, aiQualityLoading, onAIQualityAnalysis,
@@ -147,12 +149,19 @@ export function CurationRightRail(props: CurationRightRailProps) {
           variant="outline"
           size="sm"
           className="flex-1"
-          onClick={() => window.open(`/cogni/curation/${challengeId}/diagnostics`, '_blank')}
+          onClick={() => setDiagnosticsOpen(true)}
         >
           <Activity className="h-4 w-4 mr-1.5" />
           Diagnostics
         </Button>
       </div>
+
+      <DiagnosticsSheet
+        open={diagnosticsOpen}
+        onOpenChange={setDiagnosticsOpen}
+        challengeId={challengeId}
+        sections={diagSections}
+      />
       {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
         <div className="space-y-2">
