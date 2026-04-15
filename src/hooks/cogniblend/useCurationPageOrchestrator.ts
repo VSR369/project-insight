@@ -114,12 +114,22 @@ export function useCurationPageOrchestrator() {
   }, [curationStore]);
 
   // ── Save mutation ──
+  // Ref tracks whether a wave is running so onSuccess can skip invalidation
+  const waveRunningRef = useRef(false);
+
   const saveSectionMutation = useMutation({
     mutationFn: async ({ field, value }: { field: string; value: any }) => {
       const { error } = await supabase.from('challenges').update({ [field]: value, updated_by: user?.id ?? null } as any).eq('id', challengeId!);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] }); setSavingSection(false); },
+    onSuccess: () => {
+      // During wave execution, skip invalidation to prevent page unmount.
+      // A single invalidation fires in the wave onAllComplete callback.
+      if (!waveRunningRef.current) {
+        queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      }
+      setSavingSection(false);
+    },
     onError: (error: Error) => { toast.error(`Failed to save: ${error.message}`); setSavingSection(false); },
   });
 
@@ -153,6 +163,15 @@ export function useCurationPageOrchestrator() {
     challengeId, challenge: challenge as Record<string, any> | null,
     aiReviews, setAiReviews, setAiSuggestedComplexity, saveSectionMutationRef,
   });
+
+  // Keep waveRunningRef in sync so saveSectionMutation.onSuccess can check it
+  useEffect(() => {
+    waveRunningRef.current = waveSetup.isWaveRunning;
+    if (!waveSetup.isWaveRunning && waveSetup.waveProgress?.overallStatus === 'completed') {
+      // Single refresh after all waves finish
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+    }
+  }, [waveSetup.isWaveRunning, waveSetup.waveProgress?.overallStatus, queryClient, challengeId]);
 
   // ── AI actions ──
   const aiActionsHook = useCurationAIActions({
