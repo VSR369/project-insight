@@ -319,15 +319,16 @@ After the digest, output a JSON block with key facts:
           total_accepted: attachments.length,
           skipped_empty: attachments.length - usableAttachments.length,
           curator_edit_reset: !!existingDigest?.curator_edited,
+          correlationId,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("generate-context-digest error:", err);
+    console.error(`[${correlationId}] generate-context-digest error:`, err);
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message, correlationId } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
