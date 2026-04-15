@@ -64,6 +64,7 @@ export function useCurationAIActions({
   setPass1DoneSession,
   setGenerateDoneSession,
   setContextLibraryReviewed,
+  setAnalyseProgress,
 }: UseCurationAIActionsOptions) {
 
   const queryClient = useQueryClient();
@@ -130,14 +131,11 @@ export function useCurationAIActions({
   // ── runAnalyseFlow: deterministic Pass 1 pipeline ──
   // analyse → discover (with awaited extraction) → digest → open Context Library
   const runAnalyseFlow = useCallback(async () => {
-    // ═══ RESET ALL STATE from previous analysis run ═══
     setPass1DoneSession(false);
     setGenerateDoneSession(false);
     setAiReviews([]);
     setContextLibraryReviewed?.(false);
-    if (challengeId) {
-      sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
-    }
+    if (challengeId) sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
     queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
@@ -146,15 +144,36 @@ export function useCurationAIActions({
     setAiReviewLoading(true);
     setTriageTotalCount(0);
     curationStore.getState().clearAllSuggestions();
-    pass1SetWaveProgress(createInitialWaveProgressWithDiscovery());
+
+    // Stage-based progress
+    const mkStages = (): AnalyseProgressState => ({
+      phase: 'running',
+      stages: [
+        { name: 'Analysing All Sections', status: 'running' },
+        { name: 'Discovering Context Sources', status: 'pending' },
+        { name: 'Extracting & Indexing Sources', status: 'pending' },
+      ],
+    });
+    setAnalyseProgress(mkStages());
+
+    const updateStage = (idx: number, status: 'completed' | 'error', detail?: string) => {
+      setAnalyseProgress((prev: AnalyseProgressState) => ({
+        ...prev,
+        phase: status === 'error' && idx === 0 ? 'error' : prev.phase,
+        stages: prev.stages.map((s, i) => {
+          if (i < idx) return { ...s, status: 'completed' as const };
+          if (i === idx) return { ...s, status, detail: detail ?? s.detail };
+          if (i === idx + 1 && status === 'completed') return { ...s, status: 'running' as const };
+          return s;
+        }),
+      }));
+    };
 
     try {
-      // ── STAGE 1: Analyse Challenge (Pass 1 only) ──
-      toast.info('Analysing challenge sections...', { duration: 3000 });
+      // ── Stage 1: Analyse ──
       const { data: analyseResult, error: analyseError } = await supabase.functions.invoke('analyse-challenge', {
         body: { challenge_id: challengeId },
       });
-
       if (analyseError || !analyseResult?.success) {
         const msg = analyseResult?.error?.message ?? analyseError?.message ?? 'Unknown error';
         throw new Error(msg);
@@ -169,37 +188,27 @@ export function useCurationAIActions({
       setAiReviews(validatedReviews);
       saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: validatedReviews });
 
-      // ── STAGE 2: Discover Sources (with awaited extraction for auto-accepted) ──
-      pass1SetWaveProgress((prev) => ({
-        ...prev,
-        currentWave: DISCOVERY_WAVE_NUMBER,
-        overallStatus: 'running',
-        waves: prev.waves.map((w) =>
-          w.waveNumber === DISCOVERY_WAVE_NUMBER ? { ...w, status: 'running' } : w
-        ),
-      }));
+      const reviewedCount = validatedReviews.filter((r) => r.status === 'pass' || r.status === 'warning').length;
+      const draftCount = validatedReviews.filter((r) => r.status === 'needs_revision').length;
+      updateStage(0, 'completed', `${reviewedCount} reviewed, ${draftCount} need revision`);
 
+      // ── Stage 2: Discovery ──
       let discoveryOk = true;
       let autoAcceptedCount = 0;
       try {
-        toast.info('Discovering context sources...', { duration: 3000 });
         const { data: discoverResult, error: discoverError } = await supabase.functions.invoke('discover-context-resources', {
           body: { challenge_id: challengeId },
         });
-
-        if (discoverError) {
+        if (discoverError || !discoverResult?.success) {
           discoveryOk = false;
-          toast.warning(`Source discovery failed: ${discoverError.message}. Add sources manually in Context Library.`, { duration: 6000 });
-        } else if (!discoverResult?.success) {
-          discoveryOk = false;
-          const reason = discoverResult?.reason ?? discoverResult?.error?.message ?? 'Unknown';
-          toast.warning(`Discovery: ${reason}. You can add sources manually.`, { duration: 6000 });
+          const reason = discoverResult?.reason ?? discoverResult?.error?.message ?? discoverError?.message ?? 'Unknown';
+          toast.warning(`Discovery: ${reason}. Add sources manually.`, { duration: 6000 });
         } else {
           autoAcceptedCount = discoverResult?.auto_accepted ?? 0;
           const totalCount = discoverResult?.count ?? 0;
           const discarded = discoverResult?.discarded ?? 0;
           if (totalCount === 0) {
-            toast.info(`No accessible sources found${discarded > 0 ? ` (${discarded} blocked/paywalled discarded)` : ''}. Add sources manually.`, { duration: 6000 });
+            toast.info(`No sources found${discarded > 0 ? ` (${discarded} inaccessible discarded)` : ''}. Add sources manually.`, { duration: 6000 });
           } else {
             toast.success(`Discovered ${totalCount} sources${autoAcceptedCount > 0 ? ` (${autoAcceptedCount} auto-accepted & extracted)` : ''}${discarded > 0 ? `, ${discarded} inaccessible discarded` : ''}`);
           }
@@ -210,54 +219,28 @@ export function useCurationAIActions({
       } catch (discErr: unknown) {
         discoveryOk = false;
         const msg = discErr instanceof Error ? discErr.message : 'Network error';
-        toast.warning(`Source discovery failed: ${msg}. You can add sources manually.`, { duration: 6000 });
+        toast.warning(`Discovery failed: ${msg}. Add sources manually.`, { duration: 6000 });
       }
+      updateStage(1, discoveryOk ? 'completed' : 'error',
+        discoveryOk ? `${autoAcceptedCount} sources auto-accepted` : 'Failed — add sources manually');
 
-      // ── STAGE 3: Build Context Digest (if auto-accepted sources exist) ──
-      let digestOk = false;
-      if (discoveryOk && autoAcceptedCount > 0) {
-        try {
-          toast.info('Building context digest from extracted sources...', { duration: 3000 });
-          const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
-            body: { challenge_id: challengeId },
-          });
-          digestOk = !digestError && digestResult?.success;
-          if (digestOk) {
-            toast.success(`Context digest generated from ${digestResult?.data?.source_count ?? 0} sources`);
-          } else {
-            const reason = digestResult?.error?.message ?? digestError?.message ?? 'Unknown';
-            toast.info(`Digest: ${reason}. You can generate it manually from Context Library.`, { duration: 6000 });
-          }
-          queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
-        } catch {
-          toast.info('Context digest generation skipped — generate manually from Context Library.', { duration: 5000 });
-        }
-      } else if (!discoveryOk) {
-        toast.info('Skipping digest — no sources discovered. Add sources manually, then generate digest.', { duration: 6000 });
-      }
+      // ── Stage 3: Extraction (auto-accepted sources already awaited in discover) ──
+      updateStage(2, 'completed', `${autoAcceptedCount} sources indexed`);
 
-      pass1SetWaveProgress((prev) => ({
-        ...prev,
-        overallStatus: 'completed',
-        waves: prev.waves.map((w) =>
-          w.waveNumber === DISCOVERY_WAVE_NUMBER
-            ? { ...w, status: discoveryOk ? 'completed' : 'error' }
-            : w
-        ),
-      }));
-
+      // ── All done ──
+      setAnalyseProgress((prev: AnalyseProgressState) => ({ ...prev, phase: 'completed' }));
       setTriageTotalCount(validatedReviews.length);
       setPass1DoneSession(true);
-      const digestStatus = digestOk ? 'Digest ready.' : 'Review sources and generate digest before Generate Suggestions.';
-      toast.success(`Analysis complete. ${digestStatus}`);
+      toast.success('Analysis complete. Review sources in Context Library, then Generate Suggestions.');
       setContextLibraryOpen(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       toast.error(`Analysis failed: ${msg}`);
+      setAnalyseProgress((prev: AnalyseProgressState) => ({ ...prev, phase: 'error' }));
     } finally {
       setAiReviewLoading(false);
     }
-  }, [pass1SetWaveProgress, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore, saveSectionMutationRef]);
+  }, [setAnalyseProgress, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore, saveSectionMutationRef]);
 
   // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
   // ── Step 1: Analyse Challenge (Pass 1 only) ──
