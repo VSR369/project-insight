@@ -93,6 +93,9 @@ export function PreviewDocument({
     const rendered = def.render(challenge, [], legalDetails, escrowRecord);
     const hasContent = rendered !== null;
 
+    // P5 FIX: Show accepted sources for this section
+    const sectionSources = attachments.filter((a) => a.section_key === sectionKey);
+
     return (
       <PreviewSection
         key={sectionKey}
@@ -108,6 +111,20 @@ export function PreviewDocument({
           <p className="text-sm text-muted-foreground italic">
             {filledSections.has(sectionKey) ? 'Configured (view in curation workspace)' : 'Not defined yet.'}
           </p>
+        )}
+        {sectionSources.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-border/30">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+              {sectionSources.length} accepted source{sectionSources.length !== 1 ? 's' : ''}
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {sectionSources.map((s) => (
+                <span key={s.id} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                  {s.display_name ?? s.url_title ?? s.file_name ?? s.source_url?.substring(0, 40) ?? 'Source'}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </PreviewSection>
     );
