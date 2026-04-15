@@ -26,19 +26,15 @@ import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
   challengeId: string | undefined;
-  challenge: Record<string, any> | null;
-  curationStore: any;
+  challenge: Record<string, unknown> | null;
+  curationStore: ReturnType<typeof import('@/store/curationFormStore').getCurationFormStore>;
   optimisticIndustrySegId: string | null;
   isWaveRunning: boolean;
   aiReviews: SectionReview[];
   buildContextOptions: () => BuildChallengeContextOptions;
-  executeWaves: () => Promise<void>;
-  executeWavesPass1: () => Promise<void>;
-  executeWavesFull: () => Promise<void>;
-  executeWavesPass2: () => Promise<void>;
   pass1SetWaveProgress: Dispatch<SetStateAction<WaveProgress>>;
-  saveSectionMutationRef: React.RefObject<any>;
-  setPreFlightResult: (v: any) => void;
+  saveSectionMutationRef: React.RefObject<unknown>;
+  setPreFlightResult: (v: ReturnType<typeof preFlightCheck> | null) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
   setAiReviewLoading: (v: boolean) => void;
   setTriageTotalCount: (v: number) => void;
@@ -46,7 +42,7 @@ interface UseCurationAIActionsOptions {
   setAiQuality: (v: AIQualitySummary) => void;
   setAiQualityLoading: (v: boolean) => void;
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
-  setAiSuggestedComplexity: (v: any) => void;
+  setAiSuggestedComplexity: (v: Record<string, unknown> | null) => void;
   setHighlightWarnings: (v: boolean) => void;
   setContextLibraryOpen: (v: boolean) => void;
   setPass1DoneSession: (v: boolean) => void;
@@ -56,8 +52,8 @@ interface UseCurationAIActionsOptions {
 
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
-  isWaveRunning, aiReviews, buildContextOptions, executeWaves,
-  executeWavesPass1, executeWavesFull, executeWavesPass2, pass1SetWaveProgress,
+  isWaveRunning, aiReviews, buildContextOptions,
+  pass1SetWaveProgress,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
