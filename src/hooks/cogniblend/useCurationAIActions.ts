@@ -8,6 +8,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logWarning } from '@/lib/errorHandler';
 import { preFlightCheck } from '@/lib/cogniblend/preFlightCheck';
 import { buildChallengeContext, type BuildChallengeContextOptions } from '@/lib/cogniblend/challengeContextAssembler';
 import { detectBudgetShortfall, type BudgetShortfallResult } from '@/lib/cogniblend/budgetShortfallDetection';
@@ -208,7 +209,7 @@ export function useCurationAIActions({
       // ═══ POST-AI VALIDATION: strip invalid master data codes ═══
       const validation = validateMasterDataInReviews(rawReviews);
       if (!validation.isValid) {
-        console.warn(`[analyse] Master data validation stripped ${validation.issues.length} invalid value(s)`);
+        logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'analyse_challenge', component: 'useCurationAIActions' });
       }
       const validatedReviews = validation.correctedReviews;
 
@@ -308,7 +309,7 @@ export function useCurationAIActions({
       // ═══ POST-AI VALIDATION ═══
       const validation = validateMasterDataInReviews(suggestions);
       if (!validation.isValid) {
-        console.warn(`[generate] Master data validation stripped ${validation.issues.length} invalid value(s)`);
+        logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'generate_suggestions', component: 'useCurationAIActions' });
       }
 
       // Merge suggestions into existing aiReviews
