@@ -7,7 +7,7 @@ import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { SectionKey } from '@/types/sections';
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Bot, Loader2, Sparkles, BookOpen, FileText } from "lucide-react";
+import { Bot, Loader2, Sparkles, BookOpen, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -131,16 +131,27 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
   return (
     <div className="space-y-4">
-      {/* Preview Document button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        onClick={() => navigate(`/cogni/curation/${challengeId}/preview`)}
-      >
-        <FileText className="h-4 w-4 mr-1.5" />
-        Preview Document
-      </Button>
+      {/* Preview Document + Diagnostics */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={() => navigate(`/cogni/curation/${challengeId}/preview`)}
+        >
+          <FileText className="h-4 w-4 mr-1.5" />
+          Preview
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={() => navigate(`/cogni/curation/${challengeId}/diagnostics`)}
+        >
+          <Activity className="h-4 w-4 mr-1.5" />
+          Diagnostics
+        </Button>
+      </div>
       {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
         <div className="space-y-2">
