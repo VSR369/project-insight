@@ -29,6 +29,7 @@ export interface ContextSource {
   extraction_status: string | null;
   extraction_error: string | null;
   extraction_method?: string | null;
+  extraction_quality?: string | null;
   shared_with_solver: boolean;
   discovery_source: string;
   discovery_status: string;
@@ -54,7 +55,7 @@ export interface ContextDigest {
 
 /* ── Column lists ── */
 
-const SOURCE_COLUMNS = 'id, challenge_id, section_key, source_type, source_url, display_name, file_name, url_title, description, mime_type, file_size, storage_path, extracted_text, extracted_summary, extracted_key_data, extraction_status, extraction_error, shared_with_solver, discovery_source, discovery_status, resource_type, relevance_explanation, confidence_score, suggested_sections, access_status, created_at';
+const SOURCE_COLUMNS = 'id, challenge_id, section_key, source_type, source_url, display_name, file_name, url_title, description, mime_type, file_size, storage_path, extracted_text, extracted_summary, extracted_key_data, extraction_status, extraction_error, extraction_quality, shared_with_solver, discovery_source, discovery_status, resource_type, relevance_explanation, confidence_score, suggested_sections, access_status, created_at';
 
 const DIGEST_COLUMNS = 'id, challenge_id, digest_text, key_facts, source_count, generated_at, curator_edited, curator_edited_at, original_digest_text';
 

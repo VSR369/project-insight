@@ -402,11 +402,26 @@ serve(async (req) => {
     const isCreditError = method.includes("credits_exhausted") || method.includes("rate_limited");
     const extractionStatus = isCreditError ? "failed" : (isPlaceholder ? "partial" : "completed");
 
+    // P4 FIX: Compute extraction_quality tier for digest quality gates
+    let extractionQuality = "low";
+    if (!isPlaceholder && !isCreditError) {
+      const textLen = extractedText.length;
+      if (textLen >= 2000) extractionQuality = "high";
+      else if (textLen >= 500) extractionQuality = "medium";
+      else if (textLen >= 100) extractionQuality = "low";
+      else extractionQuality = "seed";
+    } else if (isCreditError) {
+      extractionQuality = "failed";
+    } else {
+      extractionQuality = "seed";
+    }
+
     // Save extracted text
     const updatePayload: Record<string, unknown> = {
       extracted_text: extractedText.substring(0, 100000),
       extraction_method: method,
       extraction_status: extractionStatus,
+      extraction_quality: extractionQuality,
       updated_at: new Date().toISOString(),
     };
 

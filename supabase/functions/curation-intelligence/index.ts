@@ -1,11 +1,12 @@
 /**
  * curation-intelligence — 4-stage curation pipeline.
- * Stage 1: Pass 1 analysis (via review-challenge-sections with pass1_only=true)
- * Stage 2: Auto-discovery of context sources
+ * Stage 1: Pass 1 analysis (via analyse-challenge)
+ * Stage 2: Gap-targeted discovery of context sources
  * Stage 3: Synthesize / extract attachment text
  * Stage 4: Generate context digest
  *
- * Orchestrates the full pipeline as a single invocation.
+ * P4 FIX: Passes gap_sections from Pass 1 into discovery for targeted search.
+ * P4 FIX: Uses analyse-challenge unified endpoint instead of old wave-based review.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -53,17 +54,63 @@ serve(async (req) => {
       );
     }
 
-    const stageSet = new Set<string>(stages ?? ["discover", "synthesize", "digest"]);
+    const stageSet = new Set<string>(stages ?? ["analyse", "discover", "synthesize", "digest"]);
     const results: StageResult[] = [];
 
-    // ── Stage 1: Discovery ──
-    if (stageSet.has("discover")) {
+    // P4 FIX: Collect gap_sections from Pass 1 analysis to feed into discovery
+    let gapSections: Array<{ section_key: string; gaps: string[] }> = [];
+
+    // ── Stage 0: Analyse (Pass 1 via unified endpoint) ──
+    if (stageSet.has("analyse")) {
       try {
-        const { data, error } = await supabaseClient.functions.invoke("discover-context-resources", {
+        const { data, error } = await supabaseClient.functions.invoke("analyse-challenge", {
           body: { challenge_id },
         });
         if (error) throw new Error(error.message);
-        results.push({ stage: "discover", status: "completed", detail: `Found ${data?.count ?? 0} sources` });
+
+        // P4 FIX: Extract gap sections from analysis results
+        const analyses = data?.data?.analyses ?? [];
+        for (const a of analyses) {
+          if (!a?.section_key) continue;
+          const gaps = (a.comments ?? [])
+            .filter((c: { type?: string }) => ["error", "warning", "suggestion"].includes(c.type ?? ""))
+            .map((c: { text?: string }) => c.text)
+            .filter(Boolean);
+          if (gaps.length > 0) {
+            gapSections.push({ section_key: a.section_key, gaps: gaps.slice(0, 3) });
+          }
+        }
+
+        results.push({
+          stage: "analyse",
+          status: "completed",
+          detail: `Analysed ${analyses.length} sections, ${gapSections.length} with gaps`,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        console.error("Analyse stage failed:", msg);
+        results.push({ stage: "analyse", status: "failed", detail: msg });
+      }
+    } else {
+      results.push({ stage: "analyse", status: "skipped" });
+    }
+
+    // ── Stage 1: Discovery (with gap targeting) ──
+    if (stageSet.has("discover")) {
+      try {
+        // P4 FIX: Pass gap_sections to discovery for targeted search
+        const { data, error } = await supabaseClient.functions.invoke("discover-context-resources", {
+          body: {
+            challenge_id,
+            gap_sections: gapSections.length > 0 ? gapSections : undefined,
+          },
+        });
+        if (error) throw new Error(error.message);
+        results.push({
+          stage: "discover",
+          status: "completed",
+          detail: `Found ${data?.count ?? 0} sources (${data?.auto_accepted ?? 0} auto-accepted, ${data?.gaps_targeted ?? 0} gaps targeted)`,
+        });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         console.error("Discovery stage failed:", msg);

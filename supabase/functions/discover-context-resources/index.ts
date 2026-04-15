@@ -7,9 +7,9 @@
  * PHASE 4: LLM scores relevance of accessible URLs (reads real snippets)
  * PHASE 5: Insert sources — auto-accept high-confidence, suggest the rest
  *
- * D1 FIX: Auto-accept sources with confidence >= 0.85 and accessible status
- * D2 FIX: Only delete stale 'suggested' AI sources, preserve accepted ones
- * D5 FIX: Mark seed content with [SEED_CONTENT] prefix
+ * P4 FIX: Accept gap_sections from Pass 1 analysis for targeted discovery
+ * P4 FIX: Include organization tab context in discovery prompts
+ * P4 FIX: Set extraction_quality column on insert
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -67,8 +67,28 @@ function extractGapMap(aiReviews: unknown): Record<string, string[]> {
   return map;
 }
 
-function buildChallengeContext(ch: Record<string, unknown>, eb: Record<string, unknown>): string {
+/**
+ * P4 FIX: Build comprehensive challenge context including Organization tab fields.
+ * Organization context is now first-class — included in discovery prompts.
+ */
+function buildChallengeContext(
+  ch: Record<string, unknown>,
+  eb: Record<string, unknown>,
+  org: Record<string, unknown> | null,
+): string {
   const lines: string[] = [];
+
+  // P4: Organization context (Tab 1) — now first-class
+  if (org) {
+    const orgParts: string[] = [];
+    if (org.organization_name) orgParts.push(`Name: ${org.organization_name}`);
+    if (org.organization_description) orgParts.push(`Description: ${brief(org.organization_description as string, 400)}`);
+    if (org.website_url) orgParts.push(`Website: ${org.website_url}`);
+    if (org.hq_city) orgParts.push(`HQ: ${org.hq_city}${org.hq_country_id ? `, ${org.hq_country_id}` : ''}`);
+    if (org.operating_model) orgParts.push(`Operating Model: ${org.operating_model}`);
+    if (orgParts.length > 0) lines.push(`ORGANIZATION:\n${orgParts.join("\n")}`);
+  }
+
   if (ch.problem_statement) lines.push(`PROBLEM:\n${brief(stripHtml(ch.problem_statement), 600)}`);
   if (ch.scope) lines.push(`SCOPE:\n${brief(stripHtml(ch.scope), 400)}`);
   if (ch.expected_outcomes) lines.push(`OUTCOMES:\n${brief(stripHtml(ch.expected_outcomes), 400)}`);
@@ -112,7 +132,6 @@ type AccessStatus = "accessible" | "blocked" | "paywall" | "failed";
 async function checkAccessibility(url: string): Promise<AccessStatus> {
   if (isKnownPaywall(url)) return "paywall";
   try {
-    // Try HEAD first
     const headResp = await fetch(url, {
       method: "HEAD",
       headers: { "User-Agent": "Mozilla/5.0 (compatible; CogniblendBot/1.0)" },
@@ -122,7 +141,6 @@ async function checkAccessibility(url: string): Promise<AccessStatus> {
     if (headResp.status === 200 || headResp.status === 301 || headResp.status === 302) return "accessible";
     if (headResp.status === 402) return "paywall";
 
-    // HEAD returned 403/405/other — fallback to GET
     if (headResp.status === 403 || headResp.status === 405 || headResp.status === 406) {
       try {
         const getResp = await fetch(url, {
@@ -131,7 +149,6 @@ async function checkAccessibility(url: string): Promise<AccessStatus> {
           redirect: "follow",
           signal: AbortSignal.timeout(8000),
         });
-        // Consume body to prevent resource leak
         await getResp.text();
         if (getResp.status === 200) return "accessible";
         if (getResp.status === 401 || getResp.status === 403) return "blocked";
@@ -151,7 +168,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { challenge_id, scope } = await req.json();
+    // P4 FIX: Accept gap_sections from Pass 1 analysis
+    const { challenge_id, scope, gap_sections } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id required" } }),
@@ -196,9 +214,10 @@ serve(async (req) => {
       );
     }
 
+    // P4 FIX: Fetch expanded org data including website_url & operating_model
     const [orgRes, segRes] = await Promise.all([
       adminClient.from("seeker_organizations")
-        .select("organization_name, hq_city, hq_country_id, organization_description")
+        .select("organization_name, hq_city, hq_country_id, organization_description, website_url, operating_model")
         .eq("id", challenge.organization_id).single(),
       challenge.industry_segment_id
         ? adminClient.from("industry_segments").select("name, code").eq("id", challenge.industry_segment_id).single()
@@ -217,8 +236,21 @@ serve(async (req) => {
       try { return JSON.parse(challenge.extended_brief as string); } catch { return {}; }
     })();
 
-    const challengeContextBlock = buildChallengeContext(challenge as unknown as Record<string, unknown>, eb);
+    // P4 FIX: Pass org into buildChallengeContext
+    const challengeContextBlock = buildChallengeContext(challenge as unknown as Record<string, unknown>, eb, org);
     const gapMap = extractGapMap(challenge.ai_section_reviews);
+
+    // P4 FIX: Merge gap_sections from Pass 1 into gapMap
+    if (Array.isArray(gap_sections)) {
+      for (const gs of gap_sections) {
+        const key = (gs as Record<string, unknown>)?.section_key as string;
+        const gaps = (gs as Record<string, unknown>)?.gaps as string[];
+        if (key && Array.isArray(gaps) && gaps.length > 0 && !gapMap[key]) {
+          gapMap[key] = gaps.slice(0, 3);
+        }
+      }
+    }
+
     const gapLines = Object.entries(gapMap).map(([sec, gaps]) => `• ${sec}: ${gaps.join(" | ")}`).join("\n");
 
     const domainTags = Array.isArray(challenge.domain_tags) ? challenge.domain_tags : [];
@@ -251,7 +283,7 @@ serve(async (req) => {
       )
     );
 
-    // ── D2 FIX: Only clear stale SUGGESTED AI sources, preserve accepted ones ──
+    // D2 FIX: Only clear stale SUGGESTED AI sources, preserve accepted ones
     await adminClient.from("challenge_attachments").delete()
       .eq("challenge_id", challenge_id)
       .eq("discovery_source", "ai_suggested")
@@ -271,12 +303,12 @@ SOLUTION TYPE: ${challenge.solution_type || "innovation"} | MATURITY: ${challeng
 CHALLENGE CONTENT:
 ${challengeContextBlock}
 
-${gapLines ? `GAPS TO ADDRESS:\n${gapLines}\n` : ""}
+${gapLines ? `GAPS TO ADDRESS (from Pass 1 analysis):\n${gapLines}\n` : ""}
 SECTIONS NEEDING SOURCES: ${activeDirectives.map((d: Record<string, unknown>) => d.section_key).join(", ")}
 
 Generate 12–15 highly targeted Google search queries to find FREE, ACCESSIBLE web pages relevant to this challenge.
 Aim for DIVERSE sources — vary domains, perspectives, and resource types across queries.
-
+${gapLines ? `\nPRIORITIZE queries that address the identified GAPS. At least 5 queries should directly target gap areas.\n` : ""}
 Focus on: .gov sites, academic repositories (arxiv, researchgate), industry associations (IEEE, ISO, NIST), open-access reports, Wikipedia, official documentation, news articles, official product websites.
 AVOID queries leading to: Gartner, McKinsey, HBR, Forrester, Statista (paywalled).
 ${existingUrls.size > 0 ? `\nRE-DISCOVERY RUN: ${existingUrls.size} URLs already exist. Generate DIFFERENT queries — explore alternative terminology, adjacent disciplines, regional sources, and newer publications. Do NOT repeat previous search patterns.\n` : ''}
@@ -288,7 +320,6 @@ Return ONLY a JSON array of strings. No other text.`;
       temperature: 0.3,
     });
 
-    // V2: Surface credit exhaustion / rate limits
     if (queryGenResp.status === 402) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "AI credits exhausted. Please check your plan or try again later." } }),
@@ -343,7 +374,6 @@ Return ONLY a JSON array of strings. No other text.`;
         }
       });
     } else {
-      // Gemini grounding fallback
       console.log("SERPER_API_KEY not configured — using Gemini grounding fallback");
       const groundingResp = await callAIWithFallback(LOVABLE_API_KEY, {
         tools: [{ "google_search": {} }],
@@ -435,7 +465,7 @@ DOMAIN: ${primaryDomain}
 CHALLENGE CONTEXT:
 ${challengeContextBlock.substring(0, 2000)}
 
-${gapLines ? `GAPS TO FILL:\n${gapLines}\n` : ""}
+${gapLines ? `GAPS TO FILL (from Pass 1 analysis):\n${gapLines}\n` : ""}
 AVAILABLE SECTIONS: ${activeDirectives.map((d: Record<string, unknown>) => d.section_key).join(", ")}
 
 SOURCES TO SCORE:
@@ -451,7 +481,7 @@ Each item:
   "relevance_explanation": "<2 sentences>",
   "addresses_gap": ""
 }
-
+${gapLines ? `\nBONUS: Sources that address identified GAPS should receive a +0.1 relevance boost.\n` : ""}
 Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
 
     const scoringResp = await callAIWithFallback(LOVABLE_API_KEY, {
@@ -460,7 +490,6 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
       temperature: 0.1,
     });
 
-    // V2: Surface credit/rate errors from scoring
     if (scoringResp.status === 402) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "AI credits exhausted during source scoring." } }),
@@ -494,7 +523,7 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // PHASE 5 — D1 FIX: Auto-accept high confidence, suggest the rest
+    // PHASE 5 — Insert with extraction_quality + auto-accept
     // ════════════════════════════════════════════════════════════════════════
 
     const inserted: Array<Record<string, unknown>> = [];
@@ -504,7 +533,6 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
       const source = usable[s.index - 1];
       if (!source) continue;
 
-      // D1: Auto-accept if high confidence AND accessible
       const shouldAutoAccept =
         s.relevance_score >= AUTO_ACCEPT_CONFIDENCE &&
         source.access_status === "accessible";
@@ -512,7 +540,6 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
       const discoveryStatus = shouldAutoAccept ? "accepted" : "suggested";
       if (shouldAutoAccept) autoAcceptedCount++;
 
-      // D5 FIX: Mark seed content clearly so digest generation can filter it
       const seedContent = [
         `[SEED_CONTENT - PENDING EXTRACTION]`,
         `Title: ${source.title}`,
@@ -522,6 +549,7 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
         `Access status: ${source.access_status}`,
       ].filter(Boolean).join("\n");
 
+      // P4 FIX: Set extraction_quality to 'seed' on initial insert
       const { data: newAtt, error: insertErr } = await adminClient
         .from("challenge_attachments")
         .insert({
@@ -539,12 +567,12 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
           extraction_status: "pending",
           extracted_text: seedContent,
           access_status: source.access_status,
+          extraction_quality: "seed",
         })
         .select("id")
         .single();
 
       if (!insertErr && newAtt?.id) {
-        // D1: Trigger extraction only for auto-accepted sources (non-blocking)
         if (shouldAutoAccept) {
           fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
             method: "POST",
@@ -561,6 +589,7 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
           section_key: s.section_key, resource_type: s.resource_type,
           relevance_score: s.relevance_score, access_status: source.access_status,
           auto_accepted: shouldAutoAccept,
+          addresses_gap: s.addresses_gap || null,
         });
       }
     }
@@ -571,6 +600,7 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
         auto_accepted: autoAcceptedCount,
         suggested: inserted.length - autoAcceptedCount,
         candidates_found: candidates.length, accessible_checked: accessible.length, scored_relevant: scored.length,
+        gaps_targeted: Object.keys(gapMap).length,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

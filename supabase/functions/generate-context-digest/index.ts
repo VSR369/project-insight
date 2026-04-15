@@ -77,10 +77,10 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // D5 FIX: Filter by extraction_status to exclude pending/failed sources
+    // P4 FIX: Include extraction_quality in query for quality-aware digest
     const { data: attachments, error: attErr } = await adminClient
       .from("challenge_attachments")
-      .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method, extraction_status")
+      .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method, extraction_status, extraction_quality")
       .eq("challenge_id", challenge_id)
       .eq("discovery_status", "accepted")
       .in("extraction_status", ["completed", "partial"]);
@@ -104,6 +104,14 @@ serve(async (req) => {
       );
     }
 
+    // P4 FIX: Sort by extraction_quality — high quality sources first
+    const qualityOrder: Record<string, number> = { high: 0, medium: 1, low: 2, seed: 3 };
+    usableAttachments.sort((a, b) => {
+      const qa = qualityOrder[(a as Record<string, unknown>).extraction_quality as string] ?? 3;
+      const qb = qualityOrder[(b as Record<string, unknown>).extraction_quality as string] ?? 3;
+      return qa - qb;
+    });
+
     const { data: challenge } = await adminClient
       .from("challenges")
       .select("title, problem_statement, scope, organization_id, domain_tags, maturity_level, solution_type")
@@ -120,12 +128,15 @@ serve(async (req) => {
       if (org) orgContext = `Organization: ${org.organization_name} (${org.hq_city || "global"}). ${org.organization_description || ""}`;
     }
 
+    // P4 FIX: Quality-aware text budgets — high quality sources get more tokens
     const sourceBlocks = usableAttachments.map((att: Record<string, unknown>, i: number) => {
       const name = (att.url_title || att.file_name || att.source_url || `Source ${i + 1}`) as string;
-      const fullText = ((att.extracted_text as string) ?? '').substring(0, 15000);
+      const quality = (att.extraction_quality as string) ?? 'low';
+      const textBudget = quality === 'high' ? 15000 : quality === 'medium' ? 8000 : 3000;
+      const fullText = ((att.extracted_text as string) ?? '').substring(0, textBudget);
       const summary = (att.extracted_summary as string) ?? '';
       const keyData = att.extracted_key_data ? JSON.stringify(att.extracted_key_data, null, 2) : '';
-      return `[SOURCE ${i + 1}: ${name}] [${att.resource_type || att.source_type}] [Section: ${att.section_key}]
+      return `[SOURCE ${i + 1}: ${name}] [${att.resource_type || att.source_type}] [Section: ${att.section_key}] [Quality: ${quality}]
 URL: ${(att.source_url as string) ?? 'N/A'}
 ${fullText ? `FULL CONTENT:\n${fullText}` : ''}
 ${summary ? `\nAI SUMMARY:\n${summary}` : ''}
