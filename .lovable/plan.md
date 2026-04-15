@@ -1,42 +1,31 @@
 
 
-# Fix: Diagnostics Close Button + Navigation Killing Wave Execution
+# Fix: Diagnostics Opening Login Screen in New Tab
 
-## Two Issues
+## Problem
 
-### Issue 1: No Close Button on Diagnostics
-The diagnostics page has a back arrow but no explicit "Close" button. Simple addition.
+The diagnostics button uses `window.open(..., '_blank')` to open in a new browser tab. The new tab triggers the auth guard before the Supabase session is restored from localStorage, causing a redirect to the login page.
 
-### Issue 2: Navigating Away Kills Active Wave Execution
-The wave executor's async loop lives inside `CurationReviewPage`'s component tree. Navigating to the diagnostics page (or using browser back) unmounts the component, killing Pass 2 mid-execution. When the user returns, the executor state is reset to idle — Pass 2 is abandoned and the wave progress panel disappears.
+## Fix
 
-**Pass 1 data is NOT lost** — it's persisted in Zustand → localStorage. But the wave progress UI state (which wave completed, which errored) is ephemeral React state that disappears on unmount.
+Replace the new-tab approach with a **Sheet (slide-over panel)** that renders the diagnostics content inline on the curation page. This avoids navigation entirely — no auth issues, no unmounting the wave executor, and the user gets a close button built into the Sheet.
 
-## Fix Strategy
-
-### 1. Add Close Button to Diagnostics Page
-Add an explicit "Close" button next to the back arrow in the diagnostics header bar.
-
-### 2. Open Diagnostics in New Tab Instead of Same-Page Navigation
-Change the "Diagnostics" link in `CurationRightRail` to open in a **new browser tab** (`window.open`). This prevents unmounting the curation page entirely — the wave executor keeps running undisturbed.
-
-### 3. Warn Before Navigation During Active Waves
-Add a `beforeunload` event listener and a React Router navigation blocker when `isWaveRunning` is true. This catches browser back button and any in-app navigation attempts, warning the user that leaving will abort the AI pipeline.
-
-### 4. Persist Wave Progress Summary to localStorage
-After each wave completes, write a lightweight summary (`{ waveNumber, status, sectionsCompleted, errors }`) to localStorage keyed by challenge ID. The diagnostics page and the curation page can read this on mount to restore the last known wave progress state — so even if the page was accidentally unmounted, the user sees what happened.
-
-## Files to Change
+### Changes
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/CurationDiagnosticsPage.tsx` | Add explicit "Close" button in header |
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | Change diagnostics link to open in new tab |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Add `beforeunload` listener when `isWaveRunning` is true |
-| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Persist wave progress summary to localStorage on wave completion |
-| `src/hooks/cogniblend/useWaveExecutor.ts` | Write per-wave status to localStorage as each wave finishes |
+| `src/components/cogniblend/curation/CurationRightRail.tsx` | Replace `window.open` with state toggle to open a Sheet. Import and render `DiagnosticsSheet`. |
+| `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx` | **Create** — A `Sheet` wrapper that renders all three diagnostics panels (`DiagnosticsReviewPanel`, `DiagnosticsSuggestionsPanel`, `DiagnosticsDiscoveryPanel`) inside a `SheetContent`. Includes a close button in the header. Uses `useDiagnosticsData` hook. |
 
-## No Database Changes
+### How It Works
 
-All changes are client-side navigation and state persistence.
+1. User clicks "Diagnostics" button in the right rail
+2. A full-height Sheet slides in from the right with the diagnostics content
+3. Sheet header shows "AI Diagnostics" title + Close button
+4. Clicking Close or clicking outside dismisses the sheet
+5. The curation page stays fully mounted — wave executor keeps running
+
+### What Gets Removed
+
+The `CurationDiagnosticsPage.tsx` route remains available but the primary access point switches from new-tab to the inline Sheet. The `beforeunload` guard from the previous fix remains intact for browser refresh/close scenarios.
 
