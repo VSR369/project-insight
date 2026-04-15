@@ -1,6 +1,7 @@
 /**
  * WaveProgressPanel — Displays wave-by-wave AI review progress
  * with per-section detail in the right sidebar.
+ * Supports dual-mode: Pass 1 (analyse) and Pass 2 (generate).
  */
 
 import React, { useState } from 'react';
@@ -23,16 +24,20 @@ import {
   MessageSquare,
   SkipForward,
   PenLine,
+  Sparkles,
 } from 'lucide-react';
 import type { WaveProgress, WaveResult } from '@/lib/cogniblend/waveConfig';
 import { SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
 import type { SectionKey } from '@/types/sections';
 
+export type PassType = 'analyse' | 'generate';
+
 interface WaveProgressPanelProps {
   progress: WaveProgress;
   onCancel: () => void;
-  /** Optional: comment counts per section from curation store */
+  passType?: PassType;
   commentCounts?: Partial<Record<SectionKey, number>>;
+  suggestionCounts?: Partial<Record<SectionKey, number>>;
 }
 
 function WaveStatusIcon({ status }: { status: string }) {
@@ -57,20 +62,38 @@ function SectionStatusIcon({ status, action }: { status: string; action: string 
   return <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />;
 }
 
-function SectionActionLabel({ action, status }: { action: string; status: string }) {
+function SectionActionLabel({
+  action,
+  status,
+  passType,
+}: {
+  action: string;
+  status: string;
+  passType: PassType;
+}) {
   if (status === 'error') return <span className="text-destructive">Error</span>;
   if (status === 'skipped') return <span className="text-muted-foreground">Skipped</span>;
+
+  if (passType === 'generate') {
+    if (action === 'generate') return <span className="text-blue-600">Content Drafted</span>;
+    return <span className="text-emerald-600">Suggestions Generated</span>;
+  }
+
+  // Pass 1 (analyse)
   if (action === 'generate') return <span className="text-blue-600">Drafted</span>;
-  if (action === 'review') return <span className="text-emerald-600">Reviewed</span>;
-  return <span className="text-muted-foreground">—</span>;
+  return <span className="text-emerald-600">Analysed</span>;
 }
 
 function WaveDetail({
   wave,
+  passType,
   commentCounts,
+  suggestionCounts,
 }: {
   wave: WaveResult;
+  passType: PassType;
   commentCounts?: Partial<Record<SectionKey, number>>;
+  suggestionCounts?: Partial<Record<SectionKey, number>>;
 }) {
   const [open, setOpen] = useState(false);
   const isExpandable = wave.status === 'completed' || wave.status === 'error';
@@ -82,6 +105,12 @@ function WaveDetail({
   const generatedCount = wave.sections.filter(
     (s) => s.status === 'success' && s.action === 'generate',
   ).length;
+
+  const summaryLabel = passType === 'generate'
+    ? `${reviewedCount > 0 ? `${reviewedCount} suggestions` : ''}${reviewedCount > 0 && generatedCount > 0 ? ', ' : ''}${generatedCount > 0 ? `${generatedCount} drafted` : ''}`
+    : `${reviewedCount > 0 ? `${reviewedCount} analysed` : ''}${reviewedCount > 0 && generatedCount > 0 ? ', ' : ''}${generatedCount > 0 ? `${generatedCount} drafted` : ''}`;
+
+  const counts = passType === 'generate' ? suggestionCounts : commentCounts;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -113,9 +142,7 @@ function WaveDetail({
 
           {wave.status === 'completed' && successCount > 0 && !open && (
             <p className="text-[10px] text-muted-foreground ml-4">
-              {reviewedCount > 0 && `${reviewedCount} reviewed`}
-              {reviewedCount > 0 && generatedCount > 0 && ', '}
-              {generatedCount > 0 && `${generatedCount} drafted`}
+              {summaryLabel}
             </p>
           )}
           {wave.status === 'running' && (
@@ -127,7 +154,8 @@ function WaveDetail({
               {wave.sections.map((s) => {
                 const label =
                   SECTION_LABELS[s.sectionId as SectionKey] ?? s.sectionId;
-                const count = commentCounts?.[s.sectionId as SectionKey];
+                const count = counts?.[s.sectionId as SectionKey];
+                const CountIcon = passType === 'generate' ? Sparkles : MessageSquare;
                 return (
                   <div
                     key={s.sectionId}
@@ -136,10 +164,10 @@ function WaveDetail({
                     <SectionStatusIcon status={s.status} action={s.action} />
                     <span className="truncate text-foreground">{label}</span>
                     <span className="text-muted-foreground">—</span>
-                    <SectionActionLabel action={s.action} status={s.status} />
+                    <SectionActionLabel action={s.action} status={s.status} passType={passType} />
                     {count != null && count > 0 && (
                       <span className="inline-flex items-center gap-0.5 text-muted-foreground">
-                        <MessageSquare className="h-2.5 w-2.5" />
+                        <CountIcon className="h-2.5 w-2.5" />
                         {count}
                       </span>
                     )}
@@ -157,7 +185,9 @@ function WaveDetail({
 export function WaveProgressPanel({
   progress,
   onCancel,
+  passType = 'analyse',
   commentCounts,
+  suggestionCounts,
 }: WaveProgressPanelProps) {
   if (progress.overallStatus === 'idle') return null;
 
@@ -189,18 +219,23 @@ export function WaveProgressPanel({
     }
   }
 
+  const headerLabel = (() => {
+    const prefix = passType === 'generate' ? 'Generate Suggestions' : 'AI Analysis';
+    if (isRunning) return `${prefix} — Wave ${progress.currentWave} of ${progress.totalWaves}`;
+    if (progress.overallStatus === 'completed') return `${prefix} Complete`;
+    if (progress.overallStatus === 'cancelled') return `${prefix} Cancelled`;
+    return prefix;
+  })();
+
+  const reviewedBadgeLabel = passType === 'generate' ? 'Suggestions' : 'Analysed';
+  const draftedBadgeLabel = passType === 'generate' ? 'Content Drafted' : 'Drafted';
+
   return (
     <Card className="border-border">
       <CardContent className="pt-3 pb-3 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground">
-            {isRunning
-              ? `AI Review — Wave ${progress.currentWave} of ${progress.totalWaves}`
-              : progress.overallStatus === 'completed'
-                ? 'AI Review Complete'
-                : progress.overallStatus === 'cancelled'
-                  ? 'AI Review Cancelled'
-                  : 'AI Review'}
+            {headerLabel}
           </p>
         </div>
 
@@ -214,7 +249,9 @@ export function WaveProgressPanel({
             <WaveDetail
               key={wave.waveNumber}
               wave={wave}
+              passType={passType}
               commentCounts={commentCounts}
+              suggestionCounts={suggestionCounts}
             />
           ))}
         </div>
@@ -223,12 +260,12 @@ export function WaveProgressPanel({
           <div className="flex items-center gap-2 flex-wrap pt-1">
             {totals.reviewed > 0 && (
               <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
-                {totals.reviewed} Reviewed
+                {totals.reviewed} {reviewedBadgeLabel}
               </Badge>
             )}
             {totals.generated > 0 && (
               <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-[10px]">
-                {totals.generated} Drafted
+                {totals.generated} {draftedBadgeLabel}
               </Badge>
             )}
             {totals.skipped > 0 && (
