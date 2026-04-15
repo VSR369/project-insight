@@ -182,7 +182,6 @@ export async function buildUnifiedContext(
     legalRes,
     escrowRes,
     digestRes,
-    digestFullRes,
   ] = await Promise.all([
     adminClient.from("challenges")
       .select(`
@@ -221,7 +220,7 @@ export async function buildUnifiedContext(
       .eq("challenge_id", challengeId)
       .maybeSingle(),
     adminClient.from("challenge_context_digest")
-      .select("digest_text, key_facts, source_count")
+      .select("digest_text, key_facts, source_count, raw_context_block, curator_edited, original_digest_text")
       .eq("challenge_id", challengeId)
       .maybeSingle(),
   ]);
