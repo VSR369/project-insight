@@ -164,6 +164,15 @@ export function useCurationPageOrchestrator() {
     aiReviews, setAiReviews, setAiSuggestedComplexity, saveSectionMutationRef,
   });
 
+  // Keep waveRunningRef in sync so saveSectionMutation.onSuccess can check it
+  useEffect(() => {
+    waveRunningRef.current = waveSetup.isWaveRunning;
+    if (!waveSetup.isWaveRunning && waveSetup.waveProgress?.overallStatus === 'completed') {
+      // Single refresh after all waves finish
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+    }
+  }, [waveSetup.isWaveRunning, waveSetup.waveProgress?.overallStatus, queryClient, challengeId]);
+
   // ── AI actions ──
   const aiActionsHook = useCurationAIActions({
     challengeId, challenge: challenge as Record<string, any> | null, curationStore,
