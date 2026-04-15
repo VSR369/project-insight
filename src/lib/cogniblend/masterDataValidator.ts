@@ -165,7 +165,7 @@ export function validateMasterDataInReviews(
       const result = validateCodeAgainstSet(suggestionValue, VALID_VISIBILITY_OPTIONS, r.section_key, 'visibility');
       if (result.issue) {
         issues.push(result.issue);
-        r.suggestion = result.cleaned ?? undefined;
+        r.suggestion = result.cleaned ? JSON.stringify(result.cleaned) : undefined;
         r.comments = [
           ...(r.comments ?? []),
           { type: 'error', text: result.issue.message },
@@ -179,7 +179,7 @@ export function validateMasterDataInReviews(
       const result = validateCodeAgainstSet(suggestionValue, validEligibility, r.section_key, 'eligibility');
       if (result.issue) {
         issues.push(result.issue);
-        r.suggestion = result.cleaned ?? undefined;
+        r.suggestion = result.cleaned ? JSON.stringify(result.cleaned) : undefined;
         r.comments = [
           ...(r.comments ?? []),
           { type: 'error', text: result.issue.message },
@@ -193,7 +193,7 @@ export function validateMasterDataInReviews(
       const result = validateCodeAgainstSet(suggestionValue, validSolutionTypes, r.section_key, 'solution_type');
       if (result.issue) {
         issues.push(result.issue);
-        r.suggestion = result.cleaned ?? undefined;
+        r.suggestion = result.cleaned ? JSON.stringify(result.cleaned) : undefined;
         r.comments = [
           ...(r.comments ?? []),
           { type: 'error', text: result.issue.message },
