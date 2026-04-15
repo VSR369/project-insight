@@ -184,29 +184,67 @@ export function useCurationPageOrchestrator() {
   }, [curationStore, suggestionsFingerprint]);
 
   const handleAcceptAllSuggestions = useCallback(async () => {
-    if (!curationStore || !challenge) return;
+    if (!curationStore || !challenge || !challengeId) return;
 
     const partition = partitionSuggestionsForBulkAccept(curationStore.getState().sections);
     const totalCount = partition.regular.length + partition.extendedBrief.length;
     if (totalCount === 0) { toast.info('No pending AI suggestions to accept.'); return; }
 
     setIsBulkAccepting(true);
+    pauseSync(); // Prevent debounced auto-sync from racing with explicit writes
+
     try {
-      // 1. Regular sections — staggered 100ms
+      // 1. Regular sections — sequential awaited writes (no fire-and-forget)
       for (const item of partition.regular) {
         await sectionActionsHook.handleAcceptRefinement(item.key, item.suggestion);
-        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // 2. Extended brief subsections — batched single write
+      // 2. Extended brief subsections — ONE atomic batched write
       if (partition.extendedBrief.length > 0) {
+        // Read current extended_brief from DB ONCE
+        const { data: currentRow } = await supabase
+          .from('challenges')
+          .select('extended_brief')
+          .eq('id', challengeId)
+          .single();
+
+        const currentBrief = parseJson<Record<string, unknown>>(currentRow?.extended_brief ?? null) ?? {};
+
+        // Merge ALL subsection suggestions in memory
         for (const item of partition.extendedBrief) {
-          await sectionActionsHook.handleAcceptExtendedBriefRefinement(item.key, item.suggestion);
-          await new Promise(resolve => setTimeout(resolve, 50));
+          const jsonbField = EXTENDED_BRIEF_FIELD_MAP[item.key];
+          if (!jsonbField) continue;
+
+          let valueToSave: unknown = item.suggestion;
+          // Try parsing structured data
+          try {
+            const parsed = JSON.parse(item.suggestion);
+            valueToSave = parsed;
+          } catch {
+            // Keep as string if not JSON
+          }
+
+          currentBrief[jsonbField] = valueToSave;
+        }
+
+        // ONE write to DB
+        const { error } = await supabase
+          .from('challenges')
+          .update({
+            extended_brief: currentBrief as Record<string, unknown>,
+            updated_at: new Date().toISOString(),
+          } as Record<string, unknown>)
+          .eq('id', challengeId);
+
+        if (error) throw new Error(`Extended brief save failed: ${error.message}`);
+
+        // Sync store for each subsection
+        for (const item of partition.extendedBrief) {
+          syncSectionToStore(item.key, currentBrief[EXTENDED_BRIEF_FIELD_MAP[item.key]]);
         }
       }
 
-      // 3. Mark all as addressed in store + sync aiReviews state
+      // 3. Mark all as addressed in store
       const allKeys = [
         ...partition.regular.map(i => i.key),
         ...partition.extendedBrief.map(i => i.key),
@@ -215,8 +253,7 @@ export function useCurationPageOrchestrator() {
         curationStore.getState().setAddressedOnly(key);
       }
 
-      // Bug fix: Update aiReviews React state so AIReviewInline components
-      // receive addressed=true via props and collapse their panels
+      // 4. Update aiReviews React state so panels collapse
       setAiReviews((prev) =>
         prev.map((r) =>
           allKeys.includes(r.section_key as SectionKey)
@@ -225,14 +262,18 @@ export function useCurationPageOrchestrator() {
         )
       );
 
+      // 5. Invalidate queries to ensure fresh data
+      await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+
       toast.success(`Accepted AI suggestions for ${totalCount} section${totalCount !== 1 ? 's' : ''}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast.error(`Bulk accept failed: ${message}`);
     } finally {
+      resumeSync(); // Re-enable auto-sync
       setIsBulkAccepting(false);
     }
-  }, [curationStore, challenge, sectionActionsHook, setAiReviews]);
+  }, [curationStore, challenge, challengeId, sectionActionsHook, setAiReviews, queryClient, syncSectionToStore]);
 
   // ── Computed values ──
   const computedValues = useCurationComputedValues({
