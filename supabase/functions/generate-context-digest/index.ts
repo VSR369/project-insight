@@ -89,7 +89,7 @@ serve(async (req) => {
       .eq("challenge_id", challenge_id)
       .eq("discovery_status", "accepted")
       .in("extraction_status", ["completed", "partial"])
-      .neq("extraction_quality", "low");
+      .not("extraction_quality", "in", '("low","seed")');
 
     if (attErr) throw new Error(attErr.message);
     if (!attachments || attachments.length === 0) {
