@@ -3,12 +3,13 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { SectionKey } from '@/types/sections';
+import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Bot, Loader2, Sparkles, BookOpen, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { DiagnosticsSheet } from "@/components/cogniblend/diagnostics/DiagnosticsSheet";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
@@ -82,6 +83,8 @@ export interface CurationRightRailProps {
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+
   const {
     challengeId, challengeCurrencyCode, phaseStatus, operatingModel, isReadOnly,
     aiQuality, aiQualityLoading, onAIQualityAnalysis,
@@ -129,6 +132,12 @@ export function CurationRightRail(props: CurationRightRailProps) {
     return counts;
   }, [props.curationStore]);
 
+  const diagSections = useMemo<Partial<Record<SectionKey, SectionStoreEntry>>>(() => {
+    if (!props.curationStore) return {};
+    const store = props.curationStore;
+    return store.getState?.()?.sections ?? store.sections ?? {};
+  }, [props.curationStore]);
+
   return (
     <div className="space-y-4">
       {/* Preview Document + Diagnostics */}
@@ -146,12 +155,19 @@ export function CurationRightRail(props: CurationRightRailProps) {
           variant="outline"
           size="sm"
           className="flex-1"
-          onClick={() => window.open(`/cogni/curation/${challengeId}/diagnostics`, '_blank')}
+          onClick={() => setDiagnosticsOpen(true)}
         >
           <Activity className="h-4 w-4 mr-1.5" />
           Diagnostics
         </Button>
       </div>
+
+      <DiagnosticsSheet
+        open={diagnosticsOpen}
+        onOpenChange={setDiagnosticsOpen}
+        challengeId={challengeId}
+        sections={diagSections}
+      />
       {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
         <div className="space-y-2">
