@@ -4,8 +4,7 @@
  */
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import type { AnalyseProgressState } from '@/components/cogniblend/curation/AnalyseProgressPanel';
-import { IDLE_PROGRESS } from '@/components/cogniblend/curation/AnalyseProgressPanel';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
