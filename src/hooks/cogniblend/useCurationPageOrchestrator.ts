@@ -154,22 +154,20 @@ export function useCurationPageOrchestrator() {
     aiReviews, setAiReviews, setAiSuggestedComplexity, saveSectionMutationRef,
   });
 
-  // ── Analyse progress state ──
-  const [analyseProgress, setAnalyseProgress] = useState<AnalyseProgressState>(IDLE_PROGRESS);
-
   // ── AI actions ──
   const aiActionsHook = useCurationAIActions({
     challengeId, challenge: challenge as Record<string, any> | null, curationStore,
     optimisticIndustrySegId, isWaveRunning: waveSetup.isWaveRunning, aiReviews,
     buildContextOptions: waveSetup.buildContextOptions,
     pass1SetWaveProgress: waveSetup.pass1SetWaveProgress,
+    executeWavesPass1: waveSetup.executeWavesPass1,
+    executeWavesPass2: waveSetup.executeWavesPass2,
     saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading,
     setTriageTotalCount, setBudgetShortfall, setAiQuality, setAiQualityLoading,
     setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
     setPass1DoneSession,
     setGenerateDoneSession: pageData.setGenerateDoneSession,
     setContextLibraryReviewed,
-    setAnalyseProgress,
   });
 
   // ── Bulk accept all AI suggestions ──
