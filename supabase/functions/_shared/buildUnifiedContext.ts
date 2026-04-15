@@ -7,7 +7,54 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// Master data fetched inline — cannot import across function boundaries
+
+/* ── Inline master data fetcher (cannot import across function boundaries) ── */
+
+const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
+  ip_model: [
+    { code: "IP-EA", label: "Full IP Transfer (Exclusive Assignment)" },
+    { code: "IP-NEL", label: "Non-Exclusive License" },
+    { code: "IP-EL", label: "Exclusive License" },
+    { code: "IP-JO", label: "Joint Ownership" },
+    { code: "IP-SR", label: "Solution Provider Retains IP" },
+  ],
+  maturity_level: [
+    { code: "BLUEPRINT", label: "Blueprint / Concept" },
+    { code: "POC", label: "Proof of Concept" },
+    { code: "PROTOTYPE", label: "Prototype" },
+    { code: "PILOT", label: "Pilot" },
+    { code: "PRODUCTION", label: "Production-Ready" },
+  ],
+  challenge_visibility: [
+    { code: "public", label: "Public" },
+    { code: "private", label: "Private" },
+    { code: "invite_only", label: "Invite Only" },
+  ],
+};
+
+async function fetchMasterDataOptions(
+  adminClient: ReturnType<typeof createClient>,
+): Promise<Record<string, { code: string; label: string }[]>> {
+  const result: Record<string, { code: string; label: string }[]> = { ...STATIC_MASTER_DATA };
+
+  const [eligibilityRes, complexityRes, solutionTypeRes] = await Promise.all([
+    adminClient.from("md_solver_eligibility").select("code, label").eq("is_active", true).order("display_order"),
+    adminClient.from("md_challenge_complexity").select("complexity_code, complexity_label").eq("is_active", true).order("display_order"),
+    adminClient.from("md_solution_types").select("code, label").eq("is_active", true).order("display_order"),
+  ]);
+
+  if (eligibilityRes.data?.length) {
+    result.eligibility = eligibilityRes.data.map((r: Record<string, unknown>) => ({ code: r.code as string, label: r.label as string }));
+  }
+  if (complexityRes.data?.length) {
+    result.complexity = complexityRes.data.map((r: Record<string, unknown>) => ({ code: r.complexity_code as string, label: r.complexity_label as string }));
+  }
+  if (solutionTypeRes.data?.length) {
+    result.solution_type = solutionTypeRes.data.map((r: Record<string, unknown>) => ({ code: r.code as string, label: r.label as string }));
+  }
+
+  return result;
+}
 
 /* ── Country → Region mapping ── */
 
