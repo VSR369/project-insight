@@ -118,7 +118,7 @@ export function useCurationAcceptRefinement({
 
     setSavingSection(true);
     syncSectionToStore(sectionKey as SectionKey, valueToSave);
-    saveSectionMutation.mutate({ field: dbField, value: valueToSave });
+    await saveSectionMutation.mutateAsync({ field: dbField, value: valueToSave });
   }, [saveSectionMutation, masterData, complexityModuleRef, rewardStructureRef, syncSectionToStore, solutionTypesData, solutionTypeMap, handleSaveSolutionTypes, setSavingSection]);
 
   const handleAcceptExtendedBriefRefinement = useCallback(async (subsectionKey: string, newContent: string) => {
@@ -159,7 +159,7 @@ export function useCurationAcceptRefinement({
     const updated = { ...currentBrief, [jsonbField]: valueToSave };
     syncSectionToStore('extended_brief' as SectionKey, updated);
     setSavingSection(true);
-    saveSectionMutation.mutate({ field: 'extended_brief', value: updated });
+    await saveSectionMutation.mutateAsync({ field: 'extended_brief', value: updated });
   }, [challenge?.extended_brief, saveSectionMutation, handleAcceptRefinement, syncSectionToStore, setSavingSection]);
 
   return { handleAcceptRefinement, handleAcceptExtendedBriefRefinement };
