@@ -69,7 +69,7 @@ export interface CurationRightRailProps {
   completedCount: number;
   legalEscrowBlocked: boolean;
   blockingReason: string;
-  onReReviewStale: () => Promise<void>;
+  onReReviewStale: () => Promise<unknown>;
   setAiReviewLoading: (v: boolean) => void;
   userId?: string;
   lockStatus?: string;
