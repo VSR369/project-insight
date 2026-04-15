@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -48,6 +48,17 @@ export default function CurationReviewPage() {
       await assembleMut.mutateAsync(o.user.id);
     } catch { /* errors handled by individual mutation onError */ }
   };
+
+  // Warn before navigating away during active wave execution
+  useEffect(() => {
+    if (!o.isWaveRunning) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [o.isWaveRunning]);
 
   // Dirty-state guard for back navigation (must be before conditional returns)
   const handleNavigateBack = useCallback(() => {

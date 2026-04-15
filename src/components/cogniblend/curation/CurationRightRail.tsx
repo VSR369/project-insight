@@ -146,7 +146,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
           variant="outline"
           size="sm"
           className="flex-1"
-          onClick={() => navigate(`/cogni/curation/${challengeId}/diagnostics`)}
+          onClick={() => window.open(`/cogni/curation/${challengeId}/diagnostics`, '_blank')}
         >
           <Activity className="h-4 w-4 mr-1.5" />
           Diagnostics
