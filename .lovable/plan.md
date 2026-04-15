@@ -1,31 +1,38 @@
 
 
-# Fix: Diagnostics Opening Login Screen in New Tab
+# Fix: Wave Execution Stopping After One Wave
 
-## Problem
+## Root Causes Found
 
-The diagnostics button uses `window.open(..., '_blank')` to open in a new browser tab. The new tab triggers the auth guard before the Supabase session is restored from localStorage, causing a redirect to the login page.
+### Bug 1: `inFlightRef` never reset on error (PRIMARY)
+In `useWaveExecutor.ts`, the `executeWaves` function sets `inFlightRef.current = true` at the start but only resets it to `false` at the very end — with **no try/finally**. If ANY error occurs during the loop (e.g., `buildChallengeContext()` throws, a state updater throws, or an unhandled edge case), the error propagates up, `inFlightRef` stays `true` forever, and every subsequent call to `executeWaves` exits immediately with "A review is already in progress." This is the most likely cause: wave 1 completes, something throws before wave 2 starts, and the executor is permanently locked.
 
-## Fix
+### Bug 2: `waveRunningRef` race condition
+The `waveRunningRef` in the orchestrator is synced via `useEffect`, which runs asynchronously after a render. But the wave executor starts processing sections synchronously after calling `setWaveProgress`. The first section's save can complete and trigger `saveSectionMutation.onSuccess` BEFORE the effect runs — at which point `waveRunningRef.current` is still `false`, causing query invalidation → potential page data refetch → the previous unmount bug we tried to fix.
 
-Replace the new-tab approach with a **Sheet (slide-over panel)** that renders the diagnostics content inline on the curation page. This avoids navigation entirely — no auth issues, no unmounting the wave executor, and the user gets a close button built into the Sheet.
+### Bug 3: `reReviewStale` has the same `inFlightRef` bug
+Same missing try/finally pattern.
 
-### Changes
+## Fix Strategy
+
+### 1. Add try/finally to `executeWaves` and `reReviewStale` (`useWaveExecutor.ts`)
+Wrap the entire execution body in try/finally to guarantee `inFlightRef.current = false` always runs, even on errors.
+
+### 2. Set `waveRunningRef` synchronously before calling executor (`useCurationPageOrchestrator.ts`)
+Instead of relying on `useEffect` to sync `waveRunningRef`, set it directly to `true` before calling any execute function. The AI action hooks (`useCurationAIActions.ts`) call `executeWavesPass1()` and `executeWavesPass2()` — we need to set the ref before those calls. Expose a `setWaveRunning` callback from the orchestrator, or better: set `waveRunningRef.current = true` inside the executor options' `onWaveStart` callback (which fires synchronously at the start of the first wave).
+
+### 3. Add error toast when wave loop throws (`useWaveExecutor.ts`)
+Currently if the loop throws, the error silently propagates. Add a catch to set `overallStatus: 'error'` and show a toast.
+
+## Files to Change
 
 | File | Change |
 |------|--------|
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | Replace `window.open` with state toggle to open a Sheet. Import and render `DiagnosticsSheet`. |
-| `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx` | **Create** — A `Sheet` wrapper that renders all three diagnostics panels (`DiagnosticsReviewPanel`, `DiagnosticsSuggestionsPanel`, `DiagnosticsDiscoveryPanel`) inside a `SheetContent`. Includes a close button in the header. Uses `useDiagnosticsData` hook. |
+| `src/hooks/useWaveExecutor.ts` | Wrap `executeWaves` and `reReviewStale` bodies in try/finally to always reset `inFlightRef`. Add catch to set error status and show toast. |
+| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Set `waveRunningRef.current = true` synchronously in `progressCallbacks.onWaveStart` (already fires before any section is reviewed). Keep the `useEffect` as a fallback sync but add the direct ref set. |
+| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Pass `waveRunningRef` into the progress callbacks so `onWaveStart` can set it directly. |
 
-### How It Works
+## No Database Changes
 
-1. User clicks "Diagnostics" button in the right rail
-2. A full-height Sheet slides in from the right with the diagnostics content
-3. Sheet header shows "AI Diagnostics" title + Close button
-4. Clicking Close or clicking outside dismisses the sheet
-5. The curation page stays fully mounted — wave executor keeps running
-
-### What Gets Removed
-
-The `CurationDiagnosticsPage.tsx` route remains available but the primary access point switches from new-tab to the inline Sheet. The `beforeunload` guard from the previous fix remains intact for browser refresh/close scenarios.
+Client-side state management fix only.
 
