@@ -36,6 +36,11 @@ export interface ChallengeContext {
   solutionType: SolutionType | null;
   solutionTypes: string[];
   seekerSegment: string | null;
+  organizationName: string | null;
+  organizationDescription: string | null;
+  organizationCity: string | null;
+  organizationWebsite: string | null;
+  operatingModel: string | null;
   todaysDate: string;
 
   /** All section contents (key → serialized content or null) */
@@ -166,6 +171,11 @@ export interface BuildChallengeContextOptions {
   solutionTypes?: string[];
   seekerSegment?: string | null;
   organizationTypeId?: string | null;
+  organizationName?: string | null;
+  organizationDescription?: string | null;
+  organizationCity?: string | null;
+  organizationWebsite?: string | null;
+  operatingModel?: string | null;
   maturityLevelFromChallenge?: string | null;
 
   /** All section data from the Zustand store */
@@ -223,6 +233,11 @@ export function buildChallengeContext(opts: BuildChallengeContextOptions): Chall
     solutionType: opts.solutionType ?? null,
     solutionTypes: opts.solutionTypes ?? [],
     seekerSegment: opts.seekerSegment ?? null,
+    organizationName: opts.organizationName ?? null,
+    organizationDescription: opts.organizationDescription ?? null,
+    organizationCity: opts.organizationCity ?? null,
+    organizationWebsite: opts.organizationWebsite ?? null,
+    operatingModel: opts.operatingModel ?? null,
     todaysDate,
     sections,
     maturityLevel,
@@ -240,7 +255,7 @@ export function buildChallengeContext(opts: BuildChallengeContextOptions): Chall
       validComplexityLevels: opts.masterData?.validComplexityLevels ?? ['L1', 'L2', 'L3', 'L4', 'L5'],
       validEligibilityTypes: opts.masterData?.validEligibilityTypes ?? [],
       validIPModels: opts.masterData?.validIPModels ?? ['IP-EA', 'IP-NEL', 'IP-EL', 'IP-JO', 'IP-SR'],
-      validVisibilityOptions: opts.masterData?.validVisibilityOptions ?? ['anonymous', 'named', 'verified'],
+      validVisibilityOptions: opts.masterData?.validVisibilityOptions ?? ['public', 'private', 'invite_only'],
     },
   };
 }

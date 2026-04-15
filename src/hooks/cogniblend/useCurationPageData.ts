@@ -37,8 +37,9 @@ const CHALLENGE_CORE_SELECT = [
   "extended_brief", "creator_legal_instructions",
   "ai_section_reviews", "visibility",
   "evaluation_method", "evaluator_count", "solver_audience",
-  // JOIN org type name inline to eliminate waterfall
-  "seeker_organizations!challenges_organization_id_fkey(organization_type_id, organization_types(name))",
+  "industry_segment_id",
+  // JOIN org + industry inline to eliminate waterfall
+  "seeker_organizations!challenges_organization_id_fkey(organization_type_id, organization_name, organization_description, website_url, hq_city, operating_model, organization_types(name))",
 ].join(", ");
 
 const CHALLENGE_DEFERRED_SELECT = [

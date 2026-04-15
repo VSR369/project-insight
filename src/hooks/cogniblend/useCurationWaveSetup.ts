@@ -42,17 +42,26 @@ export function useCurationWaveSetup({
         if (entry) storeSections[key as SectionKey] = { data: entry.data };
       }
     }
+
+    // Extract real org data from the joined seeker_organizations
+    const org = challenge?.seeker_organizations;
+
     return {
       challengeId: challengeId!,
       challengeTitle: challenge?.title ?? '',
-      solutionType: (challenge?.solution_type as any) ?? null,
+      solutionType: (challenge?.solution_type as BuildChallengeContextOptions['solutionType']) ?? null,
       solutionTypes: Array.isArray(challenge?.solution_types) ? (challenge.solution_types as string[]) : [],
-      seekerSegment: null,
-      organizationTypeId: null,
+      seekerSegment: org?.industry_segments?.name ?? null,
+      organizationTypeId: org?.organization_type_id ?? null,
+      organizationName: org?.organization_name ?? null,
+      organizationDescription: org?.organization_description ?? null,
+      organizationCity: org?.hq_city ?? null,
+      organizationWebsite: org?.website_url ?? null,
+      operatingModel: org?.operating_model ?? challenge?.operating_model ?? null,
       maturityLevelFromChallenge: challenge?.maturity_level ?? null,
       storeSections,
     };
-  }, [challengeId, challenge?.title, challenge?.maturity_level]);
+  }, [challengeId, challenge?.title, challenge?.maturity_level, challenge?.seeker_organizations, challenge?.operating_model, challenge?.solution_type, challenge?.solution_types]);
 
   const handleWaveSectionReviewed = useCallback((sectionKey: string, review: SectionReview) => {
     const normalized = normalizeSectionReview(review);
