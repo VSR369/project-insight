@@ -89,6 +89,10 @@ export interface PromptContext {
   todaysDate: string;
   solutionType?: string | null;
   seekerSegment?: string | null;
+  organizationName?: string | null;
+  organizationDescription?: string | null;
+  organizationCity?: string | null;
+  operatingModel?: string | null;
   maturityLevel?: string | null;
   complexityLevel?: string | null;
   rateCard?: {
