@@ -1,7 +1,8 @@
 /**
  * useCurationAIActions — AI review, quality analysis, and wave execution callbacks.
- * Now uses unified analyse-challenge and generate-suggestions endpoints.
- * Keeps wave executors for single-section re-review only.
+ * Restored to wave-based architecture for maximum quality per section.
+ * Pass 1: Wave executor with pass1Only=true (comments only).
+ * Pass 2: Wave executor with skipAnalysis=true (suggestions using Pass 1 comments).
  */
 
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
@@ -14,7 +15,6 @@ import { buildChallengeContext, type BuildChallengeContextOptions } from '@/lib/
 import { detectBudgetShortfall, type BudgetShortfallResult } from '@/lib/cogniblend/budgetShortfallDetection';
 import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import { resolveIndustrySegmentId, parseJson } from '@/lib/cogniblend/curationHelpers';
-import { DISCOVERY_WAVE_NUMBER, createInitialWaveProgressWithDiscovery, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import { validateMasterDataInReviews } from '@/lib/cogniblend/masterDataValidator';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
 import { parseJson as jsonParse } from '@/lib/cogniblend/jsonbUnwrap';
@@ -22,21 +22,22 @@ import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview'
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
 import type { Json } from '@/integrations/supabase/types';
-import type { AnalyseProgressState } from '@/components/cogniblend/curation/AnalyseProgressPanel';
-import { IDLE_PROGRESS } from '@/components/cogniblend/curation/AnalyseProgressPanel';
+import type { WaveProgress } from '@/lib/cogniblend/waveConfig';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
   challengeId: string | undefined;
   challenge: Record<string, unknown> | null;
-  curationStore: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  curationStore: ReturnType<typeof import('@/store/curationFormStore').getCurationFormStore> | null;
   optimisticIndustrySegId: string | null;
   isWaveRunning: boolean;
   aiReviews: SectionReview[];
   buildContextOptions: () => BuildChallengeContextOptions;
   pass1SetWaveProgress: Dispatch<SetStateAction<WaveProgress>>;
-  saveSectionMutationRef: React.RefObject<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  setPreFlightResult: (v: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  executeWavesPass1: () => Promise<void>;
+  executeWavesPass2: () => Promise<void>;
+  saveSectionMutationRef: React.RefObject<ReturnType<typeof import('@tanstack/react-query').useMutation>>;
+  setPreFlightResult: (v: unknown) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
   setAiReviewLoading: (v: boolean) => void;
   setTriageTotalCount: (v: number) => void;
@@ -44,19 +45,19 @@ interface UseCurationAIActionsOptions {
   setAiQuality: (v: AIQualitySummary) => void;
   setAiQualityLoading: (v: boolean) => void;
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
-  setAiSuggestedComplexity: (v: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  setAiSuggestedComplexity: (v: unknown) => void;
   setHighlightWarnings: (v: boolean) => void;
   setContextLibraryOpen: (v: boolean) => void;
   setPass1DoneSession: (v: boolean) => void;
   setGenerateDoneSession: (v: boolean) => void;
   setContextLibraryReviewed?: (v: boolean) => void;
-  setAnalyseProgress: (v: AnalyseProgressState | ((prev: AnalyseProgressState) => AnalyseProgressState)) => void;
 }
 
 export function useCurationAIActions({
   challengeId, challenge, curationStore, optimisticIndustrySegId,
   isWaveRunning, aiReviews, buildContextOptions,
   pass1SetWaveProgress,
+  executeWavesPass1, executeWavesPass2,
   saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen,
   setAiReviewLoading, setTriageTotalCount, setBudgetShortfall,
   setAiQuality, setAiQualityLoading, setAiReviews,
@@ -64,25 +65,24 @@ export function useCurationAIActions({
   setPass1DoneSession,
   setGenerateDoneSession,
   setContextLibraryReviewed,
-  setAnalyseProgress,
 }: UseCurationAIActionsOptions) {
 
   const queryClient = useQueryClient();
 
-  // Shared pre-flight logic extracted for reuse
+  // ── Shared pre-flight logic ──
   const runPreFlight = useCallback((): ReturnType<typeof preFlightCheck> | null => {
     if (!challengeId || !challenge) return null;
     if (isWaveRunning) return null;
 
-    const store = curationStore;
     const sectionContents: Record<string, string | null> = {};
-    if (store) {
-      const state = store.getState();
+    if (curationStore) {
+      const state = curationStore.getState();
       for (const [key, entry] of Object.entries(state.sections)) {
-        if ((entry as any)?.data != null) {
-          sectionContents[key] = typeof (entry as any).data === 'string' ? (entry as any).data : JSON.stringify((entry as any).data);
+        if ((entry as Record<string, unknown>)?.data != null) {
+          const d = (entry as Record<string, unknown>).data;
+          sectionContents[key] = typeof d === 'string' ? d : JSON.stringify(d);
         } else {
-          sectionContents[key] = (challenge as any)?.[key] ?? null;
+          sectionContents[key] = (challenge as Record<string, unknown>)?.[key] as string ?? null;
         }
       }
     }
@@ -97,7 +97,6 @@ export function useCurationAIActions({
       }
     }
 
-    // Seed Creator-filled fields from DB if not already in store
     const creatorFields = [
       'problem_statement', 'scope', 'maturity_level', 'domain_tags',
       'deliverables', 'evaluation_criteria', 'reward_structure',
@@ -118,7 +117,7 @@ export function useCurationAIActions({
 
     if (!industrySegId) {
       pfResult.missingMandatory.push({
-        sectionId: 'context_and_background' as any,
+        sectionId: 'context_and_background' as unknown as import('@/types/sections').SectionKey,
         sectionName: 'Industry Segment',
         reason: 'Industry segment must be set in Context & Background before AI review.',
       });
@@ -128,8 +127,7 @@ export function useCurationAIActions({
     return pfResult;
   }, [challengeId, challenge, isWaveRunning, curationStore, optimisticIndustrySegId]);
 
-  // ── runAnalyseFlow: deterministic Pass 1 pipeline ──
-  // analyse → discover (with awaited extraction) → digest → open Context Library
+  // ── runAnalyseFlow: Wave-based Pass 1 → Discovery → Extraction ──
   const runAnalyseFlow = useCallback(async () => {
     setPass1DoneSession(false);
     setGenerateDoneSession(false);
@@ -143,64 +141,19 @@ export function useCurationAIActions({
 
     setAiReviewLoading(true);
     setTriageTotalCount(0);
-    curationStore.getState().clearAllSuggestions();
-
-    // Stage-based progress
-    const mkStages = (): AnalyseProgressState => ({
-      phase: 'running',
-      stages: [
-        { name: 'Analysing All Sections', status: 'running' },
-        { name: 'Discovering Context Sources', status: 'pending' },
-        { name: 'Extracting & Indexing Sources', status: 'pending' },
-      ],
-    });
-    setAnalyseProgress(mkStages());
-
-    const updateStage = (idx: number, status: 'completed' | 'error', detail?: string) => {
-      setAnalyseProgress((prev: AnalyseProgressState) => ({
-        ...prev,
-        phase: status === 'error' && idx === 0 ? 'error' : prev.phase,
-        stages: prev.stages.map((s, i) => {
-          if (i < idx) return { ...s, status: 'completed' as const };
-          if (i === idx) return { ...s, status, detail: detail ?? s.detail };
-          if (i === idx + 1 && status === 'completed') return { ...s, status: 'running' as const };
-          return s;
-        }),
-      }));
-    };
+    curationStore?.getState().clearAllSuggestions();
 
     try {
-      // ── Stage 1: Analyse ──
-      const { data: analyseResult, error: analyseError } = await supabase.functions.invoke('analyse-challenge', {
-        body: { challenge_id: challengeId },
-      });
-      if (analyseError || !analyseResult?.success) {
-        const msg = analyseResult?.error?.message ?? analyseError?.message ?? 'Unknown error';
-        throw new Error(msg);
-      }
+      // ── Pass 1: Wave-based analysis (comments only) ──
+      await executeWavesPass1();
 
-      const rawReviews: SectionReview[] = (analyseResult.data?.reviews ?? []).map(normalizeSectionReview);
-      const validation = validateMasterDataInReviews(rawReviews);
-      if (!validation.isValid) {
-        logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'analyse_challenge', component: 'useCurationAIActions' });
-      }
-      const validatedReviews = validation.correctedReviews;
-      setAiReviews(validatedReviews);
-      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: validatedReviews });
-
-      const reviewedCount = validatedReviews.filter((r) => r.status === 'pass' || r.status === 'warning').length;
-      const draftCount = validatedReviews.filter((r) => r.status === 'needs_revision').length;
-      updateStage(0, 'completed', `${reviewedCount} reviewed, ${draftCount} need revision`);
-
-      // ── Stage 2: Discovery ──
-      let discoveryOk = true;
+      // ── Discovery: discover-context-resources ──
       let autoAcceptedCount = 0;
       try {
         const { data: discoverResult, error: discoverError } = await supabase.functions.invoke('discover-context-resources', {
           body: { challenge_id: challengeId },
         });
         if (discoverError || !discoverResult?.success) {
-          discoveryOk = false;
           const reason = discoverResult?.reason ?? discoverResult?.error?.message ?? discoverError?.message ?? 'Unknown';
           toast.warning(`Discovery: ${reason}. Add sources manually.`, { duration: 6000 });
         } else {
@@ -217,33 +170,22 @@ export function useCurationAIActions({
         queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
       } catch (discErr: unknown) {
-        discoveryOk = false;
         const msg = discErr instanceof Error ? discErr.message : 'Network error';
         toast.warning(`Discovery failed: ${msg}. Add sources manually.`, { duration: 6000 });
       }
-      updateStage(1, discoveryOk ? 'completed' : 'error',
-        discoveryOk ? `${autoAcceptedCount} sources auto-accepted` : 'Failed — add sources manually');
 
-      // ── Stage 3: Extraction (auto-accepted sources already awaited in discover) ──
-      updateStage(2, 'completed', `${autoAcceptedCount} sources indexed`);
-
-      // ── All done ──
-      setAnalyseProgress((prev: AnalyseProgressState) => ({ ...prev, phase: 'completed' }));
-      setTriageTotalCount(validatedReviews.length);
       setPass1DoneSession(true);
       toast.success('Analysis complete. Review sources in Context Library, then Generate Suggestions.');
       setContextLibraryOpen(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       toast.error(`Analysis failed: ${msg}`);
-      setAnalyseProgress((prev: AnalyseProgressState) => ({ ...prev, phase: 'error' }));
     } finally {
       setAiReviewLoading(false);
     }
-  }, [setAnalyseProgress, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore, saveSectionMutationRef]);
+  }, [executeWavesPass1, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore]);
 
-  // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
-  // ── Step 1: Analyse Challenge (Pass 1 only) ──
+  // ── handleAnalyse: Pre-flight → runAnalyseFlow ──
   const handleAnalyse = useCallback(async () => {
     const pfResult = runPreFlight();
     if (!pfResult) return;
@@ -255,106 +197,45 @@ export function useCurationAIActions({
     await runAnalyseFlow();
   }, [runPreFlight, runAnalyseFlow, setPreFlightResult, setPreFlightDialogOpen]);
 
-  // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
   const handleAIReview = useCallback(async () => {
     await handleAnalyse();
   }, [handleAnalyse]);
 
-  // ── Step 2: Generate Suggestions (Pass 2 — digest is REQUIRED key input) ──
+  // ── handleGenerateSuggestions: Context Digest → Wave-based Pass 2 ──
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
 
-    setAnalyseProgress({
-      phase: 'running',
-      stages: [
-        { name: 'Building Context Digest', status: 'running' },
-        { name: 'Generating Suggestions for All Sections', status: 'pending' },
-        { name: 'Validating & Saving Results', status: 'pending' },
-      ],
-    });
-
     try {
-      // Stage 1: Digest
+      // Stage 1: Generate context digest
       let digestAvailable = false;
       try {
         const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
           body: { challenge_id: challengeId },
         });
         digestAvailable = !digestError && digestResult?.success;
+        if (digestAvailable) {
+          toast.info('Context digest generated — grounding suggestions.');
+        }
       } catch { /* non-blocking */ }
 
-      setAnalyseProgress((prev: AnalyseProgressState) => ({
-        ...prev,
-        stages: prev.stages.map((s, i) =>
-          i === 0 ? { ...s, status: 'completed' as const, detail: digestAvailable ? 'Digest ready' : 'Skipped — using challenge context' } :
-          i === 1 ? { ...s, status: 'running' as const } : s
-        ),
-      }));
+      // Stage 2: Wave-based Pass 2 (suggestions using Pass 1 comments)
+      await executeWavesPass2();
 
-      // Stage 2: Generate
-      const { data: genResult, error: genError } = await supabase.functions.invoke('generate-suggestions', {
-        body: { challenge_id: challengeId, pass1_reviews: aiReviews },
-      });
-
-      if (genError || !genResult?.success) {
-        const msg = genResult?.error?.message ?? genError?.message ?? 'Unknown error';
-        throw new Error(msg);
-      }
-
-      setAnalyseProgress((prev: AnalyseProgressState) => ({
-        ...prev,
-        stages: prev.stages.map((s, i) =>
-          i === 1 ? { ...s, status: 'completed' as const } :
-          i === 2 ? { ...s, status: 'running' as const } : s
-        ),
-      }));
-
-      // Stage 3: Validate & merge
-      const suggestions: SectionReview[] = (genResult.data?.reviews ?? []).map(normalizeSectionReview);
-      const validation = validateMasterDataInReviews(suggestions);
-      if (!validation.isValid) {
-        logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'generate_suggestions', component: 'useCurationAIActions' });
-      }
-
-      let mergedResult: SectionReview[] = [];
-      setAiReviews((prev) => {
-        const merged = [...prev];
-        for (const s of validation.correctedReviews) {
-          const idx = merged.findIndex((r) => r.section_key === s.section_key);
-          if (idx >= 0) merged[idx] = { ...merged[idx], ...s };
-          else merged.push(s);
-        }
-        mergedResult = merged;
-        return merged;
-      });
-
-      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: mergedResult });
-
+      // Stage 3: Post-processing
       const ctx = buildChallengeContext(buildContextOptions());
       const shortfall = detectBudgetShortfall(ctx);
       setBudgetShortfall(shortfall);
-      setTriageTotalCount(suggestions.length);
       setGenerateDoneSession(true);
 
-      setAnalyseProgress({
-        phase: 'completed',
-        stages: [
-          { name: 'Building Context Digest', status: 'completed', detail: digestAvailable ? 'Digest ready' : 'Skipped' },
-          { name: 'Generating Suggestions', status: 'completed', detail: `${suggestions.length} sections` },
-          { name: 'Validating & Saving', status: 'completed', detail: validation.isValid ? 'All valid' : `${validation.issues.length} corrected` },
-        ],
-      });
-
-      toast.success(`Generated suggestions for ${suggestions.length} sections`);
+      toast.success('Suggestions generated for all sections.');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       toast.error(`Generation failed: ${msg}`);
-      setAnalyseProgress((prev: AnalyseProgressState) => ({ ...prev, phase: 'error' }));
     } finally {
       setAiReviewLoading(false);
     }
-  }, [setAnalyseProgress, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession, setAiReviews, aiReviews, saveSectionMutationRef]);
+  }, [buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession, executeWavesPass2]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
@@ -365,7 +246,7 @@ export function useCurationAIActions({
       });
       if (error) {
         let msg = error.message;
-        try { const body = await (error as any).context?.json?.(); msg = body?.error?.message ?? msg; } catch {}
+        try { const body = await (error as Record<string, unknown>).context?.json?.(); msg = body?.error?.message ?? msg; } catch { /* ignore */ }
         throw new Error(msg);
       }
       if (data?.success && data?.data) {
@@ -376,8 +257,9 @@ export function useCurationAIActions({
       } else {
         throw new Error(data?.error?.message ?? "Unexpected response from AI analysis");
       }
-    } catch (e: any) {
-      toast.error(`AI analysis failed: ${e.message ?? "Unknown error"}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? (e as Error).message : 'Unknown error';
+      toast.error(`AI analysis failed: ${msg}`);
     } finally {
       setAiQualityLoading(false);
     }
@@ -394,7 +276,6 @@ export function useCurationAIActions({
     saveSectionMutationRef.current.mutate({ field: "ai_section_reviews", value: mergedResult });
   }, [setAiReviews, saveSectionMutationRef]);
 
-  // ── Delegated: complexity re-review, accept-all, warnings ──
   const complexity = useCurationComplexityActions({
     challengeId, aiReviews, setAiReviews,
     setAiSuggestedComplexity, setHighlightWarnings, saveSectionMutationRef,
