@@ -323,7 +323,7 @@ export default function CurationReviewPage() {
           currentPhase={o.challenge.current_phase}
           onFreezeForLegal={handleFreezeForLegal}
           contextLibraryReviewed={o.contextLibraryReviewed}
-          analyseProgress={o.analyseProgress}
+          contextLibraryReviewed={o.contextLibraryReviewed}
           creatorApprovalRequired={(() => {
             try {
               const eb = typeof o.challenge?.extended_brief === 'string'

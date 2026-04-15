@@ -78,7 +78,6 @@ export interface CurationRightRailProps {
   creatorApprovalRequired?: boolean | null;
   communityCreationAllowed?: boolean;
   isAnonymous?: boolean;
-  analyseProgress?: AnalyseProgressState;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
@@ -170,12 +169,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
         </Button>
       )}
 
-      {/* Stage-based progress for unified analyse/generate flow */}
-      {props.analyseProgress && props.analyseProgress.phase !== 'idle' ? (
-        <AnalyseProgressPanel progress={props.analyseProgress} />
-      ) : (
-        <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
-      )}
+      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
 
       <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
 
