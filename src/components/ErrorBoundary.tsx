@@ -1,11 +1,12 @@
 import React from "react";
 import { AlertTriangle, RefreshCw, Home, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  generateCorrelationId, 
+import {
+  generateCorrelationId,
   getSessionCorrelationId,
-  logAuditEvent 
+  logAuditEvent,
 } from "@/lib/errorHandler";
+import { hardReloadCurrentPageForDynamicImportFailure } from "@/lib/lazyRetry";
 
 // ============================================================================
 // Types & Interfaces
@@ -39,15 +40,15 @@ interface ErrorBoundaryState {
 // ============================================================================
 
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { 
-    hasError: false, 
+  state: ErrorBoundaryState = {
+    hasError: false,
     retryCount: 0,
     copied: false,
   };
 
   static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
-    return { 
-      hasError: true, 
+    return {
+      hasError: true,
       error,
       correlationId: generateCorrelationId(),
     };
@@ -56,7 +57,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   componentDidCatch(error: unknown, errorInfo: React.ErrorInfo) {
     const correlationId = this.state.correlationId || generateCorrelationId();
     const sessionId = getSessionCorrelationId();
-    
+
     // Log structured error with correlation ID
     logAuditEvent('ERROR_BOUNDARY_CAUGHT', {
       correlationId,
@@ -77,16 +78,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   handleRetry = () => {
     const newRetryCount = this.state.retryCount + 1;
-    
+
     logAuditEvent('ERROR_BOUNDARY_RETRY', {
       correlationId: this.state.correlationId,
       componentName: this.props.componentName || 'Unknown',
       retryCount: newRetryCount,
     });
 
-    this.setState({ 
-      hasError: false, 
-      error: undefined, 
+    if (hardReloadCurrentPageForDynamicImportFailure(this.state.error)) {
+      logAuditEvent('ERROR_BOUNDARY_RELOAD_FOR_DYNAMIC_IMPORT', {
+        correlationId: this.state.correlationId,
+        componentName: this.props.componentName || 'Unknown',
+        retryCount: newRetryCount,
+      });
+      return;
+    }
+
+    this.setState({
+      hasError: false,
+      error: undefined,
       errorInfo: undefined,
       retryCount: newRetryCount,
       copied: false,
