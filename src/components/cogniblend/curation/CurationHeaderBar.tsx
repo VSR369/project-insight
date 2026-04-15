@@ -124,6 +124,7 @@ export function CurationHeaderBar({
   industrySegments,
   onOpenGuide,
 }: CurationHeaderBarProps) {
+  const previewNav = useNavigate();
   return (
     <>
       {/* Header */}
