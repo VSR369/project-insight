@@ -42,7 +42,13 @@ export interface ChallengeDataCore {
   /** Joined from seeker_organizations → organization_types */
   seeker_organizations?: {
     organization_type_id: string | null;
+    organization_name: string | null;
+    organization_description: string | null;
+    website_url: string | null;
+    hq_city: string | null;
+    operating_model: string | null;
     organization_types: { name: string } | null;
+    industry_segments: { name: string; code: string } | null;
   } | null;
 }
 
