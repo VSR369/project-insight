@@ -274,26 +274,26 @@ export function useCurationAIActions({
     await handleAnalyse();
   }, [handleAnalyse]);
 
-  // ── Step 2: Generate Suggestions (Pass 2 — digest is OPTIONAL) ──
+  // ── Step 2: Generate Suggestions (Pass 2 — digest is REQUIRED key input) ──
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
     try {
-      // TRY digest but do NOT block on failure
-      let digestAvailable = false;
-      try {
-        const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
-          body: { challenge_id: challengeId },
-        });
-        digestAvailable = !digestError && digestResult?.success;
-        if (!digestAvailable) {
-          toast.info('Context digest unavailable — generating suggestions from challenge content and industry intelligence.', { duration: 5000 });
-        }
-      } catch {
-        toast.info('Context digest unavailable — proceeding with available context.', { duration: 5000 });
+      // Regenerate digest to ensure it's fresh before Pass 2
+      toast.info('Refreshing context digest...', { duration: 3000 });
+      const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
+        body: { challenge_id: challengeId },
+      });
+      const digestOk = !digestError && digestResult?.success;
+      if (!digestOk) {
+        const reason = digestResult?.error?.message ?? digestError?.message ?? 'No accepted sources with extracted content';
+        toast.warning(`Context digest unavailable: ${reason}. Suggestions will use challenge content and industry intelligence only.`, { duration: 6000 });
+      } else {
+        toast.success(`Digest refreshed from ${digestResult?.data?.source_count ?? 0} sources`);
       }
 
-      // ALWAYS proceed to generate-suggestions with current aiReviews from client state
+      // Proceed to generate-suggestions with current aiReviews from client state
+      toast.info('Generating suggestions for all sections...', { duration: 3000 });
       const { data: genResult, error: genError } = await supabase.functions.invoke('generate-suggestions', {
         body: { challenge_id: challengeId, pass1_reviews: aiReviews },
       });
@@ -332,6 +332,7 @@ export function useCurationAIActions({
       setBudgetShortfall(shortfall);
       setTriageTotalCount(suggestions.length);
       setGenerateDoneSession(true);
+      toast.success(`Generated suggestions for ${suggestions.length} sections`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       toast.error(`Generation failed: ${msg}`);
