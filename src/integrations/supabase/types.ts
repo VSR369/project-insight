@@ -1020,6 +1020,7 @@ export type Database = {
           extracted_text: string | null
           extraction_error: string | null
           extraction_method: string | null
+          extraction_quality: string
           extraction_status: string | null
           file_name: string | null
           file_size: number | null
@@ -1052,6 +1053,7 @@ export type Database = {
           extracted_text?: string | null
           extraction_error?: string | null
           extraction_method?: string | null
+          extraction_quality?: string
           extraction_status?: string | null
           file_name?: string | null
           file_size?: number | null
@@ -1084,6 +1086,7 @@ export type Database = {
           extracted_text?: string | null
           extraction_error?: string | null
           extraction_method?: string | null
+          extraction_quality?: string
           extraction_status?: string | null
           file_name?: string | null
           file_size?: number | null

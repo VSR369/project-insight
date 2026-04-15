@@ -48,8 +48,8 @@ export async function fetchMasterDataOptions(
     .order("display_order");
   if (eligibilityData?.length) {
     result.eligibility = eligibilityData.map((r: any) => ({ code: r.code, label: r.label }));
-    // Visibility uses the same solver tier codes as eligibility
-    result.visibility = result.eligibility;
+    // NOTE: visibility uses STATIC_MASTER_DATA values (public/private/invite_only),
+    // NOT eligibility codes. Do NOT overwrite result.visibility here.
   }
 
   // Fetch complexity levels
